@@ -23,6 +23,7 @@ The alpha is complete when an operator can:
 - SQLite task persistence with database-enforced append-only audit events.
 - Read-only Windows Sandbox discovery and local frame capture.
 - Target allowlisting and three policy profiles with containment invariants.
+- Persistent, audited emergency stop with guarded reset and effectful-request gate.
 - No task or input execution.
 
 ## Out of scope for this scaffold

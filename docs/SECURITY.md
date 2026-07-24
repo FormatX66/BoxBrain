@@ -41,6 +41,19 @@ is disabled by default outside the development environment.
 `research` and `open` may reduce per-action confirmations, but they do not
 remove containment, logging, identity, or emergency-stop controls.
 
+## Emergency-stop boundary
+
+The emergency-stop state is persisted in the controller database and remains
+engaged across controller restarts. Engagement and reset requests are appended
+to the immutable audit stream. While engaged, effectful controller requests
+such as starting Windows Sandbox are rejected before the launcher is called;
+read-only health, audit, target discovery, and frame observation remain
+available. Reset requires the exact confirmation value `RESET`, and the
+dashboard also requires an explicit typed confirmation.
+
+All future executors and effectful plugins must acquire the same controller
+action gate and re-check the persistent stop state before acting.
+
 ## Before adding an executor
 
 - Use a VM snapshot with no sensitive files or credentials.

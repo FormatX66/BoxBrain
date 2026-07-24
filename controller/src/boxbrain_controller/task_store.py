@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from .models import (
     AuditEvent,
     AuditEventType,
+    EmergencyStopState,
     TaskCreate,
     TaskRecord,
     TaskStatus,
@@ -158,8 +159,125 @@ class TaskStore:
             ).fetchall()
         return [self._event_from_row(row) for row in rows]
 
+    def get_emergency_stop(self) -> EmergencyStopState:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT engaged, reason, generation, changed_at
+                FROM controller_state
+                WHERE key = 'emergency_stop'
+                """
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("Emergency-stop state is not initialized.")
+        return self._emergency_stop_from_row(row)
+
+    def engage_emergency_stop(self, *, reason: str) -> EmergencyStopState:
+        created_at = datetime.now(UTC)
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT engaged, reason, generation, changed_at
+                FROM controller_state
+                WHERE key = 'emergency_stop'
+                """
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Emergency-stop state is not initialized.")
+
+            changed = not bool(row["engaged"])
+            if changed:
+                generation = row["generation"] + 1
+                connection.execute(
+                    """
+                    UPDATE controller_state
+                    SET engaged = 1, reason = ?, generation = ?, changed_at = ?
+                    WHERE key = 'emergency_stop'
+                    """,
+                    (reason, generation, created_at.isoformat()),
+                )
+                state = EmergencyStopState(
+                    engaged=True,
+                    reason=reason,
+                    generation=generation,
+                    changed_at=created_at,
+                )
+            else:
+                state = self._emergency_stop_from_row(row)
+
+            self._insert_event(
+                connection,
+                event_type="safety.emergency_stop_engaged",
+                target_id=None,
+                message=(
+                    "Emergency stop engaged."
+                    if changed
+                    else "Emergency stop engagement requested; already engaged."
+                ),
+                details={
+                    "result": "engaged" if changed else "already_engaged",
+                    "reason": state.reason,
+                    "generation": state.generation,
+                },
+                created_at=created_at,
+            )
+        return state
+
+    def reset_emergency_stop(self) -> EmergencyStopState:
+        created_at = datetime.now(UTC)
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT engaged, reason, generation, changed_at
+                FROM controller_state
+                WHERE key = 'emergency_stop'
+                """
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Emergency-stop state is not initialized.")
+
+            changed = bool(row["engaged"])
+            prior_reason = row["reason"]
+            if changed:
+                generation = row["generation"] + 1
+                connection.execute(
+                    """
+                    UPDATE controller_state
+                    SET engaged = 0, reason = NULL, generation = ?, changed_at = ?
+                    WHERE key = 'emergency_stop'
+                    """,
+                    (generation, created_at.isoformat()),
+                )
+                state = EmergencyStopState(
+                    engaged=False,
+                    reason=None,
+                    generation=generation,
+                    changed_at=created_at,
+                )
+            else:
+                state = self._emergency_stop_from_row(row)
+
+            self._insert_event(
+                connection,
+                event_type="safety.emergency_stop_reset",
+                target_id=None,
+                message=(
+                    "Emergency stop reset."
+                    if changed
+                    else "Emergency stop reset requested; already clear."
+                ),
+                details={
+                    "result": "reset" if changed else "already_clear",
+                    "prior_reason": prior_reason,
+                    "generation": state.generation,
+                },
+                created_at=created_at,
+            )
+        return state
+
     def _initialize(self) -> None:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        initialized_at = datetime.now(UTC).isoformat()
         with self._connect() as connection:
             connection.executescript(
                 """
@@ -187,6 +305,14 @@ class TaskStore:
                     FOREIGN KEY (task_id) REFERENCES tasks(id)
                 );
 
+                CREATE TABLE IF NOT EXISTS controller_state (
+                    key TEXT PRIMARY KEY CHECK (key = 'emergency_stop'),
+                    engaged INTEGER NOT NULL CHECK (engaged IN (0, 1)),
+                    reason TEXT,
+                    generation INTEGER NOT NULL CHECK (generation >= 0),
+                    changed_at TEXT NOT NULL
+                );
+
                 CREATE TRIGGER IF NOT EXISTS audit_events_no_update
                 BEFORE UPDATE ON audit_events
                 BEGIN
@@ -199,6 +325,14 @@ class TaskStore:
                     SELECT RAISE(ABORT, 'audit events are append-only');
                 END;
                 """
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO controller_state (
+                    key, engaged, reason, generation, changed_at
+                ) VALUES ('emergency_stop', 0, NULL, 0, ?)
+                """,
+                (initialized_at,),
             )
 
     def _connect(self) -> sqlite3.Connection:
@@ -230,3 +364,44 @@ class TaskStore:
             details=json.loads(row["details_json"]),
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+
+    @staticmethod
+    def _emergency_stop_from_row(row: sqlite3.Row) -> EmergencyStopState:
+        return EmergencyStopState(
+            engaged=bool(row["engaged"]),
+            reason=row["reason"],
+            generation=row["generation"],
+            changed_at=datetime.fromisoformat(row["changed_at"]),
+        )
+
+    @staticmethod
+    def _insert_event(
+        connection: sqlite3.Connection,
+        *,
+        event_type: AuditEventType,
+        target_id: str | None,
+        message: str,
+        details: dict[str, object],
+        created_at: datetime,
+        task_id: UUID | None = None,
+    ) -> int:
+        cursor = connection.execute(
+            """
+            INSERT INTO audit_events (
+                id, event_type, task_id, target_id, message, details_json,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(uuid4()),
+                event_type,
+                str(task_id) if task_id else None,
+                target_id,
+                message,
+                json.dumps(details, separators=(",", ":")),
+                created_at.isoformat(),
+            ),
+        )
+        if cursor.lastrowid is None:
+            raise RuntimeError("SQLite did not assign an audit sequence.")
+        return cursor.lastrowid

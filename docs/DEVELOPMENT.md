@@ -82,4 +82,9 @@ and remains strictly read-only. The button is enabled by default only when
 profile can be overridden for development with `BOXBRAIN_SANDBOX_PROFILE`, but
 no path is accepted from the dashboard API. Do not expose the local controller
 port to another host.
+## Test the emergency stop
 
+Use the red stop control in the dashboard and confirm **Stop actions**. The
+engaged banner remains visible across all screens, and Sandbox launch is blocked
+until reset. Click the stopped control, type `RESET`, and select **Reset stop**.
+Both transitions appear under **Logs** and survive a controller restart.

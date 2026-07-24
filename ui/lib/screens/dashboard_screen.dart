@@ -56,8 +56,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<PluginSummary> _plugins = const [];
   List<TargetSummary> _targets = const [];
   List<AuditEventSummary> _events = const [];
+  EmergencyStopState _emergencyStop = const EmergencyStopState.unknown();
   String? _error;
   bool _loading = true;
+  bool _changingSafety = false;
   bool _eventsRefreshing = false;
   Timer? _eventTimer;
   int _selectedIndex = 0;
@@ -95,6 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.api.fetchPolicies(),
         widget.api.fetchPlugins(),
         widget.api.fetchTargets(),
+        widget.api.fetchEmergencyStop(),
         widget.api.fetchEvents(),
       ]);
       if (!mounted) return;
@@ -104,7 +107,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final policies = results[2] as List<PolicySummary>;
       final plugins = results[3] as List<PluginSummary>;
       final targets = results[4] as List<TargetSummary>;
-      final events = results[5] as List<AuditEventSummary>;
+      final emergencyStop = results[5] as EmergencyStopState;
+      final events = results[6] as List<AuditEventSummary>;
       final activeTasks = tasks
           .where((task) => task.status == 'queued' || task.status == 'running')
           .length;
@@ -116,6 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _policies = policies;
         _plugins = plugins;
         _targets = targets;
+        _emergencyStop = emergencyStop;
         _events = events;
         _status = ControllerStatus.online(
           activeTasks: activeTasks,
@@ -145,12 +150,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     _eventsRefreshing = true;
     try {
-      final events = await widget.api.fetchEvents();
-      if (mounted) setState(() => _events = events);
+      final results = await Future.wait<Object>([
+        widget.api.fetchEvents(),
+        widget.api.fetchEmergencyStop(),
+        widget.api.fetchTargets(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _events = results[0] as List<AuditEventSummary>;
+          _emergencyStop = results[1] as EmergencyStopState;
+          _targets = results[2] as List<TargetSummary>;
+        });
+      }
     } catch (_) {
       // The full refresh surface reports controller connection errors.
     } finally {
       _eventsRefreshing = false;
+    }
+  }
+
+  Future<void> _toggleEmergencyStop() async {
+    if (_changingSafety || _status.connection != ConnectionStateLabel.online) {
+      return;
+    }
+
+    final confirmed = _emergencyStop.engaged
+        ? await showDialog<bool>(
+            context: context,
+            builder: (context) => const _EmergencyStopResetDialog(),
+          )
+        : await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              icon: Icon(
+                Icons.stop_circle_outlined,
+                color: Theme.of(context).colorScheme.error,
+                size: 42,
+              ),
+              title: const Text('Engage emergency stop?'),
+              content: const Text(
+                'This blocks Sandbox launches and all future executor actions. '
+                'Read-only observation remains available.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.stop_circle),
+                  label: const Text('Stop actions'),
+                ),
+              ],
+            ),
+          );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _changingSafety = true);
+    try {
+      final state = _emergencyStop.engaged
+          ? await widget.api.resetEmergencyStop()
+          : await widget.api.engageEmergencyStop();
+      if (!mounted) return;
+      setState(() => _emergencyStop = state);
+      await _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _changingSafety = false);
     }
   }
 
@@ -159,6 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pages = [
       _Overview(
         status: _status,
+        emergencyStop: _emergencyStop,
         tasks: _tasks,
         target: _targets.firstOrNull,
         error: _error,
@@ -169,6 +245,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _TargetSection(
         target: _targets.firstOrNull,
         status: _status,
+        emergencyStop: _emergencyStop,
         api: widget.api,
         onRefresh: _refresh,
       ),
@@ -208,6 +285,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : AppBar(
                   title: const Text('BoxBrain'),
                   actions: [
+                    _EmergencyStopControl(
+                      state: _emergencyStop,
+                      busy: _changingSafety,
+                      compact: true,
+                      onPressed:
+                          _status.connection == ConnectionStateLabel.online
+                              ? _toggleEmergencyStop
+                              : null,
+                    ),
+                    const SizedBox(width: 8),
                     _ConnectionBadge(
                       status: _status,
                       loading: _loading,
@@ -231,10 +318,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       alignment: Alignment.bottomCenter,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 20),
-                        child: _ConnectionBadge(
-                          status: _status,
-                          loading: _loading,
-                          onRetry: _refresh,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _EmergencyStopControl(
+                              state: _emergencyStop,
+                              busy: _changingSafety,
+                              compact: constraints.maxWidth < 1180,
+                              onPressed: _status.connection ==
+                                      ConnectionStateLabel.online
+                                  ? _toggleEmergencyStop
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+                            _ConnectionBadge(
+                              status: _status,
+                              loading: _loading,
+                              onRetry: _refresh,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -244,7 +346,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onDestinationSelected: _selectDestination,
                 ),
               Expanded(
-                child: IndexedStack(index: _selectedIndex, children: pages),
+                child: Column(
+                  children: [
+                    if (_emergencyStop.engaged)
+                      _EmergencyStopBanner(state: _emergencyStop),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _selectedIndex,
+                        children: pages,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -284,6 +397,175 @@ class _Brand extends StatelessWidget {
         Icon(Icons.hub, color: Theme.of(context).colorScheme.primary, size: 30),
         const SizedBox(width: 10),
         Text('BoxBrain', style: Theme.of(context).textTheme.titleLarge),
+      ],
+    );
+  }
+}
+
+class _EmergencyStopControl extends StatelessWidget {
+  const _EmergencyStopControl({
+    required this.state,
+    required this.busy,
+    required this.compact,
+    required this.onPressed,
+  });
+
+  final EmergencyStopState state;
+  final bool busy;
+  final bool compact;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tooltip = state.engaged ? 'Reset emergency stop' : 'Emergency stop';
+    final icon = busy
+        ? const SizedBox.square(
+            dimension: 17,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Icon(state.engaged ? Icons.stop_circle : Icons.stop_circle_outlined);
+    final action = busy ? null : onPressed;
+
+    if (compact) {
+      return state.engaged
+          ? IconButton.filled(
+              tooltip: tooltip,
+              style: IconButton.styleFrom(
+                backgroundColor: colors.error,
+                foregroundColor: colors.onError,
+              ),
+              onPressed: action,
+              icon: icon,
+            )
+          : IconButton.outlined(
+              tooltip: tooltip,
+              style: IconButton.styleFrom(foregroundColor: colors.error),
+              onPressed: action,
+              icon: icon,
+            );
+    }
+
+    return state.engaged
+        ? FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.error,
+              foregroundColor: colors.onError,
+            ),
+            onPressed: action,
+            icon: icon,
+            label: const Text('STOPPED'),
+          )
+        : OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: colors.error),
+            onPressed: action,
+            icon: icon,
+            label: const Text('Emergency stop'),
+          );
+  }
+}
+
+class _EmergencyStopBanner extends StatelessWidget {
+  const _EmergencyStopBanner({required this.state});
+
+  final EmergencyStopState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.stop_circle, color: colors.error),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Emergency stop engaged',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  Text(
+                    state.reason ?? 'Effectful controller actions are blocked.',
+                  ),
+                ],
+              ),
+            ),
+            if (MediaQuery.sizeOf(context).width >= 600)
+              Text('Safety generation ${state.generation}'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmergencyStopResetDialog extends StatefulWidget {
+  const _EmergencyStopResetDialog();
+
+  @override
+  State<_EmergencyStopResetDialog> createState() =>
+      _EmergencyStopResetDialogState();
+}
+
+class _EmergencyStopResetDialogState extends State<_EmergencyStopResetDialog> {
+  final _controller = TextEditingController();
+  bool _confirmed = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: Icon(
+        Icons.lock_reset,
+        color: Theme.of(context).colorScheme.error,
+        size: 42,
+      ),
+      title: const Text('Reset emergency stop'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Only reset after you have verified the target and controller are safe. '
+              'Type RESET to continue.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirmation',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() => _confirmed = value.trim() == 'RESET');
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Keep stopped'),
+        ),
+        FilledButton.icon(
+          onPressed: _confirmed ? () => Navigator.pop(context, true) : null,
+          icon: const Icon(Icons.lock_reset),
+          label: const Text('Reset stop'),
+        ),
       ],
     );
   }
@@ -332,6 +614,7 @@ class _ConnectionBadge extends StatelessWidget {
 class _Overview extends StatelessWidget {
   const _Overview({
     required this.status,
+    required this.emergencyStop,
     required this.tasks,
     required this.target,
     required this.error,
@@ -341,6 +624,7 @@ class _Overview extends StatelessWidget {
   });
 
   final ControllerStatus status;
+  final EmergencyStopState emergencyStop;
   final List<TaskSummary> tasks;
   final TargetSummary? target;
   final String? error;
@@ -435,6 +719,7 @@ class _Overview extends StatelessWidget {
                 const SizedBox(height: 20),
                 _OverviewCards(
                   status: status,
+                  emergencyStop: emergencyStop,
                   tasks: tasks,
                   target: target,
                   onViewTarget: onViewTarget,
@@ -451,12 +736,14 @@ class _Overview extends StatelessWidget {
 class _OverviewCards extends StatelessWidget {
   const _OverviewCards({
     required this.status,
+    required this.emergencyStop,
     required this.tasks,
     required this.target,
     required this.onViewTarget,
   });
 
   final ControllerStatus status;
+  final EmergencyStopState emergencyStop;
   final List<TaskSummary> tasks;
   final TargetSummary? target;
   final VoidCallback onViewTarget;
@@ -494,7 +781,8 @@ class _OverviewCards extends StatelessWidget {
             ? 'Local window capture active'
             : 'Windows Sandbox not detected',
         trailing: FilledButton.icon(
-          onPressed: target?.connected == true || target?.startEnabled == true
+          onPressed: target?.connected == true ||
+                  (target?.startEnabled == true && !emergencyStop.engaged)
               ? onViewTarget
               : null,
           icon: Icon(
@@ -519,7 +807,7 @@ class _OverviewCards extends StatelessWidget {
           rows: [
             ('Profile', status.policyProfile),
             ('Target allowlist', 'Required'),
-            ('Emergency stop', 'Armed'),
+            ('Emergency stop', emergencyStop.engaged ? 'ENGAGED' : 'Ready'),
           ],
         ),
       ),
@@ -552,12 +840,14 @@ class _TargetSection extends StatefulWidget {
   const _TargetSection({
     required this.target,
     required this.status,
+    required this.emergencyStop,
     required this.api,
     required this.onRefresh,
   });
 
   final TargetSummary? target;
   final ControllerStatus status;
+  final EmergencyStopState emergencyStop;
   final ControllerApi api;
   final VoidCallback onRefresh;
 
@@ -635,29 +925,35 @@ class _TargetSectionState extends State<_TargetSection> {
         title: 'Windows Sandbox',
         subtitle: 'Read-only access only',
         onRefresh: widget.onRefresh,
-        primaryAction: target?.startEnabled == true
-            ? FilledButton.icon(
-                onPressed: _launching ? null : _startSandbox,
-                icon: _launching
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_arrow),
-                label: Text(
-                  _launching ? 'Opening Sandbox' : 'Open Windows Sandbox',
-                ),
-              )
-            : null,
+        primaryAction:
+            target?.startEnabled == true && !widget.emergencyStop.engaged
+                ? FilledButton.icon(
+                    onPressed: _launching ? null : _startSandbox,
+                    icon: _launching
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.play_arrow),
+                    label: Text(
+                      _launching ? 'Opening Sandbox' : 'Open Windows Sandbox',
+                    ),
+                  )
+                : null,
         children: [
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(22),
+              padding: const EdgeInsets.all(22),
               child: _Callout(
-                icon: Icons.desktop_access_disabled,
-                title: 'Windows Sandbox is not running',
-                message:
-                    'Use the button above to open the isolated test profile.',
+                icon: widget.emergencyStop.engaged
+                    ? Icons.stop_circle
+                    : Icons.desktop_access_disabled,
+                title: widget.emergencyStop.engaged
+                    ? 'Emergency stop is engaged'
+                    : 'Windows Sandbox is not running',
+                message: widget.emergencyStop.engaged
+                    ? 'Reset the stop before opening the isolated test profile.'
+                    : 'Use the button above to open the isolated test profile.',
               ),
             ),
           ),
@@ -727,6 +1023,17 @@ class _TargetSectionState extends State<_TargetSection> {
             ),
           ),
         ),
+        if (widget.emergencyStop.engaged)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: const ListTile(
+              leading: Icon(Icons.stop_circle),
+              title: Text('Emergency stop engaged'),
+              subtitle: Text(
+                'Read-only observation remains available; actions are blocked.',
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -19,9 +19,18 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/tasks`
 - `POST /api/v1/tasks`
 - `GET /api/v1/tasks/{task_id}`
+- `GET /api/v1/events`
 - `GET /api/v1/policies`
 - `GET /api/v1/plugins`
+- `GET /api/v1/targets`
+- `POST /api/v1/targets/windows-sandbox/start`
+- `GET /api/v1/targets/windows-sandbox/frame`
+- `GET /api/v1/safety/emergency-stop`
+- `POST /api/v1/safety/emergency-stop/engage`
+- `POST /api/v1/safety/emergency-stop/reset`
 
 Task submission only records a queued task. No keyboard, mouse, shell, remote
-desktop, model, or plugin action is performed.
+desktop, model, or plugin action is performed. The persistent emergency stop
+blocks effectful controller requests such as Sandbox launch; resetting it
+requires the exact API confirmation value `RESET`.
 

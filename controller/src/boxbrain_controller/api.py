@@ -1,3 +1,4 @@
+from threading import Lock
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -5,6 +6,9 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from . import __version__
 from .models import (
     AuditEvent,
+    EmergencyStopEngageRequest,
+    EmergencyStopResetRequest,
+    EmergencyStopState,
     HealthResponse,
     PluginSummary,
     PolicyProfile,
@@ -29,6 +33,7 @@ sandbox_observer = WindowsSandboxObserver(
     profile_path=settings.sandbox_profile,
     start_enabled=settings.sandbox_launch_enabled,
 )
+control_lock = Lock()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -79,6 +84,36 @@ def list_events(
     return task_store.list_events(limit=limit)
 
 
+@router.get(
+    "/safety/emergency-stop",
+    response_model=EmergencyStopState,
+)
+def get_emergency_stop() -> EmergencyStopState:
+    return task_store.get_emergency_stop()
+
+
+@router.post(
+    "/safety/emergency-stop/engage",
+    response_model=EmergencyStopState,
+)
+def engage_emergency_stop(
+    request: EmergencyStopEngageRequest,
+) -> EmergencyStopState:
+    with control_lock:
+        return task_store.engage_emergency_stop(reason=request.reason)
+
+
+@router.post(
+    "/safety/emergency-stop/reset",
+    response_model=EmergencyStopState,
+)
+def reset_emergency_stop(
+    request: EmergencyStopResetRequest,
+) -> EmergencyStopState:
+    with control_lock:
+        return task_store.reset_emergency_stop()
+
+
 @router.get("/policies", response_model=list[PolicyProfile])
 def list_policies() -> list[PolicyProfile]:
     return [
@@ -112,7 +147,11 @@ def list_plugins() -> list[PluginSummary]:
 
 @router.get("/targets", response_model=list[TargetSummary])
 def list_targets() -> list[TargetSummary]:
-    return [TargetSummary.model_validate(sandbox_observer.describe())]
+    target = TargetSummary.model_validate(sandbox_observer.describe())
+    if task_store.get_emergency_stop().engaged:
+        target.start_enabled = False
+        target.start_endpoint = None
+    return [target]
 
 
 @router.post(
@@ -125,31 +164,48 @@ def start_windows_sandbox() -> TargetStartResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sandbox launch is disabled outside development.",
         )
-    try:
-        launch_status = sandbox_observer.start()
-    except SandboxStartError as error:
+    with control_lock:
+        emergency_stop = task_store.get_emergency_stop()
+        if emergency_stop.engaged:
+            task_store.append_event(
+                event_type="target.start_requested",
+                target_id=sandbox_observer.target_id,
+                message="Windows Sandbox launch blocked by emergency stop.",
+                details={
+                    "result": "blocked",
+                    "reason": "emergency_stop",
+                    "generation": emergency_stop.generation,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Emergency stop is engaged. Reset it before launching Sandbox.",
+            )
+        try:
+            launch_status = sandbox_observer.start()
+        except SandboxStartError as error:
+            task_store.append_event(
+                event_type="target.start_requested",
+                target_id=sandbox_observer.target_id,
+                message="Windows Sandbox launch failed.",
+                details={"result": "failed", "reason": str(error)},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(error),
+            ) from error
+
+        message = (
+            "Windows Sandbox is already running."
+            if launch_status == "already_running"
+            else "Windows Sandbox launch requested."
+        )
         task_store.append_event(
             event_type="target.start_requested",
             target_id=sandbox_observer.target_id,
-            message="Windows Sandbox launch failed.",
-            details={"result": "failed", "reason": str(error)},
+            message=message,
+            details={"result": launch_status},
         )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(error),
-        ) from error
-
-    message = (
-        "Windows Sandbox is already running."
-        if launch_status == "already_running"
-        else "Windows Sandbox launch requested."
-    )
-    task_store.append_event(
-        event_type="target.start_requested",
-        target_id=sandbox_observer.target_id,
-        message=message,
-        details={"result": launch_status},
-    )
     return TargetStartResponse(
         target_id="windows-sandbox",
         status=launch_status,

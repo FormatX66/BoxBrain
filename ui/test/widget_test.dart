@@ -81,6 +81,35 @@ void main() {
     expect(find.text('Queued'), findsOneWidget);
   });
 
+  testWidgets('engages and explicitly resets the emergency stop', (
+    tester,
+  ) async {
+    final api = _SafetyControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Emergency stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Engage emergency stop?'), findsOneWidget);
+
+    await tester.tap(find.text('Stop actions'));
+    await tester.pumpAndSettle();
+    expect(api.state.engaged, isTrue);
+    expect(find.text('Emergency stop engaged'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Reset emergency stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reset emergency stop'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'RESET');
+    await tester.pump();
+    await tester.tap(find.text('Reset stop'));
+    await tester.pumpAndSettle();
+
+    expect(api.state.engaged, isFalse);
+    expect(find.text('Emergency stop engaged'), findsNothing);
+  });
+
   testWidgets('shows retryable offline state when controller fails', (
     tester,
   ) async {
@@ -99,6 +128,14 @@ class _OnlineControllerApi extends ControllerApi {
   const _OnlineControllerApi({this.targetConnected = false});
 
   final bool targetConnected;
+
+  @override
+  Future<EmergencyStopState> fetchEmergencyStop() async => EmergencyStopState(
+        engaged: false,
+        reason: null,
+        generation: 0,
+        changedAt: DateTime.utc(2026, 7, 24, 12),
+      );
 
   @override
   Future<ControllerHealth> fetchHealth() async => const ControllerHealth(
@@ -195,6 +232,44 @@ class _LaunchControllerApi extends _OnlineControllerApi {
   }
 }
 
+class _SafetyControllerApi extends _OnlineControllerApi {
+  _SafetyControllerApi();
+
+  EmergencyStopState state = EmergencyStopState(
+    engaged: false,
+    reason: null,
+    generation: 0,
+    changedAt: DateTime.utc(2026, 7, 24, 12),
+  );
+
+  @override
+  Future<EmergencyStopState> fetchEmergencyStop() async => state;
+
+  @override
+  Future<EmergencyStopState> engageEmergencyStop({
+    String reason = 'Operator activated emergency stop from dashboard.',
+  }) async {
+    state = EmergencyStopState(
+      engaged: true,
+      reason: reason,
+      generation: state.generation + 1,
+      changedAt: DateTime.utc(2026, 7, 24, 12, 1),
+    );
+    return state;
+  }
+
+  @override
+  Future<EmergencyStopState> resetEmergencyStop() async {
+    state = EmergencyStopState(
+      engaged: false,
+      reason: null,
+      generation: state.generation + 1,
+      changedAt: DateTime.utc(2026, 7, 24, 12, 2),
+    );
+    return state;
+  }
+}
+
 class _QueueControllerApi extends _OnlineControllerApi {
   _QueueControllerApi() : super(targetConnected: true);
 
@@ -224,6 +299,10 @@ class _QueueControllerApi extends _OnlineControllerApi {
 
 class _OfflineControllerApi extends ControllerApi {
   const _OfflineControllerApi();
+
+  @override
+  Future<EmergencyStopState> fetchEmergencyStop() async =>
+      const EmergencyStopState.unknown();
 
   @override
   Future<ControllerHealth> fetchHealth() async {

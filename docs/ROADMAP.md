@@ -12,7 +12,7 @@
 - SQLite task and append-only event persistence (implemented)
 - API authentication and local certificate setup
 - Live event polling in the dashboard (implemented; streaming remains)
-- Emergency-stop state machine
+- Emergency-stop state machine (implemented)
 
 ## 0.3 — Observation-only target
 

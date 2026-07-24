@@ -148,6 +148,67 @@ def test_sandbox_start_is_fixed_profile_only_and_audited(monkeypatch) -> None:
     assert events[0]["event_type"] == "target.start_requested"
     assert events[0]["details"] == {"result": "starting"}
 
+def test_emergency_stop_blocks_launch_until_confirmed_reset(monkeypatch) -> None:
+    calls = []
+
+    def start() -> str:
+        calls.append("configured-profile")
+        return "starting"
+
+    monkeypatch.setattr(api_module.sandbox_observer, "start", start)
+
+    initial = client.get("/api/v1/safety/emergency-stop")
+    assert initial.status_code == 200
+    assert initial.json()["engaged"] is False
+    assert initial.json()["generation"] == 0
+
+    engaged = client.post(
+        "/api/v1/safety/emergency-stop/engage",
+        json={"reason": "Operator safety test"},
+    )
+    assert engaged.status_code == 200
+    assert engaged.json()["engaged"] is True
+    assert engaged.json()["reason"] == "Operator safety test"
+    assert engaged.json()["generation"] == 1
+
+    target = client.get("/api/v1/targets").json()[0]
+    assert target["start_enabled"] is False
+    assert target["start_endpoint"] is None
+
+    blocked = client.post("/api/v1/targets/windows-sandbox/start", json={})
+    assert blocked.status_code == 423
+    assert blocked.json()["detail"].startswith("Emergency stop is engaged")
+    assert calls == []
+
+    invalid_reset = client.post(
+        "/api/v1/safety/emergency-stop/reset",
+        json={"confirmation": "reset"},
+    )
+    assert invalid_reset.status_code == 422
+    assert client.get("/api/v1/safety/emergency-stop").json()["engaged"] is True
+
+    reset = client.post(
+        "/api/v1/safety/emergency-stop/reset",
+        json={"confirmation": "RESET"},
+    )
+    assert reset.status_code == 200
+    assert reset.json()["engaged"] is False
+    assert reset.json()["reason"] is None
+    assert reset.json()["generation"] == 2
+
+    launched = client.post("/api/v1/targets/windows-sandbox/start", json={})
+    assert launched.status_code == 200
+    assert calls == ["configured-profile"]
+
+    events = client.get("/api/v1/events").json()
+    assert [event["event_type"] for event in events] == [
+        "target.start_requested",
+        "safety.emergency_stop_reset",
+        "target.start_requested",
+        "safety.emergency_stop_engaged",
+    ]
+    assert events[2]["details"]["result"] == "blocked"
+
 def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
     monkeypatch.setattr(
         api_module.sandbox_observer,

@@ -77,7 +77,14 @@ Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
 append-only event visible under **Logs**. Queueing records intent only; the
 executor remains disabled.
 
-### 5. Verify
+### 5. Emergency stop
+
+Use the red stop control from any dashboard screen to block Sandbox launches
+and future executor actions. The state survives controller restarts and every
+engage/reset request is audited. Read-only observation remains available while
+stopped. Resetting requires typing `RESET` in the confirmation dialog.
+
+### 6. Verify
 
 ```powershell
 cd controller

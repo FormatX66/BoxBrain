@@ -7,7 +7,12 @@ from pydantic import BaseModel, Field
 
 
 PolicyProfileName = Literal["safe", "research", "open"]
-AuditEventType = Literal["task.queued", "target.start_requested"]
+AuditEventType = Literal[
+    "task.queued",
+    "target.start_requested",
+    "safety.emergency_stop_engaged",
+    "safety.emergency_stop_reset",
+]
 
 
 class TaskStatus(StrEnum):
@@ -47,6 +52,25 @@ class AuditEvent(BaseModel):
     message: str
     details: dict[str, object]
     created_at: datetime
+
+
+class EmergencyStopEngageRequest(BaseModel):
+    reason: str = Field(
+        default="Operator requested emergency stop.",
+        min_length=1,
+        max_length=500,
+    )
+
+
+class EmergencyStopResetRequest(BaseModel):
+    confirmation: Literal["RESET"]
+
+
+class EmergencyStopState(BaseModel):
+    engaged: bool
+    reason: str | None
+    generation: int = Field(ge=0)
+    changed_at: datetime
 
 
 class PolicyProfile(BaseModel):

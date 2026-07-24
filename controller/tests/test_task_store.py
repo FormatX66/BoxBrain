@@ -46,3 +46,26 @@ def test_audit_events_reject_mutation(tmp_path, operation) -> None:
     with sqlite3.connect(store.database_path) as connection:
         with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             connection.execute(statement)
+
+def test_emergency_stop_state_and_audit_survive_restart(tmp_path) -> None:
+    database_path = tmp_path / "boxbrain.sqlite3"
+    first_store = TaskStore(database_path)
+
+    engaged = first_store.engage_emergency_stop(reason="Test safety boundary")
+    reopened_store = TaskStore(database_path)
+
+    assert engaged.engaged is True
+    assert engaged.generation == 1
+    assert reopened_store.get_emergency_stop() == engaged
+
+    reset = reopened_store.reset_emergency_stop()
+    final_store = TaskStore(database_path)
+
+    assert reset.engaged is False
+    assert reset.reason is None
+    assert reset.generation == 2
+    assert final_store.get_emergency_stop() == reset
+    assert [event.event_type for event in final_store.list_events()] == [
+        "safety.emergency_stop_reset",
+        "safety.emergency_stop_engaged",
+    ]

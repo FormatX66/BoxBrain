@@ -33,6 +33,11 @@ class ControllerApi {
   Uri get healthEndpoint => endpoint('/api/v1/health');
   Uri get tasksEndpoint => endpoint('/api/v1/tasks');
   Uri get eventsEndpoint => endpoint('/api/v1/events');
+  Uri get emergencyStopEndpoint => endpoint('/api/v1/safety/emergency-stop');
+  Uri get emergencyStopEngageEndpoint =>
+      endpoint('/api/v1/safety/emergency-stop/engage');
+  Uri get emergencyStopResetEndpoint =>
+      endpoint('/api/v1/safety/emergency-stop/reset');
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
@@ -71,6 +76,29 @@ class ControllerApi {
       },
     );
     return TaskSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<EmergencyStopState> fetchEmergencyStop() async {
+    final json = await _getJson(emergencyStopEndpoint);
+    return EmergencyStopState.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<EmergencyStopState> engageEmergencyStop({
+    String reason = 'Operator activated emergency stop from dashboard.',
+  }) async {
+    final json = await _postJson(
+      emergencyStopEngageEndpoint,
+      {'reason': reason},
+    );
+    return EmergencyStopState.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<EmergencyStopState> resetEmergencyStop() async {
+    final json = await _postJson(
+      emergencyStopResetEndpoint,
+      const {'confirmation': 'RESET'},
+    );
+    return EmergencyStopState.fromJson(json as Map<String, dynamic>);
   }
 
   Future<List<AuditEventSummary>> fetchEvents() async {

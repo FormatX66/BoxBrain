@@ -81,6 +81,35 @@ class ControllerHealth {
   final bool executorEnabled;
 }
 
+class EmergencyStopState {
+  const EmergencyStopState({
+    required this.engaged,
+    required this.reason,
+    required this.generation,
+    required this.changedAt,
+  });
+
+  const EmergencyStopState.unknown()
+      : engaged = false,
+        reason = null,
+        generation = 0,
+        changedAt = null;
+
+  factory EmergencyStopState.fromJson(Map<String, dynamic> json) {
+    return EmergencyStopState(
+      engaged: json['engaged'] as bool,
+      reason: json['reason'] as String?,
+      generation: json['generation'] as int,
+      changedAt: DateTime.parse(json['changed_at'] as String),
+    );
+  }
+
+  final bool engaged;
+  final String? reason;
+  final int generation;
+  final DateTime? changedAt;
+}
+
 class TaskSummary {
   const TaskSummary({
     required this.id,
