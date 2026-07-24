@@ -42,3 +42,16 @@ def test_policy_profiles_keep_lab_invariants() -> None:
     assert all(profile["immutable_audit_log"] for profile in profiles)
     assert all(profile["isolated_target_required"] for profile in profiles)
 
+def test_local_web_dashboard_origin_is_allowed() -> None:
+    response = client.options(
+        "/api/v1/health",
+        headers={
+            "Origin": "http://127.0.0.1:8080",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "http://127.0.0.1:8080"
+    )

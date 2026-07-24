@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'screens/dashboard_screen.dart';
+import 'services/controller_api.dart';
 
 class BoxBrainApp extends StatelessWidget {
-  const BoxBrainApp({super.key});
+  const BoxBrainApp({this.controllerApi, super.key});
+
+  final ControllerApi? controllerApi;
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +33,7 @@ class BoxBrainApp extends StatelessWidget {
           backgroundColor: Color(0xFF11141C),
         ),
       ),
-      home: const DashboardScreen(),
+      home: DashboardScreen(api: controllerApi ?? const ControllerApi()),
     );
   }
 }
-

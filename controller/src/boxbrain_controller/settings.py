@@ -15,7 +15,10 @@ class Settings:
     port: int = int(getenv("BOXBRAIN_PORT", "8000"))
     cors_origins: tuple[str, ...] = _csv_environment(
         "BOXBRAIN_CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:8080",
+        (
+            "http://localhost:3000,http://localhost:8080,"
+            "http://127.0.0.1:8080"
+        ),
     )
     plugin_dir: Path = Path(
         getenv("BOXBRAIN_PLUGIN_DIR", "../plugins")

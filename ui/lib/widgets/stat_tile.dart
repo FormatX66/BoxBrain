@@ -52,4 +52,3 @@ class StatTile extends StatelessWidget {
     );
   }
 }
-
