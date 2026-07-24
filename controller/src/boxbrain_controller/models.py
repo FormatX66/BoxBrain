@@ -37,6 +37,17 @@ class TaskRecord(TaskCreate):
     created_at: datetime
 
 
+class AuditEvent(BaseModel):
+    sequence: int
+    id: UUID
+    event_type: Literal["task.queued"]
+    task_id: UUID | None
+    target_id: str | None
+    message: str
+    details: dict[str, object]
+    created_at: datetime
+
+
 class PolicyProfile(BaseModel):
     name: PolicyProfileName
     description: str

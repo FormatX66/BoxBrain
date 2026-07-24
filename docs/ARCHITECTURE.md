@@ -43,7 +43,9 @@ capabilities, and the selected policy profile.
 
 ## Persistence
 
-The alpha uses memory only. The next slice should introduce SQLite first, with
-an append-only event table and separate current-state projections. PostgreSQL
-can replace SQLite when multi-controller deployment is required.
+The controller stores task state and audit events in SQLite. Task creation and
+its `task.queued` event are committed in one transaction. SQLite triggers reject
+updates or deletions from the event table, while the API exposes events as
+read-only records. PostgreSQL can replace SQLite when multi-controller
+deployment is required.
 

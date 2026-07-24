@@ -55,8 +55,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<PolicySummary> _policies = const [];
   List<PluginSummary> _plugins = const [];
   List<TargetSummary> _targets = const [];
+  List<AuditEventSummary> _events = const [];
   String? _error;
   bool _loading = true;
+  bool _eventsRefreshing = false;
+  Timer? _eventTimer;
   int _selectedIndex = 0;
   DateTime? _lastUpdated;
 
@@ -64,6 +67,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _refresh();
+    _eventTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _refreshEvents(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _eventTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -82,6 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.api.fetchPolicies(),
         widget.api.fetchPlugins(),
         widget.api.fetchTargets(),
+        widget.api.fetchEvents(),
       ]);
       if (!mounted) return;
 
@@ -90,6 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final policies = results[2] as List<PolicySummary>;
       final plugins = results[3] as List<PluginSummary>;
       final targets = results[4] as List<TargetSummary>;
+      final events = results[5] as List<AuditEventSummary>;
       final activeTasks = tasks
           .where((task) => task.status == 'queued' || task.status == 'running')
           .length;
@@ -101,6 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _policies = policies;
         _plugins = plugins;
         _targets = targets;
+        _events = events;
         _status = ControllerStatus.online(
           activeTasks: activeTasks,
           enabledPlugins: plugins.where((plugin) => plugin.enabled).length,
@@ -122,6 +138,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _refreshEvents() async {
+    if (_eventsRefreshing ||
+        _status.connection != ConnectionStateLabel.online) {
+      return;
+    }
+    _eventsRefreshing = true;
+    try {
+      final events = await widget.api.fetchEvents();
+      if (mounted) setState(() => _events = events);
+    } catch (_) {
+      // The full refresh surface reports controller connection errors.
+    } finally {
+      _eventsRefreshing = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -140,7 +172,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         api: widget.api,
         onRefresh: _refresh,
       ),
-      _TaskSection(tasks: _tasks, status: _status, onRefresh: _refresh),
+      _TaskSection(
+        tasks: _tasks,
+        targets: _targets,
+        policies: _policies,
+        status: _status,
+        api: widget.api,
+        onRefresh: _refresh,
+      ),
       _PolicySection(
         policies: _policies,
         status: _status,
@@ -152,9 +191,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onRefresh: _refresh,
       ),
       _LogSection(
+        events: _events,
         status: _status,
         lastUpdated: _lastUpdated,
         error: _error,
+        onRefresh: _refreshEvents,
       ),
     ];
 
@@ -642,12 +683,18 @@ class _TargetSectionState extends State<_TargetSection> {
 class _TaskSection extends StatelessWidget {
   const _TaskSection({
     required this.tasks,
+    required this.targets,
+    required this.policies,
     required this.status,
+    required this.api,
     required this.onRefresh,
   });
 
   final List<TaskSummary> tasks;
+  final List<TargetSummary> targets;
+  final List<PolicySummary> policies;
   final ControllerStatus status;
+  final ControllerApi api;
   final VoidCallback onRefresh;
 
   @override
@@ -655,16 +702,24 @@ class _TaskSection extends StatelessWidget {
     if (status.connection != ConnectionStateLabel.online) {
       return _UnavailableSection(onRetry: onRefresh);
     }
+    final target = targets.where((item) => item.connected).firstOrNull;
     return _SectionList(
       title: 'Tasks',
-      subtitle: '${tasks.length} controller records',
+      subtitle: '${tasks.length} durable controller records',
       onRefresh: onRefresh,
+      primaryAction: FilledButton.icon(
+        onPressed: target == null || policies.isEmpty
+            ? null
+            : () => _showQueueDialog(context, target),
+        icon: const Icon(Icons.add_task),
+        label: const Text('Queue task'),
+      ),
       children: tasks.isEmpty
           ? const [
               _Callout(
                 icon: Icons.inbox_outlined,
                 title: 'No tasks queued',
-                message: 'The controller is online and the queue is empty.',
+                message: 'Queue a goal for the read-only Windows Sandbox.',
               ),
             ]
           : tasks
@@ -682,6 +737,178 @@ class _TaskSection extends StatelessWidget {
               )
               .toList(),
     );
+  }
+
+  Future<void> _showQueueDialog(
+    BuildContext context,
+    TargetSummary target,
+  ) async {
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (context) => _QueueTaskDialog(
+        api: api,
+        target: target,
+        policies: policies,
+      ),
+    );
+    if (created == true) onRefresh();
+  }
+}
+
+class _QueueTaskDialog extends StatefulWidget {
+  const _QueueTaskDialog({
+    required this.api,
+    required this.target,
+    required this.policies,
+  });
+
+  final ControllerApi api;
+  final TargetSummary target;
+  final List<PolicySummary> policies;
+
+  @override
+  State<_QueueTaskDialog> createState() => _QueueTaskDialogState();
+}
+
+class _QueueTaskDialogState extends State<_QueueTaskDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _goalController = TextEditingController();
+  late String _policyProfile;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _policyProfile = widget.policies
+            .where((policy) => policy.name == 'safe')
+            .map((policy) => policy.name)
+            .firstOrNull ??
+        widget.policies.first.name;
+  }
+
+  @override
+  void dispose() {
+    _goalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Queue a task'),
+      content: SizedBox(
+        width: 480,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _goalController,
+                  autofocus: true,
+                  enabled: !_submitting,
+                  minLines: 2,
+                  maxLines: 5,
+                  maxLength: 2000,
+                  decoration: const InputDecoration(
+                    labelText: 'Goal',
+                    hintText: 'Describe what BoxBrain should plan and observe.',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a goal.'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: _policyProfile,
+                  decoration: const InputDecoration(
+                    labelText: 'Policy profile',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: widget.policies
+                      .map(
+                        (policy) => DropdownMenuItem(
+                          value: policy.name,
+                          child: Text(_titleCase(policy.name)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _submitting
+                      ? null
+                      : (value) {
+                          if (value != null) _policyProfile = value;
+                        },
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: _Callout(
+                      icon: Icons.lock_outline,
+                      title: widget.target.name,
+                      message:
+                          'This queues an audited plan only. The executor remains disabled.',
+                    ),
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _submitting ? null : _submit,
+          icon: _submitting
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.add_task),
+          label: Text(_submitting ? 'Queueing' : 'Queue task'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await widget.api.createTask(
+        goal: _goalController.text.trim(),
+        targetId: widget.target.id,
+        policyProfile: _policyProfile,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString();
+        _submitting = false;
+      });
+    }
   }
 }
 
@@ -777,23 +1004,53 @@ class _PluginSection extends StatelessWidget {
 
 class _LogSection extends StatelessWidget {
   const _LogSection({
+    required this.events,
     required this.status,
     required this.lastUpdated,
     required this.error,
+    required this.onRefresh,
   });
 
+  final List<AuditEventSummary> events;
   final ControllerStatus status;
   final DateTime? lastUpdated;
   final String? error;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final online = status.connection == ConnectionStateLabel.online;
+    final eventCards = events
+        .map(
+          (event) => Card(
+            child: ListTile(
+              leading: CircleAvatar(child: Text('#${event.sequence}')),
+              title: Text(event.message),
+              subtitle: Text(
+                '${event.targetId ?? 'Controller'} - ${_formatTime(event.createdAt)}',
+              ),
+              trailing: Chip(
+                label: Text(
+                  _titleCase(event.eventType.replaceAll('.', ' ')),
+                ),
+              ),
+            ),
+          ),
+        )
+        .toList();
     return _SectionList(
-      title: 'Connection log',
-      subtitle: 'Local dashboard events',
-      onRefresh: null,
+      title: 'Audit log',
+      subtitle: '${events.length} append-only controller events',
+      onRefresh: onRefresh,
       children: [
+        if (events.isEmpty)
+          const _Callout(
+            icon: Icons.history,
+            title: 'No audit events yet',
+            message: 'Queue a task to create the first durable event.',
+          )
+        else
+          ...eventCards,
         Card(
           child: ListTile(
             leading: Icon(
@@ -820,12 +1077,14 @@ class _SectionList extends StatelessWidget {
     required this.subtitle,
     required this.children,
     required this.onRefresh,
+    this.primaryAction,
   });
 
   final String title;
   final String subtitle;
   final List<Widget> children;
   final VoidCallback? onRefresh;
+  final Widget? primaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -845,6 +1104,10 @@ class _SectionList extends StatelessWidget {
                 ],
               ),
             ),
+            if (primaryAction != null) ...[
+              primaryAction!,
+              const SizedBox(width: 8),
+            ],
             if (onRefresh != null)
               IconButton.filledTonal(
                 tooltip: 'Refresh',

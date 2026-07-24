@@ -16,6 +16,12 @@ These remain active in every policy profile:
 - No controller self-update during an active run
 - No hidden persistence or privilege escalation
 
+## Durable audit boundary
+
+Task creation and its audit event are committed atomically. The event table has
+no mutation API, and SQLite triggers reject direct updates or deletions. Runtime
+data stays under `controller/data/` and is excluded from source control.
+
 ## Read-only Windows Sandbox observer
 
 The alpha observer captures only the visible Windows Sandbox window pixels. It

@@ -199,3 +199,38 @@ class TargetSummary {
   final String? frameEndpoint;
   final bool inputEnabled;
 }
+
+class AuditEventSummary {
+  const AuditEventSummary({
+    required this.sequence,
+    required this.id,
+    required this.eventType,
+    required this.taskId,
+    required this.targetId,
+    required this.message,
+    required this.details,
+    required this.createdAt,
+  });
+
+  factory AuditEventSummary.fromJson(Map<String, dynamic> json) {
+    return AuditEventSummary(
+      sequence: json['sequence'] as int,
+      id: json['id'] as String,
+      eventType: json['event_type'] as String,
+      taskId: json['task_id'] as String?,
+      targetId: json['target_id'] as String?,
+      message: json['message'] as String,
+      details: json['details'] as Map<String, dynamic>,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  final int sequence;
+  final String id;
+  final String eventType;
+  final String? taskId;
+  final String? targetId;
+  final String message;
+  final Map<String, dynamic> details;
+  final DateTime createdAt;
+}

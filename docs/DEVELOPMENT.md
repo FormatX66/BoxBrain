@@ -53,6 +53,9 @@ python -m pytest
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
+Tasks and audit events are stored locally in
+`controller/data/boxbrain.sqlite3`. This runtime directory is ignored by Git.
+
 ## Connect the UI
 
 The default controller URL is `http://127.0.0.1:8000`. Run the web dashboard

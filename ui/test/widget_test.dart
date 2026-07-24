@@ -29,6 +29,36 @@ void main() {
 
     expect(find.text('Windows Sandbox is not running'), findsOneWidget);
     expect(find.text('Read-only access only'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Audit log'), findsOneWidget);
+    expect(
+        find.text('Task queued; executor remains disabled.'), findsOneWidget);
+    expect(find.text('1 append-only controller events'), findsOneWidget);
+  });
+
+  testWidgets('queues an audited task for a connected target', (tester) async {
+    final api = _QueueControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.task_alt_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Queue task'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'Observe the calculator window',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Queue task').last);
+    await tester.pumpAndSettle();
+
+    expect(api.tasks, hasLength(1));
+    expect(find.text('Observe the calculator window'), findsOneWidget);
+    expect(find.text('Queued'), findsOneWidget);
   });
 
   testWidgets('shows retryable offline state when controller fails', (
@@ -46,7 +76,9 @@ void main() {
 }
 
 class _OnlineControllerApi extends ControllerApi {
-  const _OnlineControllerApi();
+  const _OnlineControllerApi({this.targetConnected = false});
+
+  final bool targetConnected;
 
   @override
   Future<ControllerHealth> fetchHealth() async => const ControllerHealth(
@@ -59,6 +91,20 @@ class _OnlineControllerApi extends ControllerApi {
 
   @override
   Future<List<TaskSummary>> fetchTasks() async => const [];
+
+  @override
+  Future<List<AuditEventSummary>> fetchEvents() async => [
+        AuditEventSummary(
+          sequence: 1,
+          id: 'event-1',
+          eventType: 'task.queued',
+          taskId: 'task-1',
+          targetId: 'windows-sandbox',
+          message: 'Task queued; executor remains disabled.',
+          details: const {'status': 'queued'},
+          createdAt: DateTime.utc(2026, 7, 24, 12),
+        ),
+      ];
 
   @override
   Future<List<PolicySummary>> fetchPolicies() async => const [
@@ -100,18 +146,46 @@ class _OnlineControllerApi extends ControllerApi {
       ];
 
   @override
-  Future<List<TargetSummary>> fetchTargets() async => const [
+  Future<List<TargetSummary>> fetchTargets() async => [
         TargetSummary(
           id: 'windows-sandbox',
           name: 'Windows Sandbox',
           transport: 'local-window-capture',
           mode: 'read-only',
-          connected: false,
+          connected: targetConnected,
           windowTitle: 'Windows Sandbox',
-          frameEndpoint: null,
+          frameEndpoint:
+              targetConnected ? '/api/v1/targets/windows-sandbox/frame' : null,
           inputEnabled: false,
         ),
       ];
+}
+
+class _QueueControllerApi extends _OnlineControllerApi {
+  _QueueControllerApi() : super(targetConnected: true);
+
+  final List<TaskSummary> tasks = [];
+
+  @override
+  Future<List<TaskSummary>> fetchTasks() async => List.unmodifiable(tasks);
+
+  @override
+  Future<TaskSummary> createTask({
+    required String goal,
+    required String targetId,
+    required String policyProfile,
+  }) async {
+    final task = TaskSummary(
+      id: 'task-1',
+      goal: goal,
+      targetId: targetId,
+      policyProfile: policyProfile,
+      status: 'queued',
+      createdAt: DateTime.utc(2026, 7, 24, 12),
+    );
+    tasks.add(task);
+    return task;
+  }
 }
 
 class _OfflineControllerApi extends ControllerApi {
@@ -124,6 +198,9 @@ class _OfflineControllerApi extends ControllerApi {
 
   @override
   Future<List<TaskSummary>> fetchTasks() async => const [];
+
+  @override
+  Future<List<AuditEventSummary>> fetchEvents() async => const [];
 
   @override
   Future<List<PolicySummary>> fetchPolicies() async => const [];

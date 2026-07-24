@@ -1,10 +1,21 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from boxbrain_controller import api as api_module
 from boxbrain_controller.app import create_app
+from boxbrain_controller.task_store import TaskStore
 
 
 client = TestClient(create_app())
+
+
+@pytest.fixture(autouse=True)
+def isolated_task_store(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "task_store",
+        TaskStore(tmp_path / "boxbrain-test.sqlite3"),
+    )
 
 
 def test_health_reports_executor_disabled() -> None:
@@ -20,14 +31,52 @@ def test_task_can_be_queued_but_is_not_executed() -> None:
         "/api/v1/tasks",
         json={
             "goal": "Open the calculator in the disposable test VM",
-            "target_id": "lab-vm-01",
+            "target_id": "windows-sandbox",
             "policy_profile": "safe",
         },
     )
 
     assert response.status_code == 202
     assert response.json()["status"] == "queued"
-    assert response.json()["target_id"] == "lab-vm-01"
+    assert response.json()["target_id"] == "windows-sandbox"
+    assert client.get("/api/v1/health").json()["executor_enabled"] is False
+
+
+def test_unknown_target_is_rejected_before_queueing() -> None:
+    response = client.post(
+        "/api/v1/tasks",
+        json={
+            "goal": "Do not run this",
+            "target_id": "not-allowlisted",
+            "policy_profile": "safe",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Target is not allowlisted."
+    assert client.get("/api/v1/tasks").json() == []
+    assert client.get("/api/v1/events").json() == []
+
+
+def test_queueing_task_appends_audit_event() -> None:
+    task = client.post(
+        "/api/v1/tasks",
+        json={
+            "goal": "Observe the calculator window",
+            "target_id": "windows-sandbox",
+            "policy_profile": "safe",
+        },
+    ).json()
+
+    response = client.get("/api/v1/events")
+
+    assert response.status_code == 200
+    event = response.json()[0]
+    assert event["sequence"] == 1
+    assert event["event_type"] == "task.queued"
+    assert event["task_id"] == task["id"]
+    assert event["target_id"] == "windows-sandbox"
+    assert event["details"]["status"] == "queued"
 
 
 def test_policy_profiles_keep_lab_invariants() -> None:
@@ -42,6 +91,7 @@ def test_policy_profiles_keep_lab_invariants() -> None:
     }
     assert all(profile["immutable_audit_log"] for profile in profiles)
     assert all(profile["isolated_target_required"] for profile in profiles)
+
 
 def test_local_web_dashboard_origin_is_allowed() -> None:
     response = client.options(

@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from . import __version__
 from .models import (
+    AuditEvent,
     HealthResponse,
     PluginSummary,
     PolicyProfile,
@@ -17,7 +18,7 @@ from .settings import settings
 from .task_store import TaskStore
 
 router = APIRouter(prefix="/api/v1")
-task_store = TaskStore()
+task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 plugin_registry = PluginRegistry(settings.plugin_dir)
 sandbox_observer = WindowsSandboxObserver()
 
@@ -44,6 +45,11 @@ def list_tasks() -> list[TaskRecord]:
     status_code=status.HTTP_202_ACCEPTED,
 )
 def create_task(request: TaskCreate) -> TaskRecord:
+    if request.target_id != sandbox_observer.target_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Target is not allowlisted.",
+        )
     return task_store.create(request)
 
 
@@ -56,6 +62,13 @@ def get_task(task_id: UUID) -> TaskRecord:
             detail="Task not found",
         )
     return task
+
+
+@router.get("/events", response_model=list[AuditEvent])
+def list_events(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AuditEvent]:
+    return task_store.list_events(limit=limit)
 
 
 @router.get("/policies", response_model=list[PolicyProfile])

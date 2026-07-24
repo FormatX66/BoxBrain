@@ -32,6 +32,7 @@ class ControllerApi {
 
   Uri get healthEndpoint => endpoint('/api/v1/health');
   Uri get tasksEndpoint => endpoint('/api/v1/tasks');
+  Uri get eventsEndpoint => endpoint('/api/v1/events');
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
@@ -51,6 +52,29 @@ class ControllerApi {
     final json = await _getJson(tasksEndpoint) as List<dynamic>;
     return json
         .map((item) => TaskSummary.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  Future<TaskSummary> createTask({
+    required String goal,
+    required String targetId,
+    required String policyProfile,
+  }) async {
+    final json = await _postJson(
+      tasksEndpoint,
+      {
+        'goal': goal,
+        'target_id': targetId,
+        'policy_profile': policyProfile,
+      },
+    );
+    return TaskSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<AuditEventSummary>> fetchEvents() async {
+    final json = await _getJson(eventsEndpoint) as List<dynamic>;
+    return json
+        .map((item) => AuditEventSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
   }
 
@@ -76,12 +100,25 @@ class ControllerApi {
   }
 
   Future<dynamic> _getJson(Uri uri) async {
+    return _requestJson(() => http.get(uri));
+  }
+
+  Future<dynamic> _postJson(Uri uri, Map<String, dynamic> body) async {
+    return _requestJson(
+      () => http.post(
+        uri,
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
+  Future<dynamic> _requestJson(Future<http.Response> Function() request) async {
     try {
-      final response = await http.get(uri).timeout(timeout);
+      final response = await request().timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ControllerApiException(
-          'Controller returned HTTP ${response.statusCode}.',
-        );
+        final message = _errorMessage(response);
+        throw ControllerApiException(message);
       }
       return jsonDecode(response.body);
     } on TimeoutException {
@@ -93,5 +130,15 @@ class ControllerApi {
     } on http.ClientException {
       throw const ControllerApiException('Controller connection failed.');
     }
+  }
+
+  String _errorMessage(http.Response response) {
+    try {
+      final json = jsonDecode(response.body);
+      if (json case {'detail': final String detail}) return detail;
+    } on FormatException {
+      // Fall back to the status-only message below.
+    }
+    return 'Controller returned HTTP ${response.statusCode}.';
   }
 }

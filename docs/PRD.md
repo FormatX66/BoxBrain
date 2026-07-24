@@ -16,18 +16,19 @@ The alpha is complete when an operator can:
 5. Observe proposed and completed actions in an immutable event stream.
 6. Stop the run and restore the target from a known snapshot.
 
-## Current scaffold
+## Current implementation
 
-- Flutter dashboard shell with Dashboard, Tasks, Policies, Plugins, and Logs.
-- FastAPI health, task, policy, and manifest-discovery endpoints.
-- In-memory queue that records tasks but executes nothing.
-- Three policy profile definitions with shared containment invariants.
-- Inert plugin example and a draft plugin contract.
+- Flutter dashboard with Dashboard, Target, Tasks, Policies, Plugins, and Logs.
+- FastAPI health, task, event, policy, target, and plugin endpoints.
+- SQLite task persistence with database-enforced append-only audit events.
+- Read-only Windows Sandbox discovery and local frame capture.
+- Target allowlisting and three policy profiles with containment invariants.
+- No task or input execution.
 
 ## Out of scope for this scaffold
 
 - Keyboard or mouse injection
-- RDP, VNC, or HDMI capture
+- Remote RDP, VNC, or HDMI transport control
 - Shell command execution
 - Cloud model calls or secret storage
 - Automatic code modification

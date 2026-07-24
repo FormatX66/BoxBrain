@@ -9,9 +9,9 @@
 
 ## 0.2 — Durable control plane
 
-- SQLite task and append-only event persistence
+- SQLite task and append-only event persistence (implemented)
 - API authentication and local certificate setup
-- Live event stream to the dashboard
+- Live event polling in the dashboard (implemented; streaming remains)
 - Emergency-stop state machine
 
 ## 0.3 — Observation-only target

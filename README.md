@@ -67,7 +67,14 @@ The observer has no keyboard, mouse, clipboard, file, process, or shell API.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
 
-### 4. Verify
+### 4. Queue and audit tasks
+
+Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
+`controller/data/boxbrain.sqlite3`, survive controller restarts, and create an
+append-only event visible under **Logs**. Queueing records intent only; the
+executor remains disabled.
+
+### 5. Verify
 
 ```powershell
 cd controller
