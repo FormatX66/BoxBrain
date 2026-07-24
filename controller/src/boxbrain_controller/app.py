@@ -2,6 +2,7 @@ import secrets
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
@@ -29,26 +30,46 @@ def create_app() -> FastAPI:
         version=__version__,
     )
 
+    application.state.authentication_required = settings.api_token is not None
+
     @application.middleware("http")
     async def require_local_api_token(request: Request, call_next):
         expected = settings.api_token
-        if (
-            expected is None
-            or request.method == "OPTIONS"
-            or request.url.path in _PUBLIC_PATHS
-            or not request.url.path.startswith("/api/")
-        ):
-            return await call_next(request)
-
+        requires_token = (
+            expected is not None
+            and request.method != "OPTIONS"
+            and request.url.path not in _PUBLIC_PATHS
+            and request.url.path.startswith("/api/")
+        )
         presented = request.headers.get("X-BoxBrain-Token")
-        if presented is None or not secrets.compare_digest(presented, expected):
-            return JSONResponse(
+        if requires_token and (
+            presented is None
+            or not secrets.compare_digest(presented, expected)
+        ):
+            response = JSONResponse(
                 status_code=401,
                 content={"detail": "A valid BoxBrain API token is required."},
                 headers={"WWW-Authenticate": "BoxBrain-Token"},
             )
-        return await call_next(request)
+        else:
+            response = await call_next(request)
 
+        if request.url.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-store")
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("X-Frame-Options", "DENY")
+            response.headers.setdefault("Referrer-Policy", "no-referrer")
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'",
+            )
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        return response
+
+    application.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=list(settings.allowed_hosts),
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),

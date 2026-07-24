@@ -10,7 +10,8 @@
 ## 0.2 — Durable control plane
 
 - SQLite task and append-only event persistence (implemented)
-- API authentication and local certificate setup
+- Local API token authentication and trusted-host enforcement (implemented)
+- Loopback TLS and local certificate trust (pending explicit operator approval)
 - Authenticated live event streaming with resume and reconnect (implemented)
 - Emergency-stop state machine (implemented)
 

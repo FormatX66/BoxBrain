@@ -29,6 +29,8 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     environment: str
     executor_enabled: bool
+    authentication_required: bool
+    event_stream_enabled: bool = True
 
 
 class TaskCreate(BaseModel):

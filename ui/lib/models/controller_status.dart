@@ -9,6 +9,8 @@ class ControllerStatus {
     required this.version,
     required this.environment,
     required this.executorEnabled,
+    this.authenticationRequired = false,
+    this.eventStreamEnabled = false,
   });
 
   const ControllerStatus.offline()
@@ -18,7 +20,9 @@ class ControllerStatus {
         policyProfile = 'Safe',
         version = 'Unknown',
         environment = 'Unavailable',
-        executorEnabled = false;
+        executorEnabled = false,
+        authenticationRequired = false,
+        eventStreamEnabled = false;
 
   const ControllerStatus.connecting()
       : connection = ConnectionStateLabel.connecting,
@@ -27,7 +31,9 @@ class ControllerStatus {
         policyProfile = 'Safe',
         version = 'Checking',
         environment = 'Connecting',
-        executorEnabled = false;
+        executorEnabled = false,
+        authenticationRequired = false,
+        eventStreamEnabled = false;
 
   const ControllerStatus.online({
     required int activeTasks,
@@ -36,6 +42,8 @@ class ControllerStatus {
     required String version,
     required String environment,
     required bool executorEnabled,
+    bool authenticationRequired = false,
+    bool eventStreamEnabled = false,
   }) : this(
           connection: ConnectionStateLabel.online,
           activeTasks: activeTasks,
@@ -44,6 +52,8 @@ class ControllerStatus {
           version: version,
           environment: environment,
           executorEnabled: executorEnabled,
+          authenticationRequired: authenticationRequired,
+          eventStreamEnabled: eventStreamEnabled,
         );
 
   final ConnectionStateLabel connection;
@@ -53,6 +63,8 @@ class ControllerStatus {
   final String version;
   final String environment;
   final bool executorEnabled;
+  final bool authenticationRequired;
+  final bool eventStreamEnabled;
 }
 
 class ControllerHealth {
@@ -62,6 +74,8 @@ class ControllerHealth {
     required this.status,
     required this.environment,
     required this.executorEnabled,
+    this.authenticationRequired = false,
+    this.eventStreamEnabled = false,
   });
 
   factory ControllerHealth.fromJson(Map<String, dynamic> json) {
@@ -71,6 +85,8 @@ class ControllerHealth {
       status: json['status'] as String,
       environment: json['environment'] as String,
       executorEnabled: json['executor_enabled'] as bool,
+      authenticationRequired: json['authentication_required'] as bool? ?? false,
+      eventStreamEnabled: json['event_stream_enabled'] as bool? ?? false,
     );
   }
 
@@ -79,6 +95,8 @@ class ControllerHealth {
   final String status;
   final String environment;
   final bool executorEnabled;
+  final bool authenticationRequired;
+  final bool eventStreamEnabled;
 }
 
 class EmergencyStopState {

@@ -18,6 +18,8 @@ void main() {
     expect(find.text('Mission control'), findsOneWidget);
     expect(find.text('Online'), findsWidgets);
     expect(find.text('0.1.0'), findsOneWidget);
+    expect(find.text('Token required'), findsOneWidget);
+    expect(find.text('Live stream'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
 
     await tester.tap(find.text('Policies'));
@@ -181,6 +183,8 @@ class _OnlineControllerApi extends ControllerApi {
         status: 'ok',
         environment: 'development',
         executorEnabled: false,
+        authenticationRequired: true,
+        eventStreamEnabled: true,
       );
 
   @override

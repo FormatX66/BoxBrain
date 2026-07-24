@@ -73,6 +73,14 @@ Override the controller URL at build time without storing it in source:
 flutter run -d windows --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
 ```
 
+## Repeatable local startup
+
+The scripts under `installer/` generate or reuse an ignored local token without
+printing it, build the dashboard with the same credential, start the controller
+on loopback, and run read-only security checks. See `installer/README.md` for
+the commands. Certificate trust remains manual because it changes external
+browser and operating-system state.
+
 ## Local API authentication
 
 When `BOXBRAIN_API_TOKEN` is set, every API route except health and the API

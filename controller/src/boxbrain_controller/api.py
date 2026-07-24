@@ -40,13 +40,14 @@ control_lock = Lock()
 
 
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+def health(request: Request) -> HealthResponse:
     return HealthResponse(
         service="boxbrain-controller",
         version=__version__,
         status="ok",
         environment=settings.environment,
         executor_enabled=False,
+        authentication_required=request.app.state.authentication_required,
     )
 
 

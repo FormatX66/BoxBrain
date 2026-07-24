@@ -105,5 +105,9 @@ flutter analyze
 flutter test
 ```
 
+The scripts in [installer/README.md](installer/README.md) can generate the local
+token, build the authenticated dashboard, start the loopback controller, and
+run a read-only security check without printing the credential.
+
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup details and
 [docs/SECURITY.md](docs/SECURITY.md) before adding any executor.

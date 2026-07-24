@@ -48,7 +48,10 @@ remove containment, logging, identity, or emergency-stop controls.
 The controller optionally enforces a minimum-32-character token on all API
 routes except health and documentation. The dashboard sends it only in the
 `X-BoxBrain-Token` header, including authenticated in-memory frame requests.
-CORS permits the header only from configured dashboard origins.
+CORS permits the header only from configured dashboard origins. Trusted Host
+validation accepts only configured loopback names, reducing DNS-rebinding risk.
+API responses disable caching, framing, referrers, MIME sniffing, and cross-site
+resource use through explicit response headers.
 
 The alpha web build receives its token at build time. This protects a loopback
 development controller from accidental unauthenticated requests, but it is not

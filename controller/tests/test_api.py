@@ -30,7 +30,10 @@ def test_local_api_token_protects_controller_routes(monkeypatch) -> None:
     )
     protected_client = TestClient(app_module.create_app())
 
-    assert protected_client.get("/api/v1/health").status_code == 200
+    health = protected_client.get("/api/v1/health")
+    assert health.status_code == 200
+    assert health.json()["authentication_required"] is True
+    assert health.json()["event_stream_enabled"] is True
 
     missing = protected_client.get(
         "/api/v1/targets",
@@ -41,6 +44,9 @@ def test_local_api_token_protects_controller_routes(monkeypatch) -> None:
     assert missing.headers["access-control-allow-origin"] == (
         "http://127.0.0.1:8080"
     )
+    assert missing.headers["cache-control"] == "no-store"
+    assert missing.headers["x-content-type-options"] == "nosniff"
+    assert missing.headers["x-frame-options"] == "DENY"
 
     assert protected_client.get(
         "/api/v1/targets",
@@ -76,6 +82,21 @@ def test_health_reports_executor_disabled() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["executor_enabled"] is False
+    assert response.json()["authentication_required"] is False
+    assert response.json()["event_stream_enabled"] is True
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["content-security-policy"].startswith(
+        "default-src 'none'"
+    )
+
+
+def test_untrusted_host_is_rejected() -> None:
+    response = client.get(
+        "/api/v1/health",
+        headers={"Host": "attacker.example"},
+    )
+
+    assert response.status_code == 400
 
 
 def test_task_can_be_queued_but_is_not_executed() -> None:

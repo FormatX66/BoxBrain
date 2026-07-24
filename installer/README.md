@@ -1,21 +1,31 @@
-# Installer placeholder
+# Local development helpers
 
-The installer is intentionally limited to prerequisite inspection in this
-scaffold. It does not modify PATH, install packages, create services, change
-firewall rules, or write a bootable image.
+These PowerShell helpers make the authenticated loopback setup repeatable. They
+do not install packages, modify PATH, add services, change firewall rules, trust
+certificates, or expose BoxBrain to another host.
 
-Run the Windows check from the repository root:
+From the repository root:
 
 ```powershell
+# Inspect prerequisites without changing the machine.
 powershell -ExecutionPolicy Bypass -File .\installer\check-prerequisites.ps1
+
+# Create an ignored random token without printing its value.
+powershell -ExecutionPolicy Bypass -File .\installer\initialize-local-auth.ps1
+
+# Build the web dashboard with that token.
+powershell -ExecutionPolicy Bypass -File .\installer\build-dashboard.ps1
+
+# Start the authenticated controller in the current terminal.
+powershell -ExecutionPolicy Bypass -File .\installer\start-controller.ps1
+
+# Check authentication, read-only targeting, safety state, and dashboard health.
+powershell -ExecutionPolicy Bypass -File .\installer\check-local-security.ps1
 ```
 
-Future packaging targets:
+Use `initialize-local-auth.ps1 -Rotate` only when intentionally invalidating the
+old local dashboard build; rebuild the dashboard immediately afterward.
 
-- Windows development workstation
-- Debian/Raspberry Pi OS controller service
-- Bootable USB development image with persistent workspace
-
-Image creation comes after the controller, authentication, audit store, and one
-observation-only transport are proven on a normal operating system.
-
+TLS certificate creation and trust-store changes remain deliberately manual and
+pending. They affect machine-wide browser trust and should not happen in an
+unattended development session.

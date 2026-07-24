@@ -139,6 +139,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           version: health.version,
           environment: _titleCase(health.environment),
           executorEnabled: health.executorEnabled,
+          authenticationRequired: health.authenticationRequired,
+          eventStreamEnabled: health.eventStreamEnabled,
         );
         _loading = false;
         _lastUpdated = DateTime.now();
@@ -816,6 +818,14 @@ class _OverviewCards extends StatelessWidget {
             ('Version', status.version),
             ('Environment', status.environment),
             ('Executor', status.executorEnabled ? 'Enabled' : 'Disabled'),
+            (
+              'Authentication',
+              status.authenticationRequired ? 'Token required' : 'Disabled',
+            ),
+            (
+              'Audit updates',
+              status.eventStreamEnabled ? 'Live stream' : 'Manual refresh',
+            ),
           ],
         ),
       ),
