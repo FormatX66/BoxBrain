@@ -1,0 +1,12 @@
+{
+  "id": "example.observer",
+  "name": "Example Observer",
+  "version": "0.1.0",
+  "description": "Inert example manifest used to verify plugin discovery.",
+  "enabled": false,
+  "entrypoint": "plugin.py",
+  "capabilities": [
+    "observation.mock"
+  ]
+}
+
