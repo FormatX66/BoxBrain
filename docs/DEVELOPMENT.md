@@ -91,6 +91,13 @@ and remains strictly read-only. The button is enabled by default only when
 profile can be overridden for development with `BOXBRAIN_SANDBOX_PROFILE`, but
 no path is accepted from the dashboard API. Do not expose the local controller
 port to another host.
+## Live audit stream
+
+`GET /api/v1/events/stream` emits append-only audit events as authenticated
+server-sent events. Each event uses its SQLite sequence as the SSE ID. Clients
+resume with `Last-Event-ID` or `after_sequence`; the dashboard reconnects after
+two seconds and retains periodic safety/target reconciliation separately.
+
 ## Test the emergency stop
 
 Use the red stop control in the dashboard and confirm **Stop actions**. The

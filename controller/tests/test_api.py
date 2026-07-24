@@ -131,6 +131,17 @@ def test_queueing_task_appends_audit_event() -> None:
     assert event["details"]["status"] == "queued"
 
 
+def test_event_stream_rejects_invalid_resume_sequence() -> None:
+    response = client.get(
+        "/api/v1/events/stream",
+        headers={"Last-Event-ID": "not-a-sequence"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Last-Event-ID must be an audit sequence number."
+    )
+
 def test_policy_profiles_keep_lab_invariants() -> None:
     response = client.get("/api/v1/policies")
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:boxbrain_ui/app.dart';
@@ -112,6 +113,40 @@ void main() {
     expect(find.text('Emergency stop engaged'), findsNothing);
   });
 
+  testWidgets('shows streamed audit events without a manual refresh', (
+    tester,
+  ) async {
+    final api = _StreamingControllerApi();
+    addTearDown(api.dispose);
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+    for (var attempt = 0; attempt < 10 && !api.hasListener; attempt++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(api.hasListener, isTrue);
+
+    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Emergency stop engaged by stream.'), findsNothing);
+
+    api.emit(
+      AuditEventSummary(
+        sequence: 2,
+        id: 'event-2',
+        eventType: 'safety.emergency_stop_engaged',
+        taskId: null,
+        targetId: null,
+        message: 'Emergency stop engaged by stream.',
+        details: const {'result': 'engaged'},
+        createdAt: DateTime.utc(2026, 7, 24, 12, 1),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Emergency stop engaged by stream.'), findsOneWidget);
+    expect(find.text('2 append-only controller events'), findsOneWidget);
+  });
+
   testWidgets('shows retryable offline state when controller fails', (
     tester,
   ) async {
@@ -152,6 +187,10 @@ class _OnlineControllerApi extends ControllerApi {
   Future<Uint8List> fetchSandboxFrame({required int cacheKey}) async {
     throw const ControllerApiException('Test frame unavailable.');
   }
+
+  @override
+  Stream<AuditEventSummary> streamEvents({int afterSequence = 0}) =>
+      const Stream.empty();
 
   @override
   Future<List<TaskSummary>> fetchTasks() async => const [];
@@ -239,6 +278,22 @@ class _LaunchControllerApi extends _OnlineControllerApi {
   }
 }
 
+class _StreamingControllerApi extends _OnlineControllerApi {
+  _StreamingControllerApi();
+
+  final _controller = StreamController<AuditEventSummary>.broadcast(sync: true);
+
+  bool get hasListener => _controller.hasListener;
+
+  @override
+  Stream<AuditEventSummary> streamEvents({int afterSequence = 0}) =>
+      _controller.stream;
+
+  void emit(AuditEventSummary event) => _controller.add(event);
+
+  Future<void> dispose() => _controller.close();
+}
+
 class _SafetyControllerApi extends _OnlineControllerApi {
   _SafetyControllerApi();
 
@@ -310,6 +365,10 @@ class _OfflineControllerApi extends ControllerApi {
   @override
   Future<EmergencyStopState> fetchEmergencyStop() async =>
       const EmergencyStopState.unknown();
+
+  @override
+  Stream<AuditEventSummary> streamEvents({int afterSequence = 0}) =>
+      const Stream.empty();
 
   @override
   Future<ControllerHealth> fetchHealth() async {

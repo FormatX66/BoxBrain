@@ -83,8 +83,9 @@ for this local dashboard.
 
 Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
 `controller/data/boxbrain.sqlite3`, survive controller restarts, and create an
-append-only event visible under **Logs**. Queueing records intent only; the
-executor remains disabled.
+append-only event visible under **Logs**. New events arrive over an authenticated
+server-sent event stream with sequence-based resume and automatic reconnect.
+Queueing records intent only; the executor remains disabled.
 
 ### 5. Emergency stop
 

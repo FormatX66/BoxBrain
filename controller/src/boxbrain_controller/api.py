@@ -1,7 +1,10 @@
+import asyncio
+import json
 from threading import Lock
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 
 from . import __version__
 from .models import (
@@ -82,6 +85,55 @@ def list_events(
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[AuditEvent]:
     return task_store.list_events(limit=limit)
+
+
+@router.get("/events/stream")
+async def stream_events(
+    request: Request,
+    after_sequence: int = Query(default=0, ge=0),
+) -> StreamingResponse:
+    header_sequence = request.headers.get("Last-Event-ID")
+    if header_sequence is not None:
+        try:
+            after_sequence = max(after_sequence, int(header_sequence))
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Last-Event-ID must be an audit sequence number.",
+            ) from error
+
+    async def event_source():
+        cursor = after_sequence
+        while not await request.is_disconnected():
+            events = task_store.list_events_after(
+                after_sequence=cursor,
+                limit=100,
+            )
+            if events:
+                for event in events:
+                    cursor = event.sequence
+                    payload = json.dumps(
+                        event.model_dump(mode="json"),
+                        separators=(",", ":"),
+                    )
+                    yield (
+                        f"id: {event.sequence}\n"
+                        f"event: {event.event_type}\n"
+                        f"data: {payload}\n\n"
+                    )
+            else:
+                yield ": keep-alive\n\n"
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get(

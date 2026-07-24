@@ -159,6 +159,26 @@ class TaskStore:
             ).fetchall()
         return [self._event_from_row(row) for row in rows]
 
+    def list_events_after(
+        self,
+        *,
+        after_sequence: int,
+        limit: int = 100,
+    ) -> list[AuditEvent]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT sequence, id, event_type, task_id, target_id, message,
+                       details_json, created_at
+                FROM audit_events
+                WHERE sequence > ?
+                ORDER BY sequence ASC
+                LIMIT ?
+                """,
+                (after_sequence, limit),
+            ).fetchall()
+        return [self._event_from_row(row) for row in rows]
+
     def get_emergency_stop(self) -> EmergencyStopState:
         with self._lock, self._connect() as connection:
             row = connection.execute(

@@ -62,23 +62,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   bool _changingSafety = false;
   bool _eventsRefreshing = false;
-  Timer? _eventTimer;
+  Timer? _liveTimer;
+  Timer? _eventReconnectTimer;
+  StreamSubscription<AuditEventSummary>? _eventSubscription;
   int _selectedIndex = 0;
   DateTime? _lastUpdated;
 
   @override
   void initState() {
     super.initState();
-    _refresh();
-    _eventTimer = Timer.periodic(
+    unawaited(_initialize());
+    _liveTimer = Timer.periodic(
       const Duration(seconds: 3),
-      (_) => _refreshEvents(),
+      (_) => _refreshLiveState(),
     );
+  }
+
+  Future<void> _initialize() async {
+    await _refresh();
+    if (mounted) _startEventStream();
   }
 
   @override
   void dispose() {
-    _eventTimer?.cancel();
+    _liveTimer?.cancel();
+    _eventReconnectTimer?.cancel();
+    unawaited(_eventSubscription?.cancel());
     super.dispose();
   }
 
@@ -151,23 +160,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     _eventsRefreshing = true;
     try {
-      final results = await Future.wait<Object>([
-        widget.api.fetchEvents(),
-        widget.api.fetchEmergencyStop(),
-        widget.api.fetchTargets(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _events = results[0] as List<AuditEventSummary>;
-          _emergencyStop = results[1] as EmergencyStopState;
-          _targets = results[2] as List<TargetSummary>;
-        });
-      }
+      final events = await widget.api.fetchEvents();
+      if (mounted) setState(() => _events = events);
     } catch (_) {
       // The full refresh surface reports controller connection errors.
     } finally {
       _eventsRefreshing = false;
     }
+  }
+
+  Future<void> _refreshLiveState() async {
+    if (_status.connection != ConnectionStateLabel.online) return;
+    try {
+      final results = await Future.wait<Object>([
+        widget.api.fetchEmergencyStop(),
+        widget.api.fetchTargets(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _emergencyStop = results[0] as EmergencyStopState;
+          _targets = results[1] as List<TargetSummary>;
+        });
+      }
+    } catch (_) {
+      // The full refresh surface reports controller connection errors.
+    }
+  }
+
+  void _startEventStream() {
+    if (!mounted) return;
+    _eventReconnectTimer?.cancel();
+    unawaited(_eventSubscription?.cancel());
+    final afterSequence = _events.fold<int>(
+      0,
+      (latest, event) => event.sequence > latest ? event.sequence : latest,
+    );
+    _eventSubscription =
+        widget.api.streamEvents(afterSequence: afterSequence).listen(
+              _acceptStreamEvent,
+              onError: (Object _, StackTrace __) => _scheduleEventReconnect(),
+              onDone: _scheduleEventReconnect,
+              cancelOnError: true,
+            );
+  }
+
+  void _acceptStreamEvent(AuditEventSummary event) {
+    if (!mounted || _events.any((item) => item.sequence == event.sequence)) {
+      return;
+    }
+    final events = [event, ..._events]
+      ..sort((left, right) => right.sequence.compareTo(left.sequence));
+    setState(() {
+      _events = events.take(100).toList(growable: false);
+      _lastUpdated = DateTime.now();
+    });
+  }
+
+  void _scheduleEventReconnect() {
+    if (!mounted) return;
+    _eventReconnectTimer?.cancel();
+    _eventReconnectTimer = Timer(
+      const Duration(seconds: 2),
+      _startEventStream,
+    );
   }
 
   Future<void> _toggleEmergencyStop() async {

@@ -69,3 +69,32 @@ def test_emergency_stop_state_and_audit_survive_restart(tmp_path) -> None:
         "safety.emergency_stop_reset",
         "safety.emergency_stop_engaged",
     ]
+
+def test_events_can_be_read_forward_from_a_sequence(tmp_path) -> None:
+    store = TaskStore(tmp_path / "boxbrain.sqlite3")
+    first = store.create(
+        TaskCreate(
+            goal="First event",
+            target_id="windows-sandbox",
+            policy_profile="safe",
+        )
+    )
+    second = store.create(
+        TaskCreate(
+            goal="Second event",
+            target_id="windows-sandbox",
+            policy_profile="safe",
+        )
+    )
+    first_sequence = next(
+        event.sequence
+        for event in store.list_events()
+        if event.task_id == first.id
+    )
+
+    forward = store.list_events_after(after_sequence=first_sequence)
+
+    assert [event.task_id for event in forward] == [second.id]
+    assert [event.sequence for event in forward] == sorted(
+        event.sequence for event in forward
+    )

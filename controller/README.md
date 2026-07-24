@@ -20,7 +20,7 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/tasks`
 - `POST /api/v1/tasks`
 - `GET /api/v1/tasks/{task_id}`
-- `GET /api/v1/events`
+- GET /api/v1/events`n- GET /api/v1/events/stream (server-sent events with resume support)
 - `GET /api/v1/policies`
 - `GET /api/v1/plugins`
 - `GET /api/v1/targets`

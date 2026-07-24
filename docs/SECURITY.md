@@ -20,7 +20,9 @@ These remain active in every policy profile:
 
 Task creation and its audit event are committed atomically. The event table has
 no mutation API, and SQLite triggers reject direct updates or deletions. Runtime
-data stays under `controller/data/` and is excluded from source control.
+data stays under `controller/data/` and is excluded from source control. The
+authenticated event stream reads only forward from durable sequence numbers and
+uses no mutable in-memory event queue.
 
 ## Read-only Windows Sandbox observer
 

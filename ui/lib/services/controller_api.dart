@@ -36,6 +36,10 @@ class ControllerApi {
   Uri get healthEndpoint => endpoint('/api/v1/health');
   Uri get tasksEndpoint => endpoint('/api/v1/tasks');
   Uri get eventsEndpoint => endpoint('/api/v1/events');
+  Uri eventStreamEndpoint({required int afterSequence}) =>
+      endpoint('/api/v1/events/stream').replace(
+        queryParameters: {'after_sequence': afterSequence.toString()},
+      );
   Uri get emergencyStopEndpoint => endpoint('/api/v1/safety/emergency-stop');
   Uri get emergencyStopEngageEndpoint =>
       endpoint('/api/v1/safety/emergency-stop/engage');
@@ -113,6 +117,59 @@ class ControllerApi {
     return json
         .map((item) => AuditEventSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
+  }
+
+  Stream<AuditEventSummary> streamEvents({int afterSequence = 0}) async* {
+    final client = http.Client();
+    try {
+      final request = http.Request(
+        'GET',
+        eventStreamEndpoint(afterSequence: afterSequence),
+      )..headers.addAll({
+          ..._headers,
+          'Accept': 'text/event-stream',
+          if (afterSequence > 0) 'Last-Event-ID': afterSequence.toString(),
+        });
+      final response = await client.send(request).timeout(timeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final body = await response.stream.bytesToString();
+        throw ControllerApiException(
+          _errorMessage(
+            http.Response(body, response.statusCode, headers: response.headers),
+          ),
+        );
+      }
+
+      String? data;
+      await for (final line in response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (line.isEmpty) {
+          if (data != null) {
+            try {
+              final json = jsonDecode(data) as Map<String, dynamic>;
+              yield AuditEventSummary.fromJson(json);
+            } on FormatException {
+              throw const ControllerApiException(
+                'Controller returned an invalid audit event.',
+              );
+            }
+          }
+          data = null;
+        } else if (line.startsWith('data:')) {
+          final value = line.substring(5).trimLeft();
+          data = data == null ? value : '$data\n$value';
+        }
+      }
+    } on TimeoutException {
+      throw const ControllerApiException('Controller stream timed out.');
+    } on SocketException {
+      throw const ControllerApiException('Controller is not reachable.');
+    } on http.ClientException {
+      throw const ControllerApiException('Controller stream failed.');
+    } finally {
+      client.close();
+    }
   }
 
   Future<List<PolicySummary>> fetchPolicies() async {
