@@ -10,6 +10,7 @@ plugin discovery endpoints. It intentionally has no action executor.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
+$env:BOXBRAIN_API_TOKEN = '<a-random-value-with-at-least-32-characters>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
@@ -28,6 +29,10 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/safety/emergency-stop`
 - `POST /api/v1/safety/emergency-stop/engage`
 - `POST /api/v1/safety/emergency-stop/reset`
+
+All API routes except health and documentation require `X-BoxBrain-Token` when
+`BOXBRAIN_API_TOKEN` is configured. Tokens shorter than 32 characters are
+rejected at startup.
 
 Task submission only records a queued task. No keyboard, mouse, shell, remote
 desktop, model, or plugin action is performed. The persistent emergency stop

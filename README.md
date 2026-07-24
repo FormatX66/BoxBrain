@@ -22,6 +22,13 @@ BoxBrain/
 
 ## Quick start
 
+Set the same local token in the controller and dashboard terminals. Use a unique
+random value with at least 32 characters and never commit it:
+
+```powershell
+$env:BOXBRAIN_API_TOKEN = '<your-random-local-token>'
+```
+
 ### 1. Flutter dashboard
 
 Flutter must be available on `PATH`. From `ui/`, generate the missing platform
@@ -37,7 +44,7 @@ For the browser dashboard, use the web server device so Flutter does not need
 to launch Chrome itself:
 
 ```powershell
-flutter run -d web-server --web-port 8080
+flutter run -d web-server --web-port 8080 --dart-define=BOXBRAIN_API_TOKEN=$env:BOXBRAIN_API_TOKEN
 ```
 
 The source is already present under `ui/lib`; `flutter create` is only needed
@@ -51,6 +58,7 @@ From `controller/`:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
+$env:BOXBRAIN_API_TOKEN = '<the-same-local-token>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
@@ -66,7 +74,8 @@ discovers that window and exposes a view-only frame in the dashboard.
 The development launcher accepts no path from the dashboard and can open only
 the checked-in `.wsb` profile. Every request is added to the append-only audit
 log. The observer has no keyboard, mouse, clipboard, file, arbitrary process,
-or shell API.
+or shell API. Frames are fetched as authenticated bytes rather than exposed as
+unauthenticated image URLs.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
 

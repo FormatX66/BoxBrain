@@ -5,4 +5,6 @@ class AppConfig {
     'BOXBRAIN_API_URL',
     defaultValue: 'http://127.0.0.1:8000',
   );
+
+  static const apiToken = String.fromEnvironment('BOXBRAIN_API_TOKEN');
 }

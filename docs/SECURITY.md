@@ -41,6 +41,18 @@ is disabled by default outside the development environment.
 `research` and `open` may reduce per-action confirmations, but they do not
 remove containment, logging, identity, or emergency-stop controls.
 
+## Local API authentication
+
+The controller optionally enforces a minimum-32-character token on all API
+routes except health and documentation. The dashboard sends it only in the
+`X-BoxBrain-Token` header, including authenticated in-memory frame requests.
+CORS permits the header only from configured dashboard origins.
+
+The alpha web build receives its token at build time. This protects a loopback
+development controller from accidental unauthenticated requests, but it is not
+a substitute for user identity, OS-backed secret storage, TLS, or process
+isolation. Never expose this controller or dashboard to another host.
+
 ## Emergency-stop boundary
 
 The emergency-stop state is persisted in the controller database and remains

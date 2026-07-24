@@ -50,6 +50,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 python -m pytest
+$env:BOXBRAIN_API_TOKEN = '<a-random-value-with-at-least-32-characters>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
@@ -63,7 +64,7 @@ without asking Flutter to launch a browser:
 
 ```powershell
 cd ui
-flutter run -d web-server --web-port 8080
+flutter run -d web-server --web-port 8080 --dart-define=BOXBRAIN_API_TOKEN=$env:BOXBRAIN_API_TOKEN
 ```
 
 Override the controller URL at build time without storing it in source:
@@ -71,6 +72,14 @@ Override the controller URL at build time without storing it in source:
 ```powershell
 flutter run -d windows --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
 ```
+
+## Local API authentication
+
+When `BOXBRAIN_API_TOKEN` is set, every API route except health and the API
+documentation requires that token in the `X-BoxBrain-Token` header. Use the
+same value as the dashboard build-time `BOXBRAIN_API_TOKEN`. The browser build
+contains this development credential, so it is a loopback access control—not a
+multi-user secret store. Keep both services bound to localhost.
 
 ## Observe Windows Sandbox
 

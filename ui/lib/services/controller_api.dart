@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -19,10 +20,12 @@ class ControllerApiException implements Exception {
 class ControllerApi {
   const ControllerApi({
     this.baseUrl = AppConfig.controllerBaseUrl,
+    this.apiToken = AppConfig.apiToken,
     this.timeout = const Duration(seconds: 5),
   });
 
   final String baseUrl;
+  final String apiToken;
   final Duration timeout;
 
   Uri endpoint(String path) {
@@ -49,6 +52,10 @@ class ControllerApi {
       queryParameters: {'frame': cacheKey.toString()},
     );
   }
+
+  Map<String, String> get _headers => {
+        if (apiToken.isNotEmpty) 'X-BoxBrain-Token': apiToken,
+      };
 
   Future<ControllerHealth> fetchHealth() async {
     final json = await _getJson(healthEndpoint);
@@ -134,34 +141,60 @@ class ControllerApi {
     return (json as Map<String, dynamic>)['status'] as String;
   }
 
+  Future<Uint8List> fetchSandboxFrame({required int cacheKey}) async {
+    final response = await _request(
+      () => http.get(
+        sandboxFrameEndpoint(cacheKey: cacheKey),
+        headers: _headers,
+      ),
+    );
+    if (response.headers['content-type']?.startsWith('image/png') != true) {
+      throw const ControllerApiException(
+        'Controller returned an invalid Sandbox frame.',
+      );
+    }
+    return response.bodyBytes;
+  }
+
   Future<dynamic> _getJson(Uri uri) async {
-    return _requestJson(() => http.get(uri));
+    return _requestJson(() => http.get(uri, headers: _headers));
   }
 
   Future<dynamic> _postJson(Uri uri, Map<String, dynamic> body) async {
     return _requestJson(
       () => http.post(
         uri,
-        headers: const {'Content-Type': 'application/json'},
+        headers: {..._headers, 'Content-Type': 'application/json'},
         body: jsonEncode(body),
       ),
     );
   }
 
-  Future<dynamic> _requestJson(Future<http.Response> Function() request) async {
+  Future<dynamic> _requestJson(
+    Future<http.Response> Function() request,
+  ) async {
+    final response = await _request(request);
+    try {
+      return jsonDecode(response.body);
+    } on FormatException {
+      throw const ControllerApiException('Controller returned invalid data.');
+    }
+  }
+
+  Future<http.Response> _request(
+    Future<http.Response> Function() request,
+  ) async {
     try {
       final response = await request().timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final message = _errorMessage(response);
         throw ControllerApiException(message);
       }
-      return jsonDecode(response.body);
+      return response;
     } on TimeoutException {
       throw const ControllerApiException('Controller request timed out.');
     } on SocketException {
       throw const ControllerApiException('Controller is not reachable.');
-    } on FormatException {
-      throw const ControllerApiException('Controller returned invalid data.');
     } on http.ClientException {
       throw const ControllerApiException('Controller connection failed.');
     }

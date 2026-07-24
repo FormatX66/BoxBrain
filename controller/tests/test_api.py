@@ -1,7 +1,10 @@
+from dataclasses import replace
+
 import pytest
 from fastapi.testclient import TestClient
 
 from boxbrain_controller import api as api_module
+from boxbrain_controller import app as app_module
 from boxbrain_controller.app import create_app
 from boxbrain_controller.task_store import TaskStore
 
@@ -16,6 +19,55 @@ def isolated_task_store(tmp_path, monkeypatch) -> None:
         "task_store",
         TaskStore(tmp_path / "boxbrain-test.sqlite3"),
     )
+
+
+def test_local_api_token_protects_controller_routes(monkeypatch) -> None:
+    token = "a" * 32
+    monkeypatch.setattr(
+        app_module,
+        "settings",
+        replace(app_module.settings, api_token=token),
+    )
+    protected_client = TestClient(app_module.create_app())
+
+    assert protected_client.get("/api/v1/health").status_code == 200
+
+    missing = protected_client.get(
+        "/api/v1/targets",
+        headers={"Origin": "http://127.0.0.1:8080"},
+    )
+    assert missing.status_code == 401
+    assert missing.json()["detail"] == "A valid BoxBrain API token is required."
+    assert missing.headers["access-control-allow-origin"] == (
+        "http://127.0.0.1:8080"
+    )
+
+    assert protected_client.get(
+        "/api/v1/targets",
+        headers={"X-BoxBrain-Token": "wrong"},
+    ).status_code == 401
+    assert protected_client.get(
+        "/api/v1/targets",
+        headers={"X-BoxBrain-Token": token},
+    ).status_code == 200
+    openapi = protected_client.get("/openapi.json").json()
+    assert openapi["components"]["securitySchemes"]["BoxBrainToken"] == {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-BoxBrain-Token",
+    }
+    assert openapi["paths"]["/api/v1/health"]["get"]["security"] == []
+
+
+def test_short_api_token_is_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(
+        app_module,
+        "settings",
+        replace(app_module.settings, api_token="too-short"),
+    )
+
+    with pytest.raises(ValueError, match="at least 32 characters"):
+        app_module.create_app()
 
 
 def test_health_reports_executor_disabled() -> None:

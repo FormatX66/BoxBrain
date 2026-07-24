@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:boxbrain_ui/app.dart';
 import 'package:boxbrain_ui/models/controller_status.dart';
 import 'package:boxbrain_ui/services/controller_api.dart';
@@ -145,6 +147,11 @@ class _OnlineControllerApi extends ControllerApi {
         environment: 'development',
         executorEnabled: false,
       );
+
+  @override
+  Future<Uint8List> fetchSandboxFrame({required int cacheKey}) async {
+    throw const ControllerApiException('Test frame unavailable.');
+  }
 
   @override
   Future<List<TaskSummary>> fetchTasks() async => const [];

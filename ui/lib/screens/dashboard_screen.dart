@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -857,7 +858,9 @@ class _TargetSection extends StatefulWidget {
 
 class _TargetSectionState extends State<_TargetSection> {
   Timer? _timer;
-  int _frameVersion = DateTime.now().millisecondsSinceEpoch;
+  Uint8List? _frame;
+  bool _frameLoading = false;
+  String? _frameError;
   bool _launching = false;
   String? _launchError;
 
@@ -883,12 +886,36 @@ class _TargetSectionState extends State<_TargetSection> {
 
   void _updateTimer() {
     _timer?.cancel();
-    if (widget.target?.connected != true) return;
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted) {
-        setState(() => _frameVersion = DateTime.now().millisecondsSinceEpoch);
-      }
-    });
+    if (widget.target?.connected != true) {
+      _frame = null;
+      _frameError = null;
+      return;
+    }
+    _refreshFrame();
+    _timer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _refreshFrame(),
+    );
+  }
+
+  Future<void> _refreshFrame() async {
+    if (_frameLoading || widget.target?.connected != true) return;
+    _frameLoading = true;
+    try {
+      final frame = await widget.api.fetchSandboxFrame(
+        cacheKey: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (!mounted) return;
+      setState(() {
+        _frame = frame;
+        _frameError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _frameError = error.toString());
+    } finally {
+      _frameLoading = false;
+    }
   }
 
   Future<void> _startSandbox() async {
@@ -969,7 +996,6 @@ class _TargetSectionState extends State<_TargetSection> {
       );
     }
 
-    final frameUri = widget.api.sandboxFrameEndpoint(cacheKey: _frameVersion);
     return _SectionList(
       title: target.name,
       subtitle: 'Live local window capture',
@@ -988,28 +1014,24 @@ class _TargetSectionState extends State<_TargetSection> {
               color: Colors.black,
               child: AspectRatio(
                 aspectRatio: 2.45,
-                child: Image.network(
-                  frameUri.toString(),
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                  frameBuilder: (context, child, frame, synchronous) {
-                    if (synchronous || frame != null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: _Callout(
-                          icon: Icons.image_not_supported_outlined,
-                          title: 'Frame unavailable',
-                          message:
-                              'Refresh the target or reopen Windows Sandbox.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _frame != null
+                    ? Image.memory(
+                        _frame!,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      )
+                    : _frameError != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: _Callout(
+                                icon: Icons.image_not_supported_outlined,
+                                title: 'Frame unavailable',
+                                message: _frameError!,
+                              ),
+                            ),
+                          )
+                        : const Center(child: CircularProgressIndicator()),
               ),
             ),
           ),

@@ -20,6 +20,7 @@ class Settings:
     environment: str = getenv("BOXBRAIN_ENVIRONMENT", "development")
     host: str = getenv("BOXBRAIN_HOST", "127.0.0.1")
     port: int = int(getenv("BOXBRAIN_PORT", "8000"))
+    api_token: str | None = getenv("BOXBRAIN_API_TOKEN") or None
     cors_origins: tuple[str, ...] = _csv_environment(
         "BOXBRAIN_CORS_ORIGINS",
         (
