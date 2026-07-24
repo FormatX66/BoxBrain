@@ -29,6 +29,7 @@ void main() {
 
     expect(find.text('Windows Sandbox is not running'), findsOneWidget);
     expect(find.text('Read-only access only'), findsOneWidget);
+    expect(find.text('Open Windows Sandbox'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();
@@ -37,6 +38,25 @@ void main() {
     expect(
         find.text('Task queued; executor remains disabled.'), findsOneWidget);
     expect(find.text('1 append-only controller events'), findsOneWidget);
+  });
+
+  testWidgets('opens the fixed Sandbox profile from the Target screen', (
+    tester,
+  ) async {
+    final api = _LaunchControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.desktop_windows_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Windows Sandbox'));
+    await tester.pump();
+
+    expect(api.startCalls, 1);
+    expect(find.text('Opening Sandbox'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('queues an audited task for a connected target', (tester) async {
@@ -157,8 +177,22 @@ class _OnlineControllerApi extends ControllerApi {
           frameEndpoint:
               targetConnected ? '/api/v1/targets/windows-sandbox/frame' : null,
           inputEnabled: false,
+          startEnabled: true,
+          startEndpoint: '/api/v1/targets/windows-sandbox/start',
         ),
       ];
+}
+
+class _LaunchControllerApi extends _OnlineControllerApi {
+  _LaunchControllerApi();
+
+  int startCalls = 0;
+
+  @override
+  Future<String> startSandbox() async {
+    startCalls += 1;
+    return 'starting';
+  }
 }
 
 class _QueueControllerApi extends _OnlineControllerApi {

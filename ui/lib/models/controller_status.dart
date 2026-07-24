@@ -175,6 +175,8 @@ class TargetSummary {
     required this.windowTitle,
     required this.frameEndpoint,
     required this.inputEnabled,
+    required this.startEnabled,
+    required this.startEndpoint,
   });
 
   factory TargetSummary.fromJson(Map<String, dynamic> json) {
@@ -187,6 +189,8 @@ class TargetSummary {
       windowTitle: json['window_title'] as String,
       frameEndpoint: json['frame_endpoint'] as String?,
       inputEnabled: json['input_enabled'] as bool,
+      startEnabled: json['start_enabled'] as bool,
+      startEndpoint: json['start_endpoint'] as String?,
     );
   }
 
@@ -198,6 +202,8 @@ class TargetSummary {
   final String windowTitle;
   final String? frameEndpoint;
   final bool inputEnabled;
+  final bool startEnabled;
+  final String? startEndpoint;
 }
 
 class AuditEventSummary {

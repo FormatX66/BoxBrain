@@ -36,6 +36,8 @@ class ControllerApi {
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
+  Uri get sandboxStartEndpoint =>
+      endpoint('/api/v1/targets/windows-sandbox/start');
 
   Uri sandboxFrameEndpoint({required int cacheKey}) {
     return endpoint('/api/v1/targets/windows-sandbox/frame').replace(
@@ -97,6 +99,11 @@ class ControllerApi {
     return json
         .map((item) => TargetSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
+  }
+
+  Future<String> startSandbox() async {
+    final json = await _postJson(sandboxStartEndpoint, const {});
+    return (json as Map<String, dynamic>)['status'] as String;
   }
 
   Future<dynamic> _getJson(Uri uri) async {

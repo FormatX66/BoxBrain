@@ -8,6 +8,13 @@ def _csv_environment(name: str, default: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+def _bool_environment(name: str, default: bool) -> bool:
+    value = getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     environment: str = getenv("BOXBRAIN_ENVIRONMENT", "development")
@@ -24,6 +31,16 @@ class Settings:
         getenv("BOXBRAIN_PLUGIN_DIR", "../plugins")
     ).resolve()
     data_dir: Path = Path(getenv("BOXBRAIN_DATA_DIR", "./data")).resolve()
+    sandbox_profile: Path = Path(
+        getenv(
+            "BOXBRAIN_SANDBOX_PROFILE",
+            "../sandbox/BoxBrain-Isolated.wsb",
+        )
+    ).resolve()
+    sandbox_launch_enabled: bool = _bool_environment(
+        "BOXBRAIN_SANDBOX_LAUNCH_ENABLED",
+        getenv("BOXBRAIN_ENVIRONMENT", "development") == "development",
+    )
 
 
 settings = Settings()

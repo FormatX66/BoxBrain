@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 PolicyProfileName = Literal["safe", "research", "open"]
+AuditEventType = Literal["task.queued", "target.start_requested"]
 
 
 class TaskStatus(StrEnum):
@@ -40,7 +41,7 @@ class TaskRecord(TaskCreate):
 class AuditEvent(BaseModel):
     sequence: int
     id: UUID
-    event_type: Literal["task.queued"]
+    event_type: AuditEventType
     task_id: UUID | None
     target_id: str | None
     message: str
@@ -74,3 +75,11 @@ class TargetSummary(BaseModel):
     window_title: str
     frame_endpoint: str | None
     input_enabled: Literal[False] = False
+    start_enabled: bool = False
+    start_endpoint: str | None = None
+
+
+class TargetStartResponse(BaseModel):
+    target_id: Literal["windows-sandbox"]
+    status: Literal["starting", "already_running"]
+    message: str

@@ -58,12 +58,15 @@ Open `http://127.0.0.1:8000/docs` for the API explorer.
 
 ### 3. Read-only Windows Sandbox target
 
-On Windows, open `sandbox/BoxBrain-Isolated.wsb` and keep the Sandbox window
-running. Its profile disables networking, clipboard, audio/video input, printer
-redirection, and vGPU. The controller discovers that window and exposes a
-view-only frame in the dashboard's **Target** tab.
+On Windows, select **Target** and use **Open Windows Sandbox**, or open
+`sandbox/BoxBrain-Isolated.wsb` directly. Its profile disables networking,
+clipboard, audio/video input, printer redirection, and vGPU. The controller
+discovers that window and exposes a view-only frame in the dashboard.
 
-The observer has no keyboard, mouse, clipboard, file, process, or shell API.
+The development launcher accepts no path from the dashboard and can open only
+the checked-in `.wsb` profile. Every request is added to the append-only audit
+log. The observer has no keyboard, mouse, clipboard, file, arbitrary process,
+or shell API.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
 

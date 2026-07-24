@@ -494,9 +494,15 @@ class _OverviewCards extends StatelessWidget {
             ? 'Local window capture active'
             : 'Windows Sandbox not detected',
         trailing: FilledButton.icon(
-          onPressed: target?.connected == true ? onViewTarget : null,
-          icon: const Icon(Icons.visibility_outlined),
-          label: const Text('View'),
+          onPressed: target?.connected == true || target?.startEnabled == true
+              ? onViewTarget
+              : null,
+          icon: Icon(
+            target?.connected == true
+                ? Icons.visibility_outlined
+                : Icons.play_arrow,
+          ),
+          label: Text(target?.connected == true ? 'View' : 'Open'),
         ),
         child: _PlaceholderRows(
           rows: [
@@ -562,6 +568,8 @@ class _TargetSection extends StatefulWidget {
 class _TargetSectionState extends State<_TargetSection> {
   Timer? _timer;
   int _frameVersion = DateTime.now().millisecondsSinceEpoch;
+  bool _launching = false;
+  String? _launchError;
 
   @override
   void initState() {
@@ -593,6 +601,28 @@ class _TargetSectionState extends State<_TargetSection> {
     });
   }
 
+  Future<void> _startSandbox() async {
+    setState(() {
+      _launching = true;
+      _launchError = null;
+    });
+    try {
+      await widget.api.startSandbox();
+      if (!mounted) return;
+      widget.onRefresh();
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      widget.onRefresh();
+      setState(() => _launching = false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _launching = false;
+        _launchError = error.toString();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.status.connection != ConnectionStateLabel.online) {
@@ -605,18 +635,40 @@ class _TargetSectionState extends State<_TargetSection> {
         title: 'Windows Sandbox',
         subtitle: 'Read-only access only',
         onRefresh: widget.onRefresh,
-        children: const [
-          Card(
+        primaryAction: target?.startEnabled == true
+            ? FilledButton.icon(
+                onPressed: _launching ? null : _startSandbox,
+                icon: _launching
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow),
+                label: Text(
+                  _launching ? 'Opening Sandbox' : 'Open Windows Sandbox',
+                ),
+              )
+            : null,
+        children: [
+          const Card(
             child: Padding(
               padding: EdgeInsets.all(22),
               child: _Callout(
                 icon: Icons.desktop_access_disabled,
                 title: 'Windows Sandbox is not running',
                 message:
-                    'Start the isolated Sandbox, then refresh this target.',
+                    'Use the button above to open the isolated test profile.',
               ),
             ),
           ),
+          if (_launchError != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.error_outline),
+                title: const Text('Sandbox did not open'),
+                subtitle: Text(_launchError!),
+              ),
+            ),
         ],
       );
     }
@@ -1031,7 +1083,9 @@ class _LogSection extends StatelessWidget {
               ),
               trailing: Chip(
                 label: Text(
-                  _titleCase(event.eventType.replaceAll('.', ' ')),
+                  _titleCase(event.eventType
+                      .replaceAll('.', ' ')
+                      .replaceAll('_', ' ')),
                 ),
               ),
             ),

@@ -8,19 +8,27 @@ from .models import (
     HealthResponse,
     PluginSummary,
     PolicyProfile,
+    TargetStartResponse,
     TargetSummary,
     TaskCreate,
     TaskRecord,
 )
 from .plugin_registry import PluginRegistry
-from .sandbox_observer import SandboxCaptureError, WindowsSandboxObserver
+from .sandbox_observer import (
+    SandboxCaptureError,
+    SandboxStartError,
+    WindowsSandboxObserver,
+)
 from .settings import settings
 from .task_store import TaskStore
 
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 plugin_registry = PluginRegistry(settings.plugin_dir)
-sandbox_observer = WindowsSandboxObserver()
+sandbox_observer = WindowsSandboxObserver(
+    profile_path=settings.sandbox_profile,
+    start_enabled=settings.sandbox_launch_enabled,
+)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -105,6 +113,48 @@ def list_plugins() -> list[PluginSummary]:
 @router.get("/targets", response_model=list[TargetSummary])
 def list_targets() -> list[TargetSummary]:
     return [TargetSummary.model_validate(sandbox_observer.describe())]
+
+
+@router.post(
+    "/targets/windows-sandbox/start",
+    response_model=TargetStartResponse,
+)
+def start_windows_sandbox() -> TargetStartResponse:
+    if not settings.sandbox_launch_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sandbox launch is disabled outside development.",
+        )
+    try:
+        launch_status = sandbox_observer.start()
+    except SandboxStartError as error:
+        task_store.append_event(
+            event_type="target.start_requested",
+            target_id=sandbox_observer.target_id,
+            message="Windows Sandbox launch failed.",
+            details={"result": "failed", "reason": str(error)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+    message = (
+        "Windows Sandbox is already running."
+        if launch_status == "already_running"
+        else "Windows Sandbox launch requested."
+    )
+    task_store.append_event(
+        event_type="target.start_requested",
+        target_id=sandbox_observer.target_id,
+        message=message,
+        details={"result": launch_status},
+    )
+    return TargetStartResponse(
+        target_id="windows-sandbox",
+        status=launch_status,
+        message=message,
+    )
 
 
 @router.get(

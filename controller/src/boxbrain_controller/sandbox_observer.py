@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import ctypes
+import os
 import sys
 from ctypes import wintypes
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
+from typing import Literal
 
 from PIL import Image
 
 
 class SandboxCaptureError(RuntimeError):
     """Raised when the Windows Sandbox frame cannot be captured."""
+
+
+class SandboxStartError(RuntimeError):
+    """Raised when the fixed Windows Sandbox profile cannot be launched."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,18 +61,27 @@ class _BitmapInfo(ctypes.Structure):
 
 
 class WindowsSandboxObserver:
-    """Read-only discovery and frame capture for Windows Sandbox.
+    """Read-only observation plus fixed-profile Sandbox startup.
 
-    This class intentionally exposes no keyboard, mouse, clipboard, process,
-    filesystem, or shell operations.
+    The startup capability can open only the configured .wsb profile. This
+    class exposes no keyboard, mouse, clipboard, arbitrary process, filesystem,
+    or shell operations.
     """
 
     target_id = "windows-sandbox"
     target_name = "Windows Sandbox"
     window_title = "Windows Sandbox"
 
-    def __init__(self, *, max_frame_width: int = 1600) -> None:
+    def __init__(
+        self,
+        *,
+        max_frame_width: int = 1600,
+        profile_path: str | Path | None = None,
+        start_enabled: bool = False,
+    ) -> None:
         self._max_frame_width = max_frame_width
+        self._profile_path = Path(profile_path).resolve() if profile_path else None
+        self._start_enabled = start_enabled
         self._supported = sys.platform == "win32"
         if self._supported:
             self._configure_win32()
@@ -85,7 +101,38 @@ class WindowsSandboxObserver:
                 else None
             ),
             "input_enabled": False,
+            "start_enabled": self.start_enabled,
+            "start_endpoint": (
+                f"/api/v1/targets/{self.target_id}/start"
+                if self.start_enabled
+                else None
+            ),
         }
+
+    @property
+    def start_enabled(self) -> bool:
+        return bool(
+            self._supported
+            and self._start_enabled
+            and self._profile_path is not None
+            and self._profile_path.suffix.lower() == ".wsb"
+            and self._profile_path.is_file()
+        )
+
+    def start(self) -> Literal["starting", "already_running"]:
+        if not self.start_enabled or self._profile_path is None:
+            raise SandboxStartError(
+                "Sandbox launch is unavailable or its fixed profile is missing."
+            )
+        if self.find_window() is not None:
+            return "already_running"
+        try:
+            os.startfile(str(self._profile_path))
+        except (OSError, ValueError) as error:
+            raise SandboxStartError(
+                "Windows could not open the configured Sandbox profile."
+            ) from error
+        return "starting"
 
     def find_window(self) -> SandboxWindow | None:
         if not self._supported:

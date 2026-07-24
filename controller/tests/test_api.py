@@ -122,6 +122,32 @@ def test_sandbox_target_is_strictly_read_only() -> None:
     ).status_code == 404
 
 
+def test_sandbox_start_is_fixed_profile_only_and_audited(monkeypatch) -> None:
+    calls = []
+
+    def start() -> str:
+        calls.append("configured-profile")
+        return "starting"
+
+    monkeypatch.setattr(api_module.sandbox_observer, "start", start)
+
+    response = client.post(
+        "/api/v1/targets/windows-sandbox/start",
+        json={"profile_path": "C:/untrusted/other.wsb"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "target_id": "windows-sandbox",
+        "status": "starting",
+        "message": "Windows Sandbox launch requested.",
+    }
+    assert calls == ["configured-profile"]
+    events = client.get("/api/v1/events").json()
+    assert len(events) == 1
+    assert events[0]["event_type"] == "target.start_requested"
+    assert events[0]["details"] == {"result": "starting"}
+
 def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
     monkeypatch.setattr(
         api_module.sandbox_observer,

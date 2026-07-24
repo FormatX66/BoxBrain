@@ -7,7 +7,13 @@ from pathlib import Path
 from threading import Lock
 from uuid import UUID, uuid4
 
-from .models import AuditEvent, TaskCreate, TaskRecord, TaskStatus
+from .models import (
+    AuditEvent,
+    AuditEventType,
+    TaskCreate,
+    TaskRecord,
+    TaskStatus,
+)
 
 
 class TaskStore:
@@ -71,6 +77,49 @@ class TaskStore:
                 ),
             )
         return record
+
+    def append_event(
+        self,
+        *,
+        event_type: AuditEventType,
+        target_id: str | None,
+        message: str,
+        details: dict[str, object],
+        task_id: UUID | None = None,
+    ) -> AuditEvent:
+        event_id = uuid4()
+        created_at = datetime.now(UTC)
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO audit_events (
+                    id, event_type, task_id, target_id, message, details_json,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(event_id),
+                    event_type,
+                    str(task_id) if task_id else None,
+                    target_id,
+                    message,
+                    json.dumps(details, separators=(",", ":")),
+                    created_at.isoformat(),
+                ),
+            )
+            sequence = cursor.lastrowid
+        if sequence is None:
+            raise RuntimeError("SQLite did not assign an audit sequence.")
+        return AuditEvent(
+            sequence=sequence,
+            id=event_id,
+            event_type=event_type,
+            task_id=task_id,
+            target_id=target_id,
+            message=message,
+            details=details,
+            created_at=created_at,
+        )
 
     def list(self) -> list[TaskRecord]:
         with self._lock, self._connect() as connection:

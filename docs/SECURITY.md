@@ -33,6 +33,11 @@ The supplied `sandbox/BoxBrain-Isolated.wsb` profile disables networking,
 clipboard, audio/video input, printer redirection, and vGPU, and enables
 Protected Client mode. Closing the Sandbox discards its contents.
 
+In development, the dashboard may request that exact profile be opened. The
+endpoint accepts no executable or path input, refuses non-`.wsb` profiles, and
+records both successful and failed requests in the append-only event store. It
+is disabled by default outside the development environment.
+
 `research` and `open` may reduce per-action confirmations, but they do not
 remove containment, logging, identity, or emergency-stop controls.
 

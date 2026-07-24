@@ -74,7 +74,12 @@ flutter run -d windows --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
 
 ## Observe Windows Sandbox
 
-Open `sandbox/BoxBrain-Isolated.wsb`, keep its window running, and select
-**Target** in the dashboard. The feed refreshes every two seconds and remains
-strictly read-only. Do not expose the local controller port to another host.
+Select **Target** and use **Open Windows Sandbox**, or open
+`sandbox/BoxBrain-Isolated.wsb` directly. The feed refreshes every two seconds
+and remains strictly read-only. The button is enabled by default only when
+`BOXBRAIN_ENVIRONMENT=development`; set
+`BOXBRAIN_SANDBOX_LAUNCH_ENABLED=false` to disable it explicitly. The configured
+profile can be overridden for development with `BOXBRAIN_SANDBOX_PROFILE`, but
+no path is accepted from the dashboard API. Do not expose the local controller
+port to another host.
 
