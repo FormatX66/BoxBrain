@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/controller_status.dart';
@@ -20,6 +22,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icon(Icons.space_dashboard_outlined),
       selectedIcon: Icon(Icons.space_dashboard),
       label: Text('Dashboard'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.desktop_windows_outlined),
+      selectedIcon: Icon(Icons.desktop_windows),
+      label: Text('Target'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.task_alt_outlined),
@@ -47,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<TaskSummary> _tasks = const [];
   List<PolicySummary> _policies = const [];
   List<PluginSummary> _plugins = const [];
+  List<TargetSummary> _targets = const [];
   String? _error;
   bool _loading = true;
   int _selectedIndex = 0;
@@ -73,6 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.api.fetchTasks(),
         widget.api.fetchPolicies(),
         widget.api.fetchPlugins(),
+        widget.api.fetchTargets(),
       ]);
       if (!mounted) return;
 
@@ -80,6 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final tasks = results[1] as List<TaskSummary>;
       final policies = results[2] as List<PolicySummary>;
       final plugins = results[3] as List<PluginSummary>;
+      final targets = results[4] as List<TargetSummary>;
       final activeTasks = tasks
           .where((task) => task.status == 'queued' || task.status == 'running')
           .length;
@@ -90,6 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _tasks = tasks;
         _policies = policies;
         _plugins = plugins;
+        _targets = targets;
         _status = ControllerStatus.online(
           activeTasks: activeTasks,
           enabledPlugins: plugins.where((plugin) => plugin.enabled).length,
@@ -117,9 +128,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _Overview(
         status: _status,
         tasks: _tasks,
+        target: _targets.firstOrNull,
         error: _error,
         loading: _loading,
         onRetry: _refresh,
+        onViewTarget: () => _selectDestination(1),
+      ),
+      _TargetSection(
+        target: _targets.firstOrNull,
+        status: _status,
+        api: widget.api,
+        onRefresh: _refresh,
       ),
       _TaskSection(tasks: _tasks, status: _status, onRefresh: _refresh),
       _PolicySection(
@@ -273,16 +292,20 @@ class _Overview extends StatelessWidget {
   const _Overview({
     required this.status,
     required this.tasks,
+    required this.target,
     required this.error,
     required this.loading,
     required this.onRetry,
+    required this.onViewTarget,
   });
 
   final ControllerStatus status;
   final List<TaskSummary> tasks;
+  final TargetSummary? target;
   final String? error;
   final bool loading;
   final VoidCallback onRetry;
+  final VoidCallback onViewTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +392,12 @@ class _Overview extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                _OverviewCards(status: status, tasks: tasks),
+                _OverviewCards(
+                  status: status,
+                  tasks: tasks,
+                  target: target,
+                  onViewTarget: onViewTarget,
+                ),
               ],
             ),
           ),
@@ -380,10 +408,17 @@ class _Overview extends StatelessWidget {
 }
 
 class _OverviewCards extends StatelessWidget {
-  const _OverviewCards({required this.status, required this.tasks});
+  const _OverviewCards({
+    required this.status,
+    required this.tasks,
+    required this.target,
+    required this.onViewTarget,
+  });
 
   final ControllerStatus status;
   final List<TaskSummary> tasks;
+  final TargetSummary? target;
+  final VoidCallback onViewTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -414,17 +449,19 @@ class _OverviewCards extends StatelessWidget {
       ),
       SectionCard(
         title: 'Target',
-        subtitle: 'No remote target configured',
+        subtitle: target?.connected == true
+            ? 'Local window capture active'
+            : 'Windows Sandbox not detected',
         trailing: FilledButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.add_link),
-          label: const Text('Add target'),
+          onPressed: target?.connected == true ? onViewTarget : null,
+          icon: const Icon(Icons.visibility_outlined),
+          label: const Text('View'),
         ),
-        child: const _PlaceholderRows(
+        child: _PlaceholderRows(
           rows: [
-            ('Connection', 'Not configured'),
-            ('Transport', 'RDP or VNC plugin'),
-            ('Last frame', '-'),
+            ('Connection', target?.connected == true ? 'Connected' : 'Offline'),
+            ('Transport', 'Local window capture'),
+            ('Access', 'Read-only'),
           ],
         ),
       ),
@@ -460,6 +497,144 @@ class _OverviewCards extends StatelessWidget {
           children: cards,
         );
       },
+    );
+  }
+}
+
+class _TargetSection extends StatefulWidget {
+  const _TargetSection({
+    required this.target,
+    required this.status,
+    required this.api,
+    required this.onRefresh,
+  });
+
+  final TargetSummary? target;
+  final ControllerStatus status;
+  final ControllerApi api;
+  final VoidCallback onRefresh;
+
+  @override
+  State<_TargetSection> createState() => _TargetSectionState();
+}
+
+class _TargetSectionState extends State<_TargetSection> {
+  Timer? _timer;
+  int _frameVersion = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TargetSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.target?.connected != widget.target?.connected) {
+      _updateTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _updateTimer() {
+    _timer?.cancel();
+    if (widget.target?.connected != true) return;
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        setState(() => _frameVersion = DateTime.now().millisecondsSinceEpoch);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.status.connection != ConnectionStateLabel.online) {
+      return _UnavailableSection(onRetry: widget.onRefresh);
+    }
+
+    final target = widget.target;
+    if (target == null || !target.connected) {
+      return _SectionList(
+        title: 'Windows Sandbox',
+        subtitle: 'Read-only access only',
+        onRefresh: widget.onRefresh,
+        children: const [
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(22),
+              child: _Callout(
+                icon: Icons.desktop_access_disabled,
+                title: 'Windows Sandbox is not running',
+                message:
+                    'Start the isolated Sandbox, then refresh this target.',
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final frameUri = widget.api.sandboxFrameEndpoint(cacheKey: _frameVersion);
+    return _SectionList(
+      title: target.name,
+      subtitle: 'Live local window capture',
+      onRefresh: widget.onRefresh,
+      children: [
+        SectionCard(
+          title: 'Visual feed',
+          subtitle: 'Refreshes every two seconds',
+          trailing: const Chip(
+            avatar: Icon(Icons.visibility_outlined, size: 16),
+            label: Text('Read-only'),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ColoredBox(
+              color: Colors.black,
+              child: AspectRatio(
+                aspectRatio: 2.45,
+                child: Image.network(
+                  frameUri.toString(),
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  frameBuilder: (context, child, frame, synchronous) {
+                    if (synchronous || frame != null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: _Callout(
+                          icon: Icons.image_not_supported_outlined,
+                          title: 'Frame unavailable',
+                          message:
+                              'Refresh the target or reopen Windows Sandbox.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const Card(
+          child: ListTile(
+            leading: Icon(Icons.lock_outline),
+            title: Text('Observation mode is locked'),
+            subtitle: Text(
+              'BoxBrain cannot send input, clipboard data, files, or commands.',
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -16,6 +16,17 @@ These remain active in every policy profile:
 - No controller self-update during an active run
 - No hidden persistence or privilege escalation
 
+## Read-only Windows Sandbox observer
+
+The alpha observer captures only the visible Windows Sandbox window pixels. It
+exposes target identity and PNG frames, but no keyboard, mouse, clipboard,
+file, process, or shell operation. Frame responses are local-only and marked
+`no-store`.
+
+The supplied `sandbox/BoxBrain-Isolated.wsb` profile disables networking,
+clipboard, audio/video input, printer redirection, and vGPU, and enables
+Protected Client mode. Closing the Sandbox discards its contents.
+
 `research` and `open` may reduce per-action confirmations, but they do not
 remove containment, logging, identity, or emergency-stop controls.
 

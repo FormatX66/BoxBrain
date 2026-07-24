@@ -164,3 +164,38 @@ class PluginSummary {
   final String description;
   final bool enabled;
 }
+
+class TargetSummary {
+  const TargetSummary({
+    required this.id,
+    required this.name,
+    required this.transport,
+    required this.mode,
+    required this.connected,
+    required this.windowTitle,
+    required this.frameEndpoint,
+    required this.inputEnabled,
+  });
+
+  factory TargetSummary.fromJson(Map<String, dynamic> json) {
+    return TargetSummary(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      transport: json['transport'] as String,
+      mode: json['mode'] as String,
+      connected: json['connected'] as bool,
+      windowTitle: json['window_title'] as String,
+      frameEndpoint: json['frame_endpoint'] as String?,
+      inputEnabled: json['input_enabled'] as bool,
+    );
+  }
+
+  final String id;
+  final String name;
+  final String transport;
+  final String mode;
+  final bool connected;
+  final String windowTitle;
+  final String? frameEndpoint;
+  final bool inputEnabled;
+}

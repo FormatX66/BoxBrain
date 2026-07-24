@@ -33,6 +33,13 @@ flutter pub get
 flutter run -d windows
 ```
 
+For the browser dashboard, use the web server device so Flutter does not need
+to launch Chrome itself:
+
+```powershell
+flutter run -d web-server --web-port 8080
+```
+
 The source is already present under `ui/lib`; `flutter create` is only needed
 to add Flutter's generated Windows, Linux, and web runner files.
 
@@ -49,7 +56,18 @@ python -m uvicorn boxbrain_controller.main:app --reload
 
 Open `http://127.0.0.1:8000/docs` for the API explorer.
 
-### 3. Verify
+### 3. Read-only Windows Sandbox target
+
+On Windows, open `sandbox/BoxBrain-Isolated.wsb` and keep the Sandbox window
+running. Its profile disables networking, clipboard, audio/video input, printer
+redirection, and vGPU. The controller discovers that window and exposes a
+view-only frame in the dashboard's **Target** tab.
+
+The observer has no keyboard, mouse, clipboard, file, process, or shell API.
+Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
+for this local dashboard.
+
+### 4. Verify
 
 ```powershell
 cd controller

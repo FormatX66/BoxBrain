@@ -53,3 +53,13 @@ class PluginSummary(BaseModel):
     description: str
     enabled: bool = False
 
+
+class TargetSummary(BaseModel):
+    id: str
+    name: str
+    transport: Literal["local-window-capture"]
+    mode: Literal["read-only"]
+    connected: bool
+    window_title: str
+    frame_endpoint: str | None
+    input_enabled: Literal[False] = False

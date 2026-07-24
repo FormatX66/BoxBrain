@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from boxbrain_controller import api as api_module
 from boxbrain_controller.app import create_app
 
 
@@ -55,3 +56,37 @@ def test_local_web_dashboard_origin_is_allowed() -> None:
     assert response.headers["access-control-allow-origin"] == (
         "http://127.0.0.1:8080"
     )
+
+
+def test_sandbox_target_is_strictly_read_only() -> None:
+    response = client.get("/api/v1/targets")
+
+    assert response.status_code == 200
+    target = response.json()[0]
+    assert target["id"] == "windows-sandbox"
+    assert target["mode"] == "read-only"
+    assert target["input_enabled"] is False
+    assert client.post(
+        "/api/v1/targets/windows-sandbox/input",
+        json={"type": "keyboard", "value": "test"},
+    ).status_code == 404
+
+
+def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module.sandbox_observer,
+        "find_window",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        api_module.sandbox_observer,
+        "capture_png",
+        lambda: b"\x89PNG\r\n\x1a\nframe",
+    )
+
+    response = client.get("/api/v1/targets/windows-sandbox/frame")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.headers["x-boxbrain-capture-mode"] == "read-only"

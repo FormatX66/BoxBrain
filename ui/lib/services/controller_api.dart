@@ -34,6 +34,13 @@ class ControllerApi {
   Uri get tasksEndpoint => endpoint('/api/v1/tasks');
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
+  Uri get targetsEndpoint => endpoint('/api/v1/targets');
+
+  Uri sandboxFrameEndpoint({required int cacheKey}) {
+    return endpoint('/api/v1/targets/windows-sandbox/frame').replace(
+      queryParameters: {'frame': cacheKey.toString()},
+    );
+  }
 
   Future<ControllerHealth> fetchHealth() async {
     final json = await _getJson(healthEndpoint);
@@ -58,6 +65,13 @@ class ControllerApi {
     final json = await _getJson(pluginsEndpoint) as List<dynamic>;
     return json
         .map((item) => PluginSummary.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  Future<List<TargetSummary>> fetchTargets() async {
+    final json = await _getJson(targetsEndpoint) as List<dynamic>;
+    return json
+        .map((item) => TargetSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
   }
 

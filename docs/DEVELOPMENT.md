@@ -53,12 +53,25 @@ python -m pytest
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
-## Connect the UI later
+## Connect the UI
 
-The default controller URL is `http://127.0.0.1:8000`. Override it at build
-time without storing it in source:
+The default controller URL is `http://127.0.0.1:8000`. Run the web dashboard
+without asking Flutter to launch a browser:
+
+```powershell
+cd ui
+flutter run -d web-server --web-port 8080
+```
+
+Override the controller URL at build time without storing it in source:
 
 ```powershell
 flutter run -d windows --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
 ```
+
+## Observe Windows Sandbox
+
+Open `sandbox/BoxBrain-Isolated.wsb`, keep its window running, and select
+**Target** in the dashboard. The feed refreshes every two seconds and remains
+strictly read-only. Do not expose the local controller port to another host.
 
