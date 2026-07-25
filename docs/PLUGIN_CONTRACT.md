@@ -1,30 +1,67 @@
-# Plugin Contract Draft
+# Plugin Contract
 
-Each plugin lives in its own directory and includes a
-`boxbrain_plugin.json` manifest.
+Each plugin lives in its own directory with a strict `boxbrain_plugin.json`
+manifest and a local Python entrypoint. The controller validates manifests but
+never imports plugin code into its own process.
 
-## Required manifest fields
+## Manifest fields
 
 | Field | Meaning |
 |---|---|
 | `id` | Stable reverse-domain identifier |
 | `name` | Operator-facing name |
-| `version` | Semantic version |
+| `version` | Semantic `major.minor.patch` version |
 | `description` | One-sentence purpose |
-| `enabled` | Initial activation state |
-| `entrypoint` | Future out-of-process entrypoint |
-| `capabilities` | Explicit allowlist of typed operations |
+| `enabled` | Explicit activation state |
+| `protocol_version` | Supported local protocol; currently `1` |
+| `entrypoint` | Python filename inside the plugin directory |
+| `capabilities` | Unique allowlist of typed operations |
+| `process_boundary` | `manifest-only` or `out-of-process` |
+| `target_id` | Optional allowlisted target identity |
 
-The alpha reads only the first five fields into its public API. It does not
-import entrypoints.
+Unknown fields, path separators in entrypoints, missing entrypoints, duplicate
+capabilities, malformed identifiers, and unsupported protocol versions make a
+manifest undiscoverable.
 
-## Planned rules
+## Observation protocol version 1
 
-- Plugins run outside the controller process.
-- A plugin receives only configuration and credentials needed for its declared
-  capability.
-- Every message carries plugin, task, target, correlation, and schema versions.
-- Timeouts, cancellation, and idempotency are required.
-- Raw shell execution is not a general plugin capability.
-- Enabling a plugin is an explicit operator action.
+The Windows Sandbox observer starts as a new process for each status or frame
+request. The controller sends exactly one JSON line on standard input:
 
+```json
+{
+  "protocol_version": "1",
+  "plugin_id": "boxbrain.windows-sandbox-observer",
+  "request_id": "correlation UUID",
+  "operation": "describe",
+  "payload": {}
+}
+```
+
+The plugin returns exactly one JSON line with the same protocol, plugin, and
+request identities; an `ok` flag; and either a typed `result` or a short error.
+The controller rejects mismatched identities, undeclared capabilities, extra
+output, invalid schemas, timeouts, oversized responses, non-PNG frames, frames
+larger than 8 MiB, and frame digest mismatches. The checked-in observer scales
+captures to at most 1280 pixels wide before encoding.
+
+The approved observer capabilities are only:
+
+- `observation.describe`
+- `observation.frame`
+
+There is no input, clipboard, file, shell, launch, or arbitrary-process
+operation in the plugin protocol. Opening the fixed Sandbox profile remains a
+separate controller capability guarded by the emergency stop and audit log.
+
+## Process boundary
+
+The child receives a minimal environment that excludes the controller API token
+and provider credentials. It has a four-second deadline, a 12 MiB response
+limit, and exits after one request. This prevents plugin state from living in
+the controller process and makes protocol violations fail closed.
+
+This is process separation, not a lower-privilege Windows sandbox. The plugin
+currently runs as the same Windows user as the controller and uses checked-in
+code. A restricted service identity, package signatures, authenticated
+persistent channels, cancellation, and quarantine remain future hardening.

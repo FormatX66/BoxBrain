@@ -16,6 +16,10 @@ class SandboxCaptureError(RuntimeError):
     """Raised when the Windows Sandbox frame cannot be captured."""
 
 
+class SandboxNotRunningError(SandboxCaptureError):
+    """Raised when observation is healthy but the target is not running."""
+
+
 class SandboxStartError(RuntimeError):
     """Raised when the fixed Windows Sandbox profile cannot be launched."""
 

@@ -98,9 +98,12 @@ discovers that window and exposes a view-only frame in the dashboard.
 
 The development launcher accepts no path from the dashboard and can open only
 the checked-in `.wsb` profile. Every request is added to the append-only audit
-log. The observer has no keyboard, mouse, clipboard, file, arbitrary process,
-or shell API. Frames are fetched as authenticated bytes rather than exposed as
-unauthenticated image URLs.
+log. Status and frames run through the separate
+`boxbrain.windows-sandbox-observer` process with only describe/frame
+capabilities, strict identity correlation, timeouts, size limits, and PNG digest
+verification. The observer has no keyboard, mouse, clipboard, file, arbitrary
+process, or shell API. Frames are fetched as authenticated bytes rather than
+exposed as unauthenticated image URLs.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
 

@@ -20,9 +20,14 @@ from .models import (
     TaskCreate,
     TaskRecord,
 )
+from .plugin_process import (
+    ObserverPluginClient,
+    OutOfProcessWindowsSandboxObserver,
+)
 from .plugin_registry import PluginRegistry
 from .sandbox_observer import (
     SandboxCaptureError,
+    SandboxNotRunningError,
     SandboxStartError,
     WindowsSandboxObserver,
 )
@@ -32,9 +37,16 @@ from .task_store import TaskStore
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 plugin_registry = PluginRegistry(settings.plugin_dir)
-sandbox_observer = WindowsSandboxObserver(
+sandbox_launcher = WindowsSandboxObserver(
     profile_path=settings.sandbox_profile,
     start_enabled=settings.sandbox_launch_enabled,
+)
+sandbox_observer = OutOfProcessWindowsSandboxObserver(
+    ObserverPluginClient(
+        registry=plugin_registry,
+        plugin_id=settings.observer_plugin_id,
+    ),
+    launcher=sandbox_launcher,
 )
 control_lock = Lock()
 
@@ -276,13 +288,13 @@ def start_windows_sandbox() -> TargetStartResponse:
     },
 )
 def get_windows_sandbox_frame() -> Response:
-    if sandbox_observer.find_window() is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Windows Sandbox is not running.",
-        )
     try:
         frame = sandbox_observer.capture_png()
+    except SandboxNotRunningError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
     except SandboxCaptureError as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

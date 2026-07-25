@@ -90,17 +90,24 @@ class PluginSummary(BaseModel):
     version: str
     description: str
     enabled: bool = False
+    protocol_version: Literal["1"]
+    capabilities: tuple[str, ...]
+    process_boundary: Literal["manifest-only", "out-of-process"]
+    target_id: str | None = None
 
 
 class TargetSummary(BaseModel):
     id: str
     name: str
-    transport: Literal["local-window-capture"]
+    transport: Literal["out-of-process-plugin"]
     mode: Literal["read-only"]
     connected: bool
     window_title: str
     frame_endpoint: str | None
     input_enabled: Literal[False] = False
+    observer_plugin_id: str
+    observer_process_boundary: Literal["out-of-process"]
+    observation_status: Literal["ready", "unavailable"]
     start_enabled: bool = False
     start_endpoint: str | None = None
 

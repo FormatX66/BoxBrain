@@ -96,6 +96,11 @@ multi-user secret store. Keep both services bound to localhost.
 
 ## Observe Windows Sandbox
 
+The controller uses the enabled `boxbrain.windows-sandbox-observer` manifest for
+target status and frames. Each request runs in a separate process with a minimal
+environment and returns one correlated protocol-v1 response. Run controller
+tests after changing either the manifest, protocol, or plugin entrypoint.
+
 Select **Target** and use **Open Windows Sandbox**, or open
 `sandbox/BoxBrain-Isolated.wsb` directly. The feed refreshes every two seconds
 and remains strictly read-only. The button is enabled by default only when

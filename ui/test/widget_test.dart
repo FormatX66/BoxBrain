@@ -29,6 +29,13 @@ void main() {
     expect(find.text('Research'), findsOneWidget);
     expect(find.text('Open'), findsOneWidget);
 
+    await tester.tap(find.text('Plugins'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Windows Sandbox Observer'), findsOneWidget);
+    expect(find.textContaining('Out of process'), findsOneWidget);
+    expect(find.textContaining('observation.frame'), findsOneWidget);
+
     await tester.tap(find.byIcon(Icons.desktop_windows_outlined));
     await tester.pumpAndSettle();
 
@@ -244,11 +251,15 @@ class _OnlineControllerApi extends ControllerApi {
   @override
   Future<List<PluginSummary>> fetchPlugins() async => const [
         PluginSummary(
-          id: 'example-observer',
-          name: 'Example observer',
+          id: 'boxbrain.windows-sandbox-observer',
+          name: 'Windows Sandbox Observer',
           version: '0.1.0',
-          description: 'Inert example plugin.',
+          description: 'Read-only observer plugin.',
           enabled: true,
+          protocolVersion: '1',
+          capabilities: ['observation.describe', 'observation.frame'],
+          processBoundary: 'out-of-process',
+          targetId: 'windows-sandbox',
         ),
       ];
 
@@ -257,13 +268,16 @@ class _OnlineControllerApi extends ControllerApi {
         TargetSummary(
           id: 'windows-sandbox',
           name: 'Windows Sandbox',
-          transport: 'local-window-capture',
+          transport: 'out-of-process-plugin',
           mode: 'read-only',
           connected: targetConnected,
           windowTitle: 'Windows Sandbox',
           frameEndpoint:
               targetConnected ? '/api/v1/targets/windows-sandbox/frame' : null,
           inputEnabled: false,
+          observerPluginId: 'boxbrain.windows-sandbox-observer',
+          observerProcessBoundary: 'out-of-process',
+          observationStatus: 'ready',
           startEnabled: true,
           startEndpoint: '/api/v1/targets/windows-sandbox/start',
         ),

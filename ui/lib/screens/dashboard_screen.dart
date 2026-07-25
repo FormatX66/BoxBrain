@@ -843,9 +843,11 @@ class _OverviewCards extends StatelessWidget {
       ),
       SectionCard(
         title: 'Target',
-        subtitle: target?.connected == true
-            ? 'Local window capture active'
-            : 'Windows Sandbox not detected',
+        subtitle: target?.observationStatus == 'unavailable'
+            ? 'Observer plugin unavailable'
+            : target?.connected == true
+                ? 'Out-of-process observation active'
+                : 'Windows Sandbox not detected',
         trailing: FilledButton.icon(
           onPressed: target?.connected == true ||
                   (target?.startEnabled == true && !emergencyStop.engaged)
@@ -861,8 +863,13 @@ class _OverviewCards extends StatelessWidget {
         child: _PlaceholderRows(
           rows: [
             ('Connection', target?.connected == true ? 'Connected' : 'Offline'),
-            ('Transport', 'Local window capture'),
-            ('Access', 'Read-only'),
+            (
+              'Transport',
+              target?.observerProcessBoundary == 'out-of-process'
+                  ? 'Out-of-process plugin'
+                  : 'Unavailable',
+            ),
+            ('Access', 'Read-only; no input capability'),
           ],
         ),
       ),
@@ -1042,10 +1049,14 @@ class _TargetSectionState extends State<_TargetSection> {
                     : Icons.desktop_access_disabled,
                 title: widget.emergencyStop.engaged
                     ? 'Emergency stop is engaged'
-                    : 'Windows Sandbox is not running',
+                    : target?.observationStatus == 'unavailable'
+                        ? 'Observer plugin is unavailable'
+                        : 'Windows Sandbox is not running',
                 message: widget.emergencyStop.engaged
                     ? 'Reset the stop before opening the isolated test profile.'
-                    : 'Use the button above to open the isolated test profile.',
+                    : target?.observationStatus == 'unavailable'
+                        ? 'The controller cannot verify the read-only target process.'
+                        : 'Use the button above to open the isolated test profile.',
               ),
             ),
           ),
@@ -1063,7 +1074,7 @@ class _TargetSectionState extends State<_TargetSection> {
 
     return _SectionList(
       title: target.name,
-      subtitle: 'Live local window capture',
+      subtitle: 'Live out-of-process window capture',
       onRefresh: widget.onRefresh,
       children: [
         SectionCard(
@@ -1098,6 +1109,15 @@ class _TargetSectionState extends State<_TargetSection> {
                           )
                         : const Center(child: CircularProgressIndicator()),
               ),
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.account_tree_outlined),
+            title: const Text('Observer runs out of process'),
+            subtitle: Text(
+              '${target.observerPluginId} has status and frame capabilities only.',
             ),
           ),
         ),
@@ -1435,8 +1455,11 @@ class _PluginSection extends StatelessWidget {
                   child: ListTile(
                     leading: const Icon(Icons.extension),
                     title: Text(plugin.name),
-                    subtitle:
-                        Text('${plugin.description} - v${plugin.version}'),
+                    subtitle: Text(
+                      '${plugin.description} - v${plugin.version}\n'
+                      '${plugin.processBoundary == 'out-of-process' ? 'Out of process' : 'Manifest only'} - '
+                      '${plugin.capabilities.join(', ')}',
+                    ),
                     trailing: Chip(
                       label: Text(plugin.enabled ? 'Enabled' : 'Disabled'),
                     ),

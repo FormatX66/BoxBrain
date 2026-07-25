@@ -26,10 +26,19 @@ uses no mutable in-memory event queue.
 
 ## Read-only Windows Sandbox observer
 
-The alpha observer captures only the visible Windows Sandbox window pixels. It
-exposes target identity and PNG frames, but no keyboard, mouse, clipboard,
-file, process, or shell operation. Frame responses are local-only and marked
-`no-store`.
+The alpha observer captures only the visible Windows Sandbox window pixels. Its
+status and PNG capture operations run in the enabled
+`boxbrain.windows-sandbox-observer` child process. The controller verifies the
+strict manifest, protocol/plugin/request/target identities, declared read-only
+capabilities, response size, PNG signature, and SHA-256 frame digest. It exposes
+no keyboard, mouse, clipboard, file, process, shell, or launch operation. Frame
+responses are local-only and marked `no-store`.
+
+The child receives a stripped environment without the controller API token and
+has a fixed deadline, but it still runs under the same Windows user. This is an
+out-of-process fault and protocol boundary, not a lower-privilege OS sandbox.
+Do not treat it as protection from malicious plugin code; restricted identities
+and signed packages remain required before third-party plugins are supported.
 
 The supplied `sandbox/BoxBrain-Isolated.wsb` profile disables networking,
 clipboard, audio/video input, printer redirection, and vGPU, and enables

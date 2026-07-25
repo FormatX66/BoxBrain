@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from boxbrain_controller import api as api_module
 from boxbrain_controller import app as app_module
 from boxbrain_controller.app import create_app
+from boxbrain_controller.sandbox_observer import SandboxNotRunningError
 from boxbrain_controller.task_store import TaskStore
 
 
@@ -192,14 +193,40 @@ def test_local_web_dashboard_origin_is_allowed() -> None:
     )
 
 
+def test_enabled_observer_plugin_declares_only_read_capabilities() -> None:
+    response = client.get("/api/v1/plugins")
+
+    assert response.status_code == 200
+    observer = next(
+        plugin
+        for plugin in response.json()
+        if plugin["id"] == "boxbrain.windows-sandbox-observer"
+    )
+    assert observer["enabled"] is True
+    assert observer["protocol_version"] == "1"
+    assert observer["process_boundary"] == "out-of-process"
+    assert observer["target_id"] == "windows-sandbox"
+    assert observer["capabilities"] == [
+        "observation.describe",
+        "observation.frame",
+    ]
+    assert all("input" not in item for item in observer["capabilities"])
+
+
 def test_sandbox_target_is_strictly_read_only() -> None:
     response = client.get("/api/v1/targets")
 
     assert response.status_code == 200
     target = response.json()[0]
     assert target["id"] == "windows-sandbox"
+    assert target["transport"] == "out-of-process-plugin"
     assert target["mode"] == "read-only"
     assert target["input_enabled"] is False
+    assert target["observer_plugin_id"] == (
+        "boxbrain.windows-sandbox-observer"
+    )
+    assert target["observer_process_boundary"] == "out-of-process"
+    assert target["observation_status"] == "ready"
     assert client.post(
         "/api/v1/targets/windows-sandbox/input",
         json={"type": "keyboard", "value": "test"},
@@ -296,11 +323,6 @@ def test_emergency_stop_blocks_launch_until_confirmed_reset(monkeypatch) -> None
 def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
     monkeypatch.setattr(
         api_module.sandbox_observer,
-        "find_window",
-        lambda: object(),
-    )
-    monkeypatch.setattr(
-        api_module.sandbox_observer,
         "capture_png",
         lambda: b"\x89PNG\r\n\x1a\nframe",
     )
@@ -311,3 +333,19 @@ def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
     assert response.headers["content-type"] == "image/png"
     assert response.headers["cache-control"] == "no-store, max-age=0"
     assert response.headers["x-boxbrain-capture-mode"] == "read-only"
+
+
+def test_sandbox_frame_reports_disconnected_target(monkeypatch) -> None:
+    def not_running() -> bytes:
+        raise SandboxNotRunningError("Windows Sandbox is not running.")
+
+    monkeypatch.setattr(
+        api_module.sandbox_observer,
+        "capture_png",
+        not_running,
+    )
+
+    response = client.get("/api/v1/targets/windows-sandbox/frame")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Windows Sandbox is not running."

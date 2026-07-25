@@ -193,6 +193,10 @@ class PluginSummary {
     required this.version,
     required this.description,
     required this.enabled,
+    required this.protocolVersion,
+    required this.capabilities,
+    required this.processBoundary,
+    required this.targetId,
   });
 
   factory PluginSummary.fromJson(Map<String, dynamic> json) {
@@ -202,6 +206,10 @@ class PluginSummary {
       version: json['version'] as String,
       description: json['description'] as String,
       enabled: json['enabled'] as bool,
+      protocolVersion: json['protocol_version'] as String,
+      capabilities: (json['capabilities'] as List<dynamic>).cast<String>(),
+      processBoundary: json['process_boundary'] as String,
+      targetId: json['target_id'] as String?,
     );
   }
 
@@ -210,6 +218,10 @@ class PluginSummary {
   final String version;
   final String description;
   final bool enabled;
+  final String protocolVersion;
+  final List<String> capabilities;
+  final String processBoundary;
+  final String? targetId;
 }
 
 class TargetSummary {
@@ -222,6 +234,9 @@ class TargetSummary {
     required this.windowTitle,
     required this.frameEndpoint,
     required this.inputEnabled,
+    required this.observerPluginId,
+    required this.observerProcessBoundary,
+    required this.observationStatus,
     required this.startEnabled,
     required this.startEndpoint,
   });
@@ -236,6 +251,9 @@ class TargetSummary {
       windowTitle: json['window_title'] as String,
       frameEndpoint: json['frame_endpoint'] as String?,
       inputEnabled: json['input_enabled'] as bool,
+      observerPluginId: json['observer_plugin_id'] as String,
+      observerProcessBoundary: json['observer_process_boundary'] as String,
+      observationStatus: json['observation_status'] as String,
       startEnabled: json['start_enabled'] as bool,
       startEndpoint: json['start_endpoint'] as String?,
     );
@@ -249,6 +267,9 @@ class TargetSummary {
   final String windowTitle;
   final String? frameEndpoint;
   final bool inputEnabled;
+  final String observerPluginId;
+  final String observerProcessBoundary;
+  final String observationStatus;
   final bool startEnabled;
   final String? startEndpoint;
 }

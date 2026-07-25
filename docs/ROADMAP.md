@@ -17,10 +17,10 @@
 
 ## 0.3 — Observation-only target
 
-- One out-of-process RDP or VNC viewing plugin
-- Target allowlist and identity verification
+- One out-of-process local viewing plugin (implemented)
+- Target allowlist and plugin/target identity verification (implemented)
 - Frame sampling, redaction, and evidence retention limits
-- No input execution
+- No input execution (implemented)
 
 ## 0.4 — Typed input in a disposable VM
 

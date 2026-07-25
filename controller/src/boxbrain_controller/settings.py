@@ -36,6 +36,10 @@ class Settings:
     plugin_dir: Path = Path(
         getenv("BOXBRAIN_PLUGIN_DIR", "../plugins")
     ).resolve()
+    observer_plugin_id: str = getenv(
+        "BOXBRAIN_OBSERVER_PLUGIN_ID",
+        "boxbrain.windows-sandbox-observer",
+    )
     data_dir: Path = Path(getenv("BOXBRAIN_DATA_DIR", "./data")).resolve()
     sandbox_profile: Path = Path(
         getenv(
