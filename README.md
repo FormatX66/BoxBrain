@@ -127,13 +127,16 @@ stopped. Resetting requires typing `RESET` in the confirmation dialog.
 ### 6. Verify
 
 ```powershell
-cd controller
-python -m pytest
+.\installer\validate-project.ps1
 
-cd ..\ui
-flutter analyze
-flutter test
+# Also compile the production web dashboard.
+.\installer\validate-project.ps1 -Mode Full
 ```
+
+The quick runner batches backend tests, Flutter analysis, and Flutter tests into
+one command. GitHub Actions runs backend and Flutter jobs in parallel after
+every branch push and pull-request update, so routine validation can finish
+without an interactive Codex session.
 
 The scripts in [installer/README.md](installer/README.md) can create and remove
 the Current User development certificate, generate the local token, build and
