@@ -133,10 +133,11 @@ stopped. Resetting requires typing `RESET` in the confirmation dialog.
 .\installer\validate-project.ps1 -Mode Full
 ```
 
-The quick runner batches backend tests, Flutter analysis, and Flutter tests into
-one command. GitHub Actions runs backend and Flutter jobs in parallel after
-every branch push and pull-request update, so routine validation can finish
-without an interactive Codex session.
+The quick runner resolves Flutter packages once, then batches backend tests,
+Flutter analysis, and Flutter tests into one local command. It uses local CPU
+and does not consume GitHub Actions minutes. The hosted GitHub workflow is
+manual-only; use **Run workflow** when an intentional remote check is useful.
+Choose `quick` for tests or `full` to include the production web build.
 
 The scripts in [installer/README.md](installer/README.md) can create and remove
 the Current User development certificate, generate the local token, build and

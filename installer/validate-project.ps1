@@ -64,16 +64,22 @@ Invoke-ValidationStep `
     -Arguments @("-m", "pytest", "-q")
 
 Invoke-ValidationStep `
+    -Name "Flutter package resolution" `
+    -WorkingDirectory $uiDirectory `
+    -FilePath "flutter" `
+    -Arguments @("pub", "get")
+
+Invoke-ValidationStep `
     -Name "Flutter analysis" `
     -WorkingDirectory $uiDirectory `
     -FilePath "flutter" `
-    -Arguments @("analyze")
+    -Arguments @("analyze", "--no-pub")
 
 Invoke-ValidationStep `
     -Name "Flutter tests" `
     -WorkingDirectory $uiDirectory `
     -FilePath "flutter" `
-    -Arguments @("test")
+    -Arguments @("test", "--no-pub")
 
 if ($Mode -eq "Full") {
     Invoke-ValidationStep `
@@ -84,6 +90,7 @@ if ($Mode -eq "Full") {
             "build",
             "web",
             "--release",
+            "--no-pub",
             "--dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000"
         )
 }

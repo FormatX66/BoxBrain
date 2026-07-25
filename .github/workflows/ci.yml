@@ -1,11 +1,16 @@
 name: BoxBrain CI
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Validation depth
+        required: true
+        default: quick
+        type: choice
+        options:
+          - quick
+          - full
 
 permissions:
   contents: read
@@ -55,10 +60,11 @@ jobs:
       - name: Resolve packages
         run: flutter pub get
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-pub
       - name: Run widget tests
-        run: flutter test
+        run: flutter test --no-pub
       - name: Build web
+        if: inputs.mode == 'full'
         run: >-
-          flutter build web --release
+          flutter build web --release --no-pub
           --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
