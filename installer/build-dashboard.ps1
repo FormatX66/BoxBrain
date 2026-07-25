@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$ControllerUrl = "http://127.0.0.1:8000"
+    [string]$ControllerUrl
 )
 
 Set-StrictMode -Version Latest
@@ -10,6 +10,22 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $uiDirectory = Join-Path $repositoryRoot "ui"
 $tokenPath = Join-Path $repositoryRoot "controller\data\boxbrain-api-token.local"
+$certificatePath = Join-Path $repositoryRoot "controller\data\tls\server-cert.pem"
+$privateKeyPath = Join-Path $repositoryRoot "controller\data\tls\server-key.pem"
+$certificatePresent = Test-Path -LiteralPath $certificatePath
+$privateKeyPresent = Test-Path -LiteralPath $privateKeyPath
+if ($certificatePresent -ne $privateKeyPresent) {
+    throw "Local TLS configuration is incomplete. Run setup-local-tls.ps1 again."
+}
+
+if ([string]::IsNullOrWhiteSpace($ControllerUrl)) {
+    if ($certificatePresent -and $privateKeyPresent) {
+        $ControllerUrl = "https://127.0.0.1:8000"
+    }
+    else {
+        $ControllerUrl = "http://127.0.0.1:8000"
+    }
+}
 
 if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
     throw "Flutter is not available on PATH."
@@ -24,7 +40,7 @@ if ($token.Length -lt 32) {
 
 Push-Location $uiDirectory
 try {
-    Write-Host "[building] Authenticated BoxBrain dashboard"
+    Write-Host "[building] Authenticated BoxBrain dashboard for $ControllerUrl"
     $arguments = @(
         "build",
         "web",

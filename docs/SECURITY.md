@@ -55,8 +55,22 @@ resource use through explicit response headers.
 
 The alpha web build receives its token at build time. This protects a loopback
 development controller from accidental unauthenticated requests, but it is not
-a substitute for user identity, OS-backed secret storage, TLS, or process
-isolation. Never expose this controller or dashboard to another host.
+a substitute for user identity, OS-backed secret storage, or process isolation.
+Never expose this controller or dashboard to another host.
+
+## Local HTTPS boundary
+
+The Windows development helpers create a BoxBrain-only root CA and localhost
+server certificate in the current user's certificate stores. They do not add
+machine-wide trust or require administrator access. The server certificate is
+valid only for `localhost`, `127.0.0.1`, and `::1`; both services remain bound
+to IPv4 loopback.
+
+The exported server private key stays under ignored `controller/data/tls/` and
+its ACL is narrowed to the current Windows user. Exact certificate thumbprints
+are recorded in ignored metadata. `remove-local-tls.ps1` uses only those
+thumbprints and that verified directory for reversible cleanup. This CA is for
+local development only and must never sign certificates for another service.
 
 ## Emergency-stop boundary
 
@@ -86,4 +100,3 @@ action gate and re-check the persistent stop state before acting.
 BoxBrain may propose changes in a branch, run tests in a build sandbox, and
 produce a review packet. It must not replace its running controller or merge its
 own changes during an active session.
-

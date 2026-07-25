@@ -1,8 +1,9 @@
 # Local development helpers
 
 These PowerShell helpers make the authenticated loopback setup repeatable. They
-do not install packages, modify PATH, add services, change firewall rules, trust
-certificates, or expose BoxBrain to another host.
+do not install packages, modify PATH, add services, change firewall rules, or
+expose BoxBrain to another host. The TLS setup changes certificate trust only
+for the current Windows user and records exact thumbprints for removal.
 
 From the repository root:
 
@@ -13,19 +14,40 @@ powershell -ExecutionPolicy Bypass -File .\installer\check-prerequisites.ps1
 # Create an ignored random token without printing its value.
 powershell -ExecutionPolicy Bypass -File .\installer\initialize-local-auth.ps1
 
-# Build the web dashboard with that token.
+# Create and trust the Current User-only local development certificate.
+powershell -ExecutionPolicy Bypass -File .\installer\setup-local-tls.ps1
+
+# Build the web dashboard with that token and HTTPS controller URL.
 powershell -ExecutionPolicy Bypass -File .\installer\build-dashboard.ps1
 
-# Start the authenticated controller in the current terminal.
+# Start these HTTPS services in separate terminals.
 powershell -ExecutionPolicy Bypass -File .\installer\start-controller.ps1
+powershell -ExecutionPolicy Bypass -File .\installer\serve-dashboard.ps1
 
-# Check authentication, read-only targeting, safety state, and dashboard health.
+# Check certificate trust, authentication, targeting, safety, and dashboard health.
 powershell -ExecutionPolicy Bypass -File .\installer\check-local-security.ps1
 ```
+
+Open `https://127.0.0.1:8080/`. The setup script is idempotent and refuses to
+replace certificates that are not tracked by its ignored metadata.
 
 Use `initialize-local-auth.ps1 -Rotate` only when intentionally invalidating the
 old local dashboard build; rebuild the dashboard immediately afterward.
 
-TLS certificate creation and trust-store changes remain deliberately manual and
-pending. They affect machine-wide browser trust and should not happen in an
-unattended development session.
+## Remove local HTTPS trust
+
+Stop the controller and dashboard first. Preview the exact rollback:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\remove-local-tls.ps1 -ConfirmRemoval -WhatIf
+```
+
+Then remove only the certificate thumbprints recorded by BoxBrain and the
+verified ignored TLS directory:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\remove-local-tls.ps1 -ConfirmRemoval
+```
+
+The root CA private key is non-exportable. The server key is development-only,
+ACL-restricted, and excluded from Git.

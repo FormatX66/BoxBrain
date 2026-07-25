@@ -59,8 +59,9 @@ Tasks and audit events are stored locally in
 
 ## Connect the UI
 
-The default controller URL is `http://127.0.0.1:8000`. Run the web dashboard
-without asking Flutter to launch a browser:
+The repeatable Windows setup uses `https://127.0.0.1:8000`. The manual Flutter
+development command still defaults to `http://127.0.0.1:8000`; run it without
+asking Flutter to launch a browser:
 
 ```powershell
 cd ui
@@ -75,11 +76,15 @@ flutter run -d windows --dart-define=BOXBRAIN_API_URL=http://127.0.0.1:8000
 
 ## Repeatable local startup
 
-The scripts under `installer/` generate or reuse an ignored local token without
-printing it, build the dashboard with the same credential, start the controller
-on loopback, and run read-only security checks. See `installer/README.md` for
-the commands. Certificate trust remains manual because it changes external
-browser and operating-system state.
+The scripts under `installer/` create a Current User-only local certificate,
+generate or reuse an ignored local token without printing it, build and serve
+the dashboard with the same credential, start the controller on loopback, and
+run read-only security checks. See `installer/README.md` for setup, verification,
+and exact certificate rollback commands.
+
+The controller launcher changes into `controller/` before startup so relative
+plugin and runtime-data paths continue to resolve to the established
+`controller/data/boxbrain.sqlite3` database.
 
 ## Local API authentication
 

@@ -22,6 +22,31 @@ BoxBrain/
 
 ## Quick start
 
+### Recommended Windows HTTPS setup
+
+From the repository root, create a BoxBrain-only development certificate,
+generate the local API token, and build the dashboard:
+
+```powershell
+.\installer\setup-local-tls.ps1
+.\installer\initialize-local-auth.ps1
+.\installer\build-dashboard.ps1
+```
+
+Start these in separate terminals:
+
+```powershell
+.\installer\start-controller.ps1
+.\installer\serve-dashboard.ps1
+```
+
+Open `https://127.0.0.1:8080/` for BoxBrain and
+`https://127.0.0.1:8000/docs` for the API explorer. The certificate is trusted
+only for the current Windows user. See `installer/README.md` for verification
+and exact rollback commands.
+
+### Manual cross-platform setup
+
 Set the same local token in the controller and dashboard terminals. Use a unique
 random value with at least 32 characters and never commit it:
 
@@ -62,7 +87,7 @@ $env:BOXBRAIN_API_TOKEN = '<the-same-local-token>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the API explorer.
+Open `http://127.0.0.1:8000/docs` for the manual HTTP API explorer.
 
 ### 3. Read-only Windows Sandbox target
 
@@ -105,9 +130,10 @@ flutter analyze
 flutter test
 ```
 
-The scripts in [installer/README.md](installer/README.md) can generate the local
-token, build the authenticated dashboard, start the loopback controller, and
-run a read-only security check without printing the credential.
+The scripts in [installer/README.md](installer/README.md) can create and remove
+the Current User development certificate, generate the local token, build and
+serve the authenticated dashboard, start the loopback controller, and run a
+read-only security check without printing the credential.
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup details and
 [docs/SECURITY.md](docs/SECURITY.md) before adding any executor.

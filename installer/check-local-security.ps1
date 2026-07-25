@@ -1,8 +1,8 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$ControllerUrl = "http://127.0.0.1:8000",
-    [string]$DashboardUrl = "http://127.0.0.1:8080"
+    [string]$ControllerUrl,
+    [string]$DashboardUrl
 )
 
 Set-StrictMode -Version Latest
@@ -10,6 +10,40 @@ $ErrorActionPreference = "Stop"
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $tokenPath = Join-Path $repositoryRoot "controller\data\boxbrain-api-token.local"
+$certificatePath = Join-Path $repositoryRoot "controller\data\tls\server-cert.pem"
+$privateKeyPath = Join-Path $repositoryRoot "controller\data\tls\server-key.pem"
+$certificatePresent = Test-Path -LiteralPath $certificatePath
+$privateKeyPresent = Test-Path -LiteralPath $privateKeyPath
+if ($certificatePresent -ne $privateKeyPresent) {
+    throw "Local TLS configuration is incomplete. Run setup-local-tls.ps1 again."
+}
+$tlsConfigured = $certificatePresent -and $privateKeyPresent
+
+if ([string]::IsNullOrWhiteSpace($ControllerUrl)) {
+    $ControllerUrl = if ($tlsConfigured) {
+        "https://127.0.0.1:8000"
+    }
+    else {
+        "http://127.0.0.1:8000"
+    }
+}
+if ([string]::IsNullOrWhiteSpace($DashboardUrl)) {
+    $DashboardUrl = if ($tlsConfigured) {
+        "https://127.0.0.1:8080"
+    }
+    else {
+        "http://127.0.0.1:8080"
+    }
+}
+if ($tlsConfigured) {
+    $controllerUri = [Uri]$ControllerUrl
+    $dashboardUri = [Uri]$DashboardUrl
+    if ($controllerUri.Scheme -ne "https" -or
+        $dashboardUri.Scheme -ne "https") {
+        throw "Local TLS files exist, so both security-check URLs must use HTTPS."
+    }
+}
+
 if (-not (Test-Path -LiteralPath $tokenPath)) {
     throw "Local API token is missing. Run initialize-local-auth.ps1 first."
 }
@@ -47,6 +81,9 @@ Write-Host "[pass] Emergency stop state is readable (engaged=$($stop.engaged), g
 $dashboard = Invoke-WebRequest -UseBasicParsing -Uri $DashboardUrl -TimeoutSec 5
 if ($dashboard.StatusCode -ne 200) { throw "Dashboard did not return HTTP 200." }
 Write-Host "[pass] Dashboard is reachable."
+if ($tlsConfigured) {
+    Write-Host "[pass] Both services use a certificate trusted by this Windows user."
+}
 Write-Host ""
 Write-Host "Local BoxBrain security checks passed. No state was changed."
 exit 0

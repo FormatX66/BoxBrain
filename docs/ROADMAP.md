@@ -11,7 +11,7 @@
 
 - SQLite task and append-only event persistence (implemented)
 - Local API token authentication and trusted-host enforcement (implemented)
-- Loopback TLS and local certificate trust (pending explicit operator approval)
+- Loopback TLS and Current User local certificate trust (implemented)
 - Authenticated live event streaming with resume and reconnect (implemented)
 - Emergency-stop state machine (implemented)
 
@@ -42,4 +42,3 @@
 - Multiple isolated targets
 - Reviewable code-change pipeline
 - Installer and Raspberry Pi controller image
-
