@@ -40,6 +40,12 @@ class Settings:
         "BOXBRAIN_OBSERVER_PLUGIN_ID",
         "boxbrain.windows-sandbox-observer",
     )
+    observation_policy_path: Path = Path(
+        getenv(
+            "BOXBRAIN_OBSERVATION_POLICY",
+            "../policies/observation.json",
+        )
+    ).resolve()
     data_dir: Path = Path(getenv("BOXBRAIN_DATA_DIR", "./data")).resolve()
     sandbox_profile: Path = Path(
         getenv(

@@ -103,7 +103,9 @@ log. Status and frames run through the separate
 capabilities, strict identity correlation, timeouts, size limits, and PNG digest
 verification. The observer has no keyboard, mouse, clipboard, file, arbitrary
 process, or shell API. Frames are fetched as authenticated bytes rather than
-exposed as unauthenticated image URLs.
+exposed as unauthenticated image URLs. The checked-in observation policy caps
+frames at 1280 pixels and 8 MiB, applies configured black masks inside the child
+process, and retains zero frames on disk. Only one capture may run at a time.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
 

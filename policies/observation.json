@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "max_frame_width": 1280,
+  "max_frame_bytes": 8388608,
+  "redaction_regions": [],
+  "evidence_retention": {
+    "mode": "none",
+    "max_frames": 0,
+    "max_age_seconds": 0
+  }
+}

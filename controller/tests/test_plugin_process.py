@@ -1,10 +1,13 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from time import monotonic, sleep
 
 import pytest
 
 from boxbrain_controller.plugin_process import (
+    ObservationBusyError,
     ObserverPluginClient,
     PluginProcessError,
 )
@@ -112,6 +115,12 @@ print(json.dumps({
         "target_id": "windows-sandbox",
         "media_type": "image/png",
         "sha256": hashlib.sha256(frame).hexdigest(),
+        "redaction_region_count": len(
+            request["payload"]["policy"]["redaction_regions"]
+        ),
+        "max_frame_width": request["payload"]["policy"][
+            "max_frame_width"
+        ],
         "data_base64": base64.b64encode(frame).decode("ascii"),
     },
     "error": None,
@@ -120,6 +129,67 @@ print(json.dumps({
     client = ObserverPluginClient(_write_plugin(tmp_path, body), PLUGIN_ID)
 
     assert client.capture_png() == b"\x89PNG\r\n\x1a\nframe"
+
+
+def test_observer_rejects_policy_report_tampering(tmp_path: Path) -> None:
+    body = """
+frame = b"\\x89PNG\\r\\n\\x1a\\nframe"
+print(json.dumps({
+    "protocol_version": "1",
+    "plugin_id": request["plugin_id"],
+    "request_id": request["request_id"],
+    "ok": True,
+    "result": {
+        "target_id": "windows-sandbox",
+        "media_type": "image/png",
+        "sha256": hashlib.sha256(frame).hexdigest(),
+        "redaction_region_count": 1,
+        "max_frame_width": request["payload"]["policy"][
+            "max_frame_width"
+        ],
+        "data_base64": base64.b64encode(frame).decode("ascii"),
+    },
+    "error": None,
+}))
+"""
+    client = ObserverPluginClient(_write_plugin(tmp_path, body), PLUGIN_ID)
+
+    with pytest.raises(PluginProcessError, match="redaction report"):
+        client.capture_png()
+
+
+def test_observer_rejects_overlapping_frame_capture(tmp_path: Path) -> None:
+    body = """
+time.sleep(0.2)
+frame = b"\\x89PNG\\r\\n\\x1a\\nframe"
+print(json.dumps({
+    "protocol_version": "1",
+    "plugin_id": request["plugin_id"],
+    "request_id": request["request_id"],
+    "ok": True,
+    "result": {
+        "target_id": "windows-sandbox",
+        "media_type": "image/png",
+        "sha256": hashlib.sha256(frame).hexdigest(),
+        "redaction_region_count": 0,
+        "max_frame_width": request["payload"]["policy"][
+            "max_frame_width"
+        ],
+        "data_base64": base64.b64encode(frame).decode("ascii"),
+    },
+    "error": None,
+}))
+"""
+    client = ObserverPluginClient(_write_plugin(tmp_path, body), PLUGIN_ID)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first_capture = executor.submit(client.capture_png)
+        deadline = monotonic() + 1
+        while not client._capture_lock.locked() and monotonic() < deadline:
+            sleep(0.005)
+        with pytest.raises(ObservationBusyError, match="already has"):
+            client.capture_png()
+        assert first_capture.result() == b"\x89PNG\r\n\x1a\nframe"
 
 
 def test_observer_requires_the_complete_capability_set(tmp_path: Path) -> None:

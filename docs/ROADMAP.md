@@ -19,7 +19,9 @@
 
 - One out-of-process local viewing plugin (implemented)
 - Target allowlist and plugin/target identity verification (implemented)
-- Frame sampling, redaction, and evidence retention limits
+- Frame width/byte sampling limits (implemented)
+- Child-process redaction engine with operator-configured regions (implemented; default region list is empty)
+- Zero evidence retention and single-capture backpressure (implemented)
 - No input execution (implemented)
 
 ## 0.4 — Typed input in a disposable VM

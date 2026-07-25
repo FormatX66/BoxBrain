@@ -224,6 +224,35 @@ class PluginSummary {
   final String? targetId;
 }
 
+class ObservationPolicySummary {
+  const ObservationPolicySummary({
+    required this.maxFrameWidth,
+    required this.maxFrameBytes,
+    required this.redactionRegionCount,
+    required this.evidenceRetention,
+    required this.maxRetainedFrames,
+    required this.retentionMaxAgeSeconds,
+  });
+
+  factory ObservationPolicySummary.fromJson(Map<String, dynamic> json) {
+    return ObservationPolicySummary(
+      maxFrameWidth: json['max_frame_width'] as int,
+      maxFrameBytes: json['max_frame_bytes'] as int,
+      redactionRegionCount: json['redaction_region_count'] as int,
+      evidenceRetention: json['evidence_retention'] as String,
+      maxRetainedFrames: json['max_retained_frames'] as int,
+      retentionMaxAgeSeconds: json['retention_max_age_seconds'] as int,
+    );
+  }
+
+  final int maxFrameWidth;
+  final int maxFrameBytes;
+  final int redactionRegionCount;
+  final String evidenceRetention;
+  final int maxRetainedFrames;
+  final int retentionMaxAgeSeconds;
+}
+
 class TargetSummary {
   const TargetSummary({
     required this.id,
@@ -237,6 +266,7 @@ class TargetSummary {
     required this.observerPluginId,
     required this.observerProcessBoundary,
     required this.observationStatus,
+    required this.observationPolicy,
     required this.startEnabled,
     required this.startEndpoint,
   });
@@ -254,6 +284,9 @@ class TargetSummary {
       observerPluginId: json['observer_plugin_id'] as String,
       observerProcessBoundary: json['observer_process_boundary'] as String,
       observationStatus: json['observation_status'] as String,
+      observationPolicy: ObservationPolicySummary.fromJson(
+        json['observation_policy'] as Map<String, dynamic>,
+      ),
       startEnabled: json['start_enabled'] as bool,
       startEndpoint: json['start_endpoint'] as String?,
     );
@@ -270,6 +303,7 @@ class TargetSummary {
   final String observerPluginId;
   final String observerProcessBoundary;
   final String observationStatus;
+  final ObservationPolicySummary observationPolicy;
   final bool startEnabled;
   final String? startEndpoint;
 }

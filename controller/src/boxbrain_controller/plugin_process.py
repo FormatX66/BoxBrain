@@ -8,16 +8,19 @@ import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from threading import Lock
 from time import monotonic
 from typing import Any, BinaryIO, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .observation_policy import ObservationPolicy
 from .plugin_registry import PluginRegistry, RegisteredPlugin
 from .sandbox_observer import (
     SandboxCaptureError,
     SandboxNotRunningError,
+    SandboxObservationBusyError,
     WindowsSandboxObserver,
 )
 
@@ -28,6 +31,10 @@ class PluginProcessError(RuntimeError):
 
 class PluginTargetUnavailable(PluginProcessError):
     """Raised when the plugin is healthy but its target is not connected."""
+
+
+class ObservationBusyError(PluginProcessError):
+    """Raised when another frame capture already owns the observer."""
 
 
 class _ResponseLimitExceeded(RuntimeError):
@@ -61,6 +68,8 @@ class _FrameResult(BaseModel):
     target_id: Literal["windows-sandbox"]
     media_type: Literal["image/png"]
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    redaction_region_count: int = Field(ge=0, le=32)
+    max_frame_width: int = Field(ge=320, le=1600)
     data_base64: str
 
 
@@ -77,16 +86,21 @@ class ObserverPluginClient:
         *,
         timeout_seconds: float = 4.0,
         max_response_bytes: int = 12 * 1024 * 1024,
-        max_frame_bytes: int = 8 * 1024 * 1024,
+        policy: ObservationPolicy | None = None,
     ) -> None:
         self._registry = registry
         self.plugin_id = plugin_id
         self._timeout_seconds = timeout_seconds
         self._max_response_bytes = max_response_bytes
-        self._max_frame_bytes = max_frame_bytes
+        self._policy = policy or ObservationPolicy()
+        self._capture_lock = Lock()
 
     def describe(self) -> _TargetDescription:
-        result = self._invoke("describe", "observation.describe")
+        result = self._invoke(
+            "describe",
+            "observation.describe",
+            payload={},
+        )
         try:
             description = _TargetDescription.model_validate(result)
         except ValidationError as error:
@@ -97,28 +111,63 @@ class ObserverPluginClient:
         return description
 
     def capture_png(self) -> bytes:
-        result = self._invoke("capture_frame", "observation.frame")
+        if not self._capture_lock.acquire(blocking=False):
+            raise ObservationBusyError(
+                "Observer plugin already has a frame capture in progress."
+            )
         try:
-            frame = _FrameResult.model_validate(result)
-            content = base64.b64decode(frame.data_base64, validate=True)
-        except (ValidationError, ValueError) as error:
-            raise PluginProcessError(
-                "Observer plugin returned an invalid frame envelope."
-            ) from error
-        self._verify_target_id(frame.target_id)
-        if len(content) > self._max_frame_bytes:
-            raise PluginProcessError("Observer plugin frame exceeded its limit.")
-        if not content.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise PluginProcessError("Observer plugin frame was not a PNG.")
-        digest = hashlib.sha256(content).hexdigest()
-        if not hmac.compare_digest(digest, frame.sha256):
-            raise PluginProcessError("Observer plugin frame digest did not match.")
-        return content
+            result = self._invoke(
+                "capture_frame",
+                "observation.frame",
+                payload={
+                    "policy": self._policy.model_dump(mode="json"),
+                },
+            )
+            try:
+                frame = _FrameResult.model_validate(result)
+                content = base64.b64decode(frame.data_base64, validate=True)
+            except (ValidationError, ValueError) as error:
+                raise PluginProcessError(
+                    "Observer plugin returned an invalid frame envelope."
+                ) from error
+            self._verify_target_id(frame.target_id)
+            if frame.redaction_region_count != len(
+                self._policy.redaction_regions
+            ):
+                raise PluginProcessError(
+                    "Observer plugin redaction report did not match policy."
+                )
+            if frame.max_frame_width != self._policy.max_frame_width:
+                raise PluginProcessError(
+                    "Observer plugin frame limit did not match policy."
+                )
+            if len(content) > self._policy.max_frame_bytes:
+                raise PluginProcessError(
+                    "Observer plugin frame exceeded its limit."
+                )
+            if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise PluginProcessError(
+                    "Observer plugin frame was not a PNG."
+                )
+            digest = hashlib.sha256(content).hexdigest()
+            if not hmac.compare_digest(digest, frame.sha256):
+                raise PluginProcessError(
+                    "Observer plugin frame digest did not match."
+                )
+            return content
+        finally:
+            self._capture_lock.release()
+
+    @property
+    def policy_summary(self) -> dict[str, object]:
+        return self._policy.summary()
 
     def _invoke(
         self,
         operation: str,
         required_capability: str,
+        *,
+        payload: dict[str, Any],
     ) -> dict[str, Any]:
         registration = self._require_registration(required_capability)
         request_id = uuid4()
@@ -127,7 +176,7 @@ class ObserverPluginClient:
             "plugin_id": self.plugin_id,
             "request_id": str(request_id),
             "operation": operation,
-            "payload": {},
+            "payload": payload,
         }
         request_bytes = (
             json.dumps(request, separators=(",", ":"), sort_keys=True).encode(
@@ -333,6 +382,7 @@ class OutOfProcessWindowsSandboxObserver:
             "observer_plugin_id": self._plugin.plugin_id,
             "observer_process_boundary": "out-of-process",
             "observation_status": observation_status,
+            "observation_policy": self._plugin.policy_summary,
             "start_enabled": self.start_enabled,
             "start_endpoint": (
                 f"/api/v1/targets/{self.target_id}/start"
@@ -351,6 +401,10 @@ class OutOfProcessWindowsSandboxObserver:
     def capture_png(self) -> bytes:
         try:
             return self._plugin.capture_png()
+        except ObservationBusyError as error:
+            raise SandboxObservationBusyError(
+                "A frame capture is already in progress."
+            ) from error
         except PluginTargetUnavailable as error:
             raise SandboxNotRunningError(
                 "Windows Sandbox is not running."

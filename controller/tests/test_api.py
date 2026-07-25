@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import replace
 
 import pytest
@@ -6,7 +7,10 @@ from fastapi.testclient import TestClient
 from boxbrain_controller import api as api_module
 from boxbrain_controller import app as app_module
 from boxbrain_controller.app import create_app
-from boxbrain_controller.sandbox_observer import SandboxNotRunningError
+from boxbrain_controller.sandbox_observer import (
+    SandboxNotRunningError,
+    SandboxObservationBusyError,
+)
 from boxbrain_controller.task_store import TaskStore
 
 
@@ -227,6 +231,14 @@ def test_sandbox_target_is_strictly_read_only() -> None:
     )
     assert target["observer_process_boundary"] == "out-of-process"
     assert target["observation_status"] == "ready"
+    assert target["observation_policy"] == {
+        "max_frame_width": 1280,
+        "max_frame_bytes": 8 * 1024 * 1024,
+        "redaction_region_count": 0,
+        "evidence_retention": "none",
+        "max_retained_frames": 0,
+        "retention_max_age_seconds": 0,
+    }
     assert client.post(
         "/api/v1/targets/windows-sandbox/input",
         json={"type": "keyboard", "value": "test"},
@@ -333,6 +345,32 @@ def test_sandbox_frame_has_no_store_and_read_only_headers(monkeypatch) -> None:
     assert response.headers["content-type"] == "image/png"
     assert response.headers["cache-control"] == "no-store, max-age=0"
     assert response.headers["x-boxbrain-capture-mode"] == "read-only"
+    assert response.headers["x-boxbrain-frame-sha256"] == hashlib.sha256(
+        b"\x89PNG\r\n\x1a\nframe"
+    ).hexdigest()
+    assert response.headers["x-boxbrain-redaction-regions"] == "0"
+    assert response.headers["x-boxbrain-evidence-retention"] == "none"
+    assert response.headers["x-boxbrain-frame-max-width"] == "1280"
+    assert response.headers["x-boxbrain-frame-max-bytes"] == str(
+        8 * 1024 * 1024
+    )
+
+
+def test_sandbox_frame_rejects_overlapping_capture(monkeypatch) -> None:
+    def busy() -> bytes:
+        raise SandboxObservationBusyError(
+            "A frame capture is already in progress."
+        )
+
+    monkeypatch.setattr(api_module.sandbox_observer, "capture_png", busy)
+
+    response = client.get("/api/v1/targets/windows-sandbox/frame")
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "1"
+    assert response.json()["detail"] == (
+        "A frame capture is already in progress."
+    )
 
 
 def test_sandbox_frame_reports_disconnected_target(monkeypatch) -> None:

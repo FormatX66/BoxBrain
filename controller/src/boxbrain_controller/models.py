@@ -96,6 +96,15 @@ class PluginSummary(BaseModel):
     target_id: str | None = None
 
 
+class ObservationPolicySummary(BaseModel):
+    max_frame_width: int
+    max_frame_bytes: int
+    redaction_region_count: int
+    evidence_retention: Literal["none"]
+    max_retained_frames: Literal[0]
+    retention_max_age_seconds: Literal[0]
+
+
 class TargetSummary(BaseModel):
     id: str
     name: str
@@ -108,6 +117,7 @@ class TargetSummary(BaseModel):
     observer_plugin_id: str
     observer_process_boundary: Literal["out-of-process"]
     observation_status: Literal["ready", "unavailable"]
+    observation_policy: ObservationPolicySummary
     start_enabled: bool = False
     start_endpoint: str | None = None
 

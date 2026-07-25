@@ -6,10 +6,11 @@ import sys
 from ctypes import wintypes
 from dataclasses import dataclass
 from io import BytesIO
+from math import ceil, floor
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 class SandboxCaptureError(RuntimeError):
@@ -18,6 +19,10 @@ class SandboxCaptureError(RuntimeError):
 
 class SandboxNotRunningError(SandboxCaptureError):
     """Raised when observation is healthy but the target is not running."""
+
+
+class SandboxObservationBusyError(SandboxCaptureError):
+    """Raised when a frame capture is already in progress."""
 
 
 class SandboxStartError(RuntimeError):
@@ -30,6 +35,39 @@ class SandboxWindow:
     title: str
     width: int
     height: int
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedRedactionRegion:
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+def apply_redactions(
+    image: Image.Image,
+    regions: tuple[NormalizedRedactionRegion, ...],
+) -> Image.Image:
+    """Apply normalized black masks without retaining an unredacted copy."""
+
+    if not regions:
+        return image
+    draw = ImageDraw.Draw(image)
+    for region in regions:
+        left = max(0, floor(region.x * image.width))
+        top = max(0, floor(region.y * image.height))
+        right = min(image.width, ceil((region.x + region.width) * image.width))
+        bottom = min(
+            image.height,
+            ceil((region.y + region.height) * image.height),
+        )
+        if right > left and bottom > top:
+            draw.rectangle(
+                (left, top, right - 1, bottom - 1),
+                fill="black",
+            )
+    return image
 
 
 class _Rect(ctypes.Structure):
@@ -171,7 +209,11 @@ class WindowsSandboxObserver:
             return None
         return SandboxWindow(handle, self.window_title, width, height)
 
-    def capture_png(self) -> bytes:
+    def capture_png(
+        self,
+        *,
+        redaction_regions: tuple[NormalizedRedactionRegion, ...] = (),
+    ) -> bytes:
         window = self.find_window()
         if window is None:
             raise SandboxCaptureError("Windows Sandbox is not running.")
@@ -231,6 +273,7 @@ class WindowsSandboxObserver:
                     (self._max_frame_width, height),
                     Image.Resampling.LANCZOS,
                 )
+            apply_redactions(image, redaction_regions)
             output = BytesIO()
             image.save(output, format="PNG", optimize=True)
             return output.getvalue()

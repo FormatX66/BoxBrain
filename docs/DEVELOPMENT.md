@@ -101,6 +101,12 @@ target status and frames. Each request runs in a separate process with a minimal
 environment and returns one correlated protocol-v1 response. Run controller
 tests after changing either the manifest, protocol, or plugin entrypoint.
 
+Observation limits live in `policies/observation.json` and can be relocated with
+`BOXBRAIN_OBSERVATION_POLICY`. Region coordinates are normalized values from 0
+to 1 and are applied as black masks in the child process. Keep retention mode at
+`none`; the schema rejects nonzero frame counts or retention ages. Restart the
+controller after changing this policy.
+
 Select **Target** and use **Open Windows Sandbox**, or open
 `sandbox/BoxBrain-Isolated.wsb` directly. The feed refreshes every two seconds
 and remains strictly read-only. The button is enabled by default only when

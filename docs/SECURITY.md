@@ -32,7 +32,15 @@ status and PNG capture operations run in the enabled
 strict manifest, protocol/plugin/request/target identities, declared read-only
 capabilities, response size, PNG signature, and SHA-256 frame digest. It exposes
 no keyboard, mouse, clipboard, file, process, shell, or launch operation. Frame
-responses are local-only and marked `no-store`.
+responses are local-only and marked `no-store`. Response headers also expose the
+frame digest, configured size limits, active redaction count, and retention mode.
+
+The strict policy in `policies/observation.json` permits only zero evidence
+retention. Configured normalized black masks are applied to the resized image in
+the child before the PNG crosses the process boundary. The default policy has no
+mask regions, so operators must deliberately configure regions that cover their
+lab layout. Frames are never written to disk, and overlapping captures fail with
+HTTP 429 instead of spawning another child process.
 
 The child receives a stripped environment without the controller API token and
 has a fixed deadline, but it still runs under the same Windows user. This is an

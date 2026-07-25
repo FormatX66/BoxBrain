@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 from threading import Lock
 from uuid import UUID
@@ -20,6 +21,7 @@ from .models import (
     TaskCreate,
     TaskRecord,
 )
+from .observation_policy import ObservationPolicy
 from .plugin_process import (
     ObserverPluginClient,
     OutOfProcessWindowsSandboxObserver,
@@ -28,6 +30,7 @@ from .plugin_registry import PluginRegistry
 from .sandbox_observer import (
     SandboxCaptureError,
     SandboxNotRunningError,
+    SandboxObservationBusyError,
     SandboxStartError,
     WindowsSandboxObserver,
 )
@@ -37,6 +40,7 @@ from .task_store import TaskStore
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 plugin_registry = PluginRegistry(settings.plugin_dir)
+observation_policy = ObservationPolicy.load(settings.observation_policy_path)
 sandbox_launcher = WindowsSandboxObserver(
     profile_path=settings.sandbox_profile,
     start_enabled=settings.sandbox_launch_enabled,
@@ -45,6 +49,7 @@ sandbox_observer = OutOfProcessWindowsSandboxObserver(
     ObserverPluginClient(
         registry=plugin_registry,
         plugin_id=settings.observer_plugin_id,
+        policy=observation_policy,
     ),
     launcher=sandbox_launcher,
 )
@@ -284,12 +289,19 @@ def start_windows_sandbox() -> TargetStartResponse:
     responses={
         200: {"content": {"image/png": {}}},
         404: {"description": "Windows Sandbox is not running"},
+        429: {"description": "Another frame capture is in progress"},
         503: {"description": "Frame capture is unavailable"},
     },
 )
 def get_windows_sandbox_frame() -> Response:
     try:
         frame = sandbox_observer.capture_png()
+    except SandboxObservationBusyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(error),
+            headers={"Retry-After": "1"},
+        ) from error
     except SandboxNotRunningError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -306,6 +318,19 @@ def get_windows_sandbox_frame() -> Response:
         headers={
             "Cache-Control": "no-store, max-age=0",
             "X-BoxBrain-Capture-Mode": "read-only",
+            "X-BoxBrain-Frame-SHA256": hashlib.sha256(frame).hexdigest(),
+            "X-BoxBrain-Redaction-Regions": str(
+                len(observation_policy.redaction_regions)
+            ),
+            "X-BoxBrain-Evidence-Retention": (
+                observation_policy.evidence_retention.mode
+            ),
+            "X-BoxBrain-Frame-Max-Width": str(
+                observation_policy.max_frame_width
+            ),
+            "X-BoxBrain-Frame-Max-Bytes": str(
+                observation_policy.max_frame_bytes
+            ),
             "X-Content-Type-Options": "nosniff",
         },
     )

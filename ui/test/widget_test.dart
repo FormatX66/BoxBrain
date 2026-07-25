@@ -42,6 +42,10 @@ void main() {
     expect(find.text('Windows Sandbox is not running'), findsOneWidget);
     expect(find.text('Read-only access only'), findsOneWidget);
     expect(find.text('Open Windows Sandbox'), findsOneWidget);
+    expect(find.text('Zero frame retention'), findsOneWidget);
+    expect(
+        find.textContaining('No frames are written to disk'), findsOneWidget);
+    expect(find.textContaining('1280 px max'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();
@@ -278,6 +282,14 @@ class _OnlineControllerApi extends ControllerApi {
           observerPluginId: 'boxbrain.windows-sandbox-observer',
           observerProcessBoundary: 'out-of-process',
           observationStatus: 'ready',
+          observationPolicy: const ObservationPolicySummary(
+            maxFrameWidth: 1280,
+            maxFrameBytes: 8 * 1024 * 1024,
+            redactionRegionCount: 0,
+            evidenceRetention: 'none',
+            maxRetainedFrames: 0,
+            retentionMaxAgeSeconds: 0,
+          ),
           startEnabled: true,
           startEndpoint: '/api/v1/targets/windows-sandbox/start',
         ),

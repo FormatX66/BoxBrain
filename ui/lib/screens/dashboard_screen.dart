@@ -1060,6 +1060,19 @@ class _TargetSectionState extends State<_TargetSection> {
               ),
             ),
           ),
+          if (target != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.auto_delete_outlined),
+                title: const Text('Zero frame retention'),
+                subtitle: Text(
+                  'No frames are written to disk. '
+                  '${target.observationPolicy.redactionRegionCount} configured '
+                  'redaction regions; '
+                  '${target.observationPolicy.maxFrameWidth} px max.',
+                ),
+              ),
+            ),
           if (_launchError != null)
             Card(
               child: ListTile(
@@ -1109,6 +1122,18 @@ class _TargetSectionState extends State<_TargetSection> {
                           )
                         : const Center(child: CircularProgressIndicator()),
               ),
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.auto_delete_outlined),
+            title: const Text('Zero frame retention'),
+            subtitle: Text(
+              'No frames are written to disk. '
+              '${target.observationPolicy.redactionRegionCount} configured '
+              'redaction regions; '
+              '${target.observationPolicy.maxFrameWidth} px max.',
             ),
           ),
         ),

@@ -8,7 +8,11 @@ import json
 import sys
 from typing import Any
 
+from pydantic import ValidationError
+
+from boxbrain_controller.observation_policy import ObservationPolicy
 from boxbrain_controller.sandbox_observer import (
+    NormalizedRedactionRegion,
     SandboxCaptureError,
     WindowsSandboxObserver,
 )
@@ -17,7 +21,6 @@ from boxbrain_controller.sandbox_observer import (
 PLUGIN_ID = "boxbrain.windows-sandbox-observer"
 PROTOCOL_VERSION = "1"
 MAX_REQUEST_BYTES = 64 * 1024
-MAX_FRAME_WIDTH = 1280
 
 
 def response(
@@ -51,15 +54,17 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         request["protocol_version"] != PROTOCOL_VERSION
         or request["plugin_id"] != PLUGIN_ID
         or not isinstance(request["payload"], dict)
-        or request["payload"]
     ):
         return response(request_id=request_id, ok=False, error="identity mismatch")
 
-    observer = WindowsSandboxObserver(
-        max_frame_width=MAX_FRAME_WIDTH,
-        start_enabled=False,
-    )
     if request["operation"] == "describe":
+        if request["payload"]:
+            return response(
+                request_id=request_id,
+                ok=False,
+                error="invalid_payload",
+            )
+        observer = WindowsSandboxObserver(start_enabled=False)
         description = observer.describe()
         return response(
             request_id=request_id,
@@ -73,13 +78,50 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
             },
         )
     if request["operation"] == "capture_frame":
+        if set(request["payload"]) != {"policy"}:
+            return response(
+                request_id=request_id,
+                ok=False,
+                error="invalid_policy",
+            )
         try:
-            frame = observer.capture_png()
+            policy = ObservationPolicy.model_validate(
+                request["payload"]["policy"]
+            )
+        except ValidationError:
+            return response(
+                request_id=request_id,
+                ok=False,
+                error="invalid_policy",
+            )
+        observer = WindowsSandboxObserver(
+            max_frame_width=policy.max_frame_width,
+            start_enabled=False,
+        )
+        redaction_regions = tuple(
+            NormalizedRedactionRegion(
+                x=region.x,
+                y=region.y,
+                width=region.width,
+                height=region.height,
+            )
+            for region in policy.redaction_regions
+        )
+        try:
+            frame = observer.capture_png(
+                redaction_regions=redaction_regions,
+            )
         except SandboxCaptureError:
             return response(
                 request_id=request_id,
                 ok=False,
                 error="target_not_running",
+            )
+        if len(frame) > policy.max_frame_bytes:
+            return response(
+                request_id=request_id,
+                ok=False,
+                error="frame_too_large",
             )
         return response(
             request_id=request_id,
@@ -88,6 +130,8 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
                 "target_id": observer.target_id,
                 "media_type": "image/png",
                 "sha256": hashlib.sha256(frame).hexdigest(),
+                "redaction_region_count": len(redaction_regions),
+                "max_frame_width": policy.max_frame_width,
                 "data_base64": base64.b64encode(frame).decode("ascii"),
             },
         )

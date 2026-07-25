@@ -37,7 +37,14 @@ The Windows Sandbox status and PNG capture path runs through the enabled
 `boxbrain.windows-sandbox-observer` plugin. The controller validates its strict
 manifest, starts a new child process for each request, sends one correlated JSON
 message, verifies the response identity and declared capability, then validates
-frame type, size, and digest before returning bytes to the UI.
+frame type, size, and digest before returning bytes to the UI. The controller
+passes a strict observation policy with every capture. The child independently
+validates it, downsamples the frame, applies normalized black redaction regions,
+and only then returns the PNG across the process boundary.
+
+Frame retention is fixed to `none`: neither the controller nor the plugin writes
+frame evidence to disk. A nonblocking single-capture gate rejects overlapping
+requests, preventing refresh bursts from creating concurrent observer children.
 
 The fixed-profile Sandbox launcher remains in the controller because it is an
 audited, emergency-stop-gated capability rather than an observation. The plugin

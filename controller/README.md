@@ -39,3 +39,7 @@ desktop, model, or plugin action is performed. The persistent emergency stop
 blocks effectful controller requests such as Sandbox launch; resetting it
 requires the exact API confirmation value `RESET`.
 
+The observation policy is loaded from `BOXBRAIN_OBSERVATION_POLICY` (default
+`../policies/observation.json`). It enforces frame size limits, child-process
+redaction, zero disk retention, and a single concurrent frame capture.
+
