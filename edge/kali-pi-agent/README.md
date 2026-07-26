@@ -3,7 +3,7 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.7 adds persistent USB-C and authorized private-network target links:
+tunnel. Version 0.8 extends USB-C and authorized private-network target links with guarded Wi-Fi provisioning:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
@@ -42,6 +42,11 @@ tunnel. Version 0.7 adds persistent USB-C and authorized private-network target 
 - generates JSON and standalone HTML target diagnostic reports;
 - does not change target settings, remove files, install drivers, or perform
   repairs.
+- can provision the Pi from the current Windows Wi-Fi profile through a
+  separately authorized administrator helper over USB-C SSH standard input;
+- never places a Wi-Fi passphrase in command arguments, reports, or logs;
+- checks whether the restricted `boxbrain-link` account can improperly retrieve
+  saved key content and reports only the result, never the credential.
 
 ## Connect a target by USB
 
@@ -64,6 +69,13 @@ Once the target link is confirmed, BoxBrain automatically collects a read-only
 health baseline. The dashboard shows system status, lowest free disk percentage,
 available memory, findings, edge-agent recommendations, and the capability
 registry. Diagnostics refresh no more than once every 15 minutes by default.
+
+To provision the Pi from the Windows computer's currently connected Wi-Fi,
+download `windows-wifi-provision.ps1` from the same onboarding page and run it
+from Administrator PowerShell. Type `PROVISION WIFI` when prompted. The helper
+is restricted to the dedicated Pi address `10.12.194.1`, requires an already
+trusted Pi SSH host key, and streams the credential through SSH standard input.
+It does not write the credential to a file or display it.
 
 ## Continue a target over Wi-Fi or Ethernet
 

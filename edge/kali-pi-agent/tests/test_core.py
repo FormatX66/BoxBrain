@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import ipaddress
+import io
 from pathlib import Path
 import sys
 import tempfile
@@ -36,6 +37,11 @@ from boxbrain.policy import (  # noqa: E402
 )
 from boxbrain.storage import Storage  # noqa: E402
 from boxbrain.system import collect_status  # noqa: E402
+from boxbrain.wifi import (  # noqa: E402
+    WIFI_PROVISION_AUTHORIZATION,
+    WifiProvisionError,
+    provision_current_wifi,
+)
 
 
 class BoxBrainTests(unittest.TestCase):
@@ -75,6 +81,8 @@ class BoxBrainTests(unittest.TestCase):
                 page = response.read().decode("utf-8")
             self.assertIn("USB-C + private-network onboarding", page)
             self.assertIn("boxbrainctl add-target", page)
+            self.assertIn("windows-wifi-provision.ps1", page)
+            self.assertIn("SSH over USB-C", page)
         finally:
             server.shutdown()
             server.server_close()
@@ -93,6 +101,9 @@ class BoxBrainTests(unittest.TestCase):
         linux_link = (root / "onboarding" / "linux-link.sh").read_text(
             encoding="utf-8"
         )
+        wifi_helper = (
+            root / "onboarding" / "windows-wifi-provision.ps1"
+        ).read_text(encoding="utf-8")
 
         expected = "BOXBRAIN_ONBOARDING_BIND=10.12.194.1"
         self.assertIn(expected, config)
@@ -101,6 +112,99 @@ class BoxBrainTests(unittest.TestCase):
         self.assertIn("BoxBrainAddress = @('10.12.194.1')", windows_link)
         self.assertNotIn("192.168.137.0/24", windows_link)
         self.assertIn("BOXBRAIN_AGENT_ADDRESS", linux_link)
+        self.assertIn("PiAddress = '10.12.194.1'", wifi_helper)
+        self.assertIn("RedirectStandardInput = $true", wifi_helper)
+        self.assertIn("StrictHostKeyChecking=yes", wifi_helper)
+        self.assertIn("sudo -n /usr/local/bin/boxbrainctl", wifi_helper)
+        self.assertNotIn('$passphrase, $PiUser', wifi_helper)
+        diagnostic_source = (
+            root / "src" / "boxbrain" / "diagnostics.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Wait-Job -Job $job -Timeout 8", diagnostic_source)
+        self.assertIn("credential_check = 'unavailable'", diagnostic_source)
+
+    def test_wifi_provision_keeps_passphrase_out_of_argv_and_result(self) -> None:
+        secret = "test-only-passphrase"
+        payload = json.dumps(
+            {
+                "schema_version": 1,
+                "source": "windows-current-profile",
+                "transport": "usb-c-ssh",
+                "ssid": "Authorized-Lab",
+                "passphrase": secret,
+            }
+        )
+        calls: list[tuple[list[str], dict[str, object]]] = []
+
+        def runner(arguments: list[str], **kwargs: object) -> object:
+            calls.append((arguments, kwargs))
+            if "connect" in arguments:
+                return unittest.mock.Mock(returncode=0, stdout="", stderr="")
+            return unittest.mock.Mock(
+                returncode=0,
+                stdout="100 (connected)\nBoxBrain-USB-test\n",
+                stderr="",
+            )
+
+        with patch("boxbrain.wifi.shutil.which", return_value="/usr/bin/nmcli"):
+            result = provision_current_wifi(
+                io.StringIO(payload),
+                WIFI_PROVISION_AUTHORIZATION,
+                runner=runner,
+                effective_uid=0,
+            )
+
+        self.assertEqual(calls[0][1]["input"], f"{secret}\n")
+        self.assertNotIn(secret, " ".join(calls[0][0]))
+        self.assertNotIn(secret, json.dumps(result))
+        self.assertEqual(result["credential_transport"], "usb-c-ssh-stdin")
+        self.assertFalse(result["credential_logged"])
+
+    def test_wifi_provision_requires_root_and_usb_transport(self) -> None:
+        payload = json.dumps(
+            {
+                "schema_version": 1,
+                "source": "windows-current-profile",
+                "transport": "usb-c-ssh",
+                "ssid": "Authorized-Lab",
+                "passphrase": "test-only-passphrase",
+            }
+        )
+        with self.assertRaises(WifiProvisionError):
+            provision_current_wifi(
+                io.StringIO(payload),
+                WIFI_PROVISION_AUTHORIZATION,
+                effective_uid=1000,
+            )
+
+        wrong_transport = json.loads(payload)
+        wrong_transport["transport"] = "network-ssh"
+        with (
+            patch("boxbrain.wifi.shutil.which", return_value="/usr/bin/nmcli"),
+            self.assertRaises(WifiProvisionError),
+        ):
+            provision_current_wifi(
+                io.StringIO(json.dumps(wrong_transport)),
+                WIFI_PROVISION_AUTHORIZATION,
+                effective_uid=0,
+            )
+
+    def test_restricted_wifi_key_visibility_is_a_high_finding(self) -> None:
+        payload = {
+            "disks": [],
+            "network_adapters": [{"name": "USB Ethernet"}],
+            "wifi": {
+                "connected": True,
+                "ssid": "Authorized-Lab",
+                "credential_check": "exposed",
+                "saved_key_visible_to_boxbrain_link": True,
+            },
+        }
+        overall, findings, metrics = analyze(payload)
+        self.assertEqual(overall, "attention")
+        self.assertEqual(findings[0]["severity"], "high")
+        self.assertIn("saved Wi-Fi key", findings[0]["title"])
+        self.assertTrue(metrics["wifi_saved_key_visible_to_restricted_account"])
 
     def test_upgrade_backups_are_private_and_rollback_guarded(self) -> None:
         root = Path(__file__).resolve().parents[1]

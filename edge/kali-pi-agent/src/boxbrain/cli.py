@@ -15,6 +15,11 @@ from urllib.request import ProxyHandler, build_opener
 from boxbrain.diagnostics import DIAGNOSTIC_AUTHORIZATION
 from boxbrain.enrollment import LINK_AUTHORIZATION
 from boxbrain.policy import AUTHORIZATION_ASSERTION
+from boxbrain.wifi import (
+    WIFI_PROVISION_AUTHORIZATION,
+    WifiProvisionError,
+    provision_current_wifi,
+)
 
 
 def _http_request(path: str) -> dict[str, Any]:
@@ -137,6 +142,26 @@ def build_parser() -> argparse.ArgumentParser:
     assess.add_argument("--wait", action="store_true", help="Wait for completion.")
     assess.add_argument("--timeout", type=int, default=900, help="Wait timeout in seconds.")
 
+    wifi_provision = subparsers.add_parser(
+        "wifi-provision",
+        help="Provision the Pi from an authorized Windows profile received over USB-C.",
+    )
+    wifi_provision.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read the protected provisioning payload from standard input.",
+    )
+    wifi_provision.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm authorization to use the current Windows Wi-Fi profile.",
+    )
+    wifi_provision.add_argument(
+        "--interface",
+        default="wlan0",
+        help="Pi NetworkManager Wi-Fi interface.",
+    )
+
     return parser
 
 
@@ -214,10 +239,24 @@ def main() -> int:
                     payload = _control_request(
                         {"action": "job", "job_id": payload["id"]}
                     )["job"]
+        elif command == "wifi-provision":
+            if not args.stdin:
+                parser.error(
+                    "--stdin is required so the Wi-Fi passphrase never enters argv."
+                )
+            if not args.authorized:
+                parser.error(
+                    "--authorized is required to provision the current Wi-Fi profile."
+                )
+            payload = provision_current_wifi(
+                sys.stdin,
+                WIFI_PROVISION_AUTHORIZATION,
+                interface=args.interface,
+            )
         else:
             parser.error(f"Unsupported command: {command}")
             return 2
-    except RuntimeError as error:
+    except (RuntimeError, WifiProvisionError) as error:
         print(str(error), file=sys.stderr)
         return 1
 

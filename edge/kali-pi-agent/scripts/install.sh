@@ -54,13 +54,18 @@ sed "s|__BOXBRAIN_PUBLIC_KEY__|$public_key|g" \
     "$project_dir"/onboarding/linux-link.sh \
     >/opt/boxbrain/onboarding/linux-link.sh
 install -o root -g root -m 0644 \
+    "$project_dir"/onboarding/windows-wifi-provision.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1
+install -o root -g root -m 0644 \
     /var/lib/boxbrain/identity/target_ed25519.pub \
     /opt/boxbrain/onboarding/boxbrain-target.pub
 chown root:root \
     /opt/boxbrain/onboarding/windows-link.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1 \
     /opt/boxbrain/onboarding/linux-link.sh
 chmod 0644 \
     /opt/boxbrain/onboarding/windows-link.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1 \
     /opt/boxbrain/onboarding/linux-link.sh
 install -o root -g root -m 0755 "$project_dir"/scripts/boxbrainctl /usr/local/bin/boxbrainctl
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain.service /etc/systemd/system/boxbrain.service

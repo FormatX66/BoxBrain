@@ -18,6 +18,10 @@ CONTENT_DIRECTORY = Path(
 )
 FILES = {
     "/windows-link.ps1": ("windows-link.ps1", "text/plain; charset=utf-8"),
+    "/windows-wifi-provision.ps1": (
+        "windows-wifi-provision.ps1",
+        "text/plain; charset=utf-8",
+    ),
     "/linux-link.sh": ("linux-link.sh", "text/plain; charset=utf-8"),
     "/boxbrain-target.pub": ("boxbrain-target.pub", "text/plain; charset=utf-8"),
 }
@@ -44,6 +48,11 @@ def _page(host: str) -> bytes:
         "sh /tmp/boxbrain-link.sh"
     )
     enroll_network = "boxbrainctl add-target <TARGET-WIFI-IP> --authorized"
+    windows_wifi = (
+        f"Invoke-WebRequest {origin}/windows-wifi-provision.ps1 -OutFile "
+        "$env:TEMP\\boxbrain-wifi.ps1; "
+        "PowerShell -ExecutionPolicy Bypass -File $env:TEMP\\boxbrain-wifi.ps1"
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -87,6 +96,13 @@ def _page(host: str) -> bytes:
 Linux: {escape(linux_network)}</code>
     <p>Then enroll the target's private address from the Pi:</p>
     <code>{escape(enroll_network)}</code>
+  </section>
+  <section class="card"><h2>Provision the Pi from this Windows Wi-Fi</h2>
+    <p>Run this separately as administrator. It reads only the current profile
+    after explicit approval and streams the passphrase through SSH over USB-C.
+    The restricted target account is also checked to confirm that it cannot
+    retrieve the saved key.</p>
+    <code>{escape(windows_wifi)}</code>
   </section>
   <p>BoxBrain {__version__} | read-only onboarding service</p>
 </main></body></html>""".encode("utf-8")

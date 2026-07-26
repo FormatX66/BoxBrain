@@ -85,6 +85,67 @@ $productName = [string]$version.ProductName
 if ([int]$version.CurrentBuildNumber -ge 22000) {
     $productName = $productName -replace 'Windows 10','Windows 11'
 }
+function Invoke-BoxBrainNetsh {
+    param([string[]]$Arguments)
+    $job = Start-Job -ScriptBlock {
+        param([string[]]$NetshArguments)
+        & netsh.exe @NetshArguments 2>$null
+    } -ArgumentList (,$Arguments)
+    try {
+        $finished = Wait-Job -Job $job -Timeout 8
+        if ($null -eq $finished) {
+            Stop-Job -Job $job -ErrorAction SilentlyContinue
+            return $null
+        }
+        return @(Receive-Job -Job $job -ErrorAction SilentlyContinue)
+    } finally {
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
+}
+$wifi = [ordered]@{
+    connected = $false
+    ssid = $null
+    profile = $null
+    credential_check = 'not-applicable'
+    saved_key_visible_to_boxbrain_link = $false
+}
+try {
+    $wlanInterfaces = Invoke-BoxBrainNetsh @('wlan', 'show', 'interfaces')
+    $ssidMatch = $wlanInterfaces |
+        Select-String -Pattern '^\s*SSID\s*:\s*(.+?)\s*$' |
+        Select-Object -First 1
+    $profileMatch = $wlanInterfaces |
+        Select-String -Pattern '^\s*Profile\s*:\s*(.+?)\s*$' |
+        Select-Object -First 1
+    if ($null -ne $ssidMatch -and $null -ne $profileMatch) {
+        $wifi.connected = $true
+        $wifi.ssid = $ssidMatch.Matches[0].Groups[1].Value
+        $wifi.profile = $profileMatch.Matches[0].Groups[1].Value
+        $savedProfile = Invoke-BoxBrainNetsh @(
+            'wlan',
+            'show',
+            'profile',
+            "name=$($wifi.profile)",
+            'key=clear'
+        )
+        if ($null -eq $savedProfile) {
+            throw 'The restricted WLAN credential check timed out.'
+        }
+        $wifi.saved_key_visible_to_boxbrain_link = [bool](
+            $savedProfile |
+                Select-String -Pattern '^\s*Key Content\s*:\s*.+$' |
+                Select-Object -First 1
+        )
+        $wifi.credential_check = if ($wifi.saved_key_visible_to_boxbrain_link) {
+            'exposed'
+        } else {
+            'blocked'
+        }
+        $savedProfile = $null
+    }
+} catch {
+    $wifi.credential_check = 'unavailable'
+}
 $result = [ordered]@{
     schema_version = 1
     family = 'windows'
@@ -98,6 +159,7 @@ $result = [ordered]@{
     memory_free_bytes = [int64]$computer.AvailablePhysicalMemory
     disks = $disks
     network_adapters = $adapters
+    wifi = $wifi
     device_error_count = [int]$deviceErrors.Count
     device_errors = $deviceErrors
     pending_reboot = [bool]$pendingReboot
@@ -258,6 +320,27 @@ def analyze(payload: dict[str, Any]) -> tuple[str, list[dict[str, str]], dict[st
                 ),
             }
         )
+
+    wifi = payload.get("wifi")
+    if isinstance(wifi, dict):
+        visible = wifi.get("saved_key_visible_to_boxbrain_link") is True
+        metrics["wifi_saved_key_visible_to_restricted_account"] = visible
+        if visible:
+            findings.append(
+                {
+                    "severity": "high",
+                    "title": "Restricted account can read the saved Wi-Fi key",
+                    "detail": (
+                        "The non-administrator boxbrain-link account could request clear-text "
+                        "key content for the currently connected Windows Wi-Fi profile."
+                    ),
+                    "recommendation": (
+                        "Keep Wi-Fi provisioning administrator-only, update Windows, review "
+                        "local account and WLAN profile permissions, then rotate the Wi-Fi "
+                        "passphrase after the access boundary is corrected."
+                    ),
+                }
+            )
 
     severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1}
     highest = max((severity_rank.get(item["severity"], 0) for item in findings), default=0)

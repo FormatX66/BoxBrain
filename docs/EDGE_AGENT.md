@@ -69,6 +69,22 @@ rechecked on every monitor interval and retain `connected` or `offline` state.
 The controller continues to receive only the bounded target count; enrollment,
 keys, routes, and raw diagnostics stay on the Pi.
 
+## USB-C Wi-Fi provisioning and access-control audit
+
+Version 0.8 adds a separate administrator-approved Windows helper for
+provisioning the Pi from the computer's currently connected Wi-Fi profile. The
+helper is fixed to the USB gadget address `10.12.194.1`, requires a previously
+trusted Pi SSH host key, and sends the passphrase only through SSH standard
+input. The passphrase is never placed in command arguments, BoxBrain reports,
+or logs. NetworkManager retains the resulting system connection using its
+root-only profile storage.
+
+The ordinary `boxbrain-link` diagnostic account remains non-administrator. Its
+Windows health check attempts a bounded, redacted access-control audit and
+records only whether the current saved Wi-Fi key was visible. A visible key is
+reported as a high-severity boundary failure; the key itself is never returned
+to the Pi.
+
 ## Source and validation
 
 The deployable agent is in `edge/kali-pi-agent`. It uses Python's standard
