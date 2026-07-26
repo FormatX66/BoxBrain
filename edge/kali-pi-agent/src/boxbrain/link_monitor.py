@@ -186,12 +186,14 @@ def run_once() -> int:
     for address, existing in registered.items():
         transport = existing.get("transport")
         interface = existing.get("interface")
+        if transport == "usb-ethernet-ssh" and not interface:
+            interface = USB_INTERFACE
         if (
-            transport == "network-ssh"
+            transport in {"network-ssh", "usb-ethernet-ssh"}
             and isinstance(interface, str)
             and interface
         ):
-            candidates[address] = (transport, interface)
+            candidates.setdefault(address, (transport, interface))
 
     for address, (transport, interface) in candidates.items():
         link = probe(address, transport=transport, interface=interface)

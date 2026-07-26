@@ -27,7 +27,7 @@ tunnel. Version 0.7 adds persistent USB-C and authorized private-network target 
 - does not run exploits, vulnerability scripts, stealth scans, or public-target scans.
 - presents USB Ethernet through the Pi 4 USB-C port and discovers authorized USB targets automatically;
 - enrolls explicitly authorized RFC1918/link-local targets over key-only SSH on Wi-Fi or Ethernet;
-- rechecks enrolled network targets and records connected/offline link state;
+- rechecks registered USB-C and network targets and records connected/offline link state;
 - serves read-only Windows and Linux onboarding scripts on port 8788;
 - requires the target operator to type `AUTHORIZE` before making changes;
 - creates a non-administrator/non-sudo `boxbrain-link` account on the target;

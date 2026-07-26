@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from boxbrain.server import build_server  # noqa: E402
 from boxbrain.agent import agent_state, recommendations  # noqa: E402
+from boxbrain.control import ControlServer  # noqa: E402
 from boxbrain.diagnostics import (  # noqa: E402
     DIAGNOSTIC_AUTHORIZATION,
     TargetDiagnostics,
@@ -171,6 +172,31 @@ class BoxBrainTests(unittest.TestCase):
                     LINK_AUTHORIZATION,
                 )
 
+    def test_control_socket_forwards_explicit_target_enrollment(self) -> None:
+        request = {
+            "action": "add_target",
+            "address": "192.168.50.23",
+            "transport": "network-ssh",
+            "authorization": LINK_AUTHORIZATION,
+        }
+        enrolled = {
+            "address": "192.168.50.23",
+            "transport": "network-ssh",
+            "status": "connected",
+        }
+        with patch(
+            "boxbrain.control.enroll_target",
+            return_value=enrolled,
+        ) as enroll:
+            response = ControlServer.dispatch(unittest.mock.Mock(), request)
+
+        self.assertEqual(response, {"ok": True, "target": enrolled})
+        enroll.assert_called_once_with(
+            "192.168.50.23",
+            "network-ssh",
+            LINK_AUTHORIZATION,
+        )
+
     def test_monitor_rechecks_registered_network_target_and_marks_it_offline(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
@@ -205,6 +231,44 @@ class BoxBrainTests(unittest.TestCase):
                 "192.168.50.23",
                 transport="network-ssh",
                 interface="wlan0",
+            )
+            updated = json.loads(link_path.read_text(encoding="utf-8"))
+            self.assertEqual(updated["status"], "offline")
+            self.assertIn("last_checked", updated)
+
+    def test_monitor_rechecks_legacy_usb_target_and_marks_it_offline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            links = state / "links"
+            links.mkdir()
+            identity = state / "identity" / "target_ed25519"
+            identity.parent.mkdir()
+            identity.write_text("test-only", encoding="utf-8")
+            link_path = links / "10-12-194-4.json"
+            link_path.write_text(
+                json.dumps(
+                    {
+                        "address": "10.12.194.4",
+                        "hostname": "AUTHORIZED-USB-PC",
+                        "transport": "usb-ethernet-ssh",
+                        "status": "connected",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with (
+                patch.object(link_monitor, "STATE_DIRECTORY", state),
+                patch.object(link_monitor, "LINKS_DIRECTORY", links),
+                patch.object(link_monitor, "IDENTITY_FILE", identity),
+                patch.object(link_monitor, "neighbor_candidates", return_value=[]),
+                patch.object(link_monitor, "probe", return_value=None) as probe_target,
+            ):
+                self.assertEqual(link_monitor.run_once(), 0)
+
+            probe_target.assert_called_once_with(
+                "10.12.194.4",
+                transport="usb-ethernet-ssh",
+                interface="usb0",
             )
             updated = json.loads(link_path.read_text(encoding="utf-8"))
             self.assertEqual(updated["status"], "offline")
