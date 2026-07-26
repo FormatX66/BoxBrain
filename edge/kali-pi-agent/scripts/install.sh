@@ -80,6 +80,7 @@ ensure_env_setting() {
 }
 
 ensure_env_setting BOXBRAIN_DIAGNOSTIC_INTERVAL 900
+ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1
 ensure_env_setting BOXBRAIN_AGENT_MODE advisory
 ensure_env_setting BOXBRAIN_AI_PROVIDER ""
 

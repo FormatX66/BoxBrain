@@ -68,6 +68,19 @@ class BoxBrainTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=3)
 
+    def test_usb_onboarding_bind_is_explicitly_migrated(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        config = (root / "config" / "boxbrain.env").read_text(encoding="utf-8")
+        installer = (root / "scripts" / "install.sh").read_text(encoding="utf-8")
+        onboarding = (root / "src" / "boxbrain" / "onboarding.py").read_text(
+            encoding="utf-8"
+        )
+
+        expected = "BOXBRAIN_ONBOARDING_BIND=10.12.194.1"
+        self.assertIn(expected, config)
+        self.assertIn("ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1", installer)
+        self.assertIn('"BOXBRAIN_ONBOARDING_BIND", "10.12.194.1"', onboarding)
+
     def test_links_ignore_bad_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             links = Path(directory) / "links"
