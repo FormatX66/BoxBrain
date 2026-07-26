@@ -40,6 +40,9 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Run backend suite
         run: python -m pytest -q
+      - name: Run Kali Pi edge-agent suite
+        working-directory: edge/kali-pi-agent
+        run: python -m unittest discover -s tests -v
 
   flutter:
     name: Flutter checks

@@ -1,0 +1,40 @@
+[Unit]
+Description=BoxBrain edge-agent authorized target monitor
+Documentation=file:/opt/boxbrain/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=boxbrain
+Group=boxbrain
+Environment=PYTHONPATH=/opt/boxbrain/src
+EnvironmentFile=-/etc/boxbrain/boxbrain.env
+ExecStart=/usr/bin/python3 -m boxbrain.link_monitor
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/boxbrain
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

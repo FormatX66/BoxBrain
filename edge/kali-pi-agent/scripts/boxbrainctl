@@ -1,0 +1,2 @@
+#!/bin/sh
+exec env PYTHONPATH=/opt/boxbrain/src /usr/bin/python3 -m boxbrain.cli "$@"

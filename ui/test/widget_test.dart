@@ -20,6 +20,8 @@ void main() {
     expect(find.text('0.1.0'), findsOneWidget);
     expect(find.text('Token required'), findsOneWidget);
     expect(find.text('Live stream'), findsOneWidget);
+    expect(find.text('Kali Pi edge agent'), findsOneWidget);
+    expect(find.text('Connected through local SSH tunnel'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
 
     await tester.tap(find.text('Policies'));
@@ -268,6 +270,22 @@ class _OnlineControllerApi extends ControllerApi {
       ];
 
   @override
+  Future<List<EdgeAgentSummary>> fetchEdgeAgents() async => const [
+        EdgeAgentSummary(
+          id: 'kali-pi',
+          name: 'Kali Pi Edge Agent',
+          role: 'edge-agent',
+          transport: 'ssh-tunnel',
+          mode: 'read-only-advisory',
+          connected: true,
+          version: '0.6.0',
+          hostname: 'kali-pi',
+          targetCount: 1,
+          recommendationCount: 2,
+        ),
+      ];
+
+  @override
   Future<List<TargetSummary>> fetchTargets() async => [
         TargetSummary(
           id: 'windows-sandbox',
@@ -416,6 +434,9 @@ class _OfflineControllerApi extends ControllerApi {
 
   @override
   Future<List<PluginSummary>> fetchPlugins() async => const [];
+
+  @override
+  Future<List<EdgeAgentSummary>> fetchEdgeAgents() async => const [];
 
   @override
   Future<List<TargetSummary>> fetchTargets() async => const [];

@@ -245,6 +245,45 @@ def test_sandbox_target_is_strictly_read_only() -> None:
     ).status_code == 404
 
 
+def test_kali_pi_is_reported_as_a_separate_read_only_edge_agent(
+    monkeypatch,
+) -> None:
+    class StubEdgeAgentClient:
+        def describe(self):
+            return api_module.EdgeAgentSummary(
+                id="kali-pi",
+                name="Kali Pi Edge Agent",
+                role="edge-agent",
+                transport="ssh-tunnel",
+                mode="read-only-advisory",
+                connected=True,
+                version="0.6.0",
+                hostname="kali-pi",
+                target_count=1,
+                recommendation_count=2,
+            )
+
+    monkeypatch.setattr(api_module, "edge_agent_client", StubEdgeAgentClient())
+
+    response = client.get("/api/v1/edge-agents")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": "kali-pi",
+            "name": "Kali Pi Edge Agent",
+            "role": "edge-agent",
+            "transport": "ssh-tunnel",
+            "mode": "read-only-advisory",
+            "connected": True,
+            "version": "0.6.0",
+            "hostname": "kali-pi",
+            "target_count": 1,
+            "recommendation_count": 2,
+        }
+    ]
+
+
 def test_sandbox_start_is_fixed_profile_only_and_audited(monkeypatch) -> None:
     calls = []
 

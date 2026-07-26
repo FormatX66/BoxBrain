@@ -57,6 +57,13 @@ class Settings:
         "BOXBRAIN_SANDBOX_LAUNCH_ENABLED",
         getenv("BOXBRAIN_ENVIRONMENT", "development") == "development",
     )
+    kali_pi_agent_url: str = getenv(
+        "BOXBRAIN_KALI_PI_AGENT_URL",
+        "http://127.0.0.1:8787",
+    )
+    kali_pi_agent_timeout_seconds: float = float(
+        getenv("BOXBRAIN_KALI_PI_AGENT_TIMEOUT_SECONDS", "1.5")
+    )
 
 
 settings = Settings()

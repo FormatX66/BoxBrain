@@ -56,6 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<PolicySummary> _policies = const [];
   List<PluginSummary> _plugins = const [];
   List<TargetSummary> _targets = const [];
+  List<EdgeAgentSummary> _edgeAgents = const [];
   List<AuditEventSummary> _events = const [];
   EmergencyStopState _emergencyStop = const EmergencyStopState.unknown();
   String? _error;
@@ -107,6 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.api.fetchPolicies(),
         widget.api.fetchPlugins(),
         widget.api.fetchTargets(),
+        widget.api.fetchEdgeAgents(),
         widget.api.fetchEmergencyStop(),
         widget.api.fetchEvents(),
       ]);
@@ -117,8 +119,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final policies = results[2] as List<PolicySummary>;
       final plugins = results[3] as List<PluginSummary>;
       final targets = results[4] as List<TargetSummary>;
-      final emergencyStop = results[5] as EmergencyStopState;
-      final events = results[6] as List<AuditEventSummary>;
+      final edgeAgents = results[5] as List<EdgeAgentSummary>;
+      final emergencyStop = results[6] as EmergencyStopState;
+      final events = results[7] as List<AuditEventSummary>;
       final activeTasks = tasks
           .where((task) => task.status == 'queued' || task.status == 'running')
           .length;
@@ -130,6 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _policies = policies;
         _plugins = plugins;
         _targets = targets;
+        _edgeAgents = edgeAgents;
         _emergencyStop = emergencyStop;
         _events = events;
         _status = ControllerStatus.online(
@@ -177,11 +181,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final results = await Future.wait<Object>([
         widget.api.fetchEmergencyStop(),
         widget.api.fetchTargets(),
+        widget.api.fetchEdgeAgents(),
       ]);
       if (mounted) {
         setState(() {
           _emergencyStop = results[0] as EmergencyStopState;
           _targets = results[1] as List<TargetSummary>;
+          _edgeAgents = results[2] as List<EdgeAgentSummary>;
         });
       }
     } catch (_) {
@@ -295,6 +301,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         emergencyStop: _emergencyStop,
         tasks: _tasks,
         target: _targets.firstOrNull,
+        edgeAgent: _edgeAgents.firstOrNull,
         error: _error,
         loading: _loading,
         onRetry: _refresh,
@@ -675,6 +682,7 @@ class _Overview extends StatelessWidget {
     required this.emergencyStop,
     required this.tasks,
     required this.target,
+    required this.edgeAgent,
     required this.error,
     required this.loading,
     required this.onRetry,
@@ -685,6 +693,7 @@ class _Overview extends StatelessWidget {
   final EmergencyStopState emergencyStop;
   final List<TaskSummary> tasks;
   final TargetSummary? target;
+  final EdgeAgentSummary? edgeAgent;
   final String? error;
   final bool loading;
   final VoidCallback onRetry;
@@ -780,6 +789,7 @@ class _Overview extends StatelessWidget {
                   emergencyStop: emergencyStop,
                   tasks: tasks,
                   target: target,
+                  edgeAgent: edgeAgent,
                   onViewTarget: onViewTarget,
                 ),
               ],
@@ -797,6 +807,7 @@ class _OverviewCards extends StatelessWidget {
     required this.emergencyStop,
     required this.tasks,
     required this.target,
+    required this.edgeAgent,
     required this.onViewTarget,
   });
 
@@ -804,6 +815,7 @@ class _OverviewCards extends StatelessWidget {
   final EmergencyStopState emergencyStop;
   final List<TaskSummary> tasks;
   final TargetSummary? target;
+  final EdgeAgentSummary? edgeAgent;
   final VoidCallback onViewTarget;
 
   @override
@@ -870,6 +882,28 @@ class _OverviewCards extends StatelessWidget {
                   : 'Unavailable',
             ),
             ('Access', 'Read-only; no input capability'),
+          ],
+        ),
+      ),
+      SectionCard(
+        title: 'Kali Pi edge agent',
+        subtitle: edgeAgent?.connected == true
+            ? 'Connected through local SSH tunnel'
+            : 'Local SSH tunnel not detected',
+        child: _PlaceholderRows(
+          rows: [
+            (
+              'Connection',
+              edgeAgent?.connected == true ? 'Connected' : 'Offline'
+            ),
+            ('Version', edgeAgent?.version ?? 'Unavailable'),
+            ('Host', edgeAgent?.hostname ?? 'Unavailable'),
+            ('Authorized targets', '${edgeAgent?.targetCount ?? 0}'),
+            (
+              'Recommendations',
+              '${edgeAgent?.recommendationCount ?? 0}',
+            ),
+            ('Access', 'Read-only advisory over SSH'),
           ],
         ),
       ),

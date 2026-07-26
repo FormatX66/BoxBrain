@@ -20,10 +20,12 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/tasks`
 - `POST /api/v1/tasks`
 - `GET /api/v1/tasks/{task_id}`
-- GET /api/v1/events`n- GET /api/v1/events/stream (server-sent events with resume support)
+- `GET /api/v1/events`
+- `GET /api/v1/events/stream` (server-sent events with resume support)
 - `GET /api/v1/policies`
 - `GET /api/v1/plugins`
 - `GET /api/v1/targets`
+- `GET /api/v1/edge-agents`
 - `POST /api/v1/targets/windows-sandbox/start`
 - `GET /api/v1/targets/windows-sandbox/frame`
 - `GET /api/v1/safety/emergency-stop`
@@ -43,3 +45,10 @@ The observation policy is loaded from `BOXBRAIN_OBSERVATION_POLICY` (default
 `../policies/observation.json`). It enforces frame size limits, child-process
 redaction, zero disk retention, and a single concurrent frame capture.
 
+## Kali Pi edge agent
+
+The controller reads the Kali Pi agent through a loopback-only SSH tunnel at
+`BOXBRAIN_KALI_PI_AGENT_URL` (default `http://127.0.0.1:8787`). It exposes only
+a sanitized inventory summary to the dashboard. The controller rejects remote
+hosts, embedded URL credentials, extra paths, and non-HTTP schemes for this
+setting. See `docs/EDGE_AGENT.md` for setup and upgrade details.

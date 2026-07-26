@@ -308,6 +308,47 @@ class TargetSummary {
   final String? startEndpoint;
 }
 
+class EdgeAgentSummary {
+  const EdgeAgentSummary({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.transport,
+    required this.mode,
+    required this.connected,
+    required this.version,
+    required this.hostname,
+    required this.targetCount,
+    required this.recommendationCount,
+  });
+
+  factory EdgeAgentSummary.fromJson(Map<String, dynamic> json) {
+    return EdgeAgentSummary(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      role: json['role'] as String,
+      transport: json['transport'] as String,
+      mode: json['mode'] as String,
+      connected: json['connected'] as bool,
+      version: json['version'] as String?,
+      hostname: json['hostname'] as String?,
+      targetCount: json['target_count'] as int,
+      recommendationCount: json['recommendation_count'] as int,
+    );
+  }
+
+  final String id;
+  final String name;
+  final String role;
+  final String transport;
+  final String mode;
+  final bool connected;
+  final String? version;
+  final String? hostname;
+  final int targetCount;
+  final int recommendationCount;
+}
+
 class AuditEventSummary {
   const AuditEventSummary({
     required this.sequence,

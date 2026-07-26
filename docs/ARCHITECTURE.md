@@ -5,16 +5,16 @@
 ```text
 Flutter UI
     |
-    | authenticated HTTPS / WebSocket
+    | authenticated local HTTPS
     v
-Controller API ── Task state machine ── Policy decision point
-    |                                      |
-    | versioned local protocol             | allow / confirm / deny
-    v                                      v
-Out-of-process plugins  ───────────────> Audit event store
-    |
-    v
-Isolated, allowlisted lab target
+Controller API -- Task/policy/audit state
+    |                         |
+    | out-of-process          | loopback-only SSH local-forward
+    v                         v
+Windows Sandbox observer    Kali Pi edge agent
+    |                         |
+    v                         v
+Isolated Sandbox target     Explicitly authorized targets
 ```
 
 The cloud model proposes structured intent. It never receives direct device
@@ -26,6 +26,8 @@ capabilities, and the selected policy profile.
 
 - **UI:** operator visibility, approvals, emergency stop, and configuration.
 - **Controller:** authentication, task lifecycle, policy decisions, and audit.
+- **Kali Pi edge agent:** authorized read-only diagnostics, bounded
+  private-scope assessment, and advisory recommendations.
 - **Planner adapter:** converts a task and observation into structured proposals.
 - **Transport plugin:** obtains frames and performs narrowly typed input events.
 - **Verifier:** decides whether an expected state change actually occurred.
@@ -51,6 +53,22 @@ audited, emergency-stop-gated capability rather than an observation. The plugin
 protocol contains no input or launch operation. The child currently shares the
 controller's Windows user identity; lower-privilege service isolation remains a
 future boundary.
+
+## Edge-agent boundary
+
+The Kali Pi agent is reached only through a loopback SSH local-forward. The
+controller validates the configured URL before startup and returns only a
+sanitized inventory summary to the UI. The agent keeps its diagnostic records,
+assessment evidence, SSH identity, and target-link state on the Pi.
+
+The Pi has its own loopback status page for maintenance, but it is not a second
+control plane. Its `agent` status object and `boxbrainctl agent` command describe
+edge capabilities. The former `controller` command and module remain temporary
+upgrade aliases for the existing deployment.
+
+USB onboarding is a separate read-only HTTP service bound to the dedicated
+`10.12.194.1` gadget address. It is never exposed through the controller's
+edge-agent status client.
 
 ## Data flow
 

@@ -8,8 +8,10 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from . import __version__
+from .edge_agent import KaliPiEdgeAgentClient
 from .models import (
     AuditEvent,
+    EdgeAgentSummary,
     EmergencyStopEngageRequest,
     EmergencyStopResetRequest,
     EmergencyStopState,
@@ -52,6 +54,10 @@ sandbox_observer = OutOfProcessWindowsSandboxObserver(
         policy=observation_policy,
     ),
     launcher=sandbox_launcher,
+)
+edge_agent_client = KaliPiEdgeAgentClient(
+    settings.kali_pi_agent_url,
+    timeout_seconds=settings.kali_pi_agent_timeout_seconds,
 )
 control_lock = Lock()
 
@@ -222,6 +228,11 @@ def list_targets() -> list[TargetSummary]:
         target.start_enabled = False
         target.start_endpoint = None
     return [target]
+
+
+@router.get("/edge-agents", response_model=list[EdgeAgentSummary])
+def list_edge_agents() -> list[EdgeAgentSummary]:
+    return [edge_agent_client.describe()]
 
 
 @router.post(

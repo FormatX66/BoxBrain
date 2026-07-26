@@ -126,3 +126,16 @@ class TargetStartResponse(BaseModel):
     target_id: Literal["windows-sandbox"]
     status: Literal["starting", "already_running"]
     message: str
+
+
+class EdgeAgentSummary(BaseModel):
+    id: Literal["kali-pi"]
+    name: str
+    role: Literal["edge-agent"]
+    transport: Literal["ssh-tunnel"]
+    mode: Literal["read-only-advisory"]
+    connected: bool
+    version: str | None
+    hostname: str | None
+    target_count: int = Field(ge=0)
+    recommendation_count: int = Field(ge=0)

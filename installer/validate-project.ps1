@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $controllerDirectory = Join-Path $repositoryRoot "controller"
 $uiDirectory = Join-Path $repositoryRoot "ui"
+$edgeAgentDirectory = Join-Path $repositoryRoot "edge\kali-pi-agent"
 $python = Join-Path $controllerDirectory ".venv\Scripts\python.exe"
 
 if (-not (Test-Path -LiteralPath $python)) {
@@ -62,6 +63,12 @@ Invoke-ValidationStep `
     -WorkingDirectory $controllerDirectory `
     -FilePath $python `
     -Arguments @("-m", "pytest", "-q")
+
+Invoke-ValidationStep `
+    -Name "Kali Pi edge-agent tests" `
+    -WorkingDirectory $edgeAgentDirectory `
+    -FilePath $python `
+    -Arguments @("-m", "unittest", "discover", "-s", "tests", "-v")
 
 Invoke-ValidationStep `
     -Name "Flutter package resolution" `

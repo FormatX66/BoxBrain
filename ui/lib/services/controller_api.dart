@@ -48,6 +48,7 @@ class ControllerApi {
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
+  Uri get edgeAgentsEndpoint => endpoint('/api/v1/edge-agents');
   Uri get sandboxStartEndpoint =>
       endpoint('/api/v1/targets/windows-sandbox/start');
 
@@ -190,6 +191,13 @@ class ControllerApi {
     final json = await _getJson(targetsEndpoint) as List<dynamic>;
     return json
         .map((item) => TargetSummary.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  Future<List<EdgeAgentSummary>> fetchEdgeAgents() async {
+    final json = await _getJson(edgeAgentsEndpoint) as List<dynamic>;
+    return json
+        .map((item) => EdgeAgentSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
   }
 
