@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.request import urlopen
 
 
@@ -19,6 +20,12 @@ from boxbrain.diagnostics import (  # noqa: E402
     TargetDiagnostics,
     analyze,
 )
+from boxbrain.enrollment import (  # noqa: E402
+    LINK_AUTHORIZATION,
+    TargetEnrollmentError,
+    enroll_target,
+)
+from boxbrain import link_monitor  # noqa: E402
 from boxbrain.links import load_links  # noqa: E402
 from boxbrain.onboarding import build_server as build_onboarding_server  # noqa: E402
 from boxbrain.policy import (  # noqa: E402
@@ -63,6 +70,10 @@ class BoxBrainTests(unittest.TestCase):
                 payload = json.load(response)
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["service"], "boxbrain-onboarding")
+            with urlopen(f"http://{host}:{port}/", timeout=3) as response:
+                page = response.read().decode("utf-8")
+            self.assertIn("USB-C + private-network onboarding", page)
+            self.assertIn("boxbrainctl add-target", page)
         finally:
             server.shutdown()
             server.server_close()
@@ -75,11 +86,20 @@ class BoxBrainTests(unittest.TestCase):
         onboarding = (root / "src" / "boxbrain" / "onboarding.py").read_text(
             encoding="utf-8"
         )
+        windows_link = (root / "onboarding" / "windows-link.ps1").read_text(
+            encoding="utf-8"
+        )
+        linux_link = (root / "onboarding" / "linux-link.sh").read_text(
+            encoding="utf-8"
+        )
 
         expected = "BOXBRAIN_ONBOARDING_BIND=10.12.194.1"
         self.assertIn(expected, config)
         self.assertIn("ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1", installer)
         self.assertIn('"BOXBRAIN_ONBOARDING_BIND", "10.12.194.1"', onboarding)
+        self.assertIn("BoxBrainAddress = @('10.12.194.1')", windows_link)
+        self.assertNotIn("192.168.137.0/24", windows_link)
+        self.assertIn("BOXBRAIN_AGENT_ADDRESS", linux_link)
 
     def test_links_ignore_bad_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -93,6 +113,102 @@ class BoxBrainTests(unittest.TestCase):
             loaded = load_links(directory)
             self.assertEqual(len(loaded), 1)
             self.assertEqual(loaded[0]["address"], "10.12.194.2")
+
+    def test_explicit_network_ssh_enrollment_is_verified_and_saved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            identity = state / "identity" / "target_ed25519"
+            identity.parent.mkdir()
+            identity.write_text("test-only", encoding="utf-8")
+            verified = {
+                "address": "192.168.50.23",
+                "hostname": "AUTHORIZED-PC",
+                "platform": "Windows",
+                "user": "boxbrain-link",
+                "transport": "network-ssh",
+                "interface": "wlan0",
+                "status": "connected",
+            }
+            route_result = unittest.mock.Mock(
+                returncode=0,
+                stdout='[{"dev":"wlan0"}]',
+            )
+            with (
+                patch.object(link_monitor, "STATE_DIRECTORY", state),
+                patch.object(link_monitor, "LINKS_DIRECTORY", state / "links"),
+                patch.object(link_monitor, "IDENTITY_FILE", identity),
+                patch("boxbrain.enrollment.subprocess.run", return_value=route_result),
+                patch("boxbrain.enrollment.link_monitor.probe", return_value=verified),
+            ):
+                saved = enroll_target(
+                    "192.168.50.23",
+                    "network-ssh",
+                    LINK_AUTHORIZATION,
+                )
+
+            self.assertEqual(saved["transport"], "network-ssh")
+            self.assertEqual(saved["interface"], "wlan0")
+            self.assertEqual(saved["enrollment"], "explicit")
+            self.assertIn("authorized_at", saved)
+            persisted = load_links(directory)
+            self.assertEqual(persisted[0]["hostname"], "AUTHORIZED-PC")
+
+    def test_network_enrollment_rejects_unauthorized_public_and_usb_routes(self) -> None:
+        with self.assertRaises(TargetEnrollmentError):
+            enroll_target("192.168.50.23", "network-ssh", "")
+        with self.assertRaises(TargetEnrollmentError):
+            enroll_target("8.8.8.8", "network-ssh", LINK_AUTHORIZATION)
+
+        route_result = unittest.mock.Mock(
+            returncode=0,
+            stdout='[{"dev":"usb0"}]',
+        )
+        with patch("boxbrain.enrollment.subprocess.run", return_value=route_result):
+            with self.assertRaises(TargetEnrollmentError):
+                enroll_target(
+                    "10.12.194.2",
+                    "network-ssh",
+                    LINK_AUTHORIZATION,
+                )
+
+    def test_monitor_rechecks_registered_network_target_and_marks_it_offline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            links = state / "links"
+            links.mkdir()
+            identity = state / "identity" / "target_ed25519"
+            identity.parent.mkdir()
+            identity.write_text("test-only", encoding="utf-8")
+            link_path = links / "192-168-50-23.json"
+            link_path.write_text(
+                json.dumps(
+                    {
+                        "address": "192.168.50.23",
+                        "hostname": "AUTHORIZED-PC",
+                        "transport": "network-ssh",
+                        "interface": "wlan0",
+                        "status": "connected",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with (
+                patch.object(link_monitor, "STATE_DIRECTORY", state),
+                patch.object(link_monitor, "LINKS_DIRECTORY", links),
+                patch.object(link_monitor, "IDENTITY_FILE", identity),
+                patch.object(link_monitor, "neighbor_candidates", return_value=[]),
+                patch.object(link_monitor, "probe", return_value=None) as probe_target,
+            ):
+                self.assertEqual(link_monitor.run_once(), 0)
+
+            probe_target.assert_called_once_with(
+                "192.168.50.23",
+                transport="network-ssh",
+                interface="wlan0",
+            )
+            updated = json.loads(link_path.read_text(encoding="utf-8"))
+            self.assertEqual(updated["status"], "offline")
+            self.assertIn("last_checked", updated)
 
     def test_diagnostic_findings_prioritize_low_disk_space(self) -> None:
         payload = {

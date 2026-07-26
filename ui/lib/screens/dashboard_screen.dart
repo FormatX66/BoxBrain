@@ -899,6 +899,7 @@ class _OverviewCards extends StatelessWidget {
             ('Version', edgeAgent?.version ?? 'Unavailable'),
             ('Host', edgeAgent?.hostname ?? 'Unavailable'),
             ('Authorized targets', '${edgeAgent?.targetCount ?? 0}'),
+            ('Enrollment', 'USB-C auto + authorized SSH/Wi-Fi'),
             (
               'Recommendations',
               '${edgeAgent?.recommendationCount ?? 0}',

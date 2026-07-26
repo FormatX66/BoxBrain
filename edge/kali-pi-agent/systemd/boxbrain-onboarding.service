@@ -1,5 +1,5 @@
 [Unit]
-Description=BoxBrain edge-agent USB onboarding
+Description=BoxBrain edge-agent target onboarding
 Documentation=file:/opt/boxbrain/README.md
 Wants=network-online.target
 After=network-online.target

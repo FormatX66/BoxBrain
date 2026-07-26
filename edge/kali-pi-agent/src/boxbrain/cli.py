@@ -13,6 +13,7 @@ from urllib.error import URLError
 from urllib.request import ProxyHandler, build_opener
 
 from boxbrain.diagnostics import DIAGNOSTIC_AUTHORIZATION
+from boxbrain.enrollment import LINK_AUTHORIZATION
 from boxbrain.policy import AUTHORIZATION_ASSERTION
 
 
@@ -77,6 +78,21 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("job_id", nargs="?", default="latest")
 
     subparsers.add_parser("targets", help="List authorized managed systems.")
+    add_target = subparsers.add_parser(
+        "add-target",
+        help="Enroll an authorized target over private-network SSH.",
+    )
+    add_target.add_argument("address", help="Private or link-local target IPv4 address.")
+    add_target.add_argument(
+        "--transport",
+        choices=("network-ssh",),
+        default="network-ssh",
+    )
+    add_target.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm permission to link this computer.",
+    )
     subparsers.add_parser(
         "agent",
         help="Show edge-agent policy, capabilities, and recommendations.",
@@ -142,6 +158,20 @@ def main() -> int:
             )["report"]
         elif command == "targets":
             payload = _control_request({"action": "targets"})["targets"]
+        elif command == "add-target":
+            if not args.authorized:
+                parser.error(
+                    "--authorized is required to confirm permission for this computer."
+                )
+            payload = _control_request(
+                {
+                    "action": "add_target",
+                    "address": args.address,
+                    "transport": args.transport,
+                    "authorization": LINK_AUTHORIZATION,
+                },
+                timeout=30,
+            )["target"]
         elif command in {"agent", "controller"}:
             payload = _control_request({"action": "agent"})["agent"]
         elif command == "target-report":

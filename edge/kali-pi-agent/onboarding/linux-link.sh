@@ -20,6 +20,37 @@ if [ "$approval" != "AUTHORIZE" ]; then
     exit 1
 fi
 
+is_private_ipv4() {
+    printf '%s\n' "$1" | awk -F. '
+        NF != 4 { exit 1 }
+        {
+            for (i = 1; i <= 4; i++) {
+                if ($i !~ /^[0-9]+$/ || $i > 255) exit 1
+            }
+        }
+        $1 == 10 { exit 0 }
+        $1 == 172 && $2 >= 16 && $2 <= 31 { exit 0 }
+        $1 == 192 && $2 == 168 { exit 0 }
+        $1 == 169 && $2 == 254 { exit 0 }
+        { exit 1 }
+    '
+}
+
+raw_agent_addresses=${BOXBRAIN_AGENT_ADDRESS:-10.12.194.1}
+old_ifs=$IFS
+IFS=,
+set -- $raw_agent_addresses
+IFS=$old_ifs
+agent_addresses=
+for address do
+    address=$(printf '%s' "$address" | tr -d '[:space:]')
+    if ! is_private_ipv4 "$address"; then
+        echo "BOXBRAIN_AGENT_ADDRESS must contain only private/link-local IPv4 addresses: $address" >&2
+        exit 1
+    fi
+    agent_addresses="$agent_addresses $address"
+done
+
 public_key='__BOXBRAIN_PUBLIC_KEY__'
 
 if ! command -v sshd >/dev/null 2>&1; then
@@ -76,7 +107,21 @@ else
 fi
 systemctl reload ssh.service 2>/dev/null || systemctl reload sshd.service
 
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
+    for address in $agent_addresses; do
+        ufw allow from "$address" to any port 22 proto tcp comment 'BoxBrain target link' >/dev/null
+    done
+fi
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    for address in $agent_addresses; do
+        firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$address port port=22 protocol=tcp accept" >/dev/null
+    done
+    firewall-cmd --reload >/dev/null
+fi
+
 printf '\nBoxBrain link authorized.\n'
-printf '%s\n' \
-    'The boxbrain-link account has no sudo access.' \
-    'Keep this USB connection attached; BoxBrain will confirm the SSH link.'
+printf 'The boxbrain-link account has no sudo access.\n'
+printf 'Allowed Pi address(es):%s\n' "$agent_addresses"
+printf 'USB-C targets are detected automatically after this authorization.\n'
+printf 'For Wi-Fi/Ethernet, run this on the Pi:\n'
+printf '  boxbrainctl add-target <this-computer-private-ip> --authorized\n'

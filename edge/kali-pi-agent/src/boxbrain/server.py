@@ -65,6 +65,8 @@ def _dashboard(status: dict[str, Any]) -> str:
         "<tr>"
         f"<td>{escape(str(item.get('hostname', 'unknown')))}</td>"
         f"<td>{escape(str(item.get('address', 'unknown')))}</td>"
+        f"<td>{escape(str(item.get('status', 'unknown')))}</td>"
+        f"<td>{escape(str(item.get('transport', 'unknown')))} / {escape(str(item.get('interface', 'unknown')))}</td>"
         f"<td>{escape(str(item.get('platform', 'unknown')))}</td>"
         f"<td>{escape(str(item.get('diagnostics', {}).get('overall', 'waiting')))}</td>"
         f"<td>{escape(str(item.get('diagnostics', {}).get('finding_count', 0)))}</td>"
@@ -72,7 +74,7 @@ def _dashboard(status: dict[str, Any]) -> str:
         for item in links
     )
     if not link_rows:
-        link_rows = '<tr><td colspan="5">No authorized target connected</td></tr>'
+        link_rows = '<tr><td colspan="7">No authorized target enrolled</td></tr>'
     target_panels = ""
     for item in links:
         diagnostic = item.get("diagnostics", {})
@@ -113,6 +115,8 @@ def _dashboard(status: dict[str, Any]) -> str:
             "</div>"
             "<div class='target-metrics'>"
             f"<span>Address <strong>{escape(str(item.get('address', 'unknown')))}</strong></span>"
+            f"<span>Link <strong>{escape(str(item.get('status', 'unknown')))}</strong></span>"
+            f"<span>Transport <strong>{escape(str(item.get('transport', 'unknown')))}</strong></span>"
             f"<span>Lowest disk free <strong>{escape(disk_free_text)}</strong></span>"
             f"<span>Memory free <strong>{escape(memory_free_text)}</strong></span>"
             f"<span>Last check <strong>{escape(str(diagnostic.get('last_run', 'waiting')))}</strong></span>"
@@ -127,7 +131,7 @@ def _dashboard(status: dict[str, Any]) -> str:
         "<article class='recommendation'>"
         f"<span class='priority {escape(str(item.get('priority', 'normal')))}'>{escape(str(item.get('priority', 'normal')))}</span>"
         f"<div><div class='label'>{escape(str(item.get('domain', 'system')))} / {escape(str(item.get('target', 'BoxBrain')))}</div>"
-        f"<h3>{escape(str(item.get('title', 'Controller recommendation')))}</h3>"
+        f"<h3>{escape(str(item.get('title', 'Edge-agent recommendation')))}</h3>"
         f"<p>{escape(str(item.get('reason', 'Review this recommendation.')))}</p>"
         f"<p><strong>Proposed next step:</strong> {escape(str(item.get('proposed_action', 'Review before acting.')))}</p>"
         f"<p class='execution'>Execution: {escape(str(item.get('execution', 'operator-approved')))}</p></div>"
@@ -225,17 +229,17 @@ def _dashboard(status: dict[str, Any]) -> str:
   </section>
   <section class="panel" style="margin-top:14px">
     <div class="label">Managed systems</div>
-    <table><thead><tr><th>Name</th><th>Address</th><th>Platform</th><th>System status</th><th>Findings</th></tr></thead><tbody>{link_rows}</tbody></table>
+    <table><thead><tr><th>Name</th><th>Address</th><th>Link</th><th>Transport</th><th>Platform</th><th>System status</th><th>Findings</th></tr></thead><tbody>{link_rows}</tbody></table>
   </section>
   <section style="margin-top:14px">
     {target_panels}
   </section>
   <section class="panel" style="margin-top:14px">
-    <div class="label">Controller recommendations</div>
+    <div class="label">Edge-agent recommendations</div>
     {recommendation_html}
   </section>
   <section class="panel" style="margin-top:14px">
-    <div class="label">Controller capabilities</div>
+    <div class="label">Edge-agent capabilities</div>
     <table><thead><tr><th>Capability</th><th>Domain</th><th>Mode</th><th>Status</th></tr></thead><tbody>{capability_rows}</tbody></table>
   </section>
   <footer>BoxBrain {__version__} / local management channel / refreshes every 10 seconds</footer>

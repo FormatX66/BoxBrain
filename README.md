@@ -120,7 +120,7 @@ version, target-count, and recommendation-count summary.
 
 The controller accepts only a loopback agent URL and never copies Pi credentials
 or raw diagnostic reports into its API. See [docs/EDGE_AGENT.md](docs/EDGE_AGENT.md)
-for the architecture, tunnel command, USB onboarding boundary, and safe Pi upgrade
+for the architecture, tunnel command, USB-C and SSH/Wi-Fi target enrollment, and safe Pi upgrade
 path.
 
 ### 5. Queue and audit tasks

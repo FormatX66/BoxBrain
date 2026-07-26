@@ -1,4 +1,4 @@
-"""Read-only onboarding server for a directly attached USB host."""
+"""Read-only onboarding for USB-C and explicit private-network target links."""
 
 from __future__ import annotations
 
@@ -34,6 +34,16 @@ def _page(host: str) -> bytes:
         f"curl -fsS {origin}/linux-link.sh -o /tmp/boxbrain-link.sh && "
         "sudo sh /tmp/boxbrain-link.sh"
     )
+    windows_network = (
+        "PowerShell -ExecutionPolicy Bypass -File "
+        "$env:TEMP\\boxbrain-link.ps1 "
+        "-BoxBrainAddress 10.12.194.1,<PI-WIFI-IP>"
+    )
+    linux_network = (
+        "sudo env BOXBRAIN_AGENT_ADDRESS=10.12.194.1,<PI-WIFI-IP> "
+        "sh /tmp/boxbrain-link.sh"
+    )
+    enroll_network = "boxbrainctl add-target <TARGET-WIFI-IP> --authorized"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -53,12 +63,13 @@ def _page(host: str) -> bytes:
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">USB onboarding</div>
+  <div class="eyebrow">USB-C + private-network onboarding</div>
   <h1>Connect this computer to BoxBrain</h1>
   <p>This page cannot change your computer by itself. Choose the matching script,
   inspect it, run it as administrator/root, and type <strong>AUTHORIZE</strong>
   when it asks. The link creates a non-administrator account named
-  <strong>boxbrain-link</strong> and permits only BoxBrain's SSH key.</p>
+  <strong>boxbrain-link</strong> and permits only BoxBrain's SSH key. USB-C
+  targets are discovered automatically after authorization.</p>
   <p class="warning">Only authorize computers and networks you own or have
   explicit permission to assess.</p>
   <section class="card"><h2>Windows</h2>
@@ -69,7 +80,15 @@ def _page(host: str) -> bytes:
     <p><a href="/linux-link.sh">Download the Linux link script</a>, then run:</p>
     <code>{escape(linux)}</code>
   </section>
-  <p>BoxBrain {__version__} · read-only onboarding service</p>
+  <section class="card"><h2>Continue over Wi-Fi or Ethernet</h2>
+    <p>Rerun the target script with the Pi's exact private Wi-Fi/Ethernet address
+    allowed through the target firewall:</p>
+    <code>Windows: {escape(windows_network)}
+Linux: {escape(linux_network)}</code>
+    <p>Then enroll the target's private address from the Pi:</p>
+    <code>{escape(enroll_network)}</code>
+  </section>
+  <p>BoxBrain {__version__} | read-only onboarding service</p>
 </main></body></html>""".encode("utf-8")
 
 

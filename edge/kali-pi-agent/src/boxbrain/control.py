@@ -10,6 +10,7 @@ from typing import Any
 
 from boxbrain.agent import agent_state
 from boxbrain.diagnostics import TargetDiagnostics
+from boxbrain.enrollment import enroll_target
 from boxbrain.links import load_links
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
@@ -100,6 +101,13 @@ class ControlServer(_ControlServerBase):  # type: ignore[misc,valid-type]
                 "ok": True,
                 "targets": load_links(str(self.diagnostics.state_directory)),
             }
+        if action == "add_target":
+            target = enroll_target(
+                str(request.get("address", "")),
+                str(request.get("transport", "network-ssh")),
+                str(request.get("authorization", "")),
+            )
+            return {"ok": True, "target": target}
         if action in {"agent", "controller"}:
             response_key = "controller" if action == "controller" else "agent"
             return {

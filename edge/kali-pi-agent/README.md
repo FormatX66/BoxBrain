@@ -3,7 +3,7 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.6 provides the edge-agent foundation:
+tunnel. Version 0.7 adds persistent USB-C and authorized private-network target links:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
@@ -25,7 +25,9 @@ tunnel. Version 0.6 provides the edge-agent foundation:
 - requires `--authorized` for every active assessment;
 - keeps application state in `/var/lib/boxbrain`;
 - does not run exploits, vulnerability scripts, stealth scans, or public-target scans.
-- presents USB Ethernet through the Pi 4 USB-C port;
+- presents USB Ethernet through the Pi 4 USB-C port and discovers authorized USB targets automatically;
+- enrolls explicitly authorized RFC1918/link-local targets over key-only SSH on Wi-Fi or Ethernet;
+- rechecks enrolled network targets and records connected/offline link state;
 - serves read-only Windows and Linux onboarding scripts on port 8788;
 - requires the target operator to type `AUTHORIZE` before making changes;
 - creates a non-administrator/non-sudo `boxbrain-link` account on the target;
@@ -63,6 +65,37 @@ health baseline. The dashboard shows system status, lowest free disk percentage,
 available memory, findings, edge-agent recommendations, and the capability
 registry. Diagnostics refresh no more than once every 15 minutes by default.
 
+## Continue a target over Wi-Fi or Ethernet
+
+Use this only for a target you own or are explicitly authorized to manage. The
+target must already have run one of the BoxBrain link scripts, and the Pi and
+target must share a private or link-local IPv4 network.
+
+Allow the Pi's exact private-network address through the target firewall by
+rerunning the link script. Keep `10.12.194.1` in the list if USB-C will also be
+used. Examples, where `192.168.50.10` is the Pi address:
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File $env:TEMP\boxbrain-link.ps1 `
+  -BoxBrainAddress '10.12.194.1','192.168.50.10'
+```
+
+```bash
+sudo env BOXBRAIN_AGENT_ADDRESS=10.12.194.1,192.168.50.10 sh /tmp/boxbrain-link.sh
+```
+
+Then run this on the Pi, using the target's private address:
+
+```bash
+boxbrainctl add-target 192.168.50.23 --authorized
+boxbrainctl targets
+```
+
+BoxBrain verifies the Pi route, refuses public addresses and manual USB
+enrollment, requires its dedicated key-only SSH identity, and saves the target
+only after SSH verification succeeds. No password or private key is copied to
+the target or controller.
+
 ## Edge-agent model
 
 BoxBrain follows a simple loop:
@@ -74,7 +107,7 @@ Observe -> Understand -> Recommend -> Optimize -> Act with policy
 Observation is automatic only after a target has been explicitly authorized.
 Recommendations are advisory. Any future setting, software, storage, repair, or
 optimization change must travel through a separate approved-action path and be
-logged. The current 0.6 edge agent does not perform those changes automatically.
+logged. The current 0.7 edge agent does not perform those changes automatically.
 
 ## Connect to the dashboard
 
@@ -102,6 +135,7 @@ boxbrainctl status
 boxbrainctl jobs
 boxbrainctl report latest
 boxbrainctl targets
+boxbrainctl add-target 192.168.50.23 --authorized
 boxbrainctl agent
 # boxbrainctl controller remains a compatibility alias
 boxbrainctl diagnose 10.12.194.4 --authorized

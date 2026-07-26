@@ -4,11 +4,31 @@
 
 [CmdletBinding()]
 param(
-    [switch]$Authorized
+    [switch]$Authorized,
+    [string[]]$BoxBrainAddress = @('10.12.194.1')
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+function Test-BoxBrainPrivateIPv4 {
+    param([string]$Address)
+
+    $parsed = $null
+    if (-not [Net.IPAddress]::TryParse($Address, [ref]$parsed)) {
+        return $false
+    }
+    if ($parsed.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
+        return $false
+    }
+    $octets = $parsed.GetAddressBytes()
+    return (
+        $octets[0] -eq 10 -or
+        ($octets[0] -eq 172 -and $octets[1] -ge 16 -and $octets[1] -le 31) -or
+        ($octets[0] -eq 192 -and $octets[1] -eq 168) -or
+        ($octets[0] -eq 169 -and $octets[1] -eq 254)
+    )
+}
 
 $principal = New-Object Security.Principal.WindowsPrincipal(
     [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -20,7 +40,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 Write-Host ''
 Write-Host 'BOXBRAIN AUTHORIZATION' -ForegroundColor Cyan
 Write-Host 'This will enable an SSH service and create a non-administrator'
-Write-Host 'account named boxbrain-link for this directly connected BoxBrain.'
+Write-Host 'account named boxbrain-link for this authorized BoxBrain agent.'
 Write-Host 'Only use this on a computer you own or are authorized to assess.'
 if (-not $Authorized) {
     $approval = Read-Host 'Type AUTHORIZE to continue'
@@ -29,6 +49,19 @@ if (-not $Authorized) {
     }
 } else {
     Write-Host 'Authorization was explicitly supplied by the local operator.'
+}
+
+$remoteAddresses = @(
+    foreach ($address in $BoxBrainAddress) {
+        $candidate = $address.Trim()
+        if (-not (Test-BoxBrainPrivateIPv4 $candidate)) {
+            throw "BoxBrainAddress must contain only RFC1918 or link-local IPv4 addresses: $candidate"
+        }
+        $candidate
+    }
+) | Sort-Object -Unique
+if ($remoteAddresses.Count -eq 0) {
+    throw 'At least one BoxBrain Pi address is required.'
 }
 
 $userName = 'boxbrain-link'
@@ -58,7 +91,7 @@ if ($null -eq $user) {
         -Password $securePassword `
         -AccountNeverExpires `
         -UserMayNotChangePassword `
-        -Description 'BoxBrain authorized USB SSH link'
+        -Description 'BoxBrain authorized target SSH link'
 }
 Enable-LocalUser -Name $userName
 $usersGroup = Get-LocalGroup -SID 'S-1-5-32-545'
@@ -160,13 +193,8 @@ if ($LASTEXITCODE -ne 0) {
     throw 'OpenSSH rejected its configuration. Restore the newest .boxbrain-backup file.'
 }
 
+# Keep the legacy display name so upgrades narrow the existing rule in place.
 $ruleName = 'BoxBrain USB SSH'
-$remoteAddresses = @(
-    '10.12.194.1',
-    '192.168.137.0/24',
-    '192.168.2.0/24',
-    '10.42.0.0/24'
-)
 if (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue) {
     Set-NetFirewallRule -DisplayName $ruleName -Enabled True -Action Allow
     Get-NetFirewallRule -DisplayName $ruleName |
@@ -193,4 +221,7 @@ Restart-Service -Name sshd
 Write-Host ''
 Write-Host 'BoxBrain link authorized.' -ForegroundColor Green
 Write-Host 'The boxbrain-link account is not an administrator.'
-Write-Host 'Keep this USB connection attached; BoxBrain will confirm the SSH link.'
+Write-Host ('Allowed Pi address(es): {0}' -f ($remoteAddresses -join ', '))
+Write-Host 'USB-C targets are detected automatically after this authorization.'
+Write-Host 'For Wi-Fi/Ethernet, run this on the Pi:'
+Write-Host '  boxbrainctl add-target <this-computer-private-ip> --authorized'

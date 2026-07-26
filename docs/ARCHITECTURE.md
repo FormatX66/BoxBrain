@@ -67,8 +67,11 @@ edge capabilities. The former `controller` command and module remain temporary
 upgrade aliases for the existing deployment.
 
 USB onboarding is a separate read-only HTTP service bound to the dedicated
-`10.12.194.1` gadget address. It is never exposed through the controller's
-edge-agent status client.
+`10.12.194.1` gadget address. Authorized USB-C targets are discovered
+automatically. Authorized Wi-Fi/Ethernet targets are explicitly enrolled over
+the Pi's local Unix control socket after private-route and key-only SSH
+verification. Neither path is exposed through the controller's edge-agent
+status client.
 
 ## Data flow
 

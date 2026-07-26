@@ -52,6 +52,23 @@ Onboarding still requires an explicit target-side `AUTHORIZE` confirmation and
 creates a restricted, key-only diagnostic account. It does not emulate input,
 install an administrator channel, or copy a private key to the target.
 
+## Authorized Wi-Fi/Ethernet targets
+
+Version 0.7 keeps USB-C discovery automatic and adds explicit private-network
+enrollment. First run the target-side onboarding script and allow the Pi's exact
+RFC1918/link-local address through the target firewall. Then, on the Pi:
+
+```bash
+boxbrainctl add-target <target-private-ip> --authorized
+```
+
+The local Unix control socket enforces the exact authorization assertion, checks
+that the address is private or link-local, rejects loopback and the USB gadget
+route, verifies key-only SSH, and caps the target registry. Enrolled targets are
+rechecked on every monitor interval and retain `connected` or `offline` state.
+The controller continues to receive only the bounded target count; enrollment,
+keys, routes, and raw diagnostics stay on the Pi.
+
 ## Source and validation
 
 The deployable agent is in `edge/kali-pi-agent`. It uses Python's standard

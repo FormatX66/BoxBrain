@@ -18,6 +18,7 @@ from boxbrain.diagnostics import (
     DiagnosticError,
     TargetDiagnostics,
 )
+from boxbrain.links import load_links
 
 
 LOG = logging.getLogger("boxbrain.link-monitor")
@@ -72,7 +73,12 @@ def neighbor_candidates(interface: str = USB_INTERFACE) -> list[str]:
     return sorted(set(candidates))
 
 
-def probe(address: str) -> dict[str, Any] | None:
+def probe(
+    address: str,
+    *,
+    transport: str = "usb-ethernet-ssh",
+    interface: str = USB_INTERFACE,
+) -> dict[str, Any] | None:
     base_command = [
         "ssh",
         "-i",
@@ -110,8 +116,10 @@ def probe(address: str) -> dict[str, Any] | None:
         "hostname": hostname_lines[0],
         "platform": platform,
         "user": "boxbrain-link",
-        "transport": "usb-ethernet-ssh",
+        "transport": transport,
+        "interface": interface,
         "last_seen": int(time.time()),
+        "last_checked": datetime_now(),
         "status": "connected",
     }
 
@@ -166,23 +174,53 @@ def run_once() -> int:
         LOG.warning("Target SSH identity is missing: %s", IDENTITY_FILE)
         return connected
     diagnostics = TargetDiagnostics(str(STATE_DIRECTORY), str(IDENTITY_FILE))
-    for address in neighbor_candidates():
-        link = probe(address)
-        if link is not None:
-            saved_link = save_link(link)
-            connected += 1
-            if _diagnostic_due(saved_link):
-                try:
-                    diagnostics.diagnose(address, DIAGNOSTIC_AUTHORIZATION)
-                    LOG.info("Completed read-only diagnostics for %s", address)
-                except DiagnosticError as error:
-                    saved_link["diagnostics"] = {
-                        "status": "failed",
-                        "last_run": datetime_now(),
-                        "error": str(error)[:500],
+    registered = {
+        str(item.get("address")): item
+        for item in load_links(str(STATE_DIRECTORY))
+        if isinstance(item.get("address"), str)
+    }
+    candidates: dict[str, tuple[str, str]] = {
+        address: ("usb-ethernet-ssh", USB_INTERFACE)
+        for address in neighbor_candidates()
+    }
+    for address, existing in registered.items():
+        transport = existing.get("transport")
+        interface = existing.get("interface")
+        if (
+            transport == "network-ssh"
+            and isinstance(interface, str)
+            and interface
+        ):
+            candidates[address] = (transport, interface)
+
+    for address, (transport, interface) in candidates.items():
+        link = probe(address, transport=transport, interface=interface)
+        if link is None:
+            previous = registered.get(address)
+            if previous is not None:
+                previous.update(
+                    {
+                        "last_checked": datetime_now(),
+                        "status": "offline",
                     }
-                    save_link(saved_link)
-                    LOG.warning("Diagnostics failed for %s: %s", address, error)
+                )
+                save_link(previous)
+            continue
+
+        saved_link = save_link(link)
+        connected += 1
+        if _diagnostic_due(saved_link):
+            try:
+                diagnostics.diagnose(address, DIAGNOSTIC_AUTHORIZATION)
+                LOG.info("Completed read-only diagnostics for %s", address)
+            except DiagnosticError as error:
+                saved_link["diagnostics"] = {
+                    "status": "failed",
+                    "last_run": datetime_now(),
+                    "error": str(error)[:500],
+                }
+                save_link(saved_link)
+                LOG.warning("Diagnostics failed for %s: %s", address, error)
     return connected
 
 
