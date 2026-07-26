@@ -278,7 +278,7 @@ class _OnlineControllerApi extends ControllerApi {
           transport: 'ssh-tunnel',
           mode: 'read-only-advisory',
           connected: true,
-          version: '0.7.1',
+          version: '0.7.2',
           hostname: 'kali-pi',
           targetCount: 1,
           recommendationCount: 2,

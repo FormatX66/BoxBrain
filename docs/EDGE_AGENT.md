@@ -92,10 +92,16 @@ Copy only the checked-in `edge/kali-pi-agent` directory to a temporary directory
 on the Pi, inspect the diff, then run:
 
 ```bash
-sudo sh ./scripts/install.sh
+sudo sh ./scripts/upgrade.sh
 boxbrainctl health
 boxbrainctl agent
 ```
+
+The guarded upgrader stops the agent briefly, writes a consistent state archive
+under `/var/backups/boxbrain` with directory mode 700 and archive mode 600,
+verifies the archive, and restores the prior installation automatically if any
+install, service, API, or onboarding health check fails. Use `install.sh` only
+for the first installation.
 
 The installer preserves `/var/lib/boxbrain`, the target identity, linked-target
 records, reports, and custom environment values. Do not copy workstation keys,

@@ -102,6 +102,21 @@ class BoxBrainTests(unittest.TestCase):
         self.assertNotIn("192.168.137.0/24", windows_link)
         self.assertIn("BOXBRAIN_AGENT_ADDRESS", linux_link)
 
+    def test_upgrade_backups_are_private_and_rollback_guarded(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        upgrade = (root / "scripts" / "upgrade.sh").read_text(encoding="utf-8")
+
+        self.assertIn("umask 077", upgrade)
+        self.assertIn('install -d -o root -g root -m 0700 "$backup_directory"', upgrade)
+        self.assertIn('chmod 0600 "$backup"', upgrade)
+        self.assertIn('tar -tzf "$backup"', upgrade)
+        self.assertIn("systemctl stop", upgrade)
+        self.assertIn("trap 'rollback $?' EXIT", upgrade)
+        self.assertIn("rm -rf /opt/boxbrain", upgrade)
+        self.assertIn('sh "$project_dir/scripts/install.sh"', upgrade)
+        self.assertLess(upgrade.index("systemctl stop"), upgrade.index("tar -czf"))
+        self.assertLess(upgrade.index("tar -tzf"), upgrade.index("trap 'rollback $?'"))
+
     def test_links_ignore_bad_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             links = Path(directory) / "links"

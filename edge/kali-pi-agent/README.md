@@ -153,8 +153,17 @@ The service uses only Python's standard library. Run its tests with:
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Install or update it on the Pi from the project directory:
+Install it for the first time from the project directory:
 
 ```bash
 sudo sh ./scripts/install.sh
+```
+
+For later upgrades, use the guarded upgrade path. It stops BoxBrain briefly for
+a consistent state backup, creates the rollback archive with root-only
+permissions, restores automatically if install or health verification fails, and
+prints the retained archive path:
+
+```bash
+sudo sh ./scripts/upgrade.sh
 ```
