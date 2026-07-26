@@ -75,7 +75,7 @@ Copy only the checked-in `edge/kali-pi-agent` directory to a temporary directory
 on the Pi, inspect the diff, then run:
 
 ```bash
-sudo ./scripts/install.sh
+sudo sh ./scripts/install.sh
 boxbrainctl health
 boxbrainctl agent
 ```

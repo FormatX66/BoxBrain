@@ -122,5 +122,5 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 Install or update it on the Pi from the project directory:
 
 ```bash
-sudo ./scripts/install.sh
+sudo sh ./scripts/install.sh
 ```
