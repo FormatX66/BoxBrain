@@ -2,7 +2,7 @@
 
 The controller is a FastAPI service that defines BoxBrain's control-plane
 contract. In this alpha it provides health, task queue, policy profile, and
-plugin discovery endpoints. It intentionally has no action executor.
+plugin discovery, and processing-agent endpoints. It intentionally has no action executor.
 
 ## Run locally
 
@@ -26,6 +26,17 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/plugins`
 - `GET /api/v1/targets`
 - `GET /api/v1/edge-agents`
+- `GET /api/v1/agents`
+- `POST /api/v1/processing/runs`
+- `GET /api/v1/processing/runs`
+- `GET /api/v1/processing/runs/{run_id}`
+- `GET /api/v1/processing/usage`
+- `GET /api/v1/agent-dashboard`
+- `GET /api/v1/projects`
+- `GET /api/v1/memory`
+- `GET /api/v1/memory/search`
+- `GET /api/v1/agent-tasks`
+- `POST /api/v1/agent-tasks/{task_id}/status`
 - `POST /api/v1/targets/windows-sandbox/start`
 - `GET /api/v1/targets/windows-sandbox/frame`
 - `GET /api/v1/safety/emergency-stop`
@@ -40,6 +51,13 @@ Task submission only records a queued task. No keyboard, mouse, shell, remote
 desktop, model, or plugin action is performed. The persistent emergency stop
 blocks effectful controller requests such as Sandbox launch; resetting it
 requires the exact API confirmation value `RESET`.
+
+Processing-agent intake is a provider-neutral, local-rule planner. It turns
+voice, chat, file, or API text into durable projects, searchable memory and
+decisions, deduplicated trackable tasks, architecture and engineering plans,
+and integration handoffs. It records estimated token use but uses zero provider
+tokens and performs no external action. See
+[`docs/PROCESSING_AGENTS.md`](../docs/PROCESSING_AGENTS.md).
 
 The observation policy is loaded from `BOXBRAIN_OBSERVATION_POLICY` (default
 `../policies/observation.json`). It enforces frame size limits, child-process

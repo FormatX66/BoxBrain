@@ -10,18 +10,28 @@ from fastapi.responses import StreamingResponse
 from . import __version__
 from .edge_agent import KaliPiEdgeAgentClient
 from .models import (
+    AgentDashboard,
+    AgentTaskRecord,
+    AgentTaskStatus,
+    AgentTaskStatusUpdate,
     AuditEvent,
     EdgeAgentSummary,
     EmergencyStopEngageRequest,
     EmergencyStopResetRequest,
     EmergencyStopState,
     HealthResponse,
+    MemoryRecord,
     PluginSummary,
     PolicyProfile,
+    ProcessingAgentSummary,
+    ProcessingRequest,
+    ProcessingRun,
+    ProjectSummary,
     TargetStartResponse,
     TargetSummary,
     TaskCreate,
     TaskRecord,
+    UsageSummary,
 )
 from .observation_policy import ObservationPolicy
 from .plugin_process import (
@@ -29,6 +39,8 @@ from .plugin_process import (
     OutOfProcessWindowsSandboxObserver,
 )
 from .plugin_registry import PluginRegistry
+from .processing_agents import ProcessingService
+from .processing_store import ProcessingStore
 from .sandbox_observer import (
     SandboxCaptureError,
     SandboxNotRunningError,
@@ -41,6 +53,8 @@ from .task_store import TaskStore
 
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
+processing_store = ProcessingStore(settings.data_dir / "boxbrain.sqlite3")
+processing_service = ProcessingService(processing_store)
 plugin_registry = PluginRegistry(settings.plugin_dir)
 observation_policy = ObservationPolicy.load(settings.observation_policy_path)
 sandbox_launcher = WindowsSandboxObserver(
@@ -100,6 +114,103 @@ def get_task(task_id: UUID) -> TaskRecord:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
+        )
+    return task
+
+
+@router.get("/agents", response_model=list[ProcessingAgentSummary])
+def list_processing_agents() -> list[ProcessingAgentSummary]:
+    return processing_service.list_agents()
+
+
+@router.post("/processing/runs", response_model=ProcessingRun)
+def create_processing_run(request: ProcessingRequest) -> ProcessingRun:
+    return processing_service.process(request)
+
+
+@router.get("/processing/runs", response_model=list[ProcessingRun])
+def list_processing_runs(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[ProcessingRun]:
+    return processing_service.list_runs(limit=limit)
+
+
+@router.get("/processing/runs/{run_id}", response_model=ProcessingRun)
+def get_processing_run(run_id: UUID) -> ProcessingRun:
+    run = processing_service.get_run(run_id)
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Processing run not found",
+        )
+    return run
+
+
+@router.get("/processing/usage", response_model=UsageSummary)
+def get_processing_usage() -> UsageSummary:
+    return processing_service.usage_summary()
+
+
+@router.get("/agent-dashboard", response_model=AgentDashboard)
+def get_agent_dashboard() -> AgentDashboard:
+    return processing_service.dashboard()
+
+
+@router.get("/projects", response_model=list[ProjectSummary])
+def list_agent_projects() -> list[ProjectSummary]:
+    return processing_service.list_projects()
+
+
+@router.get("/memory", response_model=list[MemoryRecord])
+def list_agent_memory(
+    project: str | None = Query(default=None, min_length=1, max_length=120),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[MemoryRecord]:
+    return processing_service.list_memory(project=project, limit=limit)
+
+
+@router.get("/memory/search", response_model=list[MemoryRecord])
+def search_agent_memory(
+    q: str = Query(min_length=2, max_length=500),
+    project: str | None = Query(default=None, min_length=1, max_length=120),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[MemoryRecord]:
+    return processing_service.search_memory(
+        query=q,
+        project=project,
+        limit=limit,
+    )
+
+
+@router.get("/agent-tasks", response_model=list[AgentTaskRecord])
+def list_agent_tasks(
+    project: str | None = Query(default=None, min_length=1, max_length=120),
+    task_status: AgentTaskStatus | None = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AgentTaskRecord]:
+    return processing_service.list_agent_tasks(
+        project=project,
+        task_status=task_status,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/agent-tasks/{task_id}/status",
+    response_model=AgentTaskRecord,
+)
+def update_agent_task_status(
+    task_id: UUID,
+    request: AgentTaskStatusUpdate,
+) -> AgentTaskRecord:
+    task = processing_service.update_agent_task(
+        task_id,
+        task_status=request.status,
+    )
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent task not found",
         )
     return task
 
