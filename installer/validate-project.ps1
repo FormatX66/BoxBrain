@@ -38,11 +38,28 @@ function Invoke-ValidationStep {
     Write-Host "[running] $Name"
     $timer = [Diagnostics.Stopwatch]::StartNew()
     Push-Location $WorkingDirectory
+    $previousErrorAction = $ErrorActionPreference
     try {
-        & $FilePath @Arguments
+        # Native tools such as Python unittest legitimately write successful
+        # progress to stderr. Capture both streams and use the process exit code
+        # as the validation boundary instead of PowerShell's stream promotion.
+        $ErrorActionPreference = "Continue"
+        $output = & $FilePath @Arguments 2>&1
         $exitCode = $LASTEXITCODE
+        $output | ForEach-Object {
+            $line = if ($_ -is [Management.Automation.ErrorRecord]) {
+                $_.Exception.Message
+            }
+            else {
+                [string]$_
+            }
+            if (-not [string]::IsNullOrWhiteSpace($line)) {
+                Write-Host $line
+            }
+        }
     }
     finally {
+        $ErrorActionPreference = $previousErrorAction
         Pop-Location
         $timer.Stop()
     }
