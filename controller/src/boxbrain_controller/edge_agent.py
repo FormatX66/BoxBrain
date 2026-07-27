@@ -51,6 +51,8 @@ class KaliPiEdgeAgentClient:
                 hostname=None,
                 target_count=0,
                 recommendation_count=0,
+                network_interface=None,
+                wifi_credential_audit="unavailable",
             )
 
         agent = payload.get("agent")
@@ -58,6 +60,12 @@ class KaliPiEdgeAgentClient:
             agent = payload.get("controller")
         if not isinstance(agent, dict):
             agent = {}
+        network = payload.get("network")
+        if not isinstance(network, dict):
+            network = {}
+        default_route = network.get("default_route")
+        if not isinstance(default_route, dict):
+            default_route = {}
 
         return EdgeAgentSummary(
             id="kali-pi",
@@ -71,6 +79,10 @@ class KaliPiEdgeAgentClient:
             target_count=self._non_negative_int(agent.get("target_count")),
             recommendation_count=self._non_negative_int(
                 agent.get("recommendation_count")
+            ),
+            network_interface=self._optional_string(default_route.get("interface")),
+            wifi_credential_audit=self._wifi_credential_audit(
+                payload.get("target_links")
             ),
         )
 
@@ -107,3 +119,26 @@ class KaliPiEdgeAgentClient:
             return max(0, int(value))
         except (TypeError, ValueError):
             return 0
+
+    @staticmethod
+    def _wifi_credential_audit(value: object) -> str:
+        if not isinstance(value, list):
+            return "not-run"
+        results: list[bool] = []
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            diagnostics = item.get("diagnostics")
+            if not isinstance(diagnostics, dict):
+                continue
+            metrics = diagnostics.get("metrics")
+            if not isinstance(metrics, dict):
+                continue
+            result = metrics.get("wifi_saved_key_visible_to_restricted_account")
+            if isinstance(result, bool):
+                results.append(result)
+        if any(results):
+            return "exposed"
+        if results:
+            return "blocked"
+        return "not-run"

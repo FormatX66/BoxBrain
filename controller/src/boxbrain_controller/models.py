@@ -139,3 +139,7 @@ class EdgeAgentSummary(BaseModel):
     hostname: str | None
     target_count: int = Field(ge=0)
     recommendation_count: int = Field(ge=0)
+    network_interface: str | None = None
+    wifi_credential_audit: Literal[
+        "blocked", "exposed", "not-run", "unavailable"
+    ] = "unavailable"

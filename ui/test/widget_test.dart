@@ -22,6 +22,8 @@ void main() {
     expect(find.text('Live stream'), findsOneWidget);
     expect(find.text('Kali Pi edge agent'), findsOneWidget);
     expect(find.text('Connected through local SSH tunnel'), findsOneWidget);
+    expect(find.text('wlan0'), findsOneWidget);
+    expect(find.text('Blocked'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
 
     await tester.tap(find.text('Policies'));
@@ -282,6 +284,8 @@ class _OnlineControllerApi extends ControllerApi {
           hostname: 'kali-pi',
           targetCount: 1,
           recommendationCount: 2,
+          networkInterface: 'wlan0',
+          wifiCredentialAudit: 'blocked',
         ),
       ];
 

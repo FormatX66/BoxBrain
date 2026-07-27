@@ -900,6 +900,11 @@ class _OverviewCards extends StatelessWidget {
             ('Host', edgeAgent?.hostname ?? 'Unavailable'),
             ('Authorized targets', '${edgeAgent?.targetCount ?? 0}'),
             ('Enrollment', 'USB-C auto + authorized SSH/Wi-Fi'),
+            ('Pi network', edgeAgent?.networkInterface ?? 'Unavailable'),
+            (
+              'Saved-key audit',
+              _wifiAuditLabel(edgeAgent?.wifiCredentialAudit ?? 'unavailable'),
+            ),
             (
               'Recommendations',
               '${edgeAgent?.recommendationCount ?? 0}',
@@ -1782,6 +1787,15 @@ class _Callout extends StatelessWidget {
 String _titleCase(String value) {
   if (value.isEmpty) return value;
   return '${value[0].toUpperCase()}${value.substring(1)}';
+}
+
+String _wifiAuditLabel(String value) {
+  return switch (value) {
+    'blocked' => 'Blocked',
+    'exposed' => 'EXPOSED',
+    'not-run' => 'Not run',
+    _ => 'Unavailable',
+  };
 }
 
 String _formatTime(DateTime value) {

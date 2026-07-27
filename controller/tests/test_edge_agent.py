@@ -48,6 +48,16 @@ def test_edge_agent_maps_status_without_exposing_raw_details(monkeypatch) -> Non
             "recommendation_count": 3,
             "recommendations": [{"sensitive": "not returned"}],
         },
+        "network": {"default_route": {"interface": "wlan0"}},
+        "target_links": [
+            {
+                "diagnostics": {
+                    "metrics": {
+                        "wifi_saved_key_visible_to_restricted_account": False
+                    }
+                }
+            }
+        ],
     }
     monkeypatch.setattr(
         "boxbrain_controller.edge_agent.urlopen",
@@ -61,6 +71,8 @@ def test_edge_agent_maps_status_without_exposing_raw_details(monkeypatch) -> Non
     assert summary.hostname == "kali-pi"
     assert summary.target_count == 2
     assert summary.recommendation_count == 3
+    assert summary.network_interface == "wlan0"
+    assert summary.wifi_credential_audit == "blocked"
     assert "sensitive" not in summary.model_dump()
 
 

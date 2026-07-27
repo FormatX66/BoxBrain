@@ -320,6 +320,8 @@ class EdgeAgentSummary {
     required this.hostname,
     required this.targetCount,
     required this.recommendationCount,
+    required this.networkInterface,
+    required this.wifiCredentialAudit,
   });
 
   factory EdgeAgentSummary.fromJson(Map<String, dynamic> json) {
@@ -334,6 +336,9 @@ class EdgeAgentSummary {
       hostname: json['hostname'] as String?,
       targetCount: json['target_count'] as int,
       recommendationCount: json['recommendation_count'] as int,
+      networkInterface: json['network_interface'] as String?,
+      wifiCredentialAudit:
+          json['wifi_credential_audit'] as String? ?? 'unavailable',
     );
   }
 
@@ -347,6 +352,8 @@ class EdgeAgentSummary {
   final String? hostname;
   final int targetCount;
   final int recommendationCount;
+  final String? networkInterface;
+  final String wifiCredentialAudit;
 }
 
 class AuditEventSummary {

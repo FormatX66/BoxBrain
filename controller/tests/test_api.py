@@ -261,6 +261,8 @@ def test_kali_pi_is_reported_as_a_separate_read_only_edge_agent(
                 hostname="kali-pi",
                 target_count=1,
                 recommendation_count=2,
+                network_interface="wlan0",
+                wifi_credential_audit="blocked",
             )
 
     monkeypatch.setattr(api_module, "edge_agent_client", StubEdgeAgentClient())
@@ -280,6 +282,8 @@ def test_kali_pi_is_reported_as_a_separate_read_only_edge_agent(
             "hostname": "kali-pi",
             "target_count": 1,
             "recommendation_count": 2,
+            "network_interface": "wlan0",
+            "wifi_credential_audit": "blocked",
         }
     ]
 
