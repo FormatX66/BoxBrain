@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../models/agent_models.dart';
 import '../models/controller_status.dart';
+import '../models/fleet_models.dart';
 
 class ControllerApiException implements Exception {
   const ControllerApiException(this.message);
@@ -52,6 +53,9 @@ class ControllerApi {
   Uri get remoteTargetsEndpoint => endpoint('/api/v1/remote-targets');
   Uri get edgeAgentsEndpoint => endpoint('/api/v1/edge-agents');
   Uri get agentsEndpoint => endpoint('/api/v1/agents');
+  Uri get architectureEndpoint => endpoint('/api/v1/architecture');
+  Uri get fleetEndpoint => endpoint('/api/v1/fleet');
+  Uri get fleetMachinesEndpoint => endpoint('/api/v1/fleet/machines');
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
   Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
   Uri get chatOrganizerEndpoint => endpoint('/api/v1/chat-organizer');
@@ -322,6 +326,88 @@ class ControllerApi {
           ),
         )
         .toList(growable: false);
+  }
+
+  Future<ArchitectureManifestSummary> fetchArchitecture() async {
+    final json = await _getJson(architectureEndpoint);
+    return ArchitectureManifestSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<FleetDashboardSummary> fetchFleet() async {
+    final json = await _getJson(fleetEndpoint);
+    return FleetDashboardSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<FleetMachineSummary>> importFleetTargets() async {
+    final json = await _postJson(
+      endpoint('/api/v1/fleet/import-targets'),
+      const {'confirmation': 'IMPORT'},
+    ) as List<dynamic>;
+    return json
+        .map(
+          (item) => FleetMachineSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<FleetMachineSummary> registerFleetMachine({
+    required String name,
+    required String kind,
+    String? remoteTargetId,
+    List<String> capabilities = const [],
+    String? notes,
+  }) async {
+    final json = await _postJson(
+      fleetMachinesEndpoint,
+      {
+        'name': name,
+        'kind': kind,
+        if (remoteTargetId != null) 'remote_target_id': remoteTargetId,
+        'capabilities': capabilities,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        'authorization': 'AUTHORIZED',
+      },
+    );
+    return FleetMachineSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary?> fetchMachineProvisioning(
+    String machineId,
+  ) async {
+    final json = await _getJson(
+      endpoint('/api/v1/fleet/machines/$machineId/provisioning'),
+    );
+    if (json == null) return null;
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary> startMachineProvisioning(
+    String machineId,
+  ) async {
+    final json = await _postJson(
+      endpoint('/api/v1/fleet/machines/$machineId/provisioning'),
+      const {'confirmation': 'PROVISION'},
+    );
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary> completeProvisioningStep({
+    required String runId,
+    required String stepId,
+    String? note,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/provisioning/$runId/steps/$stepId/complete'),
+      {
+        'confirmation': 'COMPLETE',
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
   }
 
   Future<ModelRuntimeSummary> fetchModelRuntime() async {

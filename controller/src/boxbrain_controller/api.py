@@ -8,6 +8,11 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from . import __version__
+from .architecture_manifest import (
+    ArchitectureAgent,
+    ArchitectureManifest,
+    get_architecture_manifest,
+)
 from .diagnostic_executor import (
     DiagnosticError,
     DiagnosticExecutionUnavailable,
@@ -16,6 +21,19 @@ from .diagnostic_executor import (
     DiagnosticRuntimeUnavailable,
 )
 from .edge_agent import KaliPiEdgeAgentClient
+from .fleet import (
+    FleetDashboard,
+    FleetError,
+    FleetImportRequest,
+    FleetMachine,
+    FleetMachineCreate,
+    FleetMachineNotFoundError,
+    FleetService,
+    ProvisioningNotFoundError,
+    ProvisioningRun,
+    ProvisioningStartRequest,
+    ProvisioningStepCompleteRequest,
+)
 from .models import (
     AgentDashboard,
     AgentTaskRecord,
@@ -122,6 +140,7 @@ remote_target_service = RemoteTargetService(
     settings.data_dir / "boxbrain.sqlite3",
     usb_identity_file=settings.remote_usb_identity_file,
 )
+fleet_service = FleetService(settings.data_dir / "boxbrain.sqlite3")
 diagnostic_executor_service = DiagnosticExecutorService(
     settings.data_dir / "boxbrain.sqlite3",
     remote_target_service,
@@ -180,6 +199,164 @@ def get_task(task_id: UUID) -> TaskRecord:
 @router.get("/agents", response_model=list[ProcessingAgentSummary])
 def list_processing_agents() -> list[ProcessingAgentSummary]:
     return processing_service.list_agents()
+
+@router.get("/architecture", response_model=ArchitectureManifest)
+def get_system_architecture() -> ArchitectureManifest:
+    return get_architecture_manifest()
+
+
+@router.get("/system-agents", response_model=list[ArchitectureAgent])
+def list_system_agents() -> list[ArchitectureAgent]:
+    return list(get_architecture_manifest().agents)
+
+
+@router.get("/fleet", response_model=FleetDashboard)
+def get_fleet_dashboard() -> FleetDashboard:
+    return fleet_service.dashboard()
+
+
+@router.get("/fleet/machines", response_model=list[FleetMachine])
+def list_fleet_machines() -> list[FleetMachine]:
+    return fleet_service.list()
+
+
+@router.post(
+    "/fleet/machines",
+    response_model=FleetMachine,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_fleet_machine(request: FleetMachineCreate) -> FleetMachine:
+    if request.remote_target_id is not None:
+        try:
+            remote_target_service.get(request.remote_target_id)
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Select a registered remote target.",
+            ) from error
+    try:
+        machine = fleet_service.create(request)
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="fleet.machine_registered",
+        target_id=f"machine:{machine.id}",
+        message=f"Registered fleet machine {machine.name}.",
+        details={
+            "result": "registered",
+            "machine_identity": machine.machine_identity,
+            "kind": machine.kind,
+            "remote_target_linked": machine.remote_target_id is not None,
+        },
+    )
+    return machine
+
+
+@router.post(
+    "/fleet/import-targets",
+    response_model=list[FleetMachine],
+)
+def import_remote_targets_to_fleet(
+    request: FleetImportRequest,
+) -> list[FleetMachine]:
+    del request
+    try:
+        machines = fleet_service.import_remote_targets(remote_target_service.list())
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="fleet.targets_imported",
+        target_id=None,
+        message="Synchronized authorized remote targets into Fleet Manager.",
+        details={"result": "synchronized", "machine_count": len(machines)},
+    )
+    return machines
+
+
+@router.get(
+    "/fleet/machines/{machine_id}/provisioning",
+    response_model=ProvisioningRun | None,
+)
+def get_machine_provisioning(machine_id: UUID) -> ProvisioningRun | None:
+    try:
+        return fleet_service.get_provisioning(machine_id)
+    except FleetMachineNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+
+
+@router.post(
+    "/fleet/machines/{machine_id}/provisioning",
+    response_model=ProvisioningRun,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_machine_provisioning(
+    machine_id: UUID,
+    request: ProvisioningStartRequest,
+) -> ProvisioningRun:
+    del request
+    try:
+        run = fleet_service.start_provisioning(machine_id)
+        machine = fleet_service.get(machine_id)
+    except FleetMachineNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="provisioning.started",
+        target_id=f"machine:{machine.id}",
+        message=f"Provisioning workflow ready for {machine.name}.",
+        details={
+            "result": run.status,
+            "run_id": str(run.id),
+            "current_step_id": run.current_step_id or "complete",
+        },
+    )
+    return run
+
+
+@router.post(
+    "/provisioning/{run_id}/steps/{step_id}/complete",
+    response_model=ProvisioningRun,
+)
+def complete_provisioning_step(
+    run_id: UUID,
+    step_id: str,
+    request: ProvisioningStepCompleteRequest,
+) -> ProvisioningRun:
+    try:
+        run = fleet_service.complete_step(run_id, step_id, request)
+    except ProvisioningNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="provisioning.step_completed",
+        target_id=f"machine:{run.machine_id}",
+        message=f"Completed provisioning step {step_id}.",
+        details={
+            "result": run.status,
+            "run_id": str(run.id),
+            "step_id": step_id,
+            "next_step_id": run.current_step_id or "complete",
+        },
+    )
+    return run
 
 
 @router.get("/agents/runtime", response_model=ModelRuntimeStatus)

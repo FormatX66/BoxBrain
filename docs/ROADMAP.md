@@ -48,8 +48,17 @@
 - Structured action schemas
 - Multi-model benchmark reports
 
-## 1.0 — Research workbench
+## 1.0 - Modular operating environment
 
+- Versioned canonical architecture manifest (foundation implemented)
+- Twelve-agent ecosystem roster with compatibility mapping (implemented)
+- Durable Fleet Manager inventory and Machine IDs (foundation implemented)
+- Capability Registry metadata (foundation implemented)
+- Resumable sixteen-step machine provisioning workflow (foundation implemented)
+- Operator-guided external account setup with no stored credentials (implemented)
+- Brain Connect identity, heartbeat, and signed transport protocol
+- Fleet health and resource history
+- Reviewable Repository, Website, and Deployment Manager pipelines
 - Signed plugin distribution
 - Multiple isolated targets
 - Reviewable code-change pipeline

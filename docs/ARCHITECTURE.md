@@ -1,5 +1,11 @@
 # Architecture
 
+The canonical ecosystem architecture is **BoxBrain Master Architecture v1.0**.
+Its versioned system-agent roster, Fleet Manager foundation, machine identity
+rule, provisioning workflow, compatibility notes, migration plan, risks, and
+next steps are documented in
+[`BOXBRAIN_ARCHITECTURE_V1.md`](BOXBRAIN_ARCHITECTURE_V1.md).
+
 ## Components
 
 ```text

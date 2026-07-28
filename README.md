@@ -5,10 +5,11 @@ isolated computer lab. The first milestone is deliberately small: a Flutter
 mission-control UI, a Python/FastAPI controller API, a plugin boundary, policy
 profiles, an audit-friendly task queue, and a restricted Kali Pi edge agent.
 
-This repository is an initial alpha skeleton. It does **not** execute keyboard,
-mouse, remote-desktop, or shell actions. Its optional model-processing endpoint
-can call a configured OpenAI model for typed planning, but exposes no
-side-effect tools.
+This repository is an initial alpha. It does **not** autonomously execute
+keyboard, mouse, remote-desktop, or arbitrary shell actions. Its optional
+model-processing endpoint exposes no side-effect tools. The separate Kali Pi
+diagnostic executor runs only fixed read-only commands after an explicit `RUN`
+approval.
 
 ## Repository layout
 
@@ -55,6 +56,13 @@ tokens. The same Agents destination includes the local ChatGPT organizer, which
 preserves current project membership and proposes folders for loose chats
 without scraping browser storage or moving anything in ChatGPT. See
 [docs/CHATGPT_ORGANIZER.md](docs/CHATGPT_ORGANIZER.md).
+
+Use **Fleet** to import authorized targets, register one durable identity per
+machine, catalog capabilities, and run the resumable provisioning checklist.
+External Gmail, Drive, GitHub, and CAPTCHA steps remain operator-controlled;
+BoxBrain stores no account passwords or recovery secrets. The dashboard also
+shows the canonical twelve-agent system roster. See
+[docs/BOXBRAIN_ARCHITECTURE_V1.md](docs/BOXBRAIN_ARCHITECTURE_V1.md).
 
 ### Manual cross-platform setup
 

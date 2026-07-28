@@ -333,4 +333,112 @@ void main() {
     expect(result.status, 'succeeded');
     expect(result.output, contains('pi'));
   });
+
+  test('Fleet routes preserve guided provisioning confirmations', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requestCount = 0;
+
+    final machine = {
+      'id': 'machine-1',
+      'machine_identity': 'BB-RPI-000000000001',
+      'name': 'Kali Pi USB-C',
+      'kind': 'raspberry-pi',
+      'status': 'provisioning',
+      'remote_target_id': 'target-1',
+      'capabilities': ['edge-diagnostics'],
+      'notes': null,
+      'created_at': '2026-07-28T16:00:00Z',
+      'updated_at': '2026-07-28T16:00:00Z',
+    };
+    Map<String, dynamic> run(String current) => {
+          'id': 'run-1',
+          'machine_id': 'machine-1',
+          'status': 'in_progress',
+          'current_step_id': current,
+          'steps': [
+            {
+              'id': current,
+              'position': 4,
+              'title': 'Guided step',
+              'instructions': 'Operator completes this step.',
+              'mode': 'operator',
+              'status': 'pending',
+              'note': null,
+              'completed_at': null,
+            },
+          ],
+          'created_at': '2026-07-28T16:00:00Z',
+          'updated_at': '2026-07-28T16:00:00Z',
+        };
+
+    server.listen((request) async {
+      requestCount += 1;
+      expect(request.headers.value('X-BoxBrain-Token'), 'test-token');
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/api/v1/architecture'):
+          request.response.write(jsonEncode({
+            'version': '1.0',
+            'name': 'BoxBrain Master Architecture',
+            'interface': 'Arkmatx Interface',
+            'flow': ['Bruce', 'BoxBrain', 'Authorized Machine'],
+            'principles': ['modular', 'testable'],
+            'agents': <Map<String, dynamic>>[],
+            'compatibility_notes': ['Existing crew remains unchanged.'],
+          }));
+        case ('GET', '/api/v1/fleet'):
+          request.response.write(jsonEncode({
+            'architecture_version': '1.0',
+            'machine_count': 1,
+            'ready_count': 0,
+            'provisioning_count': 1,
+            'active_run_count': 1,
+            'machines': [machine],
+          }));
+        case ('POST', '/api/v1/fleet/import-targets'):
+          final body = jsonDecode(await utf8.decoder.bind(request).join());
+          expect(body, {'confirmation': 'IMPORT'});
+          request.response.write(jsonEncode([machine]));
+        case ('POST', '/api/v1/fleet/machines/machine-1/provisioning'):
+          final body = jsonDecode(await utf8.decoder.bind(request).join());
+          expect(body, {'confirmation': 'PROVISION'});
+          request.response.write(jsonEncode(run('open-google-signup')));
+        case (
+            'POST',
+            '/api/v1/provisioning/run-1/steps/open-google-signup/complete'
+          ):
+          final body = jsonDecode(await utf8.decoder.bind(request).join());
+          expect(body, {
+            'confirmation': 'COMPLETE',
+            'note': 'Operator verified.',
+          });
+          request.response.write(jsonEncode(run('complete-captcha')));
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write('{}');
+      }
+      await request.response.close();
+    });
+
+    final api = ControllerApi(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      apiToken: 'test-token',
+    );
+    final architecture = await api.fetchArchitecture();
+    final fleet = await api.fetchFleet();
+    final imported = await api.importFleetTargets();
+    final started = await api.startMachineProvisioning('machine-1');
+    final completed = await api.completeProvisioningStep(
+      runId: started.id,
+      stepId: started.currentStepId!,
+      note: 'Operator verified.',
+    );
+
+    expect(requestCount, 5);
+    expect(architecture.version, '1.0');
+    expect(fleet.machineCount, 1);
+    expect(imported.single.machineIdentity, 'BB-RPI-000000000001');
+    expect(completed.currentStepId, 'complete-captcha');
+  });
 }
