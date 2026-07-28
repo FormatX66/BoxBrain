@@ -84,6 +84,16 @@ class Settings:
     agent_max_output_tokens: int = int(
         getenv("BOXBRAIN_AGENT_MAX_OUTPUT_TOKENS", "1800")
     )
+    diagnostic_executor_enabled: bool = _bool_environment(
+        "BOXBRAIN_DIAGNOSTIC_EXECUTOR_ENABLED",
+        getenv("BOXBRAIN_ENVIRONMENT", "development") == "development",
+    )
+    diagnostic_timeout_seconds: float = float(
+        getenv("BOXBRAIN_DIAGNOSTIC_TIMEOUT_SECONDS", "20")
+    )
+    diagnostic_max_output_bytes: int = int(
+        getenv("BOXBRAIN_DIAGNOSTIC_MAX_OUTPUT_BYTES", "32768")
+    )
 
 
 settings = Settings()

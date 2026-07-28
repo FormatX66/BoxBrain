@@ -88,6 +88,25 @@ phrase. Passwords are never accepted or stored: SSH uses the agent or dedicated
 Pi identity, WinRM uses the current Windows identity, and RDP handles credentials
 interactively. These are human-controlled terminals or desktops, not an action
 executor, and queued tasks cannot drive them.
+
+## AI diagnostic executor boundary
+
+The diagnostic planner is an OpenAI Agents SDK call with a typed output schema
+and no tools. It may select only `system_health`, `disk_usage`, `memory_usage`,
+or `uptime` for the built-in Kali Pi. The operator sees the exact typed plan,
+expected evidence, risk note, model, and token use before anything can run.
+
+Execution is a separate controller operation requiring the exact value `RUN`.
+Inside the shared action lock it rechecks the persistent emergency stop, built-in
+target identity, and private address resolution. The user's goal and model text
+never enter the process arguments; the selected enum maps to a fixed SSH command.
+SSH is noninteractive and host-key strict, commands have a hard deadline, and
+returned output is byte-capped. Audit records contain proposal and result
+metadata but not raw diagnostic output. Proposals expire and cannot be replayed.
+
+This is not the queued-task executor and does not give the model a terminal.
+General SSH, WinRM, RDP, and Telnet targets remain human-operated sessions.
+
 ## Data flow
 
 1. The UI submits a task tied to an allowlisted target and policy profile.

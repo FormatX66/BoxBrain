@@ -147,13 +147,22 @@ interactively. Telnet is plaintext and requires its separate exact warning
 phrase. The emergency stop blocks every session launch. This target manager
 does not give queued tasks a shell or autonomous host control.
 
+#### Approval-gated AI diagnostics
+
+The built-in Kali Pi target also exposes **AI check**. Describe what to inspect;
+the model may select only `system_health`, `disk_usage`, `memory_usage`, or
+`uptime`. Review the typed proposal, then type `RUN` to execute its fixed
+read-only SSH diagnostic. User text never becomes shell input. Proposals expire,
+output is capped and not retained as evidence, and the emergency stop blocks
+execution. General targets and queued tasks cannot use this executor.
+
 ### 6. Queue and audit tasks
 
 Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
 `controller/data/boxbrain.sqlite3`, survive controller restarts, and create an
 append-only event visible under **Logs**. New events arrive over an authenticated
 server-sent event stream with sequence-based resume and automatic reconnect.
-Queueing records intent only; the executor remains disabled.
+Queueing records intent only; the autonomous task executor remains disabled.
 
 ### 7. Emergency stop
 

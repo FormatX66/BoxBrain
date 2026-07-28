@@ -339,8 +339,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
                     title: const Text('Use model reasoning'),
                     subtitle: Text(
                       modelReady
-                          ? '${runtime!.model} is configured. External actions '
-                              'remain disabled.'
+                          ? '${runtime!.model} is configured. It has no direct '
+                              'tools; approved Pi diagnostics use the separate RUN gate.'
                           : 'Local mode remains available while the model '
                               'runtime is unavailable.',
                     ),

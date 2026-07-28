@@ -14,6 +14,8 @@ AuditEventType = Literal[
     "remote_target.removed",
     "remote_target.probed",
     "remote_target.session_opened",
+    "diagnostic.proposed",
+    "diagnostic.execution_completed",
     "safety.emergency_stop_engaged",
     "safety.emergency_stop_reset",
 ]
@@ -195,6 +197,89 @@ class RemoteSessionResult(BaseModel):
     status: Literal["opened"]
     application: str
     message: str
+
+
+DiagnosticAction = Literal[
+    "system_health",
+    "disk_usage",
+    "memory_usage",
+    "uptime",
+]
+DiagnosticProposalStatus = Literal[
+    "pending",
+    "running",
+    "succeeded",
+    "failed",
+    "expired",
+]
+
+
+class DiagnosticPlan(BaseModel):
+    action: DiagnosticAction
+    summary: str = Field(min_length=1, max_length=500)
+    expected_evidence: str = Field(min_length=1, max_length=500)
+    risk_note: str = Field(min_length=1, max_length=500)
+
+
+class DiagnosticProposalRequest(BaseModel):
+    goal: str = Field(min_length=3, max_length=500)
+    authorization: Literal["AUTHORIZED"]
+
+    @field_validator("goal")
+    @classmethod
+    def normalize_diagnostic_goal(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("goal must contain non-whitespace text")
+        return normalized
+
+
+class DiagnosticProviderUsage(BaseModel):
+    requests: int = Field(default=0, ge=0)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
+class DiagnosticProposal(BaseModel):
+    id: UUID
+    target_id: UUID
+    target_name: str
+    goal: str
+    plan: DiagnosticPlan
+    status: DiagnosticProposalStatus
+    model: str
+    usage: DiagnosticProviderUsage
+    requires_confirmation: Literal[True] = True
+    created_at: datetime
+    expires_at: datetime
+
+
+class DiagnosticExecuteRequest(BaseModel):
+    confirmation: Literal["RUN"]
+
+
+class DiagnosticExecutionResult(BaseModel):
+    proposal_id: UUID
+    target_id: UUID
+    action: DiagnosticAction
+    status: Literal["succeeded", "failed"]
+    exit_code: int
+    output: str
+    truncated: bool
+    duration_ms: int = Field(ge=0)
+    executed_at: datetime
+
+
+class DiagnosticRuntimeStatus(BaseModel):
+    enabled: bool
+    model_ready: bool
+    executor_ready: bool
+    model: str
+    target_scope: Literal["built-in-kali-pi"] = "built-in-kali-pi"
+    supported_actions: tuple[DiagnosticAction, ...]
+    requires_confirmation: Literal[True] = True
+    arbitrary_commands_enabled: Literal[False] = False
 
 
 class EdgeAgentSummary(BaseModel):

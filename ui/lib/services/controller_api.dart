@@ -278,6 +278,34 @@ class ControllerApi {
     return RemoteSessionSummary.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<DiagnosticProposalSummary> proposeRemoteDiagnostic({
+    required String targetId,
+    required String goal,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/diagnostic-proposals'),
+      {
+        'goal': goal,
+        'authorization': 'AUTHORIZED',
+      },
+    );
+    return DiagnosticProposalSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<DiagnosticExecutionSummary> executeDiagnosticProposal(
+    String proposalId,
+  ) async {
+    final json = await _postJson(
+      endpoint('/api/v1/diagnostic-proposals/$proposalId/execute'),
+      const {'confirmation': 'RUN'},
+    );
+    return DiagnosticExecutionSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
   Future<List<EdgeAgentSummary>> fetchEdgeAgents() async {
     final json = await _getJson(edgeAgentsEndpoint) as List<dynamic>;
     return json

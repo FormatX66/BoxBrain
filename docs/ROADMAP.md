@@ -27,8 +27,15 @@
   lab-only Telnet operator sessions (implemented)
 - Fixed-argument OS client launch, TCP probe, durable profiles, audit events,
   and emergency-stop gate (implemented)
-## 0.4 — Typed input in a disposable VM
 
+## 0.4 - Typed input in a disposable VM
+
+- Typed OpenAI proposal with no model tools (implemented for Kali Pi diagnostics)
+- Exact `RUN` approval, expiring single-use proposal, and shared emergency-stop
+  gate (implemented)
+- Fixed read-only health, disk, memory, and uptime SSH actions with deadlines and
+  output caps (implemented)
+- Arbitrary or model-generated shell input remains disabled (implemented)
 - Bounded pointer and keyboard actions
 - Per-action verification and retry limits
 - Snapshot restore integration

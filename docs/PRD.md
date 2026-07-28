@@ -26,14 +26,15 @@ The alpha is complete when an operator can:
 - Persistent, audited emergency stop with guarded reset and effectful-request gate.
 - Authorized private-host manager for guarded, human-operated USB-C SSH, SSH,
   WinRM, RDP, and lab-only Telnet sessions.
-- No task or input execution.
+- AI-proposed, operator-approved fixed health diagnostics for the built-in Kali Pi.
+- No autonomous task, arbitrary shell, keyboard, or pointer execution.
 
 ## Out of scope for this scaffold
 
 - Keyboard or mouse injection
 - Autonomous remote-desktop/input control and VNC or HDMI transport plugins
-- Shell command execution
-- Cloud model calls or secret storage
+- Arbitrary or model-generated shell command execution
+- Unapproved model tools or provider-secret storage
 - Automatic code modification
 - Background service installation
 - Bootable USB or Raspberry Pi image creation

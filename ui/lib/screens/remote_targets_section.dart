@@ -28,6 +28,7 @@ class _RemoteTargetsPanelState extends State<RemoteTargetsPanel> {
   Set<String> _busyTargets = const {};
   bool _adding = false;
   String? _lastMessage;
+  DiagnosticExecutionSummary? _lastDiagnostic;
 
   Future<void> _addTarget() async {
     if (_adding) return;
@@ -93,6 +94,31 @@ class _RemoteTargetsPanelState extends State<RemoteTargetsPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.toString())),
       );
+    } finally {
+      if (mounted) _setBusy(target.id, false);
+    }
+  }
+
+  Future<void> _diagnose(RemoteTargetSummary target) async {
+    if (_busyTargets.contains(target.id) || widget.emergencyStop.engaged) {
+      return;
+    }
+    _setBusy(target.id, true);
+    try {
+      final result = await showDialog<DiagnosticExecutionSummary>(
+        context: context,
+        builder: (context) => _AiDiagnosticDialog(
+          api: widget.api,
+          target: target,
+        ),
+      );
+      if (!mounted || result == null) return;
+      setState(() {
+        _lastDiagnostic = result;
+        _lastMessage = 'AI ${result.action.replaceAll('_', ' ')} diagnostic '
+            '${result.status}.';
+      });
+      widget.onRefresh();
     } finally {
       if (mounted) _setBusy(target.id, false);
     }
@@ -191,6 +217,48 @@ class _RemoteTargetsPanelState extends State<RemoteTargetsPanel> {
               ),
             ),
           ],
+          if (_lastDiagnostic != null) ...[
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'AI diagnostic result · '
+                            '${_titleCase(_lastDiagnostic!.status)}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        Chip(
+                          label: Text(
+                            _lastDiagnostic!.action.replaceAll('_', ' '),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          _lastDiagnostic!.output,
+                          key: const Key('diagnostic-output'),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (widget.emergencyStop.engaged) ...[
             const SizedBox(height: 10),
             Card(
@@ -212,6 +280,8 @@ class _RemoteTargetsPanelState extends State<RemoteTargetsPanel> {
                 busy: _busyTargets.contains(target.id),
                 sessionBlocked: widget.emergencyStop.engaged,
                 onProbe: () => unawaited(_probe(target)),
+                onDiagnose:
+                    target.builtIn ? () => unawaited(_diagnose(target)) : null,
                 onOpen: () => unawaited(_openSession(target)),
                 onRemove:
                     target.builtIn ? null : () => unawaited(_remove(target)),
@@ -230,6 +300,7 @@ class _RemoteTargetCard extends StatelessWidget {
     required this.busy,
     required this.sessionBlocked,
     required this.onProbe,
+    required this.onDiagnose,
     required this.onOpen,
     required this.onRemove,
   });
@@ -238,6 +309,7 @@ class _RemoteTargetCard extends StatelessWidget {
   final bool busy;
   final bool sessionBlocked;
   final VoidCallback onProbe;
+  final VoidCallback? onDiagnose;
   final VoidCallback onOpen;
   final VoidCallback? onRemove;
 
@@ -294,6 +366,13 @@ class _RemoteTargetCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  if (onDiagnose != null)
+                    OutlinedButton.icon(
+                      key: Key('diagnose-remote-${target.id}'),
+                      onPressed: busy || sessionBlocked ? null : onDiagnose,
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('AI check'),
+                    ),
                   OutlinedButton.icon(
                     key: Key('probe-remote-${target.id}'),
                     onPressed: busy ? null : onProbe,
@@ -557,6 +636,221 @@ class _AddRemoteTargetDialogState extends State<_AddRemoteTargetDialog> {
         _error = error.toString();
       });
     }
+  }
+}
+
+class _AiDiagnosticDialog extends StatefulWidget {
+  const _AiDiagnosticDialog({
+    required this.api,
+    required this.target,
+  });
+
+  final ControllerApi api;
+  final RemoteTargetSummary target;
+
+  @override
+  State<_AiDiagnosticDialog> createState() => _AiDiagnosticDialogState();
+}
+
+class _AiDiagnosticDialogState extends State<_AiDiagnosticDialog> {
+  final _goal = TextEditingController(text: 'Run a system health check.');
+  final _confirmation = TextEditingController();
+  DiagnosticProposalSummary? _proposal;
+  bool _planning = false;
+  bool _executing = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _goal.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  Future<void> _propose() async {
+    final goal = _goal.text.trim();
+    if (goal.length < 3) {
+      setState(() => _error = 'Describe what the AI should check.');
+      return;
+    }
+    setState(() {
+      _planning = true;
+      _error = null;
+    });
+    try {
+      final proposal = await widget.api.proposeRemoteDiagnostic(
+        targetId: widget.target.id,
+        goal: goal,
+      );
+      if (!mounted) return;
+      setState(() {
+        _proposal = proposal;
+        _planning = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _planning = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  Future<void> _execute() async {
+    if (_confirmation.text.trim() != 'RUN') {
+      setState(() => _error = 'Type RUN exactly to approve this action.');
+      return;
+    }
+    final proposal = _proposal;
+    if (proposal == null) return;
+    setState(() {
+      _executing = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.api.executeDiagnosticProposal(proposal.id);
+      if (mounted) Navigator.pop(context, result);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _executing = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final proposal = _proposal;
+    return AlertDialog(
+      title: Text('AI diagnostic · ${widget.target.name}'),
+      content: SizedBox(
+        width: 620,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const ListTile(
+                  leading: Icon(Icons.security),
+                  title: Text('Proposal first, execution second'),
+                  subtitle: Text(
+                    'The AI can select only a predefined read-only diagnostic. '
+                    'It cannot write or supply shell commands.',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (proposal == null)
+                TextField(
+                  key: const Key('diagnostic-goal'),
+                  controller: _goal,
+                  enabled: !_planning,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'What should the AI check?',
+                    hintText: 'Check disk space and overall Pi health.',
+                    border: OutlineInputBorder(),
+                  ),
+                )
+              else ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.auto_awesome, size: 16),
+                      label: Text(proposal.model),
+                    ),
+                    Chip(
+                      label: Text(
+                        proposal.plan.action.replaceAll('_', ' '),
+                      ),
+                    ),
+                    Chip(label: Text('${proposal.providerTokens} tokens')),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'AI proposal',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(proposal.plan.summary),
+                const SizedBox(height: 12),
+                Text(
+                  'Expected evidence',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                Text(proposal.plan.expectedEvidence),
+                const SizedBox(height: 12),
+                Text(
+                  'Risk boundary',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                Text(proposal.plan.riskNote),
+                const SizedBox(height: 16),
+                TextField(
+                  key: const Key('diagnostic-run-confirmation'),
+                  controller: _confirmation,
+                  enabled: !_executing,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Type RUN to approve this exact diagnostic',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _planning || _executing ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        if (proposal == null)
+          FilledButton.icon(
+            key: const Key('propose-diagnostic'),
+            onPressed: _planning ? null : _propose,
+            icon: _planning
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(_planning ? 'Planning' : 'Ask AI'),
+          )
+        else
+          FilledButton.icon(
+            key: const Key('execute-diagnostic'),
+            onPressed: _executing || _confirmation.text.trim() != 'RUN'
+                ? null
+                : _execute,
+            icon: _executing
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.play_arrow),
+            label: Text(_executing ? 'Running' : 'Approve & run'),
+          ),
+      ],
+    );
   }
 }
 

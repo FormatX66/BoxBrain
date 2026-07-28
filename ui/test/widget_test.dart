@@ -56,8 +56,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Audit log'), findsOneWidget);
-    expect(
-        find.text('Task queued; executor remains disabled.'), findsOneWidget);
+    expect(find.text('Task queued; autonomous execution remains disabled.'),
+        findsOneWidget);
     expect(find.text('1 append-only controller events'), findsOneWidget);
   });
 
@@ -314,6 +314,48 @@ void main() {
     expect(find.textContaining('operator-controlled SSH'), findsOneWidget);
   });
 
+  testWidgets('reviews and approves an AI Pi diagnostic', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final api = _RemoteControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.desktop_windows_outlined));
+    await tester.pumpAndSettle();
+    final diagnose = find.byKey(const Key('diagnose-remote-remote-usb'));
+    await tester.ensureVisible(diagnose);
+    await tester.tap(diagnose);
+    await tester.pump();
+
+    expect(find.text('Proposal first, execution second'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('diagnostic-goal')),
+      'Check Pi disk space',
+    );
+    await tester.tap(find.byKey(const Key('propose-diagnostic')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(api.proposeCalls, 1);
+    expect(api.lastDiagnosticGoal, 'Check Pi disk space');
+    expect(find.text('Collect fixed read-only disk evidence.'), findsOneWidget);
+    expect(find.text('disk usage'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('diagnostic-run-confirmation')),
+      'RUN',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('execute-diagnostic')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(api.executeCalls, 1);
+    expect(find.textContaining('/dev/root'), findsOneWidget);
+    expect(find.byKey(const Key('diagnostic-output')), findsOneWidget);
+  });
+
   testWidgets('adds an authorized SSH target from the Target screen', (
     tester,
   ) async {
@@ -396,7 +438,7 @@ class _OnlineControllerApi extends ControllerApi {
           eventType: 'task.queued',
           taskId: 'task-1',
           targetId: 'windows-sandbox',
-          message: 'Task queued; executor remains disabled.',
+          message: 'Task queued; autonomous execution remains disabled.',
           details: const {'status': 'queued'},
           createdAt: DateTime.utc(2026, 7, 24, 12),
         ),
@@ -789,6 +831,9 @@ class _RemoteControllerApi extends _OnlineControllerApi {
   int probeCalls = 0;
   int openCalls = 0;
   int deleteCalls = 0;
+  int proposeCalls = 0;
+  int executeCalls = 0;
+  String? lastDiagnosticGoal;
   final List<RemoteTargetSummary> remoteTargets = [
     RemoteTargetSummary(
       id: 'remote-usb',
@@ -868,6 +913,51 @@ class _RemoteControllerApi extends _OnlineControllerApi {
       status: 'opened',
       application: 'SSH terminal',
       message: 'Opened an operator-controlled SSH terminal session.',
+    );
+  }
+
+  @override
+  Future<DiagnosticProposalSummary> proposeRemoteDiagnostic({
+    required String targetId,
+    required String goal,
+  }) async {
+    proposeCalls += 1;
+    lastDiagnosticGoal = goal;
+    return DiagnosticProposalSummary(
+      id: 'proposal-1',
+      targetId: targetId,
+      targetName: 'Kali Pi USB-C',
+      goal: goal,
+      plan: const DiagnosticPlanSummary(
+        action: 'disk_usage',
+        summary: 'Collect fixed read-only disk evidence.',
+        expectedEvidence: 'Filesystem usage in bytes.',
+        riskNote: 'Read-only; no files are changed.',
+      ),
+      status: 'pending',
+      model: 'gpt-5.6-sol',
+      providerTokens: 42,
+      requiresConfirmation: true,
+      createdAt: DateTime.utc(2026, 7, 28, 16),
+      expiresAt: DateTime.utc(2026, 7, 28, 16, 10),
+    );
+  }
+
+  @override
+  Future<DiagnosticExecutionSummary> executeDiagnosticProposal(
+    String proposalId,
+  ) async {
+    executeCalls += 1;
+    return DiagnosticExecutionSummary(
+      proposalId: proposalId,
+      targetId: 'remote-usb',
+      action: 'disk_usage',
+      status: 'succeeded',
+      exitCode: 0,
+      output: '/dev/root 1000 400 600 40% /',
+      truncated: false,
+      durationMs: 25,
+      executedAt: DateTime.utc(2026, 7, 28, 16, 1),
     );
   }
 

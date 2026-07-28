@@ -869,7 +869,7 @@ class _OverviewCards extends StatelessWidget {
               tasks.isEmpty ? 'Queue is empty' : '${tasks.length} tasks found',
           message: status.executorEnabled
               ? 'Executor is enabled for approved tasks.'
-              : 'The alpha accepts tasks but executes nothing yet.',
+              : 'Queued tasks remain plans; autonomous execution is disabled.',
         ),
       ),
       SectionCard(
@@ -1416,7 +1416,7 @@ class _QueueTaskDialogState extends State<_QueueTaskDialog> {
                       icon: Icons.lock_outline,
                       title: widget.target.name,
                       message:
-                          'This queues an audited plan only. The executor remains disabled.',
+                          'This queues an audited plan only. Autonomous execution remains disabled; approved Pi diagnostics use a separate gate.',
                     ),
                   ),
                 ),

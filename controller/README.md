@@ -2,7 +2,8 @@
 
 The controller is a FastAPI service that defines BoxBrain's control-plane
 contract. In this alpha it provides health, task queue, policy profile, and
-plugin discovery, and processing-agent endpoints. It intentionally has no action executor.
+plugin discovery, processing-agent endpoints, and a narrow approval-gated Kali Pi
+diagnostic executor. It intentionally has no autonomous task executor.
 
 ## Run locally
 
@@ -30,9 +31,13 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `DELETE /api/v1/remote-targets/{target_id}`
 - `POST /api/v1/remote-targets/{target_id}/probe`
 - `POST /api/v1/remote-targets/{target_id}/session`
+- `GET /api/v1/remote-targets/{target_id}/diagnostic-proposals`
+- `POST /api/v1/remote-targets/{target_id}/diagnostic-proposals`
+- `POST /api/v1/diagnostic-proposals/{proposal_id}/execute`
 - `GET /api/v1/edge-agents`
 - `GET /api/v1/agents`
 - `GET /api/v1/agents/runtime`
+- `GET /api/v1/agents/diagnostic-runtime`
 - `POST /api/v1/processing/runs`
 - `POST /api/v1/processing/model-runs`
 - `GET /api/v1/processing/model-runs`
@@ -67,6 +72,13 @@ known operating-system SSH, WinRM, RDP, or lab-only Telnet client with a fixed
 argument list after exact confirmation. They accept no command text and store no
 passwords. The persistent emergency stop blocks session and Sandbox launch;
 resetting it requires the exact API confirmation value `RESET`.
+
+The built-in Kali Pi alone supports model-proposed diagnostics. The model returns
+one typed action from a four-item allowlist and has no execution tool. A separate
+endpoint accepts only `RUN`, rechecks private scope and the emergency stop, then
+runs the action's fixed SSH command with a deadline and output cap. Prompt text is
+never used as command input, diagnostic output is returned to the operator but not
+written to the audit log, and general remote targets remain human-operated.
 
 Processing-agent intake is a provider-neutral, local-rule planner. It turns
 voice, chat, file, or API text into durable projects, searchable memory and

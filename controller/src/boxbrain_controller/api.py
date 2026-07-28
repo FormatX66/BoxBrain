@@ -8,6 +8,13 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from . import __version__
+from .diagnostic_executor import (
+    DiagnosticError,
+    DiagnosticExecutionUnavailable,
+    DiagnosticExecutorService,
+    DiagnosticNotFoundError,
+    DiagnosticRuntimeUnavailable,
+)
 from .edge_agent import KaliPiEdgeAgentClient
 from .models import (
     AgentDashboard,
@@ -18,6 +25,11 @@ from .models import (
     ChatOrganizerDashboard,
     ChatOrganizerImportRequest,
     ChatOrganizerImportResult,
+    DiagnosticExecuteRequest,
+    DiagnosticExecutionResult,
+    DiagnosticProposal,
+    DiagnosticProposalRequest,
+    DiagnosticRuntimeStatus,
     EdgeAgentSummary,
     EmergencyStopEngageRequest,
     EmergencyStopResetRequest,
@@ -110,6 +122,16 @@ remote_target_service = RemoteTargetService(
     settings.data_dir / "boxbrain.sqlite3",
     usb_identity_file=settings.remote_usb_identity_file,
 )
+diagnostic_executor_service = DiagnosticExecutorService(
+    settings.data_dir / "boxbrain.sqlite3",
+    remote_target_service,
+    enabled=settings.diagnostic_executor_enabled,
+    model=settings.agent_model,
+    max_output_tokens=settings.agent_max_output_tokens,
+    usb_identity_file=settings.remote_usb_identity_file,
+    timeout_seconds=settings.diagnostic_timeout_seconds,
+    max_output_bytes=settings.diagnostic_max_output_bytes,
+)
 control_lock = Lock()
 
 
@@ -163,6 +185,14 @@ def list_processing_agents() -> list[ProcessingAgentSummary]:
 @router.get("/agents/runtime", response_model=ModelRuntimeStatus)
 def get_model_agent_runtime() -> ModelRuntimeStatus:
     return model_agent_service.runtime_status()
+
+
+@router.get(
+    "/agents/diagnostic-runtime",
+    response_model=DiagnosticRuntimeStatus,
+)
+def get_diagnostic_runtime() -> DiagnosticRuntimeStatus:
+    return diagnostic_executor_service.runtime_status()
 
 
 @router.post("/processing/runs", response_model=ProcessingRun)
@@ -621,6 +651,144 @@ def open_remote_target_session(
                 "result": result.status,
                 "transport": record.transport,
                 "application": result.application,
+            },
+        )
+    return result
+
+
+@router.get(
+    "/remote-targets/{target_id}/diagnostic-proposals",
+    response_model=list[DiagnosticProposal],
+)
+def list_diagnostic_proposals(
+    target_id: UUID,
+    limit: int = Query(default=25, ge=1, le=100),
+) -> list[DiagnosticProposal]:
+    try:
+        remote_target_service.get(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    return diagnostic_executor_service.list(target_id=target_id, limit=limit)
+
+
+@router.post(
+    "/remote-targets/{target_id}/diagnostic-proposals",
+    response_model=DiagnosticProposal,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_diagnostic_proposal(
+    target_id: UUID,
+    request: DiagnosticProposalRequest,
+) -> DiagnosticProposal:
+    try:
+        proposal = await diagnostic_executor_service.propose(target_id, request)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except DiagnosticRuntimeUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except DiagnosticError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="diagnostic.proposed",
+        target_id=f"remote:{proposal.target_id}",
+        message=f"AI proposed the {proposal.plan.action} diagnostic.",
+        details={
+            "result": "pending_approval",
+            "proposal_id": str(proposal.id),
+            "action": proposal.plan.action,
+            "model": proposal.model,
+            "provider_tokens": proposal.usage.total_tokens,
+            "expires_at": proposal.expires_at.isoformat(),
+        },
+    )
+    return proposal
+
+
+@router.post(
+    "/diagnostic-proposals/{proposal_id}/execute",
+    response_model=DiagnosticExecutionResult,
+)
+def execute_diagnostic_proposal(
+    proposal_id: UUID,
+    request: DiagnosticExecuteRequest,
+) -> DiagnosticExecutionResult:
+    del request
+    with control_lock:
+        emergency_stop = task_store.get_emergency_stop()
+        if emergency_stop.engaged:
+            task_store.append_event(
+                event_type="diagnostic.execution_completed",
+                target_id=None,
+                message="Diagnostic execution blocked by emergency stop.",
+                details={
+                    "result": "blocked",
+                    "proposal_id": str(proposal_id),
+                    "reason": "emergency_stop",
+                    "generation": emergency_stop.generation,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=(
+                    "Emergency stop is engaged. Reset it before running a "
+                    "diagnostic."
+                ),
+            )
+        try:
+            result = diagnostic_executor_service.execute(proposal_id)
+        except DiagnosticNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except RemoteTargetError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(error),
+            ) from error
+        except DiagnosticError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(error),
+            ) from error
+        except (
+            DiagnosticRuntimeUnavailable,
+            DiagnosticExecutionUnavailable,
+        ) as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(error),
+            ) from error
+        task_store.append_event(
+            event_type="diagnostic.execution_completed",
+            target_id=f"remote:{result.target_id}",
+            message=(
+                f"Approved {result.action} diagnostic {result.status}."
+            ),
+            details={
+                "result": result.status,
+                "proposal_id": str(result.proposal_id),
+                "action": result.action,
+                "exit_code": result.exit_code,
+                "duration_ms": result.duration_ms,
+                "truncated": result.truncated,
             },
         )
     return result

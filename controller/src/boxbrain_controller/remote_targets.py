@@ -145,6 +145,14 @@ class RemoteTargetService:
             raise RemoteTargetNotFoundError("Remote target not found.")
         return self._record_from_row(row)
 
+    def resolve_authorized(
+        self,
+        target_id: UUID,
+    ) -> tuple[RemoteTargetRecord, str]:
+        record = self.get(target_id)
+        addresses = self._authorized_addresses(record.host, record.port)
+        return record, addresses[0]
+
     def create(self, request: RemoteTargetCreate) -> RemoteTargetRecord:
         host = self._validate_host(request.host)
         if (

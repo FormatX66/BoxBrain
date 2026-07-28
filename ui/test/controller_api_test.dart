@@ -257,4 +257,80 @@ void main() {
     expect(probe.status, 'online');
     expect(session.application, 'WinRM PowerShell');
   });
+  test('AI diagnostic routes keep proposal and approval separate', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requestCount = 0;
+
+    server.listen((request) async {
+      requestCount += 1;
+      expect(request.method, 'POST');
+      expect(request.headers.value('X-BoxBrain-Token'), 'test-token');
+      final body = jsonDecode(await utf8.decoder.bind(request).join())
+          as Map<String, dynamic>;
+      request.response.headers.contentType = ContentType.json;
+
+      if (request.uri.path.endsWith('/diagnostic-proposals')) {
+        expect(body['goal'], 'Check Pi health');
+        expect(body['authorization'], 'AUTHORIZED');
+        expect(body.containsKey('command'), isFalse);
+        request.response.write(jsonEncode({
+          'id': 'proposal-1',
+          'target_id': 'target-1',
+          'target_name': 'Kali Pi USB-C',
+          'goal': 'Check Pi health',
+          'plan': {
+            'action': 'system_health',
+            'summary': 'Collect fixed health evidence.',
+            'expected_evidence': 'Host, uptime, memory, and disk.',
+            'risk_note': 'Read-only; no files are changed.',
+          },
+          'status': 'pending',
+          'model': 'gpt-5.6-sol',
+          'usage': {
+            'requests': 1,
+            'input_tokens': 20,
+            'output_tokens': 20,
+            'total_tokens': 40,
+          },
+          'requires_confirmation': true,
+          'created_at': '2026-07-28T16:00:00Z',
+          'expires_at': '2026-07-28T16:10:00Z',
+        }));
+      } else {
+        expect(
+          request.uri.path,
+          '/api/v1/diagnostic-proposals/proposal-1/execute',
+        );
+        expect(body, {'confirmation': 'RUN'});
+        request.response.write(jsonEncode({
+          'proposal_id': 'proposal-1',
+          'target_id': 'target-1',
+          'action': 'system_health',
+          'status': 'succeeded',
+          'exit_code': 0,
+          'output': 'HOST\npi',
+          'truncated': false,
+          'duration_ms': 30,
+          'executed_at': '2026-07-28T16:01:00Z',
+        }));
+      }
+      await request.response.close();
+    });
+
+    final api = ControllerApi(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      apiToken: 'test-token',
+    );
+    final proposal = await api.proposeRemoteDiagnostic(
+      targetId: 'target-1',
+      goal: 'Check Pi health',
+    );
+    final result = await api.executeDiagnosticProposal(proposal.id);
+
+    expect(requestCount, 2);
+    expect(proposal.plan.action, 'system_health');
+    expect(result.status, 'succeeded');
+    expect(result.output, contains('pi'));
+  });
 }

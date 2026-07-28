@@ -72,7 +72,7 @@ class TaskStore:
                     "task.queued",
                     str(record.id),
                     record.target_id,
-                    "Task queued; executor remains disabled.",
+                    "Task queued; autonomous execution remains disabled.",
                     details,
                     created_at.isoformat(),
                 ),

@@ -109,6 +109,27 @@ An opened client remains a human-operated OS process. It is not contained by
 BoxBrain and inherits the signed-in user's privileges, so operators must verify
 the visible host identity and close the session when finished. Queued or model
 processing tasks have no handle to these clients.
+
+## Approval-gated Kali Pi diagnostics
+
+The diagnostic model has no tools. Its Pydantic output can select only four
+read-only action identifiers; summaries and prompt content never become process
+arguments. The operator must inspect each proposal and type `RUN`. Proposals
+expire after ten minutes, transition atomically out of `pending`, and cannot be
+executed twice.
+
+The executor is limited to the built-in Kali Pi identity. It reuses private-scope
+resolution, strict SSH host-key checking, batch authentication, the dedicated Pi
+key when present, a command deadline, and a 32 KiB output cap. The mapping from
+action identifier to remote command is a source-controlled constant. No API
+field accepts executable text, arguments, paths, service names, or environment
+variables.
+
+Raw diagnostic output is treated as untrusted display data. It is returned only
+to the authenticated operator, is not sent back to the model, and is not copied
+into the append-only audit event. Audit records retain only action, status, exit
+code, duration, truncation state, model, token use, and proposal identity.
+
 ## Emergency-stop boundary
 
 The emergency-stop state is persisted in the controller database and remains
@@ -119,10 +140,11 @@ read-only health, audit, target discovery, and frame observation remain
 available. Reset requires the exact confirmation value `RESET`, and the
 dashboard also requires an explicit typed confirmation.
 
-All future executors and effectful plugins must acquire the same controller
-action gate and re-check the persistent stop state before acting.
+The diagnostic executor acquires this controller action gate and rechecks the
+persistent stop before SSH starts. All future executors and effectful plugins
+must use the same boundary.
 
-## Before adding an executor
+## Before adding a broader executor
 
 - Use a VM snapshot with no sensitive files or credentials.
 - Put the target on a dedicated network segment with explicit egress rules.
