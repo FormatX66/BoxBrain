@@ -14,19 +14,21 @@ authenticated, resumable live audit events with HTTP polling fallback. The
 first observation protocol, target identity, allowlisting workflow, and
 evidence-retention limits are specified. Durable target records, audited
 enable/disable operations, enabled-target task admission, and the Flutter
-target workflow are implemented. The observation-only transport is not yet
-implemented. No keyboard, mouse, shell, remote-desktop, or model actions
-execute.
+target workflow are implemented. The fail-closed certificate-probe API,
+versioned helper protocol, verification audit events, atomic mismatch
+disablement, and Flutter probe control are implemented. The native FreeRDP
+helper and frame transport are not yet implemented. No keyboard, mouse, shell,
+remote-desktop, or model actions execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 55% planning estimate
-- **Current revision:** `dcc32b8` on `feature/brainconnect-target-registry`
+- **Completion:** 62% planning estimate
+- **Current revision:** `877573f` on `feature/brainconnect-rdp-observer`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 2](https://github.com/FormatX66/BrainConnect/pull/2)
+- **Draft review:** [Pull request 3](https://github.com/FormatX66/BrainConnect/pull/3)
 
 ## Dependencies
 
@@ -46,6 +48,7 @@ execute.
 - [Development](../../../BrainConnect/docs/DEVELOPMENT.md)
 - [Plugin contract](../../../BrainConnect/docs/PLUGIN_CONTRACT.md)
 - [Observation targets](../../../BrainConnect/docs/TARGETS.md)
+- [RDP helper protocol](../../../BrainConnect/plugins/rdp-observer/PROTOCOL.md)
 
 ## Related projects
 
@@ -56,7 +59,7 @@ execute.
 
 ## Immediate next step
 
-Implement an out-of-process, certificate-only FreeRDP probe that compares the
-observed identity with the approved pin, rejects and disables mismatches, and
-does not authenticate or expose remote input. The canonical task sequence is
-tracked in the [Master TODO](../../Admin/MasterTODO.md).
+Build the native `brainconnect-freerdp-probe` helper in a reproducible FreeRDP
+3.x toolchain, then verify the X.509 callback and pre-authentication abort
+against an isolated lab target. The canonical task sequence is tracked in the
+[Master TODO](../../Admin/MasterTODO.md).

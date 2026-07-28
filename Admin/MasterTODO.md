@@ -19,8 +19,11 @@
 - [x] Implement the durable target registry and audited enable/disable API.
 - [x] Gate task creation on enabled target UUIDs.
 - [x] Add the Flutter target registration and approval workflow.
+- [x] Implement the certificate-probe process protocol and identity-mismatch
+  handler.
+- [x] Add the Flutter certificate-probe workflow.
 - [ ] Implement the out-of-process FreeRDP observation plugin.
-- [ ] Implement the certificate-only probe and identity-mismatch handler.
+- [ ] Build and live-test the native FreeRDP certificate helper.
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).

@@ -13,5 +13,6 @@ This file is the permanent searchable index.
 | BB-ADR-006 | 2026-07-28 | Use an observation-only FreeRDP plugin with pinned certificate identity and disabled-by-default target approval. | [Session decision log](../SessionHandoffs/BB-2026-07-28-003/DecisionLog.md#bb-adr-006) |
 | BB-ADR-007 | 2026-07-28 | Consolidate the canonical organization into the existing BoxBrain remote through a review branch. | [Session decision log](../SessionHandoffs/BB-2026-07-28-003/DecisionLog.md#bb-adr-007) |
 | BB-ADR-008 | 2026-07-28 | Persist target identity separately from authority and admit tasks only for explicitly enabled target UUIDs. | [Session decision log](../SessionHandoffs/BB-2026-07-28-004/DecisionLog.md#bb-adr-008) |
+| BB-ADR-009 | 2026-07-28 | Isolate certificate observation behind a versioned, fail-closed helper protocol and permit pre-approval probes of registered targets. | [Session decision log](../SessionHandoffs/BB-2026-07-28-005/DecisionLog.md#bb-adr-009) |
 
 Before adding a decision, search this index and the linked session logs.

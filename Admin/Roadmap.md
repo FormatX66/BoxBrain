@@ -32,14 +32,24 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 - Flutter registration, review, approval, and disable workflow
 - Credentials excluded from target records
 
-## Next — BrainConnect observation probe
+## Completed — BrainConnect certificate-probe boundary
 
-- Define a fixed, out-of-process FreeRDP invocation.
-- Probe server-certificate identity without authenticating to a desktop.
-- Reject identity mismatches and disable the affected target.
+- Fixed, out-of-process helper invocation with no command shell
+- Strict, versioned, bounded JSON response protocol
+- Server-certificate comparison without credentials or a desktop session
+- Atomic disablement and audit record after an identity mismatch
+- Flutter probe action and last-verification display
+- Deterministic process, timeout, protocol, mismatch, and audit tests
+
+## Next — BrainConnect native FreeRDP helper
+
+- Establish a reproducible FreeRDP 3.x and CMake build environment.
+- Implement the X.509 callback and abort before authentication.
+- Prove exact-match and changed-certificate behavior against an isolated lab
+  target.
 - Keep keyboard, pointer, clipboard, file, shell, and device redirection
   unavailable.
-- Add deterministic process, mismatch, and audit-event tests.
+- Package the helper separately and configure its absolute executable path.
 
 ## Later — Shared ecosystem services
 

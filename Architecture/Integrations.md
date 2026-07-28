@@ -10,7 +10,7 @@ never stored in this repository.
 | SQLite | BrainConnect | Implemented | Durable task and append-only audit storage | [Architecture](../../BrainConnect/docs/ARCHITECTURE.md) |
 | Authenticated WebSocket | BrainConnect | Implemented | Resumable live audit delivery with no token in the URL | [Controller protocol](../../BrainConnect/controller/README.md#live-event-protocol) |
 | Target registry | BrainConnect | Implemented | Disabled-by-default identity records and enabled-target task admission | [Target protocol](../../BrainConnect/docs/TARGETS.md) |
-| FreeRDP observation | BrainConnect | Specified | Out-of-process, certificate-pinned, observation-only RDP plugin | [Target protocol](../../BrainConnect/docs/TARGETS.md) |
+| FreeRDP observation | BrainConnect | Process boundary implemented; native helper pending | Fixed, out-of-process, certificate-pinned RDP certificate probe | [Helper protocol](../../BrainConnect/plugins/rdp-observer/PROTOCOL.md) |
 | Cloud model provider | BrainConnect | Planned | Provider-neutral structured planner adapter | [Roadmap](../../BrainConnect/docs/ROADMAP.md) |
 | Git hosting | Ecosystem | Configured | Existing BoxBrain remote plus private BrainConnect remote | [Repository index](../Admin/RepositoryIndex.md) |
 
