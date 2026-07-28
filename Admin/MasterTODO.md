@@ -12,7 +12,7 @@
 
 ## P0 — BrainConnect
 
-- [ ] Implement the authenticated live event stream.
+- [x] Implement the authenticated live event stream.
 - [ ] Add observation-target identity and allowlisting.
 - [ ] Specify an observation-only RDP or VNC plugin.
 - [ ] Define evidence retention and redaction policy.

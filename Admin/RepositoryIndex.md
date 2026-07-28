@@ -5,7 +5,7 @@ This is the canonical registry of repositories known to BoxBrain.
 | Project | Repository | State | Revision | Remote |
 | --- | --- | --- | --- | --- |
 | BoxBrain | This repository | Initial organization | `main` (local) | Not configured |
-| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `1c6c926` | Not configured |
+| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `9515d02` on `feature/brainconnect-live-events` | Not configured |
 | WebsiteBuilder | No repository discovered | Discovery | — | — |
 | Arkmatx | No repository discovered | Discovery | — | — |
 | AgentFramework | No repository discovered | Proposed | — | — |

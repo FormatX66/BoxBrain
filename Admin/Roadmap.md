@@ -7,9 +7,15 @@
 - Add global indexes, dependency maps, validation, and session handoffs.
 - Obtain the canonical remote URLs and ownership metadata.
 
+## Completed — BrainConnect live events
+
+- Authenticated first-message WebSocket connection
+- Cursor resume and reconnect from the latest audit sequence
+- HTTP polling fallback with sequence deduplication
+- Browser-origin validation and local end-to-end verification
+
 ## Next — BrainConnect observation milestone
 
-- Add an authenticated live event stream.
 - Define target identity and allowlisting.
 - Select one observation-only RDP or VNC adapter.
 - Define capture retention and redaction rules.

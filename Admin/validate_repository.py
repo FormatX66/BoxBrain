@@ -9,7 +9,6 @@ from urllib.parse import unquote
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SESSION = "BB-2026-07-28-001"
 PROJECTS = (
     "BrainConnect",
     "WebsiteBuilder",
@@ -64,6 +63,9 @@ REQUIRED_FILES = (
     "Archive/README.md",
 )
 LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+SESSION_DIRECTORY_PATTERN = re.compile(
+    r"^BB-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{3}$"
+)
 
 
 def local_link_target(document: Path, raw_target: str) -> Path | None:
@@ -81,9 +83,18 @@ def main() -> int:
     required = list(REQUIRED_FILES)
     required.extend(f"Projects/{project}/ProjectIndex.md" for project in PROJECTS)
     required.extend(f"Agents/{agent}/Role.md" for agent in AGENTS)
-    required.extend(
-        f"SessionHandoffs/{SESSION}/{filename}" for filename in SESSION_FILES
+    session_directories = sorted(
+        path
+        for path in (ROOT / "SessionHandoffs").iterdir()
+        if path.is_dir() and SESSION_DIRECTORY_PATTERN.fullmatch(path.name)
     )
+    if not session_directories:
+        errors.append("No session handoff directories found")
+    for session_directory in session_directories:
+        required.extend(
+            f"SessionHandoffs/{session_directory.name}/{filename}"
+            for filename in SESSION_FILES
+        )
 
     for relative_path in required:
         if not (ROOT / relative_path).is_file():
