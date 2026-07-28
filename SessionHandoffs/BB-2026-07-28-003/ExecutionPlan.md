@@ -1,14 +1,14 @@
 # Execution Plan
 
-## 1. Publish the verified foundation
+## 1. Published verified foundation
 
-1. Push BrainConnect `main`.
-2. Push `feature/brainconnect-live-events`.
-3. Integrate the canonical BoxBrain history into a branch based on the existing
+1. [x] Push BrainConnect `main`.
+2. [x] Push `feature/brainconnect-live-events`.
+3. [x] Integrate the canonical BoxBrain history into a branch based on the existing
    remote main branch.
-4. Resolve overlapping root documentation while preserving both histories.
-5. Validate and push `codex/repository-organization`.
-6. Open a draft review for the BoxBrain consolidation.
+4. [x] Resolve overlapping root documentation while preserving both histories.
+5. [x] Validate and push `codex/repository-organization`.
+6. [x] Open draft reviews for BrainConnect and BoxBrain.
 
 ## 2. Implement the target registry
 

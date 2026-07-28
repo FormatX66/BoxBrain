@@ -13,8 +13,9 @@
 - [x] Observation protocol and no-input boundary documented.
 - [x] Retention and redaction policy documented.
 - [x] BrainConnect commit created: `7924654`.
-- [ ] BrainConnect branches pushed to the new remote.
-- [ ] BoxBrain organization branch pushed to the existing remote.
-- [ ] Draft review opened for BoxBrain consolidation.
+- [x] BrainConnect branches pushed to the new remote.
+- [x] BoxBrain organization branch pushed to the existing remote.
+- [x] BrainConnect draft review opened as pull request 1.
+- [x] BoxBrain consolidation draft review opened as pull request 3.
 - [x] BoxBrain structural and link validator passes before integration.
-- [ ] BoxBrain structural and link validator passes after integration.
+- [x] BoxBrain structural and link validator passes after integration.
