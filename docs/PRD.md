@@ -24,12 +24,14 @@ The alpha is complete when an operator can:
 - Read-only Windows Sandbox discovery and local frame capture.
 - Target allowlisting and three policy profiles with containment invariants.
 - Persistent, audited emergency stop with guarded reset and effectful-request gate.
+- Authorized private-host manager for guarded, human-operated USB-C SSH, SSH,
+  WinRM, RDP, and lab-only Telnet sessions.
 - No task or input execution.
 
 ## Out of scope for this scaffold
 
 - Keyboard or mouse injection
-- Remote RDP, VNC, or HDMI transport control
+- Autonomous remote-desktop/input control and VNC or HDMI transport plugins
 - Shell command execution
 - Cloud model calls or secret storage
 - Automatic code modification

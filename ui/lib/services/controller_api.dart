@@ -49,6 +49,7 @@ class ControllerApi {
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
+  Uri get remoteTargetsEndpoint => endpoint('/api/v1/remote-targets');
   Uri get edgeAgentsEndpoint => endpoint('/api/v1/edge-agents');
   Uri get agentsEndpoint => endpoint('/api/v1/agents');
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
@@ -206,6 +207,75 @@ class ControllerApi {
     return json
         .map((item) => TargetSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
+  }
+
+  Future<List<RemoteTargetSummary>> fetchRemoteTargets() async {
+    final json = await _getJson(remoteTargetsEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => RemoteTargetSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<RemoteTargetSummary> createRemoteTarget({
+    required String name,
+    required String transport,
+    required String host,
+    required int port,
+    String? username,
+    bool insecureTransportAcknowledged = false,
+  }) async {
+    final json = await _postJson(
+      remoteTargetsEndpoint,
+      {
+        'name': name,
+        'transport': transport,
+        'host': host,
+        'port': port,
+        if (username != null && username.trim().isNotEmpty)
+          'username': username.trim(),
+        'authorization': 'AUTHORIZED',
+        'insecure_transport_acknowledged': insecureTransportAcknowledged,
+      },
+    );
+    return RemoteTargetSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<void> deleteRemoteTarget(String targetId) async {
+    await _request(
+      () => http.delete(
+        endpoint('/api/v1/remote-targets/$targetId'),
+        headers: _headers,
+      ),
+    );
+  }
+
+  Future<RemoteTargetProbeSummary> probeRemoteTarget(String targetId) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/probe'),
+      const {},
+    );
+    return RemoteTargetProbeSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<RemoteSessionSummary> openRemoteTargetSession({
+    required String targetId,
+    String? insecureConfirmation,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/session'),
+      {
+        'confirmation': 'OPEN',
+        if (insecureConfirmation != null)
+          'insecure_confirmation': insecureConfirmation,
+      },
+    );
+    return RemoteSessionSummary.fromJson(json as Map<String, dynamic>);
   }
 
   Future<List<EdgeAgentSummary>> fetchEdgeAgents() async {

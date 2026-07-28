@@ -174,4 +174,87 @@ void main() {
     expect(importResult.chatCount, 0);
     expect(task.status, 'done');
   });
+  test('remote target routes send fixed authenticated request shapes',
+      () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requestCount = 0;
+
+    server.listen((request) async {
+      requestCount += 1;
+      expect(request.headers.value('X-BoxBrain-Token'), 'test-token');
+      request.response.headers.contentType = ContentType.json;
+      final path = request.uri.path;
+
+      if (path == '/api/v1/remote-targets') {
+        expect(request.method, 'POST');
+        final body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        expect(body['transport'], 'winrm');
+        expect(body['host'], '192.168.50.23');
+        expect(body['port'], 5986);
+        expect(body['authorization'], 'AUTHORIZED');
+        expect(body.containsKey('password'), isFalse);
+        request.response.write(jsonEncode({
+          'id': 'target-1',
+          'name': 'Repair PC',
+          'transport': 'winrm',
+          'host': '192.168.50.23',
+          'port': 5986,
+          'username': null,
+          'authorized': true,
+          'built_in': false,
+          'status': 'unknown',
+          'credential_mode': 'current-user',
+          'capabilities': ['tcp-probe', 'powershell-session'],
+          'last_checked_at': null,
+          'created_at': '2026-07-28T14:00:00Z',
+        }));
+      } else if (path.endsWith('/probe')) {
+        expect(request.method, 'POST');
+        request.response.write(jsonEncode({
+          'target_id': 'target-1',
+          'status': 'online',
+          'resolved_address': '192.168.50.23',
+          'latency_ms': 4,
+          'message': 'WINRM endpoint is reachable.',
+          'checked_at': '2026-07-28T14:01:00Z',
+        }));
+      } else if (path.endsWith('/session')) {
+        expect(request.method, 'POST');
+        final body = jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+        expect(body, {'confirmation': 'OPEN'});
+        request.response.write(jsonEncode({
+          'target_id': 'target-1',
+          'status': 'opened',
+          'application': 'WinRM PowerShell',
+          'message': 'Opened an operator-controlled WinRM session.',
+        }));
+      } else {
+        expect(path, '/api/v1/remote-targets/target-1');
+        expect(request.method, 'DELETE');
+        request.response.statusCode = HttpStatus.noContent;
+      }
+      await request.response.close();
+    });
+
+    final api = ControllerApi(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      apiToken: 'test-token',
+    );
+    final target = await api.createRemoteTarget(
+      name: 'Repair PC',
+      transport: 'winrm',
+      host: '192.168.50.23',
+      port: 5986,
+    );
+    final probe = await api.probeRemoteTarget(target.id);
+    final session = await api.openRemoteTargetSession(targetId: target.id);
+    await api.deleteRemoteTarget(target.id);
+
+    expect(requestCount, 4);
+    expect(probe.status, 'online');
+    expect(session.application, 'WinRM PowerShell');
+  });
 }

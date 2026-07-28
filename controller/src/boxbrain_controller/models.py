@@ -10,6 +10,10 @@ PolicyProfileName = Literal["safe", "research", "open"]
 AuditEventType = Literal[
     "task.queued",
     "target.start_requested",
+    "remote_target.registered",
+    "remote_target.removed",
+    "remote_target.probed",
+    "remote_target.session_opened",
     "safety.emergency_stop_engaged",
     "safety.emergency_stop_reset",
 ]
@@ -125,6 +129,71 @@ class TargetSummary(BaseModel):
 class TargetStartResponse(BaseModel):
     target_id: Literal["windows-sandbox"]
     status: Literal["starting", "already_running"]
+    message: str
+
+
+RemoteTransport = Literal["usb-c", "ssh", "winrm", "rdp", "telnet"]
+RemoteTargetStatus = Literal["unknown", "online", "offline"]
+
+
+class RemoteTargetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    transport: RemoteTransport
+    host: str = Field(min_length=1, max_length=253)
+    port: int | None = Field(default=None, ge=1, le=65_535)
+    username: str | None = Field(default=None, max_length=120)
+    authorization: Literal["AUTHORIZED"]
+    insecure_transport_acknowledged: bool = False
+
+    @field_validator("name", "host", "username")
+    @classmethod
+    def normalize_remote_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
+
+
+class RemoteTargetRecord(BaseModel):
+    id: UUID
+    name: str
+    transport: RemoteTransport
+    host: str
+    port: int = Field(ge=1, le=65_535)
+    username: str | None
+    authorized: bool = True
+    built_in: bool = False
+    status: RemoteTargetStatus = "unknown"
+    credential_mode: Literal[
+        "dedicated-key",
+        "ssh-agent",
+        "current-user",
+        "interactive",
+        "none",
+    ]
+    capabilities: tuple[str, ...]
+    last_checked_at: datetime | None
+    created_at: datetime
+
+
+class RemoteTargetProbeResult(BaseModel):
+    target_id: UUID
+    status: Literal["online", "offline"]
+    resolved_address: str | None
+    latency_ms: int | None = Field(default=None, ge=0)
+    message: str
+    checked_at: datetime
+
+
+class RemoteSessionRequest(BaseModel):
+    confirmation: Literal["OPEN"]
+    insecure_confirmation: str | None = Field(default=None, max_length=80)
+
+
+class RemoteSessionResult(BaseModel):
+    target_id: UUID
+    status: Literal["opened"]
+    application: str
     message: str
 
 

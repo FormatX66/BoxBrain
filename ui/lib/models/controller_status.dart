@@ -356,6 +356,110 @@ class EdgeAgentSummary {
   final String wifiCredentialAudit;
 }
 
+class RemoteTargetSummary {
+  const RemoteTargetSummary({
+    required this.id,
+    required this.name,
+    required this.transport,
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.authorized,
+    required this.builtIn,
+    required this.status,
+    required this.credentialMode,
+    required this.capabilities,
+    required this.lastCheckedAt,
+    required this.createdAt,
+  });
+
+  factory RemoteTargetSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteTargetSummary(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      transport: json['transport'] as String,
+      host: json['host'] as String,
+      port: json['port'] as int,
+      username: json['username'] as String?,
+      authorized: json['authorized'] as bool,
+      builtIn: json['built_in'] as bool,
+      status: json['status'] as String,
+      credentialMode: json['credential_mode'] as String,
+      capabilities: (json['capabilities'] as List<dynamic>).cast<String>(),
+      lastCheckedAt: json['last_checked_at'] == null
+          ? null
+          : DateTime.parse(json['last_checked_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  final String id;
+  final String name;
+  final String transport;
+  final String host;
+  final int port;
+  final String? username;
+  final bool authorized;
+  final bool builtIn;
+  final String status;
+  final String credentialMode;
+  final List<String> capabilities;
+  final DateTime? lastCheckedAt;
+  final DateTime createdAt;
+}
+
+class RemoteTargetProbeSummary {
+  const RemoteTargetProbeSummary({
+    required this.targetId,
+    required this.status,
+    required this.resolvedAddress,
+    required this.latencyMs,
+    required this.message,
+    required this.checkedAt,
+  });
+
+  factory RemoteTargetProbeSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteTargetProbeSummary(
+      targetId: json['target_id'] as String,
+      status: json['status'] as String,
+      resolvedAddress: json['resolved_address'] as String?,
+      latencyMs: json['latency_ms'] as int?,
+      message: json['message'] as String,
+      checkedAt: DateTime.parse(json['checked_at'] as String),
+    );
+  }
+
+  final String targetId;
+  final String status;
+  final String? resolvedAddress;
+  final int? latencyMs;
+  final String message;
+  final DateTime checkedAt;
+}
+
+class RemoteSessionSummary {
+  const RemoteSessionSummary({
+    required this.targetId,
+    required this.status,
+    required this.application,
+    required this.message,
+  });
+
+  factory RemoteSessionSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteSessionSummary(
+      targetId: json['target_id'] as String,
+      status: json['status'] as String,
+      application: json['application'] as String,
+      message: json['message'] as String,
+    );
+  }
+
+  final String targetId;
+  final String status;
+  final String application;
+  final String message;
+}
+
 class AuditEventSummary {
   const AuditEventSummary({
     required this.sequence,

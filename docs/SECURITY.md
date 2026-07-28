@@ -89,6 +89,26 @@ are recorded in ignored metadata. `remove-local-tls.ps1` uses only those
 thumbprints and that verified directory for reversible cleanup. This CA is for
 local development only and must never sign certificates for another service.
 
+## Authorized remote targets
+
+The connected-host manager stores only target identity and connection metadata.
+It resolves a target before each probe or session and rejects any result outside
+private, loopback, or link-local address space. Public, multicast, and
+unspecified addresses are denied. Probes are limited to the registered TCP
+endpoint.
+
+Session routes choose only a fixed SSH, WinRM, RDP, or Telnet client argument
+list and accept no shell commands. Every launch requires `OPEN`, is audited, and
+is blocked by the persistent emergency stop. Telnet is available only for an
+explicitly acknowledged lab profile and requires the additional exact phrase
+`I UNDERSTAND TELNET IS PLAINTEXT`. BoxBrain has no password field or credential
+store; use an SSH agent, the dedicated Pi key, the current Windows identity, or
+an operating-system credential prompt.
+
+An opened client remains a human-operated OS process. It is not contained by
+BoxBrain and inherits the signed-in user's privileges, so operators must verify
+the visible host identity and close the session when finished. Queued or model
+processing tasks have no handle to these clients.
 ## Emergency-stop boundary
 
 The emergency-stop state is persisted in the controller database and remains

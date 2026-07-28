@@ -33,6 +33,11 @@ from .models import (
     ProcessingRequest,
     ProcessingRun,
     ProjectSummary,
+    RemoteSessionRequest,
+    RemoteSessionResult,
+    RemoteTargetCreate,
+    RemoteTargetProbeResult,
+    RemoteTargetRecord,
     TargetStartResponse,
     TargetSummary,
     TaskCreate,
@@ -59,6 +64,13 @@ from .sandbox_observer import (
     SandboxObservationBusyError,
     SandboxStartError,
     WindowsSandboxObserver,
+)
+from .remote_targets import (
+    RemoteSessionLaunchError,
+    RemoteTargetError,
+    RemoteTargetNotFoundError,
+    RemoteTargetScopeError,
+    RemoteTargetService,
 )
 from .settings import settings
 from .task_store import TaskStore
@@ -93,6 +105,10 @@ sandbox_observer = OutOfProcessWindowsSandboxObserver(
 edge_agent_client = KaliPiEdgeAgentClient(
     settings.kali_pi_agent_url,
     timeout_seconds=settings.kali_pi_agent_timeout_seconds,
+)
+remote_target_service = RemoteTargetService(
+    settings.data_dir / "boxbrain.sqlite3",
+    usb_identity_file=settings.remote_usb_identity_file,
 )
 control_lock = Lock()
 
@@ -462,6 +478,152 @@ def list_targets() -> list[TargetSummary]:
 @router.get("/edge-agents", response_model=list[EdgeAgentSummary])
 def list_edge_agents() -> list[EdgeAgentSummary]:
     return [edge_agent_client.describe()]
+
+
+@router.get("/remote-targets", response_model=list[RemoteTargetRecord])
+def list_remote_targets() -> list[RemoteTargetRecord]:
+    return remote_target_service.list()
+
+
+@router.post(
+    "/remote-targets",
+    response_model=RemoteTargetRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_remote_target(request: RemoteTargetCreate) -> RemoteTargetRecord:
+    try:
+        record = remote_target_service.create(request)
+    except RemoteTargetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.registered",
+        target_id=f"remote:{record.id}",
+        message=f"Authorized {record.transport} target registered.",
+        details={
+            "result": "registered",
+            "transport": record.transport,
+            "host": record.host,
+            "port": record.port,
+        },
+    )
+    return record
+
+
+@router.delete(
+    "/remote-targets/{target_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_remote_target(target_id: UUID) -> Response:
+    try:
+        record = remote_target_service.delete(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RemoteTargetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.removed",
+        target_id=f"remote:{record.id}",
+        message="Authorized remote target removed.",
+        details={"result": "removed", "transport": record.transport},
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/remote-targets/{target_id}/probe",
+    response_model=RemoteTargetProbeResult,
+)
+def probe_remote_target(target_id: UUID) -> RemoteTargetProbeResult:
+    try:
+        result = remote_target_service.probe(target_id)
+        record = remote_target_service.get(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RemoteTargetScopeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.probed",
+        target_id=f"remote:{record.id}",
+        message=f"{record.transport.upper()} target probe: {result.status}.",
+        details={
+            "result": result.status,
+            "transport": record.transport,
+            "port": record.port,
+            "latency_ms": result.latency_ms,
+        },
+    )
+    return result
+
+
+@router.post(
+    "/remote-targets/{target_id}/session",
+    response_model=RemoteSessionResult,
+)
+def open_remote_target_session(
+    target_id: UUID,
+    request: RemoteSessionRequest,
+) -> RemoteSessionResult:
+    with control_lock:
+        emergency_stop = task_store.get_emergency_stop()
+        if emergency_stop.engaged:
+            task_store.append_event(
+                event_type="remote_target.session_opened",
+                target_id=f"remote:{target_id}",
+                message="Remote session blocked by emergency stop.",
+                details={
+                    "result": "blocked",
+                    "reason": "emergency_stop",
+                    "generation": emergency_stop.generation,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Emergency stop is engaged. Reset it before opening a session.",
+            )
+        try:
+            result = remote_target_service.open_session(target_id, request)
+            record = remote_target_service.get(target_id)
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except (RemoteTargetError, RemoteTargetScopeError) as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(error),
+            ) from error
+        except RemoteSessionLaunchError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(error),
+            ) from error
+        task_store.append_event(
+            event_type="remote_target.session_opened",
+            target_id=f"remote:{record.id}",
+            message=result.message,
+            details={
+                "result": result.status,
+                "transport": record.transport,
+                "application": result.application,
+            },
+        )
+    return result
 
 
 @router.post(

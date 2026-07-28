@@ -23,7 +23,10 @@
 - Child-process redaction engine with operator-configured regions (implemented; default region list is empty)
 - Zero evidence retention and single-capture backpressure (implemented)
 - No input execution (implemented)
-
+- Authorized private-host manager with USB-C SSH, SSH, WinRM, RDP, and guarded
+  lab-only Telnet operator sessions (implemented)
+- Fixed-argument OS client launch, TCP probe, durable profiles, audit events,
+  and emergency-stop gate (implemented)
 ## 0.4 — Typed input in a disposable VM
 
 - Bounded pointer and keyboard actions

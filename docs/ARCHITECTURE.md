@@ -73,6 +73,21 @@ the Pi's local Unix control socket after private-route and key-only SSH
 verification. Neither path is exposed through the controller's edge-agent
 status client.
 
+## Operator remote-session boundary
+
+Remote target profiles are durable controller records for private, loopback, or
+link-local hosts. The manager supports the Pi USB-C SSH path, general SSH,
+WinRM, RDP, and explicitly acknowledged lab-only Telnet. A probe opens only a
+bounded TCP connection to the registered host and port. A session request
+selects a fixed argument vector for the matching operating-system client; the
+API accepts no executable, script, or command input.
+
+Session launch requires the dashboard's exact `OPEN` confirmation and a clear
+persistent emergency stop. Telnet additionally requires the exact plaintext-risk
+phrase. Passwords are never accepted or stored: SSH uses the agent or dedicated
+Pi identity, WinRM uses the current Windows identity, and RDP handles credentials
+interactively. These are human-controlled terminals or desktops, not an action
+executor, and queued tasks cannot drive them.
 ## Data flow
 
 1. The UI submits a task tied to an allowlisted target and policy profile.

@@ -279,6 +279,77 @@ void main() {
     expect(find.text('Done'), findsWidgets);
     expect(find.text('Task marked Done.'), findsOneWidget);
   });
+  testWidgets('tests and opens the built-in USB-C target', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final api = _RemoteControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.desktop_windows_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Connected hosts'), findsOneWidget);
+    expect(find.text('Kali Pi USB-C'), findsOneWidget);
+
+    final probe = find.byKey(const Key('probe-remote-remote-usb'));
+    await tester.ensureVisible(probe);
+    await tester.tap(probe);
+    await tester.pumpAndSettle();
+    expect(api.probeCalls, 1);
+
+    final open = find.byKey(const Key('open-remote-remote-usb'));
+    await tester.ensureVisible(open);
+    await tester.tap(open);
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('remote-open-confirmation')),
+      'OPEN',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('confirm-open-remote')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(api.openCalls, 1);
+    expect(find.textContaining('operator-controlled SSH'), findsOneWidget);
+  });
+
+  testWidgets('adds an authorized SSH target from the Target screen', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final api = _RemoteControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.desktop_windows_outlined));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('add-remote-target')));
+    await tester.tap(find.byKey(const Key('add-remote-target')));
+    await tester.pump();
+
+    await tester.enterText(
+      find.byKey(const Key('remote-name')),
+      'Repair PC',
+    );
+    await tester.enterText(
+      find.byKey(const Key('remote-host')),
+      '192.168.50.23',
+    );
+    await tester.enterText(
+      find.byKey(const Key('remote-username')),
+      'technician',
+    );
+    await tester.tap(find.byKey(const Key('remote-authorized')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('confirm-add-remote')));
+    await tester.pumpAndSettle();
+
+    expect(api.createCalls, 1);
+    expect(find.text('Repair PC'), findsOneWidget);
+    expect(find.text('192.168.50.23:22'), findsOneWidget);
+  });
 }
 
 class _OnlineControllerApi extends ControllerApi {
@@ -371,6 +442,29 @@ class _OnlineControllerApi extends ControllerApi {
           capabilities: ['observation.describe', 'observation.frame'],
           processBoundary: 'out-of-process',
           targetId: 'windows-sandbox',
+        ),
+      ];
+
+  @override
+  Future<List<RemoteTargetSummary>> fetchRemoteTargets() async => [
+        RemoteTargetSummary(
+          id: 'remote-usb',
+          name: 'Kali Pi USB-C',
+          transport: 'usb-c',
+          host: '10.12.194.1',
+          port: 22,
+          username: 'kali',
+          authorized: true,
+          builtIn: true,
+          status: 'online',
+          credentialMode: 'dedicated-key',
+          capabilities: const [
+            'tcp-probe',
+            'interactive-shell',
+            'edge-diagnostics',
+          ],
+          lastCheckedAt: DateTime.utc(2026, 7, 28, 15),
+          createdAt: DateTime.utc(2026, 7, 24, 12),
         ),
       ];
 
@@ -688,6 +782,102 @@ class _AgentControllerApi extends _OnlineControllerApi {
   }
 }
 
+class _RemoteControllerApi extends _OnlineControllerApi {
+  _RemoteControllerApi();
+
+  int createCalls = 0;
+  int probeCalls = 0;
+  int openCalls = 0;
+  int deleteCalls = 0;
+  final List<RemoteTargetSummary> remoteTargets = [
+    RemoteTargetSummary(
+      id: 'remote-usb',
+      name: 'Kali Pi USB-C',
+      transport: 'usb-c',
+      host: '10.12.194.1',
+      port: 22,
+      username: 'kali',
+      authorized: true,
+      builtIn: true,
+      status: 'online',
+      credentialMode: 'dedicated-key',
+      capabilities: const [
+        'tcp-probe',
+        'interactive-shell',
+        'edge-diagnostics',
+      ],
+      lastCheckedAt: DateTime.utc(2026, 7, 28, 15),
+      createdAt: DateTime.utc(2026, 7, 24, 12),
+    ),
+  ];
+
+  @override
+  Future<List<RemoteTargetSummary>> fetchRemoteTargets() async =>
+      List.unmodifiable(remoteTargets);
+
+  @override
+  Future<RemoteTargetSummary> createRemoteTarget({
+    required String name,
+    required String transport,
+    required String host,
+    required int port,
+    String? username,
+    bool insecureTransportAcknowledged = false,
+  }) async {
+    createCalls += 1;
+    final target = RemoteTargetSummary(
+      id: 'remote-created',
+      name: name,
+      transport: transport,
+      host: host,
+      port: port,
+      username: username,
+      authorized: true,
+      builtIn: false,
+      status: 'unknown',
+      credentialMode: 'ssh-agent',
+      capabilities: const ['tcp-probe', 'interactive-shell'],
+      lastCheckedAt: null,
+      createdAt: DateTime.utc(2026, 7, 28, 16),
+    );
+    remoteTargets.add(target);
+    return target;
+  }
+
+  @override
+  Future<RemoteTargetProbeSummary> probeRemoteTarget(String targetId) async {
+    probeCalls += 1;
+    return RemoteTargetProbeSummary(
+      targetId: targetId,
+      status: 'online',
+      resolvedAddress: '10.12.194.1',
+      latencyMs: 4,
+      message: 'USB-C endpoint is reachable.',
+      checkedAt: DateTime.utc(2026, 7, 28, 16),
+    );
+  }
+
+  @override
+  Future<RemoteSessionSummary> openRemoteTargetSession({
+    required String targetId,
+    String? insecureConfirmation,
+  }) async {
+    openCalls += 1;
+    return RemoteSessionSummary(
+      targetId: targetId,
+      status: 'opened',
+      application: 'SSH terminal',
+      message: 'Opened an operator-controlled SSH terminal session.',
+    );
+  }
+
+  @override
+  Future<void> deleteRemoteTarget(String targetId) async {
+    deleteCalls += 1;
+    remoteTargets.removeWhere((target) => target.id == targetId);
+  }
+}
+
 class _OfflineControllerApi extends ControllerApi {
   const _OfflineControllerApi();
 
@@ -715,6 +905,9 @@ class _OfflineControllerApi extends ControllerApi {
 
   @override
   Future<List<PluginSummary>> fetchPlugins() async => const [];
+
+  @override
+  Future<List<RemoteTargetSummary>> fetchRemoteTargets() async => const [];
 
   @override
   Future<List<EdgeAgentSummary>> fetchEdgeAgents() async => const [];

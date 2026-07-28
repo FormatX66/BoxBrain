@@ -133,7 +133,21 @@ or raw diagnostic reports into its API. See [docs/EDGE_AGENT.md](docs/EDGE_AGENT
 for the architecture, tunnel command, USB-C and SSH/Wi-Fi target enrollment, and safe Pi upgrade
 path.
 
-### 5. Queue and audit tasks
+### 5. Connect an authorized host
+
+Open **Target** and use **Add target** to register a private, loopback, or
+link-local host. Supported operator-controlled sessions are USB-C SSH, SSH,
+Windows Remote Management, Windows Remote Desktop, and explicitly acknowledged
+lab-only Telnet. Use **Test** for a TCP reachability check, then **Open session**
+and type `OPEN` to launch the operating-system client.
+
+BoxBrain stores target metadata, not passwords. SSH uses the agent or the
+dedicated Pi key, WinRM uses the current Windows identity, and RDP prompts
+interactively. Telnet is plaintext and requires its separate exact warning
+phrase. The emergency stop blocks every session launch. This target manager
+does not give queued tasks a shell or autonomous host control.
+
+### 6. Queue and audit tasks
 
 Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
 `controller/data/boxbrain.sqlite3`, survive controller restarts, and create an
@@ -141,14 +155,14 @@ append-only event visible under **Logs**. New events arrive over an authenticate
 server-sent event stream with sequence-based resume and automatic reconnect.
 Queueing records intent only; the executor remains disabled.
 
-### 6. Emergency stop
+### 7. Emergency stop
 
 Use the red stop control from any dashboard screen to block Sandbox launches
 and future executor actions. The state survives controller restarts and every
 engage/reset request is audited. Read-only observation remains available while
 stopped. Resetting requires typing `RESET` in the confirmation dialog.
 
-### 7. Verify
+### 8. Verify
 
 ```powershell
 .\installer\validate-project.ps1

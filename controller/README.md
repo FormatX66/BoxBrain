@@ -25,6 +25,11 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/policies`
 - `GET /api/v1/plugins`
 - `GET /api/v1/targets`
+- `GET /api/v1/remote-targets`
+- `POST /api/v1/remote-targets`
+- `DELETE /api/v1/remote-targets/{target_id}`
+- `POST /api/v1/remote-targets/{target_id}/probe`
+- `POST /api/v1/remote-targets/{target_id}/session`
 - `GET /api/v1/edge-agents`
 - `GET /api/v1/agents`
 - `GET /api/v1/agents/runtime`
@@ -55,10 +60,13 @@ All API routes except health and documentation require `X-BoxBrain-Token` when
 `BOXBRAIN_API_TOKEN` is configured. Tokens shorter than 32 characters are
 rejected at startup.
 
-Task submission only records a queued task. No keyboard, mouse, shell, remote
-desktop, model, or plugin action is performed. The persistent emergency stop
-blocks effectful controller requests such as Sandbox launch; resetting it
-requires the exact API confirmation value `RESET`.
+Task submission only records a queued task. It performs no keyboard, mouse,
+shell, model, or plugin action. Remote-target routes separately manage
+operator-authorized private host profiles, probe a fixed host/port, and launch a
+known operating-system SSH, WinRM, RDP, or lab-only Telnet client with a fixed
+argument list after exact confirmation. They accept no command text and store no
+passwords. The persistent emergency stop blocks session and Sandbox launch;
+resetting it requires the exact API confirmation value `RESET`.
 
 Processing-agent intake is a provider-neutral, local-rule planner. It turns
 voice, chat, file, or API text into durable projects, searchable memory and

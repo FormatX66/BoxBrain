@@ -70,6 +70,12 @@ class Settings:
     kali_pi_agent_timeout_seconds: float = float(
         getenv("BOXBRAIN_KALI_PI_AGENT_TIMEOUT_SECONDS", "1.5")
     )
+    remote_usb_identity_file: Path = Path(
+        getenv(
+            "BOXBRAIN_REMOTE_USB_IDENTITY_FILE",
+            str(Path.home() / ".ssh" / "boxbrain_pi_ed25519"),
+        )
+    ).expanduser().resolve()
     agent_runtime_enabled: bool = _bool_environment(
         "BOXBRAIN_AGENT_RUNTIME_ENABLED",
         True,
