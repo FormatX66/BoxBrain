@@ -375,3 +375,32 @@ class OrganizedChatSummary {
   final int? pinnedIndex;
   final DateTime updatedAt;
 }
+
+class ChatOrganizerImportSummary {
+  const ChatOrganizerImportSummary({
+    required this.id,
+    required this.chatCount,
+    required this.createdCount,
+    required this.updatedCount,
+    required this.unchangedCount,
+    required this.suggestedMoveCount,
+  });
+
+  factory ChatOrganizerImportSummary.fromJson(Map<String, dynamic> json) {
+    return ChatOrganizerImportSummary(
+      id: json['id'] as String,
+      chatCount: json['chat_count'] as int,
+      createdCount: json['created_count'] as int,
+      updatedCount: json['updated_count'] as int,
+      unchangedCount: json['unchanged_count'] as int,
+      suggestedMoveCount: json['suggested_move_count'] as int,
+    );
+  }
+
+  final String id;
+  final int chatCount;
+  final int createdCount;
+  final int updatedCount;
+  final int unchangedCount;
+  final int suggestedMoveCount;
+}

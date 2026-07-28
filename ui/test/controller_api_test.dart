@@ -102,4 +102,76 @@ void main() {
     expect(result.localRun.steps.single.agentId, 'orchestrator');
     expect(result.usedModel, isFalse);
   });
+  test('chat import and task actions use authenticated controller routes',
+      () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requestCount = 0;
+
+    server.listen((request) async {
+      requestCount += 1;
+      expect(request.method, 'POST');
+      expect(request.headers.value('X-BoxBrain-Token'), 'test-token');
+      final body = jsonDecode(await utf8.decoder.bind(request).join())
+          as Map<String, dynamic>;
+      request.response.headers.contentType = ContentType.json;
+
+      if (request.uri.path == '/api/v1/chat-organizer/import') {
+        expect(body['source'], 'chatgpt_app_index');
+        expect(body['chats'], isEmpty);
+        request.response.write(
+          jsonEncode({
+            'id': 'import-1',
+            'source': 'chatgpt_app_index',
+            'captured_at': '2026-07-28T14:00:00Z',
+            'imported_at': '2026-07-28T14:00:01Z',
+            'source_project_count': 0,
+            'chat_count': 0,
+            'created_count': 0,
+            'updated_count': 0,
+            'unchanged_count': 0,
+            'unassigned_count': 0,
+            'suggested_move_count': 0,
+          }),
+        );
+      } else {
+        expect(
+          request.uri.path,
+          '/api/v1/agent-tasks/agent-task-1/status',
+        );
+        expect(body['status'], 'done');
+        request.response.write(
+          jsonEncode({
+            'id': 'agent-task-1',
+            'project_key': 'boxbrain',
+            'project': 'BoxBrain',
+            'title': 'Finish the interface.',
+            'status': 'done',
+            'source_run_id': 'run-1',
+            'created_at': '2026-07-28T14:00:00Z',
+            'updated_at': '2026-07-28T14:00:01Z',
+          }),
+        );
+      }
+      await request.response.close();
+    });
+
+    final api = ControllerApi(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      apiToken: 'test-token',
+    );
+    final importResult = await api.importChatOrganizerSnapshot(
+      '{"source":"chatgpt_app_index",'
+      '"captured_at":"2026-07-28T14:00:00Z",'
+      '"projects":[],"chats":[]}',
+    );
+    final task = await api.updateAgentTaskStatus(
+      taskId: 'agent-task-1',
+      status: 'done',
+    );
+
+    expect(requestCount, 2);
+    expect(importResult.chatCount, 0);
+    expect(task.status, 'done');
+  });
 }

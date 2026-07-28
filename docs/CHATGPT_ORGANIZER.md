@@ -55,6 +55,10 @@ All routes use the existing local `X-BoxBrain-Token` authentication.
 - `GET /api/v1/chat-organizer/chats`
 - `GET /api/v1/chat-organizer/imports`
 
+The **Agents** workspace exposes **Import snapshot**, which validates and posts
+this same normalized JSON contract. Import results and failures are shown in the
+interface, then the local project tree refreshes automatically.
+
 `POST /api/v1/chat-organizer/import` accepts a normalized snapshot:
 
 ```json

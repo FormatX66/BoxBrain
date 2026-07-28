@@ -221,6 +221,64 @@ void main() {
     expect(find.text('Latest result'), findsOneWidget);
     expect(find.text('Build the BoxBrain memory dashboard.'), findsWidgets);
   });
+
+  testWidgets('imports a ChatGPT organizer snapshot from the interface', (
+    tester,
+  ) async {
+    final api = _AgentControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.smart_toy_outlined));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('import-chat-snapshot')));
+    await tester.tap(find.byKey(const Key('import-chat-snapshot')));
+    await tester.pump();
+
+    await tester.enterText(
+      find.byKey(const Key('chat-import-json')),
+      '{"source":"chatgpt_app_index",'
+      '"captured_at":"2026-07-28T14:00:00Z",'
+      '"projects":[],"chats":[]}',
+    );
+    await tester.tap(find.byKey(const Key('confirm-chat-import')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(api.importCalls, 1);
+    expect(api.lastSnapshot, contains('chatgpt_app_index'));
+    expect(find.textContaining('Indexed 1 chats'), findsOneWidget);
+  });
+
+  testWidgets('updates a durable agent task from its action menu', (
+    tester,
+  ) async {
+    final api = _AgentControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.smart_toy_outlined));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('agent-intake')),
+      'Create a durable task.',
+    );
+    await tester.ensureVisible(find.byKey(const Key('run-agent-crew')));
+    await tester.tap(find.byKey(const Key('run-agent-crew')));
+    await tester.pumpAndSettle();
+
+    final actions = find.byKey(const Key('agent-task-actions-agent-task-1'));
+    await tester.ensureVisible(actions);
+    await tester.tap(actions);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mark done'));
+    await tester.pumpAndSettle();
+
+    expect(api.taskUpdateCalls, 1);
+    expect(api.agentTaskStatus, 'done');
+    expect(find.text('Done'), findsWidgets);
+    expect(find.text('Task marked Done.'), findsOneWidget);
+  });
 }
 
 class _OnlineControllerApi extends ControllerApi {
@@ -460,8 +518,12 @@ class _AgentControllerApi extends _OnlineControllerApi {
   _AgentControllerApi();
 
   int processCalls = 0;
+  int importCalls = 0;
+  int taskUpdateCalls = 0;
   String? lastContent;
+  String? lastSnapshot;
   bool? lastUsedModel;
+  String agentTaskStatus = 'open';
 
   @override
   Future<List<ProcessingAgentSummary>> fetchProcessingAgents() async => const [
@@ -557,11 +619,44 @@ class _AgentControllerApi extends _OnlineControllerApi {
             id: 'agent-task-1',
             project: 'BoxBrain',
             title: 'Build the BoxBrain memory dashboard.',
-            status: 'open',
+            status: agentTaskStatus,
             createdAt: DateTime.utc(2026, 7, 27, 12),
             updatedAt: DateTime.utc(2026, 7, 27, 12),
           ),
         ];
+
+  @override
+  Future<ChatOrganizerImportSummary> importChatOrganizerSnapshot(
+    String snapshot,
+  ) async {
+    importCalls += 1;
+    lastSnapshot = snapshot;
+    return const ChatOrganizerImportSummary(
+      id: 'import-1',
+      chatCount: 1,
+      createdCount: 1,
+      updatedCount: 0,
+      unchangedCount: 0,
+      suggestedMoveCount: 1,
+    );
+  }
+
+  @override
+  Future<AgentTaskSummary> updateAgentTaskStatus({
+    required String taskId,
+    required String status,
+  }) async {
+    taskUpdateCalls += 1;
+    agentTaskStatus = status;
+    return AgentTaskSummary(
+      id: taskId,
+      project: 'BoxBrain',
+      title: 'Build the BoxBrain memory dashboard.',
+      status: status,
+      createdAt: DateTime.utc(2026, 7, 27, 12),
+      updatedAt: DateTime.utc(2026, 7, 28, 12),
+    );
+  }
 
   @override
   Future<ProcessingSubmissionResult> processAgentIntake({

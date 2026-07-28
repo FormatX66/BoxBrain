@@ -54,6 +54,8 @@ class ControllerApi {
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
   Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
   Uri get chatOrganizerEndpoint => endpoint('/api/v1/chat-organizer');
+  Uri get chatOrganizerImportEndpoint =>
+      endpoint('/api/v1/chat-organizer/import');
   Uri get organizedChatsEndpoint => endpoint(
         '/api/v1/chat-organizer/chats',
       ).replace(queryParameters: const {'limit': '500'});
@@ -250,6 +252,28 @@ class ControllerApi {
         .toList(growable: false);
   }
 
+  Future<ChatOrganizerImportSummary> importChatOrganizerSnapshot(
+    String snapshot,
+  ) async {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(snapshot);
+    } on FormatException {
+      throw const ControllerApiException(
+        'The ChatGPT snapshot is not valid JSON.',
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw const ControllerApiException(
+        'The ChatGPT snapshot must be a JSON object.',
+      );
+    }
+    final json = await _postJson(chatOrganizerImportEndpoint, decoded);
+    return ChatOrganizerImportSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
   Future<List<AgentTaskSummary>> fetchAgentTasks() async {
     final json = await _getJson(agentTasksEndpoint) as List<dynamic>;
     return json
@@ -257,6 +281,17 @@ class ControllerApi {
           (item) => AgentTaskSummary.fromJson(item as Map<String, dynamic>),
         )
         .toList(growable: false);
+  }
+
+  Future<AgentTaskSummary> updateAgentTaskStatus({
+    required String taskId,
+    required String status,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/agent-tasks/$taskId/status'),
+      {'status': status},
+    );
+    return AgentTaskSummary.fromJson(json as Map<String, dynamic>);
   }
 
   Future<ProcessingSubmissionResult> processAgentIntake({
