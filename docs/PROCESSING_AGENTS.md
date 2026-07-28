@@ -40,6 +40,37 @@ A request fingerprint includes normalized content, source, project hint, budget,
 and external-access setting. Repeating the same request returns the existing run
 instead of spending the budget twice.
 
+## Model-backed orchestrator
+
+`POST /api/v1/processing/model-runs` runs the deterministic crew first, then
+gives its classification, safety state, and selected prior local memory to one
+typed OpenAI Agents SDK orchestrator. The model returns a summary, decisions,
+tasks, specialist handoffs, research queries, architecture notes,
+implementation steps, integration requests, and risk flags.
+
+The deterministic project classification remains authoritative. Model runs are
+immutable, linked to their local run, and unique by local run plus model, so a
+repeat request does not spend provider tokens again. The runtime defaults to
+`gpt-5.6-sol` and can be configured with:
+
+- `BOXBRAIN_AGENT_RUNTIME_ENABLED`
+- `BOXBRAIN_AGENT_MODEL`
+- `BOXBRAIN_AGENT_MAX_OUTPUT_TOKENS`
+- `OPENAI_API_KEY`
+
+No provider call occurs on `POST /api/v1/processing/runs`.
+
+## Dashboard workspace
+
+The authenticated dashboard now includes an **Agents** destination. It loads the
+runtime status, all ten crew definitions, durable workspace totals, and recent
+agent tasks directly from the controller.
+
+The intake composer defaults to **Local** mode, so voice notes can be processed
+without provider billing. **Use model reasoning** is an explicit opt-in. Model
+errors remain visible and the operator can switch back to the local crew without
+losing the durable local run.
+
 ## Operational workspace
 
 Successful runs now produce durable local state:
@@ -57,16 +88,20 @@ materialize these records automatically when a run is first saved.
 
 ## Budget semantics
 
-`token_budget` is an estimated planning allowance. The current implementation
-uses local deterministic rules, so `provider_tokens_used` is always zero. When a
-budget is too small, the Quartermaster marks later agents `deferred` and returns
-a partial result; the controller does not crash or silently exceed the limit.
+`token_budget` is an estimated local planning allowance and also bounds how much
+intake text is sent to the model endpoint. The deterministic endpoint always
+uses zero provider tokens. Model runs record the Agents SDK's actual request,
+input, output, and total token counts; aggregate provider use appears in the
+usage summary and dashboard. The model output cap is separately controlled by
+`BOXBRAIN_AGENT_MAX_OUTPUT_TOKENS`.
 
 ## Safety boundary
 
 - Processing is advisory and planner-only.
-- No model provider, web search, connector, shell, device, keyboard, or pointer
-  action is called by this runtime.
+- The deterministic endpoint calls no model provider, web search, connector,
+  shell, device, keyboard, or pointer action.
+- The model endpoint calls only the configured model provider and exposes no
+  connector, shell, device, keyboard, pointer, deployment, or deletion tools.
 - Effectful language is surfaced as `needs_approval` unless the request records
   external access as allowed.
 - Even when external access is allowed, the Integration Agent only creates a
@@ -78,7 +113,11 @@ a partial result; the controller does not crash or silently exceed the limit.
 ## API
 
 - `GET /api/v1/agents`
+- `GET /api/v1/agents/runtime`
 - `POST /api/v1/processing/runs`
+- `POST /api/v1/processing/model-runs`
+- `GET /api/v1/processing/model-runs`
+- `GET /api/v1/processing/model-runs/{run_id}`
 - `GET /api/v1/processing/runs`
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`

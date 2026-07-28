@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../models/agent_models.dart';
 import '../models/controller_status.dart';
 
 class ControllerApiException implements Exception {
@@ -49,6 +50,13 @@ class ControllerApi {
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
   Uri get edgeAgentsEndpoint => endpoint('/api/v1/edge-agents');
+  Uri get agentsEndpoint => endpoint('/api/v1/agents');
+  Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
+  Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
+  Uri get agentTasksEndpoint => endpoint('/api/v1/agent-tasks');
+  Uri get processingRunsEndpoint => endpoint('/api/v1/processing/runs');
+  Uri get modelProcessingRunsEndpoint =>
+      endpoint('/api/v1/processing/model-runs');
   Uri get sandboxStartEndpoint =>
       endpoint('/api/v1/targets/windows-sandbox/start');
 
@@ -199,6 +207,59 @@ class ControllerApi {
     return json
         .map((item) => EdgeAgentSummary.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
+  }
+
+  Future<List<ProcessingAgentSummary>> fetchProcessingAgents() async {
+    final json = await _getJson(agentsEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => ProcessingAgentSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<ModelRuntimeSummary> fetchModelRuntime() async {
+    final json = await _getJson(agentRuntimeEndpoint);
+    return ModelRuntimeSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<AgentWorkspaceSummary> fetchAgentWorkspace() async {
+    final json = await _getJson(agentDashboardEndpoint);
+    return AgentWorkspaceSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<AgentTaskSummary>> fetchAgentTasks() async {
+    final json = await _getJson(agentTasksEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => AgentTaskSummary.fromJson(item as Map<String, dynamic>),
+        )
+        .toList(growable: false);
+  }
+
+  Future<ProcessingSubmissionResult> processAgentIntake({
+    required String content,
+    String source = 'voice',
+    String? projectHint,
+    int tokenBudget = 2000,
+    bool useModel = false,
+  }) async {
+    final json = await _postJson(
+      useModel ? modelProcessingRunsEndpoint : processingRunsEndpoint,
+      {
+        'content': content,
+        'source': source,
+        if (projectHint != null && projectHint.trim().isNotEmpty)
+          'project_hint': projectHint.trim(),
+        'token_budget': tokenBudget,
+        'external_access_allowed': false,
+      },
+    ) as Map<String, dynamic>;
+    return useModel
+        ? ProcessingSubmissionResult.fromModelJson(json)
+        : ProcessingSubmissionResult.fromLocalJson(json);
   }
 
   Future<String> startSandbox() async {

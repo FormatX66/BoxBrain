@@ -5,8 +5,10 @@ isolated computer lab. The first milestone is deliberately small: a Flutter
 mission-control UI, a Python/FastAPI controller API, a plugin boundary, policy
 profiles, an audit-friendly task queue, and a restricted Kali Pi edge agent.
 
-This repository is an initial alpha skeleton. It does **not** yet execute
-keyboard, mouse, remote-desktop, shell, or model actions.
+This repository is an initial alpha skeleton. It does **not** execute keyboard,
+mouse, remote-desktop, or shell actions. Its optional model-processing endpoint
+can call a configured OpenAI model for typed planning, but exposes no
+side-effect tools.
 
 ## Repository layout
 
@@ -45,6 +47,11 @@ Open `https://127.0.0.1:8080/` for BoxBrain and
 `https://127.0.0.1:8000/docs` for the API explorer. The certificate is trusted
 only for the current Windows user. See `installer/README.md` for verification
 and exact rollback commands.
+
+Use the dashboard's **Agents** destination to process voice or chat intake,
+review the ten-agent crew, inspect memory and task totals, and optionally enable
+model reasoning. Local processing is the default and requires no provider
+tokens.
 
 ### Manual cross-platform setup
 

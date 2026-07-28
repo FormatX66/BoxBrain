@@ -21,6 +21,8 @@ from .models import (
     EmergencyStopState,
     HealthResponse,
     MemoryRecord,
+    ModelProcessingRun,
+    ModelRuntimeStatus,
     PluginSummary,
     PolicyProfile,
     ProcessingAgentSummary,
@@ -32,6 +34,11 @@ from .models import (
     TaskCreate,
     TaskRecord,
     UsageSummary,
+)
+from .model_agents import (
+    ModelAgentExecutionError,
+    ModelAgentRuntimeUnavailable,
+    ModelAgentService,
 )
 from .observation_policy import ObservationPolicy
 from .plugin_process import (
@@ -55,6 +62,12 @@ router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 processing_store = ProcessingStore(settings.data_dir / "boxbrain.sqlite3")
 processing_service = ProcessingService(processing_store)
+model_agent_service = ModelAgentService(
+    processing_service,
+    enabled=settings.agent_runtime_enabled,
+    model=settings.agent_model,
+    max_output_tokens=settings.agent_max_output_tokens,
+)
 plugin_registry = PluginRegistry(settings.plugin_dir)
 observation_policy = ObservationPolicy.load(settings.observation_policy_path)
 sandbox_launcher = WindowsSandboxObserver(
@@ -123,9 +136,62 @@ def list_processing_agents() -> list[ProcessingAgentSummary]:
     return processing_service.list_agents()
 
 
+@router.get("/agents/runtime", response_model=ModelRuntimeStatus)
+def get_model_agent_runtime() -> ModelRuntimeStatus:
+    return model_agent_service.runtime_status()
+
+
 @router.post("/processing/runs", response_model=ProcessingRun)
 def create_processing_run(request: ProcessingRequest) -> ProcessingRun:
     return processing_service.process(request)
+
+
+@router.post("/processing/model-runs", response_model=ModelProcessingRun)
+async def create_model_processing_run(
+    request: ProcessingRequest,
+) -> ModelProcessingRun:
+    try:
+        return await model_agent_service.process(request)
+    except ModelAgentRuntimeUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except ModelAgentExecutionError as error:
+        provider_status = {
+            "access": status.HTTP_403_FORBIDDEN,
+            "rate_limit": status.HTTP_429_TOO_MANY_REQUESTS,
+            "quota": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "authentication": status.HTTP_503_SERVICE_UNAVAILABLE,
+        }.get(error.category, status.HTTP_502_BAD_GATEWAY)
+        raise HTTPException(
+            status_code=provider_status,
+            detail=str(error),
+        ) from error
+
+
+@router.get(
+    "/processing/model-runs",
+    response_model=list[ModelProcessingRun],
+)
+def list_model_processing_runs(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[ModelProcessingRun]:
+    return model_agent_service.list_runs(limit=limit)
+
+
+@router.get(
+    "/processing/model-runs/{run_id}",
+    response_model=ModelProcessingRun,
+)
+def get_model_processing_run(run_id: UUID) -> ModelProcessingRun:
+    run = model_agent_service.get_run(run_id)
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model processing run not found",
+        )
+    return run
 
 
 @router.get("/processing/runs", response_model=list[ProcessingRun])

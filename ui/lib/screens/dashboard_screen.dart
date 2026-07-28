@@ -7,6 +7,7 @@ import '../models/controller_status.dart';
 import '../services/controller_api.dart';
 import '../widgets/section_card.dart';
 import '../widgets/stat_tile.dart';
+import 'agents_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({required this.api, super.key});
@@ -23,6 +24,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icon(Icons.space_dashboard_outlined),
       selectedIcon: Icon(Icons.space_dashboard),
       label: Text('Dashboard'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.smart_toy_outlined),
+      selectedIcon: Icon(Icons.smart_toy),
+      label: Text('Agents'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.desktop_windows_outlined),
@@ -305,7 +311,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         error: _error,
         loading: _loading,
         onRetry: _refresh,
-        onViewTarget: () => _selectDestination(1),
+        onViewTarget: () => _selectDestination(2),
+      ),
+      AgentOperationsScreen(
+        api: widget.api,
+        status: _status,
+        active: _selectedIndex == 1,
       ),
       _TargetSection(
         target: _targets.firstOrNull,

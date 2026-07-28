@@ -2,6 +2,12 @@ from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(_REPOSITORY_ROOT / ".env.local", override=False)
+
 
 def _csv_environment(name: str, default: str) -> tuple[str, ...]:
     value = getenv(name, default)
@@ -63,6 +69,14 @@ class Settings:
     )
     kali_pi_agent_timeout_seconds: float = float(
         getenv("BOXBRAIN_KALI_PI_AGENT_TIMEOUT_SECONDS", "1.5")
+    )
+    agent_runtime_enabled: bool = _bool_environment(
+        "BOXBRAIN_AGENT_RUNTIME_ENABLED",
+        True,
+    )
+    agent_model: str = getenv("BOXBRAIN_AGENT_MODEL", "gpt-5.6-sol")
+    agent_max_output_tokens: int = int(
+        getenv("BOXBRAIN_AGENT_MAX_OUTPUT_TOKENS", "1800")
     )
 
 

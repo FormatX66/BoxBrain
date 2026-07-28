@@ -54,4 +54,52 @@ void main() {
     expect(event.eventType, 'safety.emergency_stop_engaged');
     expect(event.message, 'Emergency stop engaged.');
   });
+  test('authenticated local agent intake posts the safe request shape',
+      () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    server.listen((request) async {
+      expect(request.method, 'POST');
+      expect(request.uri.path, '/api/v1/processing/runs');
+      expect(request.headers.value('X-BoxBrain-Token'), 'test-token');
+      final body = jsonDecode(await utf8.decoder.bind(request).join())
+          as Map<String, dynamic>;
+      expect(body['content'], 'Build the agent workspace.');
+      expect(body['source'], 'voice');
+      expect(body['token_budget'], 2000);
+      expect(body['external_access_allowed'], isFalse);
+
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'id': 'run-1',
+          'normalized_input': 'Build the agent workspace.',
+          'project': 'BoxBrain',
+          'intent': 'build',
+          'status': 'completed',
+          'steps': [
+            {
+              'agent_id': 'orchestrator',
+              'status': 'completed',
+              'summary': 'Normalized and routed the intake.',
+            },
+          ],
+        }),
+      );
+      await request.response.close();
+    });
+
+    final api = ControllerApi(
+      baseUrl: 'http://127.0.0.1:${server.port}',
+      apiToken: 'test-token',
+    );
+    final result = await api.processAgentIntake(
+      content: 'Build the agent workspace.',
+    );
+
+    expect(result.localRun.project, 'BoxBrain');
+    expect(result.localRun.steps.single.agentId, 'orchestrator');
+    expect(result.usedModel, isFalse);
+  });
 }

@@ -27,7 +27,11 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/targets`
 - `GET /api/v1/edge-agents`
 - `GET /api/v1/agents`
+- `GET /api/v1/agents/runtime`
 - `POST /api/v1/processing/runs`
+- `POST /api/v1/processing/model-runs`
+- `GET /api/v1/processing/model-runs`
+- `GET /api/v1/processing/model-runs/{run_id}`
 - `GET /api/v1/processing/runs`
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`
@@ -58,6 +62,18 @@ decisions, deduplicated trackable tasks, architecture and engineering plans,
 and integration handoffs. It records estimated token use but uses zero provider
 tokens and performs no external action. See
 [`docs/PROCESSING_AGENTS.md`](../docs/PROCESSING_AGENTS.md).
+
+The optional model endpoint layers one typed OpenAI Agents SDK orchestrator over
+that durable local path. It loads `OPENAI_API_KEY` from the process environment
+or ignored repository-local `.env.local`, defaults to `gpt-5.6-sol`, records
+actual provider token use, deduplicates identical model runs, and exposes no
+side-effect tools. Check readiness at `GET /api/v1/agents/runtime`.
+
+Run one safe smoke check with:
+
+```powershell
+python -m boxbrain_controller.agent_smoke
+```
 
 The observation policy is loaded from `BOXBRAIN_OBSERVATION_POLICY` (default
 `../policies/observation.json`). It enforces frame size limits, child-process

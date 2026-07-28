@@ -259,7 +259,7 @@ class AgentUsageTotal(BaseModel):
 class UsageSummary(BaseModel):
     total_runs: int = Field(ge=0)
     estimated_tokens: int = Field(ge=0)
-    provider_tokens_used: Literal[0] = 0
+    provider_tokens_used: int = Field(default=0, ge=0)
     by_agent: list[AgentUsageTotal]
 
 MemoryKind = Literal["summary", "decision"]
@@ -307,6 +307,50 @@ class AgentDashboard(BaseModel):
     completed_task_count: int = Field(ge=0)
     processing_run_count: int = Field(ge=0)
     estimated_tokens: int = Field(ge=0)
-    provider_tokens_used: Literal[0] = 0
+    provider_tokens_used: int = Field(default=0, ge=0)
     projects: list[ProjectSummary]
     recent_tasks: list[AgentTaskRecord]
+
+
+class ModelAgentPlan(BaseModel):
+    project: str = Field(min_length=1, max_length=120)
+    intent: str = Field(min_length=1, max_length=120)
+    summary: str = Field(min_length=1, max_length=2_000)
+    decisions: list[str] = Field(max_length=12)
+    tasks: list[str] = Field(max_length=12)
+    specialist_handoffs: list[ProcessingAgentId] = Field(
+        max_length=10,
+    )
+    research_queries: list[str] = Field(max_length=8)
+    architecture_notes: list[str] = Field(max_length=8)
+    implementation_steps: list[str] = Field(max_length=12)
+    integration_requests: list[str] = Field(max_length=8)
+    risk_flags: list[str] = Field(max_length=8)
+    requires_approval: bool
+
+
+class ModelProviderUsage(BaseModel):
+    requests: int = Field(default=0, ge=0)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
+class ModelProcessingRun(BaseModel):
+    id: UUID
+    local_run: ProcessingRun
+    plan: ModelAgentPlan
+    model: str
+    usage: ModelProviderUsage
+    execution_mode: Literal["openai-agents-sdk"] = "openai-agents-sdk"
+    created_at: datetime
+
+
+class ModelRuntimeStatus(BaseModel):
+    enabled: bool
+    configured: bool
+    sdk_available: bool
+    ready: bool
+    model: str
+    execution_mode: Literal["openai-agents-sdk"] = "openai-agents-sdk"
+    external_side_effects_enabled: Literal[False] = False

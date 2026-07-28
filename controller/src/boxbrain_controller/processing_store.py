@@ -16,6 +16,7 @@ from .models import (
     AgentUsageTotal,
     MemoryKind,
     MemoryRecord,
+    ModelProcessingRun,
     ProcessingRun,
     ProjectSummary,
     UsageSummary,
@@ -124,6 +125,78 @@ class ProcessingStore:
             ).fetchall()
         return [ProcessingRun.model_validate(json.loads(row[0])) for row in rows]
 
+    def save_model_run(self, run: ModelProcessingRun) -> ModelProcessingRun:
+        payload = run.model_dump_json()
+        with self._lock, self._connect() as connection:
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO model_processing_runs (
+                        id, local_run_id, model, provider_requests,
+                        provider_input_tokens, provider_output_tokens,
+                        provider_total_tokens, run_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(run.id),
+                        str(run.local_run.id),
+                        run.model,
+                        run.usage.requests,
+                        run.usage.input_tokens,
+                        run.usage.output_tokens,
+                        run.usage.total_tokens,
+                        payload,
+                        run.created_at.isoformat(),
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                existing = self._get_model_run_for_local(
+                    connection,
+                    local_run_id=run.local_run.id,
+                    model=run.model,
+                )
+                if existing is None:
+                    raise
+                return existing
+        return run
+
+    def get_model_run(self, run_id: UUID) -> ModelProcessingRun | None:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT run_json FROM model_processing_runs WHERE id = ?",
+                (str(run_id),),
+            ).fetchone()
+        return self._model_run_from_row(row)
+
+    def get_model_run_for_local(
+        self,
+        local_run_id: UUID,
+        *,
+        model: str,
+    ) -> ModelProcessingRun | None:
+        with self._lock, self._connect() as connection:
+            return self._get_model_run_for_local(
+                connection,
+                local_run_id=local_run_id,
+                model=model,
+            )
+
+    def list_model_runs(self, *, limit: int = 100) -> list[ModelProcessingRun]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT run_json
+                FROM model_processing_runs
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            ModelProcessingRun.model_validate(json.loads(row[0]))
+            for row in rows
+        ]
+
     def usage_summary(self) -> UsageSummary:
         with self._lock, self._connect() as connection:
             totals = connection.execute(
@@ -134,6 +207,12 @@ class ProcessingStore:
             ).fetchone()
             run_count = connection.execute(
                 "SELECT COUNT(*) FROM processing_runs"
+            ).fetchone()
+            provider_totals = connection.execute(
+                """
+                SELECT COALESCE(SUM(provider_total_tokens), 0)
+                FROM model_processing_runs
+                """
             ).fetchone()
             rows = connection.execute(
                 """
@@ -146,6 +225,9 @@ class ProcessingStore:
         return UsageSummary(
             total_runs=int(run_count[0]) if run_count else 0,
             estimated_tokens=int(totals[1]) if totals else 0,
+            provider_tokens_used=(
+                int(provider_totals[0]) if provider_totals else 0
+            ),
             by_agent=[
                 AgentUsageTotal(
                     agent_id=row[0],
@@ -330,6 +412,7 @@ class ProcessingStore:
             completed_task_count=int(completed[0]) if completed else 0,
             processing_run_count=usage.total_runs,
             estimated_tokens=usage.estimated_tokens,
+            provider_tokens_used=usage.provider_tokens_used,
             projects=projects,
             recent_tasks=recent_tasks,
         )
@@ -472,6 +555,24 @@ class ProcessingStore:
                     FOREIGN KEY (run_id) REFERENCES processing_runs(id)
                 );
 
+                CREATE TABLE IF NOT EXISTS model_processing_runs (
+                    id TEXT PRIMARY KEY,
+                    local_run_id TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    provider_requests INTEGER NOT NULL
+                        CHECK (provider_requests >= 0),
+                    provider_input_tokens INTEGER NOT NULL
+                        CHECK (provider_input_tokens >= 0),
+                    provider_output_tokens INTEGER NOT NULL
+                        CHECK (provider_output_tokens >= 0),
+                    provider_total_tokens INTEGER NOT NULL
+                        CHECK (provider_total_tokens >= 0),
+                    run_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE (local_run_id, model),
+                    FOREIGN KEY (local_run_id) REFERENCES processing_runs(id)
+                );
+
                 CREATE TABLE IF NOT EXISTS projects (
                     project_key TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -546,6 +647,24 @@ class ProcessingStore:
                     SELECT RAISE(ABORT, 'usage events are immutable');
                 END;
 
+                CREATE TRIGGER IF NOT EXISTS model_processing_runs_no_update
+                BEFORE UPDATE ON model_processing_runs
+                BEGIN
+                    SELECT RAISE(
+                        ABORT,
+                        'model processing runs are immutable'
+                    );
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS model_processing_runs_no_delete
+                BEFORE DELETE ON model_processing_runs
+                BEGIN
+                    SELECT RAISE(
+                        ABORT,
+                        'model processing runs are immutable'
+                    );
+                END;
+
                 CREATE TRIGGER IF NOT EXISTS memories_no_update
                 BEFORE UPDATE ON memories
                 BEGIN
@@ -617,6 +736,31 @@ class ProcessingStore:
             (fingerprint,),
         ).fetchone()
         return self._run_from_row(row)
+
+    @staticmethod
+    def _model_run_from_row(
+        row: sqlite3.Row | tuple | None,
+    ) -> ModelProcessingRun | None:
+        if row is None:
+            return None
+        return ModelProcessingRun.model_validate(json.loads(row[0]))
+
+    def _get_model_run_for_local(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        local_run_id: UUID,
+        model: str,
+    ) -> ModelProcessingRun | None:
+        row = connection.execute(
+            """
+            SELECT run_json
+            FROM model_processing_runs
+            WHERE local_run_id = ? AND model = ?
+            """,
+            (str(local_run_id), model),
+        ).fetchone()
+        return self._model_run_from_row(row)
 
     @staticmethod
     def _project_from_row(row: tuple) -> ProjectSummary:

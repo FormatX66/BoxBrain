@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:boxbrain_ui/app.dart';
+import 'package:boxbrain_ui/models/agent_models.dart';
 import 'package:boxbrain_ui/models/controller_status.dart';
 import 'package:boxbrain_ui/services/controller_api.dart';
 import 'package:flutter/material.dart';
@@ -175,6 +176,36 @@ void main() {
     expect(find.text('Offline'), findsWidgets);
     expect(find.text('Controller is not reachable.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('runs the local processing crew from the Agents workspace', (
+    tester,
+  ) async {
+    final api = _AgentControllerApi();
+    await tester.pumpWidget(BoxBrainApp(controllerApi: api));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.smart_toy_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Processing agents'), findsOneWidget);
+    expect(find.text('The Conductor'), findsOneWidget);
+    expect(find.text('Ready'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('agent-intake')),
+      'Build the BoxBrain memory dashboard.',
+    );
+    await tester.ensureVisible(find.byKey(const Key('run-agent-crew')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('run-agent-crew')));
+    await tester.pumpAndSettle();
+
+    expect(api.processCalls, 1);
+    expect(api.lastContent, 'Build the BoxBrain memory dashboard.');
+    expect(api.lastUsedModel, isFalse);
+    expect(find.text('Latest result'), findsOneWidget);
+    expect(find.text('Build the BoxBrain memory dashboard.'), findsWidgets);
   });
 }
 
@@ -408,6 +439,94 @@ class _QueueControllerApi extends _OnlineControllerApi {
     );
     tasks.add(task);
     return task;
+  }
+}
+
+class _AgentControllerApi extends _OnlineControllerApi {
+  _AgentControllerApi();
+
+  int processCalls = 0;
+  String? lastContent;
+  bool? lastUsedModel;
+
+  @override
+  Future<List<ProcessingAgentSummary>> fetchProcessingAgents() async => const [
+        ProcessingAgentSummary(
+          id: 'orchestrator',
+          name: 'Orchestrator',
+          character: 'The Conductor',
+          responsibility: 'Normalize intake and route the run.',
+          capabilities: ['intake', 'routing'],
+          executionMode: 'local-rule',
+          enabled: true,
+        ),
+      ];
+
+  @override
+  Future<ModelRuntimeSummary> fetchModelRuntime() async =>
+      const ModelRuntimeSummary(
+        enabled: true,
+        configured: true,
+        sdkAvailable: true,
+        ready: true,
+        model: 'gpt-5.6-sol',
+        executionMode: 'openai-agents-sdk',
+        externalSideEffectsEnabled: false,
+      );
+
+  @override
+  Future<AgentWorkspaceSummary> fetchAgentWorkspace() async =>
+      AgentWorkspaceSummary(
+        projectCount: processCalls == 0 ? 0 : 1,
+        memoryCount: processCalls == 0 ? 0 : 1,
+        openTaskCount: processCalls == 0 ? 0 : 1,
+        completedTaskCount: 0,
+        processingRunCount: processCalls,
+        estimatedTokens: 80 * processCalls,
+        providerTokensUsed: 0,
+      );
+
+  @override
+  Future<List<AgentTaskSummary>> fetchAgentTasks() async => processCalls == 0
+      ? const []
+      : [
+          AgentTaskSummary(
+            id: 'agent-task-1',
+            project: 'BoxBrain',
+            title: 'Build the BoxBrain memory dashboard.',
+            status: 'open',
+            createdAt: DateTime.utc(2026, 7, 27, 12),
+            updatedAt: DateTime.utc(2026, 7, 27, 12),
+          ),
+        ];
+
+  @override
+  Future<ProcessingSubmissionResult> processAgentIntake({
+    required String content,
+    String source = 'voice',
+    String? projectHint,
+    int tokenBudget = 2000,
+    bool useModel = false,
+  }) async {
+    processCalls += 1;
+    lastContent = content;
+    lastUsedModel = useModel;
+    return ProcessingSubmissionResult(
+      localRun: LocalProcessingRunSummary(
+        id: 'run-1',
+        project: 'BoxBrain',
+        intent: 'build',
+        status: 'completed',
+        normalizedInput: content,
+        steps: const [
+          ProcessingStepSummary(
+            agentId: 'orchestrator',
+            status: 'completed',
+            summary: 'Normalized and routed the intake.',
+          ),
+        ],
+      ),
+    );
   }
 }
 
