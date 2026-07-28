@@ -193,7 +193,7 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('ChatGPT organizer'), findsOneWidget);
     expect(find.text('3 chats'), findsOneWidget);
-    expect(find.text('BoxBrain & AI Agents - 2'), findsOneWidget);
+    expect(find.text('BoxBrain & Automation - 2'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('agent-intake')),
@@ -500,7 +500,7 @@ class _AgentControllerApi extends _OnlineControllerApi {
         lastSyncAt: DateTime.utc(2026, 7, 28, 14),
         buckets: const [
           ChatProjectBucketSummary(
-            name: 'BoxBrain & AI Agents',
+            name: 'BoxBrain & Automation',
             chatCount: 2,
             isExistingChatGptProject: false,
           ),
@@ -515,7 +515,7 @@ class _AgentControllerApi extends _OnlineControllerApi {
             externalId: 'chat-1',
             title: 'BoxBrain Repo Access',
             currentProject: null,
-            suggestedProject: 'BoxBrain & AI Agents',
+            suggestedProject: 'BoxBrain & Automation',
             classificationReason: 'Matched BoxBrain.',
             confidence: 'medium',
             pinnedIndex: 1,

@@ -18,7 +18,7 @@ from .models import (
 
 _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
-        "BoxBrain & AI Agents",
+        "BoxBrain & Automation",
         (
             "agent",
             "ai os",
@@ -30,8 +30,17 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Websites & Content",
+        "Wet Beard Production",
         (
+            "quest card",
+            "wet beard",
+            "wet bierd",
+        ),
+    ),
+    (
+        "Web Production",
+        (
+            "arkmatx",
             "bluehost",
             "campaign",
             "instagram",
@@ -42,7 +51,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Accounts & Storage",
+        "Operations & Accounts",
         (
             "access",
             "case",
@@ -57,7 +66,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Devices & Remote Access",
+        "Operations & Accounts",
         (
             "cable",
             "ios",
@@ -67,9 +76,8 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Creative Ideas",
+        "Creative Production",
         (
-            "arkmatx",
             "clown",
             "mad magazine",
             "surprise",
@@ -131,7 +139,7 @@ class ChatOrganizerService:
                 )
                 if current_project is None:
                     unassigned_count += 1
-                    if suggestion != "Inbox / Needs Review":
+                    if suggestion != "Review Inbox":
                         suggested_move_count += 1
 
                 values = (
@@ -233,7 +241,7 @@ class ChatOrganizerService:
                     SUM(CASE WHEN current_project_id IS NULL THEN 1 ELSE 0 END),
                     SUM(CASE
                         WHEN current_project_id IS NULL
-                         AND suggested_project != 'Inbox / Needs Review'
+                         AND suggested_project != 'Review Inbox'
                         THEN 1 ELSE 0 END),
                     SUM(CASE WHEN pinned_index IS NOT NULL THEN 1 ELSE 0 END)
                 FROM organized_chats
@@ -446,7 +454,7 @@ def _classify(
                 "medium",
             )
     return (
-        "Inbox / Needs Review",
+        "Review Inbox",
         "No reliable title match; kept in the review inbox.",
         "low",
     )

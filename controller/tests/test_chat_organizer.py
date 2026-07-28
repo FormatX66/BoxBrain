@@ -75,9 +75,9 @@ def test_import_preserves_projects_classifies_loose_chats_and_deduplicates(
     assert chats["chat-project"].current_project == "Wet Beard website"
     assert chats["chat-project"].suggested_project == "Wet Beard website"
     assert chats["chat-project"].confidence == "high"
-    assert chats["chat-boxbrain"].suggested_project == "BoxBrain & AI Agents"
-    assert chats["chat-website"].suggested_project == "Websites & Content"
-    assert chats["chat-review"].suggested_project == "Inbox / Needs Review"
+    assert chats["chat-boxbrain"].suggested_project == "BoxBrain & Automation"
+    assert chats["chat-website"].suggested_project == "Web Production"
+    assert chats["chat-review"].suggested_project == "Review Inbox"
     assert dashboard.total_chat_count == 4
     assert dashboard.source_project_count == 2
     assert dashboard.unassigned_count == 3
@@ -99,7 +99,7 @@ def test_import_updates_changed_chat_without_creating_duplicate(tmp_path) -> Non
     changed.chats[1].updated_at += timedelta(hours=1)
 
     result = service.import_snapshot(changed)
-    matches = service.list_chats(project="BoxBrain & AI Agents")
+    matches = service.list_chats(project="BoxBrain & Automation")
 
     assert result.created_count == 0
     assert result.updated_count == 1
@@ -134,3 +134,33 @@ def test_chat_organizer_api_end_to_end(tmp_path, monkeypatch) -> None:
     assert dashboard.json()["total_chat_count"] == 4
     assert len(unassigned.json()) == 3
     assert imports.json()[0]["id"] == imported.json()["id"]
+
+def test_production_taxonomy_routes_brand_and_web_work(tmp_path) -> None:
+    service = ChatOrganizerService(tmp_path / "boxbrain.sqlite3")
+    captured_at = datetime(2026, 7, 28, 15, tzinfo=UTC)
+    service.import_snapshot(
+        ChatOrganizerImportRequest.model_validate(
+            {
+                "captured_at": captured_at,
+                "chats": [
+                    {
+                        "external_id": "chat-wet-beard",
+                        "title": "Wet Beard sticker giveaway",
+                        "updated_at": captured_at,
+                    },
+                    {
+                        "external_id": "chat-arkmatx",
+                        "title": "ArkmatX Build Autopilot",
+                        "updated_at": captured_at,
+                    },
+                ],
+            }
+        )
+    )
+
+    chats = {chat.external_id: chat for chat in service.list_chats()}
+
+    assert chats["chat-wet-beard"].suggested_project == (
+        "Wet Beard Production"
+    )
+    assert chats["chat-arkmatx"].suggested_project == "Web Production"

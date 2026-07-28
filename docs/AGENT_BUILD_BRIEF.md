@@ -49,7 +49,7 @@ the safe default; model reasoning is an explicit opt-in.
 
 ## Verification result
 
-- All 60 controller tests and all 9 Flutter tests pass.
+- All 61 controller tests and all 9 Flutter tests pass.
 - The authenticated dashboard build includes the Agents workspace and is served
   locally over HTTPS.
 - The live request reached OpenAI and was correctly classified as
