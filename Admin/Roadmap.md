@@ -1,11 +1,11 @@
 # BoxBrain Roadmap
 
-## Now — Repository foundation
+## Completed — Repository foundation
 
 - Establish the canonical structure and source-of-truth rules.
 - Register BrainConnect without copying its code or documentation.
 - Add global indexes, dependency maps, validation, and session handoffs.
-- Obtain the canonical remote URLs and ownership metadata.
+- Confirm and configure the canonical remote URLs.
 
 ## Completed — BrainConnect live events
 
@@ -14,14 +14,22 @@
 - HTTP polling fallback with sequence deduplication
 - Browser-origin validation and local end-to-end verification
 
-## Next — BrainConnect observation milestone
+## Completed — BrainConnect observation design
 
-- Define target identity and allowlisting.
-- Select one observation-only RDP or VNC adapter.
-- Define capture retention and redaction rules.
+- Define target identity and audited, disabled-by-default allowlisting.
+- Select an out-of-process, observation-only FreeRDP adapter.
+- Define bounded evidence retention and redaction rules.
 - Keep keyboard, mouse, and shell execution disabled.
 
 See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
+
+## Next — BrainConnect target registry
+
+- Add durable target records with immutable UUIDs.
+- Add audited register, inspect, enable, and disable operations.
+- Require exact SHA-256 RDP server-certificate pins.
+- Reject and disable targets when endpoint identity changes.
+- Keep credentials outside the target registry.
 
 ## Later — Shared ecosystem services
 

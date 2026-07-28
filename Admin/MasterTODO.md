@@ -6,16 +6,18 @@
 - [x] Register the existing BrainConnect repository.
 - [x] Establish non-duplication and session-handoff rules.
 - [x] Add structural and Markdown-link validation.
-- [ ] Confirm BoxBrain and BrainConnect remote repository URLs.
+- [x] Confirm BoxBrain and BrainConnect remote repository URLs.
 - [ ] Confirm project owners and priority ordering.
 - [ ] Clarify the purpose and current assets for Arkmatx.
 
 ## P0 — BrainConnect
 
 - [x] Implement the authenticated live event stream.
-- [ ] Add observation-target identity and allowlisting.
-- [ ] Specify an observation-only RDP or VNC plugin.
-- [ ] Define evidence retention and redaction policy.
+- [x] Specify observation-target identity and allowlisting.
+- [x] Select an observation-only FreeRDP plugin boundary.
+- [x] Define evidence retention and redaction policy.
+- [ ] Implement the durable target registry and audited enable/disable API.
+- [ ] Implement the out-of-process FreeRDP observation plugin.
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
@@ -31,7 +33,8 @@ Detailed implementation work belongs in the canonical
 
 ## P2 — Operations
 
-- [ ] Configure remote origins.
+- [x] Configure remote origins.
+- [ ] Complete review and merge of the BoxBrain organization branch.
 - [ ] Add CI for repository validation.
 - [ ] Define release and archive procedures.
 - [ ] Define Docker, Raspberry Pi, VM, and cloud deployment matrices.

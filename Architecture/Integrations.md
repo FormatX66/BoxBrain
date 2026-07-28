@@ -9,9 +9,9 @@ never stored in this repository.
 | FastAPI controller | BrainConnect | Implemented | Local control plane and audit API | [Controller README](../../BrainConnect/controller/README.md) |
 | SQLite | BrainConnect | Implemented | Durable task and append-only audit storage | [Architecture](../../BrainConnect/docs/ARCHITECTURE.md) |
 | Authenticated WebSocket | BrainConnect | Implemented | Resumable live audit delivery with no token in the URL | [Controller protocol](../../BrainConnect/controller/README.md#live-event-protocol) |
-| RDP or VNC observation | BrainConnect | Planned | Out-of-process, observation-only plugin | [Plugin contract](../../BrainConnect/docs/PLUGIN_CONTRACT.md) |
+| FreeRDP observation | BrainConnect | Specified | Out-of-process, certificate-pinned, observation-only RDP plugin | [Target protocol](../../BrainConnect/docs/TARGETS.md) |
 | Cloud model provider | BrainConnect | Planned | Provider-neutral structured planner adapter | [Roadmap](../../BrainConnect/docs/ROADMAP.md) |
-| Git hosting | Ecosystem | Unconfigured | Remote origin for each repository | [Repository index](../Admin/RepositoryIndex.md) |
+| Git hosting | Ecosystem | Configured | Existing BoxBrain remote plus private BrainConnect remote | [Repository index](../Admin/RepositoryIndex.md) |
 
 Add integrations only after confirming the owning project and canonical
 documentation.

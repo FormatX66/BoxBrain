@@ -11,24 +11,26 @@ Active alpha. The Flutter dashboard, authenticated FastAPI control plane,
 durable SQLite task queue, append-only audit storage, policy profiles, and
 persistent emergency stop are implemented. The dashboard now receives
 authenticated, resumable live audit events with HTTP polling fallback. The
-observation-only transport is not yet implemented. No keyboard, mouse, shell,
-remote-desktop, or model actions execute.
+first observation protocol, target identity, allowlisting workflow, and
+evidence-retention limits are specified. The observation-only transport is not
+yet implemented. No keyboard, mouse, shell, remote-desktop, or model actions
+execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 40% planning estimate
-- **Current revision:** `9515d02` on `feature/brainconnect-live-events`
+- **Completion:** 45% planning estimate
+- **Current revision:** `7924654` on `feature/brainconnect-live-events`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
-- **Remote repository:** Not configured
+- **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
 
 ## Dependencies
 
 - Flutter 3.44.8 and Dart 3.12.2
 - Python 3.12, FastAPI, Uvicorn, Pydantic, SQLite, and pytest
 - WebSocket Channel 3.0.3 for the cross-platform Flutter live-event client
-- Future: one observation-only RDP or VNC transport
+- Future: FreeRDP 3.x for the out-of-process observation-only RDP plugin
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -40,6 +42,7 @@ remote-desktop, or model actions execute.
 - [Security](../../../BrainConnect/docs/SECURITY.md)
 - [Development](../../../BrainConnect/docs/DEVELOPMENT.md)
 - [Plugin contract](../../../BrainConnect/docs/PLUGIN_CONTRACT.md)
+- [Observation targets](../../../BrainConnect/docs/TARGETS.md)
 
 ## Related projects
 
@@ -50,6 +53,6 @@ remote-desktop, or model actions execute.
 
 ## Immediate next step
 
-Define target identity and allowlisting for an observation-only transport, then
-select one out-of-process RDP or VNC observer. The canonical task sequence is
+Implement the durable target registry and audited enable/disable operations,
+then build the out-of-process FreeRDP observer. The canonical task sequence is
 tracked in the [Master TODO](../../Admin/MasterTODO.md).

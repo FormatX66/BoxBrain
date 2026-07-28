@@ -4,8 +4,8 @@ This is the canonical registry of repositories known to BoxBrain.
 
 | Project | Repository | State | Revision | Remote |
 | --- | --- | --- | --- | --- |
-| BoxBrain | This repository | Initial organization | `main` (local) | Not configured |
-| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `9515d02` on `feature/brainconnect-live-events` | Not configured |
+| BoxBrain | This repository | Organization review | `codex/repository-organization` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
+| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `7924654` on `feature/brainconnect-live-events` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
 | WebsiteBuilder | No repository discovered | Discovery | — | — |
 | Arkmatx | No repository discovered | Discovery | — | — |
 | AgentFramework | No repository discovered | Proposed | — | — |
