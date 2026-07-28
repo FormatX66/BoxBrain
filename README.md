@@ -20,8 +20,53 @@ BoxBrain/
 |-- plugins/               Plugin contract and inert example plugin
 |-- docs/                  Product, architecture, security, and setup notes
 |-- installer/             Local setup and validation scripts
-`-- tests/                 Cross-component test notes
+|-- tests/                 Cross-component test notes
+|-- Admin/                 Ecosystem roadmap, indexes, decisions, and changes
+|-- Architecture/          Cross-project architecture and integrations
+|-- Projects/              Project registry and dependency links
+|-- Agents/                Canonical agent role definitions
+`-- SessionHandoffs/       Human and agent continuity records
 ```
+
+## Ecosystem coordination
+
+This repository is also the canonical knowledge and coordination layer for the
+BoxBrain ecosystem. It indexes projects and shared decisions without copying
+the code or detailed technical documentation of separate implementation
+repositories.
+
+- [Repository index](Admin/RepositoryIndex.md)
+- [Project index](Projects/README.md)
+- [Master TODO](Admin/MasterTODO.md)
+- [Roadmap](Admin/Roadmap.md)
+- [Decision index](Admin/Decisions.md)
+- [Change index](Admin/ChangeLog.md)
+- [Session index](Admin/SessionIndex.md)
+- [Cross-project architecture](Architecture/SystemArchitecture.md)
+- [Knowledge and execution data flow](Architecture/DataFlow.md)
+- [Agent role index](Agents/README.md)
+- [Prompt library](PromptLibrary/README.md)
+- [Templates](Templates/README.md)
+- [Session handoffs](SessionHandoffs/README.md)
+- [Archive policy](Archive/README.md)
+
+BoxBrain core code remains canonical in this repository. Separately registered
+projects, including BrainConnect, remain authoritative for their own code and
+detailed documentation. A document has one canonical location; other locations
+link to it.
+
+## Technical reference
+
+- [Product requirements](docs/PRD.md)
+- [Application architecture](docs/ARCHITECTURE.md)
+- [Application roadmap](docs/ROADMAP.md)
+- [Plugin contract](docs/PLUGIN_CONTRACT.md)
+- [Agent build brief](docs/AGENT_BUILD_BRIEF.md)
+- [Controller](controller/README.md)
+- [Flutter dashboard](ui/README.md)
+- [Plugin implementations](plugins/README.md)
+- [Kali Pi edge agent](edge/kali-pi-agent/README.md)
+- [Cross-component tests](tests/README.md)
 
 ## Quick start
 
