@@ -16,9 +16,19 @@ from .models import (
 )
 
 
+_ORGANIZER_PROJECTS = (
+    "00 Inbox & Ideas",
+    "10 BoxBrain & Automation",
+    "20 Web Production",
+    "21 Wet Beard Production",
+    "30 Creative Production",
+    "40 Operations & Accounts",
+)
+
+
 _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
-        "BoxBrain & Automation",
+        "10 BoxBrain & Automation",
         (
             "agent",
             "ai os",
@@ -30,7 +40,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Wet Beard Production",
+        "21 Wet Beard Production",
         (
             "quest card",
             "wet beard",
@@ -38,7 +48,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Web Production",
+        "20 Web Production",
         (
             "arkmatx",
             "bluehost",
@@ -51,7 +61,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Operations & Accounts",
+        "40 Operations & Accounts",
         (
             "access",
             "case",
@@ -66,7 +76,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Operations & Accounts",
+        "40 Operations & Accounts",
         (
             "cable",
             "ios",
@@ -76,7 +86,7 @@ _PROJECT_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "Creative Production",
+        "30 Creative Production",
         (
             "clown",
             "mad magazine",
@@ -139,7 +149,7 @@ class ChatOrganizerService:
                 )
                 if current_project is None:
                     unassigned_count += 1
-                    if suggestion != "Review Inbox":
+                    if suggestion != "00 Inbox & Ideas":
                         suggested_move_count += 1
 
                 values = (
@@ -241,7 +251,7 @@ class ChatOrganizerService:
                     SUM(CASE WHEN current_project_id IS NULL THEN 1 ELSE 0 END),
                     SUM(CASE
                         WHEN current_project_id IS NULL
-                         AND suggested_project != 'Review Inbox'
+                         AND suggested_project != '00 Inbox & Ideas'
                         THEN 1 ELSE 0 END),
                     SUM(CASE WHEN pinned_index IS NOT NULL THEN 1 ELSE 0 END)
                 FROM organized_chats
@@ -263,7 +273,7 @@ class ChatOrganizerService:
                     MAX(CASE WHEN current_project IS NOT NULL THEN 1 ELSE 0 END)
                 FROM organized_chats
                 GROUP BY suggested_project
-                ORDER BY COUNT(*) DESC, suggested_project ASC
+                ORDER BY suggested_project ASC
                 """
             ).fetchall()
             source_project_rows = connection.execute(
@@ -274,7 +284,15 @@ class ChatOrganizerService:
                 """
             ).fetchall()
 
-        bucket_names = {row[0] for row in bucket_rows}
+        bucket_data = {
+            row[0]: (int(row[1]), bool(row[2])) for row in bucket_rows
+        }
+        for name in _ORGANIZER_PROJECTS:
+            bucket_data.setdefault(name, (0, False))
+        for row in source_project_rows:
+            count, _ = bucket_data.get(row[0], (0, False))
+            bucket_data[row[0]] = (count, True)
+
         return ChatOrganizerDashboard(
             total_chat_count=int(totals[0]) if totals else 0,
             source_project_count=len(source_project_rows),
@@ -285,23 +303,12 @@ class ChatOrganizerService:
                 datetime.fromisoformat(last_sync[0]) if last_sync else None
             ),
             buckets=[
-                *[
-                    ChatProjectBucket(
-                        name=row[0],
-                        chat_count=int(row[1]),
-                        is_existing_chatgpt_project=bool(row[2]),
-                    )
-                    for row in bucket_rows
-                ],
-                *[
-                    ChatProjectBucket(
-                        name=row[0],
-                        chat_count=0,
-                        is_existing_chatgpt_project=True,
-                    )
-                    for row in source_project_rows
-                    if row[0] not in bucket_names
-                ],
+                ChatProjectBucket(
+                    name=name,
+                    chat_count=values[0],
+                    is_existing_chatgpt_project=values[1],
+                )
+                for name, values in sorted(bucket_data.items())
             ],
             recent_chats=self.list_chats(limit=12),
         )
@@ -454,7 +461,7 @@ def _classify(
                 "medium",
             )
     return (
-        "Review Inbox",
+        "00 Inbox & Ideas",
         "No reliable title match; kept in the review inbox.",
         "low",
     )

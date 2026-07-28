@@ -75,20 +75,31 @@ def test_import_preserves_projects_classifies_loose_chats_and_deduplicates(
     assert chats["chat-project"].current_project == "Wet Beard website"
     assert chats["chat-project"].suggested_project == "Wet Beard website"
     assert chats["chat-project"].confidence == "high"
-    assert chats["chat-boxbrain"].suggested_project == "BoxBrain & Automation"
-    assert chats["chat-website"].suggested_project == "Web Production"
-    assert chats["chat-review"].suggested_project == "Review Inbox"
+    assert chats["chat-boxbrain"].suggested_project == "10 BoxBrain & Automation"
+    assert chats["chat-website"].suggested_project == "20 Web Production"
+    assert chats["chat-review"].suggested_project == "00 Inbox & Ideas"
     assert dashboard.total_chat_count == 4
     assert dashboard.source_project_count == 2
     assert dashboard.unassigned_count == 3
     assert dashboard.suggested_move_count == 2
     assert dashboard.pinned_count == 1
     assert dashboard.last_sync_at is not None
+    numbered_buckets = [
+        bucket.name for bucket in dashboard.buckets if bucket.name[:2].isdigit()
+    ]
+    assert numbered_buckets == sorted(numbered_buckets)
     empty_bucket = next(
         bucket for bucket in dashboard.buckets if bucket.name == "Quest cards"
     )
     assert empty_bucket.chat_count == 0
     assert empty_bucket.is_existing_chatgpt_project is True
+    wet_beard_bucket = next(
+        bucket
+        for bucket in dashboard.buckets
+        if bucket.name == "21 Wet Beard Production"
+    )
+    assert wet_beard_bucket.chat_count == 0
+    assert wet_beard_bucket.is_existing_chatgpt_project is False
 
 
 def test_import_updates_changed_chat_without_creating_duplicate(tmp_path) -> None:
@@ -99,7 +110,7 @@ def test_import_updates_changed_chat_without_creating_duplicate(tmp_path) -> Non
     changed.chats[1].updated_at += timedelta(hours=1)
 
     result = service.import_snapshot(changed)
-    matches = service.list_chats(project="BoxBrain & Automation")
+    matches = service.list_chats(project="10 BoxBrain & Automation")
 
     assert result.created_count == 0
     assert result.updated_count == 1
@@ -161,6 +172,6 @@ def test_production_taxonomy_routes_brand_and_web_work(tmp_path) -> None:
     chats = {chat.external_id: chat for chat in service.list_chats()}
 
     assert chats["chat-wet-beard"].suggested_project == (
-        "Wet Beard Production"
+        "21 Wet Beard Production"
     )
-    assert chats["chat-arkmatx"].suggested_project == "Web Production"
+    assert chats["chat-arkmatx"].suggested_project == "20 Web Production"

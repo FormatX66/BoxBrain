@@ -4,7 +4,7 @@
 
 The organizer gives BoxBrain a durable, local index of ChatGPT chat metadata. It
 preserves existing ChatGPT project membership, proposes a project for loose
-chats, and keeps ambiguous titles in `Review Inbox`.
+chats, and keeps ambiguous titles in `00 Inbox & Ideas`.
 
 It is intentionally read-only with respect to ChatGPT. BoxBrain does not scrape
 browser storage, delete chats, create ChatGPT projects, or move conversations.
@@ -26,7 +26,7 @@ BoxBrain does not assume a public consumer ChatGPT conversation-management API.
 
 1. Existing ChatGPT project membership wins and is assigned high confidence.
 2. Loose chats are classified by deterministic, inspectable title rules.
-3. Uncertain chats remain in `Review Inbox` with low confidence.
+3. Uncertain chats remain in `00 Inbox & Ideas` with low confidence.
 4. Repeated snapshots update records by stable external ID instead of creating
    duplicates.
 5. Each import is append-only history with created, updated, unchanged,
@@ -36,12 +36,12 @@ BoxBrain does not assume a public consumer ChatGPT conversation-management API.
 
 The initial local buckets are:
 
-- BoxBrain & Automation
-- Web Production
-- Operations & Accounts
-- Wet Beard Production
-- Creative Production
-- Review Inbox
+- 00 Inbox & Ideas
+- 10 BoxBrain & Automation
+- 20 Web Production
+- 21 Wet Beard Production
+- 30 Creative Production
+- 40 Operations & Accounts
 
 Existing ChatGPT projects are also included in the project map, including empty
 projects that have no chat in the visible snapshot.
