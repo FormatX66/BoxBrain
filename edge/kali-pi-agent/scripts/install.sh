@@ -1,0 +1,116 @@
+#!/bin/sh
+set -eu
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Run this installer with sudo." >&2
+    exit 1
+fi
+
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+if ! getent group boxbrain >/dev/null 2>&1; then
+    groupadd --system boxbrain
+fi
+
+if ! getent passwd boxbrain >/dev/null 2>&1; then
+    useradd \
+        --system \
+        --gid boxbrain \
+        --home-dir /var/lib/boxbrain \
+        --shell /usr/sbin/nologin \
+        boxbrain
+fi
+
+if id kali >/dev/null 2>&1; then
+    usermod -a -G boxbrain kali
+fi
+
+install -d -o root -g root -m 0755 /opt/boxbrain/src/boxbrain
+install -d -o root -g root -m 0755 /opt/boxbrain/onboarding
+install -d -o root -g boxbrain -m 0750 /etc/boxbrain
+install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain
+install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/identity
+install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain/links
+
+if [ ! -s /var/lib/boxbrain/identity/target_ed25519 ]; then
+    runuser -u boxbrain -- ssh-keygen \
+        -q \
+        -t ed25519 \
+        -N '' \
+        -C boxbrain-target-access \
+        -f /var/lib/boxbrain/identity/target_ed25519
+fi
+chmod 0600 /var/lib/boxbrain/identity/target_ed25519
+chmod 0644 /var/lib/boxbrain/identity/target_ed25519.pub
+public_key=$(cat /var/lib/boxbrain/identity/target_ed25519.pub)
+
+install -o root -g root -m 0644 "$project_dir"/README.md /opt/boxbrain/README.md
+install -o root -g root -m 0644 "$project_dir"/VERSION /opt/boxbrain/VERSION
+install -o root -g root -m 0644 "$project_dir"/src/boxbrain/*.py /opt/boxbrain/src/boxbrain/
+sed "s|__BOXBRAIN_PUBLIC_KEY__|$public_key|g" \
+    "$project_dir"/onboarding/windows-link.ps1 \
+    >/opt/boxbrain/onboarding/windows-link.ps1
+sed "s|__BOXBRAIN_PUBLIC_KEY__|$public_key|g" \
+    "$project_dir"/onboarding/linux-link.sh \
+    >/opt/boxbrain/onboarding/linux-link.sh
+install -o root -g root -m 0644 \
+    "$project_dir"/onboarding/windows-wifi-provision.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1
+install -o root -g root -m 0644 \
+    /var/lib/boxbrain/identity/target_ed25519.pub \
+    /opt/boxbrain/onboarding/boxbrain-target.pub
+chown root:root \
+    /opt/boxbrain/onboarding/windows-link.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1 \
+    /opt/boxbrain/onboarding/linux-link.sh
+chmod 0644 \
+    /opt/boxbrain/onboarding/windows-link.ps1 \
+    /opt/boxbrain/onboarding/windows-wifi-provision.ps1 \
+    /opt/boxbrain/onboarding/linux-link.sh
+install -o root -g root -m 0755 "$project_dir"/scripts/boxbrainctl /usr/local/bin/boxbrainctl
+install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain.service /etc/systemd/system/boxbrain.service
+install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-onboarding.service /etc/systemd/system/boxbrain-onboarding.service
+install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-link-monitor.service /etc/systemd/system/boxbrain-link-monitor.service
+
+if [ ! -e /etc/boxbrain/boxbrain.env ]; then
+    install -o root -g boxbrain -m 0640 "$project_dir"/config/boxbrain.env /etc/boxbrain/boxbrain.env
+fi
+
+ensure_env_setting() {
+    setting_name=$1
+    setting_value=$2
+    if ! grep -q "^${setting_name}=" /etc/boxbrain/boxbrain.env; then
+        printf '%s=%s\n' "$setting_name" "$setting_value" >>/etc/boxbrain/boxbrain.env
+    fi
+}
+
+ensure_env_setting BOXBRAIN_DIAGNOSTIC_INTERVAL 900
+ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1
+ensure_env_setting BOXBRAIN_AGENT_MODE advisory
+ensure_env_setting BOXBRAIN_AI_PROVIDER ""
+
+# Version 0.5 used an all-interface onboarding bind. Migrate only that known
+# default; preserve any explicit operator-selected address.
+if grep -q '^BOXBRAIN_ONBOARDING_BIND=0\.0\.0\.0$' /etc/boxbrain/boxbrain.env; then
+    sed -i 's/^BOXBRAIN_ONBOARDING_BIND=0\.0\.0\.0$/BOXBRAIN_ONBOARDING_BIND=10.12.194.1/' \
+        /etc/boxbrain/boxbrain.env
+fi
+
+systemctl daemon-reload
+systemctl enable boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
+systemctl restart boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
+systemctl is-active --quiet boxbrain.service
+systemctl is-active --quiet boxbrain-onboarding.service
+systemctl is-active --quiet boxbrain-link-monitor.service
+
+attempt=0
+until /usr/local/bin/boxbrainctl health >/dev/null 2>&1; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 15 ]; then
+        echo "BoxBrain started but did not become ready in time." >&2
+        exit 1
+    fi
+    sleep 1
+done
+
+printf 'BoxBrain Kali Pi edge agent installed and running.\n'

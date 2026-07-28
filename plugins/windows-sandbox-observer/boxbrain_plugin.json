@@ -1,0 +1,15 @@
+{
+  "id": "boxbrain.windows-sandbox-observer",
+  "name": "Windows Sandbox Observer",
+  "version": "0.1.0",
+  "description": "Captures read-only Windows Sandbox observations in a separate process.",
+  "enabled": true,
+  "protocol_version": "1",
+  "entrypoint": "plugin.py",
+  "process_boundary": "out-of-process",
+  "target_id": "windows-sandbox",
+  "capabilities": [
+    "observation.describe",
+    "observation.frame"
+  ]
+}
