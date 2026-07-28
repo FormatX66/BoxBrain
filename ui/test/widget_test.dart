@@ -193,7 +193,18 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('ChatGPT organizer'), findsOneWidget);
     expect(find.text('3 chats'), findsOneWidget);
-    expect(find.text('10 BoxBrain & Automation - 2'), findsOneWidget);
+    expect(find.text('File structure'), findsOneWidget);
+    expect(find.text('10 BoxBrain & Automation'), findsOneWidget);
+
+    final boxBrainFolder = find.byKey(
+      const Key('chat-folder-10 BoxBrain & Automation'),
+    );
+    await tester.ensureVisible(boxBrainFolder);
+    await tester.pumpAndSettle();
+    await tester.tap(boxBrainFolder);
+    await tester.pumpAndSettle();
+    expect(find.text('BoxBrain Repo Access'), findsOneWidget);
+    expect(find.text('Ready to file'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('agent-intake')),
@@ -523,6 +534,20 @@ class _AgentControllerApi extends _OnlineControllerApi {
           ),
         ],
       );
+
+  @override
+  Future<List<OrganizedChatSummary>> fetchOrganizedChats() async => [
+        OrganizedChatSummary(
+          externalId: 'chat-1',
+          title: 'BoxBrain Repo Access',
+          currentProject: null,
+          suggestedProject: '10 BoxBrain & Automation',
+          classificationReason: 'Matched BoxBrain.',
+          confidence: 'medium',
+          pinnedIndex: 1,
+          updatedAt: DateTime.utc(2026, 7, 28, 13),
+        ),
+      ];
 
   @override
   Future<List<AgentTaskSummary>> fetchAgentTasks() async => processCalls == 0

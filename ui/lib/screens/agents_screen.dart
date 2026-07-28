@@ -33,6 +33,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
   ModelRuntimeSummary? _runtime;
   AgentWorkspaceSummary? _workspace;
   ChatOrganizerSummary? _chatOrganizer;
+  List<OrganizedChatSummary> _organizedChats = const [];
   ProcessingSubmissionResult? _lastResult;
   String _source = 'voice';
   String? _error;
@@ -76,6 +77,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         widget.api.fetchModelRuntime(),
         widget.api.fetchAgentWorkspace(),
         widget.api.fetchChatOrganizer(),
+        widget.api.fetchOrganizedChats(),
         widget.api.fetchAgentTasks(),
       ]);
       if (!mounted) return;
@@ -84,7 +86,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         _runtime = results[1] as ModelRuntimeSummary;
         _workspace = results[2] as AgentWorkspaceSummary;
         _chatOrganizer = results[3] as ChatOrganizerSummary;
-        _tasks = results[4] as List<AgentTaskSummary>;
+        _organizedChats = results[4] as List<OrganizedChatSummary>;
+        _tasks = results[5] as List<AgentTaskSummary>;
         _loaded = true;
       });
     } catch (error) {
@@ -316,7 +319,10 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
               _WorkspaceStats(workspace: workspace),
             ],
             const SizedBox(height: 20),
-            _ChatOrganizerCard(organizer: _chatOrganizer),
+            _ChatOrganizerCard(
+              organizer: _chatOrganizer,
+              chats: _organizedChats,
+            ),
             const SizedBox(height: 20),
             SectionCard(
               title: 'The crew',
@@ -374,9 +380,13 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
 }
 
 class _ChatOrganizerCard extends StatelessWidget {
-  const _ChatOrganizerCard({required this.organizer});
+  const _ChatOrganizerCard({
+    required this.organizer,
+    required this.chats,
+  });
 
   final ChatOrganizerSummary? organizer;
+  final List<OrganizedChatSummary> chats;
 
   @override
   Widget build(BuildContext context) {
@@ -426,50 +436,58 @@ class _ChatOrganizerCard extends StatelessWidget {
                 if (value.buckets.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'Project map',
+                    'File structure',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final bucket in value.buckets)
-                        Chip(
-                          avatar: Icon(
-                            bucket.isExistingChatGptProject
-                                ? Icons.folder
-                                : Icons.auto_awesome,
-                            size: 16,
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (final bucket in value.buckets)
+                          ExpansionTile(
+                            key: Key('chat-folder-${bucket.name}'),
+                            leading: Icon(
+                              bucket.isExistingChatGptProject
+                                  ? Icons.folder
+                                  : Icons.folder_outlined,
+                            ),
+                            title: Text(bucket.name),
+                            trailing: Chip(
+                              label: Text(bucket.chatCount.toString()),
+                            ),
+                            children: [
+                              for (final chat in chats.where(
+                                (item) => item.suggestedProject == bucket.name,
+                              ))
+                                ListTile(
+                                  dense: true,
+                                  leading: Icon(
+                                    chat.pinnedIndex == null
+                                        ? Icons.description_outlined
+                                        : Icons.push_pin_outlined,
+                                  ),
+                                  title: Text(chat.title),
+                                  subtitle: Text(
+                                    chat.currentProject == null
+                                        ? 'Ready to file'
+                                        : 'Filed in ChatGPT',
+                                  ),
+                                  trailing: Chip(
+                                    label: Text(chat.confidence),
+                                  ),
+                                ),
+                              if (bucket.chatCount == 0)
+                                const ListTile(
+                                  dense: true,
+                                  leading: Icon(Icons.inbox_outlined),
+                                  title: Text('Empty folder'),
+                                ),
+                            ],
                           ),
-                          label: Text('${bucket.name} - ${bucket.chatCount}'),
-                        ),
-                    ],
-                  ),
-                ],
-                if (value.recentChats.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Indexed chats',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  for (final chat in value.recentChats.take(8))
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        chat.pinnedIndex == null
-                            ? Icons.chat_bubble_outline
-                            : Icons.push_pin_outlined,
-                      ),
-                      title: Text(chat.title),
-                      subtitle: Text(
-                        chat.currentProject == null
-                            ? 'Suggested: ${chat.suggestedProject}'
-                            : 'In: ${chat.currentProject}',
-                      ),
-                      trailing: Chip(label: Text(chat.confidence)),
+                      ],
                     ),
+                  ),
                 ],
               ],
             ),

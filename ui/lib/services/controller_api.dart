@@ -54,6 +54,9 @@ class ControllerApi {
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
   Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
   Uri get chatOrganizerEndpoint => endpoint('/api/v1/chat-organizer');
+  Uri get organizedChatsEndpoint => endpoint(
+        '/api/v1/chat-organizer/chats',
+      ).replace(queryParameters: const {'limit': '500'});
   Uri get agentTasksEndpoint => endpoint('/api/v1/agent-tasks');
   Uri get processingRunsEndpoint => endpoint('/api/v1/processing/runs');
   Uri get modelProcessingRunsEndpoint =>
@@ -234,6 +237,17 @@ class ControllerApi {
   Future<ChatOrganizerSummary> fetchChatOrganizer() async {
     final json = await _getJson(chatOrganizerEndpoint);
     return ChatOrganizerSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<OrganizedChatSummary>> fetchOrganizedChats() async {
+    final json = await _getJson(organizedChatsEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => OrganizedChatSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<List<AgentTaskSummary>> fetchAgentTasks() async {
