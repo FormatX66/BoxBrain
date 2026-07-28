@@ -16,8 +16,11 @@
 - [x] Specify observation-target identity and allowlisting.
 - [x] Select an observation-only FreeRDP plugin boundary.
 - [x] Define evidence retention and redaction policy.
-- [ ] Implement the durable target registry and audited enable/disable API.
+- [x] Implement the durable target registry and audited enable/disable API.
+- [x] Gate task creation on enabled target UUIDs.
+- [x] Add the Flutter target registration and approval workflow.
 - [ ] Implement the out-of-process FreeRDP observation plugin.
+- [ ] Implement the certificate-only probe and identity-mismatch handler.
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).

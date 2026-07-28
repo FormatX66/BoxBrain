@@ -23,13 +23,23 @@
 
 See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 
-## Next — BrainConnect target registry
+## Completed — BrainConnect target registry
 
-- Add durable target records with immutable UUIDs.
-- Add audited register, inspect, enable, and disable operations.
-- Require exact SHA-256 RDP server-certificate pins.
-- Reject and disable targets when endpoint identity changes.
-- Keep credentials outside the target registry.
+- Durable target records with immutable UUIDs and additive schema migration
+- Audited register, inspect, enable, and disable operations
+- Exact SHA-256 RDP server-certificate confirmation before enablement
+- Enabled-target admission checks for every new task
+- Flutter registration, review, approval, and disable workflow
+- Credentials excluded from target records
+
+## Next — BrainConnect observation probe
+
+- Define a fixed, out-of-process FreeRDP invocation.
+- Probe server-certificate identity without authenticating to a desktop.
+- Reject identity mismatches and disable the affected target.
+- Keep keyboard, pointer, clipboard, file, shell, and device redirection
+  unavailable.
+- Add deterministic process, mismatch, and audit-event tests.
 
 ## Later — Shared ecosystem services
 
