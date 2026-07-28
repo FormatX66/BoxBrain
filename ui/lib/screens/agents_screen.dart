@@ -32,6 +32,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
   List<AgentTaskSummary> _tasks = const [];
   ModelRuntimeSummary? _runtime;
   AgentWorkspaceSummary? _workspace;
+  ChatOrganizerSummary? _chatOrganizer;
   ProcessingSubmissionResult? _lastResult;
   String _source = 'voice';
   String? _error;
@@ -74,6 +75,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         widget.api.fetchProcessingAgents(),
         widget.api.fetchModelRuntime(),
         widget.api.fetchAgentWorkspace(),
+        widget.api.fetchChatOrganizer(),
         widget.api.fetchAgentTasks(),
       ]);
       if (!mounted) return;
@@ -81,7 +83,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         _agents = results[0] as List<ProcessingAgentSummary>;
         _runtime = results[1] as ModelRuntimeSummary;
         _workspace = results[2] as AgentWorkspaceSummary;
-        _tasks = results[3] as List<AgentTaskSummary>;
+        _chatOrganizer = results[3] as ChatOrganizerSummary;
+        _tasks = results[4] as List<AgentTaskSummary>;
         _loaded = true;
       });
     } catch (error) {
@@ -175,7 +178,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
               title: 'New intake',
               subtitle: _useModel
                   ? 'OpenAI reasoning plus the durable local crew'
-                  : 'Deterministic local processing — no provider tokens',
+                  : 'Deterministic local processing - no provider tokens',
               trailing: Chip(
                 avatar: Icon(
                   _useModel ? Icons.auto_awesome : Icons.offline_bolt,
@@ -313,6 +316,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
               _WorkspaceStats(workspace: workspace),
             ],
             const SizedBox(height: 20),
+            _ChatOrganizerCard(organizer: _chatOrganizer),
+            const SizedBox(height: 20),
             SectionCard(
               title: 'The crew',
               subtitle: '${_agents.length} operational processing agents',
@@ -368,6 +373,110 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
   }
 }
 
+class _ChatOrganizerCard extends StatelessWidget {
+  const _ChatOrganizerCard({required this.organizer});
+
+  final ChatOrganizerSummary? organizer;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = organizer;
+    final synced = value?.lastSyncAt != null;
+    return SectionCard(
+      title: 'ChatGPT organizer',
+      subtitle: synced
+          ? 'Indexed locally. Suggested moves stay read-only.'
+          : 'Waiting for the first ChatGPT index sync.',
+      trailing: Chip(
+        avatar: Icon(
+          synced ? Icons.check_circle : Icons.sync,
+          size: 17,
+        ),
+        label: Text(synced ? 'Synced' : 'Not synced'),
+      ),
+      child: value == null || value.totalChatCount == 0
+          ? const Text(
+              'No chats are indexed yet. A sync adds titles and project '
+              'metadata without copying private browser storage.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Chip(label: Text('${value.totalChatCount} chats')),
+                    Chip(
+                      label: Text(
+                        '${value.sourceProjectCount} ChatGPT projects',
+                      ),
+                    ),
+                    Chip(label: Text('${value.pinnedCount} pinned')),
+                    Chip(
+                      label: Text(
+                        '${value.suggestedMoveCount} suggested moves',
+                      ),
+                    ),
+                    Chip(
+                      label: Text('${value.unassignedCount} outside projects'),
+                    ),
+                  ],
+                ),
+                if (value.buckets.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Project map',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final bucket in value.buckets)
+                        Chip(
+                          avatar: Icon(
+                            bucket.isExistingChatGptProject
+                                ? Icons.folder
+                                : Icons.auto_awesome,
+                            size: 16,
+                          ),
+                          label: Text('${bucket.name} - ${bucket.chatCount}'),
+                        ),
+                    ],
+                  ),
+                ],
+                if (value.recentChats.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Indexed chats',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  for (final chat in value.recentChats.take(8))
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        chat.pinnedIndex == null
+                            ? Icons.chat_bubble_outline
+                            : Icons.push_pin_outlined,
+                      ),
+                      title: Text(chat.title),
+                      subtitle: Text(
+                        chat.currentProject == null
+                            ? 'Suggested: ${chat.suggestedProject}'
+                            : 'In: ${chat.currentProject}',
+                      ),
+                      trailing: Chip(label: Text(chat.confidence)),
+                    ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
 class _RuntimeCard extends StatelessWidget {
   const _RuntimeCard({required this.runtime});
 
@@ -380,7 +489,7 @@ class _RuntimeCard extends StatelessWidget {
       title: 'Agent runtime',
       subtitle: value == null
           ? 'Waiting for controller status'
-          : '${value.model} · ${value.executionMode}',
+          : '${value.model} - ${value.executionMode}',
       trailing: Chip(
         avatar: Icon(
           value?.ready == true ? Icons.check_circle : Icons.info_outline,
@@ -534,7 +643,7 @@ class _RunResultCard extends StatelessWidget {
     final plan = result.plan;
     return SectionCard(
       title: 'Latest result',
-      subtitle: '${run.project} · ${_titleCase(run.intent)}',
+      subtitle: '${run.project} - ${_titleCase(run.intent)}',
       trailing: Chip(
         label: Text(
           plan?.requiresApproval == true
@@ -554,7 +663,7 @@ class _RunResultCard extends StatelessWidget {
             for (final task in plan.tasks)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text('• $task'),
+                child: Text('- $task'),
               ),
           ],
           const SizedBox(height: 16),

@@ -191,6 +191,9 @@ void main() {
     expect(find.text('Processing agents'), findsOneWidget);
     expect(find.text('The Conductor'), findsOneWidget);
     expect(find.text('Ready'), findsOneWidget);
+    expect(find.text('ChatGPT organizer'), findsOneWidget);
+    expect(find.text('3 chats'), findsOneWidget);
+    expect(find.text('BoxBrain & AI Agents - 2'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('agent-intake')),
@@ -484,6 +487,41 @@ class _AgentControllerApi extends _OnlineControllerApi {
         processingRunCount: processCalls,
         estimatedTokens: 80 * processCalls,
         providerTokensUsed: 0,
+      );
+
+  @override
+  Future<ChatOrganizerSummary> fetchChatOrganizer() async =>
+      ChatOrganizerSummary(
+        totalChatCount: 3,
+        sourceProjectCount: 1,
+        unassignedCount: 2,
+        suggestedMoveCount: 2,
+        pinnedCount: 1,
+        lastSyncAt: DateTime.utc(2026, 7, 28, 14),
+        buckets: const [
+          ChatProjectBucketSummary(
+            name: 'BoxBrain & AI Agents',
+            chatCount: 2,
+            isExistingChatGptProject: false,
+          ),
+          ChatProjectBucketSummary(
+            name: 'Wet Beard website',
+            chatCount: 1,
+            isExistingChatGptProject: true,
+          ),
+        ],
+        recentChats: [
+          OrganizedChatSummary(
+            externalId: 'chat-1',
+            title: 'BoxBrain Repo Access',
+            currentProject: null,
+            suggestedProject: 'BoxBrain & AI Agents',
+            classificationReason: 'Matched BoxBrain.',
+            confidence: 'medium',
+            pinnedIndex: 1,
+            updatedAt: DateTime.utc(2026, 7, 28, 13),
+          ),
+        ],
       );
 
   @override

@@ -15,6 +15,9 @@ from .models import (
     AgentTaskStatus,
     AgentTaskStatusUpdate,
     AuditEvent,
+    ChatOrganizerDashboard,
+    ChatOrganizerImportRequest,
+    ChatOrganizerImportResult,
     EdgeAgentSummary,
     EmergencyStopEngageRequest,
     EmergencyStopResetRequest,
@@ -23,6 +26,7 @@ from .models import (
     MemoryRecord,
     ModelProcessingRun,
     ModelRuntimeStatus,
+    OrganizedChatRecord,
     PluginSummary,
     PolicyProfile,
     ProcessingAgentSummary,
@@ -35,6 +39,7 @@ from .models import (
     TaskRecord,
     UsageSummary,
 )
+from .chat_organizer import ChatOrganizerService
 from .model_agents import (
     ModelAgentExecutionError,
     ModelAgentRuntimeUnavailable,
@@ -62,6 +67,9 @@ router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 processing_store = ProcessingStore(settings.data_dir / "boxbrain.sqlite3")
 processing_service = ProcessingService(processing_store)
+chat_organizer_service = ChatOrganizerService(
+    settings.data_dir / "boxbrain.sqlite3"
+)
 model_agent_service = ModelAgentService(
     processing_service,
     enabled=settings.agent_runtime_enabled,
@@ -220,6 +228,50 @@ def get_processing_usage() -> UsageSummary:
 @router.get("/agent-dashboard", response_model=AgentDashboard)
 def get_agent_dashboard() -> AgentDashboard:
     return processing_service.dashboard()
+
+
+@router.post(
+    "/chat-organizer/import",
+    response_model=ChatOrganizerImportResult,
+)
+def import_chat_organizer_snapshot(
+    request: ChatOrganizerImportRequest,
+) -> ChatOrganizerImportResult:
+    return chat_organizer_service.import_snapshot(request)
+
+
+@router.get(
+    "/chat-organizer",
+    response_model=ChatOrganizerDashboard,
+)
+def get_chat_organizer_dashboard() -> ChatOrganizerDashboard:
+    return chat_organizer_service.dashboard()
+
+
+@router.get(
+    "/chat-organizer/chats",
+    response_model=list[OrganizedChatRecord],
+)
+def list_organized_chats(
+    project: str | None = Query(default=None, min_length=1, max_length=160),
+    unassigned_only: bool = Query(default=False),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[OrganizedChatRecord]:
+    return chat_organizer_service.list_chats(
+        project=project,
+        unassigned_only=unassigned_only,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/chat-organizer/imports",
+    response_model=list[ChatOrganizerImportResult],
+)
+def list_chat_organizer_imports(
+    limit: int = Query(default=50, ge=1, le=500),
+) -> list[ChatOrganizerImportResult]:
+    return chat_organizer_service.list_imports(limit=limit)
 
 
 @router.get("/projects", response_model=list[ProjectSummary])

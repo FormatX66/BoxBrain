@@ -36,6 +36,10 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`
 - `GET /api/v1/agent-dashboard`
+- `POST /api/v1/chat-organizer/import`
+- `GET /api/v1/chat-organizer`
+- `GET /api/v1/chat-organizer/chats`
+- `GET /api/v1/chat-organizer/imports`
 - `GET /api/v1/projects`
 - `GET /api/v1/memory`
 - `GET /api/v1/memory/search`
@@ -62,6 +66,12 @@ decisions, deduplicated trackable tasks, architecture and engineering plans,
 and integration handoffs. It records estimated token use but uses zero provider
 tokens and performs no external action. See
 [`docs/PROCESSING_AGENTS.md`](../docs/PROCESSING_AGENTS.md).
+
+The ChatGPT organizer accepts an authenticated, normalized metadata snapshot,
+preserves existing project membership, classifies loose chats with inspectable
+local rules, and records deduplicated sync history. It has no ChatGPT mutation
+or browser-storage capability. See
+[`docs/CHATGPT_ORGANIZER.md`](../docs/CHATGPT_ORGANIZER.md).
 
 The optional model endpoint layers one typed OpenAI Agents SDK orchestrator over
 that durable local path. It loads `OPENAI_API_KEY` from the process environment

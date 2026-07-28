@@ -354,3 +354,86 @@ class ModelRuntimeStatus(BaseModel):
     model: str
     execution_mode: Literal["openai-agents-sdk"] = "openai-agents-sdk"
     external_side_effects_enabled: Literal[False] = False
+
+ChatOrganizerSource = Literal["chatgpt_app_index", "chatgpt_data_export"]
+ChatClassificationConfidence = Literal["high", "medium", "low"]
+
+
+class ChatSourceProject(BaseModel):
+    external_id: str = Field(min_length=1, max_length=500)
+    label: str = Field(min_length=1, max_length=160)
+
+    @field_validator("external_id", "label")
+    @classmethod
+    def normalize_project_text(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("project fields must contain non-whitespace text")
+        return normalized
+
+
+class ChatSourceRecord(BaseModel):
+    external_id: str = Field(min_length=1, max_length=500)
+    title: str = Field(min_length=1, max_length=500)
+    updated_at: datetime
+    project_external_id: str | None = Field(default=None, max_length=500)
+    pinned_index: int | None = Field(default=None, ge=1)
+
+    @field_validator("external_id", "title", "project_external_id")
+    @classmethod
+    def normalize_chat_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
+
+
+class ChatOrganizerImportRequest(BaseModel):
+    source: ChatOrganizerSource = "chatgpt_app_index"
+    captured_at: datetime
+    projects: list[ChatSourceProject] = Field(default_factory=list, max_length=500)
+    chats: list[ChatSourceRecord] = Field(default_factory=list, max_length=20_000)
+
+
+class OrganizedChatRecord(BaseModel):
+    external_id: str
+    title: str
+    current_project_id: str | None
+    current_project: str | None
+    suggested_project: str
+    classification_reason: str
+    confidence: ChatClassificationConfidence
+    pinned_index: int | None
+    updated_at: datetime
+    last_seen_at: datetime
+
+
+class ChatOrganizerImportResult(BaseModel):
+    id: UUID
+    source: ChatOrganizerSource
+    captured_at: datetime
+    imported_at: datetime
+    source_project_count: int = Field(ge=0)
+    chat_count: int = Field(ge=0)
+    created_count: int = Field(ge=0)
+    updated_count: int = Field(ge=0)
+    unchanged_count: int = Field(ge=0)
+    unassigned_count: int = Field(ge=0)
+    suggested_move_count: int = Field(ge=0)
+
+
+class ChatProjectBucket(BaseModel):
+    name: str
+    chat_count: int = Field(ge=0)
+    is_existing_chatgpt_project: bool
+
+
+class ChatOrganizerDashboard(BaseModel):
+    total_chat_count: int = Field(ge=0)
+    source_project_count: int = Field(ge=0)
+    unassigned_count: int = Field(ge=0)
+    suggested_move_count: int = Field(ge=0)
+    pinned_count: int = Field(ge=0)
+    last_sync_at: datetime | None
+    buckets: list[ChatProjectBucket]
+    recent_chats: list[OrganizedChatRecord]

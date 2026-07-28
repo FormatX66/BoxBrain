@@ -53,6 +53,7 @@ class ControllerApi {
   Uri get agentsEndpoint => endpoint('/api/v1/agents');
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
   Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
+  Uri get chatOrganizerEndpoint => endpoint('/api/v1/chat-organizer');
   Uri get agentTasksEndpoint => endpoint('/api/v1/agent-tasks');
   Uri get processingRunsEndpoint => endpoint('/api/v1/processing/runs');
   Uri get modelProcessingRunsEndpoint =>
@@ -228,6 +229,11 @@ class ControllerApi {
   Future<AgentWorkspaceSummary> fetchAgentWorkspace() async {
     final json = await _getJson(agentDashboardEndpoint);
     return AgentWorkspaceSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ChatOrganizerSummary> fetchChatOrganizer() async {
+    final json = await _getJson(chatOrganizerEndpoint);
+    return ChatOrganizerSummary.fromJson(json as Map<String, dynamic>);
   }
 
   Future<List<AgentTaskSummary>> fetchAgentTasks() async {

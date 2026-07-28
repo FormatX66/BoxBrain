@@ -51,7 +51,10 @@ and exact rollback commands.
 Use the dashboard's **Agents** destination to process voice or chat intake,
 review the ten-agent crew, inspect memory and task totals, and optionally enable
 model reasoning. Local processing is the default and requires no provider
-tokens.
+tokens. The same Agents destination includes the local ChatGPT organizer, which
+preserves current project membership and proposes folders for loose chats
+without scraping browser storage or moving anything in ChatGPT. See
+[docs/CHATGPT_ORGANIZER.md](docs/CHATGPT_ORGANIZER.md).
 
 ### Manual cross-platform setup
 
