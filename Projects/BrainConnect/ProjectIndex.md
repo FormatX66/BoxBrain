@@ -20,19 +20,21 @@ disablement, and Flutter probe control are implemented. The native FreeRDP
 3.15.x certificate helper now builds and passes synthetic RDP/TLS, downgrade,
 deadline, protocol, and no-authentication tests for amd64 and arm64. Linux/Pi
 installation is now complete on the Kali Raspberry Pi 4 with exact runtime,
-checksum, ownership, provenance, and on-host synthetic verification. Controller
-deployment on the Pi, an isolated Windows live test, and frame transport
-remain. No keyboard, mouse, shell, remote-desktop, or model actions execute.
+checksum, ownership, provenance, and on-host synthetic verification. The
+authenticated controller is deployed there as an immutable, USB-bound,
+unprivileged systemd service with private token and SQLite state. An isolated
+Windows live test and frame transport remain. No keyboard, mouse, shell,
+remote-desktop, or model actions execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 72% planning estimate
-- **Current revision:** `8a308dc` on `feature/brainconnect-pi4-deployment`
+- **Completion:** 78% planning estimate
+- **Current revision:** `ee9c518` on `feature/brainconnect-pi4-controller`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 5](https://github.com/FormatX66/BrainConnect/pull/5)
+- **Draft review:** [Pull request 6](https://github.com/FormatX66/BrainConnect/pull/6)
 
 ## Dependencies
 
@@ -42,8 +44,9 @@ remain. No keyboard, mouse, shell, remote-desktop, or model actions execute.
 - Debian 13 build image pinned by digest, FreeRDP 3.15.x, CMake, GCC, and
   OpenSSL 3
 - Kali 2026.2 Raspberry Pi 4 with `libfreerdp3-3` `3.26.0+dfsg-1`
-- Future: Raspberry Pi controller service and isolated disposable Windows RDP
-  target
+- Deployed: Kali Raspberry Pi 4 controller service on direct USB
+  `10.12.194.1:8000`
+- Future: isolated disposable Windows RDP target
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -58,6 +61,7 @@ remain. No keyboard, mouse, shell, remote-desktop, or model actions execute.
 - [Observation targets](../../../BrainConnect/docs/TARGETS.md)
 - [RDP helper protocol](../../../BrainConnect/plugins/rdp-observer/PROTOCOL.md)
 - [Native helper build](../../../BrainConnect/plugins/rdp-observer/native/README.md)
+- [Raspberry Pi controller deployment](../../../BrainConnect/installer/pi/README.md)
 
 ## Related projects
 
@@ -68,8 +72,7 @@ remain. No keyboard, mouse, shell, remote-desktop, or model actions execute.
 
 ## Immediate next step
 
-Deploy the authenticated FastAPI controller on the Raspberry Pi and configure
-the installed helper path, or select the isolated disposable Windows RDP
-target and verify exact-match, changed-certificate, timeout, and
-pre-authentication abort behavior. The canonical task sequence is tracked in
-the [Master TODO](../../Admin/MasterTODO.md).
+Select the isolated disposable Windows RDP target and verify exact-match,
+changed-certificate, timeout, unreachable, and pre-authentication abort
+behavior without enabling desktop sessions or input. The canonical task
+sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).

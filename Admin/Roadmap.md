@@ -61,10 +61,19 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
   provenance.
 - Changed no package version, repository, or package hold on the Pi.
 
+## Completed — BrainConnect Raspberry Pi 4 controller deployment
+
+- Packaged an exact Git revision as a wheel with locked runtime dependencies.
+- Installed the release and plugin manifests under immutable `/opt` paths.
+- Ran the controller as a locked `brainconnect` systemd service account.
+- Bound the authenticated API only to `10.12.194.1:8000` on direct USB.
+- Kept the generated token and SQLite database mode `0600` in a mode `0700`
+  state directory outside Git.
+- Verified HTTP 401 rejection, helper checksum, emergency-stop persistence,
+  restart recovery, and systemd hardening.
+
 ## Next — BrainConnect isolated RDP live lab
 
-- Deploy the authenticated FastAPI controller on the Raspberry Pi and
-  configure only the helper's absolute executable path.
 - Verify exact-match, changed-certificate, timeout, and no-authentication
   behavior against an isolated disposable Windows RDP target.
 - Record package provenance and checksums without storing credentials.

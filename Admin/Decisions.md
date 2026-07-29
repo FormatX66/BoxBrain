@@ -16,5 +16,6 @@ This file is the permanent searchable index.
 | BB-ADR-009 | 2026-07-28 | Isolate certificate observation behind a versioned, fail-closed helper protocol and permit pre-approval probes of registered targets. | [Session decision log](../SessionHandoffs/BB-2026-07-28-005/DecisionLog.md#bb-adr-009) |
 | BB-ADR-010 | 2026-07-28 | Pin the native certificate helper to FreeRDP 3.15.x and emit observations only after exact NLA/HYBRID server selection. | [Session decision log](../SessionHandoffs/BB-2026-07-28-006/DecisionLog.md#bb-adr-010) |
 | BB-ADR-011 | 2026-07-28 | Deploy the reviewed arm64 helper to the Pi only after an exact runtime check and on-host boundary test, with content-addressed provenance. | [Session decision log](../SessionHandoffs/BB-2026-07-28-007/DecisionLog.md#bb-adr-011) |
+| BB-ADR-012 | 2026-07-28 | Run the Pi controller as an immutable, USB-bound, unprivileged systemd service promoted only after authenticated foreground verification. | [Session decision log](../SessionHandoffs/BB-2026-07-28-008/DecisionLog.md#bb-adr-012) |
 
 Before adding a decision, search this index and the linked session logs.

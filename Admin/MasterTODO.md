@@ -27,7 +27,9 @@
 - [x] Package and install the helper on the Kali Raspberry Pi 4.
 - [x] Verify the installed checksum, ownership, provenance, and host-runtime
   synthetic boundary test.
-- [ ] Deploy and configure the FastAPI controller on the Raspberry Pi.
+- [x] Deploy and configure the FastAPI controller on the Raspberry Pi.
+- [x] Verify authentication, USB-only binding, private state, helper integrity,
+  emergency-stop persistence, and hardened service restart behavior.
 - [ ] Live-test certificate verification against an isolated Windows RDP
   target.
 
