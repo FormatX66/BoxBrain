@@ -28,16 +28,18 @@ rotation and atomic disablement, unreachable and timeout handling, and
 pre-authentication rejection. A disposable Windows 11 Enterprise Hyper-V
 target now exists at `10.12.194.9:3389` on the Pi USB network, has a restricted
 Pi-only diagnostic link, and is preserved at clean Standard checkpoint
-`clean-linked-2026-07-29`. BrainConnect registration, independent certificate
-identity, and frame transport remain. BrainConnect executes no keyboard,
-mouse, credential, remote-desktop, shell, or model action.
+`clean-linked-2026-07-29`. Its RDP identity was independently read from the
+guest certificate store, registered disabled by default, exactly matched by
+the Pi helper without authentication or a desktop session, audited, and then
+enabled. Frame transport remains. BrainConnect executes no keyboard, mouse,
+credential, remote-desktop, shell, or model action.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 86% planning estimate
-- **Current revision:** `746dfdc` on `feature/brainconnect-pi-rdp-live-lab`
+- **Completion:** 89% planning estimate
+- **Current revision:** `654795b` on `feature/brainconnect-pi-rdp-live-lab`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
 - **Draft review:** [Pull request 7](https://github.com/FormatX66/BrainConnect/pull/7)
@@ -52,8 +54,9 @@ mouse, credential, remote-desktop, shell, or model action.
 - Kali 2026.2 Raspberry Pi 4 with `libfreerdp3-3` `3.26.0+dfsg-1`
 - Deployed: Kali Raspberry Pi 4 controller service on direct USB
   `10.12.194.1:8000`
-- Available: isolated Windows 11 Enterprise Evaluation 25H2 Hyper-V target at
-  `10.12.194.9:3389`, powered off at checkpoint `clean-linked-2026-07-29`
+- Live-approved: isolated Windows 11 Enterprise Evaluation 25H2 Hyper-V target
+  at `10.12.194.9:3389`, based on checkpoint
+  `clean-linked-2026-07-29`
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -81,8 +84,7 @@ mouse, credential, remote-desktop, shell, or model action.
 
 ## Immediate next step
 
-Start the clean VM, independently record its RDP certificate fingerprint,
-register it disabled by default, and prove the existing native certificate
-gate before adding observation-only frame transport or controlled session
-credentials. The canonical task sequence is tracked in the
-[Master TODO](../../Admin/MasterTODO.md).
+Specify and implement bounded, redacted, observation-only frame delivery while
+keeping credentials, authentication, keyboard, pointer, clipboard, file,
+device, audio, and shell capabilities unavailable. The canonical task sequence
+is tracked in the [Master TODO](../../Admin/MasterTODO.md).

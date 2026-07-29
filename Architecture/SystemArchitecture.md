@@ -45,8 +45,8 @@ flowchart TD
 The active execution path is BoxBrain governance to the BrainConnect
 repository, then to the USB-bound Kali Pi controller and edge agent, and then
 to the checkpointed Windows lab on the Pi-only network. BrainConnect has
-verified the certificate-only RDP identity boundary; full-target certificate
-registration and bounded frame observation are next.
+verified and audited the full target's certificate-only RDP identity boundary;
+bounded, redacted, observation-only frame delivery is next.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered

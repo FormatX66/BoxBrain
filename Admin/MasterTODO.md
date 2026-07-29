@@ -33,9 +33,9 @@
 - [x] Live-test exact-match, certificate-rotation, unreachable, timeout, and
   no-authentication behavior through a protocol-faithful Pi RDP/NLA fixture.
 - [x] Build, isolate, verify, and checkpoint a disposable full Windows VM.
-- [ ] Register the clean VM disabled by default and independently record its
+- [x] Register the clean VM disabled by default and independently record its
   RDP certificate fingerprint.
-- [ ] Prove the existing certificate gate against the full Windows target.
+- [x] Prove the existing certificate gate against the full Windows target.
 - [ ] Specify and implement bounded, redacted, observation-only frames.
 
 Detailed implementation work belongs in the canonical

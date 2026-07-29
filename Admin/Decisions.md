@@ -23,5 +23,7 @@ This file is the permanent searchable index.
 | BB-ADR-016 | 2026-07-29 | Use a Pi-only Generation 2 Hyper-V VM as the disposable full Windows target and apply verified media directly to its blank VHD when needed. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-016) |
 | BB-ADR-017 | 2026-07-29 | Separate future RDP observation from a restricted, non-administrator, Pi-only SSH diagnostic account. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-017) |
 | BB-ADR-018 | 2026-07-29 | Give Windows device inventory its own 15-second deadline and report incomplete coverage explicitly. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-018) |
+| BB-ADR-019 | 2026-07-29 | Read the Windows RDP certificate through Hyper-V PowerShell Direct before comparing it with BrainConnect's no-authentication probe. | [Session decision log](../SessionHandoffs/BB-2026-07-29-003/DecisionLog.md#bb-adr-019) |
+| BB-ADR-020 | 2026-07-29 | Revoke and rotate any controller token exposed in diagnostic output before continuing operations. | [Session decision log](../SessionHandoffs/BB-2026-07-29-003/DecisionLog.md#bb-adr-020) |
 
 Before adding a decision, search this index and the linked session logs.

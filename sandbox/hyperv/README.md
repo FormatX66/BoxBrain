@@ -164,6 +164,19 @@ It checks the Windows edition and computer name, Pi-only address, RDP service
 and firewall, OpenSSH service, restricted link account, and non-administrator
 boundary without printing the lab credential.
 
+Before registering the RDP target in BrainConnect, independently record the
+certificate bound to the guest listener:
+
+```powershell
+.\sandbox\hyperv\Get-BoxBrainWindowsRdpIdentity.ps1
+```
+
+The script uses Hyper-V PowerShell Direct and the encrypted host credential to
+read the guest certificate store. It writes the SHA-256 identity and
+non-secret certificate metadata to
+`C:\VMs\BoxBrain-Windows-Lab\rdp-certificate-identity.json`; it does not use
+the BrainConnect target registry or certificate-probe helper.
+
 After the Pi reports the target connected and a read-only diagnostic succeeds,
 create the clean powered-off baseline:
 

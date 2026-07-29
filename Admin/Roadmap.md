@@ -93,11 +93,18 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 
 See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 
-## Next - BrainConnect certificate-pinned frame observation
+## Completed - BrainConnect full Windows certificate gate
 
-- Register the clean VM disabled by default in BrainConnect.
-- Record its RDP certificate fingerprint independently.
-- Prove the existing native helper exact-match gate without credentials.
+- Recorded the active RDP listener certificate through Hyper-V PowerShell
+  Direct and the guest certificate store.
+- Registered `10.12.194.9:3389` disabled by default.
+- Proved the existing native helper exact-match gate without credentials or a
+  desktop session.
+- Verified append-only register, identity-match, and enable audit events.
+- Enabled the exact target only after the independent identity matched.
+
+## Next - BrainConnect observation-only frames
+
 - Add observation-only frame transport without credentials or input.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.
