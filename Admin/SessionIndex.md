@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-07-29-007 | 2026-07-29 | BrainConnect Pi pointer and keyboard transport run | [Human](../SessionHandoffs/BB-2026-07-29-007/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-007/AgentHandoff.md) |
 | BB-2026-07-29-006 | 2026-07-29 | BrainConnect native FreeRDP pointer connector | [Human](../SessionHandoffs/BB-2026-07-29-006/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-006/AgentHandoff.md) |
 | BB-2026-07-29-005 | 2026-07-29 | BrainConnect disabled VM execution boundary | [Human](../SessionHandoffs/BB-2026-07-29-005/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-005/AgentHandoff.md) |
 | BB-2026-07-29-004 | 2026-07-29 | BrainConnect capability-first open-lab queue | [Human](../SessionHandoffs/BB-2026-07-29-004/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-004/AgentHandoff.md) |

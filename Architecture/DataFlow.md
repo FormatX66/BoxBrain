@@ -47,6 +47,11 @@ documentation.
 7. The controller persists terminal status and output size/digest, while raw
    output is returned transiently to the authenticated dashboard.
 8. The packaged fixture proves this complete path without touching the VM.
-   The native pointer connector implements the same protocol, reads
-   target-bound systemd credentials only after exact endpoint and certificate
-   verification, and is not yet installed or enabled on the Pi.
+   The native pointer and keyboard connector implements the same protocol,
+   reads target-bound systemd credentials only after exact endpoint and
+   certificate verification, and is installed on the Pi.
+9. A live run enables the connector only after encrypted credential promotion,
+   submits one bounded event, and records transport-level status.
+10. Cleanup disables execution, removes the service drop-in and credentials,
+    and verifies controller health. Independent target-state verification is a
+    separate result and remains pending.

@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-29 | BB-2026-07-29-007 | Promoted BrainConnect's pointer and keyboard connector to the Pi, proved exact-target FreeRDP event submission, removed execution credentials, and preserved the remaining visual-verification gap. | [Session change log](../SessionHandoffs/BB-2026-07-29-007/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-006 | Added BrainConnect's native FreeRDP pointer connector, post-pin systemd credential contract, and amd64/arm64 artifact gates without deploying or enabling it. | [Session change log](../SessionHandoffs/BB-2026-07-29-006/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-005 | Added BrainConnect's disabled VM execution protocol, certificate-gated operation state machine, deterministic subprocess fixture, and Flutter result flow. | [Session change log](../SessionHandoffs/BB-2026-07-29-005/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-004 | Added BrainConnect's audited open-profile operation queue and Flutter forms for shell, keyboard, pointer, and clipboard work; live execution remains disabled. | [Session change log](../SessionHandoffs/BB-2026-07-29-004/ChangeLog.md) |

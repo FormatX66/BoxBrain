@@ -47,16 +47,23 @@
 - [x] Implement the first native VM connector for absolute pointer movement
   with post-pin, target-bound systemd credential lookup.
 - [x] Build and synthetic-test the control artifact for amd64 and arm64.
-- [ ] Consolidate the guarded native Pi installer for control promotion.
-- [ ] Run control identity and credential-negative fixtures on the Pi's exact
+- [x] Consolidate the guarded native Pi installer for control promotion.
+- [x] Run control identity and credential-negative fixtures on the Pi's exact
   FreeRDP 3.26 runtime.
-- [ ] Provision encrypted target-bound systemd credentials and install the
+- [x] Provision encrypted target-bound systemd credentials and install the
   reviewed connector while leaving execution disabled.
+- [x] Add bounded Unicode text and fixed allowlisted key or chord input.
+- [x] Run exact-target pointer and keyboard operations through a short,
+  audited enablement window.
+- [x] Disable the executor, remove the execution drop-in, delete encrypted
+  target credentials, and verify controller health after the live run.
 - [ ] Prove one live pointer move with independent visual evidence.
 - [ ] Record bounded results and before/after evidence for every executed
   operation.
 - [ ] Restore and verify `clean-linked-2026-07-29` after the first live control
   experiment.
+- [ ] Keep one bounded RDP session active across a related input sequence.
+- [ ] Add independent frame or guest-state verification for each live input.
 - [ ] Specify and implement bounded, redacted, observation-only frames.
 
 Detailed implementation work belongs in the canonical

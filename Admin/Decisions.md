@@ -29,5 +29,9 @@ This file is the permanent searchable index.
 | BB-ADR-022 | 2026-07-29 | Separate durable execution state from live VM transport through a fixed, disabled-by-default standard-input adapter protocol with transient output. | [Session decision log](../SessionHandoffs/BB-2026-07-29-005/DecisionLog.md#bb-adr-022) |
 | BB-ADR-023 | 2026-07-29 | Supply RDP credentials through target-UUID-bound systemd runtime files read only after exact endpoint and certificate verification. | [Session decision log](../SessionHandoffs/BB-2026-07-29-006/DecisionLog.md#bb-adr-023) |
 | BB-ADR-024 | 2026-07-29 | Make absolute `pointer_move` the first native capability and distinguish accepted input from visually verified state change. | [Session decision log](../SessionHandoffs/BB-2026-07-29-006/DecisionLog.md#bb-adr-024) |
+| BB-ADR-025 | 2026-07-29 | Accept systemd root-owned `0440` runtime credentials only with a named service-account read ACL and all other safety checks. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-025) |
+| BB-ADR-026 | 2026-07-29 | Keep exact-session event submission separate from independently verified target-state change. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-026) |
+| BB-ADR-027 | 2026-07-29 | Retain the content-addressed input binary inert while removing the execution drop-in and all encrypted credentials after each run. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-027) |
+| BB-ADR-028 | 2026-07-29 | Add only the verified left Windows key to the fixed key allowlist. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-028) |
 
 Before adding a decision, search this index and the linked session logs.

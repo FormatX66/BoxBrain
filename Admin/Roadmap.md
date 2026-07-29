@@ -129,6 +129,7 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 ## Completed - BrainConnect native pointer connector
 
 - Built one headless FreeRDP executable for canonical absolute pointer moves.
+- Added bounded Unicode text and fixed allowlisted key or chord input.
 - Required exact NLA/HYBRID endpoint and certificate match before credential
   lookup.
 - Selected target-UUID-bound systemd runtime credentials.
@@ -137,18 +138,31 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Disabled gateway, reconnect, clipboard, drive, device, audio, printer,
   smart-card, and file redirection.
 - Passed five native tests on both amd64 and arm64.
-- Kept the connector uninstalled, credentials unprovisioned, and production
-  execution disabled.
+- Installed the content-addressed arm64 connector on the Pi and retained it
+  inert between bounded runs.
 
-## Next - BrainConnect Pi connector promotion
+## Completed - BrainConnect Pi pointer and keyboard transport
 
-- Consolidate the existing native installer for control-artifact promotion.
-- Run control identity and credential-negative fixtures on the Pi's exact
+- Consolidated native probe and control promotion without duplicate
+  deployment logic.
+- Passed control identity and credential-negative fixtures on the Pi's exact
   FreeRDP 3.26 runtime.
-- Provision encrypted, target-bound systemd credentials.
-- Install the artifact while keeping the executor disabled.
-- Prove one pointer move with independent visual evidence.
-- Restore checkpoint `clean-linked-2026-07-29` after the first live run.
+- Installed the content-addressed input artifact and used encrypted,
+  target-bound systemd credentials.
+- Added bounded Unicode text and fixed allowlisted key or chord input.
+- Proved exact-target authentication and successful FreeRDP submission for
+  pointer, text, and key events.
+- Disabled execution, removed its service drop-in, deleted all encrypted RDP
+  credentials, and verified controller health afterward.
+
+## Next - BrainConnect verified input state
+
+- Restore checkpoint `clean-linked-2026-07-29` with an authorized Hyper-V
+  account and re-probe the RDP certificate.
+- Keep one bounded RDP session active across a related input sequence.
+- Add independent frame or guest-state evidence.
+- Prove one harmless input sequence changed the expected target state.
+- Preserve transport acceptance and verified state change as separate results.
 
 ## Parallel pending - BrainConnect observation-only frames
 
