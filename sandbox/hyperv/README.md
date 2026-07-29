@@ -203,6 +203,18 @@ adds the current Windows account to the built-in **Hyper-V Administrators**
 group so later VM checks do not require elevation. A new Windows sign-in is
 required before that non-elevated membership appears in the user's token.
 
+Collect read-only session, owner, lock, single-session-policy, and recent
+Terminal Services event evidence with:
+
+```powershell
+.\sandbox\hyperv\Get-BoxBrainWindowsRdpSessions.ps1
+```
+
+The script uses the existing encrypted lab credential through Hyper-V
+PowerShell Direct and writes only non-secret diagnostic evidence to
+`C:\VMs\BoxBrain-Windows-Lab\rdp-session-diagnostic.json`. It does not change
+Windows session or RDP policy.
+
 The full installation, link, and checkpoint must be recorded in the current
 BoxBrain session handoff. Removal is intentionally not automated by this
 directory; deleting the VM, switch, disk, checkpoint, or media requires a
