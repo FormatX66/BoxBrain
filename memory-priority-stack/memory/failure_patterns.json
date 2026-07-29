@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "patterns": [
+    {
+      "id": "explanation_loop",
+      "detect": ["repeated limitation statements", "no artifact produced", "same suggestion repeated"],
+      "response": "Stop explaining. Select the next available artifact on the ladder and execute."
+    },
+    {
+      "id": "tool_permission_failure",
+      "detect": ["403", "resource not accessible", "permission denied"],
+      "response": "Record the blocker, avoid retry loops, and produce a local patch/package/handoff that can be applied with one action."
+    },
+    {
+      "id": "wrong_artifact",
+      "detect": ["user requested video but received presentation", "deliverable is multiple steps away"],
+      "response": "Re-evaluate the user goal and create the nearest directly usable artifact."
+    }
+  ]
+}
