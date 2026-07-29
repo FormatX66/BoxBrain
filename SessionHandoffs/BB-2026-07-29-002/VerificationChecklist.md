@@ -1,0 +1,34 @@
+# Verification Checklist
+
+- [x] Official Windows ISO SHA-256 matched Microsoft's published value.
+- [x] VM is Generation 2 with Secure Boot and virtual TPM.
+- [x] VM has exactly one 64 GiB dynamic VHD.
+- [x] VM switch is bound to the Raspberry Pi USB adapter.
+- [x] Host management interface remains on the Pi USB network.
+- [x] Offline installer rejected host boot/system disks and unexpected VHDs.
+- [x] Windows 11 Enterprise Evaluation 25H2 applied successfully.
+- [x] Guest computer name is `BB-WIN-LAB`.
+- [x] Guest address is `10.12.194.9` on the Pi-only network.
+- [x] Hyper-V heartbeat reported OK.
+- [x] RDP service and firewall are enabled and port 3389 is reachable.
+- [x] Corrected onboarding script preserved a single allowed address array.
+- [x] Edge-agent test suite passed: 21 tests.
+- [x] Backend suite passed: 57 tests with no TestClient migration warning.
+- [x] Onboarding script was backed up and deployed to the Pi.
+- [x] Restricted `boxbrain-link` user exists, is enabled, and is not admin.
+- [x] SSH service is running and public-key-only.
+- [x] SSH firewall remote address is exactly `10.12.194.1`.
+- [x] Workstation cannot use the Pi-only SSH listener.
+- [x] Pi target monitor reports `BB-WIN-LAB` connected.
+- [x] Bounded Pi diagnostic completed with a healthy result.
+- [x] Device scan timeout was reported explicitly.
+- [x] VM shut down gracefully.
+- [x] Standard checkpoint `clean-linked-2026-07-29` exists.
+- [x] VM remains powered off at handoff.
+- [ ] BrainConnect RDP certificate fingerprint recorded independently.
+- [ ] BrainConnect target registered disabled by default.
+- [ ] Observation-only frame protocol implemented and verified.
+- [x] BoxBrain repository validation passes after final documentation update.
+- [x] Generated local environments are excluded from repository documentation
+  validation and covered by a regression test.
+- [x] BoxBrain quick gate passes, including Flutter analysis and 9 tests.

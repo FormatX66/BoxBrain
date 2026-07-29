@@ -66,6 +66,41 @@ LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 SESSION_DIRECTORY_PATTERN = re.compile(
     r"^BB-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{3}$"
 )
+IGNORED_DIRECTORY_NAMES = frozenset(
+    {
+        ".dart_tool",
+        ".git",
+        ".idea",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".pub",
+        ".pub-cache",
+        ".ruff_cache",
+        ".venv",
+        ".vscode",
+        "__pycache__",
+        "artifacts",
+        "build",
+        "captures",
+        "coverage",
+        "data",
+        "dist",
+        "logs",
+        "venv",
+    }
+)
+
+
+def repository_markdown_files(root: Path = ROOT) -> list[Path]:
+    """Return project Markdown while excluding generated and ignored trees."""
+    return sorted(
+        path
+        for path in root.rglob("*.md")
+        if not any(
+            part in IGNORED_DIRECTORY_NAMES
+            for part in path.relative_to(root).parts[:-1]
+        )
+    )
 
 
 def local_link_target(document: Path, raw_target: str) -> Path | None:
@@ -100,7 +135,7 @@ def main() -> int:
         if not (ROOT / relative_path).is_file():
             errors.append(f"Missing required file: {relative_path}")
 
-    markdown_files = sorted(ROOT.rglob("*.md"))
+    markdown_files = repository_markdown_files()
     linked_files: set[Path] = set()
     for document in markdown_files:
         text = document.read_text(encoding="utf-8")

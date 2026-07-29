@@ -9,6 +9,8 @@ flowchart TD
     PI["Project and repository indexes"]
     GOV["Decisions, roadmap, changes, and handoffs"]
     BC["BrainConnect implementation repository"]
+    PICTRL["Kali Pi controller and edge agent"]
+    WINLAB["Checkpointed Hyper-V Windows lab"]
     AF["AgentFramework (proposed)"]
     SEC["Security (proposed)"]
     RES["Research (proposed)"]
@@ -17,6 +19,8 @@ flowchart TD
     BB --> PI
     BB --> GOV
     PI --> BC
+    BC --> PICTRL
+    PICTRL --> WINLAB
     PI --> AF
     PI --> SEC
     PI --> RES
@@ -38,8 +42,11 @@ flowchart TD
 
 ## Current dependency path
 
-The active execution path is BoxBrain governance → BrainConnect repository →
-Flutter UI and FastAPI controller → future observation-only target plugin.
+The active execution path is BoxBrain governance to the BrainConnect
+repository, then to the USB-bound Kali Pi controller and edge agent, and then
+to the checkpointed Windows lab on the Pi-only network. BrainConnect has
+verified the certificate-only RDP identity boundary; full-target certificate
+registration and bounded frame observation are next.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered

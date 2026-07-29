@@ -81,10 +81,23 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 - Confirmed no authentication, desktop session, or TLS application data.
 - Fixed the minimal FreeRDP runtime environment and fail-safe upgrade path.
 
-## Next — BrainConnect disposable desktop target
+## Completed - BrainConnect disposable desktop target
 
-- Select a full Windows VM or dedicated lab machine that can host an
-  independently reachable RDP listener.
+- Built a Generation 2 Windows 11 Enterprise Evaluation Hyper-V VM.
+- Isolated the VM on the Raspberry Pi USB network.
+- Verified RDP at `10.12.194.9:3389`.
+- Provisioned a non-administrator, public-key-only, Pi-only SSH boundary.
+- Completed a bounded Pi-originated healthy read-only diagnostic.
+- Gracefully powered off and created Standard checkpoint
+  `clean-linked-2026-07-29`.
+
+See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
+
+## Next - BrainConnect certificate-pinned frame observation
+
+- Register the clean VM disabled by default in BrainConnect.
+- Record its RDP certificate fingerprint independently.
+- Prove the existing native helper exact-match gate without credentials.
 - Add observation-only frame transport without credentials or input.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.

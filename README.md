@@ -66,6 +66,7 @@ link to it.
 - [Flutter dashboard](ui/README.md)
 - [Plugin implementations](plugins/README.md)
 - [Kali Pi edge agent](edge/kali-pi-agent/README.md)
+- [Hyper-V Windows lab](sandbox/hyperv/README.md)
 - [Cross-component tests](tests/README.md)
 
 ## Quick start
@@ -161,6 +162,12 @@ frames at 1280 pixels and 8 MiB, applies configured black masks inside the child
 process, and retains zero frames on disk. Only one capture may run at a time.
 Keep the controller bound to `127.0.0.1`; the frame endpoint is intended only
 for this local dashboard.
+
+For full RDP listener, durable identity, Pi-only networking, and clean
+checkpoint tests, use the separate
+[Hyper-V Windows lab](sandbox/hyperv/README.md). It is disposable, contains no
+personal account or files, and remains powered off at its clean baseline until
+an explicitly reviewed experiment starts.
 
 ### 4. Kali Pi edge agent
 

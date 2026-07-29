@@ -25,15 +25,18 @@ authenticated controller is deployed there as an immutable, USB-bound,
 unprivileged systemd service with private token and SQLite state. A live
 Pi-loopback RDP/NLA fixture has verified exact identity matching, certificate
 rotation and atomic disablement, unreachable and timeout handling, and
-pre-authentication rejection. A disposable full desktop target and frame
-transport remain. No keyboard, mouse, shell, remote-desktop, or model actions
-execute.
+pre-authentication rejection. A disposable Windows 11 Enterprise Hyper-V
+target now exists at `10.12.194.9:3389` on the Pi USB network, has a restricted
+Pi-only diagnostic link, and is preserved at clean Standard checkpoint
+`clean-linked-2026-07-29`. BrainConnect registration, independent certificate
+identity, and frame transport remain. BrainConnect executes no keyboard,
+mouse, credential, remote-desktop, shell, or model action.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 82% planning estimate
+- **Completion:** 86% planning estimate
 - **Current revision:** `746dfdc` on `feature/brainconnect-pi-rdp-live-lab`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
@@ -49,7 +52,8 @@ execute.
 - Kali 2026.2 Raspberry Pi 4 with `libfreerdp3-3` `3.26.0+dfsg-1`
 - Deployed: Kali Raspberry Pi 4 controller service on direct USB
   `10.12.194.1:8000`
-- Future: isolated disposable Windows RDP target
+- Available: isolated Windows 11 Enterprise Evaluation 25H2 Hyper-V target at
+  `10.12.194.9:3389`, powered off at checkpoint `clean-linked-2026-07-29`
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -66,6 +70,7 @@ execute.
 - [Native helper build](../../../BrainConnect/plugins/rdp-observer/native/README.md)
 - [Raspberry Pi controller deployment](../../../BrainConnect/installer/pi/README.md)
 - [Raspberry Pi RDP identity live lab](../../../BrainConnect/lab/pi-rdp-fixture/README.md)
+- [Hyper-V Windows target runbook](../../sandbox/hyperv/README.md)
 
 ## Related projects
 
@@ -76,7 +81,8 @@ execute.
 
 ## Immediate next step
 
-Select a disposable full Windows VM or dedicated lab machine for
-observation-only frame transport, and define controlled dashboard credential
-provisioning without committing or broadly copying the Pi token. The canonical
-task sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).
+Start the clean VM, independently record its RDP certificate fingerprint,
+register it disabled by default, and prove the existing native certificate
+gate before adding observation-only frame transport or controlled session
+credentials. The canonical task sequence is tracked in the
+[Master TODO](../../Admin/MasterTODO.md).

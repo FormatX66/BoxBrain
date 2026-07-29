@@ -20,5 +20,8 @@ This file is the permanent searchable index.
 | BB-ADR-013 | 2026-07-29 | Verify the RDP certificate boundary with an ephemeral Pi-loopback NLA fixture and keep full desktop testing separate. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-013) |
 | BB-ADR-014 | 2026-07-29 | Preserve only `HOME` in the controller's minimal native-helper environment because FreeRDP requires it to create a context. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-014) |
 | BB-ADR-015 | 2026-07-29 | Stop and disable an earlier Pi controller revision before foreground upgrade verification, then re-enable only after the gate passes. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-015) |
+| BB-ADR-016 | 2026-07-29 | Use a Pi-only Generation 2 Hyper-V VM as the disposable full Windows target and apply verified media directly to its blank VHD when needed. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-016) |
+| BB-ADR-017 | 2026-07-29 | Separate future RDP observation from a restricted, non-administrator, Pi-only SSH diagnostic account. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-017) |
+| BB-ADR-018 | 2026-07-29 | Give Windows device inventory its own 15-second deadline and report incomplete coverage explicitly. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-018) |
 
 Before adding a decision, search this index and the linked session logs.

@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-07-29-002 | 2026-07-29 | Disposable Hyper-V Windows target and Pi link | [Human](../SessionHandoffs/BB-2026-07-29-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-002/AgentHandoff.md) |
 | BB-2026-07-29-001 | 2026-07-29 | BrainConnect Pi RDP identity live lab | [Human](../SessionHandoffs/BB-2026-07-29-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-001/AgentHandoff.md) |
 | BB-2026-07-28-008 | 2026-07-28 | BrainConnect Raspberry Pi 4 controller deployment | [Human](../SessionHandoffs/BB-2026-07-28-008/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-008/AgentHandoff.md) |
 | BB-2026-07-28-007 | 2026-07-28 | BrainConnect Raspberry Pi 4 helper deployment | [Human](../SessionHandoffs/BB-2026-07-28-007/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-007/AgentHandoff.md) |
