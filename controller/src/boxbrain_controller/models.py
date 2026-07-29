@@ -19,6 +19,7 @@ AuditEventType = Literal[
     "fleet.targets_imported",
     "provisioning.started",
     "provisioning.step_completed",
+    "provisioning.cancelled",
     "diagnostic.execution_completed",
     "safety.emergency_stop_engaged",
     "safety.emergency_stop_reset",

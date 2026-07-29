@@ -322,17 +322,13 @@ class FleetService:
     ) -> list[FleetMachine]:
         imported: list[FleetMachine] = []
         for target in targets:
+            kind = self._kind_for_target(target)
             existing = self._get_by_remote_target(target.id)
             if existing is not None:
-                imported.append(existing)
+                imported.append(
+                    self._sync_imported_target(existing, target, kind)
+                )
                 continue
-            kind: MachineKind = (
-                "raspberry-pi"
-                if target.transport == "usb-c"
-                else "workstation"
-                if target.transport in {"rdp", "winrm"}
-                else "other"
-            )
             imported.append(
                 self.create(
                     FleetMachineCreate(
@@ -346,6 +342,42 @@ class FleetService:
                 )
             )
         return imported
+
+    @staticmethod
+    def _kind_for_target(target: RemoteTargetRecord) -> MachineKind:
+        if target.built_in and target.transport == "usb-c":
+            return "raspberry-pi"
+        if target.transport in {"usb-c", "rdp", "winrm"}:
+            return "workstation"
+        return "other"
+
+    def _sync_imported_target(
+        self,
+        machine: FleetMachine,
+        target: RemoteTargetRecord,
+        kind: MachineKind,
+    ) -> FleetMachine:
+        capabilities = tuple(sorted(set(target.capabilities)))
+        if machine.kind == kind and machine.capabilities == capabilities:
+            return machine
+        now = datetime.now(UTC)
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE fleet_machines
+                SET kind = ?, machine_identity = ?, capabilities_json = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    kind,
+                    self._machine_identity(machine.id, kind),
+                    json.dumps(capabilities, separators=(",", ":")),
+                    now.isoformat(),
+                    str(machine.id),
+                ),
+            )
+        return self.get(machine.id)
 
     def dashboard(self) -> FleetDashboard:
         machines = self.list()

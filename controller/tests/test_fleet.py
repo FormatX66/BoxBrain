@@ -10,9 +10,11 @@ from boxbrain_controller.app import create_app
 from boxbrain_controller.architecture_manifest import get_architecture_manifest
 from boxbrain_controller.fleet import (
     FleetError,
+    FleetMachineCreate,
     FleetService,
     ProvisioningStepCompleteRequest,
 )
+from boxbrain_controller.models import RemoteTargetCreate
 from boxbrain_controller.remote_targets import RemoteTargetService
 from boxbrain_controller.task_store import TaskStore
 
@@ -85,6 +87,40 @@ def test_fleet_import_and_provisioning_are_durable_and_ordered(
     assert service.get(machine.id).status == "ready"
     reloaded = FleetService(database).get_run(run.id)
     assert reloaded.status == "completed"
+
+
+def test_non_builtin_usb_target_is_a_workstation_and_repairs_old_import(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "boxbrain.sqlite3"
+    targets = RemoteTargetService(database)
+    laptop_target = targets.create(
+        RemoteTargetCreate(
+            name="HeX Laptop",
+            transport="usb-c",
+            host="127.0.0.1",
+            port=22,
+            username="bruce",
+            authorization="AUTHORIZED",
+        )
+    )
+    service = FleetService(database)
+    old_import = service.create(
+        FleetMachineCreate(
+            name="HeX Laptop",
+            kind="raspberry-pi",
+            remote_target_id=laptop_target.id,
+            capabilities=list(laptop_target.capabilities),
+            authorization="AUTHORIZED",
+        )
+    )
+    assert old_import.machine_identity.startswith("BB-RPI-")
+
+    imported = service.import_remote_targets(targets.list())
+    laptop = next(machine for machine in imported if machine.name == "HeX Laptop")
+
+    assert laptop.kind == "workstation"
+    assert laptop.machine_identity.startswith("BB-WS-")
 
 
 def test_fleet_api_imports_target_and_audits_provisioning(
