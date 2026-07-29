@@ -36,5 +36,7 @@ This file is the permanent searchable index.
 | BB-ADR-029 | 2026-07-29 | Execute related keyboard steps as one bounded operation in one pinned RDP connection. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-029) |
 | BB-ADR-030 | 2026-07-29 | Treat Windows session routing and unlock state as the active input blocker. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-030) |
 | BB-ADR-031 | 2026-07-29 | Use a UAC-gated exact-checkpoint helper and standard Hyper-V group membership. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-031) |
+| BB-ADR-032 | 2026-07-29 | Bind the local Windows credential and console session, force slow-path input, and reject suspended input. | [Session decision log](../SessionHandoffs/BB-2026-07-29-009/DecisionLog.md#bb-adr-032) |
+| BB-ADR-033 | 2026-07-29 | Accept an optional UTF-8 byte-order marker only at the local Windows experiment-plan boundary. | [Session decision log](../SessionHandoffs/BB-2026-07-29-009/DecisionLog.md#bb-adr-033) |
 
 Before adding a decision, search this index and the linked session logs.

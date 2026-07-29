@@ -161,24 +161,29 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Added two-to-eight-step keyboard sequences inside one pinned RDP connection.
 - Added a fixed, read-only Windows process verifier.
 - Promoted the sequence artifact and controller revision to the Pi.
-- Proved sequence transport while independently proving Notepad remained
-  absent.
-- Isolated Explorer to session 1 and the new attempts to LogonUI sessions.
+- Used the first failed proof to isolate Explorer to session 1 and the new
+  attempts to LogonUI sessions.
 - Rotated the exposed controller token, removed all execution credentials, and
   restored the clean checkpoint after the run.
 
-## Next - BrainConnect Windows session binding
+## Completed - BrainConnect verified RDP keyboard control
 
-- Map RDP session IDs to users and record Terminal Services events.
-- Inspect reconnect, lock, domain identity, and single-session-per-user state.
-- Bind or unlock the intended Explorer session with the smallest justified
-  change.
-- Prove one harmless sequence creates the expected Notepad process.
-- Preserve transport acceptance and verified state change as separate results.
+- Mapped RDP session ownership and Terminal Services authentication and
+  reconnect events.
+- Bound the target-local account to `BB-WIN-LAB` and requested the existing
+  console session.
+- Forced slow-path input and rejected suspended input.
+- Passed six native tests on both amd64 and arm64 and seven runner tests.
+- Independently proved that keyboard sequences launched Task Manager and
+  Notepad.
+- Disabled execution, removed credentials and temporary runners, and restored
+  the exact clean checkpoint.
 
-## Parallel pending - BrainConnect observation-only frames
+## Next - BrainConnect observation-only frames
 
 - Add observation-only frame transport without credentials or input.
+- Verify one pointer move and one text result independently.
+- Align or compatibility-gate the FreeRDP build and Pi runtime versions.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.
 

@@ -47,22 +47,23 @@ rechecks the exact endpoint, selected NLA/HYBRID protocol, and SHA-256
 certificate pin before reading target-bound systemd runtime credentials,
 disables all FreeRDP redirections, validates coordinates and keyboard payloads,
 and disconnects after a bounded event loop. The connector and credential
-contract pass native amd64 and arm64 builds and tests. Revision `eabc3d3` is
+contract pass six native tests for amd64 and arm64. Revision `871fe43` is
 installed on the Pi with control SHA-256
-`135ee649c8b40ed39b1e09138aad1461d7998d36e8251c75f366b91a42b1ea4e`.
-A guarded live run proved exact-target authentication and successful FreeRDP
-sequence submission. The fixed guest process verifier still found no Notepad.
-Read-only evidence placed Explorer and `rdpclip` in Windows session 1 while
-new RDP attempts reached LogonUI sessions elsewhere. Cleanup rotated an
-exposed controller token, left `executor_enabled=false`, removed the execution
-drop-in and every encrypted credential, and restored the clean checkpoint.
+`592feb4b12fb5c7a6066cae6433495ecbc050647ebff90a0ea4d26ec19c3432d`.
+It binds the target-local account, reconnects the console session, forces
+slow-path input, and rejects suspended input. Windows event evidence proved
+successful exact-user authentication and session reconnection. Independent
+process checks then proved keyboard control by observing Task Manager and
+Notepad. Cleanup left `executor_enabled=false`, removed the execution drop-in,
+every encrypted credential, and every temporary runner, and restored the exact
+clean checkpoint.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 96% planning estimate
-- **Current revision:** `593daa0` on
+- **Completion:** 97% planning estimate
+- **Current revision:** `379f4dc` on
   `feature/brainconnect-rdp-input-verification`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
@@ -114,11 +115,9 @@ drop-in and every encrypted credential, and restored the clean checkpoint.
 
 ## Immediate next step
 
-Map Windows RDP session IDs to users and inspect Terminal Services reconnect,
-lock, and single-session policy evidence. Bind or unlock the intended Explorer
-session with the smallest justified change, then repeat one bounded Notepad
-sequence with independent process verification. Disable the executor, remove
-all encrypted credentials, and restore the checkpoint after the run. Shell,
-pointer buttons, scrolling, clipboard, and observation-only frames remain
-pending tracks. The canonical task sequence is tracked in the
+Add bounded, redacted frame observation and use it to verify one pointer move
+and the visible text result of one keyboard sequence. Align the FreeRDP build
+baseline with the Pi's 3.26.0 runtime or add an explicit compatibility gate.
+Shell, pointer buttons, scrolling, and clipboard remain pending tracks. The
+canonical task sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

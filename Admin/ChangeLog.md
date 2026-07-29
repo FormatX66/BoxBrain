@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-29 | BB-2026-07-29-009 | Corrected BrainConnect's RDP identity, session, and slow-path input settings; independently verified Task Manager and Notepad launches; cleaned the Pi; and restored the exact checkpoint. | [Session change log](../SessionHandoffs/BB-2026-07-29-009/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-008 | Added and promoted persistent RDP keyboard sequences plus a fixed verifier, restored the VM before and after the live run, and isolated the remaining failure to Windows session routing. | [Session change log](../SessionHandoffs/BB-2026-07-29-008/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-007 | Promoted BrainConnect's pointer and keyboard connector to the Pi, proved exact-target FreeRDP event submission, removed execution credentials, and preserved the remaining visual-verification gap. | [Session change log](../SessionHandoffs/BB-2026-07-29-007/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-006 | Added BrainConnect's native FreeRDP pointer connector, post-pin systemd credential contract, and amd64/arm64 artifact gates without deploying or enabling it. | [Session change log](../SessionHandoffs/BB-2026-07-29-006/ChangeLog.md) |

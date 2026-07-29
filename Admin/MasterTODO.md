@@ -65,8 +65,10 @@
 - [x] Keep one bounded RDP session active across a related input sequence.
 - [x] Add a restricted Windows process verifier and exercise it after a live
   sequence.
-- [ ] Map Windows RDP session ownership, reconnect events, and unlock state.
-- [ ] Bind the native input connection to the intended Explorer session.
+- [x] Map Windows RDP session ownership, reconnect events, and unlock state.
+- [x] Bind the native input connection to the intended Explorer session.
+- [x] Independently prove Task Manager and Notepad process state after
+  keyboard sequences.
 - [ ] Add independent frame or guest-state verification for each live input.
 - [ ] Specify and implement bounded, redacted, observation-only frames.
 
