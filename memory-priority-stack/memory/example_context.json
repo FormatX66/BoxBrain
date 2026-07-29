@@ -1,0 +1,11 @@
+{
+  "task": "Make a 30-40 second video from uploaded comment screenshots",
+  "available_tools": ["python", "ffmpeg", "image_generation"],
+  "repository_matches": ["screenshots_to_short_video"],
+  "blocked_actions": ["direct native editor project export"],
+  "candidate_actions": [
+    {"id": "write_storyboard", "artifact_level": 6, "estimated_success": 0.99},
+    {"id": "make_frame_pack", "artifact_level": 4, "estimated_success": 0.95},
+    {"id": "render_mp4", "artifact_level": 1, "estimated_success": 0.85}
+  ]
+}

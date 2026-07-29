@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "workflows": [
+    {
+      "id": "screenshots_to_short_video",
+      "task_patterns": ["make a short video from screenshots", "animate screenshots", "comment roast video"],
+      "status": "proven",
+      "steps": [
+        "select strongest screenshots",
+        "create individual vertical frames",
+        "add captions and visual gags",
+        "animate with pan/zoom",
+        "add original sound effects",
+        "export MP4",
+        "optionally provide editor-ready frame pack"
+      ],
+      "fallbacks": ["animated GIF", "individual PNG frame pack", "editor import manifest"]
+    },
+    {
+      "id": "pet_character_generation",
+      "task_patterns": ["generate Glenn Dogzig", "pet character image", "Dogzig social post"],
+      "status": "proven",
+      "steps": [
+        "reuse stored pet appearance traits",
+        "preserve identifying markings and proportions",
+        "apply requested theme",
+        "generate closest usable image asset",
+        "store successful visual traits and corrections"
+      ],
+      "fallbacks": ["prompt pack", "character reference sheet", "social post storyboard"]
+    }
+  ]
+}
