@@ -27,5 +27,7 @@ This file is the permanent searchable index.
 | BB-ADR-020 | 2026-07-29 | Revoke and rotate any controller token exposed in diagnostic output before continuing operations. | [Session decision log](../SessionHandoffs/BB-2026-07-29-003/DecisionLog.md#bb-adr-020) |
 | BB-ADR-021 | 2026-07-29 | Start disposable-VM control capability-first, while retaining exact-target containment, audit, emergency stop, hard limits, and checkpoint recovery. | [Session decision log](../SessionHandoffs/BB-2026-07-29-004/DecisionLog.md#bb-adr-021) |
 | BB-ADR-022 | 2026-07-29 | Separate durable execution state from live VM transport through a fixed, disabled-by-default standard-input adapter protocol with transient output. | [Session decision log](../SessionHandoffs/BB-2026-07-29-005/DecisionLog.md#bb-adr-022) |
+| BB-ADR-023 | 2026-07-29 | Supply RDP credentials through target-UUID-bound systemd runtime files read only after exact endpoint and certificate verification. | [Session decision log](../SessionHandoffs/BB-2026-07-29-006/DecisionLog.md#bb-adr-023) |
+| BB-ADR-024 | 2026-07-29 | Make absolute `pointer_move` the first native capability and distinguish accepted input from visually verified state change. | [Session decision log](../SessionHandoffs/BB-2026-07-29-006/DecisionLog.md#bb-adr-024) |
 
 Before adding a decision, search this index and the linked session logs.

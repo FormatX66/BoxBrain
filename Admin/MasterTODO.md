@@ -44,8 +44,15 @@
   durable operation state machine.
 - [x] Add exact certificate recheck, deterministic subprocess fixture, restart
   recovery, and transient Flutter result display.
-- [ ] Implement the live VM connector and external credential transport
-  without giving it authority over the Pi or workstation.
+- [x] Implement the first native VM connector for absolute pointer movement
+  with post-pin, target-bound systemd credential lookup.
+- [x] Build and synthetic-test the control artifact for amd64 and arm64.
+- [ ] Consolidate the guarded native Pi installer for control promotion.
+- [ ] Run control identity and credential-negative fixtures on the Pi's exact
+  FreeRDP 3.26 runtime.
+- [ ] Provision encrypted target-bound systemd credentials and install the
+  reviewed connector while leaving execution disabled.
+- [ ] Prove one live pointer move with independent visual evidence.
 - [ ] Record bounded results and before/after evidence for every executed
   operation.
 - [ ] Restore and verify `clean-linked-2026-07-29` after the first live control

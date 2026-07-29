@@ -126,13 +126,28 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Added gated **Run next**, status chips, and transient result display in
   Flutter.
 
-## Next - BrainConnect live VM connector
+## Completed - BrainConnect native pointer connector
 
-- Implement the transport-specific executable behind the proven protocol.
-- Supply RDP credentials through an external runtime boundary.
-- Record bounded results and before/after evidence without logging commands,
-  clipboard contents, or credentials.
-- Exercise one operation at a time and constrain only observed failures.
+- Built one headless FreeRDP executable for canonical absolute pointer moves.
+- Required exact NLA/HYBRID endpoint and certificate match before credential
+  lookup.
+- Selected target-UUID-bound systemd runtime credentials.
+- Rejected loose credential files, symlinks, malformed requests, unsupported
+  operations, and out-of-desktop coordinates.
+- Disabled gateway, reconnect, clipboard, drive, device, audio, printer,
+  smart-card, and file redirection.
+- Passed five native tests on both amd64 and arm64.
+- Kept the connector uninstalled, credentials unprovisioned, and production
+  execution disabled.
+
+## Next - BrainConnect Pi connector promotion
+
+- Consolidate the existing native installer for control-artifact promotion.
+- Run control identity and credential-negative fixtures on the Pi's exact
+  FreeRDP 3.26 runtime.
+- Provision encrypted, target-bound systemd credentials.
+- Install the artifact while keeping the executor disabled.
+- Prove one pointer move with independent visual evidence.
 - Restore checkpoint `clean-linked-2026-07-29` after the first live run.
 
 ## Parallel pending - BrainConnect observation-only frames

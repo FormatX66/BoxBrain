@@ -46,5 +46,7 @@ documentation.
    returns one identity-matched result.
 7. The controller persists terminal status and output size/digest, while raw
    output is returned transiently to the authenticated dashboard.
-8. The packaged fixture proves this complete path without touching the VM; a
-   future live connector will use the same protocol.
+8. The packaged fixture proves this complete path without touching the VM.
+   The native pointer connector implements the same protocol, reads
+   target-bound systemd credentials only after exact endpoint and certificate
+   verification, and is not yet installed or enabled on the Pi.

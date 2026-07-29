@@ -40,19 +40,25 @@ plugin now has a fixed, versioned standard-input protocol, exact certificate
 recheck, atomic execution claims, durable results, interruption recovery, and
 a packaged deterministic fixture. Flutter shows operation states, gates
 **Run next** on truthful executor health, and displays raw result text only
-transiently. The live connector and credential provider are not implemented or
-deployed, `executor_enabled` remains false on the Pi, and BrainConnect executes
-no target, remote-desktop, credential, or model action.
+transiently. A native FreeRDP connector now implements the first live operation:
+one canonical absolute pointer move. It rechecks the exact endpoint, selected
+NLA/HYBRID protocol, and SHA-256 certificate pin before reading target-bound
+systemd runtime credentials, disables all FreeRDP redirections, validates
+coordinates against the negotiated desktop, and disconnects after a bounded
+event loop. The connector and credential contract pass native amd64 and arm64
+builds and tests, but neither the connector nor a target credential has been
+installed on the Pi. `executor_enabled` therefore remains false there, and
+BrainConnect has executed no live target action.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 93% planning estimate
-- **Current revision:** `310c264` on `feature/brainconnect-open-lab-adapter`
+- **Completion:** 94% planning estimate
+- **Current revision:** `d207694` on `feature/brainconnect-freerdp-control`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 9](https://github.com/FormatX66/BrainConnect/pull/9)
+- **Draft review:** [Pull request 10](https://github.com/FormatX66/BrainConnect/pull/10)
 
 ## Dependencies
 
@@ -62,6 +68,9 @@ no target, remote-desktop, credential, or model action.
 - Debian 13 build image pinned by digest, FreeRDP 3.15.x, CMake, GCC, and
   OpenSSL 3
 - Kali 2026.2 Raspberry Pi 4 with `libfreerdp3-3` `3.26.0+dfsg-1`
+- Target-UUID-bound systemd runtime credentials, provisioned only at deployment
+  and never stored in Git, SQLite, API payloads, command arguments, or ordinary
+  environment values
 - Deployed: Kali Raspberry Pi 4 controller service on direct USB
   `10.12.194.1:8000`
 - Live-approved: isolated Windows 11 Enterprise Evaluation 25H2 Hyper-V target
@@ -97,11 +106,13 @@ no target, remote-desktop, credential, or model action.
 
 ## Immediate next step
 
-Implement the live transport-specific connector and external credential
-provider behind the proven adapter protocol, then execute one bounded operation
-at a time against the exact enabled VM. Record before/after evidence without
-copying commands, raw output, clipboard contents, or credentials into audit
-events. Restore checkpoint `clean-linked-2026-07-29` after the first live
+Promote the verified pointer connector through one consolidated Pi installer:
+validate it against the Pi's FreeRDP 3.26 runtime, provision one encrypted
+target-bound systemd credential, install it disabled, and then execute one
+evidence-backed pointer move against the exact enabled VM. Record before/after
+evidence without copying commands, raw output, clipboard contents, or
+credentials into audit events. Disable the executor, remove the credential,
+and restore checkpoint `clean-linked-2026-07-29` after the first live
 experiment. Observation-only frames remain a parallel pending track. The
 canonical task sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

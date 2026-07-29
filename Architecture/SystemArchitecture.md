@@ -49,9 +49,13 @@ verified and audited the full target's certificate-only RDP identity boundary;
 it now accepts bounded, audited open-profile operations into a durable queue.
 It also has a disabled-by-default out-of-process protocol, exact certificate
 recheck, durable execution states, bounded result metadata, and deterministic
-no-action fixture. The next active step is the live transport-specific
-connector and external credential provider. Observation-only frame delivery
-remains a separate pending track.
+no-action fixture. The first native transport connector now supports one
+certificate-pinned absolute pointer move and target-bound systemd runtime
+credentials; its amd64 and arm64 artifacts are verified but not installed or
+enabled. The next active step is controlled Pi promotion, FreeRDP 3.26
+compatibility proof, encrypted credential provisioning, and one visually
+verified pointer experiment followed by disablement and rollback.
+Observation-only frame delivery remains a separate pending track.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered
