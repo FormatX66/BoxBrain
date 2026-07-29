@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-07-28-007 | 2026-07-28 | BrainConnect Raspberry Pi 4 helper deployment | [Human](../SessionHandoffs/BB-2026-07-28-007/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-007/AgentHandoff.md) |
 | BB-2026-07-28-006 | 2026-07-28 | BrainConnect native FreeRDP certificate helper | [Human](../SessionHandoffs/BB-2026-07-28-006/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-006/AgentHandoff.md) |
 | BB-2026-07-28-005 | 2026-07-28 | BrainConnect fail-closed RDP certificate-probe boundary | [Human](../SessionHandoffs/BB-2026-07-28-005/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-005/AgentHandoff.md) |
 | BB-2026-07-28-004 | 2026-07-28 | BrainConnect audited target registry and task admission | [Human](../SessionHandoffs/BB-2026-07-28-004/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-28-004/AgentHandoff.md) |

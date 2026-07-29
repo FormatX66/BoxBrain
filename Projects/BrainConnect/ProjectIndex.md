@@ -19,18 +19,20 @@ versioned helper protocol, verification audit events, atomic mismatch
 disablement, and Flutter probe control are implemented. The native FreeRDP
 3.15.x certificate helper now builds and passes synthetic RDP/TLS, downgrade,
 deadline, protocol, and no-authentication tests for amd64 and arm64. Linux/Pi
-installation, an isolated Windows live test, and frame transport remain. No
-keyboard, mouse, shell, remote-desktop, or model actions execute.
+installation is now complete on the Kali Raspberry Pi 4 with exact runtime,
+checksum, ownership, provenance, and on-host synthetic verification. Controller
+deployment on the Pi, an isolated Windows live test, and frame transport
+remain. No keyboard, mouse, shell, remote-desktop, or model actions execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 68% planning estimate
-- **Current revision:** `01c34d7` on `feature/brainconnect-freerdp-native-probe`
+- **Completion:** 72% planning estimate
+- **Current revision:** `8a308dc` on `feature/brainconnect-pi4-deployment`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 4](https://github.com/FormatX66/BrainConnect/pull/4)
+- **Draft review:** [Pull request 5](https://github.com/FormatX66/BrainConnect/pull/5)
 
 ## Dependencies
 
@@ -39,7 +41,9 @@ keyboard, mouse, shell, remote-desktop, or model actions execute.
 - WebSocket Channel 3.0.3 for the cross-platform Flutter live-event client
 - Debian 13 build image pinned by digest, FreeRDP 3.15.x, CMake, GCC, and
   OpenSSL 3
-- Future: isolated disposable Windows RDP target and Linux/Pi runtime package
+- Kali 2026.2 Raspberry Pi 4 with `libfreerdp3-3` `3.26.0+dfsg-1`
+- Future: Raspberry Pi controller service and isolated disposable Windows RDP
+  target
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -64,7 +68,8 @@ keyboard, mouse, shell, remote-desktop, or model actions execute.
 
 ## Immediate next step
 
-Package and install `brainconnect-freerdp-probe` on a Linux/Pi controller, then
-verify exact-match, changed-certificate, timeout, and pre-authentication abort
-behavior against an isolated disposable Windows RDP target. The canonical task
-sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).
+Deploy the authenticated FastAPI controller on the Raspberry Pi and configure
+the installed helper path, or select the isolated disposable Windows RDP
+target and verify exact-match, changed-certificate, timeout, and
+pre-authentication abort behavior. The canonical task sequence is tracked in
+the [Master TODO](../../Admin/MasterTODO.md).

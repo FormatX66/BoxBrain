@@ -24,7 +24,10 @@
 - [x] Add the Flutter certificate-probe workflow.
 - [x] Implement the native out-of-process FreeRDP certificate helper.
 - [x] Build and synthetic-test the helper for amd64 and arm64.
-- [ ] Package and install the helper on a Linux/Pi controller.
+- [x] Package and install the helper on the Kali Raspberry Pi 4.
+- [x] Verify the installed checksum, ownership, provenance, and host-runtime
+  synthetic boundary test.
+- [ ] Deploy and configure the FastAPI controller on the Raspberry Pi.
 - [ ] Live-test certificate verification against an isolated Windows RDP
   target.
 

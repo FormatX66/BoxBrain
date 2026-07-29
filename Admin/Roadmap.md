@@ -50,11 +50,21 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 - Forced certificate rejection before authentication or `PostConnect`.
 - Built and synthetic-tested amd64 and Raspberry Pi-compatible arm64 images.
 
+## Completed — BrainConnect Raspberry Pi 4 helper deployment
+
+- Connected to the Pi 4 over its direct USB gadget network with strict SSH
+  host-key checking.
+- Verified Kali 2026.2 arm64 and exact `libfreerdp3-3` runtime version
+  `3.26.0+dfsg-1`.
+- Ran the full synthetic certificate boundary test on the Pi before install.
+- Installed the reviewed ELF root-owned with checksum and content-addressed
+  provenance.
+- Changed no package version, repository, or package hold on the Pi.
+
 ## Next — BrainConnect isolated RDP live lab
 
-- Package and install the helper plus runtime dependencies on Linux or a
-  Raspberry Pi controller.
-- Configure only the helper's absolute executable path.
+- Deploy the authenticated FastAPI controller on the Raspberry Pi and
+  configure only the helper's absolute executable path.
 - Verify exact-match, changed-certificate, timeout, and no-authentication
   behavior against an isolated disposable Windows RDP target.
 - Record package provenance and checksums without storing credentials.
