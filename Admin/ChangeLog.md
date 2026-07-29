@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-29 | BB-2026-07-29-004 | Added BrainConnect's audited open-profile operation queue and Flutter forms for shell, keyboard, pointer, and clipboard work; live execution remains disabled. | [Session change log](../SessionHandoffs/BB-2026-07-29-004/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-003 | Independently identified, registered, no-authentication-probed, audited, and enabled the full Windows target; rotated an exposed controller token before continuing. | [Session change log](../SessionHandoffs/BB-2026-07-29-003/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-002 | Built, linked, diagnosed, and checkpointed a disposable Hyper-V Windows target; fixed onboarding, bounded Windows inventory, completed the TestClient migration, and hardened repository validation. | [Session change log](../SessionHandoffs/BB-2026-07-29-002/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-001 | Live-verified BrainConnect's production Pi RDP certificate boundary, fixed FreeRDP environment compatibility, and made controller upgrades fail-safe. | [Session change log](../SessionHandoffs/BB-2026-07-29-001/ChangeLog.md) |

@@ -31,18 +31,24 @@ Pi-only diagnostic link, and is preserved at clean Standard checkpoint
 `clean-linked-2026-07-29`. Its RDP identity was independently read from the
 guest certificate store, registered disabled by default, exactly matched by
 the Pi helper without authentication or a desktop session, audited, and then
-enabled. Frame transport remains. BrainConnect executes no keyboard, mouse,
-credential, remote-desktop, shell, or model action.
+enabled. BrainConnect now accepts bounded shell, keyboard, pointer, and
+clipboard operations into an audited open-profile queue. Each operation is
+tied to the active task and enabled target, and rechecks emergency stop and the
+500-operation task limit. The Flutter dashboard provides forms for all eight
+operation types and displays queued operation counts. The open-lab control
+plugin remains disabled, `executor_enabled` remains false, and BrainConnect
+executes no queued operation, remote-desktop session, credential, or model
+action.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 89% planning estimate
-- **Current revision:** `654795b` on `feature/brainconnect-pi-rdp-live-lab`
+- **Completion:** 91% planning estimate
+- **Current revision:** `155b526` on `feature/brainconnect-open-lab-control`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 7](https://github.com/FormatX66/BrainConnect/pull/7)
+- **Draft review:** [Pull request 8](https://github.com/FormatX66/BrainConnect/pull/8)
 
 ## Dependencies
 
@@ -66,6 +72,7 @@ credential, remote-desktop, shell, or model action.
 - [Architecture](../../../BrainConnect/docs/ARCHITECTURE.md)
 - [Roadmap](../../../BrainConnect/docs/ROADMAP.md)
 - [Security](../../../BrainConnect/docs/SECURITY.md)
+- [Open-lab control](../../../BrainConnect/docs/OPEN_LAB.md)
 - [Development](../../../BrainConnect/docs/DEVELOPMENT.md)
 - [Plugin contract](../../../BrainConnect/docs/PLUGIN_CONTRACT.md)
 - [Observation targets](../../../BrainConnect/docs/TARGETS.md)
@@ -84,7 +91,10 @@ credential, remote-desktop, shell, or model action.
 
 ## Immediate next step
 
-Specify and implement bounded, redacted, observation-only frame delivery while
-keeping credentials, authentication, keyboard, pointer, clipboard, file,
-device, audio, and shell capabilities unavailable. The canonical task sequence
-is tracked in the [Master TODO](../../Admin/MasterTODO.md).
+Implement the disabled, out-of-process VM-only adapter and external credential
+transport, then execute one bounded operation at a time against the exact
+enabled VM. Record results and before/after evidence without copying commands,
+clipboard contents, or credentials into audit events. Restore checkpoint
+`clean-linked-2026-07-29` after the first live experiment. Observation-only
+frames remain a parallel pending track. The canonical task sequence is tracked
+in the [Master TODO](../../Admin/MasterTODO.md).

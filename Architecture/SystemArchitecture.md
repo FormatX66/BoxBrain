@@ -46,7 +46,10 @@ The active execution path is BoxBrain governance to the BrainConnect
 repository, then to the USB-bound Kali Pi controller and edge agent, and then
 to the checkpointed Windows lab on the Pi-only network. BrainConnect has
 verified and audited the full target's certificate-only RDP identity boundary;
-bounded, redacted, observation-only frame delivery is next.
+it now accepts bounded, audited open-profile operations into a durable queue.
+The next active step is an out-of-process VM-only execution adapter with
+external credentials and bounded results. Observation-only frame delivery
+remains a separate pending track.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered

@@ -103,7 +103,26 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Verified append-only register, identity-match, and enable audit events.
 - Enabled the exact target only after the independent identity matched.
 
-## Next - BrainConnect observation-only frames
+## Completed - BrainConnect open-lab operation queue
+
+- Defined a capability-first experiment for the exact disposable Windows VM.
+- Retained exact-target containment, immutable audit, emergency stop, hard
+  operation limits, bounded shell timeouts, and checkpoint recovery.
+- Added durable typed operations for shell, keyboard text and keys, pointer
+  movement/buttons/scrolling, and clipboard read/write.
+- Added Flutter forms and queued-operation health visibility.
+- Kept the control plugin disabled and `executor_enabled = false`.
+
+## Next - BrainConnect VM-only execution adapter
+
+- Add an out-of-process adapter that can address only the enabled VM target.
+- Supply RDP credentials through an external runtime boundary.
+- Record bounded results and before/after evidence without logging commands,
+  clipboard contents, or credentials.
+- Exercise one operation at a time and constrain only observed failures.
+- Restore checkpoint `clean-linked-2026-07-29` after the first live run.
+
+## Parallel pending - BrainConnect observation-only frames
 
 - Add observation-only frame transport without credentials or input.
 - Define controlled dashboard credential provisioning without committing or

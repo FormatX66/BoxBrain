@@ -36,6 +36,16 @@
 - [x] Register the clean VM disabled by default and independently record its
   RDP certificate fingerprint.
 - [x] Prove the existing certificate gate against the full Windows target.
+- [x] Define the capability-first disposable-VM boundary.
+- [x] Add the durable, audited open-profile operation queue for shell,
+  keyboard, pointer, and clipboard work.
+- [x] Add Flutter forms for every queued operation type.
+- [ ] Implement the disabled VM-only execution adapter and external credential
+  transport without giving it authority over the Pi or workstation.
+- [ ] Record bounded results and before/after evidence for every executed
+  operation.
+- [ ] Restore and verify `clean-linked-2026-07-29` after the first live control
+  experiment.
 - [ ] Specify and implement bounded, redacted, observation-only frames.
 
 Detailed implementation work belongs in the canonical

@@ -5,7 +5,7 @@ This is the canonical registry of repositories known to BoxBrain.
 | Project | Repository | State | Revision | Remote |
 | --- | --- | --- | --- | --- |
 | BoxBrain | This repository | Organization review | `codex/repository-organization` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
-| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `746dfdc` on `feature/brainconnect-pi-rdp-live-lab` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
+| BrainConnect | [Local repository](../../BrainConnect/README.md) | Active alpha | `155b526` on `feature/brainconnect-open-lab-control` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
 | WebsiteBuilder | No repository discovered | Discovery | — | — |
 | Arkmatx | No repository discovered | Discovery | — | — |
 | AgentFramework | No repository discovered | Proposed | — | — |

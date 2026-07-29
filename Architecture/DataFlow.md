@@ -31,3 +31,14 @@ sequenceDiagram
 
 Detailed code-level data flow remains in each project’s canonical
 documentation.
+
+## Current BrainConnect control flow
+
+1. The operator selects the enabled disposable VM and creates an `open` task.
+2. The dashboard submits a bounded typed operation.
+3. The controller transactionally rechecks emergency stop, task state, target
+   state, policy, and the 500-operation limit.
+4. The operation is stored as `queued`; the audit event records type, size,
+   digest, target, and task without copying sensitive content.
+5. A future out-of-process adapter will execute only against the exact VM,
+   return bounded evidence, and restore the clean checkpoint after experiments.

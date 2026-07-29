@@ -25,5 +25,6 @@ This file is the permanent searchable index.
 | BB-ADR-018 | 2026-07-29 | Give Windows device inventory its own 15-second deadline and report incomplete coverage explicitly. | [Session decision log](../SessionHandoffs/BB-2026-07-29-002/DecisionLog.md#bb-adr-018) |
 | BB-ADR-019 | 2026-07-29 | Read the Windows RDP certificate through Hyper-V PowerShell Direct before comparing it with BrainConnect's no-authentication probe. | [Session decision log](../SessionHandoffs/BB-2026-07-29-003/DecisionLog.md#bb-adr-019) |
 | BB-ADR-020 | 2026-07-29 | Revoke and rotate any controller token exposed in diagnostic output before continuing operations. | [Session decision log](../SessionHandoffs/BB-2026-07-29-003/DecisionLog.md#bb-adr-020) |
+| BB-ADR-021 | 2026-07-29 | Start disposable-VM control capability-first, while retaining exact-target containment, audit, emergency stop, hard limits, and checkpoint recovery. | [Session decision log](../SessionHandoffs/BB-2026-07-29-004/DecisionLog.md#bb-adr-021) |
 
 Before adding a decision, search this index and the linked session logs.
