@@ -8,6 +8,8 @@ param(
 
     [string]$StatusPath = 'C:\VMs\BoxBrain-Windows-Lab\restore-status.json',
 
+    [string]$ErrorPath = 'C:\VMs\BoxBrain-Windows-Lab\logs\restore-error.json',
+
     [switch]$GrantCurrentUserAccess,
 
     [bool]$StartAfterRestore = $true
@@ -15,6 +17,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+trap {
+    $errorDirectory = Split-Path -Parent $ErrorPath
+    if (Test-Path -LiteralPath $errorDirectory -PathType Container) {
+        [ordered]@{
+            recorded_at = (Get-Date).ToUniversalTime().ToString('o')
+            vm_name = $VmName
+            checkpoint_name = $SnapshotName
+            error = $_.Exception.Message
+            category = $_.CategoryInfo.Category.ToString()
+            script_line = $_.InvocationInfo.ScriptLineNumber
+        } | ConvertTo-Json |
+            Set-Content -LiteralPath $ErrorPath -Encoding UTF8
+    }
+    throw
+}
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
