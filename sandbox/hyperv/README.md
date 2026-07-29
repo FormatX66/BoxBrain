@@ -187,6 +187,22 @@ create the clean powered-off baseline:
 The checkpoint script requests a graceful guest shutdown and never uses
 `-TurnOff` or forced shutdown. It refuses to replace an existing checkpoint.
 
+After a bounded experiment, restore the exact clean checkpoint from an
+elevated Windows PowerShell session:
+
+```powershell
+.\sandbox\hyperv\Restore-BoxBrainWindowsLabCheckpoint.ps1 `
+    -GrantCurrentUserAccess
+```
+
+The script resolves exactly one VM and one named checkpoint before changing
+state, uses PowerShell confirmation with high impact, and records the restored
+checkpoint ID in
+`C:\VMs\BoxBrain-Windows-Lab\restore-status.json`. The optional access switch
+adds the current Windows account to the built-in **Hyper-V Administrators**
+group so later VM checks do not require elevation. A new Windows sign-in is
+required before that non-elevated membership appears in the user's token.
+
 The full installation, link, and checkpoint must be recorded in the current
 BoxBrain session handoff. Removal is intentionally not automated by this
 directory; deleting the VM, switch, disk, checkpoint, or media requires a
