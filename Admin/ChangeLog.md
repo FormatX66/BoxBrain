@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-28 | BB-2026-07-28-006 | Built and synthetic-tested BrainConnect's native FreeRDP certificate helper for amd64 and arm64 with NLA selection and TLS downgrade enforcement. | [Session change log](../SessionHandoffs/BB-2026-07-28-006/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-005 | Implemented BrainConnect's fail-closed RDP certificate-probe boundary, identity verification, mismatch disablement, and Flutter probe workflow. | [Session change log](../SessionHandoffs/BB-2026-07-28-005/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-004 | Implemented the audited BrainConnect target registry, enabled-target task gate, and Flutter target workflow. | [Session change log](../SessionHandoffs/BB-2026-07-28-004/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-003 | Resolved BrainConnect target, test-stack, and repository-origin blockers without overwriting the existing BoxBrain history. | [Session change log](../SessionHandoffs/BB-2026-07-28-003/ChangeLog.md) |

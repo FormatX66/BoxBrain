@@ -41,15 +41,25 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 - Flutter probe action and last-verification display
 - Deterministic process, timeout, protocol, mismatch, and audit tests
 
-## Next — BrainConnect native FreeRDP helper
+## Completed — BrainConnect native FreeRDP helper
 
-- Establish a reproducible FreeRDP 3.x and CMake build environment.
-- Implement the X.509 callback and abort before authentication.
-- Prove exact-match and changed-certificate behavior against an isolated lab
-  target.
+- Pinned a Debian 13, FreeRDP 3.15.x, CMake, GCC, and OpenSSL build baseline.
+- Implemented strict arguments, bounded JSON, X.509 parsing, and an internal
+  hard deadline.
+- Required exact NLA/HYBRID server selection and rejected TLS-only downgrade.
+- Forced certificate rejection before authentication or `PostConnect`.
+- Built and synthetic-tested amd64 and Raspberry Pi-compatible arm64 images.
+
+## Next — BrainConnect isolated RDP live lab
+
+- Package and install the helper plus runtime dependencies on Linux or a
+  Raspberry Pi controller.
+- Configure only the helper's absolute executable path.
+- Verify exact-match, changed-certificate, timeout, and no-authentication
+  behavior against an isolated disposable Windows RDP target.
+- Record package provenance and checksums without storing credentials.
 - Keep keyboard, pointer, clipboard, file, shell, and device redirection
   unavailable.
-- Package the helper separately and configure its absolute executable path.
 
 ## Later — Shared ecosystem services
 

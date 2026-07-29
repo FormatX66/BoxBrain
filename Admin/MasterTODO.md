@@ -22,8 +22,11 @@
 - [x] Implement the certificate-probe process protocol and identity-mismatch
   handler.
 - [x] Add the Flutter certificate-probe workflow.
-- [ ] Implement the out-of-process FreeRDP observation plugin.
-- [ ] Build and live-test the native FreeRDP certificate helper.
+- [x] Implement the native out-of-process FreeRDP certificate helper.
+- [x] Build and synthetic-test the helper for amd64 and arm64.
+- [ ] Package and install the helper on a Linux/Pi controller.
+- [ ] Live-test certificate verification against an isolated Windows RDP
+  target.
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).

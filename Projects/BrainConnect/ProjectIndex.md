@@ -17,25 +17,29 @@ enable/disable operations, enabled-target task admission, and the Flutter
 target workflow are implemented. The fail-closed certificate-probe API,
 versioned helper protocol, verification audit events, atomic mismatch
 disablement, and Flutter probe control are implemented. The native FreeRDP
-helper and frame transport are not yet implemented. No keyboard, mouse, shell,
-remote-desktop, or model actions execute.
+3.15.x certificate helper now builds and passes synthetic RDP/TLS, downgrade,
+deadline, protocol, and no-authentication tests for amd64 and arm64. Linux/Pi
+installation, an isolated Windows live test, and frame transport remain. No
+keyboard, mouse, shell, remote-desktop, or model actions execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 62% planning estimate
-- **Current revision:** `877573f` on `feature/brainconnect-rdp-observer`
+- **Completion:** 68% planning estimate
+- **Current revision:** `01c34d7` on `feature/brainconnect-freerdp-native-probe`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 3](https://github.com/FormatX66/BrainConnect/pull/3)
+- **Draft review:** [Pull request 4](https://github.com/FormatX66/BrainConnect/pull/4)
 
 ## Dependencies
 
 - Flutter 3.44.8 and Dart 3.12.2
 - Python 3.12, FastAPI, Uvicorn, Pydantic, SQLite, and pytest
 - WebSocket Channel 3.0.3 for the cross-platform Flutter live-event client
-- Future: FreeRDP 3.x for the out-of-process observation-only RDP plugin
+- Debian 13 build image pinned by digest, FreeRDP 3.15.x, CMake, GCC, and
+  OpenSSL 3
+- Future: isolated disposable Windows RDP target and Linux/Pi runtime package
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -49,6 +53,7 @@ remote-desktop, or model actions execute.
 - [Plugin contract](../../../BrainConnect/docs/PLUGIN_CONTRACT.md)
 - [Observation targets](../../../BrainConnect/docs/TARGETS.md)
 - [RDP helper protocol](../../../BrainConnect/plugins/rdp-observer/PROTOCOL.md)
+- [Native helper build](../../../BrainConnect/plugins/rdp-observer/native/README.md)
 
 ## Related projects
 
@@ -59,7 +64,7 @@ remote-desktop, or model actions execute.
 
 ## Immediate next step
 
-Build the native `brainconnect-freerdp-probe` helper in a reproducible FreeRDP
-3.x toolchain, then verify the X.509 callback and pre-authentication abort
-against an isolated lab target. The canonical task sequence is tracked in the
-[Master TODO](../../Admin/MasterTODO.md).
+Package and install `brainconnect-freerdp-probe` on a Linux/Pi controller, then
+verify exact-match, changed-certificate, timeout, and pre-authentication abort
+behavior against an isolated disposable Windows RDP target. The canonical task
+sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).
