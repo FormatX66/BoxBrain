@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-29 | BB-2026-07-29-001 | Live-verified BrainConnect's production Pi RDP certificate boundary, fixed FreeRDP environment compatibility, and made controller upgrades fail-safe. | [Session change log](../SessionHandoffs/BB-2026-07-29-001/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-008 | Deployed and activated the authenticated BrainConnect controller on the Kali Raspberry Pi 4 with immutable packaging, USB-only binding, private state, and restart verification. | [Session change log](../SessionHandoffs/BB-2026-07-28-008/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-007 | Installed and synthetic-tested the native BrainConnect certificate helper on the Kali Raspberry Pi 4 with strict runtime, checksum, ownership, and provenance gates. | [Session change log](../SessionHandoffs/BB-2026-07-28-007/ChangeLog.md) |
 | 2026-07-28 | BB-2026-07-28-006 | Built and synthetic-tested BrainConnect's native FreeRDP certificate helper for amd64 and arm64 with NLA selection and TLS downgrade enforcement. | [Session change log](../SessionHandoffs/BB-2026-07-28-006/ChangeLog.md) |

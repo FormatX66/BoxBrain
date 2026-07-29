@@ -72,13 +72,22 @@ See the canonical [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
 - Verified HTTP 401 rejection, helper checksum, emergency-stop persistence,
   restart recovery, and systemd hardening.
 
-## Next — BrainConnect isolated RDP live lab
+## Completed — BrainConnect Pi RDP identity live lab
 
-- Verify exact-match, changed-certificate, timeout, and no-authentication
-  behavior against an isolated disposable Windows RDP target.
-- Record package provenance and checksums without storing credentials.
-- Keep keyboard, pointer, clipboard, file, shell, and device redirection
-  unavailable.
+- Ran a protocol-faithful RDP/NLA certificate fixture on Pi loopback.
+- Verified exact certificate match and explicit target enablement.
+- Rotated the certificate on the same endpoint and verified atomic disablement.
+- Verified bounded unreachable and timeout responses.
+- Confirmed no authentication, desktop session, or TLS application data.
+- Fixed the minimal FreeRDP runtime environment and fail-safe upgrade path.
+
+## Next — BrainConnect disposable desktop target
+
+- Select a full Windows VM or dedicated lab machine that can host an
+  independently reachable RDP listener.
+- Add observation-only frame transport without credentials or input.
+- Define controlled dashboard credential provisioning without committing or
+  broadly copying the Pi's long-lived token.
 
 ## Later — Shared ecosystem services
 

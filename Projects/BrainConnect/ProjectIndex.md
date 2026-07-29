@@ -22,19 +22,22 @@ deadline, protocol, and no-authentication tests for amd64 and arm64. Linux/Pi
 installation is now complete on the Kali Raspberry Pi 4 with exact runtime,
 checksum, ownership, provenance, and on-host synthetic verification. The
 authenticated controller is deployed there as an immutable, USB-bound,
-unprivileged systemd service with private token and SQLite state. An isolated
-Windows live test and frame transport remain. No keyboard, mouse, shell,
-remote-desktop, or model actions execute.
+unprivileged systemd service with private token and SQLite state. A live
+Pi-loopback RDP/NLA fixture has verified exact identity matching, certificate
+rotation and atomic disablement, unreachable and timeout handling, and
+pre-authentication rejection. A disposable full desktop target and frame
+transport remain. No keyboard, mouse, shell, remote-desktop, or model actions
+execute.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 78% planning estimate
-- **Current revision:** `ee9c518` on `feature/brainconnect-pi4-controller`
+- **Completion:** 82% planning estimate
+- **Current revision:** `1df9de7` on `feature/brainconnect-pi-rdp-live-lab`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 6](https://github.com/FormatX66/BrainConnect/pull/6)
+- **Draft review:** [Pull request 7](https://github.com/FormatX66/BrainConnect/pull/7)
 
 ## Dependencies
 
@@ -62,6 +65,7 @@ remote-desktop, or model actions execute.
 - [RDP helper protocol](../../../BrainConnect/plugins/rdp-observer/PROTOCOL.md)
 - [Native helper build](../../../BrainConnect/plugins/rdp-observer/native/README.md)
 - [Raspberry Pi controller deployment](../../../BrainConnect/installer/pi/README.md)
+- [Raspberry Pi RDP identity live lab](../../../BrainConnect/lab/pi-rdp-fixture/README.md)
 
 ## Related projects
 
@@ -72,7 +76,7 @@ remote-desktop, or model actions execute.
 
 ## Immediate next step
 
-Select the isolated disposable Windows RDP target and verify exact-match,
-changed-certificate, timeout, unreachable, and pre-authentication abort
-behavior without enabling desktop sessions or input. The canonical task
-sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).
+Select a disposable full Windows VM or dedicated lab machine for
+observation-only frame transport, and define controlled dashboard credential
+provisioning without committing or broadly copying the Pi token. The canonical
+task sequence is tracked in the [Master TODO](../../Admin/MasterTODO.md).

@@ -17,5 +17,8 @@ This file is the permanent searchable index.
 | BB-ADR-010 | 2026-07-28 | Pin the native certificate helper to FreeRDP 3.15.x and emit observations only after exact NLA/HYBRID server selection. | [Session decision log](../SessionHandoffs/BB-2026-07-28-006/DecisionLog.md#bb-adr-010) |
 | BB-ADR-011 | 2026-07-28 | Deploy the reviewed arm64 helper to the Pi only after an exact runtime check and on-host boundary test, with content-addressed provenance. | [Session decision log](../SessionHandoffs/BB-2026-07-28-007/DecisionLog.md#bb-adr-011) |
 | BB-ADR-012 | 2026-07-28 | Run the Pi controller as an immutable, USB-bound, unprivileged systemd service promoted only after authenticated foreground verification. | [Session decision log](../SessionHandoffs/BB-2026-07-28-008/DecisionLog.md#bb-adr-012) |
+| BB-ADR-013 | 2026-07-29 | Verify the RDP certificate boundary with an ephemeral Pi-loopback NLA fixture and keep full desktop testing separate. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-013) |
+| BB-ADR-014 | 2026-07-29 | Preserve only `HOME` in the controller's minimal native-helper environment because FreeRDP requires it to create a context. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-014) |
+| BB-ADR-015 | 2026-07-29 | Stop and disable an earlier Pi controller revision before foreground upgrade verification, then re-enable only after the gate passes. | [Session decision log](../SessionHandoffs/BB-2026-07-29-001/DecisionLog.md#bb-adr-015) |
 
 Before adding a decision, search this index and the linked session logs.
