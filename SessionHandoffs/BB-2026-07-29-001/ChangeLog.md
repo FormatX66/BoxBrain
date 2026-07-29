@@ -11,17 +11,26 @@
 - `lab/pi-rdp-fixture/README.md`
 - `lab/pi-rdp-fixture/verify-live-lab.ps1`
 - `lab/pi-rdp-fixture/verify_pi_live_lab.py`
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DEVELOPMENT.md`
+- `docs/ROADMAP.md`
+- `docs/SECURITY.md`
+- `docs/TARGETS.md`
 
 ### Reason
 
 Live-verify the deployed certificate identity boundary, correct FreeRDP
 initialization under the controller's minimal environment, and make immutable
-controller upgrades safe for an already-running Pi service.
+controller upgrades safe for an already-running Pi service. Synchronize the
+canonical BrainConnect documentation with the verified Pi boundary while
+keeping the full disposable Windows desktop and frame observer visibly pending.
 
 ### Dependencies
 
 - Deployed source revision
   `1df9de72805c01f1a10908424096d1fcaf0bda40`
+- Review branch revision `746dfdcdbe011d18128c28d7ebb1f2770aaaec58`
 - Controller wheel SHA-256
   `3de9fcb43861f8fa6517b20a148680704228ca63b657dc6bc04c6f9cf25a0e3e`
 - Helper SHA-256

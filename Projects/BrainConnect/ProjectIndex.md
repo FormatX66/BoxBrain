@@ -34,7 +34,7 @@ execute.
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
 - **Completion:** 82% planning estimate
-- **Current revision:** `1df9de7` on `feature/brainconnect-pi-rdp-live-lab`
+- **Current revision:** `746dfdc` on `feature/brainconnect-pi-rdp-live-lab`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
 - **Draft review:** [Pull request 7](https://github.com/FormatX66/BrainConnect/pull/7)

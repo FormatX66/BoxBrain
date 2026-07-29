@@ -27,7 +27,8 @@
 - [x] BrainConnect Flutter analysis: no issues found.
 - [x] BrainConnect Flutter tests: 8 passed.
 - [x] BrainConnect production Flutter web build succeeded.
-- [x] BrainConnect branch pushed at `1df9de7`.
+- [x] BrainConnect implementation deployed at `1df9de7`.
+- [x] BrainConnect documentation synchronized and branch pushed at `746dfdc`.
 - [x] BrainConnect draft pull request 7 opened.
 - [x] BoxBrain structural and Markdown-link validation passes.
 - [x] BoxBrain documentation commit is pushed to pull request 3.

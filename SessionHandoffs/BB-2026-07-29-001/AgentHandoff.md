@@ -23,7 +23,7 @@ frames from one explicitly authorized disposable desktop target.
 
 ## Dependencies
 
-- BrainConnect branch `feature/brainconnect-pi-rdp-live-lab` at `1df9de7`
+- BrainConnect branch `feature/brainconnect-pi-rdp-live-lab` at `746dfdc`
 - Draft BrainConnect pull request
   [7](https://github.com/FormatX66/BrainConnect/pull/7)
 - Deployed controller revision

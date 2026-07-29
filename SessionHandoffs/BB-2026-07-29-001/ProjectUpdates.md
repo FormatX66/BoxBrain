@@ -4,13 +4,15 @@
 
 - **Status:** Active alpha
 - **Completion:** 82% planning estimate
-- **Revision:** `1df9de7` on `feature/brainconnect-pi-rdp-live-lab`
+- **Revision:** `746dfdc` on `feature/brainconnect-pi-rdp-live-lab`
 - **Remote:** `https://github.com/FormatX66/BrainConnect`
 - **Draft review:** `https://github.com/FormatX66/BrainConnect/pull/7`
 - **Completed:** Production Pi helper/controller exact-match verification,
   certificate rotation and atomic disablement, bounded failure handling,
   no-authentication and no-desktop proof, minimal FreeRDP environment fix, and
-  fail-safe controller upgrade orchestration
+  fail-safe controller upgrade orchestration; canonical BrainConnect
+  architecture, security, target, development, roadmap, and root documentation
+  now describe the verified boundary
 - **Deployed target:** Raspberry Pi 4 Model B Rev 1.5, Kali 2026.2 arm64,
   controller revision `1df9de72805c01f1a10908424096d1fcaf0bda40`
 - **Not implemented:** Full disposable desktop target, frames, RDP
