@@ -36,19 +36,23 @@ clipboard operations into an audited open-profile queue. Each operation is
 tied to the active task and enabled target, and rechecks emergency stop and the
 500-operation task limit. The Flutter dashboard provides forms for all eight
 operation types and displays queued operation counts. The open-lab control
-plugin remains disabled, `executor_enabled` remains false, and BrainConnect
-executes no queued operation, remote-desktop session, credential, or model
-action.
+plugin now has a fixed, versioned standard-input protocol, exact certificate
+recheck, atomic execution claims, durable results, interruption recovery, and
+a packaged deterministic fixture. Flutter shows operation states, gates
+**Run next** on truthful executor health, and displays raw result text only
+transiently. The live connector and credential provider are not implemented or
+deployed, `executor_enabled` remains false on the Pi, and BrainConnect executes
+no target, remote-desktop, credential, or model action.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 91% planning estimate
-- **Current revision:** `155b526` on `feature/brainconnect-open-lab-control`
+- **Completion:** 93% planning estimate
+- **Current revision:** `310c264` on `feature/brainconnect-open-lab-adapter`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 8](https://github.com/FormatX66/BrainConnect/pull/8)
+- **Draft review:** [Pull request 9](https://github.com/FormatX66/BrainConnect/pull/9)
 
 ## Dependencies
 
@@ -73,6 +77,8 @@ action.
 - [Roadmap](../../../BrainConnect/docs/ROADMAP.md)
 - [Security](../../../BrainConnect/docs/SECURITY.md)
 - [Open-lab control](../../../BrainConnect/docs/OPEN_LAB.md)
+- [Open-lab adapter protocol](../../../BrainConnect/plugins/open-lab-control/PROTOCOL.md)
+- [Deterministic adapter fixture](../../../BrainConnect/lab/open-lab-fixture/README.md)
 - [Development](../../../BrainConnect/docs/DEVELOPMENT.md)
 - [Plugin contract](../../../BrainConnect/docs/PLUGIN_CONTRACT.md)
 - [Observation targets](../../../BrainConnect/docs/TARGETS.md)
@@ -91,10 +97,11 @@ action.
 
 ## Immediate next step
 
-Implement the disabled, out-of-process VM-only adapter and external credential
-transport, then execute one bounded operation at a time against the exact
-enabled VM. Record results and before/after evidence without copying commands,
-clipboard contents, or credentials into audit events. Restore checkpoint
-`clean-linked-2026-07-29` after the first live experiment. Observation-only
-frames remain a parallel pending track. The canonical task sequence is tracked
-in the [Master TODO](../../Admin/MasterTODO.md).
+Implement the live transport-specific connector and external credential
+provider behind the proven adapter protocol, then execute one bounded operation
+at a time against the exact enabled VM. Record before/after evidence without
+copying commands, raw output, clipboard contents, or credentials into audit
+events. Restore checkpoint `clean-linked-2026-07-29` after the first live
+experiment. Observation-only frames remain a parallel pending track. The
+canonical task sequence is tracked in the
+[Master TODO](../../Admin/MasterTODO.md).

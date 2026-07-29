@@ -1,0 +1,25 @@
+# Verification Checklist
+
+- [x] Versioned adapter request/result models reject extra fields.
+- [x] Process arguments contain only the executable and schema version.
+- [x] Operation and target content travel through bounded standard input.
+- [x] Controller token is excluded from the child environment.
+- [x] Exact RDP certificate is re-probed before every execution claim.
+- [x] Emergency stop, operation, task, policy, and target state are rechecked.
+- [x] Running and terminal states persist transactionally with audit events.
+- [x] Raw adapter output and message are not persisted or audited.
+- [x] Output byte count and SHA-256 digest persist.
+- [x] Restart converts abandoned running work to `failed/interrupted`.
+- [x] Fixture covers all eight operation kinds.
+- [x] Fixture covers declared failure categories.
+- [x] Full API-to-real-subprocess fixture round trip passes.
+- [x] Controller tests pass: 56.
+- [x] Flutter analysis reports no issues.
+- [x] Flutter tests pass: 9.
+- [x] Python dependency and compile checks pass.
+- [x] Credential-pattern scan reports no match.
+- [x] BrainConnect draft pull request 9 created.
+- [ ] Live connector implemented.
+- [ ] External credential provider implemented.
+- [ ] First live operation verified.
+- [ ] Clean checkpoint restored after the live experiment.

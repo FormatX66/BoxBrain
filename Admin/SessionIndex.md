@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-07-29-005 | 2026-07-29 | BrainConnect disabled VM execution boundary | [Human](../SessionHandoffs/BB-2026-07-29-005/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-005/AgentHandoff.md) |
 | BB-2026-07-29-004 | 2026-07-29 | BrainConnect capability-first open-lab queue | [Human](../SessionHandoffs/BB-2026-07-29-004/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-004/AgentHandoff.md) |
 | BB-2026-07-29-003 | 2026-07-29 | BrainConnect full Windows certificate gate | [Human](../SessionHandoffs/BB-2026-07-29-003/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-003/AgentHandoff.md) |
 | BB-2026-07-29-002 | 2026-07-29 | Disposable Hyper-V Windows target and Pi link | [Human](../SessionHandoffs/BB-2026-07-29-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-002/AgentHandoff.md) |

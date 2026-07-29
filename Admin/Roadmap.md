@@ -113,9 +113,22 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Added Flutter forms and queued-operation health visibility.
 - Kept the control plugin disabled and `executor_enabled = false`.
 
-## Next - BrainConnect VM-only execution adapter
+## Completed - BrainConnect disabled execution boundary
 
-- Add an out-of-process adapter that can address only the enabled VM target.
+- Defined a fixed, versioned subprocess request/result protocol.
+- Passed operation and target data through bounded standard input, not process
+  arguments.
+- Re-probed the exact RDP certificate before every execution claim.
+- Added atomic containment rechecks and truthful running/terminal states.
+- Persisted only result metadata while returning output text transiently.
+- Recovered interrupted running operations as `failed/interrupted`.
+- Passed every operation kind through a packaged no-action subprocess fixture.
+- Added gated **Run next**, status chips, and transient result display in
+  Flutter.
+
+## Next - BrainConnect live VM connector
+
+- Implement the transport-specific executable behind the proven protocol.
 - Supply RDP credentials through an external runtime boundary.
 - Record bounded results and before/after evidence without logging commands,
   clipboard contents, or credentials.

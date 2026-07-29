@@ -40,5 +40,11 @@ documentation.
    state, policy, and the 500-operation limit.
 4. The operation is stored as `queued`; the audit event records type, size,
    digest, target, and task without copying sensitive content.
-5. A future out-of-process adapter will execute only against the exact VM,
-   return bounded evidence, and restore the clean checkpoint after experiments.
+5. A manual execution request re-probes the pinned RDP certificate and
+   atomically claims the operation as running.
+6. The fixed subprocess receives bounded JSON through standard input and
+   returns one identity-matched result.
+7. The controller persists terminal status and output size/digest, while raw
+   output is returned transiently to the authenticated dashboard.
+8. The packaged fixture proves this complete path without touching the VM; a
+   future live connector will use the same protocol.

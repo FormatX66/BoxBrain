@@ -40,8 +40,12 @@
 - [x] Add the durable, audited open-profile operation queue for shell,
   keyboard, pointer, and clipboard work.
 - [x] Add Flutter forms for every queued operation type.
-- [ ] Implement the disabled VM-only execution adapter and external credential
-  transport without giving it authority over the Pi or workstation.
+- [x] Implement the fixed, disabled-by-default VM execution protocol and
+  durable operation state machine.
+- [x] Add exact certificate recheck, deterministic subprocess fixture, restart
+  recovery, and transient Flutter result display.
+- [ ] Implement the live VM connector and external credential transport
+  without giving it authority over the Pi or workstation.
 - [ ] Record bounded results and before/after evidence for every executed
   operation.
 - [ ] Restore and verify `clean-linked-2026-07-29` after the first live control
