@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
 param(
     [ValidatePattern('^[A-Za-z0-9._-]{1,80}$')]
     [string]$VmName = 'BoxBrain-Windows-Lab',

@@ -196,8 +196,8 @@ elevated Windows PowerShell session:
 ```
 
 The script resolves exactly one VM and one named checkpoint before changing
-state, uses PowerShell confirmation with high impact, and records the restored
-checkpoint ID in
+state, supports PowerShell `-WhatIf`, requires an elevated administrator
+session, and records the restored checkpoint ID in
 `C:\VMs\BoxBrain-Windows-Lab\restore-status.json`. The optional access switch
 adds the current Windows account to the built-in **Hyper-V Administrators**
 group so later VM checks do not require elevation. A new Windows sign-in is
