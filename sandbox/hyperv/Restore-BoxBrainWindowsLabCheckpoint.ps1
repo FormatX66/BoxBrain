@@ -72,7 +72,10 @@ if ($GrantCurrentUserAccess) {
     $existingMembers = @(
         Get-LocalGroupMember -Group $hyperVGroup -ErrorAction Stop
     )
-    if ($identity.Name -notin $existingMembers.Name) {
+    $existingMemberNames = @(
+        $existingMembers | ForEach-Object { $_.Name }
+    )
+    if ($identity.Name -notin $existingMemberNames) {
         Add-LocalGroupMember -Group $hyperVGroup -Member $identity.Name
         $membershipAdded = $true
     }
