@@ -2,6 +2,18 @@
 
 The [Session Index](../Admin/SessionIndex.md) is the chronological entry point.
 
+## BB-2026-07-29-008
+
+- [Human handoff](BB-2026-07-29-008/HumanHandoff.md)
+- [Agent handoff](BB-2026-07-29-008/AgentHandoff.md)
+- [Decision log](BB-2026-07-29-008/DecisionLog.md)
+- [Change log](BB-2026-07-29-008/ChangeLog.md)
+- [Project updates](BB-2026-07-29-008/ProjectUpdates.md)
+- [Questions](BB-2026-07-29-008/Questions.md)
+- [Ideas](BB-2026-07-29-008/Ideas.md)
+- [Verification checklist](BB-2026-07-29-008/VerificationChecklist.md)
+- [Execution plan](BB-2026-07-29-008/ExecutionPlan.md)
+
 ## BB-2026-07-29-007
 
 - [Human handoff](BB-2026-07-29-007/HumanHandoff.md)

@@ -41,29 +41,32 @@ recheck, atomic execution claims, durable results, interruption recovery, and
 a packaged deterministic fixture. Flutter shows operation states, gates
 **Run next** on truthful executor health, and displays raw result text only
 transiently. A native FreeRDP connector now implements canonical absolute
-pointer movement, bounded Unicode text, and fixed allowlisted key or chord
-input. It rechecks the exact endpoint, selected NLA/HYBRID protocol, and
-SHA-256 certificate pin before reading target-bound systemd runtime
-credentials, disables all FreeRDP redirections, validates coordinates and
-keyboard payloads, and disconnects after a bounded event loop. The connector
-and credential contract pass native amd64 and arm64 builds and tests. Revision
-`fd2281e` is installed on the Pi with control SHA-256
-`1d91cf630e7b1f16f8c95bc871479218caa86a1e9d7d9aa8aa3aebdbaa59b74b`.
+pointer movement, bounded Unicode text, fixed allowlisted key or chord input,
+and a two-to-eight-step keyboard sequence inside one pinned connection. It
+rechecks the exact endpoint, selected NLA/HYBRID protocol, and SHA-256
+certificate pin before reading target-bound systemd runtime credentials,
+disables all FreeRDP redirections, validates coordinates and keyboard payloads,
+and disconnects after a bounded event loop. The connector and credential
+contract pass native amd64 and arm64 builds and tests. Revision `eabc3d3` is
+installed on the Pi with control SHA-256
+`135ee649c8b40ed39b1e09138aad1461d7998d36e8251c75f366b91a42b1ea4e`.
 A guarded live run proved exact-target authentication and successful FreeRDP
-event submission for pointer, text, and key operations. Independent guest
-process checks did not prove a durable UI-state change. Cleanup left
-`executor_enabled=false`, removed the execution drop-in, and deleted every
-encrypted target credential.
+sequence submission. The fixed guest process verifier still found no Notepad.
+Read-only evidence placed Explorer and `rdpclip` in Windows session 1 while
+new RDP attempts reached LogonUI sessions elsewhere. Cleanup rotated an
+exposed controller token, left `executor_enabled=false`, removed the execution
+drop-in and every encrypted credential, and restored the clean checkpoint.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 95% planning estimate
-- **Current revision:** `e81f5f5` on `feature/brainconnect-freerdp-input`
+- **Completion:** 96% planning estimate
+- **Current revision:** `593daa0` on
+  `feature/brainconnect-rdp-input-verification`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 11](https://github.com/FormatX66/BrainConnect/pull/11)
+- **Draft review:** [Pull request 12](https://github.com/FormatX66/BrainConnect/pull/12)
 
 ## Dependencies
 
@@ -111,12 +114,11 @@ encrypted target credential.
 
 ## Immediate next step
 
-Restore checkpoint `clean-linked-2026-07-29` with an authorized Hyper-V
-account, re-probe the target certificate, and implement one bounded persistent
-RDP input sequence with independent frame or guest-state verification. Repeat
-a harmless key or pointer experiment while recording transport acceptance
-separately from verified state change. Disable the executor and remove all
-encrypted target credentials after the run. Shell, pointer buttons, scrolling,
-clipboard, and observation-only frames remain pending tracks. The canonical
-task sequence is tracked in the
+Map Windows RDP session IDs to users and inspect Terminal Services reconnect,
+lock, and single-session policy evidence. Bind or unlock the intended Explorer
+session with the smallest justified change, then repeat one bounded Notepad
+sequence with independent process verification. Disable the executor, remove
+all encrypted credentials, and restore the checkpoint after the run. Shell,
+pointer buttons, scrolling, clipboard, and observation-only frames remain
+pending tracks. The canonical task sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

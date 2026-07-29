@@ -47,11 +47,13 @@ documentation.
 7. The controller persists terminal status and output size/digest, while raw
    output is returned transiently to the authenticated dashboard.
 8. The packaged fixture proves this complete path without touching the VM.
-   The native pointer and keyboard connector implements the same protocol,
-   reads target-bound systemd credentials only after exact endpoint and
-   certificate verification, and is installed on the Pi.
+   The native connector implements the same protocol, reads target-bound
+   systemd credentials only after exact endpoint/certificate verification, and
+   can keep two to eight text/key steps inside one pinned RDP connection.
 9. A live run enables the connector only after encrypted credential promotion,
-   submits one bounded event, and records transport-level status.
-10. Cleanup disables execution, removes the service drop-in and credentials,
-    and verifies controller health. Independent target-state verification is a
-    separate result and remains pending.
+   submits one bounded sequence, and records transport-level status.
+10. A separate restricted verifier checks the expected Windows process. The
+    current evidence shows Explorer in session 1 and the input attempts on
+    LogonUI sessions, so verified state remains false.
+11. Cleanup disables execution, removes the service drop-in and credentials,
+    verifies controller health, and restores the clean VM checkpoint.

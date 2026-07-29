@@ -155,13 +155,25 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Disabled execution, removed its service drop-in, deleted all encrypted RDP
   credentials, and verified controller health afterward.
 
-## Next - BrainConnect verified input state
+## Completed - BrainConnect persistent input evidence
 
-- Restore checkpoint `clean-linked-2026-07-29` with an authorized Hyper-V
-  account and re-probe the RDP certificate.
-- Keep one bounded RDP session active across a related input sequence.
-- Add independent frame or guest-state evidence.
-- Prove one harmless input sequence changed the expected target state.
+- Added and exercised a guarded exact-checkpoint restore helper.
+- Added two-to-eight-step keyboard sequences inside one pinned RDP connection.
+- Added a fixed, read-only Windows process verifier.
+- Promoted the sequence artifact and controller revision to the Pi.
+- Proved sequence transport while independently proving Notepad remained
+  absent.
+- Isolated Explorer to session 1 and the new attempts to LogonUI sessions.
+- Rotated the exposed controller token, removed all execution credentials, and
+  restored the clean checkpoint after the run.
+
+## Next - BrainConnect Windows session binding
+
+- Map RDP session IDs to users and record Terminal Services events.
+- Inspect reconnect, lock, domain identity, and single-session-per-user state.
+- Bind or unlock the intended Explorer session with the smallest justified
+  change.
+- Prove one harmless sequence creates the expected Notepad process.
 - Preserve transport acceptance and verified state change as separate results.
 
 ## Parallel pending - BrainConnect observation-only frames

@@ -49,15 +49,17 @@ verified and audited the full target's certificate-only RDP identity boundary;
 it now accepts bounded, audited open-profile operations into a durable queue.
 It also has a disabled-by-default out-of-process protocol, exact certificate
 recheck, durable execution states, bounded result metadata, and deterministic
-no-action fixture. The first native transport connector now supports
-certificate-pinned pointer movement, Unicode text, and fixed allowlisted key
-or chord events. Its amd64 and arm64 artifacts are verified, and the arm64
+no-action fixture. The native transport connector now supports
+certificate-pinned pointer movement, Unicode text, fixed allowlisted key
+events, and bounded multi-step keyboard sequences in one connection. Its
+amd64 and arm64 artifacts are verified, and the sequence-capable arm64
 artifact is installed on the Pi. A bounded live run proved exact-target
-authentication and FreeRDP event submission. The Pi is now inert again with
-execution disabled, no execution drop-in, and no encrypted target credentials.
-The next active step is a bounded persistent input session plus independent
-frame or guest-state verification. Observation-only frame delivery remains a
-parallel pending track.
+sequence submission while a separate process check remained false. Explorer
+stayed in Windows session 1 and the new RDP attempts reached LogonUI sessions,
+making session binding the active blocker. The Pi is inert again with
+execution disabled, no drop-in, and no encrypted target credentials; the VM
+is restored to its clean checkpoint. Observation-only frame delivery remains
+a parallel pending track.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered

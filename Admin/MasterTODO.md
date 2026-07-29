@@ -60,9 +60,13 @@
 - [ ] Prove one live pointer move with independent visual evidence.
 - [ ] Record bounded results and before/after evidence for every executed
   operation.
-- [ ] Restore and verify `clean-linked-2026-07-29` after the first live control
+- [x] Restore and verify `clean-linked-2026-07-29` after the first live control
   experiment.
-- [ ] Keep one bounded RDP session active across a related input sequence.
+- [x] Keep one bounded RDP session active across a related input sequence.
+- [x] Add a restricted Windows process verifier and exercise it after a live
+  sequence.
+- [ ] Map Windows RDP session ownership, reconnect events, and unlock state.
+- [ ] Bind the native input connection to the intended Explorer session.
 - [ ] Add independent frame or guest-state verification for each live input.
 - [ ] Specify and implement bounded, redacted, observation-only frames.
 

@@ -33,5 +33,8 @@ This file is the permanent searchable index.
 | BB-ADR-026 | 2026-07-29 | Keep exact-session event submission separate from independently verified target-state change. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-026) |
 | BB-ADR-027 | 2026-07-29 | Retain the content-addressed input binary inert while removing the execution drop-in and all encrypted credentials after each run. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-027) |
 | BB-ADR-028 | 2026-07-29 | Add only the verified left Windows key to the fixed key allowlist. | [Session decision log](../SessionHandoffs/BB-2026-07-29-007/DecisionLog.md#bb-adr-028) |
+| BB-ADR-029 | 2026-07-29 | Execute related keyboard steps as one bounded operation in one pinned RDP connection. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-029) |
+| BB-ADR-030 | 2026-07-29 | Treat Windows session routing and unlock state as the active input blocker. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-030) |
+| BB-ADR-031 | 2026-07-29 | Use a UAC-gated exact-checkpoint helper and standard Hyper-V group membership. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-031) |
 
 Before adding a decision, search this index and the linked session logs.
