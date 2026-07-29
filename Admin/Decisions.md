@@ -38,5 +38,10 @@ This file is the permanent searchable index.
 | BB-ADR-031 | 2026-07-29 | Use a UAC-gated exact-checkpoint helper and standard Hyper-V group membership. | [Session decision log](../SessionHandoffs/BB-2026-07-29-008/DecisionLog.md#bb-adr-031) |
 | BB-ADR-032 | 2026-07-29 | Bind the local Windows credential and console session, force slow-path input, and reject suspended input. | [Session decision log](../SessionHandoffs/BB-2026-07-29-009/DecisionLog.md#bb-adr-032) |
 | BB-ADR-033 | 2026-07-29 | Accept an optional UTF-8 byte-order marker only at the local Windows experiment-plan boundary. | [Session decision log](../SessionHandoffs/BB-2026-07-29-009/DecisionLog.md#bb-adr-033) |
+| BB-ADR-034 | 2026-07-29 | Limit live frame observation to one bounded memory-only region with validated cursor, format, and pixel hash. | [Session decision log](../SessionHandoffs/BB-2026-07-29-010/DecisionLog.md#bb-adr-034) |
+| BB-ADR-035 | 2026-07-29 | Establish the standard target-user RDP session and wait ten seconds for desktop readiness. | [Session decision log](../SessionHandoffs/BB-2026-07-29-010/DecisionLog.md#bb-adr-035) |
+| BB-ADR-036 | 2026-07-29 | Reserve native standard output for canonical JSON and route FreeRDP diagnostics to standard error. | [Session decision log](../SessionHandoffs/BB-2026-07-29-010/DecisionLog.md#bb-adr-036) |
+| BB-ADR-037 | 2026-07-29 | Require absolute coordinates and atomic move-plus-button delivery for every pointer-button request. | [Session decision log](../SessionHandoffs/BB-2026-07-29-010/DecisionLog.md#bb-adr-037) |
+| BB-ADR-038 | 2026-07-29 | Rotate an exposed lab credential, retire checkpoints with its old state, and create a new verified checkpoint. | [Session decision log](../SessionHandoffs/BB-2026-07-29-010/DecisionLog.md#bb-adr-038) |
 
 Before adding a decision, search this index and the linked session logs.

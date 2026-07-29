@@ -28,7 +28,9 @@ rotation and atomic disablement, unreachable and timeout handling, and
 pre-authentication rejection. A disposable Windows 11 Enterprise Hyper-V
 target now exists at `10.12.194.9:3389` on the Pi USB network, has a restricted
 Pi-only diagnostic link, and is preserved at clean Standard checkpoint
-`clean-linked-2026-07-29`. Its RDP identity was independently read from the
+`clean-linked-rotated-2026-07-29`. The earlier
+`clean-linked-2026-07-29` checkpoint is retired after the lab credential was
+rotated. Its RDP identity was independently read from the
 guest certificate store, registered disabled by default, exactly matched by
 the Pi helper without authentication or a desktop session, audited, and then
 enabled. BrainConnect now accepts bounded shell, keyboard, pointer, and
@@ -41,29 +43,31 @@ recheck, atomic execution claims, durable results, interruption recovery, and
 a packaged deterministic fixture. Flutter shows operation states, gates
 **Run next** on truthful executor health, and displays raw result text only
 transiently. A native FreeRDP connector now implements canonical absolute
-pointer movement, bounded Unicode text, fixed allowlisted key or chord input,
-and a two-to-eight-step keyboard sequence inside one pinned connection. It
+pointer movement, coordinate-bound button events, bounded Unicode text, fixed
+allowlisted key or chord input, a two-to-eight-step keyboard sequence inside
+one pinned connection, and bounded memory-only frame regions. It
 rechecks the exact endpoint, selected NLA/HYBRID protocol, and SHA-256
 certificate pin before reading target-bound systemd runtime credentials,
 disables all FreeRDP redirections, validates coordinates and keyboard payloads,
 and disconnects after a bounded event loop. The connector and credential
-contract pass six native tests for amd64 and arm64. Revision `871fe43` is
+contract pass seven native tests for amd64 and arm64. Revision `567ffa3` is
 installed on the Pi with control SHA-256
-`592feb4b12fb5c7a6066cae6433495ecbc050647ebff90a0ea4d26ec19c3432d`.
-It binds the target-local account, reconnects the console session, forces
-slow-path input, and rejects suspended input. Windows event evidence proved
-successful exact-user authentication and session reconnection. Independent
-process checks then proved keyboard control by observing Task Manager and
-Notepad. Cleanup left `executor_enabled=false`, removed the execution drop-in,
-every encrypted credential, and every temporary runner, and restored the exact
-clean checkpoint.
+`090929ac598855b5da72732a08975a291fa84d4cfbb718585665c8c747c5077e`.
+It binds the target-local account, establishes the standard target-user
+session, waits ten seconds for desktop readiness, forces slow-path input, and
+rejects suspended input. Independent process checks proved Task Manager and
+Notepad launch. Frame evidence proved visible text and an absolute click by
+showing `|CLICK|` inserted at the clicked Notepad caret position. Cleanup left
+`executor_enabled=false`, removed the execution drop-in, every encrypted
+credential, and every temporary runner, and restored the rotated clean
+checkpoint.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 97% planning estimate
-- **Current revision:** `379f4dc` on
+- **Completion:** 98% planning estimate
+- **Current revision:** `f4461d2` on
   `feature/brainconnect-rdp-input-verification`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
@@ -84,7 +88,7 @@ clean checkpoint.
   `10.12.194.1:8000`
 - Live-approved: isolated Windows 11 Enterprise Evaluation 25H2 Hyper-V target
   at `10.12.194.9:3389`, based on checkpoint
-  `clean-linked-2026-07-29`
+  `clean-linked-rotated-2026-07-29`
 - Future: AgentFramework planner contracts, Security controls, and Research
   benchmark definitions
 
@@ -115,9 +119,8 @@ clean checkpoint.
 
 ## Immediate next step
 
-Add bounded, redacted frame observation and use it to verify one pointer move
-and the visible text result of one keyboard sequence. Align the FreeRDP build
-baseline with the Pi's 3.26.0 runtime or add an explicit compatibility gate.
-Shell, pointer buttons, scrolling, and clipboard remain pending tracks. The
-canonical task sequence is tracked in the
+Add an upgrade preflight that refuses to deploy while the live executor
+drop-in is enabled, then choose the next native capability: shell, scrolling,
+or clipboard. Align the FreeRDP build baseline with the Pi's 3.26.0 runtime or
+retain the explicit compatibility gate. The canonical task sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

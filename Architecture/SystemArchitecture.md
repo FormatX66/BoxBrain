@@ -55,11 +55,13 @@ events, and bounded multi-step keyboard sequences in one connection. Its
 amd64 and arm64 artifacts are verified, and the sequence-capable arm64
 artifact is installed on the Pi. Windows event evidence proved exact-user
 authentication and reconnection to the intended console session. Slow-path
-keyboard delivery then independently launched Task Manager and Notepad. The Pi
-is inert again with execution disabled, no drop-in, no encrypted target
-credentials, and no temporary runner; the VM is restored to its exact clean
-checkpoint. Observation-only frame, cursor, and visible-content verification
-are the active pending track.
+keyboard delivery then independently launched Task Manager and Notepad.
+Bounded frame evidence verified visible text and an absolute pointer click by
+showing a later keyboard marker at the clicked caret position. The Pi is inert
+again with execution disabled, no drop-in, no encrypted target credentials,
+and no temporary runner; the VM is restored to rotated clean checkpoint
+`clean-linked-rotated-2026-07-29`. Shell, scrolling, clipboard, and generalized
+per-action verification remain pending.
 
 See [BrainConnect’s canonical architecture](../../BrainConnect/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered

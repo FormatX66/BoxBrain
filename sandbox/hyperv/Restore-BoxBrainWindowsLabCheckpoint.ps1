@@ -4,7 +4,7 @@ param(
     [string]$VmName = 'BoxBrain-Windows-Lab',
 
     [ValidatePattern('^[A-Za-z0-9._-]{1,80}$')]
-    [string]$SnapshotName = 'clean-linked-2026-07-29',
+    [string]$SnapshotName = 'clean-linked-rotated-2026-07-29',
 
     [string]$StatusPath = 'C:\VMs\BoxBrain-Windows-Lab\restore-status.json',
 

@@ -179,10 +179,21 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Disabled execution, removed credentials and temporary runners, and restored
   the exact clean checkpoint.
 
-## Next - BrainConnect observation-only frames
+## Completed - BrainConnect bounded frame and pointer-click proof
 
-- Add observation-only frame transport without credentials or input.
-- Verify one pointer move and one text result independently.
+- Added memory-only bounded frame transport with verified region, PPM, cursor,
+  Base64, byte-length, and pixel-hash fields.
+- Verified visible keyboard text and one coordinate-bound pointer click by
+  inserting a later marker at the clicked Notepad caret position.
+- Rotated the disposable lab credential after diagnostic exposure and created
+  and restored `clean-linked-rotated-2026-07-29`.
+- Returned the Pi to inert state with no drop-in, encrypted credentials, or
+  temporary runners.
+
+## Next - BrainConnect remaining native operations
+
+- Add an upgrade preflight that rejects deployment while execution is enabled.
+- Select shell, scrolling, or clipboard as the next native capability.
 - Align or compatibility-gate the FreeRDP build and Pi runtime versions.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.

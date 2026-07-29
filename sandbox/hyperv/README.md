@@ -215,6 +215,25 @@ PowerShell Direct and writes only non-secret diagnostic evidence to
 `C:\VMs\BoxBrain-Windows-Lab\rdp-session-diagnostic.json`. It does not change
 Windows session or RDP policy.
 
+If the dedicated lab password is exposed, rotate only that account and its
+current-user DPAPI credential from elevated Windows PowerShell:
+
+```powershell
+.\sandbox\hyperv\Rotate-BoxBrainWindowsLabCredential.ps1 -Confirm:$false
+```
+
+The helper resolves the exact running VM, changes only `boxbrain-lab`, proves
+the replacement credential through a new PowerShell Direct session, and then
+replaces the encrypted host credential. It never prints or stores plaintext
+password material in arguments, logs, Git, or ordinary environment variables.
+Because an older checkpoint can restore the prior password, create and verify
+a new checkpoint before using the rotated credential as the next baseline.
+The current verified baseline is
+`clean-linked-rotated-2026-07-29` (checkpoint ID
+`fd314c39-c3a7-418a-849c-02a9cb6fe982`). Do not restore
+`clean-linked-2026-07-29`; it is retained only because deleting or merging a
+Hyper-V checkpoint requires a separate explicit operator approval.
+
 The full installation, link, and checkpoint must be recorded in the current
 BoxBrain session handoff. Removal is intentionally not automated by this
 directory; deleting the VM, switch, disk, checkpoint, or media requires a

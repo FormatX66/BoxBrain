@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$VmName = 'BoxBrain-Windows-Lab',
-    [string]$SnapshotName = 'clean-linked-2026-07-29',
+    [string]$SnapshotName = 'clean-linked-rotated-2026-07-29',
     [string]$StatusPath = 'C:\VMs\BoxBrain-Windows-Lab\checkpoint-status.json',
     [string]$ErrorPath = 'C:\VMs\BoxBrain-Windows-Lab\logs\checkpoint-error.json',
     [int]$ShutdownTimeoutSeconds = 180,

@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-07-29-010 | 2026-07-29 | BrainConnect verified frame, keyboard, and coordinate-click control | [Human](../SessionHandoffs/BB-2026-07-29-010/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-010/AgentHandoff.md) |
 | BB-2026-07-29-009 | 2026-07-29 | BrainConnect verified RDP keyboard control | [Human](../SessionHandoffs/BB-2026-07-29-009/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-009/AgentHandoff.md) |
 | BB-2026-07-29-008 | 2026-07-29 | BrainConnect persistent RDP sequence and session-routing diagnosis | [Human](../SessionHandoffs/BB-2026-07-29-008/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-008/AgentHandoff.md) |
 | BB-2026-07-29-007 | 2026-07-29 | BrainConnect Pi pointer and keyboard transport run | [Human](../SessionHandoffs/BB-2026-07-29-007/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-007/AgentHandoff.md) |

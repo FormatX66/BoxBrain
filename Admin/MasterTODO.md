@@ -57,7 +57,7 @@
   audited enablement window.
 - [x] Disable the executor, remove the execution drop-in, delete encrypted
   target credentials, and verify controller health after the live run.
-- [ ] Prove one live pointer move with independent visual evidence.
+- [x] Prove one live pointer click with independent visual evidence.
 - [ ] Record bounded results and before/after evidence for every executed
   operation.
 - [x] Restore and verify `clean-linked-2026-07-29` after the first live control
@@ -69,8 +69,14 @@
 - [x] Bind the native input connection to the intended Explorer session.
 - [x] Independently prove Task Manager and Notepad process state after
   keyboard sequences.
-- [ ] Add independent frame or guest-state verification for each live input.
-- [ ] Specify and implement bounded, redacted, observation-only frames.
+- [x] Add independent frame or guest-state verification for the keyboard and
+  pointer-button live proofs.
+- [x] Specify and implement bounded, redacted, observation-only frames.
+- [x] Rotate the disposable lab credential after diagnostic exposure and
+  create/restore `clean-linked-rotated-2026-07-29`.
+- [ ] Refuse controller upgrades while the live execution drop-in is enabled.
+- [ ] Implement shell, pointer scrolling, or clipboard as the next native
+  capability.
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
