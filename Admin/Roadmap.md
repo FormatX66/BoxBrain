@@ -201,13 +201,19 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
   installed controller is active.
 - Added focused refusal, success, health, ordering, and installer parse tests.
 
-## Next - BrainConnect remaining native operations
+## Completed - BrainConnect alpha scrolling proof
 
-- Coordinate-bound, ten-step-limited scrolling is source-complete.
-- Cross-build, exact Pi-runtime gate, and independently observed live scroll
-  proof remain queued for nightshift.
+- Coordinate-bound, ten-step-limited scrolling passed amd64 and arm64 builds.
+- The exact Pi FreeRDP 3.26 compatibility and guarded promotion gates passed.
+- One fixed acceptance plan changed a bounded frame hash after five exact
+  downward wheel steps.
+- Cleanup removed execution state and restored the rotated checkpoint.
+
+## Next - BrainConnect post-alpha work
+
 - Shell and clipboard remain separate later capability expansions.
-- Align or compatibility-gate the FreeRDP build and Pi runtime versions.
+- Start the provider-neutral planner only after its budgets and structured
+  action contract are approved.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.
 

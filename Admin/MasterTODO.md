@@ -58,7 +58,7 @@
 - [x] Disable the executor, remove the execution drop-in, delete encrypted
   target credentials, and verify controller health after the live run.
 - [x] Prove one live pointer click with independent visual evidence.
-- [ ] Record bounded results and before/after evidence for every executed
+- [x] Record bounded results and before/after evidence for every executed
   operation.
 - [x] Restore and verify `clean-linked-2026-07-29` after the first live control
   experiment.
@@ -81,7 +81,7 @@
 ## Daytime operator-input queue
 
 - [x] Confirm pointer scrolling as the next native capability.
-- [ ] Confirm that FreeRDP 3.15 builds plus exact Pi 3.26 host gates remain the
+- [x] Confirm that FreeRDP 3.15 builds plus exact Pi 3.26 host gates remain the
   compatibility contract for the next run.
 - [ ] Confirm whether the click-and-type Notepad proof should become a fixed
   automated acceptance scenario.
@@ -90,14 +90,14 @@
 
 ## Nightshift queue - resource intensive
 
-- [ ] Run the full controller and Flutter analysis/test suites.
-- [ ] Repeat native warnings-as-errors builds and all tests for amd64 and
+- [x] Run the full controller and Flutter analysis/test suites.
+- [x] Repeat native warnings-as-errors builds and all tests for amd64 and
   arm64.
-- [ ] Exercise the new disabled-upgrade preflight against the Pi before
+- [x] Exercise the new disabled-upgrade preflight against the Pi before
   promoting a controller revision.
-- [ ] Repeat the exact FreeRDP 3.26 on-host compatibility gates.
-- [ ] Promote coordinate-bound scrolling only after the build and Pi gates.
-- [ ] Restore `clean-linked-rotated-2026-07-29`, capture a bounded before
+- [x] Repeat the exact FreeRDP 3.26 on-host compatibility gates.
+- [x] Promote coordinate-bound scrolling only after the build and Pi gates.
+- [x] Restore `clean-linked-rotated-2026-07-29`, capture a bounded before
   frame, run one bounded scroll, capture an after frame, independently verify
   the effect, clean the Pi, and restore the checkpoint.
 

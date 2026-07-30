@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-30 | BB-2026-07-30-002 | Completed the BrainConnect alpha with cross-builds, Pi promotion, a frame-backed live scrolling proof, cleanup, checkpoint restoration, and deployment portability fixes. | [Session change log](../SessionHandoffs/BB-2026-07-30-002/ChangeLog.md) |
 | 2026-07-30 | BB-2026-07-30-001 | Integrated the validated BrainConnect PR stack and BoxBrain organization branch, repaired cross-repository links, and automated repository validation. | [Session change log](../SessionHandoffs/BB-2026-07-30-001/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-012 | Selected and implemented source-complete coordinate-bound RDP scrolling while preserving all builds, Pi promotion, and VM proof for nightshift. | [Session change log](../SessionHandoffs/BB-2026-07-29-012/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-011 | Added a fail-closed BrainConnect controller-upgrade preflight and separated low-impact operator decisions from resource-intensive nightshift verification. | [Session change log](../SessionHandoffs/BB-2026-07-29-011/ChangeLog.md) |

@@ -66,23 +66,23 @@ Controller revision `be0738c` adds a read-only upgrade preflight before local
 wheel construction or remote upload. It rejects an enabled execution drop-in
 and requires an active controller to report authenticated
 `executor_enabled=false`, production health, and an armed emergency stop.
-Revision `494ec3f` adds source-complete pointer scrolling. Each scroll moves to
+Coordinate-bound pointer scrolling is now live-promoted. Each scroll moves to
 explicit absolute coordinates and then emits no more than ten standard
 120-unit vertical or horizontal wheel steps in the same pinned RDP connection.
-The controller limits and dashboard form passed focused local checks; native
-cross-build, Pi promotion, and independent live frame proof remain queued for
-nightshift.
+Both native architectures, the exact Pi FreeRDP 3.26 runtime, controller
+upgrade safety, and a fixed before/after bounded-frame proof passed. Cleanup
+removed the execution drop-in, encrypted credentials, and temporary runner,
+then restored the rotated checkpoint with the VM off. The BrainConnect alpha
+acceptance outcome is complete.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
-- **Completion:** 98% planning estimate
-- **Current revision:** `494ec3f` on
-  `feature/brainconnect-rdp-input-verification`
+- **Completion:** 100% of the defined alpha outcome
+- **Current revision:** alpha completion on canonical `main`
 - **Repository:** [Canonical GitHub repository](https://github.com/FormatX66/BrainConnect)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
-- **Draft review:** [Pull request 12](https://github.com/FormatX66/BrainConnect/pull/12)
 
 ## Dependencies
 
@@ -119,6 +119,7 @@ nightshift.
 - [Native helper build](https://github.com/FormatX66/BrainConnect/blob/main/plugins/rdp-observer/native/README.md)
 - [Raspberry Pi controller deployment](https://github.com/FormatX66/BrainConnect/blob/main/installer/pi/README.md)
 - [Raspberry Pi RDP identity live lab](https://github.com/FormatX66/BrainConnect/blob/main/lab/pi-rdp-fixture/README.md)
+- [Alpha scrolling proof](https://github.com/FormatX66/BrainConnect/blob/main/lab/alpha-scroll-proof/README.md)
 - [Hyper-V Windows target runbook](../../sandbox/hyperv/README.md)
 
 ## Related projects
@@ -130,9 +131,7 @@ nightshift.
 
 ## Immediate next step
 
-Run the documented nightshift gates for scrolling: full controller and Flutter
-verification, warnings-as-errors amd64/arm64 builds, real-Pi upgrade preflight,
-exact FreeRDP 3.26 compatibility, artifact promotion, and one bounded
-before/after frame proof against the rotated checkpoint. The canonical task
-sequence is tracked in the
-[Master TODO](../../Admin/MasterTODO.md).
+Choose the first post-alpha milestone. The current roadmap starts with a
+provider-neutral planner interface, budgets, structured action schemas, and
+replayable benchmark reports. Shell and clipboard transport remain separate
+capability decisions.
