@@ -76,6 +76,18 @@ function Invoke-ValidationStep {
 }
 
 Invoke-ValidationStep `
+    -Name "Pi console Windows tests" `
+    -WorkingDirectory $repositoryRoot `
+    -FilePath "powershell.exe" `
+    -Arguments @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        (Join-Path $PSScriptRoot "test-pi-console-scripts.ps1")
+    )
+
+Invoke-ValidationStep `
     -Name "Backend tests" `
     -WorkingDirectory $controllerDirectory `
     -FilePath $python `
