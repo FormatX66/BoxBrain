@@ -23,9 +23,19 @@
 - Child-process redaction engine with operator-configured regions (implemented; default region list is empty)
 - Zero evidence retention and single-capture backpressure (implemented)
 - No input execution (implemented)
+- Authorized private-host manager with USB-C SSH, SSH, WinRM, RDP, and guarded
+  lab-only Telnet operator sessions (implemented)
+- Fixed-argument OS client launch, TCP probe, durable profiles, audit events,
+  and emergency-stop gate (implemented)
 
-## 0.4 — Typed input in a disposable VM
+## 0.4 - Typed input in a disposable VM
 
+- Typed OpenAI proposal with no model tools (implemented for Kali Pi diagnostics)
+- Exact `RUN` approval, expiring single-use proposal, and shared emergency-stop
+  gate (implemented)
+- Fixed read-only health, disk, memory, and uptime SSH actions with deadlines and
+  output caps (implemented)
+- Arbitrary or model-generated shell input remains disabled (implemented)
 - Bounded pointer and keyboard actions
 - Per-action verification and retry limits
 - Snapshot restore integration
@@ -38,8 +48,17 @@
 - Structured action schemas
 - Multi-model benchmark reports
 
-## 1.0 — Research workbench
+## 1.0 - Modular operating environment
 
+- Versioned canonical architecture manifest (foundation implemented)
+- Twelve-agent ecosystem roster with compatibility mapping (implemented)
+- Durable Fleet Manager inventory and Machine IDs (foundation implemented)
+- Capability Registry metadata (foundation implemented)
+- Resumable sixteen-step machine provisioning workflow (foundation implemented)
+- Operator-guided external account setup with no stored credentials (implemented)
+- Brain Connect identity, heartbeat, and signed transport protocol
+- Fleet health and resource history
+- Reviewable Repository, Website, and Deployment Manager pipelines
 - Signed plugin distribution
 - Multiple isolated targets
 - Reviewable code-change pipeline

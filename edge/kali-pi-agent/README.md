@@ -3,7 +3,8 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.8 extends USB-C and authorized private-network target links with guarded Wi-Fi provisioning:
+tunnel. Version 0.9 retains guarded Wi-Fi provisioning and adds an optional,
+human-operated Pi console:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
@@ -138,6 +139,50 @@ runtime-only and must never be committed to this repository.
 The main BoxBrain controller reads agent status through this same tunnel. Its
 default endpoint is `http://127.0.0.1:8787`; override
 `BOXBRAIN_KALI_PI_AGENT_URL` only with another loopback address.
+
+## Optional live Pi screen
+
+This console is for viewing and operating the Pi itself. It is separate from
+target diagnostics and does not grant BoxBrain control of an enrolled target.
+The normal `install.sh` and `upgrade.sh` paths do not install, start, or enable
+it.
+
+From the BoxBrain repository root on the authorized Windows workstation:
+
+```powershell
+.\installer\setup-pi-console.ps1
+.\installer\open-pi-console.ps1
+```
+
+The first command copies only three console scripts through key-only SSH,
+downloads the official noVNC 1.7.0 tag archive over HTTPS on the Pi, verifies
+its pinned SHA-256 before extraction, and preserves the bundled MPL-2.0 license.
+It does not install missing packages. The Pi must already provide TightVNC,
+websockify, XFCE, D-Bus, Python 3, curl, and standard systemd/network tools.
+
+The second command starts four transient services for the current session and
+opens the viewer. TightVNC listens on `127.0.0.1:5901`, websockify listens on
+`127.0.0.1:6080`, and the browser connects to that WebSocket through an SSH
+forward bound to Windows loopback. The USB-only HTTP endpoint at
+`10.12.194.1:8790` serves static noVNC files; it does not carry the desktop
+stream without the SSH tunnel. No VNC password is used because the VNC and
+WebSocket listeners are not reachable off Pi loopback.
+
+Stop only these transient console services:
+
+```powershell
+ssh -i "$HOME\.ssh\boxbrain_pi_ed25519" kali@10.12.194.1 `
+  "sudo -n /usr/local/bin/boxbrain-console-stop"
+```
+
+To change the dedicated USB bind or static viewer port, edit the root-owned
+`/etc/boxbrain/console.env` on the Pi. The start script accepts only a private
+or link-local assigned address. Removing the feature is a separate manual
+operation so setup never deletes an existing verified package unexpectedly.
+After stopping it, the only feature-owned Pi paths to review for removal are
+`/opt/boxbrain/pi-console`, `/etc/boxbrain/console.env`,
+`/usr/local/bin/boxbrain-console-start`, and
+`/usr/local/bin/boxbrain-console-stop`.
 
 ## On-Pi commands
 

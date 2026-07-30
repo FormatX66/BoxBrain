@@ -10,6 +10,17 @@ PolicyProfileName = Literal["safe", "research", "open"]
 AuditEventType = Literal[
     "task.queued",
     "target.start_requested",
+    "remote_target.registered",
+    "remote_target.removed",
+    "remote_target.probed",
+    "remote_target.session_opened",
+    "diagnostic.proposed",
+    "fleet.machine_registered",
+    "fleet.targets_imported",
+    "provisioning.started",
+    "provisioning.step_completed",
+    "provisioning.cancelled",
+    "diagnostic.execution_completed",
     "safety.emergency_stop_engaged",
     "safety.emergency_stop_reset",
 ]
@@ -126,6 +137,154 @@ class TargetStartResponse(BaseModel):
     target_id: Literal["windows-sandbox"]
     status: Literal["starting", "already_running"]
     message: str
+
+
+RemoteTransport = Literal["usb-c", "ssh", "winrm", "rdp", "telnet"]
+RemoteTargetStatus = Literal["unknown", "online", "offline"]
+
+
+class RemoteTargetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    transport: RemoteTransport
+    host: str = Field(min_length=1, max_length=253)
+    port: int | None = Field(default=None, ge=1, le=65_535)
+    username: str | None = Field(default=None, max_length=120)
+    authorization: Literal["AUTHORIZED"]
+    insecure_transport_acknowledged: bool = False
+
+    @field_validator("name", "host", "username")
+    @classmethod
+    def normalize_remote_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
+
+
+class RemoteTargetRecord(BaseModel):
+    id: UUID
+    name: str
+    transport: RemoteTransport
+    host: str
+    port: int = Field(ge=1, le=65_535)
+    username: str | None
+    authorized: bool = True
+    built_in: bool = False
+    status: RemoteTargetStatus = "unknown"
+    credential_mode: Literal[
+        "dedicated-key",
+        "ssh-agent",
+        "current-user",
+        "interactive",
+        "none",
+    ]
+    capabilities: tuple[str, ...]
+    last_checked_at: datetime | None
+    created_at: datetime
+
+
+class RemoteTargetProbeResult(BaseModel):
+    target_id: UUID
+    status: Literal["online", "offline"]
+    resolved_address: str | None
+    latency_ms: int | None = Field(default=None, ge=0)
+    message: str
+    checked_at: datetime
+
+
+class RemoteSessionRequest(BaseModel):
+    confirmation: Literal["OPEN"]
+    insecure_confirmation: str | None = Field(default=None, max_length=80)
+
+
+class RemoteSessionResult(BaseModel):
+    target_id: UUID
+    status: Literal["opened"]
+    application: str
+    message: str
+
+
+DiagnosticAction = Literal[
+    "system_health",
+    "disk_usage",
+    "memory_usage",
+    "uptime",
+]
+DiagnosticProposalStatus = Literal[
+    "pending",
+    "running",
+    "succeeded",
+    "failed",
+    "expired",
+]
+
+
+class DiagnosticPlan(BaseModel):
+    action: DiagnosticAction
+    summary: str = Field(min_length=1, max_length=500)
+    expected_evidence: str = Field(min_length=1, max_length=500)
+    risk_note: str = Field(min_length=1, max_length=500)
+
+
+class DiagnosticProposalRequest(BaseModel):
+    goal: str = Field(min_length=3, max_length=500)
+    authorization: Literal["AUTHORIZED"]
+
+    @field_validator("goal")
+    @classmethod
+    def normalize_diagnostic_goal(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("goal must contain non-whitespace text")
+        return normalized
+
+
+class DiagnosticProviderUsage(BaseModel):
+    requests: int = Field(default=0, ge=0)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
+class DiagnosticProposal(BaseModel):
+    id: UUID
+    target_id: UUID
+    target_name: str
+    goal: str
+    plan: DiagnosticPlan
+    status: DiagnosticProposalStatus
+    model: str
+    usage: DiagnosticProviderUsage
+    requires_confirmation: Literal[True] = True
+    created_at: datetime
+    expires_at: datetime
+
+
+class DiagnosticExecuteRequest(BaseModel):
+    confirmation: Literal["RUN"]
+
+
+class DiagnosticExecutionResult(BaseModel):
+    proposal_id: UUID
+    target_id: UUID
+    action: DiagnosticAction
+    status: Literal["succeeded", "failed"]
+    exit_code: int
+    output: str
+    truncated: bool
+    duration_ms: int = Field(ge=0)
+    executed_at: datetime
+
+
+class DiagnosticRuntimeStatus(BaseModel):
+    enabled: bool
+    model_ready: bool
+    executor_ready: bool
+    model: str
+    target_scope: Literal["built-in-kali-pi"] = "built-in-kali-pi"
+    supported_actions: tuple[DiagnosticAction, ...]
+    requires_confirmation: Literal[True] = True
+    arbitrary_commands_enabled: Literal[False] = False
 
 
 class EdgeAgentSummary(BaseModel):
@@ -354,3 +513,86 @@ class ModelRuntimeStatus(BaseModel):
     model: str
     execution_mode: Literal["openai-agents-sdk"] = "openai-agents-sdk"
     external_side_effects_enabled: Literal[False] = False
+
+ChatOrganizerSource = Literal["chatgpt_app_index", "chatgpt_data_export"]
+ChatClassificationConfidence = Literal["high", "medium", "low"]
+
+
+class ChatSourceProject(BaseModel):
+    external_id: str = Field(min_length=1, max_length=500)
+    label: str = Field(min_length=1, max_length=160)
+
+    @field_validator("external_id", "label")
+    @classmethod
+    def normalize_project_text(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("project fields must contain non-whitespace text")
+        return normalized
+
+
+class ChatSourceRecord(BaseModel):
+    external_id: str = Field(min_length=1, max_length=500)
+    title: str = Field(min_length=1, max_length=500)
+    updated_at: datetime
+    project_external_id: str | None = Field(default=None, max_length=500)
+    pinned_index: int | None = Field(default=None, ge=1)
+
+    @field_validator("external_id", "title", "project_external_id")
+    @classmethod
+    def normalize_chat_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
+
+
+class ChatOrganizerImportRequest(BaseModel):
+    source: ChatOrganizerSource = "chatgpt_app_index"
+    captured_at: datetime
+    projects: list[ChatSourceProject] = Field(default_factory=list, max_length=500)
+    chats: list[ChatSourceRecord] = Field(default_factory=list, max_length=20_000)
+
+
+class OrganizedChatRecord(BaseModel):
+    external_id: str
+    title: str
+    current_project_id: str | None
+    current_project: str | None
+    suggested_project: str
+    classification_reason: str
+    confidence: ChatClassificationConfidence
+    pinned_index: int | None
+    updated_at: datetime
+    last_seen_at: datetime
+
+
+class ChatOrganizerImportResult(BaseModel):
+    id: UUID
+    source: ChatOrganizerSource
+    captured_at: datetime
+    imported_at: datetime
+    source_project_count: int = Field(ge=0)
+    chat_count: int = Field(ge=0)
+    created_count: int = Field(ge=0)
+    updated_count: int = Field(ge=0)
+    unchanged_count: int = Field(ge=0)
+    unassigned_count: int = Field(ge=0)
+    suggested_move_count: int = Field(ge=0)
+
+
+class ChatProjectBucket(BaseModel):
+    name: str
+    chat_count: int = Field(ge=0)
+    is_existing_chatgpt_project: bool
+
+
+class ChatOrganizerDashboard(BaseModel):
+    total_chat_count: int = Field(ge=0)
+    source_project_count: int = Field(ge=0)
+    unassigned_count: int = Field(ge=0)
+    suggested_move_count: int = Field(ge=0)
+    pinned_count: int = Field(ge=0)
+    last_sync_at: datetime | None
+    buckets: list[ChatProjectBucket]
+    recent_chats: list[OrganizedChatRecord]

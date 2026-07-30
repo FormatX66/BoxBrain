@@ -8,6 +8,8 @@ import '../services/controller_api.dart';
 import '../widgets/section_card.dart';
 import '../widgets/stat_tile.dart';
 import 'agents_screen.dart';
+import 'fleet_screen.dart';
+import 'remote_targets_section.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({required this.api, super.key});
@@ -29,6 +31,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icon(Icons.smart_toy_outlined),
       selectedIcon: Icon(Icons.smart_toy),
       label: Text('Agents'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.hub_outlined),
+      selectedIcon: Icon(Icons.hub),
+      label: Text('Fleet'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.desktop_windows_outlined),
@@ -62,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<PolicySummary> _policies = const [];
   List<PluginSummary> _plugins = const [];
   List<TargetSummary> _targets = const [];
+  List<RemoteTargetSummary> _remoteTargets = const [];
   List<EdgeAgentSummary> _edgeAgents = const [];
   List<AuditEventSummary> _events = const [];
   EmergencyStopState _emergencyStop = const EmergencyStopState.unknown();
@@ -114,6 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.api.fetchPolicies(),
         widget.api.fetchPlugins(),
         widget.api.fetchTargets(),
+        widget.api.fetchRemoteTargets(),
         widget.api.fetchEdgeAgents(),
         widget.api.fetchEmergencyStop(),
         widget.api.fetchEvents(),
@@ -125,9 +134,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final policies = results[2] as List<PolicySummary>;
       final plugins = results[3] as List<PluginSummary>;
       final targets = results[4] as List<TargetSummary>;
-      final edgeAgents = results[5] as List<EdgeAgentSummary>;
-      final emergencyStop = results[6] as EmergencyStopState;
-      final events = results[7] as List<AuditEventSummary>;
+      final remoteTargets = results[5] as List<RemoteTargetSummary>;
+      final edgeAgents = results[6] as List<EdgeAgentSummary>;
+      final emergencyStop = results[7] as EmergencyStopState;
+      final events = results[8] as List<AuditEventSummary>;
       final activeTasks = tasks
           .where((task) => task.status == 'queued' || task.status == 'running')
           .length;
@@ -139,6 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _policies = policies;
         _plugins = plugins;
         _targets = targets;
+        _remoteTargets = remoteTargets;
         _edgeAgents = edgeAgents;
         _emergencyStop = emergencyStop;
         _events = events;
@@ -187,13 +198,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final results = await Future.wait<Object>([
         widget.api.fetchEmergencyStop(),
         widget.api.fetchTargets(),
+        widget.api.fetchRemoteTargets(),
         widget.api.fetchEdgeAgents(),
       ]);
       if (mounted) {
         setState(() {
           _emergencyStop = results[0] as EmergencyStopState;
           _targets = results[1] as List<TargetSummary>;
-          _edgeAgents = results[2] as List<EdgeAgentSummary>;
+          _remoteTargets = results[2] as List<RemoteTargetSummary>;
+          _edgeAgents = results[3] as List<EdgeAgentSummary>;
         });
       }
     } catch (_) {
@@ -311,15 +324,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         error: _error,
         loading: _loading,
         onRetry: _refresh,
-        onViewTarget: () => _selectDestination(2),
+        onViewTarget: () => _selectDestination(3),
       ),
       AgentOperationsScreen(
         api: widget.api,
         status: _status,
         active: _selectedIndex == 1,
       ),
+      FleetScreen(
+        api: widget.api,
+        active: _selectedIndex == 2,
+      ),
       _TargetSection(
         target: _targets.firstOrNull,
+        remoteTargets: _remoteTargets,
         status: _status,
         emergencyStop: _emergencyStop,
         api: widget.api,
@@ -861,7 +879,7 @@ class _OverviewCards extends StatelessWidget {
               tasks.isEmpty ? 'Queue is empty' : '${tasks.length} tasks found',
           message: status.executorEnabled
               ? 'Executor is enabled for approved tasks.'
-              : 'The alpha accepts tasks but executes nothing yet.',
+              : 'Queued tasks remain plans; autonomous execution is disabled.',
         ),
       ),
       SectionCard(
@@ -963,6 +981,7 @@ class _OverviewCards extends StatelessWidget {
 class _TargetSection extends StatefulWidget {
   const _TargetSection({
     required this.target,
+    required this.remoteTargets,
     required this.status,
     required this.emergencyStop,
     required this.api,
@@ -970,6 +989,7 @@ class _TargetSection extends StatefulWidget {
   });
 
   final TargetSummary? target;
+  final List<RemoteTargetSummary> remoteTargets;
   final ControllerStatus status;
   final EmergencyStopState emergencyStop;
   final ControllerApi api;
@@ -1132,6 +1152,12 @@ class _TargetSectionState extends State<_TargetSection> {
                 subtitle: Text(_launchError!),
               ),
             ),
+          RemoteTargetsPanel(
+            api: widget.api,
+            targets: widget.remoteTargets,
+            emergencyStop: widget.emergencyStop,
+            onRefresh: widget.onRefresh,
+          ),
         ],
       );
     }
@@ -1217,6 +1243,12 @@ class _TargetSectionState extends State<_TargetSection> {
               ),
             ),
           ),
+        RemoteTargetsPanel(
+          api: widget.api,
+          targets: widget.remoteTargets,
+          emergencyStop: widget.emergencyStop,
+          onRefresh: widget.onRefresh,
+        ),
       ],
     );
   }
@@ -1394,7 +1426,7 @@ class _QueueTaskDialogState extends State<_QueueTaskDialog> {
                       icon: Icons.lock_outline,
                       title: widget.target.name,
                       message:
-                          'This queues an audited plan only. The executor remains disabled.',
+                          'This queues an audited plan only. Autonomous execution remains disabled; approved Pi diagnostics use a separate gate.',
                     ),
                   ),
                 ),

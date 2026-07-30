@@ -32,6 +32,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
   List<AgentTaskSummary> _tasks = const [];
   ModelRuntimeSummary? _runtime;
   AgentWorkspaceSummary? _workspace;
+  ChatOrganizerSummary? _chatOrganizer;
+  List<OrganizedChatSummary> _organizedChats = const [];
   ProcessingSubmissionResult? _lastResult;
   String _source = 'voice';
   String? _error;
@@ -39,6 +41,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
   bool _loading = false;
   bool _submitting = false;
   bool _useModel = false;
+  bool _importingChats = false;
+  Set<String> _updatingTaskIds = const {};
 
   @override
   void initState() {
@@ -74,6 +78,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         widget.api.fetchProcessingAgents(),
         widget.api.fetchModelRuntime(),
         widget.api.fetchAgentWorkspace(),
+        widget.api.fetchChatOrganizer(),
+        widget.api.fetchOrganizedChats(),
         widget.api.fetchAgentTasks(),
       ]);
       if (!mounted) return;
@@ -81,7 +87,9 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         _agents = results[0] as List<ProcessingAgentSummary>;
         _runtime = results[1] as ModelRuntimeSummary;
         _workspace = results[2] as AgentWorkspaceSummary;
-        _tasks = results[3] as List<AgentTaskSummary>;
+        _chatOrganizer = results[3] as ChatOrganizerSummary;
+        _organizedChats = results[4] as List<OrganizedChatSummary>;
+        _tasks = results[5] as List<AgentTaskSummary>;
         _loaded = true;
       });
     } catch (error) {
@@ -114,6 +122,75 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
       await _load();
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _importChatSnapshot() async {
+    if (_importingChats) return;
+    setState(() {
+      _importingChats = true;
+      _error = null;
+    });
+    try {
+      final result = await showDialog<ChatOrganizerImportSummary>(
+        context: context,
+        builder: (context) => _ChatImportDialog(api: widget.api),
+      );
+      if (!mounted || result == null) return;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Indexed ${result.chatCount} chats: '
+            '${result.createdCount} new, ${result.updatedCount} updated.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _importingChats = false);
+    }
+  }
+
+  Future<void> _updateAgentTask(
+    AgentTaskSummary task,
+    String status,
+  ) async {
+    if (_updatingTaskIds.contains(task.id)) return;
+    setState(() {
+      _updatingTaskIds = {..._updatingTaskIds, task.id};
+      _error = null;
+    });
+    try {
+      final updated = await widget.api.updateAgentTaskStatus(
+        taskId: task.id,
+        status: status,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tasks = [
+          for (final current in _tasks)
+            if (current.id == updated.id) updated else current,
+        ];
+      });
+      try {
+        final workspace = await widget.api.fetchAgentWorkspace();
+        if (mounted) setState(() => _workspace = workspace);
+      } catch (_) {
+        // The task update succeeded; a later refresh can recover totals.
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task marked ${_titleCase(status)}.')),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingTaskIds = {..._updatingTaskIds}..remove(task.id);
+        });
+      }
     }
   }
 
@@ -175,7 +252,7 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
               title: 'New intake',
               subtitle: _useModel
                   ? 'OpenAI reasoning plus the durable local crew'
-                  : 'Deterministic local processing — no provider tokens',
+                  : 'Deterministic local processing - no provider tokens',
               trailing: Chip(
                 avatar: Icon(
                   _useModel ? Icons.auto_awesome : Icons.offline_bolt,
@@ -262,8 +339,8 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
                     title: const Text('Use model reasoning'),
                     subtitle: Text(
                       modelReady
-                          ? '${runtime!.model} is configured. External actions '
-                              'remain disabled.'
+                          ? '${runtime!.model} is configured. It has no direct '
+                              'tools; approved Pi diagnostics use the separate RUN gate.'
                           : 'Local mode remains available while the model '
                               'runtime is unavailable.',
                     ),
@@ -313,6 +390,13 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
               _WorkspaceStats(workspace: workspace),
             ],
             const SizedBox(height: 20),
+            _ChatOrganizerCard(
+              organizer: _chatOrganizer,
+              chats: _organizedChats,
+              importing: _importingChats,
+              onImport: online ? _importChatSnapshot : null,
+            ),
+            const SizedBox(height: 20),
             SectionCard(
               title: 'The crew',
               subtitle: '${_agents.length} operational processing agents',
@@ -355,8 +439,46 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
                             leading: Icon(_taskIcon(task.status)),
                             title: Text(task.title),
                             subtitle: Text(task.project),
-                            trailing:
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Chip(label: Text(_titleCase(task.status))),
+                                const SizedBox(width: 4),
+                                if (_updatingTaskIds.contains(task.id))
+                                  const SizedBox.square(
+                                    dimension: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                else
+                                  PopupMenuButton<String>(
+                                    key: Key('agent-task-actions-${task.id}'),
+                                    tooltip: 'Update task status',
+                                    onSelected: (status) => unawaited(
+                                      _updateAgentTask(task, status),
+                                    ),
+                                    itemBuilder: (context) =>
+                                        task.status == 'open'
+                                            ? const [
+                                                PopupMenuItem(
+                                                  value: 'done',
+                                                  child: Text('Mark done'),
+                                                ),
+                                                PopupMenuItem(
+                                                  value: 'dismissed',
+                                                  child: Text('Dismiss'),
+                                                ),
+                                              ]
+                                            : const [
+                                                PopupMenuItem(
+                                                  value: 'open',
+                                                  child: Text('Reopen'),
+                                                ),
+                                              ],
+                                  ),
+                              ],
+                            ),
                           ),
                       ],
                     ),
@@ -365,6 +487,256 @@ class _AgentOperationsScreenState extends State<AgentOperationsScreen> {
         ),
       ),
     );
+  }
+}
+
+class _ChatOrganizerCard extends StatelessWidget {
+  const _ChatOrganizerCard({
+    required this.organizer,
+    required this.chats,
+    required this.importing,
+    required this.onImport,
+  });
+
+  final ChatOrganizerSummary? organizer;
+  final List<OrganizedChatSummary> chats;
+  final bool importing;
+  final VoidCallback? onImport;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = organizer;
+    final synced = value?.lastSyncAt != null;
+    return SectionCard(
+      title: 'ChatGPT organizer',
+      subtitle: synced
+          ? 'Indexed locally. Suggested moves stay read-only.'
+          : 'Waiting for the first ChatGPT index sync.',
+      trailing: Wrap(
+        spacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Chip(
+            avatar: Icon(
+              synced ? Icons.check_circle : Icons.sync,
+              size: 17,
+            ),
+            label: Text(synced ? 'Synced' : 'Not synced'),
+          ),
+          OutlinedButton.icon(
+            key: const Key('import-chat-snapshot'),
+            onPressed: importing ? null : onImport,
+            icon: importing
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.upload_file_outlined),
+            label: Text(importing ? 'Importing' : 'Import snapshot'),
+          ),
+        ],
+      ),
+      child: value == null || value.totalChatCount == 0
+          ? const Text(
+              'No chats are indexed yet. A sync adds titles and project '
+              'metadata without copying private browser storage.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Chip(label: Text('${value.totalChatCount} chats')),
+                    Chip(
+                      label: Text(
+                        '${value.sourceProjectCount} ChatGPT projects',
+                      ),
+                    ),
+                    Chip(label: Text('${value.pinnedCount} pinned')),
+                    Chip(
+                      label: Text(
+                        '${value.suggestedMoveCount} suggested moves',
+                      ),
+                    ),
+                    Chip(
+                      label: Text('${value.unassignedCount} outside projects'),
+                    ),
+                  ],
+                ),
+                if (value.buckets.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'File structure',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (final bucket in value.buckets)
+                          ExpansionTile(
+                            key: Key('chat-folder-${bucket.name}'),
+                            leading: Icon(
+                              bucket.isExistingChatGptProject
+                                  ? Icons.folder
+                                  : Icons.folder_outlined,
+                            ),
+                            title: Text(bucket.name),
+                            trailing: Chip(
+                              label: Text(bucket.chatCount.toString()),
+                            ),
+                            children: [
+                              for (final chat in chats.where(
+                                (item) => item.suggestedProject == bucket.name,
+                              ))
+                                ListTile(
+                                  dense: true,
+                                  leading: Icon(
+                                    chat.pinnedIndex == null
+                                        ? Icons.description_outlined
+                                        : Icons.push_pin_outlined,
+                                  ),
+                                  title: Text(chat.title),
+                                  subtitle: Text(
+                                    chat.currentProject == null
+                                        ? 'Ready to file'
+                                        : 'Filed in ChatGPT',
+                                  ),
+                                  trailing: Chip(
+                                    label: Text(chat.confidence),
+                                  ),
+                                ),
+                              if (bucket.chatCount == 0)
+                                const ListTile(
+                                  dense: true,
+                                  leading: Icon(Icons.inbox_outlined),
+                                  title: Text('Empty folder'),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _ChatImportDialog extends StatefulWidget {
+  const _ChatImportDialog({required this.api});
+
+  final ControllerApi api;
+
+  @override
+  State<_ChatImportDialog> createState() => _ChatImportDialogState();
+}
+
+class _ChatImportDialogState extends State<_ChatImportDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _snapshotController = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _snapshotController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Import ChatGPT snapshot'),
+      content: SizedBox(
+        width: 660,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Paste a normalized ChatGPT app index or data-export '
+                  'snapshot. BoxBrain stores metadata only and never moves '
+                  'or deletes conversations.',
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  key: const Key('chat-import-json'),
+                  controller: _snapshotController,
+                  enabled: !_submitting,
+                  autofocus: true,
+                  minLines: 10,
+                  maxLines: 18,
+                  decoration: const InputDecoration(
+                    labelText: 'Snapshot JSON',
+                    hintText: '{"source":"chatgpt_app_index", '
+                        '"captured_at":"...", "projects":[], "chats":[]}',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Paste a snapshot before importing.'
+                      : null,
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          key: const Key('confirm-chat-import'),
+          onPressed: _submitting ? null : _submit,
+          icon: _submitting
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.upload_file_outlined),
+          label: Text(_submitting ? 'Importing' : 'Import'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.api.importChatOrganizerSnapshot(
+        _snapshotController.text.trim(),
+      );
+      if (mounted) Navigator.pop(context, result);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = error.toString();
+      });
+    }
   }
 }
 
@@ -380,7 +752,7 @@ class _RuntimeCard extends StatelessWidget {
       title: 'Agent runtime',
       subtitle: value == null
           ? 'Waiting for controller status'
-          : '${value.model} · ${value.executionMode}',
+          : '${value.model} - ${value.executionMode}',
       trailing: Chip(
         avatar: Icon(
           value?.ready == true ? Icons.check_circle : Icons.info_outline,
@@ -534,7 +906,7 @@ class _RunResultCard extends StatelessWidget {
     final plan = result.plan;
     return SectionCard(
       title: 'Latest result',
-      subtitle: '${run.project} · ${_titleCase(run.intent)}',
+      subtitle: '${run.project} - ${_titleCase(run.intent)}',
       trailing: Chip(
         label: Text(
           plan?.requiresApproval == true
@@ -554,7 +926,7 @@ class _RunResultCard extends StatelessWidget {
             for (final task in plan.tasks)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text('• $task'),
+                child: Text('- $task'),
               ),
           ],
           const SizedBox(height: 16),

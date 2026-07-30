@@ -60,6 +60,14 @@ repeat request does not spend provider tokens again. The runtime defaults to
 
 No provider call occurs on `POST /api/v1/processing/runs`.
 
+## Diagnostic planner separation
+
+The Target screen's Kali Pi **AI check** uses a separate typed Agents SDK planner.
+It can return only one of four read-only diagnostic identifiers and has no tool
+or command field. The processing orchestrator and queued tasks cannot invoke it.
+A human must review the proposal and type `RUN`; only then does the controller's
+fixed-command executor recheck target scope and the emergency stop.
+
 ## Dashboard workspace
 
 The authenticated dashboard now includes an **Agents** destination. It loads the
@@ -69,7 +77,9 @@ agent tasks directly from the controller.
 The intake composer defaults to **Local** mode, so voice notes can be processed
 without provider billing. **Use model reasoning** is an explicit opt-in. Model
 errors remain visible and the operator can switch back to the local crew without
-losing the durable local run.
+losing the durable local run. Each durable agent task has an action menu for
+marking it done, dismissing it, or reopening it; the workspace totals refresh
+after a successful update.
 
 ## Operational workspace
 

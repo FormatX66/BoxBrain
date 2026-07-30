@@ -271,3 +271,136 @@ class ProcessingSubmissionResult {
 
   bool get usedModel => plan != null;
 }
+
+class ChatOrganizerSummary {
+  const ChatOrganizerSummary({
+    required this.totalChatCount,
+    required this.sourceProjectCount,
+    required this.unassignedCount,
+    required this.suggestedMoveCount,
+    required this.pinnedCount,
+    required this.lastSyncAt,
+    required this.buckets,
+    required this.recentChats,
+  });
+
+  factory ChatOrganizerSummary.fromJson(Map<String, dynamic> json) {
+    return ChatOrganizerSummary(
+      totalChatCount: json['total_chat_count'] as int,
+      sourceProjectCount: json['source_project_count'] as int,
+      unassignedCount: json['unassigned_count'] as int,
+      suggestedMoveCount: json['suggested_move_count'] as int,
+      pinnedCount: json['pinned_count'] as int,
+      lastSyncAt: json['last_sync_at'] == null
+          ? null
+          : DateTime.parse(json['last_sync_at'] as String),
+      buckets: (json['buckets'] as List<dynamic>)
+          .map(
+            (item) => ChatProjectBucketSummary.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(growable: false),
+      recentChats: (json['recent_chats'] as List<dynamic>)
+          .map(
+            (item) => OrganizedChatSummary.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  final int totalChatCount;
+  final int sourceProjectCount;
+  final int unassignedCount;
+  final int suggestedMoveCount;
+  final int pinnedCount;
+  final DateTime? lastSyncAt;
+  final List<ChatProjectBucketSummary> buckets;
+  final List<OrganizedChatSummary> recentChats;
+}
+
+class ChatProjectBucketSummary {
+  const ChatProjectBucketSummary({
+    required this.name,
+    required this.chatCount,
+    required this.isExistingChatGptProject,
+  });
+
+  factory ChatProjectBucketSummary.fromJson(Map<String, dynamic> json) {
+    return ChatProjectBucketSummary(
+      name: json['name'] as String,
+      chatCount: json['chat_count'] as int,
+      isExistingChatGptProject: json['is_existing_chatgpt_project'] as bool,
+    );
+  }
+
+  final String name;
+  final int chatCount;
+  final bool isExistingChatGptProject;
+}
+
+class OrganizedChatSummary {
+  const OrganizedChatSummary({
+    required this.externalId,
+    required this.title,
+    required this.currentProject,
+    required this.suggestedProject,
+    required this.classificationReason,
+    required this.confidence,
+    required this.pinnedIndex,
+    required this.updatedAt,
+  });
+
+  factory OrganizedChatSummary.fromJson(Map<String, dynamic> json) {
+    return OrganizedChatSummary(
+      externalId: json['external_id'] as String,
+      title: json['title'] as String,
+      currentProject: json['current_project'] as String?,
+      suggestedProject: json['suggested_project'] as String,
+      classificationReason: json['classification_reason'] as String,
+      confidence: json['confidence'] as String,
+      pinnedIndex: json['pinned_index'] as int?,
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  final String externalId;
+  final String title;
+  final String? currentProject;
+  final String suggestedProject;
+  final String classificationReason;
+  final String confidence;
+  final int? pinnedIndex;
+  final DateTime updatedAt;
+}
+
+class ChatOrganizerImportSummary {
+  const ChatOrganizerImportSummary({
+    required this.id,
+    required this.chatCount,
+    required this.createdCount,
+    required this.updatedCount,
+    required this.unchangedCount,
+    required this.suggestedMoveCount,
+  });
+
+  factory ChatOrganizerImportSummary.fromJson(Map<String, dynamic> json) {
+    return ChatOrganizerImportSummary(
+      id: json['id'] as String,
+      chatCount: json['chat_count'] as int,
+      createdCount: json['created_count'] as int,
+      updatedCount: json['updated_count'] as int,
+      unchangedCount: json['unchanged_count'] as int,
+      suggestedMoveCount: json['suggested_move_count'] as int,
+    );
+  }
+
+  final String id;
+  final int chatCount;
+  final int createdCount;
+  final int updatedCount;
+  final int unchangedCount;
+  final int suggestedMoveCount;
+}

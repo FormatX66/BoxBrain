@@ -356,6 +356,218 @@ class EdgeAgentSummary {
   final String wifiCredentialAudit;
 }
 
+class RemoteTargetSummary {
+  const RemoteTargetSummary({
+    required this.id,
+    required this.name,
+    required this.transport,
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.authorized,
+    required this.builtIn,
+    required this.status,
+    required this.credentialMode,
+    required this.capabilities,
+    required this.lastCheckedAt,
+    required this.createdAt,
+  });
+
+  factory RemoteTargetSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteTargetSummary(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      transport: json['transport'] as String,
+      host: json['host'] as String,
+      port: json['port'] as int,
+      username: json['username'] as String?,
+      authorized: json['authorized'] as bool,
+      builtIn: json['built_in'] as bool,
+      status: json['status'] as String,
+      credentialMode: json['credential_mode'] as String,
+      capabilities: (json['capabilities'] as List<dynamic>).cast<String>(),
+      lastCheckedAt: json['last_checked_at'] == null
+          ? null
+          : DateTime.parse(json['last_checked_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  final String id;
+  final String name;
+  final String transport;
+  final String host;
+  final int port;
+  final String? username;
+  final bool authorized;
+  final bool builtIn;
+  final String status;
+  final String credentialMode;
+  final List<String> capabilities;
+  final DateTime? lastCheckedAt;
+  final DateTime createdAt;
+}
+
+class RemoteTargetProbeSummary {
+  const RemoteTargetProbeSummary({
+    required this.targetId,
+    required this.status,
+    required this.resolvedAddress,
+    required this.latencyMs,
+    required this.message,
+    required this.checkedAt,
+  });
+
+  factory RemoteTargetProbeSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteTargetProbeSummary(
+      targetId: json['target_id'] as String,
+      status: json['status'] as String,
+      resolvedAddress: json['resolved_address'] as String?,
+      latencyMs: json['latency_ms'] as int?,
+      message: json['message'] as String,
+      checkedAt: DateTime.parse(json['checked_at'] as String),
+    );
+  }
+
+  final String targetId;
+  final String status;
+  final String? resolvedAddress;
+  final int? latencyMs;
+  final String message;
+  final DateTime checkedAt;
+}
+
+class RemoteSessionSummary {
+  const RemoteSessionSummary({
+    required this.targetId,
+    required this.status,
+    required this.application,
+    required this.message,
+  });
+
+  factory RemoteSessionSummary.fromJson(Map<String, dynamic> json) {
+    return RemoteSessionSummary(
+      targetId: json['target_id'] as String,
+      status: json['status'] as String,
+      application: json['application'] as String,
+      message: json['message'] as String,
+    );
+  }
+
+  final String targetId;
+  final String status;
+  final String application;
+  final String message;
+}
+
+class DiagnosticPlanSummary {
+  const DiagnosticPlanSummary({
+    required this.action,
+    required this.summary,
+    required this.expectedEvidence,
+    required this.riskNote,
+  });
+
+  factory DiagnosticPlanSummary.fromJson(Map<String, dynamic> json) {
+    return DiagnosticPlanSummary(
+      action: json['action'] as String,
+      summary: json['summary'] as String,
+      expectedEvidence: json['expected_evidence'] as String,
+      riskNote: json['risk_note'] as String,
+    );
+  }
+
+  final String action;
+  final String summary;
+  final String expectedEvidence;
+  final String riskNote;
+}
+
+class DiagnosticProposalSummary {
+  const DiagnosticProposalSummary({
+    required this.id,
+    required this.targetId,
+    required this.targetName,
+    required this.goal,
+    required this.plan,
+    required this.status,
+    required this.model,
+    required this.providerTokens,
+    required this.requiresConfirmation,
+    required this.createdAt,
+    required this.expiresAt,
+  });
+
+  factory DiagnosticProposalSummary.fromJson(Map<String, dynamic> json) {
+    final usage = json['usage'] as Map<String, dynamic>;
+    return DiagnosticProposalSummary(
+      id: json['id'] as String,
+      targetId: json['target_id'] as String,
+      targetName: json['target_name'] as String,
+      goal: json['goal'] as String,
+      plan: DiagnosticPlanSummary.fromJson(
+        json['plan'] as Map<String, dynamic>,
+      ),
+      status: json['status'] as String,
+      model: json['model'] as String,
+      providerTokens: usage['total_tokens'] as int,
+      requiresConfirmation: json['requires_confirmation'] as bool,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      expiresAt: DateTime.parse(json['expires_at'] as String),
+    );
+  }
+
+  final String id;
+  final String targetId;
+  final String targetName;
+  final String goal;
+  final DiagnosticPlanSummary plan;
+  final String status;
+  final String model;
+  final int providerTokens;
+  final bool requiresConfirmation;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+}
+
+class DiagnosticExecutionSummary {
+  const DiagnosticExecutionSummary({
+    required this.proposalId,
+    required this.targetId,
+    required this.action,
+    required this.status,
+    required this.exitCode,
+    required this.output,
+    required this.truncated,
+    required this.durationMs,
+    required this.executedAt,
+  });
+
+  factory DiagnosticExecutionSummary.fromJson(Map<String, dynamic> json) {
+    return DiagnosticExecutionSummary(
+      proposalId: json['proposal_id'] as String,
+      targetId: json['target_id'] as String,
+      action: json['action'] as String,
+      status: json['status'] as String,
+      exitCode: json['exit_code'] as int,
+      output: json['output'] as String,
+      truncated: json['truncated'] as bool,
+      durationMs: json['duration_ms'] as int,
+      executedAt: DateTime.parse(json['executed_at'] as String),
+    );
+  }
+
+  final String proposalId;
+  final String targetId;
+  final String action;
+  final String status;
+  final int exitCode;
+  final String output;
+  final bool truncated;
+  final int durationMs;
+  final DateTime executedAt;
+}
+
 class AuditEventSummary {
   const AuditEventSummary({
     required this.sequence,

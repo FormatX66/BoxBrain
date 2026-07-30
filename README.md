@@ -5,10 +5,11 @@ isolated computer lab. The first milestone is deliberately small: a Flutter
 mission-control UI, a Python/FastAPI controller API, a plugin boundary, policy
 profiles, an audit-friendly task queue, and a restricted Kali Pi edge agent.
 
-This repository is an initial alpha skeleton. It does **not** execute keyboard,
-mouse, remote-desktop, or shell actions. Its optional model-processing endpoint
-can call a configured OpenAI model for typed planning, but exposes no
-side-effect tools.
+This repository is an initial alpha. It does **not** autonomously execute
+keyboard, mouse, remote-desktop, or arbitrary shell actions. Its optional
+model-processing endpoint exposes no side-effect tools. The separate Kali Pi
+diagnostic executor runs only fixed read-only commands after an explicit `RUN`
+approval.
 
 ## Repository layout
 
@@ -51,7 +52,17 @@ and exact rollback commands.
 Use the dashboard's **Agents** destination to process voice or chat intake,
 review the ten-agent crew, inspect memory and task totals, and optionally enable
 model reasoning. Local processing is the default and requires no provider
-tokens.
+tokens. The same Agents destination includes the local ChatGPT organizer, which
+preserves current project membership and proposes folders for loose chats
+without scraping browser storage or moving anything in ChatGPT. See
+[docs/CHATGPT_ORGANIZER.md](docs/CHATGPT_ORGANIZER.md).
+
+Use **Fleet** to import authorized targets, register one durable identity per
+machine, catalog capabilities, and run the resumable provisioning checklist.
+External Gmail, Drive, GitHub, and CAPTCHA steps remain operator-controlled;
+BoxBrain stores no account passwords or recovery secrets. The dashboard also
+shows the canonical twelve-agent system roster. See
+[docs/BOXBRAIN_ARCHITECTURE_V1.md](docs/BOXBRAIN_ARCHITECTURE_V1.md).
 
 ### Manual cross-platform setup
 
@@ -130,22 +141,50 @@ or raw diagnostic reports into its API. See [docs/EDGE_AGENT.md](docs/EDGE_AGENT
 for the architecture, tunnel command, USB-C and SSH/Wi-Fi target enrollment, and safe Pi upgrade
 path.
 
-### 5. Queue and audit tasks
+An optional, operator-started live Pi screen is also available through a
+loopback-only VNC/WebSocket transport and key-only SSH tunnel. It is not enabled
+by the normal edge-agent install and does not control enrolled targets. See
+[the edge-agent console setup](edge/kali-pi-agent/README.md#optional-live-pi-screen).
+
+### 5. Connect an authorized host
+
+Open **Target** and use **Add target** to register a private, loopback, or
+link-local host. Supported operator-controlled sessions are USB-C SSH, SSH,
+Windows Remote Management, Windows Remote Desktop, and explicitly acknowledged
+lab-only Telnet. Use **Test** for a TCP reachability check, then **Open session**
+and type `OPEN` to launch the operating-system client.
+
+BoxBrain stores target metadata, not passwords. SSH uses the agent or the
+dedicated Pi key, WinRM uses the current Windows identity, and RDP prompts
+interactively. Telnet is plaintext and requires its separate exact warning
+phrase. The emergency stop blocks every session launch. This target manager
+does not give queued tasks a shell or autonomous host control.
+
+#### Approval-gated AI diagnostics
+
+The built-in Kali Pi target also exposes **AI check**. Describe what to inspect;
+the model may select only `system_health`, `disk_usage`, `memory_usage`, or
+`uptime`. Review the typed proposal, then type `RUN` to execute its fixed
+read-only SSH diagnostic. User text never becomes shell input. Proposals expire,
+output is capped and not retained as evidence, and the emergency stop blocks
+execution. General targets and queued tasks cannot use this executor.
+
+### 6. Queue and audit tasks
 
 Use **Tasks** to queue a goal for the connected Sandbox. Tasks are stored in
 `controller/data/boxbrain.sqlite3`, survive controller restarts, and create an
 append-only event visible under **Logs**. New events arrive over an authenticated
 server-sent event stream with sequence-based resume and automatic reconnect.
-Queueing records intent only; the executor remains disabled.
+Queueing records intent only; the autonomous task executor remains disabled.
 
-### 6. Emergency stop
+### 7. Emergency stop
 
 Use the red stop control from any dashboard screen to block Sandbox launches
 and future executor actions. The state survives controller restarts and every
 engage/reset request is audited. Read-only observation remains available while
 stopped. Resetting requires typing `RESET` in the confirmation dialog.
 
-### 7. Verify
+### 8. Verify
 
 ```powershell
 .\installer\validate-project.ps1

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../models/agent_models.dart';
 import '../models/controller_status.dart';
+import '../models/fleet_models.dart';
 
 class ControllerApiException implements Exception {
   const ControllerApiException(this.message);
@@ -49,10 +50,20 @@ class ControllerApi {
   Uri get policiesEndpoint => endpoint('/api/v1/policies');
   Uri get pluginsEndpoint => endpoint('/api/v1/plugins');
   Uri get targetsEndpoint => endpoint('/api/v1/targets');
+  Uri get remoteTargetsEndpoint => endpoint('/api/v1/remote-targets');
   Uri get edgeAgentsEndpoint => endpoint('/api/v1/edge-agents');
   Uri get agentsEndpoint => endpoint('/api/v1/agents');
+  Uri get architectureEndpoint => endpoint('/api/v1/architecture');
+  Uri get fleetEndpoint => endpoint('/api/v1/fleet');
+  Uri get fleetMachinesEndpoint => endpoint('/api/v1/fleet/machines');
   Uri get agentRuntimeEndpoint => endpoint('/api/v1/agents/runtime');
   Uri get agentDashboardEndpoint => endpoint('/api/v1/agent-dashboard');
+  Uri get chatOrganizerEndpoint => endpoint('/api/v1/chat-organizer');
+  Uri get chatOrganizerImportEndpoint =>
+      endpoint('/api/v1/chat-organizer/import');
+  Uri get organizedChatsEndpoint => endpoint(
+        '/api/v1/chat-organizer/chats',
+      ).replace(queryParameters: const {'limit': '500'});
   Uri get agentTasksEndpoint => endpoint('/api/v1/agent-tasks');
   Uri get processingRunsEndpoint => endpoint('/api/v1/processing/runs');
   Uri get modelProcessingRunsEndpoint =>
@@ -202,6 +213,103 @@ class ControllerApi {
         .toList(growable: false);
   }
 
+  Future<List<RemoteTargetSummary>> fetchRemoteTargets() async {
+    final json = await _getJson(remoteTargetsEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => RemoteTargetSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<RemoteTargetSummary> createRemoteTarget({
+    required String name,
+    required String transport,
+    required String host,
+    required int port,
+    String? username,
+    bool insecureTransportAcknowledged = false,
+  }) async {
+    final json = await _postJson(
+      remoteTargetsEndpoint,
+      {
+        'name': name,
+        'transport': transport,
+        'host': host,
+        'port': port,
+        if (username != null && username.trim().isNotEmpty)
+          'username': username.trim(),
+        'authorization': 'AUTHORIZED',
+        'insecure_transport_acknowledged': insecureTransportAcknowledged,
+      },
+    );
+    return RemoteTargetSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<void> deleteRemoteTarget(String targetId) async {
+    await _request(
+      () => http.delete(
+        endpoint('/api/v1/remote-targets/$targetId'),
+        headers: _headers,
+      ),
+    );
+  }
+
+  Future<RemoteTargetProbeSummary> probeRemoteTarget(String targetId) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/probe'),
+      const {},
+    );
+    return RemoteTargetProbeSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<RemoteSessionSummary> openRemoteTargetSession({
+    required String targetId,
+    String? insecureConfirmation,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/session'),
+      {
+        'confirmation': 'OPEN',
+        if (insecureConfirmation != null)
+          'insecure_confirmation': insecureConfirmation,
+      },
+    );
+    return RemoteSessionSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<DiagnosticProposalSummary> proposeRemoteDiagnostic({
+    required String targetId,
+    required String goal,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/remote-targets/$targetId/diagnostic-proposals'),
+      {
+        'goal': goal,
+        'authorization': 'AUTHORIZED',
+      },
+    );
+    return DiagnosticProposalSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<DiagnosticExecutionSummary> executeDiagnosticProposal(
+    String proposalId,
+  ) async {
+    final json = await _postJson(
+      endpoint('/api/v1/diagnostic-proposals/$proposalId/execute'),
+      const {'confirmation': 'RUN'},
+    );
+    return DiagnosticExecutionSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
   Future<List<EdgeAgentSummary>> fetchEdgeAgents() async {
     final json = await _getJson(edgeAgentsEndpoint) as List<dynamic>;
     return json
@@ -220,6 +328,88 @@ class ControllerApi {
         .toList(growable: false);
   }
 
+  Future<ArchitectureManifestSummary> fetchArchitecture() async {
+    final json = await _getJson(architectureEndpoint);
+    return ArchitectureManifestSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
+  Future<FleetDashboardSummary> fetchFleet() async {
+    final json = await _getJson(fleetEndpoint);
+    return FleetDashboardSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<FleetMachineSummary>> importFleetTargets() async {
+    final json = await _postJson(
+      endpoint('/api/v1/fleet/import-targets'),
+      const {'confirmation': 'IMPORT'},
+    ) as List<dynamic>;
+    return json
+        .map(
+          (item) => FleetMachineSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<FleetMachineSummary> registerFleetMachine({
+    required String name,
+    required String kind,
+    String? remoteTargetId,
+    List<String> capabilities = const [],
+    String? notes,
+  }) async {
+    final json = await _postJson(
+      fleetMachinesEndpoint,
+      {
+        'name': name,
+        'kind': kind,
+        if (remoteTargetId != null) 'remote_target_id': remoteTargetId,
+        'capabilities': capabilities,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        'authorization': 'AUTHORIZED',
+      },
+    );
+    return FleetMachineSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary?> fetchMachineProvisioning(
+    String machineId,
+  ) async {
+    final json = await _getJson(
+      endpoint('/api/v1/fleet/machines/$machineId/provisioning'),
+    );
+    if (json == null) return null;
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary> startMachineProvisioning(
+    String machineId,
+  ) async {
+    final json = await _postJson(
+      endpoint('/api/v1/fleet/machines/$machineId/provisioning'),
+      const {'confirmation': 'PROVISION'},
+    );
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<ProvisioningRunSummary> completeProvisioningStep({
+    required String runId,
+    required String stepId,
+    String? note,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/provisioning/$runId/steps/$stepId/complete'),
+      {
+        'confirmation': 'COMPLETE',
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    return ProvisioningRunSummary.fromJson(json as Map<String, dynamic>);
+  }
+
   Future<ModelRuntimeSummary> fetchModelRuntime() async {
     final json = await _getJson(agentRuntimeEndpoint);
     return ModelRuntimeSummary.fromJson(json as Map<String, dynamic>);
@@ -230,6 +420,44 @@ class ControllerApi {
     return AgentWorkspaceSummary.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<ChatOrganizerSummary> fetchChatOrganizer() async {
+    final json = await _getJson(chatOrganizerEndpoint);
+    return ChatOrganizerSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<OrganizedChatSummary>> fetchOrganizedChats() async {
+    final json = await _getJson(organizedChatsEndpoint) as List<dynamic>;
+    return json
+        .map(
+          (item) => OrganizedChatSummary.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<ChatOrganizerImportSummary> importChatOrganizerSnapshot(
+    String snapshot,
+  ) async {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(snapshot);
+    } on FormatException {
+      throw const ControllerApiException(
+        'The ChatGPT snapshot is not valid JSON.',
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw const ControllerApiException(
+        'The ChatGPT snapshot must be a JSON object.',
+      );
+    }
+    final json = await _postJson(chatOrganizerImportEndpoint, decoded);
+    return ChatOrganizerImportSummary.fromJson(
+      json as Map<String, dynamic>,
+    );
+  }
+
   Future<List<AgentTaskSummary>> fetchAgentTasks() async {
     final json = await _getJson(agentTasksEndpoint) as List<dynamic>;
     return json
@@ -237,6 +465,17 @@ class ControllerApi {
           (item) => AgentTaskSummary.fromJson(item as Map<String, dynamic>),
         )
         .toList(growable: false);
+  }
+
+  Future<AgentTaskSummary> updateAgentTaskStatus({
+    required String taskId,
+    required String status,
+  }) async {
+    final json = await _postJson(
+      endpoint('/api/v1/agent-tasks/$taskId/status'),
+      {'status': status},
+    );
+    return AgentTaskSummary.fromJson(json as Map<String, dynamic>);
   }
 
   Future<ProcessingSubmissionResult> processAgentIntake({

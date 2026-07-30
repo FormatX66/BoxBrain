@@ -1,5 +1,11 @@
 # Architecture
 
+The canonical ecosystem architecture is **BoxBrain Master Architecture v1.0**.
+Its versioned system-agent roster, Fleet Manager foundation, machine identity
+rule, provisioning workflow, compatibility notes, migration plan, risks, and
+next steps are documented in
+[`BOXBRAIN_ARCHITECTURE_V1.md`](BOXBRAIN_ARCHITECTURE_V1.md).
+
 ## Components
 
 ```text
@@ -72,6 +78,40 @@ automatically. Authorized Wi-Fi/Ethernet targets are explicitly enrolled over
 the Pi's local Unix control socket after private-route and key-only SSH
 verification. Neither path is exposed through the controller's edge-agent
 status client.
+
+## Operator remote-session boundary
+
+Remote target profiles are durable controller records for private, loopback, or
+link-local hosts. The manager supports the Pi USB-C SSH path, general SSH,
+WinRM, RDP, and explicitly acknowledged lab-only Telnet. A probe opens only a
+bounded TCP connection to the registered host and port. A session request
+selects a fixed argument vector for the matching operating-system client; the
+API accepts no executable, script, or command input.
+
+Session launch requires the dashboard's exact `OPEN` confirmation and a clear
+persistent emergency stop. Telnet additionally requires the exact plaintext-risk
+phrase. Passwords are never accepted or stored: SSH uses the agent or dedicated
+Pi identity, WinRM uses the current Windows identity, and RDP handles credentials
+interactively. These are human-controlled terminals or desktops, not an action
+executor, and queued tasks cannot drive them.
+
+## AI diagnostic executor boundary
+
+The diagnostic planner is an OpenAI Agents SDK call with a typed output schema
+and no tools. It may select only `system_health`, `disk_usage`, `memory_usage`,
+or `uptime` for the built-in Kali Pi. The operator sees the exact typed plan,
+expected evidence, risk note, model, and token use before anything can run.
+
+Execution is a separate controller operation requiring the exact value `RUN`.
+Inside the shared action lock it rechecks the persistent emergency stop, built-in
+target identity, and private address resolution. The user's goal and model text
+never enter the process arguments; the selected enum maps to a fixed SSH command.
+SSH is noninteractive and host-key strict, commands have a hard deadline, and
+returned output is byte-capped. Audit records contain proposal and result
+metadata but not raw diagnostic output. Proposals expire and cannot be replayed.
+
+This is not the queued-task executor and does not give the model a terminal.
+General SSH, WinRM, RDP, and Telnet targets remain human-operated sessions.
 
 ## Data flow
 

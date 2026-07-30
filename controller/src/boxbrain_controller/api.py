@@ -8,13 +8,46 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from . import __version__
+from .architecture_manifest import (
+    ArchitectureAgent,
+    ArchitectureManifest,
+    get_architecture_manifest,
+)
+from .diagnostic_executor import (
+    DiagnosticError,
+    DiagnosticExecutionUnavailable,
+    DiagnosticExecutorService,
+    DiagnosticNotFoundError,
+    DiagnosticRuntimeUnavailable,
+)
 from .edge_agent import KaliPiEdgeAgentClient
+from .fleet import (
+    FleetDashboard,
+    FleetError,
+    FleetImportRequest,
+    FleetMachine,
+    FleetMachineCreate,
+    FleetMachineNotFoundError,
+    FleetService,
+    ProvisioningNotFoundError,
+    ProvisioningRun,
+    ProvisioningStartRequest,
+    ProvisioningStepCompleteRequest,
+)
 from .models import (
     AgentDashboard,
     AgentTaskRecord,
     AgentTaskStatus,
     AgentTaskStatusUpdate,
     AuditEvent,
+    ChatOrganizerDashboard,
+    ChatOrganizerImportRequest,
+    ChatOrganizerImportResult,
+    DiagnosticExecuteRequest,
+    DiagnosticExecutionResult,
+    DiagnosticProposal,
+    DiagnosticProposalRequest,
+    DiagnosticRuntimeStatus,
     EdgeAgentSummary,
     EmergencyStopEngageRequest,
     EmergencyStopResetRequest,
@@ -23,18 +56,25 @@ from .models import (
     MemoryRecord,
     ModelProcessingRun,
     ModelRuntimeStatus,
+    OrganizedChatRecord,
     PluginSummary,
     PolicyProfile,
     ProcessingAgentSummary,
     ProcessingRequest,
     ProcessingRun,
     ProjectSummary,
+    RemoteSessionRequest,
+    RemoteSessionResult,
+    RemoteTargetCreate,
+    RemoteTargetProbeResult,
+    RemoteTargetRecord,
     TargetStartResponse,
     TargetSummary,
     TaskCreate,
     TaskRecord,
     UsageSummary,
 )
+from .chat_organizer import ChatOrganizerService
 from .model_agents import (
     ModelAgentExecutionError,
     ModelAgentRuntimeUnavailable,
@@ -55,6 +95,13 @@ from .sandbox_observer import (
     SandboxStartError,
     WindowsSandboxObserver,
 )
+from .remote_targets import (
+    RemoteSessionLaunchError,
+    RemoteTargetError,
+    RemoteTargetNotFoundError,
+    RemoteTargetScopeError,
+    RemoteTargetService,
+)
 from .settings import settings
 from .task_store import TaskStore
 
@@ -62,6 +109,9 @@ router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
 processing_store = ProcessingStore(settings.data_dir / "boxbrain.sqlite3")
 processing_service = ProcessingService(processing_store)
+chat_organizer_service = ChatOrganizerService(
+    settings.data_dir / "boxbrain.sqlite3"
+)
 model_agent_service = ModelAgentService(
     processing_service,
     enabled=settings.agent_runtime_enabled,
@@ -85,6 +135,21 @@ sandbox_observer = OutOfProcessWindowsSandboxObserver(
 edge_agent_client = KaliPiEdgeAgentClient(
     settings.kali_pi_agent_url,
     timeout_seconds=settings.kali_pi_agent_timeout_seconds,
+)
+remote_target_service = RemoteTargetService(
+    settings.data_dir / "boxbrain.sqlite3",
+    usb_identity_file=settings.remote_usb_identity_file,
+)
+fleet_service = FleetService(settings.data_dir / "boxbrain.sqlite3")
+diagnostic_executor_service = DiagnosticExecutorService(
+    settings.data_dir / "boxbrain.sqlite3",
+    remote_target_service,
+    enabled=settings.diagnostic_executor_enabled,
+    model=settings.agent_model,
+    max_output_tokens=settings.agent_max_output_tokens,
+    usb_identity_file=settings.remote_usb_identity_file,
+    timeout_seconds=settings.diagnostic_timeout_seconds,
+    max_output_bytes=settings.diagnostic_max_output_bytes,
 )
 control_lock = Lock()
 
@@ -135,10 +200,176 @@ def get_task(task_id: UUID) -> TaskRecord:
 def list_processing_agents() -> list[ProcessingAgentSummary]:
     return processing_service.list_agents()
 
+@router.get("/architecture", response_model=ArchitectureManifest)
+def get_system_architecture() -> ArchitectureManifest:
+    return get_architecture_manifest()
+
+
+@router.get("/system-agents", response_model=list[ArchitectureAgent])
+def list_system_agents() -> list[ArchitectureAgent]:
+    return list(get_architecture_manifest().agents)
+
+
+@router.get("/fleet", response_model=FleetDashboard)
+def get_fleet_dashboard() -> FleetDashboard:
+    return fleet_service.dashboard()
+
+
+@router.get("/fleet/machines", response_model=list[FleetMachine])
+def list_fleet_machines() -> list[FleetMachine]:
+    return fleet_service.list()
+
+
+@router.post(
+    "/fleet/machines",
+    response_model=FleetMachine,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_fleet_machine(request: FleetMachineCreate) -> FleetMachine:
+    if request.remote_target_id is not None:
+        try:
+            remote_target_service.get(request.remote_target_id)
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Select a registered remote target.",
+            ) from error
+    try:
+        machine = fleet_service.create(request)
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="fleet.machine_registered",
+        target_id=f"machine:{machine.id}",
+        message=f"Registered fleet machine {machine.name}.",
+        details={
+            "result": "registered",
+            "machine_identity": machine.machine_identity,
+            "kind": machine.kind,
+            "remote_target_linked": machine.remote_target_id is not None,
+        },
+    )
+    return machine
+
+
+@router.post(
+    "/fleet/import-targets",
+    response_model=list[FleetMachine],
+)
+def import_remote_targets_to_fleet(
+    request: FleetImportRequest,
+) -> list[FleetMachine]:
+    del request
+    try:
+        machines = fleet_service.import_remote_targets(remote_target_service.list())
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="fleet.targets_imported",
+        target_id=None,
+        message="Synchronized authorized remote targets into Fleet Manager.",
+        details={"result": "synchronized", "machine_count": len(machines)},
+    )
+    return machines
+
+
+@router.get(
+    "/fleet/machines/{machine_id}/provisioning",
+    response_model=ProvisioningRun | None,
+)
+def get_machine_provisioning(machine_id: UUID) -> ProvisioningRun | None:
+    try:
+        return fleet_service.get_provisioning(machine_id)
+    except FleetMachineNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+
+
+@router.post(
+    "/fleet/machines/{machine_id}/provisioning",
+    response_model=ProvisioningRun,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_machine_provisioning(
+    machine_id: UUID,
+    request: ProvisioningStartRequest,
+) -> ProvisioningRun:
+    del request
+    try:
+        run = fleet_service.start_provisioning(machine_id)
+        machine = fleet_service.get(machine_id)
+    except FleetMachineNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="provisioning.started",
+        target_id=f"machine:{machine.id}",
+        message=f"Provisioning workflow ready for {machine.name}.",
+        details={
+            "result": run.status,
+            "run_id": str(run.id),
+            "current_step_id": run.current_step_id or "complete",
+        },
+    )
+    return run
+
+
+@router.post(
+    "/provisioning/{run_id}/steps/{step_id}/complete",
+    response_model=ProvisioningRun,
+)
+def complete_provisioning_step(
+    run_id: UUID,
+    step_id: str,
+    request: ProvisioningStepCompleteRequest,
+) -> ProvisioningRun:
+    try:
+        run = fleet_service.complete_step(run_id, step_id, request)
+    except ProvisioningNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except FleetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="provisioning.step_completed",
+        target_id=f"machine:{run.machine_id}",
+        message=f"Completed provisioning step {step_id}.",
+        details={
+            "result": run.status,
+            "run_id": str(run.id),
+            "step_id": step_id,
+            "next_step_id": run.current_step_id or "complete",
+        },
+    )
+    return run
+
 
 @router.get("/agents/runtime", response_model=ModelRuntimeStatus)
 def get_model_agent_runtime() -> ModelRuntimeStatus:
     return model_agent_service.runtime_status()
+
+
+@router.get(
+    "/agents/diagnostic-runtime",
+    response_model=DiagnosticRuntimeStatus,
+)
+def get_diagnostic_runtime() -> DiagnosticRuntimeStatus:
+    return diagnostic_executor_service.runtime_status()
 
 
 @router.post("/processing/runs", response_model=ProcessingRun)
@@ -220,6 +451,50 @@ def get_processing_usage() -> UsageSummary:
 @router.get("/agent-dashboard", response_model=AgentDashboard)
 def get_agent_dashboard() -> AgentDashboard:
     return processing_service.dashboard()
+
+
+@router.post(
+    "/chat-organizer/import",
+    response_model=ChatOrganizerImportResult,
+)
+def import_chat_organizer_snapshot(
+    request: ChatOrganizerImportRequest,
+) -> ChatOrganizerImportResult:
+    return chat_organizer_service.import_snapshot(request)
+
+
+@router.get(
+    "/chat-organizer",
+    response_model=ChatOrganizerDashboard,
+)
+def get_chat_organizer_dashboard() -> ChatOrganizerDashboard:
+    return chat_organizer_service.dashboard()
+
+
+@router.get(
+    "/chat-organizer/chats",
+    response_model=list[OrganizedChatRecord],
+)
+def list_organized_chats(
+    project: str | None = Query(default=None, min_length=1, max_length=160),
+    unassigned_only: bool = Query(default=False),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[OrganizedChatRecord]:
+    return chat_organizer_service.list_chats(
+        project=project,
+        unassigned_only=unassigned_only,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/chat-organizer/imports",
+    response_model=list[ChatOrganizerImportResult],
+)
+def list_chat_organizer_imports(
+    limit: int = Query(default=50, ge=1, le=500),
+) -> list[ChatOrganizerImportResult]:
+    return chat_organizer_service.list_imports(limit=limit)
 
 
 @router.get("/projects", response_model=list[ProjectSummary])
@@ -410,6 +685,290 @@ def list_targets() -> list[TargetSummary]:
 @router.get("/edge-agents", response_model=list[EdgeAgentSummary])
 def list_edge_agents() -> list[EdgeAgentSummary]:
     return [edge_agent_client.describe()]
+
+
+@router.get("/remote-targets", response_model=list[RemoteTargetRecord])
+def list_remote_targets() -> list[RemoteTargetRecord]:
+    return remote_target_service.list()
+
+
+@router.post(
+    "/remote-targets",
+    response_model=RemoteTargetRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_remote_target(request: RemoteTargetCreate) -> RemoteTargetRecord:
+    try:
+        record = remote_target_service.create(request)
+    except RemoteTargetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.registered",
+        target_id=f"remote:{record.id}",
+        message=f"Authorized {record.transport} target registered.",
+        details={
+            "result": "registered",
+            "transport": record.transport,
+            "host": record.host,
+            "port": record.port,
+        },
+    )
+    return record
+
+
+@router.delete(
+    "/remote-targets/{target_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_remote_target(target_id: UUID) -> Response:
+    try:
+        record = remote_target_service.delete(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RemoteTargetError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.removed",
+        target_id=f"remote:{record.id}",
+        message="Authorized remote target removed.",
+        details={"result": "removed", "transport": record.transport},
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/remote-targets/{target_id}/probe",
+    response_model=RemoteTargetProbeResult,
+)
+def probe_remote_target(target_id: UUID) -> RemoteTargetProbeResult:
+    try:
+        result = remote_target_service.probe(target_id)
+        record = remote_target_service.get(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RemoteTargetScopeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="remote_target.probed",
+        target_id=f"remote:{record.id}",
+        message=f"{record.transport.upper()} target probe: {result.status}.",
+        details={
+            "result": result.status,
+            "transport": record.transport,
+            "port": record.port,
+            "latency_ms": result.latency_ms,
+        },
+    )
+    return result
+
+
+@router.post(
+    "/remote-targets/{target_id}/session",
+    response_model=RemoteSessionResult,
+)
+def open_remote_target_session(
+    target_id: UUID,
+    request: RemoteSessionRequest,
+) -> RemoteSessionResult:
+    with control_lock:
+        emergency_stop = task_store.get_emergency_stop()
+        if emergency_stop.engaged:
+            task_store.append_event(
+                event_type="remote_target.session_opened",
+                target_id=f"remote:{target_id}",
+                message="Remote session blocked by emergency stop.",
+                details={
+                    "result": "blocked",
+                    "reason": "emergency_stop",
+                    "generation": emergency_stop.generation,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Emergency stop is engaged. Reset it before opening a session.",
+            )
+        try:
+            result = remote_target_service.open_session(target_id, request)
+            record = remote_target_service.get(target_id)
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except (RemoteTargetError, RemoteTargetScopeError) as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(error),
+            ) from error
+        except RemoteSessionLaunchError as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(error),
+            ) from error
+        task_store.append_event(
+            event_type="remote_target.session_opened",
+            target_id=f"remote:{record.id}",
+            message=result.message,
+            details={
+                "result": result.status,
+                "transport": record.transport,
+                "application": result.application,
+            },
+        )
+    return result
+
+
+@router.get(
+    "/remote-targets/{target_id}/diagnostic-proposals",
+    response_model=list[DiagnosticProposal],
+)
+def list_diagnostic_proposals(
+    target_id: UUID,
+    limit: int = Query(default=25, ge=1, le=100),
+) -> list[DiagnosticProposal]:
+    try:
+        remote_target_service.get(target_id)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    return diagnostic_executor_service.list(target_id=target_id, limit=limit)
+
+
+@router.post(
+    "/remote-targets/{target_id}/diagnostic-proposals",
+    response_model=DiagnosticProposal,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_diagnostic_proposal(
+    target_id: UUID,
+    request: DiagnosticProposalRequest,
+) -> DiagnosticProposal:
+    try:
+        proposal = await diagnostic_executor_service.propose(target_id, request)
+    except RemoteTargetNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except DiagnosticRuntimeUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except DiagnosticError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+    task_store.append_event(
+        event_type="diagnostic.proposed",
+        target_id=f"remote:{proposal.target_id}",
+        message=f"AI proposed the {proposal.plan.action} diagnostic.",
+        details={
+            "result": "pending_approval",
+            "proposal_id": str(proposal.id),
+            "action": proposal.plan.action,
+            "model": proposal.model,
+            "provider_tokens": proposal.usage.total_tokens,
+            "expires_at": proposal.expires_at.isoformat(),
+        },
+    )
+    return proposal
+
+
+@router.post(
+    "/diagnostic-proposals/{proposal_id}/execute",
+    response_model=DiagnosticExecutionResult,
+)
+def execute_diagnostic_proposal(
+    proposal_id: UUID,
+    request: DiagnosticExecuteRequest,
+) -> DiagnosticExecutionResult:
+    del request
+    with control_lock:
+        emergency_stop = task_store.get_emergency_stop()
+        if emergency_stop.engaged:
+            task_store.append_event(
+                event_type="diagnostic.execution_completed",
+                target_id=None,
+                message="Diagnostic execution blocked by emergency stop.",
+                details={
+                    "result": "blocked",
+                    "proposal_id": str(proposal_id),
+                    "reason": "emergency_stop",
+                    "generation": emergency_stop.generation,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=(
+                    "Emergency stop is engaged. Reset it before running a "
+                    "diagnostic."
+                ),
+            )
+        try:
+            result = diagnostic_executor_service.execute(proposal_id)
+        except DiagnosticNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except RemoteTargetNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except RemoteTargetError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(error),
+            ) from error
+        except DiagnosticError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(error),
+            ) from error
+        except (
+            DiagnosticRuntimeUnavailable,
+            DiagnosticExecutionUnavailable,
+        ) as error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(error),
+            ) from error
+        task_store.append_event(
+            event_type="diagnostic.execution_completed",
+            target_id=f"remote:{result.target_id}",
+            message=(
+                f"Approved {result.action} diagnostic {result.status}."
+            ),
+            details={
+                "result": result.status,
+                "proposal_id": str(result.proposal_id),
+                "action": result.action,
+                "exit_code": result.exit_code,
+                "duration_ms": result.duration_ms,
+                "truncated": result.truncated,
+            },
+        )
+    return result
 
 
 @router.post(

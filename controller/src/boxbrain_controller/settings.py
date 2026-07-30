@@ -70,6 +70,12 @@ class Settings:
     kali_pi_agent_timeout_seconds: float = float(
         getenv("BOXBRAIN_KALI_PI_AGENT_TIMEOUT_SECONDS", "1.5")
     )
+    remote_usb_identity_file: Path = Path(
+        getenv(
+            "BOXBRAIN_REMOTE_USB_IDENTITY_FILE",
+            str(Path.home() / ".ssh" / "boxbrain_pi_ed25519"),
+        )
+    ).expanduser().resolve()
     agent_runtime_enabled: bool = _bool_environment(
         "BOXBRAIN_AGENT_RUNTIME_ENABLED",
         True,
@@ -77,6 +83,16 @@ class Settings:
     agent_model: str = getenv("BOXBRAIN_AGENT_MODEL", "gpt-5.6-sol")
     agent_max_output_tokens: int = int(
         getenv("BOXBRAIN_AGENT_MAX_OUTPUT_TOKENS", "1800")
+    )
+    diagnostic_executor_enabled: bool = _bool_environment(
+        "BOXBRAIN_DIAGNOSTIC_EXECUTOR_ENABLED",
+        getenv("BOXBRAIN_ENVIRONMENT", "development") == "development",
+    )
+    diagnostic_timeout_seconds: float = float(
+        getenv("BOXBRAIN_DIAGNOSTIC_TIMEOUT_SECONDS", "20")
+    )
+    diagnostic_max_output_bytes: int = int(
+        getenv("BOXBRAIN_DIAGNOSTIC_MAX_OUTPUT_BYTES", "32768")
     )
 
 
