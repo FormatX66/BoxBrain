@@ -36,13 +36,18 @@ trap {
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
-if (-not $principal.IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator
-    )) {
+$isAdministrator = $principal.IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator
+)
+$hyperVAdministratorsSid = [Security.Principal.SecurityIdentifier]::new(
+    'S-1-5-32-578'
+)
+$isHyperVAdministrator = $principal.IsInRole($hyperVAdministratorsSid)
+if (-not $isAdministrator -and -not $isHyperVAdministrator) {
     throw @'
-Windows has not granted administrator authority. Right-click Windows
-PowerShell, choose Run as administrator, approve the Windows prompt, and run
-this exact script again.
+Windows has not granted Hyper-V operator authority. Add the current user to
+the local Hyper-V Administrators group from an elevated PowerShell session,
+sign out and back in, and run this exact script again.
 '@
 }
 
@@ -102,6 +107,8 @@ $status = [ordered]@{
     checkpoint_id = $snapshot.Id.ToString()
     checkpoint_created_at = $snapshot.CreationTime.ToUniversalTime().ToString('o')
     current_user = $identity.Name
+    administrator = $isAdministrator
+    hyperv_administrator = $isHyperVAdministrator
     hyperv_access_requested = [bool]$GrantCurrentUserAccess
     hyperv_membership_added = $membershipAdded
     new_sign_in_required_for_non_elevated_access = $membershipAdded
