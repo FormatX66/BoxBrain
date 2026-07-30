@@ -5,6 +5,7 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-041 | 2026-07-29 | Select scrolling before shell or clipboard and bind every scroll to absolute coordinates plus at most ten standard wheel steps. | [Session decision log](../SessionHandoffs/BB-2026-07-29-012/DecisionLog.md#bb-adr-041) |
 | BB-ADR-039 | 2026-07-29 | Require both persisted execution configuration and authenticated live health to prove an inert controller before upgrade. | [Session decision log](../SessionHandoffs/BB-2026-07-29-011/DecisionLog.md#bb-adr-039) |
 | BB-ADR-040 | 2026-07-29 | Separate low-impact daytime work from Pi, VM, Flutter, and cross-architecture nightshift verification. | [Session decision log](../SessionHandoffs/BB-2026-07-29-011/DecisionLog.md#bb-adr-040) |
 | BB-ADR-001 | 2026-07-28 | Use BoxBrain as a knowledge/control repository and keep implementation repositories authoritative. | [Session decision log](../SessionHandoffs/BB-2026-07-28-001/DecisionLog.md#bb-adr-001) |

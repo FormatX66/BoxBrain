@@ -66,13 +66,19 @@ Controller revision `be0738c` adds a read-only upgrade preflight before local
 wheel construction or remote upload. It rejects an enabled execution drop-in
 and requires an active controller to report authenticated
 `executor_enabled=false`, production health, and an armed emergency stop.
+Revision `494ec3f` adds source-complete pointer scrolling. Each scroll moves to
+explicit absolute coordinates and then emits no more than ten standard
+120-unit vertical or horizontal wheel steps in the same pinned RDP connection.
+The controller limits and dashboard form passed focused local checks; native
+cross-build, Pi promotion, and independent live frame proof remain queued for
+nightshift.
 
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
 - **Completion:** 98% planning estimate
-- **Current revision:** `be0738c` on
+- **Current revision:** `494ec3f` on
   `feature/brainconnect-rdp-input-verification`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
@@ -124,10 +130,9 @@ and requires an active controller to report authenticated
 
 ## Immediate next step
 
-Confirm pointer scrolling as the next native capability or select shell or
-clipboard instead. The resource-intensive Pi promotion, full Flutter and
-controller verification, native cross-builds, and live VM proof are reserved
-for the documented nightshift queue. Align the FreeRDP build baseline with the
-Pi's 3.26.0 runtime or retain the explicit compatibility gate. The canonical
-task sequence is tracked in the
+Run the documented nightshift gates for scrolling: full controller and Flutter
+verification, warnings-as-errors amd64/arm64 builds, real-Pi upgrade preflight,
+exact FreeRDP 3.26 compatibility, artifact promotion, and one bounded
+before/after frame proof against the rotated checkpoint. The canonical task
+sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

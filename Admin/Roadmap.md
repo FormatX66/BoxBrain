@@ -201,7 +201,10 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 
 ## Next - BrainConnect remaining native operations
 
-- Select shell, scrolling, or clipboard as the next native capability.
+- Coordinate-bound, ten-step-limited scrolling is source-complete.
+- Cross-build, exact Pi-runtime gate, and independently observed live scroll
+  proof remain queued for nightshift.
+- Shell and clipboard remain separate later capability expansions.
 - Align or compatibility-gate the FreeRDP build and Pi runtime versions.
 - Define controlled dashboard credential provisioning without committing or
   broadly copying the Pi's long-lived token.

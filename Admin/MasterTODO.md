@@ -75,18 +75,17 @@
 - [x] Rotate the disposable lab credential after diagnostic exposure and
   create/restore `clean-linked-rotated-2026-07-29`.
 - [x] Refuse controller upgrades while the live execution drop-in is enabled.
-- [ ] Implement shell, pointer scrolling, or clipboard as the next native
-  capability.
+- [x] Implement source-complete, coordinate-bound pointer scrolling as the
+  next native capability.
 
 ## Daytime operator-input queue
 
-- [ ] Confirm pointer scrolling as the next native capability, or select shell
-  or clipboard instead.
+- [x] Confirm pointer scrolling as the next native capability.
 - [ ] Confirm that FreeRDP 3.15 builds plus exact Pi 3.26 host gates remain the
   compatibility contract for the next run.
 - [ ] Confirm whether the click-and-type Notepad proof should become a fixed
   automated acceptance scenario.
-- [ ] Keep the retired `clean-linked-2026-07-29` checkpoint untouched unless
+- [x] Keep the retired `clean-linked-2026-07-29` checkpoint untouched unless
   its deletion and merge plan receives explicit approval.
 
 ## Nightshift queue - resource intensive
@@ -97,12 +96,16 @@
 - [ ] Exercise the new disabled-upgrade preflight against the Pi before
   promoting a controller revision.
 - [ ] Repeat the exact FreeRDP 3.26 on-host compatibility gates.
-- [ ] Restore `clean-linked-rotated-2026-07-29`, run the selected bounded
-  capability proof, independently verify its effect, clean the Pi, and restore
-  the checkpoint.
+- [ ] Promote coordinate-bound scrolling only after the build and Pi gates.
+- [ ] Restore `clean-linked-rotated-2026-07-29`, capture a bounded before
+  frame, run one bounded scroll, capture an after frame, independently verify
+  the effect, clean the Pi, and restore the checkpoint.
 
 The ordered details and stop conditions are recorded in
 [session BB-2026-07-29-011](../SessionHandoffs/BB-2026-07-29-011/ExecutionPlan.md).
+
+The scrolling-specific continuation is recorded in
+[session BB-2026-07-29-012](../SessionHandoffs/BB-2026-07-29-012/ExecutionPlan.md).
 
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](../../BrainConnect/docs/ROADMAP.md).
