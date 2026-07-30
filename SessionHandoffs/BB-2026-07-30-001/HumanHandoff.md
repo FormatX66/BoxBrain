@@ -13,6 +13,9 @@
 - Replaced broken sibling-checkout references with canonical BrainConnect
   `main` URLs and indexed three Markdown files introduced on BoxBrain `main`.
 - Passed the merged BoxBrain repository validator.
+- Committed and merged BoxBrain PR #3 into `main` at `fbb4ab1`.
+- Added repository-integrity validation to the existing CI workflow for
+  pushes and pull requests targeting `main`.
 
 ## Decisions made
 
@@ -23,13 +26,13 @@
 
 ## Current blockers
 
-None. BoxBrain PR #3 still needs the integration repair committed, pushed,
-revalidated on GitHub, and merged.
+None for the completed integration. Project ownership, ecosystem priority
+ordering, and the purpose of Arkmatx still require daytime decisions.
 
 ## Immediate next step
 
-Commit the clean BoxBrain integration state, push it to
-`codex/repository-organization`, verify PR #3, and merge it into `main`.
+Review project ownership and priority ordering, then define Arkmatx before
+creating any new repository or duplicate documentation.
 
 ## Long-term objective
 

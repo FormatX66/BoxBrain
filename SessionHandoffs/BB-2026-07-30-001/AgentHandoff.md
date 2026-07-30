@@ -2,20 +2,21 @@
 
 ## Current objective
 
-Finish integrating BoxBrain PR #3 after synchronizing its BrainConnect
-references with the now-canonical BrainConnect `main` branch.
+Maintain the integrated BoxBrain and BrainConnect repositories while routing
+the next work through the canonical priority and non-duplication rules.
 
 ## Tasks
 
-1. Commit the current merge and documentation-integrity repair.
-2. Push the commit to `codex/repository-organization`.
-3. Confirm PR #3 has no review blockers and remains cleanly mergeable.
-4. Merge PR #3 with an exact head-SHA guard.
-5. Synchronize the local BoxBrain checkout and verify the final repository.
+1. Confirm project owners and ecosystem priority ordering.
+2. Clarify Arkmatx's purpose and locate any existing assets before creating
+   documentation or code.
+3. Define release and archive procedures.
+4. Define the Docker, Raspberry Pi, VM, and cloud deployment matrix.
+5. Keep the existing CI and repository validator synchronized.
 
 ## Dependencies
 
-- BoxBrain `main` at or after `394c3f2`.
+- BoxBrain `main` at or after `fbb4ab1`.
 - BrainConnect `main` at or after `a431665`.
 - Authenticated access to `FormatX66/BoxBrain` and
   `FormatX66/BrainConnect`.
@@ -28,6 +29,7 @@ references with the now-canonical BrainConnect `main` branch.
 - `Projects/`
 - selected historical `SessionHandoffs/`
 - `SessionHandoffs/BB-2026-07-30-001/`
+- `.github/workflows/ci.yml`
 
 ## Required repositories
 
@@ -41,16 +43,16 @@ references with the now-canonical BrainConnect `main` branch.
 - Controller tests pass.
 - Kali Pi edge-agent tests pass.
 - Changed PowerShell scripts parse.
-- No unresolved PR comments or failed checks exist.
-- PR head SHA matches the reviewed commit before merge.
+- Repository-integrity CI runs for pushes and pull requests to `main`.
+- No unresolved integration PRs remain.
 
 ## Suggested commit message
 
-`docs: reconcile canonical BrainConnect integration`
+`ci: enforce canonical repository validation`
 
 ## Suggested branch
 
-`codex/repository-organization`
+`codex/integration-closeout`
 
 ## Potential risks
 
@@ -62,5 +64,5 @@ references with the now-canonical BrainConnect `main` branch.
 
 ## Estimated completion order
 
-Commit, push, verify PR #3, merge, synchronize local `main`, run final
-validation.
+Confirm ownership, define Arkmatx, document release/archive policy, then define
+the deployment matrix.

@@ -12,6 +12,9 @@
   decisions.
 - Added this complete session bundle and updated the session, decision, and
   change indexes.
+- Merged BoxBrain PR #3 at `fbb4ab1` after exact-head verification.
+- Extended the existing CI workflow with automatic repository-integrity
+  validation for pushes and pull requests targeting `main`.
 
 ## Reason
 
@@ -23,8 +26,10 @@ the project index.
 
 - BrainConnect PRs #1 through #12 are merged into BrainConnect `main`.
 - BoxBrain PRs #5 and #2 are merged into BoxBrain `main`.
+- BoxBrain PR #3 is merged into BoxBrain `main`.
 
 ## Future implications
 
 Cross-repository references should use authoritative repository URLs. New
-Markdown files must be linked from a canonical index in the same change.
+Markdown files must be linked from a canonical index in the same change. CI
+will now enforce both requirements before later pull requests merge.
