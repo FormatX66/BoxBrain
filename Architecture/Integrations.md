@@ -1,0 +1,22 @@
+# Integration Registry
+
+Only discovered or explicitly planned boundaries are listed. Credentials are
+never stored in this repository.
+
+| Integration | Project | State | Boundary | Canonical documentation |
+| --- | --- | --- | --- | --- |
+| Flutter dashboard | BrainConnect | Implemented | Operator UI to authenticated controller API | [Development guide](https://github.com/FormatX66/BrainConnect/blob/main/docs/DEVELOPMENT.md) |
+| FastAPI controller | BrainConnect | Implemented | Local control plane and audit API | [Controller README](https://github.com/FormatX66/BrainConnect/blob/main/controller/README.md) |
+| SQLite | BrainConnect | Implemented | Durable task and append-only audit storage | [Architecture](https://github.com/FormatX66/BrainConnect/blob/main/docs/ARCHITECTURE.md) |
+| Authenticated WebSocket | BrainConnect | Implemented | Resumable live audit delivery with no token in the URL | [Controller protocol](https://github.com/FormatX66/BrainConnect/blob/main/controller/README.md#live-event-protocol) |
+| Target registry | BrainConnect | Implemented | Disabled-by-default identity records and enabled-target task admission | [Target protocol](https://github.com/FormatX66/BrainConnect/blob/main/docs/TARGETS.md) |
+| FreeRDP observation | BrainConnect | Native helper, controller, Pi-loopback lab, and full Windows certificate gate verified | Fixed, out-of-process, certificate-pinned NLA/HYBRID RDP probe; no credentials or session | [Target protocol](https://github.com/FormatX66/BrainConnect/blob/main/docs/TARGETS.md) |
+| FreeRDP pointer, keyboard, and bounded frame control | BrainConnect | Keyboard launch, visible text, and coordinate-click effects independently verified; connector installed inert | Exact endpoint, NLA/HYBRID, and certificate recheck; target-local credential binding; standard-session readiness; slow-path bounded pointer, button, text, key, sequence, and frame operations; all redirections disabled | [Open-lab control](https://github.com/FormatX66/BrainConnect/blob/main/docs/OPEN_LAB.md) |
+| Pi controller service | BrainConnect | Deployed and verified | Immutable wheel and locked dependencies, unprivileged systemd unit, USB-bound API, private token and SQLite state | [Pi deployment](https://github.com/FormatX66/BrainConnect/blob/main/installer/pi/README.md) |
+| Hyper-V Windows lab | BrainConnect / BoxBrain | Installed, independently identified, registered, enabled, credential-rotated, and restored to `clean-linked-rotated-2026-07-29` | Generation 2 Windows 11 VM on Pi-only USB network; guarded UAC-gated credential rotation/checkpoint restore and no personal account or files | [Windows lab runbook](../sandbox/hyperv/README.md) |
+| Restricted Windows SSH link | BoxBrain edge agent | Deployed and verified | Non-administrator, public-key-only target account; firewall source exactly `10.12.194.1`; no TTY or forwarding | [Edge-agent onboarding](../edge/kali-pi-agent/README.md) |
+| Cloud model provider | BrainConnect | Planned | Provider-neutral structured planner adapter | [Roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md) |
+| Git hosting | Ecosystem | Configured | Existing BoxBrain remote plus private BrainConnect remote | [Repository index](../Admin/RepositoryIndex.md) |
+
+Add integrations only after confirming the owning project and canonical
+documentation.

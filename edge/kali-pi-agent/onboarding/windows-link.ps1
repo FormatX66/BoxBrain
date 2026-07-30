@@ -52,14 +52,16 @@ if (-not $Authorized) {
 }
 
 $remoteAddresses = @(
-    foreach ($address in $BoxBrainAddress) {
-        $candidate = $address.Trim()
-        if (-not (Test-BoxBrainPrivateIPv4 $candidate)) {
-            throw "BoxBrainAddress must contain only RFC1918 or link-local IPv4 addresses: $candidate"
+    @(
+        foreach ($address in $BoxBrainAddress) {
+            $candidate = $address.Trim()
+            if (-not (Test-BoxBrainPrivateIPv4 $candidate)) {
+                throw "BoxBrainAddress must contain only RFC1918 or link-local IPv4 addresses: $candidate"
+            }
+            $candidate
         }
-        $candidate
-    }
-) | Sort-Object -Unique
+    ) | Sort-Object -Unique
+)
 if ($remoteAddresses.Count -eq 0) {
     throw 'At least one BoxBrain Pi address is required.'
 }

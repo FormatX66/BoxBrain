@@ -1,0 +1,28 @@
+# Change Index
+
+Change details are recorded once in each session bundle. This file indexes
+those records in reverse chronological order.
+
+| Date | Session | Summary | Canonical record |
+| --- | --- | --- | --- |
+| 2026-07-30 | BB-2026-07-30-001 | Integrated the validated BrainConnect PR stack, repaired BoxBrain cross-repository links, and restored repository validation. | [Session change log](../SessionHandoffs/BB-2026-07-30-001/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-012 | Selected and implemented source-complete coordinate-bound RDP scrolling while preserving all builds, Pi promotion, and VM proof for nightshift. | [Session change log](../SessionHandoffs/BB-2026-07-29-012/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-011 | Added a fail-closed BrainConnect controller-upgrade preflight and separated low-impact operator decisions from resource-intensive nightshift verification. | [Session change log](../SessionHandoffs/BB-2026-07-29-011/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-010 | Added and live-verified bounded frames plus coordinate-bound clicks, rotated the disposable credential, cleaned the Pi, and created/restored the rotated checkpoint. | [Session change log](../SessionHandoffs/BB-2026-07-29-010/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-009 | Corrected BrainConnect's RDP identity, session, and slow-path input settings; independently verified Task Manager and Notepad launches; cleaned the Pi; and restored the exact checkpoint. | [Session change log](../SessionHandoffs/BB-2026-07-29-009/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-008 | Added and promoted persistent RDP keyboard sequences plus a fixed verifier, restored the VM before and after the live run, and isolated the remaining failure to Windows session routing. | [Session change log](../SessionHandoffs/BB-2026-07-29-008/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-007 | Promoted BrainConnect's pointer and keyboard connector to the Pi, proved exact-target FreeRDP event submission, removed execution credentials, and preserved the remaining visual-verification gap. | [Session change log](../SessionHandoffs/BB-2026-07-29-007/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-006 | Added BrainConnect's native FreeRDP pointer connector, post-pin systemd credential contract, and amd64/arm64 artifact gates without deploying or enabling it. | [Session change log](../SessionHandoffs/BB-2026-07-29-006/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-005 | Added BrainConnect's disabled VM execution protocol, certificate-gated operation state machine, deterministic subprocess fixture, and Flutter result flow. | [Session change log](../SessionHandoffs/BB-2026-07-29-005/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-004 | Added BrainConnect's audited open-profile operation queue and Flutter forms for shell, keyboard, pointer, and clipboard work; live execution remains disabled. | [Session change log](../SessionHandoffs/BB-2026-07-29-004/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-003 | Independently identified, registered, no-authentication-probed, audited, and enabled the full Windows target; rotated an exposed controller token before continuing. | [Session change log](../SessionHandoffs/BB-2026-07-29-003/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-002 | Built, linked, diagnosed, and checkpointed a disposable Hyper-V Windows target; fixed onboarding, bounded Windows inventory, completed the TestClient migration, and hardened repository validation. | [Session change log](../SessionHandoffs/BB-2026-07-29-002/ChangeLog.md) |
+| 2026-07-29 | BB-2026-07-29-001 | Live-verified BrainConnect's production Pi RDP certificate boundary, fixed FreeRDP environment compatibility, and made controller upgrades fail-safe. | [Session change log](../SessionHandoffs/BB-2026-07-29-001/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-008 | Deployed and activated the authenticated BrainConnect controller on the Kali Raspberry Pi 4 with immutable packaging, USB-only binding, private state, and restart verification. | [Session change log](../SessionHandoffs/BB-2026-07-28-008/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-007 | Installed and synthetic-tested the native BrainConnect certificate helper on the Kali Raspberry Pi 4 with strict runtime, checksum, ownership, and provenance gates. | [Session change log](../SessionHandoffs/BB-2026-07-28-007/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-006 | Built and synthetic-tested BrainConnect's native FreeRDP certificate helper for amd64 and arm64 with NLA selection and TLS downgrade enforcement. | [Session change log](../SessionHandoffs/BB-2026-07-28-006/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-005 | Implemented BrainConnect's fail-closed RDP certificate-probe boundary, identity verification, mismatch disablement, and Flutter probe workflow. | [Session change log](../SessionHandoffs/BB-2026-07-28-005/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-004 | Implemented the audited BrainConnect target registry, enabled-target task gate, and Flutter target workflow. | [Session change log](../SessionHandoffs/BB-2026-07-28-004/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-003 | Resolved BrainConnect target, test-stack, and repository-origin blockers without overwriting the existing BoxBrain history. | [Session change log](../SessionHandoffs/BB-2026-07-28-003/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-002 | Added BrainConnect authenticated, resumable live audit events and Flutter reconnect support. | [Session change log](../SessionHandoffs/BB-2026-07-28-002/ChangeLog.md) |
+| 2026-07-28 | BB-2026-07-28-001 | Created the BoxBrain canonical repository structure and registered BrainConnect. | [Session change log](../SessionHandoffs/BB-2026-07-28-001/ChangeLog.md) |

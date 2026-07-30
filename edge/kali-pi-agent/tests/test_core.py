@@ -110,6 +110,14 @@ class BoxBrainTests(unittest.TestCase):
         self.assertIn("ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1", installer)
         self.assertIn('"BOXBRAIN_ONBOARDING_BIND", "10.12.194.1"', onboarding)
         self.assertIn("BoxBrainAddress = @('10.12.194.1')", windows_link)
+        self.assertIn(
+            "$remoteAddresses = @(\n    @(\n        foreach",
+            windows_link,
+        )
+        self.assertIn(
+            "    ) | Sort-Object -Unique\n)\nif ($remoteAddresses.Count -eq 0)",
+            windows_link,
+        )
         self.assertNotIn("192.168.137.0/24", windows_link)
         self.assertIn("BOXBRAIN_AGENT_ADDRESS", linux_link)
         self.assertIn("PiAddress = '10.12.194.1'", wifi_helper)
@@ -121,6 +129,8 @@ class BoxBrainTests(unittest.TestCase):
             root / "src" / "boxbrain" / "diagnostics.py"
         ).read_text(encoding="utf-8")
         self.assertIn("Wait-Job -Job $job -Timeout 8", diagnostic_source)
+        self.assertIn("Wait-Job -Job $deviceJob -Timeout 15", diagnostic_source)
+        self.assertIn("device_error_check = $deviceErrorCheck", diagnostic_source)
         self.assertIn("credential_check = 'unavailable'", diagnostic_source)
 
     def test_wifi_provision_keeps_passphrase_out_of_argv_and_result(self) -> None:
