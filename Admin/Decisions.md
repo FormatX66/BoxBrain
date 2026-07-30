@@ -5,6 +5,9 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-044 | 2026-07-30 | Normalize remote shell installers to LF at deployment time and enforce LF through Git attributes. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-044) |
+| BB-ADR-045 | 2026-07-30 | Accept scrolling only when identical bounded frame regions produce different controller-verified hashes after the exact wheel action. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-045) |
+| BB-ADR-046 | 2026-07-30 | Permit exact named-checkpoint restoration by members of the local Hyper-V Administrators group without requiring a fully elevated shell. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-046) |
 | BB-ADR-042 | 2026-07-30 | Use authoritative GitHub `main` URLs for cross-repository documentation instead of sibling-checkout paths. | [Session decision log](../SessionHandoffs/BB-2026-07-30-001/DecisionLog.md#bb-adr-042) |
 | BB-ADR-043 | 2026-07-30 | Integrate a validated stacked PR series bottom-up with merge commits and exact-head-SHA guards. | [Session decision log](../SessionHandoffs/BB-2026-07-30-001/DecisionLog.md#bb-adr-043) |
 | BB-ADR-041 | 2026-07-29 | Select scrolling before shell or clipboard and bind every scroll to absolute coordinates plus at most ten standard wheel steps. | [Session decision log](../SessionHandoffs/BB-2026-07-29-012/DecisionLog.md#bb-adr-041) |
