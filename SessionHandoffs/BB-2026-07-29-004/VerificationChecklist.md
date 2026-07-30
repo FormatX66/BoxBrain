@@ -1,0 +1,27 @@
+# Verification Checklist
+
+- [x] All eight operation kinds have strict request schemas.
+- [x] Extra request fields are rejected.
+- [x] Shell commands and timeouts are bounded.
+- [x] Keyboard key count, repeat count, and names are bounded.
+- [x] Pointer coordinates, buttons, actions, and scrolling are bounded.
+- [x] Clipboard read/write sizes are bounded.
+- [x] Only active `open` tasks can queue operations.
+- [x] Disabled targets reject new operations.
+- [x] Emergency stop rejects new operations.
+- [x] The 500-operation task limit is enforced transactionally.
+- [x] Operations persist across controller restart.
+- [x] Audit events omit command and clipboard content.
+- [x] Controller health reports queued operations and execution disabled.
+- [x] Flutter exposes forms for all operation kinds.
+- [x] Controller tests pass: 35.
+- [x] Flutter analysis reports no issues.
+- [x] Flutter tests pass: 8.
+- [x] Credential-pattern scan reports no match.
+- [x] BrainConnect draft pull request 8 created.
+- [ ] VM-only adapter protocol implemented.
+- [ ] External credential provider implemented.
+- [ ] Bounded operation results and evidence implemented.
+- [ ] First live operation verified.
+- [ ] Clean checkpoint restored after the live experiment.
+- [ ] Observation-only frame transport implemented.

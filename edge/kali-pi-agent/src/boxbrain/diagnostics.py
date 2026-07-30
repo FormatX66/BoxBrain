@@ -58,13 +58,28 @@ $adapters = @(
         }
 )
 $deviceErrors = @()
+$deviceErrorCheck = 'complete'
+$deviceJob = $null
 try {
-    $deviceErrors = @(
+    $deviceJob = Start-Job -ScriptBlock {
         Get-PnpDevice -PresentOnly -ErrorAction Stop |
             Where-Object { $_.Status -notin @('OK','Unknown') } |
             Select-Object -First 25 FriendlyName,Class,Status,Problem
-    )
-} catch {}
+    }
+    $finished = Wait-Job -Job $deviceJob -Timeout 15
+    if ($null -eq $finished) {
+        Stop-Job -Job $deviceJob -ErrorAction SilentlyContinue
+        $deviceErrorCheck = 'timed-out'
+    } else {
+        $deviceErrors = @(Receive-Job -Job $deviceJob -ErrorAction SilentlyContinue)
+    }
+} catch {
+    $deviceErrorCheck = 'unavailable'
+} finally {
+    if ($null -ne $deviceJob) {
+        Remove-Job -Job $deviceJob -Force -ErrorAction SilentlyContinue
+    }
+}
 $pendingReboot = $false
 $rebootPaths = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending',
@@ -161,6 +176,7 @@ $result = [ordered]@{
     network_adapters = $adapters
     wifi = $wifi
     device_error_count = [int]$deviceErrors.Count
+    device_error_check = $deviceErrorCheck
     device_errors = $deviceErrors
     pending_reboot = [bool]$pendingReboot
 }
