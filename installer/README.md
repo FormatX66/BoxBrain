@@ -51,3 +51,30 @@ powershell -ExecutionPolicy Bypass -File .\installer\remove-local-tls.ps1 -Confi
 
 The root CA private key is non-exportable. The server key is development-only,
 ACL-restricted, and excluded from Git.
+
+## Optional Raspberry Pi screen
+
+The Pi screen is a separate, opt-in feature. It is not installed by the normal
+edge-agent installer, never starts at boot, and does not change Windows firewall
+rules. From the repository root, provision the checked scripts and verified
+viewer package over the existing key-only SSH connection:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\setup-pi-console.ps1
+```
+
+The setup command pins noVNC 1.7.0 by SHA-256, preserves its MPL-2.0 license,
+and refuses missing Pi dependencies instead of installing packages. It also
+creates **BoxBrain Pi Screen** on the desktop when that name is available.
+
+Open the console without a shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\open-pi-console.ps1
+```
+
+The launcher requires the trusted Pi host key and dedicated SSH identity. VNC
+and WebSocket ports stay on Pi loopback; the browser reaches the WebSocket only
+through a Windows-loopback SSH tunnel. See
+[`edge/kali-pi-agent/README.md`](../edge/kali-pi-agent/README.md#optional-live-pi-screen)
+for the transport boundary, prerequisites, stop command, and removal notes.
