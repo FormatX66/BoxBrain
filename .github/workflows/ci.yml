@@ -1,6 +1,12 @@
 name: BoxBrain CI
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       mode:
@@ -20,6 +26,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  repository-integrity:
+    name: Repository integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Validate repository structure and links
+        run: python Admin/validate_repository.py
+      - name: Test the repository validator
+        run: python -m unittest Admin.tests.test_validate_repository
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest

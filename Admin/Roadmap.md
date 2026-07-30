@@ -6,6 +6,8 @@
 - Register BrainConnect without copying its code or documentation.
 - Add global indexes, dependency maps, validation, and session handoffs.
 - Confirm and configure the canonical remote URLs.
+- Run repository-integrity validation automatically for pushes and pull
+  requests targeting `main`.
 
 ## Completed — BrainConnect live events
 

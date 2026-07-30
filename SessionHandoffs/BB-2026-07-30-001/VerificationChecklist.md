@@ -10,6 +10,8 @@
 - [x] New BoxBrain Markdown files are indexed.
 - [x] BoxBrain repository validator passed.
 - [x] BoxBrain repository-validator unit test passed.
-- [ ] BoxBrain PR #3 repair committed and pushed.
-- [ ] BoxBrain PR #3 merged.
-- [ ] Final BoxBrain `main` synchronized and validated.
+- [x] BoxBrain PR #3 repair committed and pushed.
+- [x] BoxBrain PR #3 merged with an exact head-SHA guard.
+- [x] Final BoxBrain and BrainConnect local `main` refs synchronized.
+- [x] Repository-integrity CI added to the existing workflow.
+- [x] Final BoxBrain repository validation passed.

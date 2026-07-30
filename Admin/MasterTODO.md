@@ -122,7 +122,7 @@ Detailed implementation work belongs in the canonical
 ## P2 — Operations
 
 - [x] Configure remote origins.
-- [ ] Complete review and merge of the BoxBrain organization branch.
-- [ ] Add CI for repository validation.
+- [x] Complete review and merge of the BoxBrain organization branch.
+- [x] Add CI for repository validation.
 - [ ] Define release and archive procedures.
 - [ ] Define Docker, Raspberry Pi, VM, and cloud deployment matrices.
