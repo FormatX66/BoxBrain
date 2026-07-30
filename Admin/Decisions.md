@@ -5,6 +5,8 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-039 | 2026-07-29 | Require both persisted execution configuration and authenticated live health to prove an inert controller before upgrade. | [Session decision log](../SessionHandoffs/BB-2026-07-29-011/DecisionLog.md#bb-adr-039) |
+| BB-ADR-040 | 2026-07-29 | Separate low-impact daytime work from Pi, VM, Flutter, and cross-architecture nightshift verification. | [Session decision log](../SessionHandoffs/BB-2026-07-29-011/DecisionLog.md#bb-adr-040) |
 | BB-ADR-001 | 2026-07-28 | Use BoxBrain as a knowledge/control repository and keep implementation repositories authoritative. | [Session decision log](../SessionHandoffs/BB-2026-07-28-001/DecisionLog.md#bb-adr-001) |
 | BB-ADR-002 | 2026-07-28 | Make session records canonical and cumulative admin logs indexes. | [Session decision log](../SessionHandoffs/BB-2026-07-28-001/DecisionLog.md#bb-adr-002) |
 | BB-ADR-003 | 2026-07-28 | Represent undiscovered projects with metadata-only placeholders. | [Session decision log](../SessionHandoffs/BB-2026-07-28-001/DecisionLog.md#bb-adr-003) |

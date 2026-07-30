@@ -190,9 +190,17 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Returned the Pi to inert state with no drop-in, encrypted credentials, or
   temporary runners.
 
+## Completed - BrainConnect upgrade safety preflight
+
+- Added a read-only controller upgrade preflight before wheel construction,
+  artifact upload, or service mutation.
+- Refuse an enabled execution drop-in even if the service is inactive.
+- Require authenticated inert health and an armed emergency stop when the
+  installed controller is active.
+- Added focused refusal, success, health, ordering, and installer parse tests.
+
 ## Next - BrainConnect remaining native operations
 
-- Add an upgrade preflight that rejects deployment while execution is enabled.
 - Select shell, scrolling, or clipboard as the next native capability.
 - Align or compatibility-gate the FreeRDP build and Pi runtime versions.
 - Define controlled dashboard credential provisioning without committing or

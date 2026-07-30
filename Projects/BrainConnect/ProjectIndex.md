@@ -62,12 +62,17 @@ showing `|CLICK|` inserted at the clicked Notepad caret position. Cleanup left
 credential, and every temporary runner, and restored the rotated clean
 checkpoint.
 
+Controller revision `be0738c` adds a read-only upgrade preflight before local
+wheel construction or remote upload. It rejects an enabled execution drop-in
+and requires an active controller to report authenticated
+`executor_enabled=false`, production health, and an armed emergency stop.
+
 ## Metadata
 
 - **Owner:** Bruce / BoxBrain operator
 - **Priority:** P0
 - **Completion:** 98% planning estimate
-- **Current revision:** `f4461d2` on
+- **Current revision:** `be0738c` on
   `feature/brainconnect-rdp-input-verification`
 - **Repository:** [Canonical local repository](../../../BrainConnect/README.md)
 - **Remote repository:** [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect)
@@ -119,8 +124,10 @@ checkpoint.
 
 ## Immediate next step
 
-Add an upgrade preflight that refuses to deploy while the live executor
-drop-in is enabled, then choose the next native capability: shell, scrolling,
-or clipboard. Align the FreeRDP build baseline with the Pi's 3.26.0 runtime or
-retain the explicit compatibility gate. The canonical task sequence is tracked in the
+Confirm pointer scrolling as the next native capability or select shell or
+clipboard instead. The resource-intensive Pi promotion, full Flutter and
+controller verification, native cross-builds, and live VM proof are reserved
+for the documented nightshift queue. Align the FreeRDP build baseline with the
+Pi's 3.26.0 runtime or retain the explicit compatibility gate. The canonical
+task sequence is tracked in the
 [Master TODO](../../Admin/MasterTODO.md).

@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-07-29 | BB-2026-07-29-011 | Added a fail-closed BrainConnect controller-upgrade preflight and separated low-impact operator decisions from resource-intensive nightshift verification. | [Session change log](../SessionHandoffs/BB-2026-07-29-011/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-010 | Added and live-verified bounded frames plus coordinate-bound clicks, rotated the disposable credential, cleaned the Pi, and created/restored the rotated checkpoint. | [Session change log](../SessionHandoffs/BB-2026-07-29-010/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-009 | Corrected BrainConnect's RDP identity, session, and slow-path input settings; independently verified Task Manager and Notepad launches; cleaned the Pi; and restored the exact checkpoint. | [Session change log](../SessionHandoffs/BB-2026-07-29-009/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-008 | Added and promoted persistent RDP keyboard sequences plus a fixed verifier, restored the VM before and after the live run, and isolated the remaining failure to Windows session routing. | [Session change log](../SessionHandoffs/BB-2026-07-29-008/ChangeLog.md) |
