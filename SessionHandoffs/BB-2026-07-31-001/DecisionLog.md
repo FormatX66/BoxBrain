@@ -57,3 +57,19 @@
 - **Impact:** The working transport remains available for immediate validation,
   while client-ID retirement is an explicit near-term dependency rather than an
   untracked outage risk.
+
+## BB-ADR-051
+
+- **Date:** 2026-07-31
+- **Reason:** Windows can expose a saved Wi-Fi passphrase as `Key Content`, but
+  ordinary network discovery must not silently become credential collection.
+- **Alternatives considered:** Automatically retrieve and retain saved keys;
+  prohibit all automatic Wi-Fi discovery; separate read-only SSID discovery
+  from explicitly authorized credential retrieval.
+- **Chosen solution:** Permit automatic read-only SSID/profile discovery, but
+  require explicit local authorization before `key=clear` retrieval. Keep the
+  value transient, send it only through verified USB-C SSH standard input, and
+  never display, log, report, upload, persist, or place it in process arguments.
+- **Impact:** BrainConnect can join the target's network without turning
+  diagnostics, Google Drive, or routine discovery into a credential-extraction
+  path.

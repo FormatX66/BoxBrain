@@ -84,6 +84,15 @@ input. The passphrase is never placed in command arguments, BoxBrain reports,
 or logs. NetworkManager retains the resulting system connection using its
 root-only profile storage.
 
+Discovering the connected SSID and Windows profile is read-only and may be
+automatic. Retrieving saved `Key Content` with `netsh wlan show profile
+name="<profile>" key=clear` is credential access and is permitted only after the
+local operator explicitly authorizes the Wi-Fi provisioning workflow. The
+credential must never be displayed, copied to logs or reports, uploaded to
+Drive, retained by BoxBrain, or placed in process arguments. It may exist only
+transiently in memory and in the verified USB-C SSH standard-input stream, and
+the helper clears its transient variables after delivery.
+
 The ordinary `boxbrain-link` diagnostic account remains non-administrator. Its
 Windows health check attempts a bounded, redacted access-control audit and
 records only whether the current saved Wi-Fi key was visible. A visible key is

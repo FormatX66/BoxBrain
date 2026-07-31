@@ -11,6 +11,8 @@
 - [x] Delivery requires exact confirmation and pinned-host-key SFTP.
 - [x] Delivery does not install or execute the patch.
 - [x] Pi edge-agent suite passed locally: 32 tests, one environment-only skip.
+- [x] Wi-Fi regression checks prove the explicit authorization gate precedes
+  saved-key retrieval and transient credential variables are cleared.
 - [x] All 32 Pi edge-agent tests passed from the exact deployment archive on
   the ARM64 Pi.
 - [x] Controller suite passed: 78 tests.

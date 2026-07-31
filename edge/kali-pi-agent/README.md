@@ -45,6 +45,8 @@ human-operated Pi console:
   repairs.
 - can provision the Pi from the current Windows Wi-Fi profile through a
   separately authorized administrator helper over USB-C SSH standard input;
+- may discover the connected SSID automatically, but retrieves saved Windows
+  `Key Content` only after explicit local provisioning authorization;
 - never places a Wi-Fi passphrase in command arguments, reports, or logs;
 - checks whether the restricted `boxbrain-link` account can improperly retrieve
   saved key content and reports only the result, never the credential.

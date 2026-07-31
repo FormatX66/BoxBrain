@@ -20,6 +20,11 @@
   completed a clean replacement authorization with zero sensitive log lines.
 - Enabled the live timer, proved remote readback, and extended the bounded
   single-transfer window for the initial 998-file historical backlog.
+- Made the Wi-Fi credential boundary canonical: SSID discovery may be
+  automatic, while saved-key retrieval remains explicitly authorized,
+  transient, and excluded from logs, reports, Drive, storage, and arguments.
+- Added regression checks that credential retrieval occurs after the
+  authorization gate and transient secret variables are cleared.
 
 ## Reason
 

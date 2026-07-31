@@ -131,6 +131,15 @@ class BoxBrainTests(unittest.TestCase):
         self.assertIn("RedirectStandardInput = $true", wifi_helper)
         self.assertIn("StrictHostKeyChecking=yes", wifi_helper)
         self.assertIn("sudo -n /usr/local/bin/boxbrainctl", wifi_helper)
+        authorization_check = wifi_helper.index("if (-not $Authorized)")
+        credential_read = wifi_helper.index('key=clear')
+        self.assertLess(authorization_check, credential_read)
+        self.assertIn("No credential was read", wifi_helper)
+        self.assertIn("$profileOutput = $null", wifi_helper)
+        self.assertIn("$keyMatch = $null", wifi_helper)
+        self.assertIn("$passphrase = $null", wifi_helper)
+        self.assertNotIn("Write-Output $passphrase", wifi_helper)
+        self.assertNotIn("Write-Host $passphrase", wifi_helper)
         self.assertNotIn('$passphrase, $PiUser', wifi_helper)
         diagnostic_source = (
             root / "src" / "boxbrain" / "diagnostics.py"
