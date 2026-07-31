@@ -65,25 +65,28 @@ rclone config create "$remote" drive \
     scope=drive \
     root_folder_id="$root_folder_id" \
     config_is_local=true \
+    --no-output \
     --config "$temporary"
-redacted=$(rclone config redacted "$remote" --config "$temporary")
-printf '%s\n' "$redacted" | grep -Eq '^type[[:space:]]*=[[:space:]]*drive$' || {
-    echo "The $remote remote is missing or is not Google Drive." >&2
-    exit 1
+python3 - "$temporary" "$remote" "$root_folder_id" <<'PY'
+import configparser
+import sys
+
+config_path, remote, expected_root = sys.argv[1:]
+parser = configparser.ConfigParser(interpolation=None)
+with open(config_path, encoding="utf-8") as stream:
+    parser.read_file(stream)
+
+if not parser.has_section(remote):
+    raise SystemExit(f"The {remote} remote is missing.")
+expected = {
+    "type": "drive",
+    "scope": "drive",
+    "root_folder_id": expected_root,
 }
-printf '%s\n' "$redacted" | grep -Eq '^scope[[:space:]]*=[[:space:]]*drive$' || {
-    echo "The $remote remote must use the drive scope for operator-loaded patches." >&2
-    exit 1
-}
-configured_root=$(
-    printf '%s\n' "$redacted" |
-        sed -n 's/^root_folder_id[[:space:]]*=[[:space:]]*//p' |
-        tail -n 1
-)
-if [ "$configured_root" != "$root_folder_id" ]; then
-    echo "The configured Drive root does not match ROOT_FOLDER_ID." >&2
-    exit 1
-fi
+for name, value in expected.items():
+    if parser.get(remote, name, fallback="") != value:
+        raise SystemExit(f"The configured Drive {name} did not match.")
+PY
 
 rclone lsd "$remote:" --config "$temporary" --max-depth 1 >/dev/null
 printf 'Confirm the authorization browser showed %s by typing CONNECT %s: ' \

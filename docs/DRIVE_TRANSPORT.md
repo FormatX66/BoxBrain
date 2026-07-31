@@ -67,9 +67,10 @@ The full Drive scope is required because patches placed through the Drive web
 interface are not necessarily visible through the narrower `drive.file` scope;
 the configured root folder ID provides the storage boundary.
 
-The helper verifies the redacted configuration and root access, installs the
-token in the private BoxBrain identity directory as `boxbrain:boxbrain` mode
-`0600`, creates missing
+The helper suppresses rclone's credential-bearing configuration output,
+validates only the local remote type, scope, and root ID, verifies root access,
+and installs the token in the private BoxBrain identity directory as
+`boxbrain:boxbrain` mode `0600`. It creates missing
 standard folders without deleting existing content, enables the five-minute
 systemd timer, and runs the first sync. No password enters BoxBrain or Git.
 
