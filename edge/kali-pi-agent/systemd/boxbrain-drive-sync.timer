@@ -1,0 +1,12 @@
+[Unit]
+Description=Run BoxBrain Google Drive transport periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=boxbrain-drive-sync.service
+
+[Install]
+WantedBy=timers.target

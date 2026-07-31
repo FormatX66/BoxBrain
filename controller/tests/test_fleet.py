@@ -22,7 +22,7 @@ from boxbrain_controller.task_store import TaskStore
 def test_v1_architecture_preserves_processing_and_execution_boundaries() -> None:
     manifest = get_architecture_manifest()
 
-    assert manifest.version == "1.0"
+    assert manifest.version == "1.1"
     assert len(manifest.agents) == 12
     assert manifest.flow[0] == "Bruce (User)"
     assert manifest.flow[-1].startswith("Authorized Machine")
@@ -138,7 +138,7 @@ def test_fleet_api_imports_target_and_audits_provisioning(
 
     architecture = client.get("/api/v1/architecture")
     assert architecture.status_code == 200
-    assert architecture.json()["version"] == "1.0"
+    assert architecture.json()["version"] == "1.1"
     assert len(client.get("/api/v1/system-agents").json()) == 12
 
     imported = client.post(

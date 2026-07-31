@@ -227,6 +227,21 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Prepare Docker, Raspberry Pi, VM, and cloud deployment tracks only after
   their software dependencies are proven.
 
+## Implemented - BoxBrain Pi Drive transport
+
+- Selected maintained MIT-licensed rclone as the headless Google Drive
+  transport instead of building a custom Drive client.
+- Restricted the remote to one operator-selected BoxBrain folder and kept the
+  OAuth token in private Pi identity state outside Git.
+- Added a reboot-persistent five-minute timer using non-deleting copy
+  operations for service snapshots, diagnostics, and patch receipts.
+- Added manifest, size, filename, target-hostname, and SHA-256 gates before a
+  downloaded patch becomes locally verified.
+- Kept target delivery separate, explicitly authorized, pinned-host-key SFTP
+  only, and non-executing.
+- Left live OAuth enrollment and deployment pending the operator-controlled
+  `boxbrainprime@gmail.com` session.
+
 ## Long-term objective
 
 Operate BoxBrain as a searchable, auditable coordination system for multiple

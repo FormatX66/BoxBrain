@@ -17,7 +17,7 @@ class PiConsoleScriptTests(unittest.TestCase):
         )
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-        self.assertEqual(version, "0.9.0")
+        self.assertEqual(version, "0.10.0")
         self.assertNotIn("install-console.sh", default_install)
         self.assertNotIn("boxbrain-console-start", default_install)
         self.assertNotIn("boxbrain-console-display", default_install)
@@ -82,6 +82,7 @@ class PiConsoleScriptTests(unittest.TestCase):
             self.skipTest("A POSIX shell is not available.")
 
         for name in (
+            "configure-drive.sh",
             "install-console.sh",
             "start-console.sh",
             "stop-console.sh",
@@ -93,6 +94,21 @@ class PiConsoleScriptTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_drive_enrollment_is_explicit_and_does_not_install_dependencies(self) -> None:
+        configure = (ROOT / "scripts" / "configure-drive.sh").read_text(
+            encoding="utf-8"
+        )
+        install = (ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
+
+        self.assertIn("CONFIGURE DRIVE", configure)
+        self.assertIn("CONNECT $expected_email", configure)
+        self.assertIn("root_folder_id", configure)
+        self.assertIn("scope", configure)
+        self.assertIn("boxbrain-drive-sync.timer", configure)
+        self.assertNotIn("apt-get", configure)
+        self.assertNotIn("curl", configure)
+        self.assertNotIn("enable boxbrain-drive-sync.timer", install)
 
 
 if __name__ == "__main__":

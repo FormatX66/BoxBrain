@@ -2,9 +2,9 @@
 
 ## Current architecture version
 
-**1.0**
+**1.1**
 
-Version 1.0 defines the canonical BoxBrain ecosystem direction while preserving
+Version 1.1 defines the canonical BoxBrain ecosystem direction while preserving
 the existing controller, processing crew, remote-target manager, Kali Pi edge
 agent, diagnostic executor, and Windows Sandbox observer.
 
@@ -38,6 +38,8 @@ in the dashboard's **Fleet** workspace.
 - Added a resumable, ordered 16-step provisioning workflow.
 - Added local audit events for registration, import, provisioning start, and
   provisioning-step completion.
+- Added a root-folder-restricted Pi Google Drive transport for non-deleting log
+  and diagnostic uploads plus checksum-gated patch staging.
 - Added a Fleet dashboard for inventory, target import, machine registration,
   provisioning progress, and architecture visibility.
 
@@ -72,9 +74,9 @@ The workflow follows the canonical sixteen steps:
 3. Generate Machine ID.
 4. Open Google account setup.
 5. Complete CAPTCHA.
-6. Confirm dedicated Gmail.
-7. Confirm dedicated Google Drive.
-8. Create the standard Drive folders.
+6. Confirm the approved ecosystem Gmail identity.
+7. Confirm its Google Drive.
+8. Create the standard folders inside the BoxBrain Drive root.
 9. Configure GitHub identity.
 10. Clone required repositories.
 11. Install required software.
@@ -88,6 +90,15 @@ Identity, fleet, and capability registration steps are completed locally when
 the required data already exists. External-account steps are operator-guided.
 BoxBrain never attempts CAPTCHA completion and never asks the operator to store
 passwords, recovery codes, SSH private keys, or API keys in a fleet record.
+
+The current approved shared service identity is `boxbrainprime@gmail.com`.
+Drive OAuth enrollment remains operator-controlled and the token stays on the
+Pi outside Git. After enrollment, a systemd timer uploads service snapshots and
+diagnostic evidence with non-deleting copy operations. Patch packages are
+downloaded only into a bounded inbox, checked against a versioned manifest and
+SHA-256 digest, and staged locally. Copying a verified package to a target
+requires separate authorization and does not execute it. The canonical details
+are in [Raspberry Pi Google Drive Transport](DRIVE_TRANSPORT.md).
 
 Only the current pending step can be marked complete. Progress is stored in
 SQLite and resumes after a controller restart. Completing the final step changes
@@ -127,6 +138,7 @@ Existing safety boundaries remain:
 - Operator remote sessions still require `OPEN`.
 - Telnet remains separately guarded and marked insecure.
 - Emergency stop continues to gate effectful controller actions.
+- Drive content never auto-executes, and patch delivery is authorization-gated.
 
 ## Known risks
 
@@ -134,6 +146,8 @@ Existing safety boundaries remain:
   is not yet attached to each checklist step.
 - Machine health and resource history are not yet collected into Fleet Manager.
 - External account lifecycle and recovery remain the operator's responsibility.
+- The rclone Google Drive backend cannot independently prove the selected Gmail
+  address, so initial account selection requires explicit operator attestation.
 - Brain Connect is still represented by the existing remote-target and edge
   transports rather than a standalone signed protocol.
 - Repository, website, and deployment managers are architectural roster entries

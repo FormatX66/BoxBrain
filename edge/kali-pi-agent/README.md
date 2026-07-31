@@ -48,6 +48,13 @@ human-operated Pi console:
 - never places a Wi-Fi passphrase in command arguments, reports, or logs;
 - checks whether the restricted `boxbrain-link` account can improperly retrieve
   saved key content and reports only the result, never the credential.
+- can use an operator-enrolled, reboot-persistent Google Drive transport to
+  upload service health snapshots and diagnostic reports;
+- downloads patches into a checksum-gated local staging area, but never
+  executes them automatically;
+- requires explicit authorization and the exact `DELIVER PATCH` confirmation
+  before SFTP copies a verified patch into a connected target's restricted
+  account.
 
 ## Connect a target by USB
 
@@ -197,10 +204,23 @@ boxbrainctl agent
 # boxbrainctl controller remains a compatibility alias
 boxbrainctl diagnose 10.12.194.4 --authorized
 boxbrainctl target-report 10.12.194.4
+boxbrainctl patches
+boxbrainctl deliver-patch <verified-reference> --authorized --confirmation "DELIVER PATCH"
 boxbrainctl assess 192.168.137.0/24 --profile discovery --authorized --wait
 sudo systemctl status boxbrain
 sudo journalctl -u boxbrain
 ```
+
+## Connect Google Drive
+
+The optional Drive transport remains disabled until its one-time OAuth
+enrollment succeeds. It uses a root-folder-restricted rclone remote, creates the
+canonical BoxBrain folder layout without deleting existing content, uploads
+telemetry and diagnostics every five minutes, and stages verified patch
+packages. See the canonical [Drive transport runbook](../../docs/DRIVE_TRANSPORT.md).
+
+Rclone is a separately installed upstream dependency. The BoxBrain installer
+does not download it, and the Drive token is runtime-only.
 
 ## Development
 

@@ -107,6 +107,15 @@ The ordered details and stop conditions are recorded in
 The scrolling-specific continuation is recorded in
 [session BB-2026-07-29-012](../SessionHandoffs/BB-2026-07-29-012/ExecutionPlan.md).
 
+## BoxBrain Pi Drive transport
+
+- [x] Implement root-folder-restricted Pi Google Drive synchronization for
+  service snapshots, diagnostics, and guarded patch staging.
+- [ ] Complete one-time Pi OAuth enrollment as `boxbrainprime@gmail.com` and
+  verify the first timer run without exposing the token.
+- [ ] Exercise one checksum-valid, non-executing patch delivery against a
+  disposable authorized target and verify its Drive receipt.
+
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md).
 

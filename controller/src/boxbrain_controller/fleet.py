@@ -179,20 +179,23 @@ _PROVISIONING_STEPS: tuple[
     ),
     (
         "confirm-gmail",
-        "Confirm dedicated Gmail",
-        "Confirm this machine has its own mailbox; do not enter its password here.",
+        "Confirm ecosystem Gmail",
+        "Confirm the approved BoxBrain service mailbox; do not enter its password here.",
         "operator",
     ),
     (
         "confirm-drive",
-        "Confirm dedicated Google Drive",
-        "Confirm the machine Drive exists; BoxBrain stores no account credential.",
+        "Confirm ecosystem Google Drive",
+        "Confirm the approved BoxBrain Drive exists; BoxBrain stores no password.",
         "operator",
     ),
     (
         "create-drive-folders",
         "Create Drive folder structure",
-        "Create Logs, Config, Projects, Repositories, Backups, Media, and Diagnostics.",
+        (
+            "Inside the BoxBrain Drive root, create Logs, Config, Projects, "
+            "Repositories, Backups, Media, and Diagnostics."
+        ),
         "external-guided",
     ),
     (

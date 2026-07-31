@@ -14,6 +14,10 @@ from urllib.request import ProxyHandler, build_opener
 
 from boxbrain.diagnostics import DIAGNOSTIC_AUTHORIZATION
 from boxbrain.enrollment import LINK_AUTHORIZATION
+from boxbrain.patches import (
+    PATCH_DELIVERY_AUTHORIZATION,
+    PATCH_DELIVERY_CONFIRMATION,
+)
 from boxbrain.policy import AUTHORIZATION_ASSERTION
 from boxbrain.wifi import (
     WIFI_PROVISION_AUTHORIZATION,
@@ -162,6 +166,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pi NetworkManager Wi-Fi interface.",
     )
 
+    subparsers.add_parser(
+        "patches",
+        help="List checksum-verified patches staged from Google Drive.",
+    )
+    deliver_patch = subparsers.add_parser(
+        "deliver-patch",
+        help="Copy one verified patch to a target without executing it.",
+    )
+    deliver_patch.add_argument("reference", help="Verified patch reference.")
+    deliver_patch.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm permission to write into the target link account.",
+    )
+    deliver_patch.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {PATCH_DELIVERY_CONFIRMATION}",
+    )
+
     return parser
 
 
@@ -253,6 +277,22 @@ def main() -> int:
                 WIFI_PROVISION_AUTHORIZATION,
                 interface=args.interface,
             )
+        elif command == "patches":
+            payload = _control_request({"action": "patches"})["patches"]
+        elif command == "deliver-patch":
+            if not args.authorized:
+                parser.error(
+                    "--authorized is required to deliver a patch to this computer."
+                )
+            payload = _control_request(
+                {
+                    "action": "deliver_patch",
+                    "reference": args.reference,
+                    "authorization": PATCH_DELIVERY_AUTHORIZATION,
+                    "confirmation": args.confirmation,
+                },
+                timeout=180,
+            )["receipt"]
         else:
             parser.error(f"Unsupported command: {command}")
             return 2

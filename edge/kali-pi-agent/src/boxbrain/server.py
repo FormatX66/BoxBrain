@@ -18,6 +18,7 @@ from boxbrain.control import ControlServer
 from boxbrain.agent import agent_state
 from boxbrain.diagnostics import DiagnosticError, TargetDiagnostics
 from boxbrain.links import load_links
+from boxbrain.patches import PatchManager
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
 from boxbrain.system import collect_status
@@ -394,7 +395,8 @@ def main() -> None:
     storage.initialize()
     manager = AssessmentManager(storage)
     diagnostics = TargetDiagnostics(state_directory)
-    control = ControlServer(control_socket, storage, manager, diagnostics)
+    patches = PatchManager(state_directory)
+    control = ControlServer(control_socket, storage, manager, diagnostics, patches)
     control_thread = threading.Thread(
         target=control.serve_forever,
         name="boxbrain-control",

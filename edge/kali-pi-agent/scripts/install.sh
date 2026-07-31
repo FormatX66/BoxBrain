@@ -31,6 +31,10 @@ install -d -o root -g boxbrain -m 0750 /etc/boxbrain
 install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain
 install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/identity
 install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain/links
+install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/logs
+install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/inbox
+install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/verified
+install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/receipts
 
 if [ ! -s /var/lib/boxbrain/identity/target_ed25519 ]; then
     runuser -u boxbrain -- ssh-keygen \
@@ -68,9 +72,18 @@ chmod 0644 \
     /opt/boxbrain/onboarding/windows-wifi-provision.ps1 \
     /opt/boxbrain/onboarding/linux-link.sh
 install -o root -g root -m 0755 "$project_dir"/scripts/boxbrainctl /usr/local/bin/boxbrainctl
+install -o root -g root -m 0755 \
+    "$project_dir"/scripts/configure-drive.sh \
+    /usr/local/bin/boxbrain-drive-configure
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain.service /etc/systemd/system/boxbrain.service
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-onboarding.service /etc/systemd/system/boxbrain-onboarding.service
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-link-monitor.service /etc/systemd/system/boxbrain-link-monitor.service
+install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-drive-sync.service \
+    /etc/systemd/system/boxbrain-drive-sync.service
+install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-drive-sync.timer \
+    /etc/systemd/system/boxbrain-drive-sync.timer
 
 if [ ! -e /etc/boxbrain/boxbrain.env ]; then
     install -o root -g boxbrain -m 0640 "$project_dir"/config/boxbrain.env /etc/boxbrain/boxbrain.env
@@ -88,6 +101,10 @@ ensure_env_setting BOXBRAIN_DIAGNOSTIC_INTERVAL 900
 ensure_env_setting BOXBRAIN_ONBOARDING_BIND 10.12.194.1
 ensure_env_setting BOXBRAIN_AGENT_MODE advisory
 ensure_env_setting BOXBRAIN_AI_PROVIDER ""
+ensure_env_setting BOXBRAIN_DRIVE_DEVICE_ID ""
+ensure_env_setting BOXBRAIN_DRIVE_REMOTE boxbrain-drive
+ensure_env_setting BOXBRAIN_DRIVE_CONFIG /var/lib/boxbrain/identity/rclone.conf
+ensure_env_setting BOXBRAIN_DRIVE_EXPECTED_ACCOUNT boxbrainprime@gmail.com
 
 # Version 0.5 used an all-interface onboarding bind. Migrate only that known
 # default; preserve any explicit operator-selected address.

@@ -5,6 +5,9 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-047 | 2026-07-31 | Use `boxbrainprime@gmail.com` with one BoxBrain Drive root and device-partitioned operational paths. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-047) |
+| BB-ADR-048 | 2026-07-31 | Adopt root-folder-scoped rclone with private writable token state and non-deleting copies for Pi Drive transport. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-048) |
+| BB-ADR-049 | 2026-07-31 | Automatically verify Drive patches but require explicit pinned-SFTP delivery and perform no execution. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-049) |
 | BB-ADR-044 | 2026-07-30 | Normalize remote shell installers to LF at deployment time and enforce LF through Git attributes. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-044) |
 | BB-ADR-045 | 2026-07-30 | Accept scrolling only when identical bounded frame regions produce different controller-verified hashes after the exact wheel action. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-045) |
 | BB-ADR-046 | 2026-07-30 | Permit exact named-checkpoint restoration by members of the local Hyper-V Administrators group without requiring a fully elevated shell. | [Session decision log](../SessionHandoffs/BB-2026-07-30-002/DecisionLog.md#bb-adr-046) |
