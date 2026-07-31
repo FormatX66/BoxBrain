@@ -23,7 +23,16 @@
 - Corrected the stale API version constant and made upgrades reject a mismatch
   between the installed VERSION file and the live health endpoint.
 - Verified live health, onboarding, all three core services, and the private
-  rollback archive. The Drive timer remains disabled and no OAuth file exists.
+  rollback archive.
+- Completed browser OAuth as `boxbrainprime@gmail.com` against the exact
+  operator-selected root folder and installed the config as
+  `boxbrain:boxbrain` mode `0600`.
+- Revoked the first OAuth token immediately after rclone printed it during a
+  failed validation attempt, deleted the temporary log, then hardened the
+  helper with `--no-output` and local non-secret field validation before a clean
+  reauthorization.
+- Enabled the reboot-persistent timer and verified remote readback while the
+  low-impact historical upload advanced to 223 of 998 target reports.
 
 ## Decisions made
 
@@ -32,18 +41,19 @@
   mounted filesystem.
 - Automate transport and verification, but require explicit approval for target
   delivery and never auto-execute Drive content.
+- Treat rclone's shared Google OAuth client as temporary and migrate to a
+  dedicated BoxBrain client before upstream retirement interrupts service.
 
 ## Current blockers
 
-- The `BoxBrain` folder must be created while signed into
-  `boxbrainprime@gmail.com`, and its folder ID is required.
-- The one-time browser OAuth flow must be completed by the operator; the current
-  Codex Drive connector is still authenticated as `arkmatx@gmail.com`.
+- The first historical upload is still running at one transfer at a time.
+- Rclone warns that its shared Google Drive client ID is being retired during
+  2026; a dedicated BoxBrain OAuth client must replace it for continuity.
 
 ## Immediate next step
 
-Provide the BoxBrain Drive folder URL or ID, then complete the guarded one-time
-OAuth enrollment while selecting `boxbrainprime@gmail.com`.
+Let the first historical upload finish, verify the final state and receipt, then
+create and migrate to a dedicated BoxBrain Google OAuth client.
 
 ## Long-term objective
 

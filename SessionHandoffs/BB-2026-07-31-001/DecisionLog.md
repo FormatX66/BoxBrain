@@ -42,3 +42,18 @@
   delivery, and perform no installation or execution.
 - **Impact:** Cloud transport can support maintenance without bypassing target
   authorization, host-key pinning, target identity, or later execution policy.
+
+## BB-ADR-050
+
+- **Date:** 2026-07-31
+- **Reason:** Live enrollment warned that rclone's shared Google Drive OAuth
+  client ID is being retired during 2026.
+- **Alternatives considered:** Depend indefinitely on the shared client; replace
+  rclone with custom Drive API code; use the shared client for the initial proof
+  and migrate to a dedicated BoxBrain OAuth client.
+- **Chosen solution:** Complete the bounded initial proof with the shared client,
+  then migrate the existing root-scoped transport to a dedicated BoxBrain OAuth
+  client before relying on it for production continuity.
+- **Impact:** The working transport remains available for immediate validation,
+  while client-ID retirement is an explicit near-term dependency rather than an
+  untracked outage risk.

@@ -12,8 +12,14 @@
   roadmap, TODO, decision indexes, and session records.
 - Corrected the edge-agent API version to 0.10.0 and made upgrade verification
   fail closed when live health reports a different version.
-- Installed verified rclone 1.74.4 and deployed BoxBrain 0.10.0 to the live Pi;
-  the Drive timer remains disabled pending operator OAuth.
+- Installed verified rclone 1.74.4 and deployed BoxBrain 0.10.0 to the live Pi
+  before the separate operator-controlled OAuth enrollment.
+- Automated exact remote creation, suppressed credential-bearing rclone output,
+  and replaced redacted-output validation with local non-secret field checks.
+- Revoked an initially exposed OAuth token, removed its temporary log, and
+  completed a clean replacement authorization with zero sensitive log lines.
+- Enabled the live timer, proved remote readback, and extended the bounded
+  single-transfer window for the initial 998-file historical backlog.
 
 ## Reason
 

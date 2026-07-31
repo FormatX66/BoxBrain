@@ -12,7 +12,10 @@
 8. In progress: publish the review branch and pass GitHub CI.
 9. Completed: installed checksum-verified rclone 1.74.4 and deployed BoxBrain
    0.10.0 to the live ARM64 Pi with rollback verification.
-10. Waiting for operator: provide the BoxBrain Drive root folder ID and complete OAuth as
-   `boxbrainprime@gmail.com`.
-11. Next: verify the first timer run, then perform one disposable patch-delivery
-    proof without execution.
+10. Completed: validated the root folder and completed guarded OAuth as
+    `boxbrainprime@gmail.com`; the private timer is enabled and remote readback
+    is proven.
+11. In progress: allow the low-impact historical report upload to complete and
+    verify its final local sync state.
+12. Next: create a dedicated BoxBrain Google OAuth client, reconnect rclone,
+    then perform one disposable patch-delivery proof without execution.

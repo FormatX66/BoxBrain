@@ -113,8 +113,11 @@ The scrolling-specific continuation is recorded in
   service snapshots, diagnostics, and guarded patch staging.
 - [x] Install checksum-verified rclone and deploy BoxBrain 0.10.0 to the live
   Pi with a verified private rollback archive.
-- [ ] Complete one-time Pi OAuth enrollment as `boxbrainprime@gmail.com` and
-  verify the first timer run without exposing the token.
+- [x] Complete one-time Pi OAuth enrollment as `boxbrainprime@gmail.com`
+  without retaining credential-bearing output.
+- [ ] Verify completion of the first low-impact historical timer run.
+- [ ] Create a dedicated BoxBrain Google OAuth client and reconnect rclone
+  before the shared client ID retires.
 - [ ] Exercise one checksum-valid, non-executing patch delivery against a
   disposable authorized target and verify its Drive receipt.
 

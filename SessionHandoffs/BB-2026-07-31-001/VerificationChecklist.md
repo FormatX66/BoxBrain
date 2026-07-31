@@ -27,6 +27,13 @@
   user-owned untracked `AGENTS.md` from the local-only scan.
 - [ ] GitHub CI passes on the published branch.
 - [x] Verified rclone is installed on the Pi.
-- [ ] OAuth is completed as `boxbrainprime@gmail.com`.
-- [ ] First live timer run and Drive readback are verified.
+- [x] OAuth is completed as `boxbrainprime@gmail.com` with the exact root folder.
+- [x] Private config ownership/mode and enabled active timer were verified.
+- [x] Drive readback found 223 uploaded historical reports and continuing
+  progress.
+- [x] The first emitted token was revoked and its temporary log removed; the
+  replacement flow produced zero credential-bearing log lines.
+- [ ] First historical timer run reaches a successful final sync state.
+- [ ] Dedicated BoxBrain Google OAuth client replaces rclone's retiring shared
+  client ID.
 - [ ] One disposable non-executing patch delivery and receipt are verified.

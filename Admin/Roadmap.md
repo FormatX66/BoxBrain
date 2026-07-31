@@ -240,8 +240,10 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Kept target delivery separate, explicitly authorized, pinned-host-key SFTP
   only, and non-executing.
 - Deployed BoxBrain 0.10.0 and checksum-verified rclone 1.74.4 to the live Pi;
-  left only OAuth enrollment pending the operator-controlled
-  `boxbrainprime@gmail.com` session.
+  completed exact-root OAuth under `boxbrainprime@gmail.com`, enabled the timer,
+  and proved remote historical-report readback.
+- Recorded migration to a dedicated BoxBrain Google OAuth client as required
+  continuity work before rclone's shared client ID retires.
 
 ## Long-term objective
 

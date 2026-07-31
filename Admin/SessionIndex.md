@@ -2,7 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
-| BB-2026-07-31-001 | 2026-07-31 | Deployed Raspberry Pi Google Drive transport and guarded patch staging; OAuth pending | [Human](../SessionHandoffs/BB-2026-07-31-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-31-001/AgentHandoff.md) |
+| BB-2026-07-31-001 | 2026-07-31 | Deployed and enrolled Raspberry Pi Google Drive transport and guarded patch staging | [Human](../SessionHandoffs/BB-2026-07-31-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-31-001/AgentHandoff.md) |
 | BB-2026-07-30-002 | 2026-07-30 | BrainConnect alpha completion and live scrolling proof | [Human](../SessionHandoffs/BB-2026-07-30-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-30-002/AgentHandoff.md) |
 | BB-2026-07-30-001 | 2026-07-30 | BoxBrain and BrainConnect canonical integration | [Human](../SessionHandoffs/BB-2026-07-30-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-30-001/AgentHandoff.md) |
 | BB-2026-07-29-012 | 2026-07-29 | BrainConnect bounded RDP scrolling source | [Human](../SessionHandoffs/BB-2026-07-29-012/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-012/AgentHandoff.md) |

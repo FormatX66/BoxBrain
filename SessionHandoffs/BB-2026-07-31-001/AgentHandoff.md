@@ -2,16 +2,17 @@
 
 ## Current Objective
 
-Complete the operator-controlled Google Drive enrollment and validate the first
-transport run now that the reviewed Pi transport is deployed.
+Complete the first historical Drive run and replace rclone's retiring shared
+Google OAuth client with a dedicated BoxBrain client.
 
 ## Tasks
 
 1. Review and merge the local Drive transport branch after CI passes.
-2. Obtain the BoxBrain root folder URL or ID from the intended Google account.
-3. Run `boxbrain-drive-configure` with that root folder ID and complete OAuth.
-4. Verify the first service snapshot and diagnostics upload.
-5. Exercise one checksum-valid non-executing patch delivery in the disposable
+2. Monitor the initial low-impact historical upload to a successful final state.
+3. Create and verify a dedicated BoxBrain Google OAuth client.
+4. Reconnect the existing exact-root rclone remote without changing Drive data.
+5. Verify the first service snapshot and diagnostics upload final state.
+6. Exercise one checksum-valid non-executing patch delivery in the disposable
    target and confirm the uploaded receipt.
 
 ## Dependencies
@@ -21,6 +22,7 @@ transport run now that the reviewed Pi transport is deployed.
 - `boxbrainprime@gmail.com`
 - Installed rclone 1.74.4 Linux ARM64 build
 - Operator-created BoxBrain Google Drive folder ID
+- Dedicated BoxBrain Google OAuth client ID and secret
 - Existing key-only authorized target link
 
 ## Files affected
@@ -67,6 +69,6 @@ transport run now that the reviewed Pi transport is deployed.
 
 ## Estimated completion order
 
-Publish and review the branch, obtain the Drive root folder ID, complete OAuth,
-verify the timer, test staging, authorize one disposable delivery, and review
-receipts.
+Publish and review the branch, finish the historical sync, migrate to the
+dedicated OAuth client, verify routine timer behavior, test staging, authorize
+one disposable delivery, and review receipts.
