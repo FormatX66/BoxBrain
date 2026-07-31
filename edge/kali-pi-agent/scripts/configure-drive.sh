@@ -42,9 +42,9 @@ fi
 printf '%s\n' \
     "This one-time step will authorize rclone for Google Drive." \
     "Use the browser account: $expected_email" \
-    "Create the remote exactly as: $remote" \
-    "Provider: Google Drive" \
-    "Scope: drive" \
+    "The helper will create the remote exactly as: $remote" \
+    "Provider: Google Drive (fixed)" \
+    "Scope: drive (fixed)" \
     "Root folder ID: $root_folder_id" \
     "The token will be stored at $config with boxbrain:boxbrain 0600 permissions." \
     "Downloaded patches will be staged and checksum-verified, never auto-executed."
@@ -61,7 +61,11 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-rclone config --config "$temporary"
+rclone config create "$remote" drive \
+    scope=drive \
+    root_folder_id="$root_folder_id" \
+    config_is_local=true \
+    --config "$temporary"
 redacted=$(rclone config redacted "$remote" --config "$temporary")
 printf '%s\n' "$redacted" | grep -Eq '^type[[:space:]]*=[[:space:]]*drive$' || {
     echo "The $remote remote is missing or is not Google Drive." >&2

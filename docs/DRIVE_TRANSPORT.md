@@ -59,9 +59,10 @@ sudo boxbrain-drive-configure \
   boxbrainprime@gmail.com
 ```
 
-At the rclone prompt, create a remote named `boxbrain-drive` with provider
-`drive`, scope `drive`, and the exact root folder ID. On a headless Pi, choose
-the remote/manual browser flow and finish authorization on the operator device.
+The helper creates a remote named `boxbrain-drive` with provider `drive`, scope
+`drive`, and the exact root folder ID. On a headless Pi, forward rclone's local
+OAuth callback over the verified SSH connection and finish authorization on
+the operator device.
 The full Drive scope is required because patches placed through the Drive web
 interface are not necessarily visible through the narrower `drive.file` scope;
 the configured root folder ID provides the storage boundary.
