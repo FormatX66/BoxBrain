@@ -53,9 +53,32 @@ The onboarding service listens only on the dedicated USB gadget address
 `10.12.194.1:8788`. Version 0.6 migrates the old `0.0.0.0` default to that
 address while preserving any other operator-selected bind address.
 
-Onboarding still requires an explicit target-side `AUTHORIZE` confirmation and
-creates a restricted, key-only diagnostic account. It does not emulate input,
-install an administrator channel, or copy a private key to the target.
+Normal onboarding still requires an explicit target-side `AUTHORIZE`
+confirmation and creates a restricted, key-only diagnostic account. It does
+not install an administrator channel or copy a private key to the target.
+
+## Headless Windows keystroke bootstrap
+
+Version 0.11 adds an optional, preview-first USB-HID fallback for a physically
+attached Windows target with an unlocked interactive administrator console. It
+types only a fixed US-layout PowerShell sequence that downloads the existing
+Windows link helper from the Pi's USB-only onboarding address, verifies its
+SHA-256, and invokes its existing authorization gate. It cannot accept
+arbitrary text and never types a password, Wi-Fi passphrase, or saved `Key
+Content`.
+
+Execution requires root, a deliberately configured character device at
+`/dev/hidg0`, `--authorized`, and the exact `CONNECT HEADLESS WINDOWS`
+confirmation. The result is not considered successful until the Pi proves the
+restricted target account over key-only SSH. Failure produces an unverified
+state and no automatic retry. The installer does not configure HID or alter the
+live USB gadget automatically.
+
+This fallback cannot operate at a login screen, create an interactive session,
+or satisfy UAC that requires credentials. Sessionless servers still require
+WinRM/SSH, a hardware or hypervisor console, or a preinstalled agent. The
+canonical managed-Windows repair boundary remains BrainConnect's HTTPS/JEA
+Windows Headless Rescue workflow.
 
 ## Authorized Wi-Fi/Ethernet targets
 

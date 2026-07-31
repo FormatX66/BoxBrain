@@ -14,6 +14,13 @@ from urllib.request import ProxyHandler, build_opener
 
 from boxbrain.diagnostics import DIAGNOSTIC_AUTHORIZATION
 from boxbrain.enrollment import LINK_AUTHORIZATION
+from boxbrain.headless_link import (
+    HEADLESS_LINK_AUTHORIZATION,
+    HEADLESS_LINK_CONFIRMATION,
+    HeadlessLinkError,
+    execute_headless_windows_link,
+    preview_headless_windows_link,
+)
 from boxbrain.patches import (
     PATCH_DELIVERY_AUTHORIZATION,
     PATCH_DELIVERY_CONFIRMATION,
@@ -166,6 +173,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pi NetworkManager Wi-Fi interface.",
     )
 
+    headless_link = subparsers.add_parser(
+        "headless-windows-link",
+        help="Preview or inject the fixed Windows link through USB HID.",
+    )
+    headless_link.add_argument(
+        "--execute",
+        action="store_true",
+        help="Send the fixed keystrokes after all explicit gates pass.",
+    )
+    headless_link.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm authorization for the physically attached computer.",
+    )
+    headless_link.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {HEADLESS_LINK_CONFIRMATION}",
+    )
+    headless_link.add_argument(
+        "--target-address",
+        default="10.12.194.2",
+        help="Exact target address on the dedicated USB gadget subnet.",
+    )
+
     subparsers.add_parser(
         "patches",
         help="List checksum-verified patches staged from Google Drive.",
@@ -277,6 +309,21 @@ def main() -> int:
                 WIFI_PROVISION_AUTHORIZATION,
                 interface=args.interface,
             )
+        elif command == "headless-windows-link":
+            if not args.execute:
+                payload = preview_headless_windows_link(
+                    target_address=args.target_address,
+                )
+            else:
+                if not args.authorized:
+                    parser.error(
+                        "--authorized is required for headless Windows deployment."
+                    )
+                payload = execute_headless_windows_link(
+                    HEADLESS_LINK_AUTHORIZATION,
+                    args.confirmation,
+                    target_address=args.target_address,
+                )
         elif command == "patches":
             payload = _control_request({"action": "patches"})["patches"]
         elif command == "deliver-patch":
@@ -296,7 +343,7 @@ def main() -> int:
         else:
             parser.error(f"Unsupported command: {command}")
             return 2
-    except (RuntimeError, WifiProvisionError) as error:
+    except (HeadlessLinkError, RuntimeError, WifiProvisionError) as error:
         print(str(error), file=sys.stderr)
         return 1
 

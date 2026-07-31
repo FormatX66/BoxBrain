@@ -33,6 +33,9 @@
   reauthorization.
 - Enabled the reboot-persistent timer and verified remote readback while the
   low-impact historical upload advanced to 223 of 998 target reports.
+- Added BoxBrain 0.11 source support for a preview-first USB keyboard bootstrap
+  of the fixed Windows link helper on compatible headless consoles. It types no
+  credentials and requires key-only SSH verification before success.
 
 ## Decisions made
 
@@ -43,17 +46,22 @@
   delivery and never auto-execute Drive content.
 - Treat rclone's shared Google OAuth client as temporary and migrate to a
   dedicated BoxBrain client before upstream retirement interrupts service.
+- Keep keystroke bootstrap fixed-command, explicitly authorized, and separate
+  from BrainConnect's WinRM/JEA workflow for truly sessionless servers.
 
 ## Current blockers
 
 - The first historical upload is still running at one transfer at a time.
 - Rclone warns that its shared Google Drive client ID is being retired during
   2026; a dedicated BoxBrain OAuth client must replace it for continuity.
+- The live Pi has no reviewed `/dev/hidg0` composite-gadget configuration yet;
+  source 0.11.0 is not deployed and no live keystrokes were sent.
 
 ## Immediate next step
 
 Let the first historical upload finish, verify the final state and receipt, then
-create and migrate to a dedicated BoxBrain Google OAuth client.
+create and migrate to a dedicated BoxBrain Google OAuth client. Separately,
+review the Pi's composite USB gadget before any disposable-target HID proof.
 
 ## Long-term objective
 

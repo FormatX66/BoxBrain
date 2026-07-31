@@ -121,6 +121,17 @@ The scrolling-specific continuation is recorded in
 - [ ] Exercise one checksum-valid, non-executing patch delivery against a
   disposable authorized target and verify its Drive receipt.
 
+## Headless Windows keystroke bootstrap
+
+- [x] Add a preview-first, fixed-command USB-HID bootstrap with exact local
+  authorization and no credential or arbitrary-text input.
+- [x] Require hash verification of the Pi-served Windows link helper and
+  key-only SSH proof before reporting success.
+- [ ] Decide and review the live Pi composite-gadget HID configuration; do not
+  change the deployed USB networking gadget until that daytime decision.
+- [ ] Exercise one authorized disposable Windows target with an unlocked admin
+  console, then verify the restricted SSH link and restore the target.
+
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md).
 

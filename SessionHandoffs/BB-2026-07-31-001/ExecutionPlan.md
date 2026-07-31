@@ -19,3 +19,9 @@
     verify its final local sync state.
 12. Next: create a dedicated BoxBrain Google OAuth client, reconnect rclone,
     then perform one disposable patch-delivery proof without execution.
+13. Completed in source: implement the preview-first, credential-free headless
+    Windows HID bootstrap and deterministic tests.
+14. Pending daytime decision: review composite USB gadget configuration before
+    enabling `/dev/hidg0` or deploying 0.11.0 to the live Pi.
+15. Pending: run one authorized disposable Windows console proof and require
+    key-only SSH verification before recording completion.

@@ -3,8 +3,8 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.9 retains guarded Wi-Fi provisioning and adds an optional,
-human-operated Pi console:
+tunnel. Version 0.11 retains guarded Wi-Fi provisioning and the optional Pi
+console, then adds a disabled-until-configured headless Windows HID bootstrap:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
@@ -30,10 +30,14 @@ human-operated Pi console:
 - enrolls explicitly authorized RFC1918/link-local targets over key-only SSH on Wi-Fi or Ethernet;
 - rechecks registered USB-C and network targets and records connected/offline link state;
 - serves read-only Windows and Linux onboarding scripts on port 8788;
-- requires the target operator to type `AUTHORIZE` before making changes;
+- requires the target operator to type `AUTHORIZE` before making changes during
+  normal interactive onboarding;
 - creates a non-administrator/non-sudo `boxbrain-link` account on the target;
 - keeps the target-access private key on the Pi and uses public-key-only SSH;
-- does not emulate a keyboard or inject commands into an unapproved computer.
+- provides an optional, disabled-until-configured USB-HID fallback for an
+  explicitly authorized headless Windows console;
+- never types a password, Wi-Fi key, arbitrary command, or operator-provided
+  text, and accepts success only after key-only SSH verification;
 - automatically performs a read-only health check after an authorized target
   connects;
 - supports Windows and Linux targets through the restricted SSH link;
@@ -86,6 +90,41 @@ from Administrator PowerShell. Type `PROVISION WIFI` when prompted. The helper
 is restricted to the dedicated Pi address `10.12.194.1`, requires an already
 trusted Pi SSH host key, and streams the credential through SSH standard input.
 It does not write the credential to a file or display it.
+
+## Headless Windows keystroke fallback
+
+Version 0.11 adds a narrow bootstrap for a physically attached Windows machine
+that has no screen or keyboard available but still has an unlocked interactive
+administrator console. This does not replace Windows Headless Rescue over
+WinRM/JEA. A truly sessionless machine must use WinRM, SSH, BMC/iDRAC/iLO, a VM
+console, or a preinstalled agent; USB keystrokes cannot log in or create a
+desktop session.
+
+The command defaults to a no-change preview:
+
+```bash
+sudo boxbrainctl headless-windows-link
+```
+
+Execution is available only after `/dev/hidg0` has been deliberately configured
+as part of the Pi's USB gadget, the target uses a US keyboard layout, and the
+operator authorizes that exact physical computer. It types a fixed PowerShell
+bootstrap, downloads `windows-link.ps1` only from `10.12.194.1:8788`, checks the
+installed helper's SHA-256 before execution, and supplies the helper's existing
+authorization assertion. It never types credentials or arbitrary text.
+
+```bash
+sudo boxbrainctl headless-windows-link \
+  --execute \
+  --authorized \
+  --confirmation 'CONNECT HEADLESS WINDOWS'
+```
+
+The tool waits for the existing `boxbrain-link` key-only SSH proof. If it cannot
+verify that proof, it reports the run as unverified and refuses to retry
+blindly. UAC policies that require credential entry are intentionally not
+supported. This repository does not automatically create `/dev/hidg0` or
+reconfigure a live USB gadget.
 
 ## Continue a target over Wi-Fi or Ethernet
 

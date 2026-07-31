@@ -73,3 +73,20 @@
 - **Impact:** BrainConnect can join the target's network without turning
   diagnostics, Google Drive, or routine discovery into a credential-extraction
   path.
+
+## BB-ADR-052
+
+- **Date:** 2026-07-31
+- **Reason:** A physically attached Windows machine may have no available
+  screen or keyboard while still exposing an unlocked administrator console.
+- **Alternatives considered:** Type arbitrary commands or credentials; assume
+  keystroke delivery succeeded; configure HID automatically on the live Pi;
+  provide a fixed, disabled-until-configured bootstrap with independent proof.
+- **Chosen solution:** Add a preview-first USB-HID bootstrap that types only the
+  hash-verified Pi-served Windows link helper after explicit authorization and
+  exact confirmation. Never accept arbitrary text or type credentials, and
+  report success only after key-only SSH verification.
+- **Impact:** BoxBrain gains a bounded fallback for compatible headless Windows
+  consoles without weakening the separate WinRM/JEA server-rescue boundary.
+  Truly sessionless servers still require an out-of-band or service transport,
+  and live Pi HID configuration remains a separate daytime decision.

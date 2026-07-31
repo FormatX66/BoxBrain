@@ -14,6 +14,10 @@ Google OAuth client with a dedicated BoxBrain client.
 5. Verify the first service snapshot and diagnostics upload final state.
 6. Exercise one checksum-valid non-executing patch delivery in the disposable
    target and confirm the uploaded receipt.
+7. Review the Pi's current USB gadget configuration and prepare a rollback plan
+   before enabling the optional HID keyboard function.
+8. On an authorized disposable Windows machine with an unlocked administrator
+   console, preview and run one fixed bootstrap, then require key-only SSH proof.
 
 ## Dependencies
 
@@ -24,6 +28,8 @@ Google OAuth client with a dedicated BoxBrain client.
 - Operator-created BoxBrain Google Drive folder ID
 - Dedicated BoxBrain Google OAuth client ID and secret
 - Existing key-only authorized target link
+- Deliberately reviewed composite USB gadget with `/dev/hidg0` for the optional
+  keystroke fallback
 
 ## Files affected
 
@@ -41,6 +47,8 @@ Google OAuth client with a dedicated BoxBrain client.
 - All controller and Pi tests pass.
 - POSIX deployment scripts parse with LF endings.
 - No OAuth token, password, private key, or target credential is committed.
+- Headless bootstrap accepts no arbitrary text or credential and cannot report
+  success without the target's key-only SSH proof.
 - Drive timer is not enabled before successful OAuth enrollment.
 - The rclone remote uses the exact BoxBrain root folder ID.
 - Uploads use `copy`, not deletion-mirroring `sync`.
@@ -66,6 +74,9 @@ Google OAuth client with a dedicated BoxBrain client.
 - Cloud content is untrusted even when it belongs to the service account.
 - Patch delivery writes to a target and must stay approval-gated and separate
   from installation or execution.
+- Blind HID input can reach the wrong UI state. Use only a physically attached,
+  authorized disposable target with a known unlocked US-layout admin console;
+  do not retry an unverified run automatically.
 
 ## Estimated completion order
 

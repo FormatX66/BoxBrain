@@ -25,6 +25,11 @@
   transient, and excluded from logs, reports, Drive, storage, and arguments.
 - Added regression checks that credential retrieval occurs after the
   authorization gate and transient secret variables are cleared.
+- Added BoxBrain 0.11's preview-first headless Windows USB-HID link bootstrap,
+  fixed-command encoding, exact authorization/confirmation gates, installed
+  helper SHA-256 validation, and key-only SSH success proof.
+- Kept live HID gadget configuration and live target execution out of this
+  change; the deployed Pi remains on 0.10.0.
 
 ## Reason
 

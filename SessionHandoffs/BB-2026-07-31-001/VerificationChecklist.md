@@ -13,6 +13,11 @@
 - [x] Pi edge-agent suite passed locally: 32 tests, one environment-only skip.
 - [x] Wi-Fi regression checks prove the explicit authorization gate precedes
   saved-key retrieval and transient credential variables are cleared.
+- [x] Headless-link tests prove preview makes no change, the typed bootstrap is
+  fixed and credential-free, approval is exact, helper SHA-256 is checked, and
+  an unverified SSH result cannot be reported as success.
+- [x] BoxBrain 0.11 source suite passed locally: 39 tests, one environment-only
+  POSIX-shell skip on Windows.
 - [x] All 32 Pi edge-agent tests passed from the exact deployment archive on
   the ARM64 Pi.
 - [x] Controller suite passed: 78 tests.
@@ -39,3 +44,5 @@
 - [ ] Dedicated BoxBrain Google OAuth client replaces rclone's retiring shared
   client ID.
 - [ ] One disposable non-executing patch delivery and receipt are verified.
+- [ ] Live Pi composite-gadget HID configuration is reviewed and authorized.
+- [ ] One disposable headless Windows keystroke link is independently verified.
