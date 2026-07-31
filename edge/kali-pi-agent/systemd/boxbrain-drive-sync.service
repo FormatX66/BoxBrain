@@ -13,7 +13,7 @@ WorkingDirectory=/var/lib/boxbrain
 Environment=PYTHONPATH=/opt/boxbrain/src
 EnvironmentFile=-/etc/boxbrain/boxbrain.env
 ExecStart=/usr/bin/python3 -m boxbrain.drive_sync
-TimeoutStartSec=10min
+TimeoutStartSec=1h
 UMask=0077
 
 NoNewPrivileges=true

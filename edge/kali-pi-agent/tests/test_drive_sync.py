@@ -39,9 +39,11 @@ class DriveSyncTests(unittest.TestCase):
             config = root / "rclone.conf"
             config.write_text("fixture", encoding="utf-8")
             commands: list[list[str]] = []
+            timeouts: list[object] = []
 
             def runner(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
                 commands.append(command)
+                timeouts.append(_kwargs.get("timeout"))
                 return completed(command)
 
             result = DriveSync(
@@ -57,6 +59,7 @@ class DriveSyncTests(unittest.TestCase):
             self.assertTrue(commands)
             self.assertTrue(all(command[1] == "copy" for command in commands))
             self.assertFalse(any("sync" in command for command in commands))
+            self.assertTrue(all(timeout == 3300 for timeout in timeouts))
             self.assertIn(
                 "boxbrain-drive:Repositories/Patches/inbox/kali-pi-usbc",
                 commands[-1],

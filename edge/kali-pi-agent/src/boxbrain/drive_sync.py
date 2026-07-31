@@ -246,7 +246,7 @@ class DriveSync:
                 check=False,
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=3300,
             )
         except (OSError, subprocess.SubprocessError) as error:
             raise DriveSyncError(f"rclone could not start: {error}") from error

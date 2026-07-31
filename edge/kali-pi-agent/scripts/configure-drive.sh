@@ -124,9 +124,9 @@ set_environment BOXBRAIN_DRIVE_EXPECTED_ACCOUNT "$expected_email"
 
 systemctl daemon-reload
 systemctl enable --now boxbrain-drive-sync.timer
-systemctl start boxbrain-drive-sync.service
+systemctl start --no-block boxbrain-drive-sync.service
 systemctl is-active --quiet boxbrain-drive-sync.timer
 
 trap - EXIT HUP INT TERM
 rm -f "$temporary"
-printf 'BoxBrain Drive transport is configured for %s and will run after reboot.\n' "$expected_email"
+printf 'BoxBrain Drive transport is configured for %s; the first sync is queued and will run after reboot.\n' "$expected_email"

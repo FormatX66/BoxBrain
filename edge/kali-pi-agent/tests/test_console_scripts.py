@@ -112,9 +112,15 @@ class PiConsoleScriptTests(unittest.TestCase):
         self.assertIn("config_is_local=true", configure)
         self.assertIn("--no-output", configure)
         self.assertIn("configparser.ConfigParser", configure)
+        self.assertIn("systemctl start --no-block boxbrain-drive-sync.service", configure)
         self.assertNotIn("rclone config redacted", configure)
         self.assertNotIn("apt-get", configure)
         self.assertNotIn("curl", configure)
+
+        service = (ROOT / "systemd" / "boxbrain-drive-sync.service").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("TimeoutStartSec=1h", service)
         self.assertNotIn("enable boxbrain-drive-sync.timer", install)
 
 

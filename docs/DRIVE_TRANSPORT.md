@@ -72,7 +72,10 @@ validates only the local remote type, scope, and root ID, verifies root access,
 and installs the token in the private BoxBrain identity directory as
 `boxbrain:boxbrain` mode `0600`. It creates missing
 standard folders without deleting existing content, enables the five-minute
-systemd timer, and runs the first sync. No password enters BoxBrain or Git.
+systemd timer, and queues the first sync without blocking enrollment. The sync
+keeps one transfer active at a time and allows a longer bounded window for an
+initial historical backlog; routine runs normally finish much sooner. No
+password enters BoxBrain or Git.
 
 Verify:
 
