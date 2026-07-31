@@ -119,7 +119,21 @@ test "$(cat /opt/boxbrain/VERSION)" = "$target_version"
 systemctl is-active --quiet boxbrain.service
 systemctl is-active --quiet boxbrain-onboarding.service
 systemctl is-active --quiet boxbrain-link-monitor.service
-/usr/local/bin/boxbrainctl health >/dev/null
+health_payload=$(/usr/local/bin/boxbrainctl health)
+python3 - "$target_version" "$health_payload" <<'PY'
+import json
+import sys
+
+expected = sys.argv[1]
+payload = json.loads(sys.argv[2])
+if payload.get("status") != "ok":
+    raise SystemExit("BoxBrain health check failed.")
+if payload.get("version") != expected:
+    raise SystemExit(
+        f"BoxBrain health version mismatch: expected {expected}, "
+        f"received {payload.get('version')!r}."
+    )
+PY
 /usr/local/bin/boxbrainctl agent >/dev/null
 /usr/local/bin/boxbrainctl targets >/dev/null
 

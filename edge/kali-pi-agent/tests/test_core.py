@@ -27,7 +27,7 @@ from boxbrain.enrollment import (  # noqa: E402
     TargetEnrollmentError,
     enroll_target,
 )
-from boxbrain import link_monitor  # noqa: E402
+from boxbrain import __version__, link_monitor  # noqa: E402
 from boxbrain.links import load_links  # noqa: E402
 from boxbrain.onboarding import build_server as build_onboarding_server  # noqa: E402
 from boxbrain.policy import (  # noqa: E402
@@ -62,6 +62,13 @@ class BoxBrainTests(unittest.TestCase):
                 payload = json.load(response)
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["service"], "boxbrain")
+            self.assertEqual(payload["version"], __version__)
+            self.assertEqual(
+                payload["version"],
+                (Path(__file__).resolve().parents[1] / "VERSION")
+                .read_text(encoding="utf-8")
+                .strip(),
+            )
         finally:
             server.shutdown()
             server.server_close()
