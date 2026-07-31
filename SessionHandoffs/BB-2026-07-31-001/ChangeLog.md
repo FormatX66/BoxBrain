@@ -10,6 +10,10 @@
 - Added the canonical Drive transport runbook.
 - Updated architecture version 1.1, shared-account provisioning language,
   roadmap, TODO, decision indexes, and session records.
+- Corrected the edge-agent API version to 0.10.0 and made upgrade verification
+  fail closed when live health reports a different version.
+- Installed verified rclone 1.74.4 and deployed BoxBrain 0.10.0 to the live Pi;
+  the Drive timer remains disabled pending operator OAuth.
 
 ## Reason
 

@@ -2,18 +2,16 @@
 
 ## Current Objective
 
-Deploy and enroll the reviewed Pi Drive transport only after explicit approval
-for the missing dependency and operator-controlled Google OAuth.
+Complete the operator-controlled Google Drive enrollment and validate the first
+transport run now that the reviewed Pi transport is deployed.
 
 ## Tasks
 
 1. Review and merge the local Drive transport branch after CI passes.
-2. Select and verify the exact rclone ARM installation artifact or package.
-3. Create the BoxBrain root folder in the intended Google account.
-4. Upgrade the Pi edge agent through its rollback-capable installer.
-5. Run `boxbrain-drive-configure` with the root folder ID.
-6. Verify the first service snapshot and diagnostics upload.
-7. Exercise one checksum-valid non-executing patch delivery in the disposable
+2. Obtain the BoxBrain root folder URL or ID from the intended Google account.
+3. Run `boxbrain-drive-configure` with that root folder ID and complete OAuth.
+4. Verify the first service snapshot and diagnostics upload.
+5. Exercise one checksum-valid non-executing patch delivery in the disposable
    target and confirm the uploaded receipt.
 
 ## Dependencies
@@ -21,7 +19,7 @@ for the missing dependency and operator-controlled Google OAuth.
 - `FormatX66/BoxBrain`
 - Kali Raspberry Pi 4 at `10.12.194.1`
 - `boxbrainprime@gmail.com`
-- Verified rclone Linux ARM build
+- Installed rclone 1.74.4 Linux ARM64 build
 - Operator-created BoxBrain Google Drive folder ID
 - Existing key-only authorized target link
 
@@ -69,6 +67,6 @@ for the missing dependency and operator-controlled Google OAuth.
 
 ## Estimated completion order
 
-Merge code, approve dependency, verify artifact, upgrade Pi, create Drive root,
-complete OAuth, verify timer, test staging, authorize one disposable delivery,
-and review receipts.
+Publish and review the branch, obtain the Drive root folder ID, complete OAuth,
+verify the timer, test staging, authorize one disposable delivery, and review
+receipts.

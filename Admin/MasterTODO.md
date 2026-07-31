@@ -111,6 +111,8 @@ The scrolling-specific continuation is recorded in
 
 - [x] Implement root-folder-restricted Pi Google Drive synchronization for
   service snapshots, diagnostics, and guarded patch staging.
+- [x] Install checksum-verified rclone and deploy BoxBrain 0.10.0 to the live
+  Pi with a verified private rollback archive.
 - [ ] Complete one-time Pi OAuth enrollment as `boxbrainprime@gmail.com` and
   verify the first timer run without exposing the token.
 - [ ] Exercise one checksum-valid, non-executing patch delivery against a

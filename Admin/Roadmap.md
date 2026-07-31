@@ -239,7 +239,8 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
   downloaded patch becomes locally verified.
 - Kept target delivery separate, explicitly authorized, pinned-host-key SFTP
   only, and non-executing.
-- Left live OAuth enrollment and deployment pending the operator-controlled
+- Deployed BoxBrain 0.10.0 and checksum-verified rclone 1.74.4 to the live Pi;
+  left only OAuth enrollment pending the operator-controlled
   `boxbrainprime@gmail.com` session.
 
 ## Long-term objective

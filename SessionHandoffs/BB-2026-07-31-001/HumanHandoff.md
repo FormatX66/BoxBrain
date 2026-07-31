@@ -16,7 +16,14 @@
   `boxbrainprime@gmail.com` instead of creating one Google identity per machine.
 - Passed all 78 controller tests, all 32 Pi edge-agent tests, Flutter analysis,
   and all 19 Flutter tests.
-- Confirmed read-only that rclone is not currently installed on the live Pi.
+- Installed the official signed rclone 1.74.4 Linux ARM64 release on the live
+  Pi after verifying the published archive SHA-256.
+- Upgraded the live Pi from BoxBrain 0.8.0 to 0.10.0 through the private,
+  rollback-capable upgrade path.
+- Corrected the stale API version constant and made upgrades reject a mismatch
+  between the installed VERSION file and the live health endpoint.
+- Verified live health, onboarding, all three core services, and the private
+  rollback archive. The Drive timer remains disabled and no OAuth file exists.
 
 ## Decisions made
 
@@ -28,8 +35,6 @@
 
 ## Current blockers
 
-- Installing rclone on the live Pi requires explicit operator approval and a
-  verified ARM release or approved package source.
 - The `BoxBrain` folder must be created while signed into
   `boxbrainprime@gmail.com`, and its folder ID is required.
 - The one-time browser OAuth flow must be completed by the operator; the current
@@ -37,8 +42,8 @@
 
 ## Immediate next step
 
-Approve a verified rclone installation on the Pi, create the BoxBrain Drive
-folder under `boxbrainprime@gmail.com`, and run the guarded one-time enrollment.
+Provide the BoxBrain Drive folder URL or ID, then complete the guarded one-time
+OAuth enrollment while selecting `boxbrainprime@gmail.com`.
 
 ## Long-term objective
 

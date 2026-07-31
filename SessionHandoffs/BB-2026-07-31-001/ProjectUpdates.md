@@ -2,12 +2,14 @@
 
 ## BoxBrain
 
-- **Status:** Pi Drive transport implemented locally; live enrollment pending
+- **Status:** Pi Drive transport deployed; live OAuth enrollment pending
 - **Architecture:** 1.1
 - **Pi edge agent:** 0.10.0
 - **Account:** `boxbrainprime@gmail.com`
 - **Transport:** rclone, root-folder-scoped, five-minute systemd timer
 - **Patch boundary:** checksum-verified, approval-gated delivery, no execution
+- **Live Pi:** BoxBrain 0.10.0, rclone 1.74.4, core services healthy, Drive
+  timer disabled until enrollment
 
 ## BrainConnect
 

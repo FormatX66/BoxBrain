@@ -10,8 +10,9 @@
 6. Completed: added deterministic tests and the operational runbook.
 7. Completed: ran full local repository validation.
 8. In progress: publish the review branch and pass GitHub CI.
-9. Waiting for approval: install verified rclone on the live Pi.
-10. Waiting for operator: create the BoxBrain Drive root and complete OAuth as
+9. Completed: installed checksum-verified rclone 1.74.4 and deployed BoxBrain
+   0.10.0 to the live ARM64 Pi with rollback verification.
+10. Waiting for operator: provide the BoxBrain Drive root folder ID and complete OAuth as
    `boxbrainprime@gmail.com`.
 11. Next: verify the first timer run, then perform one disposable patch-delivery
     proof without execution.

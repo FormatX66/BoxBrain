@@ -5,7 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
-| 2026-07-31 | BB-2026-07-31-001 | Added a reboot-persistent Pi Google Drive transport for service evidence and checksum-gated, approval-delivered, non-executing patch packages. | [Session change log](../SessionHandoffs/BB-2026-07-31-001/ChangeLog.md) |
+| 2026-07-31 | BB-2026-07-31-001 | Added and deployed a reboot-persistent Pi Google Drive transport for service evidence and checksum-gated, approval-delivered, non-executing patch packages; OAuth remains operator-controlled. | [Session change log](../SessionHandoffs/BB-2026-07-31-001/ChangeLog.md) |
 | 2026-07-30 | BB-2026-07-30-002 | Completed the BrainConnect alpha with cross-builds, Pi promotion, a frame-backed live scrolling proof, cleanup, checkpoint restoration, and deployment portability fixes. | [Session change log](../SessionHandoffs/BB-2026-07-30-002/ChangeLog.md) |
 | 2026-07-30 | BB-2026-07-30-001 | Integrated the validated BrainConnect PR stack and BoxBrain organization branch, repaired cross-repository links, and automated repository validation. | [Session change log](../SessionHandoffs/BB-2026-07-30-001/ChangeLog.md) |
 | 2026-07-29 | BB-2026-07-29-012 | Selected and implemented source-complete coordinate-bound RDP scrolling while preserving all builds, Pi promotion, and VM proof for nightshift. | [Session change log](../SessionHandoffs/BB-2026-07-29-012/ChangeLog.md) |
