@@ -175,6 +175,9 @@ operator authorizes that exact physical computer. It types a fixed PowerShell
 bootstrap, downloads `windows-link.ps1` only from `10.12.194.1:8788`, checks the
 installed helper's SHA-256 before execution, and supplies the helper's existing
 authorization assertion. It never types credentials or arbitrary text.
+Version 0.14.1 retries only the current eight-byte HID report for up to one
+second when Linux reports that the configured endpoint is transiently busy; it
+never restarts the command sequence or retries an unverified enrollment.
 
 ```bash
 sudo boxbrainctl headless-windows-link \

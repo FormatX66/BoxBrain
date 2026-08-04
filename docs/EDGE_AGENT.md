@@ -109,8 +109,10 @@ Keystroke execution additionally requires `--authorized` and the exact
 `CONNECT HEADLESS WINDOWS` confirmation. It refuses an already linked target,
 and a new result is not successful until the Pi proves the restricted target
 account over key-only SSH. Failure produces an unverified state and no
-automatic retry. Installation never changes the active gadget or reboots the
-Pi.
+automatic command-sequence retry. Version 0.14.1 permits only a bounded retry
+of the same eight-byte HID report when the kernel says the configured endpoint
+is transiently busy. Installation never changes the active gadget or reboots
+the Pi.
 
 This fallback cannot operate at a login screen, create an interactive session,
 or satisfy UAC that requires credentials. Sessionless servers still require

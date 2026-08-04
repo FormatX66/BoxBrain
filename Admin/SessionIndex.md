@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-08-03-006 | 2026-08-03 | Bounded retry for transient USB HID report readiness | [Human](../SessionHandoffs/BB-2026-08-03-006/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-006/AgentHandoff.md) |
 | BB-2026-08-03-005 | 2026-08-03 | Automatic Pi console opening on connection | [Human](../SessionHandoffs/BB-2026-08-03-005/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-005/AgentHandoff.md) |
 | BB-2026-08-03-004 | 2026-08-03 | Pi recovery AP and live composite USB activation | [Human](../SessionHandoffs/BB-2026-08-03-004/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-004/AgentHandoff.md) |
 | BB-2026-08-03-003 | 2026-08-03 | Live Pi 0.13.0 connection-map deployment | [Human](../SessionHandoffs/BB-2026-08-03-003/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-003/AgentHandoff.md) |

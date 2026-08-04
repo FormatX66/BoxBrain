@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64decode
+import errno
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ from boxbrain.headless_link import (
     HEADLESS_LINK_CONFIRMATION,
     HeadlessLinkError,
     TextEvent,
+    _write_report,
     build_bootstrap_command,
     build_keystroke_plan,
     execute_headless_windows_link,
@@ -61,6 +63,47 @@ class HeadlessWindowsLinkTests(unittest.TestCase):
         self.assertGreater(len(reports), 8)
         self.assertEqual(len(reports) % 8, 0)
         self.assertEqual(reports[-8:], bytes(8))
+
+    def test_hid_report_retries_only_transient_not_ready_error(self) -> None:
+        delays: list[float] = []
+        with patch(
+            "boxbrain.headless_link.os.write",
+            side_effect=(
+                BlockingIOError(errno.EAGAIN, "temporarily unavailable"),
+                8,
+            ),
+        ) as writer:
+            _write_report(
+                7,
+                0,
+                0x04,
+                sleeper=delays.append,
+                max_attempts=3,
+            )
+
+        self.assertEqual(writer.call_count, 2)
+        self.assertEqual(len(delays), 1)
+
+    def test_hid_report_stops_after_bounded_not_ready_retries(self) -> None:
+        with (
+            patch(
+                "boxbrain.headless_link.os.write",
+                side_effect=BlockingIOError(
+                    errno.EAGAIN,
+                    "temporarily unavailable",
+                ),
+            ) as writer,
+            self.assertRaisesRegex(HeadlessLinkError, "did not become ready"),
+        ):
+            _write_report(
+                7,
+                0,
+                0x04,
+                sleeper=lambda _: None,
+                max_attempts=3,
+            )
+
+        self.assertEqual(writer.call_count, 3)
 
     def test_preview_is_no_change_and_reports_hid_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -5,6 +5,7 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-058 | 2026-08-03 | Retry only the same HID report for up to one second on transient endpoint-busy errors; never replay the enrollment sequence automatically. | [Session decision log](../SessionHandoffs/BB-2026-08-03-006/DecisionLog.md#bb-adr-058) |
 | BB-ADR-057 | 2026-08-03 | Detect Pi connection transitions on the authorized Windows workstation and open the console through loopback-only SSH forwards. | [Session decision log](../SessionHandoffs/BB-2026-08-03-005/DecisionLog.md#bb-adr-057) |
 | BB-ADR-056 | 2026-08-03 | Preserve Wi-Fi client access while adding an isolated, same-channel virtual recovery AP before activating composite USB Ethernet and HID. | [Session decision log](../SessionHandoffs/BB-2026-08-03-004/DecisionLog.md#bb-adr-056) |
 | BB-ADR-055 | 2026-08-03 | Use one observed-capability connection map and a connect-assess-operate-retain lifecycle for every Pi transport. | [Session decision log](../SessionHandoffs/BB-2026-08-03-002/DecisionLog.md#bb-adr-055) |

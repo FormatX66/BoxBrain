@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from base64 import b64encode
 from dataclasses import dataclass
+import errno
 import hashlib
 import ipaddress
 import os
@@ -27,6 +28,8 @@ _MODIFIER_LEFT_SHIFT = 0x02
 _MODIFIER_LEFT_ALT = 0x04
 _MODIFIER_LEFT_GUI = 0x08
 _KEY_ENTER = 0x28
+_HID_WRITE_RETRY_ATTEMPTS = 50
+_HID_WRITE_RETRY_DELAY = 0.02
 
 
 class HeadlessLinkError(RuntimeError):
@@ -128,14 +131,30 @@ def build_keystroke_plan(script_sha256: str) -> tuple[KeyEvent | TextEvent, ...]
     )
 
 
-def _write_report(handle: int, modifier: int, keycode: int) -> None:
+def _write_report(
+    handle: int,
+    modifier: int,
+    keycode: int,
+    *,
+    sleeper: Callable[[float], None] = time.sleep,
+    max_attempts: int = _HID_WRITE_RETRY_ATTEMPTS,
+) -> None:
     report = bytes((modifier, 0, keycode, 0, 0, 0, 0, 0))
-    try:
-        written = os.write(handle, report)
-    except OSError as error:
-        raise HeadlessLinkError("The USB keyboard rejected a report.") from error
-    if written != len(report):
-        raise HeadlessLinkError("The USB keyboard accepted an incomplete report.")
+    for attempt in range(max(1, max_attempts)):
+        try:
+            written = os.write(handle, report)
+        except OSError as error:
+            if error.errno not in {errno.EAGAIN, errno.EWOULDBLOCK}:
+                raise HeadlessLinkError("The USB keyboard rejected a report.") from error
+            if attempt + 1 >= max(1, max_attempts):
+                raise HeadlessLinkError(
+                    "The USB keyboard did not become ready for a report."
+                ) from error
+            sleeper(_HID_WRITE_RETRY_DELAY)
+            continue
+        if written != len(report):
+            raise HeadlessLinkError("The USB keyboard accepted an incomplete report.")
+        return
 
 
 def send_keystroke_plan(
@@ -163,17 +182,22 @@ def send_keystroke_plan(
                         raise HeadlessLinkError(
                             "The fixed bootstrap command is not compatible with the US HID map."
                         )
-                    _write_report(handle, *stroke)
-                    _write_report(handle, 0, 0)
+                    _write_report(handle, *stroke, sleeper=sleeper)
+                    _write_report(handle, 0, 0, sleeper=sleeper)
                     sleeper(event.delay_between)
                 sleeper(event.delay_after)
                 continue
-            _write_report(handle, event.modifier, event.keycode)
-            _write_report(handle, 0, 0)
+            _write_report(
+                handle,
+                event.modifier,
+                event.keycode,
+                sleeper=sleeper,
+            )
+            _write_report(handle, 0, 0, sleeper=sleeper)
             sleeper(event.delay_after)
     finally:
         try:
-            _write_report(handle, 0, 0)
+            _write_report(handle, 0, 0, sleeper=sleeper)
         finally:
             os.close(handle)
 
