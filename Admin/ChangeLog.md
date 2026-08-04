@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-08-04 | BB-2026-08-04-001 | Rotated one explicitly confirmed Windows host key, proved restricted USB SSH to `DESKTOP-3U8PBEN`, and opened a visible terminal through the Pi. | [Session change log](../SessionHandoffs/BB-2026-08-04-001/ChangeLog.md) |
 | 2026-08-03 | BB-2026-08-03-006 | Added and deployed BoxBrain 0.14.1 with a bounded same-report retry for transient USB HID readiness after the first authorized headless-Windows enrollment stopped safely. | [Session change log](../SessionHandoffs/BB-2026-08-03-006/ChangeLog.md) |
 | 2026-08-03 | BB-2026-08-03-005 | Added a current-user connection watcher that opens the Pi console through hardened loopback-only SSH forwards. | [Session change log](../SessionHandoffs/BB-2026-08-03-005/ChangeLog.md) |
 | 2026-08-03 | BB-2026-08-03-004 | Deployed an isolated Pi recovery AP and activated the composite USB Ethernet, keyboard, and mouse profile through guarded rollback gates. | [Session change log](../SessionHandoffs/BB-2026-08-03-004/ChangeLog.md) |
