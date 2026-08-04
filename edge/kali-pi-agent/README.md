@@ -3,8 +3,9 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.11 retains guarded Wi-Fi provisioning and the optional Pi
-console, then adds a disabled-until-configured headless Windows HID bootstrap:
+tunnel. Version 0.12 retains guarded Wi-Fi provisioning and the optional Pi
+console, then adds a disabled-until-staged composite USB Ethernet, keyboard,
+and mouse profile for the headless Windows HID bootstrap:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
@@ -93,12 +94,49 @@ It does not write the credential to a file or display it.
 
 ## Headless Windows keystroke fallback
 
-Version 0.11 adds a narrow bootstrap for a physically attached Windows machine
+Version 0.12 adds a narrow bootstrap for a physically attached Windows machine
 that has no screen or keyboard available but still has an unlocked interactive
 administrator console. This does not replace Windows Headless Rescue over
 WinRM/JEA. A truly sessionless machine must use WinRM, SSH, BMC/iDRAC/iLO, a VM
-console, or a preinstalled agent; USB keystrokes cannot log in or create a
-desktop session.
+console, or a preinstalled agent; this fixed USB sequence cannot log in or
+create a desktop session.
+
+The installer places the composite-gadget helper and systemd units on the Pi,
+but does not enable them. The current legacy `g_ether` USB networking stays in
+place until an operator stages the Windows-focused RNDIS plus
+keyboard-and-mouse profile.
+Staging requires a working non-USB management interface and an exact local
+confirmation, changes only the next-boot configuration, and arms a 15-minute
+rollback timer. It does not reboot the Pi.
+
+```bash
+sudo boxbrainctl usb-hid preview
+sudo boxbrainctl usb-hid stage \
+  --authorized \
+  --confirmation 'STAGE USB HID' \
+  --alternate-interface wlan0
+```
+
+During an approved maintenance window, reboot separately. After reconnecting
+over the alternate interface, confirm that `usb0`, `/dev/hidg0`, and
+`/dev/hidg1` exist. Commit before the timer expires only after USB Ethernet,
+keyboard, and mouse enumeration have been verified:
+
+```bash
+sudo boxbrainctl usb-hid preview
+sudo boxbrainctl usb-hid commit \
+  --authorized \
+  --confirmation 'COMMIT USB HID'
+```
+
+If verification fails, either allow the pending migration to restore legacy
+`g_ether` automatically or roll it back explicitly:
+
+```bash
+sudo boxbrainctl usb-hid rollback \
+  --authorized \
+  --confirmation 'ROLL BACK USB HID'
+```
 
 The command defaults to a no-change preview:
 
@@ -120,11 +158,26 @@ sudo boxbrainctl headless-windows-link \
   --confirmation 'CONNECT HEADLESS WINDOWS'
 ```
 
-The tool waits for the existing `boxbrain-link` key-only SSH proof. If it cannot
-verify that proof, it reports the run as unverified and refuses to retry
-blindly. UAC policies that require credential entry are intentionally not
-supported. This repository does not automatically create `/dev/hidg0` or
-reconfigure a live USB gadget.
+The tool first refuses to type if the target is already linked, then waits for
+the new `boxbrain-link` key-only SSH proof. If it cannot verify that proof, it
+reports the run as unverified and refuses to retry blindly. UAC policies that
+require credential entry are intentionally not supported. Installation alone
+never creates `/dev/hidg0` or `/dev/hidg1`, changes the active gadget, or
+reboots the Pi.
+
+The USB cable now exposes descriptors for both keyboard and mouse emulation.
+This does not automatically enable Bluetooth HID: Bluetooth uses a separate
+radio, pairing process, and trust relationship. BoxBrain will not advertise or
+accept a Bluetooth keyboard/mouse pairing merely because a USB cable was
+inserted; that path requires its own bounded pairing authorization before
+deployment.
+
+The composite layout follows the kernel's
+[ConfigFS gadget](https://docs.kernel.org/usb/gadget_configfs.html) and
+[HID gadget](https://docs.kernel.org/usb/gadget_hid.html) interfaces. Its
+`usb0` behavior is aligned with Raspberry Pi's maintained
+[USB gadget tooling](https://github.com/raspberrypi/rpi-usb-gadget). The first
+live migration and disposable-target proof remain maintenance-window actions.
 
 ## Continue a target over Wi-Fi or Ethernet
 

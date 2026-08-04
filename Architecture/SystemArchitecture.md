@@ -1,7 +1,10 @@
 # System Architecture
 
-BoxBrain separates ecosystem knowledge from implementation source while making
-both discoverable from one index.
+BoxBrain is the Raspberry Pi 4 appliance: its durable controller, local state,
+transport manager, and recovery interfaces live on the Pi. This repository is
+the appliance's source and ecosystem knowledge base. BrainConnect supplies the
+audited controller components that BoxBrain embeds rather than defining a
+second physical controller.
 
 ```mermaid
 flowchart TD
@@ -9,7 +12,8 @@ flowchart TD
     PI["Project and repository indexes"]
     GOV["Decisions, roadmap, changes, and handoffs"]
     BC["BrainConnect implementation repository"]
-    PICTRL["Kali Pi controller and edge agent"]
+    PICTRL["BoxBrain Pi 4 core appliance"]
+    TRANSPORT["USB, Ethernet, Wi-Fi, and Bluetooth transport manager"]
     WINLAB["Checkpointed Hyper-V Windows lab"]
     AF["AgentFramework (proposed)"]
     SEC["Security (proposed)"]
@@ -20,7 +24,8 @@ flowchart TD
     BB --> GOV
     PI --> BC
     BC --> PICTRL
-    PICTRL --> WINLAB
+    PICTRL --> TRANSPORT
+    TRANSPORT --> WINLAB
     PI --> AF
     PI --> SEC
     PI --> RES
@@ -34,6 +39,11 @@ flowchart TD
 
 - BoxBrain owns cross-project discovery, dependencies, priorities, decisions,
   and handoffs.
+- The Pi 4 is the canonical BoxBrain runtime identity and owns durable local
+  state plus all physical transport endpoints.
+- USB attachment may expose USB Ethernet plus keyboard and mouse HID. Bluetooth
+  HID remains a separate pairing and trust boundary even when USB attachment is
+  used as its trigger.
 - Each registered repository owns its code, tests, and detailed technical
   documentation.
 - A planned project receives only a project index until source or requirements
@@ -42,9 +52,11 @@ flowchart TD
 
 ## Current dependency path
 
-The active execution path is BoxBrain governance to the BrainConnect
-repository, then to the USB-bound Kali Pi controller and edge agent, and then
-to the checkpointed Windows lab on the Pi-only network. BrainConnect has
+The active execution path is the BoxBrain Pi appliance, using BrainConnect
+controller components, to an authorized target over a bounded transport. The
+current deployed Pi service remains an edge/controller bridge while the
+remaining controller state and UI are consolidated onto the appliance.
+BrainConnect has
 verified and audited the full target's certificate-only RDP identity boundary;
 it now accepts bounded, audited open-profile operations into a durable queue.
 It also has a disabled-by-default out-of-process protocol, exact certificate

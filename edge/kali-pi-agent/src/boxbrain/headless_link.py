@@ -239,6 +239,11 @@ def execute_headless_windows_link(
         raise HeadlessLinkError(
             "The USB HID keyboard is not configured. No keystrokes were sent."
         )
+    if verifier(address, transport="usb-ethernet-ssh") is not None:
+        raise HeadlessLinkError(
+            "The target already has a verified BoxBrain link. "
+            "No keystrokes were sent."
+        )
     script_sha256 = _sha256(script_path)
     plan = build_keystroke_plan(script_sha256)
     resolved_sender = sender or send_keystroke_plan

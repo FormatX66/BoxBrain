@@ -5,6 +5,8 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-054 | 2026-08-03 | Expose USB keyboard and mouse as separate HID functions and keep Bluetooth HID behind its own explicit pairing boundary. | [Session decision log](../SessionHandoffs/BB-2026-08-03-001/DecisionLog.md#bb-adr-054) |
+| BB-ADR-053 | 2026-08-03 | Treat the Raspberry Pi 4 as the canonical BoxBrain core appliance and transport owner. | [Session decision log](../SessionHandoffs/BB-2026-08-03-001/DecisionLog.md#bb-adr-053) |
 | BB-ADR-050 | 2026-07-31 | Use rclone's shared Google OAuth client only for the initial proof and migrate to a dedicated BoxBrain client before retirement. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-050) |
 | BB-ADR-047 | 2026-07-31 | Use `boxbrainprime@gmail.com` with one BoxBrain Drive root and device-partitioned operational paths. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-047) |
 | BB-ADR-048 | 2026-07-31 | Adopt root-folder-scoped rclone with private writable token state and non-deleting copies for Pi Drive transport. | [Session decision log](../SessionHandoffs/BB-2026-07-31-001/DecisionLog.md#bb-adr-048) |

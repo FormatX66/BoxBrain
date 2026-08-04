@@ -17,7 +17,7 @@ class PiConsoleScriptTests(unittest.TestCase):
         )
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-        self.assertEqual(version, "0.11.0")
+        self.assertEqual(version, "0.12.0")
         self.assertNotIn("install-console.sh", default_install)
         self.assertNotIn("boxbrain-console-start", default_install)
         self.assertNotIn("boxbrain-console-display", default_install)
@@ -82,6 +82,8 @@ class PiConsoleScriptTests(unittest.TestCase):
             self.skipTest("A POSIX shell is not available.")
 
         for name in (
+            "boxbrain-usb-composite.sh",
+            "configure-usb-keyboard.sh",
             "configure-drive.sh",
             "install-console.sh",
             "start-console.sh",

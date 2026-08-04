@@ -59,7 +59,7 @@ not install an administrator channel or copy a private key to the target.
 
 ## Headless Windows keystroke bootstrap
 
-Version 0.11 adds an optional, preview-first USB-HID fallback for a physically
+Version 0.12 adds an optional, preview-first USB-HID fallback for a physically
 attached Windows target with an unlocked interactive administrator console. It
 types only a fixed US-layout PowerShell sequence that downloads the existing
 Windows link helper from the Pi's USB-only onboarding address, verifies its
@@ -67,12 +67,34 @@ SHA-256, and invokes its existing authorization gate. It cannot accept
 arbitrary text and never types a password, Wi-Fi passphrase, or saved `Key
 Content`.
 
-Execution requires root, a deliberately configured character device at
-`/dev/hidg0`, `--authorized`, and the exact `CONNECT HEADLESS WINDOWS`
-confirmation. The result is not considered successful until the Pi proves the
-restricted target account over key-only SSH. Failure produces an unverified
-state and no automatic retry. The installer does not configure HID or alter the
-live USB gadget automatically.
+The source now includes an optional ConfigFS composite profile containing RNDIS
+USB Ethernet (`usb0`), a boot-protocol keyboard (`/dev/hidg0`), and a
+boot-protocol three-button mouse with relative X/Y/wheel reports
+(`/dev/hidg1`). Installing the files leaves that profile disabled. Staging it requires root, exact
+authorization, and a working non-USB management interface; it modifies the
+next-boot module/service configuration without rebooting and arms a 15-minute
+rollback. A post-reboot commit is accepted only while the service, USB network,
+both HID devices, UDC binding, and absence of legacy `g_ether` are all verified.
+
+USB HID and Bluetooth HID are separate transports. Plugging in the USB cable
+does not make a USB device enumerate as Bluetooth. A future Bluetooth HID path
+may use USB attachment as a trigger for a short pairing window, but it must
+remain disabled until an operator explicitly authorizes pairing and a bounded
+trusted-host policy is selected. The current change does not advertise,
+pair, or accept Bluetooth clients automatically.
+
+The migration design follows the kernel's
+[ConfigFS gadget](https://docs.kernel.org/usb/gadget_configfs.html) and
+[HID gadget](https://docs.kernel.org/usb/gadget_hid.html) contracts and keeps
+the Raspberry Pi project's established RNDIS/`usb0` model. It is currently a
+Windows-focused USB profile; cross-host ECM support is not claimed.
+
+Keystroke execution additionally requires `--authorized` and the exact
+`CONNECT HEADLESS WINDOWS` confirmation. It refuses an already linked target,
+and a new result is not successful until the Pi proves the restricted target
+account over key-only SSH. Failure produces an unverified state and no
+automatic retry. Installation never changes the active gadget or reboots the
+Pi.
 
 This fallback cannot operate at a login screen, create an interactive session,
 or satisfy UAC that requires credentials. Sessionless servers still require

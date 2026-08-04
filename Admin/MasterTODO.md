@@ -129,6 +129,10 @@ The scrolling-specific continuation is recorded in
   key-only SSH proof before reporting success.
 - [ ] Decide and review the live Pi composite-gadget HID configuration; do not
   change the deployed USB networking gadget until that daytime decision.
+- [x] Extend the source-only composite gadget with a standard three-button
+  relative mouse at `/dev/hidg1` while preserving keyboard and `usb0`.
+- [ ] Choose the bounded Bluetooth pairing-window trigger and trusted-host
+  policy before implementing or advertising Bluetooth HID.
 - [ ] Exercise one authorized disposable Windows target with an unlocked admin
   console, then verify the restricted SSH link and restore the target.
 

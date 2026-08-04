@@ -1,0 +1,8 @@
+[Unit]
+Description=Restore legacy USB Ethernet if BoxBrain HID migration is not committed
+ConditionPathExists=/var/lib/boxbrain/usb-gadget/pending
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/boxbrain-usb-keyboard-config rollback-pending
+TimeoutStartSec=60

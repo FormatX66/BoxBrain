@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import socket
+import subprocess
 import sys
 import time
 from typing import Any
@@ -75,6 +76,43 @@ def _control_request(
     if not response.get("ok"):
         raise RuntimeError(str(response.get("error", "BoxBrain request failed.")))
     return response
+
+
+def _usb_keyboard_request(
+    action: str,
+    *,
+    authorized: bool,
+    confirmation: str,
+    alternate_interface: str,
+) -> dict[str, Any]:
+    executable = "/usr/local/sbin/boxbrain-usb-keyboard-config"
+    command = [executable, action]
+    if authorized:
+        command.append("--authorized")
+    if confirmation:
+        command.extend(("--confirmation", confirmation))
+    if action == "stage":
+        command.extend(("--alternate-interface", alternate_interface))
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=75,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError("The USB HID configurator is unavailable.") from error
+    if result.returncode != 0:
+        message = result.stderr.strip() or "USB HID configuration failed."
+        raise RuntimeError(message)
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("The USB HID configurator returned invalid data.") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError("The USB HID configurator returned invalid data.")
+    return payload
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -196,6 +234,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-address",
         default="10.12.194.2",
         help="Exact target address on the dedicated USB gadget subnet.",
+    )
+
+    usb_keyboard = subparsers.add_parser(
+        "usb-hid",
+        aliases=("usb-keyboard",),
+        help="Preview, stage, commit, or roll back composite USB keyboard and mouse HID.",
+    )
+    usb_keyboard.add_argument(
+        "action",
+        choices=("preview", "stage", "commit", "rollback"),
+        nargs="?",
+        default="preview",
+    )
+    usb_keyboard.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm authorization to change the Pi USB gadget.",
+    )
+    usb_keyboard.add_argument(
+        "--confirmation",
+        default="",
+        help="Exact action-specific confirmation phrase.",
+    )
+    usb_keyboard.add_argument(
+        "--alternate-interface",
+        default="wlan0",
+        help="Non-USB management interface required before staging.",
     )
 
     subparsers.add_parser(
@@ -324,6 +389,17 @@ def main() -> int:
                     args.confirmation,
                     target_address=args.target_address,
                 )
+        elif command in {"usb-hid", "usb-keyboard"}:
+            if args.action != "preview" and not args.authorized:
+                parser.error(
+                    "--authorized is required to change the Pi USB gadget."
+                )
+            payload = _usb_keyboard_request(
+                args.action,
+                authorized=args.authorized,
+                confirmation=args.confirmation,
+                alternate_interface=args.alternate_interface,
+            )
         elif command == "patches":
             payload = _control_request({"action": "patches"})["patches"]
         elif command == "deliver-patch":

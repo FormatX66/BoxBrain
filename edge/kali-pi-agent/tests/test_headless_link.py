@@ -88,13 +88,38 @@ class HeadlessWindowsLinkTests(unittest.TestCase):
         with self.assertRaisesRegex(HeadlessLinkError, "exact confirmation"):
             execute_headless_windows_link(HEADLESS_LINK_AUTHORIZATION, "wrong")
 
+    def test_execute_does_not_type_into_an_already_linked_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            helper = Path(directory) / "windows-link.ps1"
+            helper.write_text("Write-Output 'fixture'\n", encoding="utf-8")
+            with (
+                patch("boxbrain.headless_link._is_hid_device", return_value=True),
+                self.assertRaisesRegex(HeadlessLinkError, "already has"),
+            ):
+                execute_headless_windows_link(
+                    HEADLESS_LINK_AUTHORIZATION,
+                    HEADLESS_LINK_CONFIRMATION,
+                    script_path=helper,
+                    effective_uid=0,
+                    sender=lambda *_: self.fail("sender must remain unused"),
+                    verifier=lambda *_args, **_kwargs: {
+                        "hostname": "ALREADY-LINKED"
+                    },
+                )
+
     def test_execute_requires_key_only_ssh_verification(self) -> None:
         captured: list[object] = []
 
         def sender(plan: object, device: Path) -> None:
             captured.extend((plan, device))
 
-        def verifier(address: str, **kwargs: object) -> dict[str, object]:
+        verification_calls = 0
+
+        def verifier(address: str, **kwargs: object) -> dict[str, object] | None:
+            nonlocal verification_calls
+            verification_calls += 1
+            if verification_calls == 1:
+                return None
             return {
                 "address": address,
                 "hostname": "HEADLESS-TEST",
@@ -125,6 +150,7 @@ class HeadlessWindowsLinkTests(unittest.TestCase):
         self.assertEqual(result["verification"], "key-only SSH succeeded")
         self.assertFalse(result["credentials_typed"])
         self.assertEqual(len(captured), 2)
+        self.assertEqual(verification_calls, 2)
 
     def test_execute_reports_unverified_instead_of_blind_retry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

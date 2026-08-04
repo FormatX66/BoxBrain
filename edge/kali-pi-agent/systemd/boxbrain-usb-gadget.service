@@ -1,0 +1,17 @@
+[Unit]
+Description=BoxBrain composite USB Ethernet and HID keyboard gadget
+Requires=sys-kernel-config.mount
+After=systemd-modules-load.service sys-kernel-config.mount
+Before=NetworkManager.service rpi-usb-gadget-ics.service
+ConditionPathExists=/etc/boxbrain/usb-keyboard-enabled
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/libexec/boxbrain-usb-composite start
+ExecStop=/usr/local/libexec/boxbrain-usb-composite stop
+TimeoutStartSec=30
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
