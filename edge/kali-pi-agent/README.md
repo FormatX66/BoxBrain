@@ -3,12 +3,14 @@
 This directory contains the Kali Pi edge agent for the main BoxBrain controller.
 It performs authorized, read-only observation and assessment close to connected
 targets, then exposes a deliberately small status surface through a local SSH
-tunnel. Version 0.12 retains guarded Wi-Fi provisioning and the optional Pi
-console, then adds a disabled-until-staged composite USB Ethernet, keyboard,
-and mouse profile for the headless Windows HID bootstrap:
+tunnel. Version 0.13 adds a read-only connection map for USB, Ethernet, Wi-Fi,
+Bluetooth, and near-field adapters while retaining the guarded USB HID profile
+and optional Pi console:
 
 - runs as a dedicated, unprivileged Linux service account;
 - exposes a local dashboard for health, recommendations, capabilities, and policy;
+- separates every supported transport and its observed capabilities in a
+  connection map;
 - listens only on `127.0.0.1`, so it is reached through the secured SSH channel;
 - reports hardware, memory, storage, temperature, network, and service uptime;
 - treats authorized computers as managed systems with comparable health baselines;

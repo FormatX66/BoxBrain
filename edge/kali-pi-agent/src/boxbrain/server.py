@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from boxbrain import __version__
 from boxbrain.control import ControlServer
+from boxbrain.connections import build_connection_map
 from boxbrain.agent import agent_state
 from boxbrain.diagnostics import DiagnosticError, TargetDiagnostics
 from boxbrain.links import load_links
@@ -43,6 +44,12 @@ def _dashboard(status: dict[str, Any]) -> str:
     memory = status["memory"]
     storage = status["storage"]
     interfaces = status["network"]["interfaces"]
+    connection_map = status.get("connection_map", {})
+    connection_items = (
+        connection_map.get("transports", [])
+        if isinstance(connection_map, dict)
+        else []
+    )
     interface_rows = "".join(
         "<tr>"
         f"<td>{escape(str(item['name']))}</td>"
@@ -76,6 +83,19 @@ def _dashboard(status: dict[str, Any]) -> str:
     )
     if not link_rows:
         link_rows = '<tr><td colspan="7">No authorized target enrolled</td></tr>'
+    connection_rows = "".join(
+        "<tr>"
+        f"<td>{escape(str(item.get('label', 'Unknown')))}</td>"
+        f"<td>{escape(str(item.get('state', 'unknown')))}</td>"
+        f"<td>{escape(', '.join(item.get('interfaces', [])) or 'None')}</td>"
+        f"<td>{escape(str(item.get('target_count', 0)))}</td>"
+        f"<td>{escape(', '.join(str(cap.get('id', 'unknown')) + ': ' + str(cap.get('state', 'unknown')) for cap in item.get('capabilities', []) if isinstance(cap, dict)))}</td>"
+        "</tr>"
+        for item in connection_items
+        if isinstance(item, dict)
+    )
+    if not connection_rows:
+        connection_rows = '<tr><td colspan="5">Connection inventory unavailable</td></tr>'
     target_panels = ""
     for item in links:
         diagnostic = item.get("diagnostics", {})
@@ -229,6 +249,10 @@ def _dashboard(status: dict[str, Any]) -> str:
     <table><thead><tr><th>Name</th><th>State</th><th>IPv4</th></tr></thead><tbody>{interface_rows}</tbody></table>
   </section>
   <section class="panel" style="margin-top:14px">
+    <div class="label">Connection map</div>
+    <table><thead><tr><th>Transport</th><th>State</th><th>Interfaces</th><th>Targets</th><th>Capabilities</th></tr></thead><tbody>{connection_rows}</tbody></table>
+  </section>
+  <section class="panel" style="margin-top:14px">
     <div class="label">Managed systems</div>
     <table><thead><tr><th>Name</th><th>Address</th><th>Link</th><th>Transport</th><th>Platform</th><th>System status</th><th>Findings</th></tr></thead><tbody>{link_rows}</tbody></table>
   </section>
@@ -261,6 +285,10 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
         payload["version"] = __version__
         payload["target_links"] = load_links(
             os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain")
+        )
+        payload["connection_map"] = build_connection_map(
+            payload.get("network"),
+            payload["target_links"],
         )
         payload["latest_assessment"] = (
             cls.storage.latest_summary() if cls.storage is not None else None

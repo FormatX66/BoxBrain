@@ -2,6 +2,7 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-08-03-002 | 2026-08-03 | Pi connection lifecycle and console capability map | [Human](../SessionHandoffs/BB-2026-08-03-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-002/AgentHandoff.md) |
 | BB-2026-08-03-001 | 2026-08-03 | Pi core-appliance boundary and composite USB keyboard/mouse HID | [Human](../SessionHandoffs/BB-2026-08-03-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-001/AgentHandoff.md) |
 | BB-2026-07-31-001 | 2026-07-31 | Deployed and enrolled Raspberry Pi Google Drive transport and guarded patch staging | [Human](../SessionHandoffs/BB-2026-07-31-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-31-001/AgentHandoff.md) |
 | BB-2026-07-30-002 | 2026-07-30 | BrainConnect alpha completion and live scrolling proof | [Human](../SessionHandoffs/BB-2026-07-30-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-30-002/AgentHandoff.md) |

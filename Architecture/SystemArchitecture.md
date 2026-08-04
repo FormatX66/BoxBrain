@@ -77,4 +77,5 @@ per-action verification remain pending.
 
 See [BrainConnect’s canonical architecture](https://github.com/FormatX66/BrainConnect/blob/main/docs/ARCHITECTURE.md)
 for component-level details and [Integrations](Integrations.md) for registered
-boundaries.
+boundaries. The appliance's canonical connect-assess-operate-retain path is in
+[Connection Lifecycle](ConnectionLifecycle.md).

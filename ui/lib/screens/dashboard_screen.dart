@@ -943,6 +943,23 @@ class _OverviewCards extends StatelessWidget {
         ),
       ),
       SectionCard(
+        title: 'Connection map',
+        subtitle: edgeAgent?.connections.isNotEmpty == true
+            ? 'Observed transport state and proven capabilities'
+            : 'Waiting for Pi transport inventory',
+        child: _PlaceholderRows(
+          rows: edgeAgent?.connections.isNotEmpty == true
+              ? [
+                  for (final connection in edgeAgent!.connections)
+                    (
+                      connection.label,
+                      _connectionLabel(connection),
+                    ),
+                ]
+              : const [('Transports', 'Unavailable')],
+        ),
+      ),
+      SectionCard(
         title: 'Safety state',
         subtitle: 'Containment and logging remain mandatory',
         child: _PlaceholderRows(
@@ -1781,10 +1798,15 @@ class _PlaceholderRows extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(child: Text(row.$1)),
-                Text(
-                  row.$2,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.outline),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    row.$2,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1839,6 +1861,16 @@ String _wifiAuditLabel(String value) {
     'not-run' => 'Not run',
     _ => 'Unavailable',
   };
+}
+
+String _connectionLabel(EdgeConnectionTransport connection) {
+  final interfaces = connection.interfaces.isEmpty
+      ? 'no interface'
+      : connection.interfaces.join(', ');
+  final capabilities = connection.capabilities
+      .map((item) => '${item.id}: ${item.state}')
+      .join(' | ');
+  return '${connection.state} | $interfaces | $capabilities';
 }
 
 String _formatTime(DateTime value) {

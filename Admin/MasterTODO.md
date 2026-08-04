@@ -139,6 +139,24 @@ The scrolling-specific continuation is recorded in
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md).
 
+## Pi appliance connection lifecycle
+
+- [x] Define one connect, map, assess, operate, log, and remote-enroll lifecycle.
+- [x] Publish a source-complete read-only connection map for USB, Ethernet,
+  Wi-Fi, Bluetooth, and near-field transports.
+- [x] Carry the connection map through the controller API into the Flutter
+  dashboard.
+- [ ] Deploy BoxBrain 0.13.0 to the Pi after the current source branch is
+  reviewed; deployment must not activate a new transport.
+- [ ] Add event-driven adapter monitoring instead of status-time observation.
+- [ ] Prove USB Ethernet, keyboard, and mouse on the disposable target.
+- [ ] Select and implement explicit Bluetooth PAN/HID pairing policy.
+- [ ] Select near-field hardware and define its signed onboarding payload.
+- [ ] Unify Windows and Linux structured health inventories into the model
+  assessment contract.
+- [ ] Add append-only connection-session records and explicit remote enrollment,
+  revocation, and expiry.
+
 ## P1 — Ecosystem discovery
 
 - [ ] Locate or define WebsiteBuilder.

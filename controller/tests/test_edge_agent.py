@@ -49,6 +49,30 @@ def test_edge_agent_maps_status_without_exposing_raw_details(monkeypatch) -> Non
             "recommendations": [{"sensitive": "not returned"}],
         },
         "network": {"default_route": {"interface": "wlan0"}},
+        "connection_map": {
+            "schema_version": 1,
+            "transports": [
+                {
+                    "id": "usb",
+                    "label": "USB / USB-C",
+                    "state": "connected",
+                    "interfaces": ["usb0"],
+                    "target_count": 1,
+                    "capabilities": [
+                        {
+                            "id": "keyboard",
+                            "state": "available",
+                            "detail": "Explicit approval required before input",
+                        },
+                        {
+                            "id": "mouse",
+                            "state": "available",
+                            "detail": "Explicit approval required before input",
+                        },
+                    ],
+                }
+            ],
+        },
         "target_links": [
             {
                 "diagnostics": {
@@ -73,6 +97,12 @@ def test_edge_agent_maps_status_without_exposing_raw_details(monkeypatch) -> Non
     assert summary.recommendation_count == 3
     assert summary.network_interface == "wlan0"
     assert summary.wifi_credential_audit == "blocked"
+    assert len(summary.connections) == 1
+    assert summary.connections[0].id == "usb"
+    assert {item.id for item in summary.connections[0].capabilities} == {
+        "keyboard",
+        "mouse",
+    }
     assert "sensitive" not in summary.model_dump()
 
 
@@ -87,3 +117,37 @@ def test_edge_agent_is_offline_when_the_tunnel_is_unavailable(monkeypatch) -> No
     assert summary.connected is False
     assert summary.version is None
     assert summary.hostname is None
+    assert summary.connections == ()
+
+
+def test_edge_agent_discards_malformed_connection_capabilities(monkeypatch) -> None:
+    payload = {
+        "connection_map": {
+            "transports": [
+                {
+                    "id": "bluetooth",
+                    "label": "Bluetooth",
+                    "state": "available",
+                    "interfaces": [],
+                    "target_count": -3,
+                    "capabilities": [
+                        {"id": "mouse", "state": "invented", "detail": "bad"},
+                        {
+                            "id": "keyboard",
+                            "state": "requires-pairing",
+                            "detail": "Explicit pairing required",
+                        },
+                    ],
+                }
+            ]
+        }
+    }
+    monkeypatch.setattr(
+        "boxbrain_controller.edge_agent.urlopen",
+        lambda *_args, **_kwargs: FakeResponse(payload),
+    )
+
+    summary = KaliPiEdgeAgentClient("http://127.0.0.1:8787").describe()
+
+    assert summary.connections[0].target_count == 0
+    assert [item.id for item in summary.connections[0].capabilities] == ["keyboard"]

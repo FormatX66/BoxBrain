@@ -25,6 +25,9 @@ void main() {
     expect(find.text('Connected through local SSH tunnel'), findsOneWidget);
     expect(find.text('wlan0'), findsOneWidget);
     expect(find.text('Blocked'), findsOneWidget);
+    expect(find.text('Connection map'), findsOneWidget);
+    expect(find.text('USB / USB-C'), findsOneWidget);
+    expect(find.textContaining('keyboard: available'), findsOneWidget);
     expect(find.text('1'), findsWidgets);
 
     await tester.tap(find.text('Policies'));
@@ -525,6 +528,27 @@ class _OnlineControllerApi extends ControllerApi {
           recommendationCount: 2,
           networkInterface: 'wlan0',
           wifiCredentialAudit: 'blocked',
+          connections: [
+            EdgeConnectionTransport(
+              id: 'usb',
+              label: 'USB / USB-C',
+              state: 'connected',
+              interfaces: ['usb0'],
+              targetCount: 1,
+              capabilities: [
+                EdgeConnectionCapability(
+                  id: 'keyboard',
+                  state: 'available',
+                  detail: 'Explicit approval required before input',
+                ),
+                EdgeConnectionCapability(
+                  id: 'mouse',
+                  state: 'available',
+                  detail: 'Explicit approval required before input',
+                ),
+              ],
+            ),
+          ],
         ),
       ];
 

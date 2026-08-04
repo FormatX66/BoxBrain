@@ -74,6 +74,28 @@ class BoxBrainTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=3)
 
+    def test_status_endpoint_includes_bounded_connection_map(self) -> None:
+        server = build_server("127.0.0.1", 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            host, port = server.server_address
+            with urlopen(
+                f"http://{host}:{port}/api/v1/status",
+                timeout=3,
+            ) as response:
+                payload = json.load(response)
+            connection_map = payload["connection_map"]
+            self.assertEqual(connection_map["schema_version"], 1)
+            self.assertEqual(
+                {item["id"] for item in connection_map["transports"]},
+                {"usb", "ethernet", "wifi", "bluetooth", "near-field"},
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+
     def test_onboarding_health_and_scripts(self) -> None:
         server = build_onboarding_server("127.0.0.1", 0)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
