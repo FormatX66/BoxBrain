@@ -221,6 +221,8 @@ sudo sh ./scripts/install-desktop-shortcut.sh kali
 PowerShell-over-SSH in a terminal. It uses the existing private identity and
 pinned trust store, refuses ambiguous or offline targets, and never performs
 HID enrollment, accepts a new host key, or changes the target.
+The installer also records the entry as trusted in the Kali user's desktop
+metadata so XFCE opens this verified launcher without an intermediate warning.
 
 ## Continue a target over Wi-Fi or Ethernet
 

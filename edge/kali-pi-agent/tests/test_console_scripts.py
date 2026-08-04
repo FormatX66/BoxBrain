@@ -97,6 +97,8 @@ class PiConsoleScriptTests(unittest.TestCase):
         self.assertNotIn("StrictHostKeyChecking=accept-new", helper)
         self.assertNotIn("headless-windows-link --execute", helper)
         self.assertIn("/usr/local/bin/boxbrain-headless-windows", installer)
+        self.assertIn("dbus-run-session", installer)
+        self.assertIn("metadata::trusted true", installer)
         self.assertIn("Terminal=true", shortcut)
         self.assertIn("Exec=/usr/local/bin/boxbrain-headless-windows", shortcut)
 

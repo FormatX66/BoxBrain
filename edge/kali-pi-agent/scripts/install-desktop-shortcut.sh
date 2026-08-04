@@ -31,12 +31,18 @@ desktop_directory=$home_directory/Desktop
 }
 [ -f "$helper_source" ]
 [ -f "$shortcut_source" ]
+command -v dbus-run-session >/dev/null 2>&1
+command -v gio >/dev/null 2>&1
+
+shortcut_target=$desktop_directory/BoxBrain\ Headless\ Windows.desktop
 
 install -o root -g root -m 0755 \
     "$helper_source" \
     /usr/local/bin/boxbrain-headless-windows
 install -o "$desktop_user" -g "$primary_group" -m 0755 \
     "$shortcut_source" \
-    "$desktop_directory/BoxBrain Headless Windows.desktop"
+    "$shortcut_target"
+sudo -n -u "$desktop_user" dbus-run-session -- \
+    gio set "$shortcut_target" metadata::trusted true
 
 printf 'Installed BoxBrain headless shortcut for %s.\n' "$desktop_user"

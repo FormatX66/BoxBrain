@@ -10,6 +10,8 @@
   entry as `kali`-owned mode `0755` on the Pi.
 - Click-verified the launcher against connected target `DESKTOP-3U8PBEN` at
   `10.12.194.4` using the restricted `boxbrain-link` account.
+- Marked the installed entry trusted in the Kali user's desktop metadata so
+  XFCE opens the verified launcher without an intermediate warning prompt.
 
 ## Reason
 

@@ -9,4 +9,5 @@
 - [x] Full repository validation passes.
 - [x] Shortcut is installed on the Kali desktop.
 - [x] Installed files have verified ownership and modes.
+- [x] XFCE launcher trust metadata is set for the `kali` user.
 - [x] One click opens the restricted PowerShell session.
