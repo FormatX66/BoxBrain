@@ -2,16 +2,14 @@
 
 ## Current objective
 
-Deploy the bounded HID-report retry and perform one newly authorized enrollment
-attempt against the attached Windows target.
+Perform one newly authorized enrollment attempt against the attached Windows
+target using the deployed bounded HID-report retry.
 
 ## Tasks
 
-1. Validate and commit BoxBrain 0.14.1.
-2. Upgrade the Pi through the existing rollback-guarded path.
-3. Verify Pi health, gadget state, and release-only HID readiness.
-4. Obtain a fresh exact confirmation before retrying enrollment.
-5. Require key-only SSH proof before reporting success.
+1. Obtain a fresh exact confirmation before retrying enrollment.
+2. Run the fixed command sequence once.
+3. Require key-only SSH proof before reporting success.
 
 ## Dependencies
 
@@ -53,4 +51,4 @@ attempt against the attached Windows target.
 
 ## Estimated completion order
 
-Validation, commit, deployment, readiness proof, fresh authorization, SSH proof.
+Fresh authorization, one fixed enrollment attempt, then SSH proof.

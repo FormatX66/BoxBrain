@@ -3,8 +3,8 @@
 ## BoxBrain
 
 - **Purpose:** Pi-centered repair and automation appliance.
-- **Current status:** HID endpoint is active; transient report handling is fixed
-  in source and awaiting verified deployment.
+- **Current status:** BoxBrain 0.14.1 is deployed and healthy; the HID endpoint
+  accepted a release-only readiness report.
 - **Owner:** Bruce.
 - **Dependencies:** Pi ConfigFS composite gadget and an authorized Windows host.
 - **Documentation:** `docs/EDGE_AGENT.md` and

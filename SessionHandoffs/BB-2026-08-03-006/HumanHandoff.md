@@ -8,9 +8,13 @@
   occurred and SSH remained unavailable.
 - Confirmed the Pi gadget is configured, USB carrier is up, `/dev/hidg0` and
   `/dev/hidg1` exist, and the USB neighbor remains reachable.
-- Added BoxBrain 0.14.1 with a one-second retry limited to the same HID report.
+- Added and deployed BoxBrain 0.14.1 with a one-second retry limited to the same
+  HID report.
 - Added deterministic transient-success and exhaustion tests; all 58 edge-agent
   tests pass.
+- Verified all agent services, the configured gadget, USB carrier, target
+  neighbor, and one release-only HID report after deployment. The rollback
+  archive is `/var/backups/boxbrain/pre-0.14.1-20260804T021019Z.tar.gz`.
 
 ## Decisions
 
@@ -25,8 +29,7 @@
 
 ## Immediate next step
 
-Deploy and verify 0.14.1, then request `CONNECT HEADLESS WINDOWS` again before
-one new enrollment attempt.
+Request `CONNECT HEADLESS WINDOWS` again before one new enrollment attempt.
 
 ## Long-term objective
 

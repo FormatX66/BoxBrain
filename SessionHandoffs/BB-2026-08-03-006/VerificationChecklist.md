@@ -8,6 +8,6 @@
 - [x] Retry count is bounded to approximately one second.
 - [x] All 58 edge-agent tests pass.
 - [x] Full repository validation passes.
-- [ ] BoxBrain 0.14.1 is deployed and healthy.
+- [x] BoxBrain 0.14.1 is deployed and healthy.
 - [ ] A fresh exact confirmation is received before retrying enrollment.
 - [ ] Key-only SSH to the target is proven.
