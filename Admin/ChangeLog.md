@@ -5,6 +5,7 @@ those records in reverse chronological order.
 
 | Date | Session | Summary | Canonical record |
 | --- | --- | --- | --- |
+| 2026-08-03 | BB-2026-08-03-003 | Deployed and verified BoxBrain edge agent 0.13.0 on the Pi, restored its loopback tunnel, and observed USB, Ethernet, Wi-Fi, Bluetooth, and NFC states without activating new transports. | [Session change log](../SessionHandoffs/BB-2026-08-03-003/ChangeLog.md) |
 | 2026-08-03 | BB-2026-08-03-002 | Defined BoxBrain's full connection lifecycle and added a read-only connection-capability map from the Pi through the controller to the Flutter console. | [Session change log](../SessionHandoffs/BB-2026-08-03-002/ChangeLog.md) |
 | 2026-08-03 | BB-2026-08-03-001 | Made the Pi 4 core-appliance boundary explicit and added source-complete composite USB keyboard and mouse HID while reserving Bluetooth for an authorized pairing workflow. | [Session change log](../SessionHandoffs/BB-2026-08-03-001/ChangeLog.md) |
 | 2026-07-31 | BB-2026-07-31-001 | Added the deployed Pi Drive transport, credential-safe Wi-Fi rule, and source-only preview-first headless Windows HID bootstrap; live Pi remains on 0.10.0 while historical sync continues. | [Session change log](../SessionHandoffs/BB-2026-07-31-001/ChangeLog.md) |

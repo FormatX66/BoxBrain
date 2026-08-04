@@ -146,8 +146,8 @@ Detailed implementation work belongs in the canonical
   Wi-Fi, Bluetooth, and near-field transports.
 - [x] Carry the connection map through the controller API into the Flutter
   dashboard.
-- [ ] Deploy BoxBrain 0.13.0 to the Pi after the current source branch is
-  reviewed; deployment must not activate a new transport.
+- [x] Deploy BoxBrain 0.13.0 to the Pi without activating a new transport;
+  retain the root-only rollback archive and verify the live connection map.
 - [ ] Add event-driven adapter monitoring instead of status-time observation.
 - [ ] Prove USB Ethernet, keyboard, and mouse on the disposable target.
 - [ ] Select and implement explicit Bluetooth PAN/HID pairing policy.
