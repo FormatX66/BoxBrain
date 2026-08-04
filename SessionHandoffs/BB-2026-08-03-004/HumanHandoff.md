@@ -9,6 +9,9 @@
 - Staged, rebooted, verified, and committed the composite USB-C profile.
 - Verified `usb0`, `/dev/hidg0`, `/dev/hidg1`, UDC host configuration, USB
   carrier, and every core BoxBrain service after reboot.
+- Deployed and verified BoxBrain 0.14.0 from exact commit `b534126`; its private
+  rollback archive is `/var/backups/boxbrain/pre-0.14.0-20260804T012839Z.tar.gz`.
+- Restored the workstation's loopback-only SSH tunnel and verified 0.14.0 health.
 
 ## Decisions
 

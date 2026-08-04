@@ -10,4 +10,4 @@
 - [x] USB migration committed and rollback timer inactive.
 - [ ] External client associated with AP and SSH verified through it.
 - [ ] Keyboard and mouse effect verified on the exact disposable target.
-- [ ] Repository checks and guarded 0.14.0 deployment recorded.
+- [x] Repository checks and guarded 0.14.0 deployment recorded.
