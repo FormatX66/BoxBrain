@@ -5,6 +5,7 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-060 | 2026-08-04 | Make the Kali shortcut connection-only and require exactly one verified connected USB target with strict pinned SSH. | [Session decision log](../SessionHandoffs/BB-2026-08-04-002/DecisionLog.md#bb-adr-060) |
 | BB-ADR-059 | 2026-08-04 | Accept a changed target SSH host key only after exact fingerprint confirmation, a preserved backup, and atomic single-entry rotation. | [Session decision log](../SessionHandoffs/BB-2026-08-04-001/DecisionLog.md#bb-adr-059) |
 | BB-ADR-058 | 2026-08-03 | Retry only the same HID report for up to one second on transient endpoint-busy errors; never replay the enrollment sequence automatically. | [Session decision log](../SessionHandoffs/BB-2026-08-03-006/DecisionLog.md#bb-adr-058) |
 | BB-ADR-057 | 2026-08-03 | Detect Pi connection transitions on the authorized Windows workstation and open the console through loopback-only SSH forwards. | [Session decision log](../SessionHandoffs/BB-2026-08-03-005/DecisionLog.md#bb-adr-057) |

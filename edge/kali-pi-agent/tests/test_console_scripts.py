@@ -76,6 +76,30 @@ class PiConsoleScriptTests(unittest.TestCase):
         self.assertIn("sudo -n sh", setup)
         self.assertNotIn("StrictHostKeyChecking=no", setup)
 
+    def test_headless_desktop_shortcut_keeps_verified_usb_boundary(self) -> None:
+        helper = (ROOT / "scripts" / "open-headless-windows.sh").read_text(
+            encoding="utf-8"
+        )
+        installer = (ROOT / "scripts" / "install-desktop-shortcut.sh").read_text(
+            encoding="utf-8"
+        )
+        shortcut = (
+            ROOT / "desktop" / "boxbrain-headless-windows.desktop"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('item.get("status") == "connected"', helper)
+        self.assertIn('item.get("interface") == "usb0"', helper)
+        self.assertIn("10.12.194.0/24", helper)
+        self.assertIn("StrictHostKeyChecking=yes", helper)
+        self.assertIn("UserKnownHostsFile=", helper)
+        self.assertIn("BatchMode=yes", helper)
+        self.assertIn("sudo -n -u boxbrain", helper)
+        self.assertNotIn("StrictHostKeyChecking=accept-new", helper)
+        self.assertNotIn("headless-windows-link --execute", helper)
+        self.assertIn("/usr/local/bin/boxbrain-headless-windows", installer)
+        self.assertIn("Terminal=true", shortcut)
+        self.assertIn("Exec=/usr/local/bin/boxbrain-headless-windows", shortcut)
+
     def test_posix_scripts_parse(self) -> None:
         shell = shutil.which("sh")
         if shell is None:
@@ -88,6 +112,8 @@ class PiConsoleScriptTests(unittest.TestCase):
             "configure-usb-keyboard.sh",
             "configure-drive.sh",
             "install-console.sh",
+            "install-desktop-shortcut.sh",
+            "open-headless-windows.sh",
             "start-console.sh",
             "stop-console.sh",
         ):

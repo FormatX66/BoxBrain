@@ -207,6 +207,21 @@ The composite layout follows the kernel's
 [USB gadget tooling](https://github.com/raspberrypi/rpi-usb-gadget). The first
 live migration and disposable-target proof remain maintenance-window actions.
 
+### Kali desktop headless shortcut
+
+After a Windows target is enrolled, host-key verified, and shown as connected,
+install the optional Kali desktop shortcut explicitly:
+
+```bash
+sudo sh ./scripts/install-desktop-shortcut.sh kali
+```
+
+**BoxBrain Headless Windows** selects exactly one connected `usb0`
+`boxbrain-link` target from the registry and opens non-administrator
+PowerShell-over-SSH in a terminal. It uses the existing private identity and
+pinned trust store, refuses ambiguous or offline targets, and never performs
+HID enrollment, accepts a new host key, or changes the target.
+
 ## Continue a target over Wi-Fi or Ethernet
 
 Use this only for a target you own or are explicitly authorized to manage. The
