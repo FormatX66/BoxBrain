@@ -2,14 +2,14 @@
 
 ## Current objective
 
-Deploy and click-verify the Kali headless Windows shortcut.
+Maintain the deployed, click-verified Kali headless Windows shortcut.
 
 ## Tasks
 
-1. Run full validation and commit the shortcut source.
-2. Install the fixed helper root-owned and the desktop entry owned by `kali`.
-3. Verify POSIX parsing, file modes, and target selection.
-4. Launch once from the Kali desktop and confirm the restricted prompt.
+1. Completed full validation and committed the shortcut source.
+2. Installed the helper root-owned and the desktop entry owned by `kali`.
+3. Verified POSIX parsing, file modes, and target selection.
+4. Launched it from the Kali desktop and confirmed the restricted SSH process.
 
 ## Dependencies
 

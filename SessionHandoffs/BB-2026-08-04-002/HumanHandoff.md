@@ -8,6 +8,8 @@
 - Kept strict host-key checking, the Pi-owned target key, and the existing
   restricted account boundary.
 - Added an explicit installer and deterministic safety tests.
+- Installed the launcher on the live Kali desktop and verified a click opened
+  restricted PowerShell on `DESKTOP-3U8PBEN` through the pinned SSH route.
 
 ## Decisions
 
@@ -20,8 +22,8 @@
 
 ## Immediate next step
 
-Install the shortcut on `/home/kali/Desktop`, click it once, and verify the
-restricted PowerShell prompt opens.
+Use **BoxBrain Headless Windows** on the Kali desktop whenever the verified
+USB-connected Windows target needs a restricted terminal.
 
 ## Long-term objective
 

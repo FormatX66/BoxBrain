@@ -8,3 +8,5 @@
 6. Deploy only the committed shortcut files.
 7. Verify installation and click behavior.
 8. Record live evidence.
+
+All eight steps completed on 2026-08-04.

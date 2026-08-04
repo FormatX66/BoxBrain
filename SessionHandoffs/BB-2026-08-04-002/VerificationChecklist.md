@@ -7,6 +7,6 @@
 - [x] Shortcut contains no enrollment or host-key acceptance action.
 - [x] Source tests pass.
 - [x] Full repository validation passes.
-- [ ] Shortcut is installed on the Kali desktop.
-- [ ] Installed files have verified ownership and modes.
-- [ ] One click opens the restricted PowerShell session.
+- [x] Shortcut is installed on the Kali desktop.
+- [x] Installed files have verified ownership and modes.
+- [x] One click opens the restricted PowerShell session.
