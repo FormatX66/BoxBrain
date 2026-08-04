@@ -288,11 +288,25 @@ websockify, XFCE, D-Bus, Python 3, curl, and standard systemd/network tools.
 
 The second command starts four transient services for the current session and
 opens the viewer. TightVNC listens on `127.0.0.1:5901`, websockify listens on
-`127.0.0.1:6080`, and the browser connects to that WebSocket through an SSH
-forward bound to Windows loopback. The USB-only HTTP endpoint at
-`10.12.194.1:8790` serves static noVNC files; it does not carry the desktop
-stream without the SSH tunnel. No VNC password is used because the VNC and
-WebSocket listeners are not reachable off Pi loopback.
+`127.0.0.1:6080`, and the browser reaches both the viewer page and WebSocket
+through SSH forwards bound to Windows loopback. The Pi's private HTTP endpoint
+serves static noVNC files; it does not carry the desktop stream without the
+SSH tunnel. No VNC password is used because the VNC and WebSocket listeners are
+not reachable off Pi loopback.
+
+An optional current-user Windows watcher can open this console once whenever
+the preferred reachable Pi path changes from offline to online:
+
+```powershell
+.\installer\install-pi-console-auto-open.ps1 -StartNow
+```
+
+It prefers USB Ethernet, then the known LAN address, then the isolated recovery
+AP. A named mutex prevents duplicate watcher processes, and an unchanged link
+does not create repeated browser tabs. The watcher does not discover arbitrary
+hosts, change networking, install a service, or weaken SSH host-key checking.
+Remove only its logon shortcut with
+`install-pi-console-auto-open.ps1 -Remove`.
 
 Stop only these transient console services:
 

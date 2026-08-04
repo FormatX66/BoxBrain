@@ -42,9 +42,10 @@ The controller rejects non-loopback URLs, credentials in URLs, HTTPS URLs, and
 extra URL paths. This keeps edge-agent access on the authenticated SSH channel
 and prevents the setting from becoming a general network-fetch feature.
 
-The optional operator-started Pi screen uses a separate loopback VNC/WebSocket
-SSH tunnel and is not part of the controller API or target executor. Its
-canonical setup and security boundary are documented under
+The optional Pi screen uses a separate loopback VNC/WebSocket SSH tunnel and is
+not part of the controller API or target executor. A current-user Windows
+watcher may open it when the preferred Pi SSH path comes online without
+changing that boundary. Its canonical setup is documented under
 [Optional live Pi screen](../edge/kali-pi-agent/README.md#optional-live-pi-screen).
 
 ## USB onboarding boundary
