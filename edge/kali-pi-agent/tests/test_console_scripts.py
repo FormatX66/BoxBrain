@@ -82,7 +82,9 @@ class PiConsoleScriptTests(unittest.TestCase):
             self.skipTest("A POSIX shell is not available.")
 
         for name in (
+            "boxbrain-access-point.sh",
             "boxbrain-usb-composite.sh",
+            "configure-access-point.sh",
             "configure-usb-keyboard.sh",
             "configure-drive.sh",
             "install-console.sh",
