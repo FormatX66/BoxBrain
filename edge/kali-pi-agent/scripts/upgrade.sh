@@ -35,6 +35,11 @@ usb_rollback_service_existed=0
 usb_rollback_timer_existed=0
 usb_composite_helper_existed=0
 usb_configure_helper_existed=0
+ap_service_existed=0
+ap_rollback_service_existed=0
+ap_rollback_timer_existed=0
+ap_helper_existed=0
+ap_configure_helper_existed=0
 drive_timer_was_active=0
 [ ! -e /etc/systemd/system/boxbrain-drive-sync.service ] || drive_service_existed=1
 [ ! -e /etc/systemd/system/boxbrain-drive-sync.timer ] || drive_timer_existed=1
@@ -44,6 +49,11 @@ drive_timer_was_active=0
 [ ! -e /etc/systemd/system/boxbrain-usb-gadget-rollback.timer ] || usb_rollback_timer_existed=1
 [ ! -e /usr/local/libexec/boxbrain-usb-composite ] || usb_composite_helper_existed=1
 [ ! -e /usr/local/sbin/boxbrain-usb-keyboard-config ] || usb_configure_helper_existed=1
+[ ! -e /etc/systemd/system/boxbrain-access-point.service ] || ap_service_existed=1
+[ ! -e /etc/systemd/system/boxbrain-access-point-rollback.service ] || ap_rollback_service_existed=1
+[ ! -e /etc/systemd/system/boxbrain-access-point-rollback.timer ] || ap_rollback_timer_existed=1
+[ ! -e /usr/local/libexec/boxbrain-access-point ] || ap_helper_existed=1
+[ ! -e /usr/local/sbin/boxbrain-access-point-config ] || ap_configure_helper_existed=1
 if systemctl is-active --quiet boxbrain-drive-sync.timer; then
     drive_timer_was_active=1
 fi
@@ -88,7 +98,12 @@ for optional_path in \
     /etc/systemd/system/boxbrain-usb-gadget-rollback.service \
     /etc/systemd/system/boxbrain-usb-gadget-rollback.timer \
     /usr/local/libexec/boxbrain-usb-composite \
-    /usr/local/sbin/boxbrain-usb-keyboard-config; do
+    /usr/local/sbin/boxbrain-usb-keyboard-config \
+    /etc/systemd/system/boxbrain-access-point.service \
+    /etc/systemd/system/boxbrain-access-point-rollback.service \
+    /etc/systemd/system/boxbrain-access-point-rollback.timer \
+    /usr/local/libexec/boxbrain-access-point \
+    /usr/local/sbin/boxbrain-access-point-config; do
     if [ -e "$optional_path" ]; then
         set -- "$@" "$optional_path"
     fi
@@ -122,6 +137,11 @@ rollback() {
     [ "$usb_rollback_timer_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-usb-gadget-rollback.timer
     [ "$usb_composite_helper_existed" -eq 1 ] || rm -f /usr/local/libexec/boxbrain-usb-composite
     [ "$usb_configure_helper_existed" -eq 1 ] || rm -f /usr/local/sbin/boxbrain-usb-keyboard-config
+    [ "$ap_service_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-access-point.service
+    [ "$ap_rollback_service_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-access-point-rollback.service
+    [ "$ap_rollback_timer_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-access-point-rollback.timer
+    [ "$ap_helper_existed" -eq 1 ] || rm -f /usr/local/libexec/boxbrain-access-point
+    [ "$ap_configure_helper_existed" -eq 1 ] || rm -f /usr/local/sbin/boxbrain-access-point-config
     restart_services
     systemctl is-active --quiet boxbrain.service
     systemctl is-active --quiet boxbrain-onboarding.service

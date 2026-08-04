@@ -57,6 +57,21 @@ Normal onboarding still requires an explicit target-side `AUTHORIZE`
 confirmation and creates a restricted, key-only diagnostic account. It does
 not install an administrator channel or copy a private key to the target.
 
+## Recovery access point
+
+Version 0.14 adds an optional recovery access point without replacing the Pi's
+existing Wi-Fi client. The Pi creates a separate `bbap0` virtual interface on
+the physical radio's current channel, uses `10.42.194.1/24`, supplies DHCP only
+to attached AP clients, and rejects forwarding from `bbap0` into other
+interfaces. WPA2/CCMP credentials are generated on the Pi and stored root-only;
+preview and status commands never print the key.
+
+Installation leaves the AP disabled. Staging requires explicit authorization,
+starts it immediately, and arms a 15-minute rollback. Commit is accepted only
+after the interface, address, NetworkManager connection, and isolation table
+are active. The AP provides a fallback SSH path; it does not expand target
+authority or expose the USB-only onboarding listener automatically.
+
 ## Headless Windows keystroke bootstrap
 
 Version 0.12 adds an optional, preview-first USB-HID fallback for a physically
@@ -67,7 +82,7 @@ SHA-256, and invokes its existing authorization gate. It cannot accept
 arbitrary text and never types a password, Wi-Fi passphrase, or saved `Key
 Content`.
 
-The source now includes an optional ConfigFS composite profile containing RNDIS
+The source includes an optional ConfigFS composite profile containing RNDIS
 USB Ethernet (`usb0`), a boot-protocol keyboard (`/dev/hidg0`), and a
 boot-protocol three-button mouse with relative X/Y/wheel reports
 (`/dev/hidg1`). Installing the files leaves that profile disabled. Staging it requires root, exact

@@ -17,7 +17,7 @@ class PiConsoleScriptTests(unittest.TestCase):
         )
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-        self.assertEqual(version, "0.13.0")
+        self.assertEqual(version, "0.14.0")
         self.assertNotIn("install-console.sh", default_install)
         self.assertNotIn("boxbrain-console-start", default_install)
         self.assertNotIn("boxbrain-console-display", default_install)

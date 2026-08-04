@@ -5,6 +5,7 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-056 | 2026-08-03 | Preserve Wi-Fi client access while adding an isolated, same-channel virtual recovery AP before activating composite USB Ethernet and HID. | [Session decision log](../SessionHandoffs/BB-2026-08-03-004/DecisionLog.md#bb-adr-056) |
 | BB-ADR-055 | 2026-08-03 | Use one observed-capability connection map and a connect-assess-operate-retain lifecycle for every Pi transport. | [Session decision log](../SessionHandoffs/BB-2026-08-03-002/DecisionLog.md#bb-adr-055) |
 | BB-ADR-054 | 2026-08-03 | Expose USB keyboard and mouse as separate HID functions and keep Bluetooth HID behind its own explicit pairing boundary. | [Session decision log](../SessionHandoffs/BB-2026-08-03-001/DecisionLog.md#bb-adr-054) |
 | BB-ADR-053 | 2026-08-03 | Treat the Raspberry Pi 4 as the canonical BoxBrain core appliance and transport owner. | [Session decision log](../SessionHandoffs/BB-2026-08-03-001/DecisionLog.md#bb-adr-053) |

@@ -82,8 +82,14 @@ install -o root -g root -m 0755 \
     "$project_dir"/scripts/boxbrain-usb-composite.sh \
     /usr/local/libexec/boxbrain-usb-composite
 install -o root -g root -m 0755 \
+    "$project_dir"/scripts/boxbrain-access-point.sh \
+    /usr/local/libexec/boxbrain-access-point
+install -o root -g root -m 0755 \
     "$project_dir"/scripts/configure-usb-keyboard.sh \
     /usr/local/sbin/boxbrain-usb-keyboard-config
+install -o root -g root -m 0755 \
+    "$project_dir"/scripts/configure-access-point.sh \
+    /usr/local/sbin/boxbrain-access-point-config
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain.service /etc/systemd/system/boxbrain.service
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-onboarding.service /etc/systemd/system/boxbrain-onboarding.service
 install -o root -g root -m 0644 "$project_dir"/systemd/boxbrain-link-monitor.service /etc/systemd/system/boxbrain-link-monitor.service
@@ -102,6 +108,15 @@ install -o root -g root -m 0644 \
 install -o root -g root -m 0644 \
     "$project_dir"/systemd/boxbrain-usb-gadget-rollback.timer \
     /etc/systemd/system/boxbrain-usb-gadget-rollback.timer
+install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-access-point.service \
+    /etc/systemd/system/boxbrain-access-point.service
+install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-access-point-rollback.service \
+    /etc/systemd/system/boxbrain-access-point-rollback.service
+install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-access-point-rollback.timer \
+    /etc/systemd/system/boxbrain-access-point-rollback.timer
 
 if [ ! -e /etc/boxbrain/boxbrain.env ]; then
     install -o root -g boxbrain -m 0640 "$project_dir"/config/boxbrain.env /etc/boxbrain/boxbrain.env

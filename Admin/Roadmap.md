@@ -245,6 +245,15 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Recorded migration to a dedicated BoxBrain Google OAuth client as required
   continuity work before rclone's shared client ID retires.
 
+## Completed - Pi recovery AP and composite USB transport
+
+- Added and deployed an isolated WPA2/CCMP recovery access point on `bbap0`
+  without replacing the Pi's existing Wi-Fi client.
+- Activated one composite USB-C device containing RNDIS Ethernet, keyboard HID,
+  and relative mouse HID.
+- Verified the AP beacon externally, retained `wlan0`, confirmed USB host
+  enumeration, and committed both guarded migrations after reboot.
+
 ## Long-term objective
 
 Operate BoxBrain as a searchable, auditable coordination system for multiple

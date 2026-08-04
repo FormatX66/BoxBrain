@@ -22,6 +22,8 @@ class RepositoryValidatorTests(unittest.TestCase):
                 generated.parent.mkdir()
                 generated.write_text("# Generated\n", encoding="utf-8")
 
+            (root / "AGENTS.md").write_text("# Local instructions\n", encoding="utf-8")
+
             self.assertEqual(repository_markdown_files(root), [expected])
 
 

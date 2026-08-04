@@ -89,6 +89,7 @@ IGNORED_DIRECTORY_NAMES = frozenset(
         "venv",
     }
 )
+IGNORED_FILE_NAMES = frozenset({"AGENTS.md"})
 
 
 def repository_markdown_files(root: Path = ROOT) -> list[Path]:
@@ -96,6 +97,7 @@ def repository_markdown_files(root: Path = ROOT) -> list[Path]:
     return sorted(
         path
         for path in root.rglob("*.md")
+        if path.name not in IGNORED_FILE_NAMES
         if not any(
             part in IGNORED_DIRECTORY_NAMES
             for part in path.relative_to(root).parts[:-1]

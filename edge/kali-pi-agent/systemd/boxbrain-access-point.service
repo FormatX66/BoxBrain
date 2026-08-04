@@ -1,0 +1,16 @@
+[Unit]
+Description=BoxBrain isolated recovery access point
+Wants=network-online.target
+After=NetworkManager.service network-online.target
+ConditionPathExists=/etc/boxbrain/access-point/psk
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/libexec/boxbrain-access-point start
+ExecStop=/usr/local/libexec/boxbrain-access-point stop
+TimeoutStartSec=45
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

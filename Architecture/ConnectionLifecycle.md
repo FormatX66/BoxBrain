@@ -43,9 +43,9 @@ flowchart LR
 
 | Transport | Dashboard path | Target path | Typical capabilities | Important boundary |
 | --- | --- | --- | --- | --- |
-| USB / USB-C | HTTPS/WebSocket over `usb0` | RNDIS plus separate keyboard and mouse HID | dashboard, data, bounded SSH/PowerShell, keyboard, mouse | Gadget migration is staged; HID input still needs operation approval |
+| USB / USB-C | HTTPS/WebSocket over `usb0` | RNDIS plus separate keyboard and mouse HID | dashboard, data, bounded SSH/PowerShell, keyboard, mouse | Composite transport may enumerate automatically; emitting HID input still needs operation approval |
 | Ethernet | HTTPS/WebSocket over private IP | Authorized IP protocols | dashboard, data, SSH, bounded PowerShell/CMD; later RDP video/input | Private reachability does not authorize a target |
-| Wi-Fi | HTTPS/WebSocket over private IP or approved AP/client mode | Authorized IP protocols | same IP capabilities as Ethernet | Discovery may be automatic; credential retrieval is separate and explicit |
+| Wi-Fi | HTTPS/WebSocket over private IP or isolated AP/client mode | Authorized IP protocols | same IP capabilities as Ethernet | The recovery AP uses a separate virtual interface, device-local key, fixed subnet, and no forwarding into the uplink LAN |
 | Bluetooth | Future PAN for dashboard/data | Future HID or approved profile | pairing-gated keyboard/mouse; optional PAN/data/audio profiles | USB insertion cannot silently approve Bluetooth pairing |
 | Near field / NFC | Handoff to another transport | Identity or onboarding record | small onboarding payload only | Not a repair-session, video, audio, shell, keyboard, or mouse carrier |
 

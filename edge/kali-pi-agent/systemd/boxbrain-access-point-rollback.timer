@@ -1,0 +1,10 @@
+[Unit]
+Description=Fail back an unverified BoxBrain recovery access point
+
+[Timer]
+OnActiveSec=15min
+AccuracySec=1s
+Unit=boxbrain-access-point-rollback.service
+
+[Install]
+WantedBy=timers.target

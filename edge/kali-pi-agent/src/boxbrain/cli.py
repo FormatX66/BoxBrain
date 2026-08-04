@@ -115,6 +115,40 @@ def _usb_keyboard_request(
     return payload
 
 
+def _access_point_request(
+    action: str,
+    *,
+    authorized: bool,
+    confirmation: str,
+) -> dict[str, Any]:
+    executable = "/usr/local/sbin/boxbrain-access-point-config"
+    command = [executable, action]
+    if authorized:
+        command.append("--authorized")
+    if confirmation:
+        command.extend(("--confirmation", confirmation))
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=75,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError("The access-point configurator is unavailable.") from error
+    if result.returncode != 0:
+        message = result.stderr.strip() or "Access-point configuration failed."
+        raise RuntimeError(message)
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("The access-point configurator returned invalid data.") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError("The access-point configurator returned invalid data.")
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="boxbrainctl",
@@ -263,6 +297,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Non-USB management interface required before staging.",
     )
 
+    access_point = subparsers.add_parser(
+        "access-point",
+        help="Preview, stage, commit, or roll back the isolated recovery access point.",
+    )
+    access_point.add_argument(
+        "action",
+        choices=("preview", "stage", "commit", "rollback"),
+        nargs="?",
+        default="preview",
+    )
+    access_point.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm authorization to change the Pi recovery access point.",
+    )
+    access_point.add_argument(
+        "--confirmation",
+        default="",
+        help="Exact action-specific confirmation phrase.",
+    )
+
     subparsers.add_parser(
         "patches",
         help="List checksum-verified patches staged from Google Drive.",
@@ -399,6 +454,16 @@ def main() -> int:
                 authorized=args.authorized,
                 confirmation=args.confirmation,
                 alternate_interface=args.alternate_interface,
+            )
+        elif command == "access-point":
+            if args.action != "preview" and not args.authorized:
+                parser.error(
+                    "--authorized is required to change the Pi recovery access point."
+                )
+            payload = _access_point_request(
+                args.action,
+                authorized=args.authorized,
+                confirmation=args.confirmation,
             )
         elif command == "patches":
             payload = _control_request({"action": "patches"})["patches"]

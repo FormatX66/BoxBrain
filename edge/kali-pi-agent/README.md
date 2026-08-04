@@ -65,6 +65,29 @@ and optional Pi console:
   before SFTP copies a verified patch into a connected target's restricted
   account.
 
+## Recovery access point
+
+The optional recovery AP preserves the existing `wlan0` client connection and
+adds `bbap0` on the same channel at `10.42.194.1/24`. It uses WPA2/CCMP, serves
+DHCP to AP clients, and blocks forwarding from AP clients into every other Pi
+interface. Installation does not enable it.
+
+```bash
+sudo boxbrainctl access-point preview
+sudo boxbrainctl access-point stage \
+  --authorized \
+  --confirmation 'STAGE ACCESS POINT'
+sudo boxbrainctl access-point commit \
+  --authorized \
+  --confirmation 'COMMIT ACCESS POINT'
+```
+
+Staging generates a device-specific SSID and root-only key, starts the AP, and
+arms a 15-minute rollback. Verify the advertised SSID and a client connection
+before committing. Roll back with the exact `ROLL BACK ACCESS POINT`
+confirmation if verification fails. The AP is a management fallback; target
+enrollment and every repair capability keep their existing authorization gates.
+
 ## Connect a target by USB
 
 The Pi 4 must use its onboard USB-C port for USB gadget mode. Its USB-A ports
