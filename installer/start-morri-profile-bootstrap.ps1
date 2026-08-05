@@ -2,11 +2,11 @@
 [CmdletBinding()]
 param(
     [string]$KvmBaseUrl = "http://127.0.0.1:8790",
-    [string]$CredentialDirectory = (
-        Join-Path $env:LOCALAPPDATA "BoxBrain\credentials"
+    [string]$CredentialPath = (
+        Join-Path $env:LOCALAPPDATA "BoxBrain\credentials\morri-temporary.clixml"
     ),
     [switch]$NoApprove,
-    [switch]$SendCredentialsOnly
+    [switch]$SendPasswordOnly
 )
 
 Set-StrictMode -Version Latest
@@ -47,12 +47,6 @@ function Send-KvmChord {
         Out-Null
 }
 
-$page = (Invoke-WebRequest -UseBasicParsing -Uri "$KvmBaseUrl/kvm").Content
-if ($page -notmatch 'const csrf = ("[^"]+")') {
-    throw "The KVM CSRF token is unavailable."
-}
-$headers = @{ "X-BoxBrain-CSRF" = ($Matches[1] | ConvertFrom-Json) }
-
 function Send-KvmText {
     param(
         [Parameter(Mandatory)][string]$Text,
@@ -81,44 +75,70 @@ function Send-KvmText {
     return $acknowledged
 }
 
-$vncCredential = Import-Clixml `
-    -LiteralPath (Join-Path $CredentialDirectory "morris-vnc.clixml")
-$controlCredential = Import-Clixml `
-    -LiteralPath (Join-Path $CredentialDirectory "morris-vnc-control.clixml")
-$vncPassword = $vncCredential.GetNetworkCredential().Password
-$controlPassword = $controlCredential.GetNetworkCredential().Password
-
-if ($SendCredentialsOnly) {
-    $firstCount = Send-KvmText -Text $vncPassword -Headers $headers
-    Start-Sleep -Seconds 2
-    $secondCount = Send-KvmText -Text $controlPassword -Headers $headers
-    Write-Output (
-        "Submitted $($firstCount + $secondCount) acknowledged secure-prompt " +
-        "characters."
+if (-not (Test-Path -LiteralPath $CredentialPath -PathType Leaf)) {
+    $alphabet = (
+        "ABCDEFGHJKLMNPQRSTUVWXYZ" +
+        "abcdefghijkmnopqrstuvwxyz" +
+        "23456789"
     )
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        do {
+            $bytes = [byte[]]::new(18)
+            $random.GetBytes($bytes)
+            $password = -join ($bytes | ForEach-Object {
+                $alphabet[$_ % $alphabet.Length]
+            })
+        } until (
+            $password -match "[A-Z]" -and
+            $password -match "[a-z]" -and
+            $password -match "[0-9]"
+        )
+    }
+    finally {
+        $random.Dispose()
+    }
+    $directory = Split-Path -Parent $CredentialPath
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+    [PSCredential]::new("Morri", $securePassword) |
+        Export-Clixml -LiteralPath $CredentialPath
+    $password = $null
+}
+
+$page = (Invoke-WebRequest -UseBasicParsing -Uri "$KvmBaseUrl/kvm").Content
+if ($page -notmatch 'const csrf = ("[^"]+")') {
+    throw "The KVM CSRF token is unavailable."
+}
+$headers = @{ "X-BoxBrain-CSRF" = ($Matches[1] | ConvertFrom-Json) }
+$credential = Import-Clixml -LiteralPath $CredentialPath
+$temporaryPassword = $credential.GetNetworkCredential().Password
+
+if ($SendPasswordOnly) {
+    $count = Send-KvmText -Text $temporaryPassword -Headers $headers
+    Write-Output "Submitted $count acknowledged secure-prompt characters."
     return
 }
 
 $runCommand = (
     'powershell -NoProfile -Command "iwr ' +
-    'http://10.12.194.1:8788/install-morris-vnc.ps1 ' +
-    '-OutFile $env:TEMP\i.ps1;' +
+    'http://10.12.194.1:8788/install-morri-profile.ps1 ' +
+    '-OutFile $env:TEMP\m.ps1;' +
     'Start-Process powershell.exe -Verb RunAs -ArgumentList ' +
     '(''-ExecutionPolicy Bypass -File ''+$env:TEMP+' +
-    '''\i.ps1 -PromptForCredentials'')"'
+    '''\m.ps1'')"'
 )
 
 Invoke-KvmInput -Headers $headers -Payload @{ action = "release" } |
     Out-Null
 Send-KvmChord -Headers $headers -Codes @("MetaLeft", "KeyR")
 Start-Sleep -Seconds 2
-
 $acknowledged = Send-KvmText -Text $runCommand -Headers $headers
 
 Start-Sleep -Seconds 5
 if ($NoApprove) {
     Write-Output (
-        "Submitted $acknowledged acknowledged Windows Installer " +
+        "Submitted $acknowledged acknowledged profile-bootstrap " +
         "characters; UAC approval is pending."
     )
     return
@@ -133,6 +153,6 @@ Invoke-KvmInput -Headers $headers -Payload @{ action = "release" } |
     Out-Null
 
 Write-Output (
-    "Submitted $acknowledged acknowledged Windows Installer characters " +
+    "Submitted $acknowledged acknowledged profile-bootstrap characters " +
     "and approved UAC."
 )

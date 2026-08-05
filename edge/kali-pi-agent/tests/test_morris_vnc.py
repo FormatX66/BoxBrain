@@ -90,6 +90,7 @@ class MorrisVncTests(unittest.TestCase):
         self.assertIn('-Verb RunAs', bootstrap)
         self.assertIn('action = "character"', bootstrap)
         self.assertIn("result.acknowledged", bootstrap)
+        self.assertIn("Start-Sleep -Milliseconds 40", bootstrap)
         self.assertNotIn("VALUE_OF_PASSWORD", bootstrap)
 
 
