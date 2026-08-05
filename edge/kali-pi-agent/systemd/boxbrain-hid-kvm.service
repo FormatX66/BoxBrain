@@ -1,0 +1,44 @@
+[Unit]
+Description=BoxBrain bounded USB HID keyboard and mouse broker
+Requires=boxbrain-usb-gadget.service
+After=boxbrain-usb-gadget.service
+ConditionPathExists=/etc/boxbrain/usb-keyboard-enabled
+
+[Service]
+Type=simple
+User=root
+Group=boxbrain
+Environment=PYTHONPATH=/opt/boxbrain/src
+ExecStart=/usr/bin/python3 -m boxbrain.hid_kvm
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=boxbrain-hid-kvm
+RuntimeDirectoryMode=0750
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/boxbrain/hid-kvm
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+DevicePolicy=closed
+DeviceAllow=/dev/hidg0 rw
+DeviceAllow=/dev/hidg1 rw
+
+[Install]
+WantedBy=multi-user.target

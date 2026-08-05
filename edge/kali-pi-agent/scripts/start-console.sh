@@ -145,9 +145,14 @@ if ! systemctl is-active --quiet "$viewer_unit"; then
         --uid="$console_user" \
         --gid="$console_gid" \
         --property=Restart=no \
+        --setenv=PYTHONPATH=/opt/boxbrain/src \
         --working-directory="$console_root" \
         -- \
-        /usr/bin/python3 -m http.server "$viewer_port" --bind "$console_bind"
+        /usr/bin/python3 -m boxbrain.console_gateway \
+        --bind "$console_bind" \
+        --port "$viewer_port" \
+        --directory "$console_root" \
+        --backend http://127.0.0.1:8787
 fi
 wait_for_port "$console_bind" "$viewer_port"
 

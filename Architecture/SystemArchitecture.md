@@ -44,6 +44,12 @@ flowchart TD
 - USB attachment may expose USB Ethernet plus keyboard and mouse HID. Bluetooth
   HID remains a separate pairing and trust boundary even when USB attachment is
   used as its trigger.
+- Live USB keyboard and mouse reports are owned by a root-only broker with
+  explicit HID device access. The unprivileged BoxBrain web service reaches it
+  through a group-restricted Unix socket; the existing SSH-tunneled Pi console
+  proxies the CSRF-protected control page. Browser blur, page hiding, an
+  operator release, or two seconds of inactivity releases every key and mouse
+  button. Audits record event metadata but never typed text.
 - Each registered repository owns its code, tests, and detailed technical
   documentation.
 - A planned project receives only a project index until source or requirements

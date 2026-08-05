@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
 import os
+import secrets
 import signal
 import threading
 import time
@@ -19,6 +20,8 @@ from boxbrain.connections import build_connection_map
 from boxbrain.agent import agent_state
 from boxbrain.diagnostics import DiagnosticError, TargetDiagnostics
 from boxbrain.links import load_links
+from boxbrain.hid_kvm import HidKvmClient, HidKvmError
+from boxbrain.kvm_page import render_kvm_page
 from boxbrain.patches import PatchManager
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
@@ -220,6 +223,7 @@ def _dashboard(status: dict[str, Any]) -> str:
     .priority.normal {{ color: #ffe59b; background: #594513; }}
     .priority.low {{ color: #a9d8ff; background: #173d5b; }}
     .label {{ color: #8eaa9e; font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; }}
+    a {{ color: #8fffc0; }}
     .value {{ margin-top: 8px; font-size: 1.35rem; font-weight: 650; overflow-wrap: anywhere; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 14px; }}
     th, td {{ text-align: left; padding: 12px 8px; border-bottom: 1px solid #203b30; }}
@@ -251,6 +255,7 @@ def _dashboard(status: dict[str, Any]) -> str:
   <section class="panel" style="margin-top:14px">
     <div class="label">Connection map</div>
     <table><thead><tr><th>Transport</th><th>State</th><th>Interfaces</th><th>Targets</th><th>Capabilities</th></tr></thead><tbody>{connection_rows}</tbody></table>
+    <p><a href="/kvm">Open Morris PC keyboard and mouse controls</a></p>
   </section>
   <section class="panel" style="margin-top:14px">
     <div class="label">Managed systems</div>
@@ -299,12 +304,19 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
         )
         return payload
 
-    def _send(self, body: bytes, content_type: str, status: int = 200) -> None:
+    def _send(
+        self,
+        body: bytes,
+        content_type: str,
+        status: int = 200,
+        *,
+        content_security_policy: str = "default-src 'none'; style-src 'unsafe-inline'",
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+        self.send_header("Content-Security-Policy", content_security_policy)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -334,6 +346,23 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
             self._send(
                 json.dumps(payload, separators=(",", ":")).encode("utf-8"),
                 "application/json; charset=utf-8",
+            )
+            return
+
+        if parsed.path == "/api/v1/hid-kvm/status":
+            try:
+                payload = self.server.hid_kvm_client.request(  # type: ignore[attr-defined]
+                    {"action": "status"}
+                )
+            except HidKvmError as error:
+                payload = {"ok": False, "error": str(error)}
+                response_status = 503
+            else:
+                response_status = 200
+            self._send(
+                json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+                "application/json; charset=utf-8",
+                response_status,
             )
             return
 
@@ -390,7 +419,62 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
             self._send(body, "text/html; charset=utf-8")
             return
 
+
+        if parsed.path == "/kvm":
+            body = render_kvm_page(
+                self.server.hid_kvm_csrf_token  # type: ignore[attr-defined]
+            ).encode("utf-8")
+            self._send(
+                body,
+                "text/html; charset=utf-8",
+                content_security_policy=(
+                    "default-src 'none'; style-src 'unsafe-inline'; "
+                    "script-src 'unsafe-inline'; connect-src 'self'"
+                ),
+            )
+            return
+
         self._send(b'{"error":"not_found"}', "application/json; charset=utf-8", 404)
+
+    def do_POST(self) -> None:
+        parsed = urlsplit(self.path)
+        if parsed.path != "/api/v1/hid-kvm/input":
+            self._send(b'{"error":"not_found"}', "application/json; charset=utf-8", 404)
+            return
+        if self.client_address[0] not in {"127.0.0.1", "::1"}:
+            self._send(b'{"error":"loopback_required"}', "application/json; charset=utf-8", 403)
+            return
+        expected_token = self.server.hid_kvm_csrf_token  # type: ignore[attr-defined]
+        if not secrets.compare_digest(self.headers.get("X-BoxBrain-CSRF", ""), expected_token):
+            self._send(b'{"error":"csrf_rejected"}', "application/json; charset=utf-8", 403)
+            return
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            content_length = -1
+        if not 1 <= content_length <= 4096:
+            self._send(b'{"error":"invalid_request_size"}', "application/json; charset=utf-8", 400)
+            return
+        try:
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError):
+            self._send(b'{"error":"invalid_json"}', "application/json; charset=utf-8", 400)
+            return
+        if not isinstance(payload, dict):
+            self._send(b'{"error":"invalid_request"}', "application/json; charset=utf-8", 400)
+            return
+        try:
+            response = self.server.hid_kvm_client.request(payload)  # type: ignore[attr-defined]
+        except HidKvmError as error:
+            response = {"ok": False, "error": str(error)}
+            response_status = 400
+        else:
+            response_status = 200
+        self._send(
+            json.dumps(response, separators=(",", ":")).encode("utf-8"),
+            "application/json; charset=utf-8",
+            response_status,
+        )
 
     def log_message(self, format: str, *args: object) -> None:
         LOG.info("%s - %s", self.client_address[0], format % args)
@@ -401,10 +485,17 @@ def build_server(
     port: int,
     storage: Storage | None = None,
     diagnostics: TargetDiagnostics | None = None,
+    hid_kvm_client: HidKvmClient | None = None,
+    hid_kvm_csrf_token: str | None = None,
 ) -> ThreadingHTTPServer:
     BoxBrainHandler.storage = storage
     BoxBrainHandler.diagnostics = diagnostics
-    return ThreadingHTTPServer((bind, port), BoxBrainHandler)
+    server = ThreadingHTTPServer((bind, port), BoxBrainHandler)
+    server.hid_kvm_client = hid_kvm_client or HidKvmClient()  # type: ignore[attr-defined]
+    server.hid_kvm_csrf_token = (  # type: ignore[attr-defined]
+        hid_kvm_csrf_token or secrets.token_urlsafe(32)
+    )
+    return server
 
 
 def main() -> None:

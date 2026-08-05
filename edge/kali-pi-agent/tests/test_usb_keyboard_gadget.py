@@ -21,6 +21,9 @@ UPGRADE = (ROOT / "scripts" / "upgrade.sh").read_text(encoding="utf-8")
 SERVICE = (ROOT / "systemd" / "boxbrain-usb-gadget.service").read_text(
     encoding="utf-8"
 )
+HID_KVM_SERVICE = (ROOT / "systemd" / "boxbrain-hid-kvm.service").read_text(
+    encoding="utf-8"
+)
 ROLLBACK_SERVICE = (
     ROOT / "systemd" / "boxbrain-usb-gadget-rollback.service"
 ).read_text(encoding="utf-8")
@@ -78,6 +81,14 @@ class UsbHidGadgetTests(unittest.TestCase):
         self.assertIn("Before=NetworkManager.service rpi-usb-gadget-ics.service", SERVICE)
         self.assertIn("ConditionPathExists=/etc/boxbrain/usb-keyboard-enabled", SERVICE)
         self.assertIn("ExecStart=/usr/local/libexec/boxbrain-usb-composite start", SERVICE)
+
+    def test_hid_kvm_broker_is_installed_with_a_narrow_device_boundary(self) -> None:
+        self.assertIn("boxbrain-hid-kvm.service", INSTALL)
+        self.assertIn("/var/lib/boxbrain/hid-kvm", INSTALL)
+        self.assertIn("DevicePolicy=closed", HID_KVM_SERVICE)
+        self.assertIn("DeviceAllow=/dev/hidg0 rw", HID_KVM_SERVICE)
+        self.assertIn("DeviceAllow=/dev/hidg1 rw", HID_KVM_SERVICE)
+        self.assertIn("RestrictAddressFamilies=AF_UNIX", HID_KVM_SERVICE)
 
     def test_default_install_is_inert_and_upgrade_is_rollback_complete(self) -> None:
         self.assertIn("boxbrain-usb-composite.sh", INSTALL)

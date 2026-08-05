@@ -36,6 +36,7 @@ install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/inbox
 install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/verified
 install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/receipts
 install -d -o root -g root -m 0700 /var/lib/boxbrain/usb-gadget
+install -d -o root -g boxbrain -m 0750 /var/lib/boxbrain/hid-kvm
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -d -o root -g root -m 0755 /usr/local/sbin
 
@@ -109,6 +110,9 @@ install -o root -g root -m 0644 \
     "$project_dir"/systemd/boxbrain-usb-gadget-rollback.timer \
     /etc/systemd/system/boxbrain-usb-gadget-rollback.timer
 install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-hid-kvm.service \
+    /etc/systemd/system/boxbrain-hid-kvm.service
+install -o root -g root -m 0644 \
     "$project_dir"/systemd/boxbrain-access-point.service \
     /etc/systemd/system/boxbrain-access-point.service
 install -o root -g root -m 0644 \
@@ -148,10 +152,17 @@ fi
 
 systemctl daemon-reload
 systemctl enable boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
+systemctl enable boxbrain-hid-kvm.service
 systemctl restart boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
 systemctl is-active --quiet boxbrain.service
 systemctl is-active --quiet boxbrain-onboarding.service
 systemctl is-active --quiet boxbrain-link-monitor.service
+
+if [ -e /etc/boxbrain/usb-keyboard-enabled ] && \
+    systemctl is-active --quiet boxbrain-usb-gadget.service; then
+    systemctl restart boxbrain-hid-kvm.service
+    systemctl is-active --quiet boxbrain-hid-kvm.service
+fi
 
 attempt=0
 until /usr/local/bin/boxbrainctl health >/dev/null 2>&1; do
