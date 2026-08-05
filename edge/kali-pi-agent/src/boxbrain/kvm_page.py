@@ -55,9 +55,10 @@ def render_kvm_page(csrf_token: str) -> str:
     <div id="pad" tabindex="0"><strong>Click here for mouse and keyboard control</strong></div>
   </section>
   <section class="panel">
-    <div class="label">Type bounded text</div>
+    <div class="label">Acknowledged single-character typing</div>
     <textarea id="text" maxlength="256" placeholder="Up to 256 US-keyboard characters"></textarea>
-    <div class="controls"><button id="sendText">Type on Morris PC</button></div>
+    <p class="note">Each character is sent as its own HID operation and must be acknowledged by the Pi before the next character is sent.</p>
+    <div class="controls"><button id="sendText">Type one character at a time</button></div>
   </section>
   <p id="message" class="note">No input has been sent.</p>
 </main>
@@ -180,13 +181,28 @@ pad.addEventListener('wheel', event => {{
   request({{action:'pointer',dx:0,dy:0,wheel,buttons}});
 }}, {{passive:false}});
 
-document.getElementById('sendText').addEventListener('click', () => {{
+document.getElementById('sendText').addEventListener('click', async () => {{
   const text = document.getElementById('text').value;
   if (!text) return;
-  request({{action:'text',text}}).then(() => {{
-    message.textContent = `Typed ${{text.length}} characters; text was not logged.`;
+  const button = document.getElementById('sendText');
+  button.disabled = true;
+  let acknowledged = 0;
+  try {{
+    const released = await request({{action:'release'}});
+    if (!released || !released.ok) throw new Error('Could not establish a released keyboard state.');
+    for (const character of text) {{
+      const result = await request({{action:'character',character}});
+      if (!result || !result.acknowledged) throw new Error('The Pi did not acknowledge the character.');
+      acknowledged += 1;
+      message.textContent = `Acknowledged ${{acknowledged}} of ${{text.length}} characters.`;
+    }}
     document.getElementById('text').value = '';
-  }});
+    message.textContent = `Typed and acknowledged ${{acknowledged}} characters; text was not logged.`;
+  }} catch (error) {{
+    message.textContent = `Stopped after ${{acknowledged}} acknowledged characters: ${{error.message}}`;
+  }} finally {{
+    button.disabled = false;
+  }}
 }});
 document.getElementById('ctrlAltDel').addEventListener('click', async () => {{
   await request({{action:'key',code:'ControlLeft',down:true}});

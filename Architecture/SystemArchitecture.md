@@ -50,6 +50,11 @@ flowchart TD
   proxies the CSRF-protected control page. Browser blur, page hiding, an
   operator release, or two seconds of inactivity releases every key and mouse
   button. Audits record event metadata but never typed text.
+- Typed HID input defaults to acknowledged single-character operations. The
+  controller waits for the Pi broker to confirm each USB report pair before it
+  sends the next character. Operator choices use concise single-letter input
+  where the called workflow supports it; existing authorization gates keep
+  their established meaning.
 - Each registered repository owns its code, tests, and detailed technical
   documentation.
 - A planned project receives only a project index until source or requirements

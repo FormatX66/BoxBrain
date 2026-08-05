@@ -38,9 +38,15 @@ class HidKvmTests(unittest.TestCase):
             self.assertEqual(writes[-1][1], bytes([1, 252, 9, 255]))
             state.handle({"action": "text", "text": "Aa!"})
             self.assertEqual(writes[-1][1], b"\0" * 8)
+            result = state.handle({"action": "character", "character": "r"})
+            self.assertTrue(result["acknowledged"])
+            self.assertEqual(writes[-2][1], bytes([0, 0, 0x15, 0, 0, 0, 0, 0]))
+            self.assertEqual(writes[-1][1], b"\0" * 8)
             audit = (root / "hid-kvm.jsonl").read_text(encoding="utf-8")
             self.assertNotIn("Aa!", audit)
             self.assertIn('"character_count":3', audit)
+            self.assertNotIn('"character":"r"', audit)
+            self.assertIn('"acknowledged":true', audit)
 
             state.handle({"action": "key", "code": "KeyB", "down": True})
             self.assertTrue(state.release_if_idle(state.last_activity + 3))
@@ -53,6 +59,8 @@ class HidKvmTests(unittest.TestCase):
             state.handle({"action": "key", "code": "Power", "down": True})
         with self.assertRaises(HidKvmError):
             state.handle({"action": "text", "text": "x" * 257})
+        with self.assertRaises(HidKvmError):
+            state.handle({"action": "character", "character": "ab"})
         with self.assertRaises(HidKvmError):
             state.handle({"action": "pointer", "dx": 128, "dy": 0, "wheel": 0, "buttons": 0})
 
@@ -86,6 +94,8 @@ class HidKvmTests(unittest.TestCase):
             self.assertIn("Morris PC", page)
             self.assertIn("test-csrf-token", page)
             self.assertIn("Ctrl+Alt+Delete", page)
+            self.assertIn("action:'character'", page)
+            self.assertIn("Acknowledged single-character typing", page)
 
             with urlopen(
                 f"http://{host}:{port}/api/v1/hid-kvm/status", timeout=3

@@ -227,6 +227,20 @@ class HidKvmState:
         self.last_activity = time.monotonic()
         self._audit("release", reason=reason)
 
+    def _type_character(self, character: str) -> None:
+        try:
+            modifier, usage = _TEXT_KEYS[character]
+        except KeyError as error:
+            raise HidKvmError(
+                "The character is unsupported by the US keyboard map."
+            ) from error
+        self.writer(
+            self.keyboard,
+            bytes([modifier, 0, usage, 0, 0, 0, 0, 0]),
+        )
+        self.writer(self.keyboard, b"\0" * 8)
+        self.last_activity = time.monotonic()
+
     def release_if_idle(self, now: float | None = None) -> bool:
         with self.lock:
             current = time.monotonic() if now is None else now
@@ -276,6 +290,20 @@ class HidKvmState:
                 self.last_activity = time.monotonic()
                 self._audit("pointer", dx=dx, dy=dy, wheel=wheel, buttons=buttons)
                 return {"ok": True, "button_mask": buttons}
+            if action == "character":
+                character = request.get("character")
+                if not isinstance(character, str) or len(character) != 1:
+                    raise HidKvmError(
+                        "A character request requires exactly one character."
+                    )
+                self._type_character(character)
+                self._audit(
+                    "character",
+                    character_count=1,
+                    raw_text_logged=False,
+                    acknowledged=True,
+                )
+                return {"ok": True, "character_count": 1, "acknowledged": True}
             if action == "text":
                 text = request.get("text")
                 if not isinstance(text, str) or not 1 <= len(text) <= MAX_TEXT_CHARACTERS:
