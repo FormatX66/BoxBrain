@@ -21,6 +21,46 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Invoke-PinnedSshCommand {
+    param(
+        [Parameter(Mandatory)][string]$SshPath,
+        [Parameter(Mandatory)][string]$IdentityPath,
+        [Parameter(Mandatory)][string]$Target,
+        [Parameter(Mandatory)][string]$Command
+    )
+
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $SshPath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $escapedIdentity = $IdentityPath.Replace('"', '\"')
+    $escapedCommand = $Command.Replace('"', '\"')
+    $startInfo.Arguments = (
+        '-i "{0}" -o BatchMode=yes -o IdentitiesOnly=yes ' +
+        '-o StrictHostKeyChecking=yes -o ConnectTimeout=8 {1} "{2}"'
+    ) -f $escapedIdentity, $Target, $escapedCommand
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            throw "ssh.exe did not start."
+        }
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Output = (($stdout, $stderr) -join [Environment]::NewLine).Trim()
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
 if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
     throw "The BoxBrain SSH key was not found at $KeyPath."
 }
@@ -36,15 +76,12 @@ $piViewerUrl = & (Join-Path $PSScriptRoot "open-pi-console.ps1") `
 $viewerUri = [Uri]$piViewerUrl
 $viewerLocalPort = $viewerUri.Port
 
-& $ssh.Source `
-    -i $KeyPath `
-    -o BatchMode=yes `
-    -o IdentitiesOnly=yes `
-    -o StrictHostKeyChecking=yes `
-    -o ConnectTimeout=8 `
-    $target `
-    "nc -zw2 $TargetAddress 5900" 2>$null
-if ($LASTEXITCODE -ne 0) {
+$reachability = Invoke-PinnedSshCommand `
+    -SshPath $ssh.Source `
+    -IdentityPath $KeyPath `
+    -Target $target `
+    -Command "nc -zw2 $TargetAddress 5900"
+if ($reachability.ExitCode -ne 0) {
     throw "Morris VNC is not reachable from the Pi on $TargetAddress`:5900."
 }
 
@@ -113,7 +150,23 @@ if ($startTunnel) {
 
 if (-not $NoClipboard -and (Test-Path -LiteralPath $CredentialPath)) {
     $credential = Import-Clixml -LiteralPath $CredentialPath
-    $credential.GetNetworkCredential().Password | Set-Clipboard
+    $clipboardReady = $false
+    foreach ($attempt in 1..5) {
+        try {
+            $credential.GetNetworkCredential().Password | Set-Clipboard
+            $clipboardReady = $true
+            break
+        }
+        catch [Runtime.InteropServices.ExternalException] {
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    if (-not $clipboardReady) {
+        Write-Warning (
+            "The console tunnel is ready, but the VNC password could not " +
+            "be copied because the clipboard is busy."
+        )
+    }
 }
 
 $url = (

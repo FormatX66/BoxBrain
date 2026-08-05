@@ -2,13 +2,19 @@
 #Requires -RunAsAdministrator
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
     [ValidatePattern("^[A-Za-z0-9]{8}$")]
     [string]$VncPassword,
 
-    [Parameter(Mandatory)]
     [ValidatePattern("^[A-Za-z0-9]{8}$")]
     [string]$ControlPassword,
+
+    [switch]$UseStoredCredentials,
+
+    [switch]$PromptForCredentials,
+
+    [string]$CredentialDirectory = (
+        Join-Path $env:LOCALAPPDATA "BoxBrain\credentials"
+    ),
 
     [string]$PackageUrl = (
         "http://10.12.194.1:8788/" +
@@ -67,6 +73,53 @@ function Test-ExpectedPackageUrl {
 
 try {
     Set-MorrisVncStatus -Status "starting"
+    if ($UseStoredCredentials -and $PromptForCredentials) {
+        throw "Choose either stored credentials or a secure prompt."
+    }
+    if (
+        ($UseStoredCredentials -or $PromptForCredentials) -and
+        ($VncPassword -or $ControlPassword)
+    ) {
+        throw "Do not combine protected and command-line VNC credentials."
+    }
+    $vncCredentialPath = Join-Path $CredentialDirectory "morris-vnc.clixml"
+    $controlCredentialPath = Join-Path `
+        $CredentialDirectory "morris-vnc-control.clixml"
+    if ($PromptForCredentials) {
+        Set-MorrisVncStatus -Status "awaiting_credentials"
+        $vncSecure = Read-Host "VNC password" -AsSecureString
+        $controlSecure = Read-Host "Control password" -AsSecureString
+        New-Item -ItemType Directory -Path $CredentialDirectory -Force |
+            Out-Null
+        [PSCredential]::new("MorrisVnc", $vncSecure) |
+            Export-Clixml -LiteralPath $vncCredentialPath
+        [PSCredential]::new("MorrisVncControl", $controlSecure) |
+            Export-Clixml -LiteralPath $controlCredentialPath
+        $VncPassword = [PSCredential]::new("MorrisVnc", $vncSecure).
+            GetNetworkCredential().Password
+        $ControlPassword = [PSCredential]::new(
+            "MorrisVncControl", $controlSecure
+        ).GetNetworkCredential().Password
+    }
+    elseif ($UseStoredCredentials) {
+        if (
+            -not (Test-Path -LiteralPath $vncCredentialPath -PathType Leaf) -or
+            -not (Test-Path -LiteralPath $controlCredentialPath -PathType Leaf)
+        ) {
+            throw "The DPAPI-protected Morris VNC credentials are missing."
+        }
+        $VncPassword = (Import-Clixml -LiteralPath $vncCredentialPath).
+            GetNetworkCredential().Password
+        $ControlPassword = (Import-Clixml -LiteralPath $controlCredentialPath).
+            GetNetworkCredential().Password
+    }
+    if (
+        $VncPassword -notmatch "^[A-Za-z0-9]{8}$" -or
+        $ControlPassword -notmatch "^[A-Za-z0-9]{8}$"
+    ) {
+        throw "Morris VNC credentials must be eight alphanumeric characters."
+    }
+    Set-MorrisVncStatus -Status "credentials_ready"
     if (-not (Test-ExpectedPackageUrl -Url $PackageUrl)) {
         throw "PackageUrl must be the pinned Pi USB onboarding URL."
     }

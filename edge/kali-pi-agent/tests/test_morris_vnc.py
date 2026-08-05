@@ -51,6 +51,10 @@ class MorrisVncTests(unittest.TestCase):
         self.assertIn("-LocalPort 5900", install)
         self.assertIn('MorrisVncStatus', install)
         self.assertIn('Set-MorrisVncStatus -Status "failed"', install)
+        self.assertIn("UseStoredCredentials", install)
+        self.assertIn("PromptForCredentials", install)
+        self.assertIn("awaiting_credentials", install)
+        self.assertIn("morris-vnc.clixml", install)
 
     def test_launcher_uses_pinned_ssh_loopback_tunnel(self) -> None:
         launcher = (
@@ -75,17 +79,18 @@ class MorrisVncTests(unittest.TestCase):
         self.assertIn("Morris PC Remote.lnk", shortcut)
         self.assertIn("Existing Morris PC Remote shortcut preserved", shortcut)
 
-    def test_bootstrap_uses_direct_msi_elevation_and_acknowledged_hid(self) -> None:
+    def test_bootstrap_uses_short_elevation_and_acknowledged_hid(self) -> None:
         bootstrap = (
             REPOSITORY_ROOT / "installer" / "start-morris-vnc-bootstrap.ps1"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("Start-Process msiexec.exe", bootstrap)
+        self.assertIn("install-morris-vnc.ps1", bootstrap)
+        self.assertIn("PromptForCredentials", bootstrap)
+        self.assertIn("SendCredentialsOnly", bootstrap)
         self.assertIn('-Verb RunAs', bootstrap)
-        self.assertIn("SERVER_ADD_FIREWALL_EXCEPTION=0", bootstrap)
         self.assertIn('action = "character"', bootstrap)
         self.assertIn("result.acknowledged", bootstrap)
-        self.assertNotIn("morris-vnc.clixml').GetNetworkCredential", bootstrap)
+        self.assertNotIn("VALUE_OF_PASSWORD", bootstrap)
 
 
 if __name__ == "__main__":
