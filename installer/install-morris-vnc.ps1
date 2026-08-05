@@ -35,6 +35,23 @@ $firewallName = "BoxBrain Morris VNC (Pi USB only)"
 $packagePath = Join-Path $env:TEMP "tightvnc-2.8.88-gpl-setup-64bit.msi"
 $installedHere = $false
 $ruleCreated = $false
+$statusPath = "HKLM:\SOFTWARE\BoxBrain"
+
+function Set-MorrisVncStatus {
+    param(
+        [Parameter(Mandatory)][string]$Status,
+        [string]$Detail = ""
+    )
+
+    New-Item -Path $statusPath -Force | Out-Null
+    New-ItemProperty -Path $statusPath -Name "MorrisVncStatus" `
+        -Value $Status -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $statusPath -Name "MorrisVncDetail" `
+        -Value $Detail -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $statusPath -Name "MorrisVncUpdatedUtc" `
+        -Value ([DateTime]::UtcNow.ToString("o")) -PropertyType String -Force |
+        Out-Null
+}
 
 function Test-ExpectedPackageUrl {
     param([Parameter(Mandatory)][string]$Url)
@@ -49,6 +66,7 @@ function Test-ExpectedPackageUrl {
 }
 
 try {
+    Set-MorrisVncStatus -Status "starting"
     if (-not (Test-ExpectedPackageUrl -Url $PackageUrl)) {
         throw "PackageUrl must be the pinned Pi USB onboarding URL."
     }
@@ -60,6 +78,7 @@ try {
     }
 
     Invoke-WebRequest -UseBasicParsing -Uri $PackageUrl -OutFile $packagePath
+    Set-MorrisVncStatus -Status "package_downloaded"
     $actualHash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash
     if ($actualHash -ne $PackageSha256) {
         throw "The TightVNC package SHA-256 does not match the pinned value."
@@ -73,6 +92,7 @@ try {
     ) {
         throw "The TightVNC package signature is not valid for OOO GlavSoft."
     }
+    Set-MorrisVncStatus -Status "package_verified"
 
     $arguments = @(
         "/i", $packagePath,
@@ -96,6 +116,7 @@ try {
         throw "TightVNC Server installation failed with code $($installer.ExitCode)."
     }
     $installedHere = $true
+    Set-MorrisVncStatus -Status "server_installed"
 
     New-NetFirewallRule `
         -DisplayName $firewallName `
@@ -120,9 +141,11 @@ try {
         throw "TightVNC Server is running but port 5900 is not listening."
     }
 
+    Set-MorrisVncStatus -Status "ready"
     Write-Output "MORRIS_VNC_READY address=$TargetAddress port=5900"
 }
 catch {
+    $failureDetail = $_.Exception.Message
     if ($ruleCreated) {
         Remove-NetFirewallRule -DisplayName $firewallName -ErrorAction SilentlyContinue
     }
@@ -131,6 +154,7 @@ catch {
             -ArgumentList @("/x", $packagePath, "/qn", "/norestart") `
             -Wait -WindowStyle Hidden | Out-Null
     }
+    Set-MorrisVncStatus -Status "failed" -Detail $failureDetail
     throw
 }
 finally {

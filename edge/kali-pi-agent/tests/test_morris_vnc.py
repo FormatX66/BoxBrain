@@ -9,6 +9,18 @@ REPOSITORY_ROOT = ROOT.parents[1]
 
 
 class MorrisVncTests(unittest.TestCase):
+    def test_onboarding_allowlists_only_the_pinned_morris_artifacts(self) -> None:
+        onboarding = (
+            ROOT / "src" / "boxbrain" / "onboarding.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('"/install-morris-vnc.ps1"', onboarding)
+        self.assertIn(
+            '"/tightvnc-2.8.88-gpl-setup-64bit.msi"', onboarding
+        )
+        self.assertIn('"application/octet-stream"', onboarding)
+        self.assertNotIn("SimpleHTTPRequestHandler", onboarding)
+
     def test_target_proxy_is_loopback_only(self) -> None:
         start = (ROOT / "scripts" / "start-console.sh").read_text(
             encoding="utf-8"
@@ -37,6 +49,8 @@ class MorrisVncTests(unittest.TestCase):
         self.assertIn("-RemoteAddress $PiAddress", install)
         self.assertIn("-LocalAddress $TargetAddress", install)
         self.assertIn("-LocalPort 5900", install)
+        self.assertIn('MorrisVncStatus', install)
+        self.assertIn('Set-MorrisVncStatus -Status "failed"', install)
 
     def test_launcher_uses_pinned_ssh_loopback_tunnel(self) -> None:
         launcher = (
@@ -60,6 +74,18 @@ class MorrisVncTests(unittest.TestCase):
         self.assertIn("open-morris-console.ps1", shortcut)
         self.assertIn("Morris PC Remote.lnk", shortcut)
         self.assertIn("Existing Morris PC Remote shortcut preserved", shortcut)
+
+    def test_bootstrap_uses_direct_msi_elevation_and_acknowledged_hid(self) -> None:
+        bootstrap = (
+            REPOSITORY_ROOT / "installer" / "start-morris-vnc-bootstrap.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Start-Process msiexec.exe", bootstrap)
+        self.assertIn('-Verb RunAs', bootstrap)
+        self.assertIn("SERVER_ADD_FIREWALL_EXCEPTION=0", bootstrap)
+        self.assertIn('action = "character"', bootstrap)
+        self.assertIn("result.acknowledged", bootstrap)
+        self.assertNotIn("morris-vnc.clixml').GetNetworkCredential", bootstrap)
 
 
 if __name__ == "__main__":
