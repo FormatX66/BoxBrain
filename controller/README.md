@@ -7,8 +7,8 @@ diagnostic executor. It intentionally has no autonomous task executor.
 
 ## Web console
 
-The controller now includes the BoxBrain One responsive browser console at `/`
-and `/console`. The console surfaces controller health, Fleet/logged machines,
+The controller includes the BoxBrain One responsive browser console at `/` and
+`/console`. The console surfaces controller health, Fleet/logged machines,
 authorized remote targets, Kali Pi edge status, agents/runtime, discovered tools,
 projects, processing runs, audit events, emergency-stop state, and the existing
 approval-gated remote controls.
