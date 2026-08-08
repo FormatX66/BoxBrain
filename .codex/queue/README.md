@@ -1,19 +1,22 @@
 # BoxBrain Dual Queue Sync
 
-BoxBrain uses both a Git-backed queue and a local Desktop fallback.
+BoxBrain uses a Git-backed queue plus local Desktop mirrors/fallbacks.
 
 ## Locations
 
 Git:
-- `.codex/queue/QUEUE.md`
-- `.codex/queue/COMPLETE.md`
+- `.codex/queue/QUEUE.md` — active runnable work
+- `.codex/queue/HOLD.md` — ideas/specs not ready to build
+- `.codex/queue/COMPLETE.md` — verified completed work
 
 Local Windows fallback:
 - `%USERPROFILE%\Desktop\Codex Cue.txt`
+- `%USERPROFILE%\Desktop\Cue Hold.txt`
 - `%USERPROFILE%\Desktop\Cue Complete.txt`
 
 Local macOS fallback:
 - `~/Desktop/Codex Cue.txt`
+- `~/Desktop/Cue Hold.txt`
 - `~/Desktop/Cue Complete.txt`
 
 Runtime/local-only state:
@@ -21,36 +24,44 @@ Runtime/local-only state:
 - `.boxbrain/codex-usage-events.jsonl`
 - `.boxbrain/codex-queue.lock`
 
-## Why both
+## Three-lane model
 
-Git provides shared history and synchronization between machines/agents. The local queue remains operational when Git/network access is unavailable or when a usage cap prevents normal remote interaction.
+`Codex Cue / QUEUE.md` is active runnable work.
+
+`Cue Hold / HOLD.md` preserves future ideas, experiments, and incomplete implementation concepts. `run queue` MUST NOT execute hold items. Hold items may be read only for context and duplicate detection until explicitly promoted.
+
+`Cue Complete / COMPLETE.md` is the verified completion history.
+
+Promotion flow:
+`Cue Hold` -> explicit promotion -> active `Codex Cue` task -> build/test/verify -> `Cue Complete`.
+
+Use stable `BH-###` IDs for hold entries and stable `BB-###` IDs for active tasks. When promoting a hold entry, preserve the source `BH-###` reference in the active task for traceability.
+
+## Why both Git and local
+
+Git provides shared history and synchronization between machines/agents. Local files remain operational when Git/network access is unavailable or when a usage cap prevents normal remote interaction.
 
 ## Desktop bootstrap
 
 When `run queue` is invoked on a Windows PC or macOS computer, first check whether the local Desktop queue files exist.
 
-If `Codex Cue.txt` does not exist locally and Git is reachable:
-1. Fetch `.codex/queue/QUEUE.md`.
-2. Create a local Desktop `Codex Cue.txt` containing the current reconciled queue.
-3. Preserve the same stable `BB-###` task IDs and task statuses.
-4. Continue the normal local + Git preflight.
+If `Codex Cue.txt` does not exist locally and Git is reachable, fetch `.codex/queue/QUEUE.md` and create the Desktop mirror.
 
-If `Cue Complete.txt` does not exist locally and Git is reachable:
-1. Fetch `.codex/queue/COMPLETE.md`.
-2. Create the local Desktop `Cue Complete.txt` from that verified completion history.
-3. Continue normal reconciliation.
+If `Cue Hold.txt` does not exist locally and Git is reachable, fetch `.codex/queue/HOLD.md` and create the Desktop mirror.
 
-If the local file is missing and Git is temporarily unavailable, do not invent an empty authoritative queue. Use an existing cached/runtime copy if one is available. Otherwise report that the queue cannot yet be reconstructed locally and retry synchronization when Git becomes reachable.
+If `Cue Complete.txt` does not exist locally and Git is reachable, fetch `.codex/queue/COMPLETE.md` and create the Desktop mirror.
 
-This Desktop bootstrap behavior applies only to Windows and macOS interactive workstation instances. Do not create Desktop queue copies automatically on Raspberry Pi, headless Linux, servers, containers, or CI runners.
+Preserve stable IDs, statuses, dependencies, acceptance/promotion criteria, notes, and checkpoints.
 
-A newly imported local copy is a mirror/fallback, not a replacement for the Git queue. Subsequent changes must reconcile both directions by stable task ID rather than blindly overwriting either side.
+If a local file is missing and Git is temporarily unavailable, do not invent an empty authoritative file. Use an existing cached/runtime copy if available; otherwise retry reconstruction when Git becomes reachable.
+
+Desktop bootstrap applies only to Windows/macOS interactive workstations. Do not create Desktop queue copies automatically on Raspberry Pi, headless Linux, servers, containers, or CI runners.
 
 ## Reconciliation
 
-On `run queue`, load both sides when possible and merge by stable `BB-###` task ID. Do not blindly copy one file over the other. Preserve newer explicit user requirements and verify the actual repository before deciding a task is complete.
+On `run queue`, load Git/local ACTIVE and COMPLETE sources when possible. Also load HOLD for duplicate/context checks but never as executable work. Merge records by stable IDs rather than blindly overwriting files.
 
-If Git is unavailable, process the local queue and record local state/checkpoints. When Git becomes reachable, reconcile those changes back into `QUEUE.md`/`COMPLETE.md`.
+If Git is unavailable, process the local active queue and record local state/checkpoints/completions. Hold entries remain non-runnable locally as well. When Git becomes reachable, reconcile all three lanes back to Git.
 
 ## Completion
 
@@ -58,13 +69,13 @@ A task is complete only when its acceptance criteria verify against the current 
 
 ## Usage caps
 
-If a required capability is capped, mark the task `DEFERRED_USAGE`, checkpoint it locally, schedule one legitimate retry when possible, and continue using local queue/state. Do not repeatedly retry the capped service. On later availability, re-run preflight and synchronize state back to Git.
+If a required capability is capped, mark the active task `DEFERRED_USAGE`, checkpoint locally, schedule one legitimate retry when possible, and continue using local queue/state. Do not repeatedly retry the capped service. Do not move deferred work into Hold merely because of a usage limit; Hold means not ready by design, not temporarily unavailable.
 
 ## Source-of-truth order
 
 1. Actual repository/system behavior
 2. Verified completion records
-3. Reconciled Git/local task definition
+3. Reconciled Git/local active or hold definition
 4. Runtime state/checkpoints
 
 Git is the preferred shared copy; local storage is the resilient fallback.
