@@ -12,6 +12,10 @@ Local Windows fallback:
 - `%USERPROFILE%\Desktop\Codex Cue.txt`
 - `%USERPROFILE%\Desktop\Cue Complete.txt`
 
+Local macOS fallback:
+- `~/Desktop/Codex Cue.txt`
+- `~/Desktop/Cue Complete.txt`
+
 Runtime/local-only state:
 - `.boxbrain/codex-queue-state.json`
 - `.boxbrain/codex-usage-events.jsonl`
@@ -20,6 +24,27 @@ Runtime/local-only state:
 ## Why both
 
 Git provides shared history and synchronization between machines/agents. The local queue remains operational when Git/network access is unavailable or when a usage cap prevents normal remote interaction.
+
+## Desktop bootstrap
+
+When `run queue` is invoked on a Windows PC or macOS computer, first check whether the local Desktop queue files exist.
+
+If `Codex Cue.txt` does not exist locally and Git is reachable:
+1. Fetch `.codex/queue/QUEUE.md`.
+2. Create a local Desktop `Codex Cue.txt` containing the current reconciled queue.
+3. Preserve the same stable `BB-###` task IDs and task statuses.
+4. Continue the normal local + Git preflight.
+
+If `Cue Complete.txt` does not exist locally and Git is reachable:
+1. Fetch `.codex/queue/COMPLETE.md`.
+2. Create the local Desktop `Cue Complete.txt` from that verified completion history.
+3. Continue normal reconciliation.
+
+If the local file is missing and Git is temporarily unavailable, do not invent an empty authoritative queue. Use an existing cached/runtime copy if one is available. Otherwise report that the queue cannot yet be reconstructed locally and retry synchronization when Git becomes reachable.
+
+This Desktop bootstrap behavior applies only to Windows and macOS interactive workstation instances. Do not create Desktop queue copies automatically on Raspberry Pi, headless Linux, servers, containers, or CI runners.
+
+A newly imported local copy is a mirror/fallback, not a replacement for the Git queue. Subsequent changes must reconcile both directions by stable task ID rather than blindly overwriting either side.
 
 ## Reconciliation
 
