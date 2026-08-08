@@ -70,6 +70,52 @@ PROMOTION CRITERIA:
 
 END HOLD
 
+[HOLD BH-002]
+STATUS: HOLD
+TITLE: Script-First Task Offload / GPT Usage Reduction
+
+WHY ON HOLD:
+The concept needs a task-classification model, execution boundaries, safety rules, and measurement criteria before it is ready to build.
+
+NOTES:
+Design BoxBrain/Codex so repetitive, deterministic, data-heavy, or machine-execution work is preferentially handled by local scripts and conventional automation instead of consuming GPT reasoning/context on every step. GPT should be reserved for work where language understanding, ambiguous judgment, planning, code generation, diagnosis, or adaptive reasoning provides meaningful value.
+
+The goal is to reduce GPT usage and token/context load while improving reliability, repeatability, speed, and recoverability of long service-model and computer-scripting workflows. GPT can design, generate, repair, or select scripts, but once a procedure is stable, the routine execution should generally move to a script or service rather than repeatedly asking GPT to perform the same mechanical work.
+
+Future design should classify tasks approximately as follows:
+- SCRIPT-FIRST: file copying/syncing, directory scans, checksums, parsing structured logs, deterministic transforms, backups, scheduled jobs, health checks, polling, API calls with fixed schemas, queue bookkeeping, duplicate checks, retry logic, process/service control, inventory collection, known deployment sequences, and repeatable calculations.
+- GPT-FIRST: ambiguous troubleshooting, architecture/design, interpreting novel failures, requirements discovery, natural-language synthesis, deciding among uncertain alternatives, generating new code, reviewing complex changes, and other tasks requiring contextual judgment.
+- HYBRID: GPT creates or selects an execution plan/script; scripts perform bulk/repetitive work; GPT receives compact structured results and only intervenes on exceptions or decision points.
+
+The task router should estimate whether GPT involvement is actually required before sending a job to a model. Large raw inputs should be preprocessed locally when practical so GPT receives summaries, diffs, error excerpts, metadata, or other compact structured context rather than entire repetitive datasets.
+
+The concept should integrate with the Multi-GPT Revolving Cycle (BH-001) and Codex Cue system. Script-capable work should be offloaded before attempting to consume another GPT lane. GPT lane rotation should therefore be a fallback for genuine model work, not a substitute for deterministic local automation.
+
+Future design should consider:
+- A Script vs GPT vs Hybrid task classifier.
+- Token/usage-cost estimation before model execution when measurable.
+- Local preprocessing and context compression.
+- Reusable script library with versioning, tests, documentation, and known input/output contracts.
+- Structured machine-readable script output so GPT only receives relevant results.
+- Exception-driven escalation: scripts handle normal paths; GPT handles failures or ambiguity.
+- Idempotency and duplicate-work prevention using Cue and Cue Complete state.
+- Logging of whether each task was handled by script, GPT, or hybrid and why.
+- Human-review gates for high-impact or destructive actions.
+- Security boundaries so generated scripts cannot silently exceed their authorized scope.
+- Metrics comparing GPT usage, execution time, reliability, and error rate before/after offload.
+- Ability to promote frequently repeated GPT procedures into tested scripts after they stabilize.
+
+PROMOTION CRITERIA:
+- Define Script/GPT/Hybrid classification rules and confidence thresholds.
+- Identify the highest-volume current BoxBrain/Codex tasks suitable for script offload.
+- Define script sandboxing, permissions, logging, rollback, and human-review requirements.
+- Define the interface between Cue, the task router, script runner, and GPT/model lanes.
+- Define how token/usage savings and task reliability will be measured.
+- Establish a reusable script registry/library format.
+- User explicitly promotes the concept to the active queue.
+
+END HOLD
+
 ## Promotion Flow
 
 `Cue Hold` -> explicit promote command -> active `Codex Cue` task -> build/test/verify -> `Cue Complete`
