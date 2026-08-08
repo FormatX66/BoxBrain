@@ -155,3 +155,29 @@ ACCEPTANCE:
 - Detect rescue-agent connectivity and feed result back to the Boot Orchestrator.
 - Preserve existing BoxBrain connectivity and avoid duplicate network-management subsystems.
 END TASK
+
+[TASK BB-006]
+STATUS: PENDING
+TITLE: Script-First Task Offload / GPT Usage Reduction
+PRIORITY: HIGH
+DEPENDS:
+REQUIRES: CODEX, LOCAL_SHELL
+PROMOTED_FROM: BH-002
+
+DESCRIPTION:
+Implement BoxBrain/Codex task routing so repetitive, deterministic, data-heavy, or machine-execution work is preferentially handled by local scripts and conventional automation instead of consuming GPT reasoning/context on every step. Use GPT for ambiguity, planning, diagnosis, code generation, and adaptive reasoning; support hybrid workflows where GPT defines or repairs a procedure and scripts perform the routine bulk work.
+
+The router should evaluate whether GPT involvement is actually required before model execution. Preprocess large repetitive inputs locally when practical and return compact structured summaries, diffs, error excerpts, or metadata to GPT. Once a repeated procedure stabilizes, make it eligible for promotion into a tested reusable script/service.
+
+ACCEPTANCE:
+- Implement Script vs GPT vs Hybrid classification rules with documented confidence/fallback behavior.
+- Identify and migrate a first set of high-volume BoxBrain/Codex tasks suitable for script-first execution.
+- Provide a reusable versioned script registry/library with tests, documentation, and defined input/output contracts.
+- Scripts return structured machine-readable results suitable for compact GPT review.
+- Implement exception-driven escalation so normal paths stay local and ambiguity/failures can escalate to GPT.
+- Integrate idempotency and duplicate-work prevention with Cue and Cue Complete state.
+- Add security boundaries, permissions, logging, rollback strategy, and human-review gates for high-impact/destructive actions.
+- Log whether tasks were handled by Script, GPT, or Hybrid and why.
+- Add measurable reporting for GPT usage reduction, execution time, reliability, and error rate where data is available.
+- Preserve compatibility with future model-lane routing without requiring BH-001 to be implemented first.
+END TASK
