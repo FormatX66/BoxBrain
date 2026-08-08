@@ -23,6 +23,7 @@ def _bool_environment(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
+    repository_root: Path = _REPOSITORY_ROOT
     environment: str = getenv("BOXBRAIN_ENVIRONMENT", "development")
     host: str = getenv("BOXBRAIN_HOST", "127.0.0.1")
     port: int = int(getenv("BOXBRAIN_PORT", "8000"))

@@ -9,6 +9,11 @@ Git:
 - `.codex/queue/HOLD.md` — ideas/specs not ready to build
 - `.codex/queue/COMPLETE.md` — verified completed work
 
+Queue indexes:
+- [Active runnable work](QUEUE.md)
+- [Held ideas and specifications](HOLD.md)
+- [Verified completed work](COMPLETE.md)
+
 Local Windows fallback:
 - `%USERPROFILE%\Desktop\Codex Cue.txt`
 - `%USERPROFILE%\Desktop\Cue Hold.txt`
