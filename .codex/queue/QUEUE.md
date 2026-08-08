@@ -55,11 +55,12 @@ If required Codex/model/tool usage is unavailable:
 ## Active tasks
 
 [TASK BB-001]
-STATUS: PENDING
+STATUS: BLOCKED
 TITLE: Windows WLAN / Wi-Fi Profile Integration
 PRIORITY: HIGH
 DEPENDS:
 REQUIRES: CODEX, LOCAL_SHELL
+CHECKPOINT: 2026-08-08T06:33:15Z — Supported-command interface/profile inventory, credential_available-only boundary, diagnostics/reconnect/recognition integration, CLI, Networks web section, docs, 7 focused tests, and 103-test Pi regression suite completed. Live integration is blocked because Morris PC (DESKTOP-3U8PBEN, 10.12.194.4) is currently offline in the Pi target registry; no reconnect or credential request was attempted.
 
 DESCRIPTION:
 Extend BoxBrain with Windows WLAN integration using supported Windows WLAN mechanisms. Inventory wireless interfaces and saved Wi-Fi profiles, integrate them with BoxBrain networking, and keep credentials out of normal inventory/logs.
@@ -76,11 +77,12 @@ ACCEPTANCE:
 END TASK
 
 [TASK BB-002]
-STATUS: PENDING
+STATUS: BLOCKED
 TITLE: Pi 4 One-Shot Rescue USB Boot Mode
 PRIORITY: CRITICAL
 DEPENDS:
 REQUIRES: CODEX, LOCAL_SHELL, HARDWARE
+CHECKPOINT: 2026-08-08T06:25:06Z — Guarded state/registry, CLI/web controls, early-boot consumption, USB mass-storage integration, installer wiring, rollback, docs, and 17 focused/96 total edge tests completed. Live Pi hardware check passed (Pi 4, ARM64, one UDC, ConfigFS ready). Blocked before deployment and boot verification because no legitimate rescue image/checksum is available and the live Pi is on older BoxBrain 0.14.1; requires a selected rescue image plus an authorized deployment/reboot window.
 
 DESCRIPTION:
 Implement one-shot Raspberry Pi 4 Rescue Mode. When armed, the next Pi boot presents selected rescue media and rescue controls; the following Pi reboot/power cycle automatically returns to normal BoxBrain. Support architecture-aware BoxBrain Kali Rescue and administrator-imported legitimate Windows recovery/install media.
@@ -97,11 +99,12 @@ ACCEPTANCE:
 END TASK
 
 [TASK BB-003]
-STATUS: PENDING
+STATUS: BLOCKED
 TITLE: Rescue KVM + Automated Boot Orchestrator
 PRIORITY: CRITICAL
 DEPENDS: BB-002
 REQUIRES: CODEX, LOCAL_SHELL, HARDWARE
+BLOCKED_BY: BB-002
 
 DESCRIPTION:
 Integrate KVM into one-shot Rescue Mode using HDMI capture where available and USB HID keyboard/mouse. Build an orchestrator that recognizes POST/UEFI, triggers the temporary one-time boot menu, selects the armed BoxBrain rescue USB, and verifies rescue startup.
@@ -118,11 +121,12 @@ ACCEPTANCE:
 END TASK
 
 [TASK BB-004]
-STATUS: PENDING
+STATUS: BLOCKED
 TITLE: KVM Blind Boot Fallback + Learned Target Profiles
 PRIORITY: HIGH
 DEPENDS: BB-003
 REQUIRES: CODEX, LOCAL_SHELL, HARDWARE
+BLOCKED_BY: BB-003
 
 DESCRIPTION:
 Add conservative blind-boot fallback when KVM video is unavailable. Prefer verified learned target profiles; otherwise use bounded common one-time boot-menu key attempts and timing windows. Learn deterministic boot sequences from successful visually monitored sessions.
@@ -139,11 +143,12 @@ ACCEPTANCE:
 END TASK
 
 [TASK BB-005]
-STATUS: PENDING
+STATUS: BLOCKED
 TITLE: Rescue Network Recovery Integration
 PRIORITY: HIGH
 DEPENDS: BB-001, BB-002
 REQUIRES: CODEX, LOCAL_SHELL, HARDWARE
+BLOCKED_BY: BB-001, BB-002
 
 DESCRIPTION:
 Integrate Rescue Mode with BoxBrain networking so the rescue OS establishes an authorized management link back to the Pi. Prefer USB networking, then Ethernet, authorized known Wi-Fi, then a temporary BoxBrain management network where supported.
@@ -157,12 +162,13 @@ ACCEPTANCE:
 END TASK
 
 [TASK BB-006]
-STATUS: PENDING
+STATUS: COMPLETE
 TITLE: Script-First Task Offload / GPT Usage Reduction
 PRIORITY: HIGH
 DEPENDS:
 REQUIRES: CODEX, LOCAL_SHELL
 PROMOTED_FROM: BH-002
+CHECKPOINT: 2026-08-08T06:40:23Z — Verified script-first router, versioned registry, bounded execution, Cue/Complete deduplication, metrics, API, documentation, and full controller regression suite.
 
 DESCRIPTION:
 Implement BoxBrain/Codex task routing so repetitive, deterministic, data-heavy, or machine-execution work is preferentially handled by local scripts and conventional automation instead of consuming GPT reasoning/context on every step. Use GPT for ambiguity, planning, diagnosis, code generation, and adaptive reasoning; support hybrid workflows where GPT defines or repairs a procedure and scripts perform the routine bulk work.
