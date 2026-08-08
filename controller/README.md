@@ -87,6 +87,10 @@ and integration handoffs. It records estimated token use but uses zero provider
 tokens and performs no external action. See
 [`docs/PROCESSING_AGENTS.md`](../docs/PROCESSING_AGENTS.md).
 
+Script-first routing, its versioned local registry, duplicate protection, and
+usage-reduction metrics are documented in
+[`docs/SCRIPT_FIRST_ROUTING.md`](../docs/SCRIPT_FIRST_ROUTING.md).
+
 The ChatGPT organizer accepts an authenticated, normalized metadata snapshot,
 preserves existing project membership, classifies loose chats with inspectable
 local rules, and records deduplicated sync history. It has no ChatGPT mutation

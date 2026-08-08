@@ -95,6 +95,15 @@ from .sandbox_observer import (
     SandboxStartError,
     WindowsSandboxObserver,
 )
+from .script_first import (
+    RouteDecision,
+    RouteRequest,
+    RoutingMetrics,
+    ScriptFirstService,
+    ScriptRunRequest,
+    ScriptRunResult,
+    ScriptSpec,
+)
 from .remote_targets import (
     RemoteSessionLaunchError,
     RemoteTargetError,
@@ -152,6 +161,10 @@ diagnostic_executor_service = DiagnosticExecutorService(
     max_output_bytes=settings.diagnostic_max_output_bytes,
 )
 control_lock = Lock()
+script_first_service = ScriptFirstService(
+    settings.repository_root,
+    settings.data_dir,
+)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -375,6 +388,26 @@ def get_diagnostic_runtime() -> DiagnosticRuntimeStatus:
 @router.post("/processing/runs", response_model=ProcessingRun)
 def create_processing_run(request: ProcessingRequest) -> ProcessingRun:
     return processing_service.process(request)
+
+
+@router.get("/processing/script-registry", response_model=list[ScriptSpec])
+def list_script_registry() -> list[ScriptSpec]:
+    return script_first_service.list_scripts()
+
+
+@router.post("/processing/route", response_model=RouteDecision)
+def classify_processing_route(request: RouteRequest) -> RouteDecision:
+    return script_first_service.classify(request)
+
+
+@router.post("/processing/script-runs", response_model=ScriptRunResult)
+def run_registered_script(request: ScriptRunRequest) -> ScriptRunResult:
+    return script_first_service.execute(request)
+
+
+@router.get("/processing/script-metrics", response_model=RoutingMetrics)
+def get_script_routing_metrics() -> RoutingMetrics:
+    return script_first_service.metrics()
 
 
 @router.post("/processing/model-runs", response_model=ModelProcessingRun)
