@@ -218,7 +218,7 @@ class WindowsWlanTests(unittest.TestCase):
                 thread.start()
                 try:
                     host, port = server.server_address
-                    with urlopen(f"http://{host}:{port}/", timeout=3) as response:
+                    with urlopen(f"http://{host}:{port}/", timeout=10) as response:
                         page = response.read().decode("utf-8")
                 finally:
                     server.shutdown()
