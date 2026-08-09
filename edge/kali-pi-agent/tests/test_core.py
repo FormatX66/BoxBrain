@@ -166,10 +166,10 @@ class BoxBrainTests(unittest.TestCase):
         diagnostic_source = (
             root / "src" / "boxbrain" / "diagnostics.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("Wait-Job -Job $job -Timeout 8", diagnostic_source)
         self.assertIn("Wait-Job -Job $deviceJob -Timeout 15", diagnostic_source)
         self.assertIn("device_error_check = $deviceErrorCheck", diagnostic_source)
-        self.assertIn("credential_check = 'unavailable'", diagnostic_source)
+        self.assertNotIn("key=clear", diagnostic_source)
+        self.assertIn("build_windows_wlan_powershell", diagnostic_source)
 
     def test_wifi_provision_keeps_passphrase_out_of_argv_and_result(self) -> None:
         secret = "test-only-passphrase"
@@ -237,22 +237,31 @@ class BoxBrainTests(unittest.TestCase):
                 effective_uid=0,
             )
 
-    def test_restricted_wifi_key_visibility_is_a_high_finding(self) -> None:
+    def test_windows_wlan_diagnostic_metadata_is_included_without_credentials(self) -> None:
         payload = {
             "disks": [],
             "network_adapters": [{"name": "USB Ethernet"}],
-            "wifi": {
-                "connected": True,
-                "ssid": "Authorized-Lab",
-                "credential_check": "exposed",
-                "saved_key_visible_to_boxbrain_link": True,
+            "windows_wlan": {
+                "credential_material_included": False,
+                "diagnostics": {
+                    "interface_count": 1,
+                    "profile_count": 1,
+                    "findings": [
+                        {
+                            "severity": "low",
+                            "title": "Windows WLAN signal is weak",
+                            "recommendation": "Use Ethernet for repair operations.",
+                        }
+                    ],
+                },
             },
         }
         overall, findings, metrics = analyze(payload)
-        self.assertEqual(overall, "attention")
-        self.assertEqual(findings[0]["severity"], "high")
-        self.assertIn("saved Wi-Fi key", findings[0]["title"])
-        self.assertTrue(metrics["wifi_saved_key_visible_to_restricted_account"])
+        self.assertEqual(overall, "review")
+        self.assertEqual(findings[0]["severity"], "low")
+        self.assertIn("WLAN signal", findings[0]["title"])
+        self.assertEqual(metrics["windows_wlan_interface_count"], 1)
+        self.assertEqual(metrics["windows_wlan_profile_count"], 1)
 
     def test_upgrade_backups_are_private_and_rollback_guarded(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -261,6 +270,8 @@ class BoxBrainTests(unittest.TestCase):
         self.assertIn("umask 077", upgrade)
         self.assertIn('install -d -o root -g root -m 0700 "$backup_directory"', upgrade)
         self.assertIn('chmod 0600 "$backup"', upgrade)
+        self.assertIn("--exclude=var/lib/boxbrain/rescue-images", upgrade)
+        self.assertIn("--exclude=var/lib/boxbrain/drive/rescue-media", upgrade)
         self.assertIn('tar -tzf "$backup"', upgrade)
         self.assertIn("systemctl stop", upgrade)
         self.assertIn("trap 'rollback $?' EXIT", upgrade)

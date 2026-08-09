@@ -15,6 +15,14 @@ import tempfile
 from typing import Any
 
 from boxbrain.links import load_links
+from boxbrain.windows_wlan import (
+    WLAN_RECONNECT_AUTHORIZATION,
+    WLAN_RECONNECT_CONFIRMATION,
+    WindowsWlanError,
+    build_powershell as build_windows_wlan_powershell,
+    diagnose_inventory as diagnose_windows_wlan_inventory,
+    parse_powershell_output as parse_windows_wlan_output,
+)
 
 
 DIAGNOSTIC_AUTHORIZATION = "I am authorized to diagnose this computer"
@@ -112,67 +120,6 @@ $productName = [string]$version.ProductName
 if ([int]$version.CurrentBuildNumber -ge 22000) {
     $productName = $productName -replace 'Windows 10','Windows 11'
 }
-function Invoke-BoxBrainNetsh {
-    param([string[]]$Arguments)
-    $job = Start-Job -ScriptBlock {
-        param([string[]]$NetshArguments)
-        & netsh.exe @NetshArguments 2>$null
-    } -ArgumentList (,$Arguments)
-    try {
-        $finished = Wait-Job -Job $job -Timeout 8
-        if ($null -eq $finished) {
-            Stop-Job -Job $job -ErrorAction SilentlyContinue
-            return $null
-        }
-        return @(Receive-Job -Job $job -ErrorAction SilentlyContinue)
-    } finally {
-        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-    }
-}
-$wifi = [ordered]@{
-    connected = $false
-    ssid = $null
-    profile = $null
-    credential_check = 'not-applicable'
-    saved_key_visible_to_boxbrain_link = $false
-}
-try {
-    $wlanInterfaces = Invoke-BoxBrainNetsh @('wlan', 'show', 'interfaces')
-    $ssidMatch = $wlanInterfaces |
-        Select-String -Pattern '^\s*SSID\s*:\s*(.+?)\s*$' |
-        Select-Object -First 1
-    $profileMatch = $wlanInterfaces |
-        Select-String -Pattern '^\s*Profile\s*:\s*(.+?)\s*$' |
-        Select-Object -First 1
-    if ($null -ne $ssidMatch -and $null -ne $profileMatch) {
-        $wifi.connected = $true
-        $wifi.ssid = $ssidMatch.Matches[0].Groups[1].Value
-        $wifi.profile = $profileMatch.Matches[0].Groups[1].Value
-        $savedProfile = Invoke-BoxBrainNetsh @(
-            'wlan',
-            'show',
-            'profile',
-            "name=$($wifi.profile)",
-            'key=clear'
-        )
-        if ($null -eq $savedProfile) {
-            throw 'The restricted WLAN credential check timed out.'
-        }
-        $wifi.saved_key_visible_to_boxbrain_link = [bool](
-            $savedProfile |
-                Select-String -Pattern '^\s*Key Content\s*:\s*.+$' |
-                Select-Object -First 1
-        )
-        $wifi.credential_check = if ($wifi.saved_key_visible_to_boxbrain_link) {
-            'exposed'
-        } else {
-            'blocked'
-        }
-        $savedProfile = $null
-    }
-} catch {
-    $wifi.credential_check = 'unavailable'
-}
 $result = [ordered]@{
     schema_version = 1
     family = 'windows'
@@ -187,7 +134,6 @@ $result = [ordered]@{
     disks = $disks
     network_adapters = $adapters
     known_users = $knownUsers
-    wifi = $wifi
     device_error_count = [int]$deviceErrors.Count
     device_error_check = $deviceErrorCheck
     device_errors = $deviceErrors
@@ -350,26 +296,23 @@ def analyze(payload: dict[str, Any]) -> tuple[str, list[dict[str, str]], dict[st
             }
         )
 
-    wifi = payload.get("wifi")
-    if isinstance(wifi, dict):
-        visible = wifi.get("saved_key_visible_to_boxbrain_link") is True
-        metrics["wifi_saved_key_visible_to_restricted_account"] = visible
-        if visible:
-            findings.append(
-                {
-                    "severity": "high",
-                    "title": "Restricted account can read the saved Wi-Fi key",
-                    "detail": (
-                        "The non-administrator boxbrain-link account could request clear-text "
-                        "key content for the currently connected Windows Wi-Fi profile."
-                    ),
-                    "recommendation": (
-                        "Keep Wi-Fi provisioning administrator-only, update Windows, review "
-                        "local account and WLAN profile permissions, then rotate the Wi-Fi "
-                        "passphrase after the access boundary is corrected."
-                    ),
-                }
-            )
+    windows_wlan = payload.get("windows_wlan")
+    if isinstance(windows_wlan, dict):
+        wlan_diagnostics = windows_wlan.get("diagnostics")
+        if isinstance(wlan_diagnostics, dict):
+            metrics["windows_wlan_interface_count"] = wlan_diagnostics.get("interface_count")
+            metrics["windows_wlan_profile_count"] = wlan_diagnostics.get("profile_count")
+            for item in wlan_diagnostics.get("findings", []):
+                if not isinstance(item, dict):
+                    continue
+                findings.append(
+                    {
+                        "severity": str(item.get("severity", "low")),
+                        "title": str(item.get("title", "Windows WLAN finding")),
+                        "detail": "BoxBrain reviewed supported Windows WLAN interface and profile metadata.",
+                        "recommendation": str(item.get("recommendation", "Review Windows networking.")),
+                    }
+                )
 
     severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1}
     highest = max((severity_rank.get(item["severity"], 0) for item in findings), default=0)
@@ -589,8 +532,93 @@ class TargetDiagnostics:
                 except json.JSONDecodeError:
                     continue
                 if isinstance(payload, dict):
+                    try:
+                        wlan = self._run_windows_wlan(address, "status")
+                    except (DiagnosticError, WindowsWlanError) as error:
+                        payload["windows_wlan"] = {
+                            "status": "unavailable",
+                            "error": str(error)[:300],
+                            "credential_material_included": False,
+                        }
+                    else:
+                        inventory = wlan["inventory"]
+                        inventory["diagnostics"] = diagnose_windows_wlan_inventory(inventory)
+                        payload["windows_wlan"] = inventory
                     return payload
         raise DiagnosticError("Windows returned no usable diagnostic data.")
+
+    def _run_windows_wlan(
+        self,
+        address: str,
+        action: str,
+        *,
+        profile: str | None = None,
+        interface: str | None = None,
+    ) -> dict[str, Any]:
+        output = self._ssh(
+            address,
+            (
+                'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass '
+                '-Command "$script=[Console]::In.ReadToEnd(); Invoke-Expression $script"'
+            ),
+            input_text=build_windows_wlan_powershell(
+                action,
+                profile=profile,
+                interface=interface,
+            ),
+            timeout=120 if action == "reconnect" else 90,
+        )
+        return parse_windows_wlan_output(output)
+
+    def windows_wlan(
+        self,
+        address: str,
+        action: str,
+        *,
+        profile: str | None = None,
+        interface: str | None = None,
+        authorization: str = "",
+        confirmation: str = "",
+    ) -> dict[str, Any]:
+        link = self._link(address)
+        if "windows" not in str(link.get("platform", "")).lower():
+            raise DiagnosticError("Windows WLAN actions require an authorized Windows link.")
+        if action == "reconnect":
+            if authorization != WLAN_RECONNECT_AUTHORIZATION:
+                raise DiagnosticError("Explicit WLAN reconnect authorization is required.")
+            if confirmation != WLAN_RECONNECT_CONFIRMATION:
+                raise DiagnosticError("Exact WLAN reconnect confirmation is required.")
+            if not profile or not interface or len(profile) > 256 or len(interface) > 128:
+                raise DiagnosticError("A bounded profile and interface are required.")
+            if any(ord(character) < 32 for character in profile + interface):
+                raise DiagnosticError("WLAN profile and interface contain invalid characters.")
+        result = self._run_windows_wlan(
+            address,
+            action,
+            profile=profile,
+            interface=interface,
+        )
+        inventory = result["inventory"]
+        diagnostics = diagnose_windows_wlan_inventory(inventory)
+        inventory["diagnostics"] = diagnostics
+        record = {
+            "schema_version": 1,
+            "generated_at": utc_now(),
+            "target": {"address": address, "hostname": link.get("hostname")},
+            "inventory": inventory,
+            "reconnect": result.get("reconnect"),
+        }
+        _atomic_json(
+            self.state_directory / "network-inventory" / f"{address}-windows-wlan.json",
+            record,
+        )
+        if action == "interfaces":
+            return {"interfaces": inventory["interfaces"]}
+        if action == "profiles":
+            return {"profiles": inventory["profiles"]}
+        if action == "diagnose":
+            return {"diagnostics": diagnostics, "inventory": inventory}
+        return record
 
     def _linux(self, address: str) -> dict[str, Any]:
         script = r"""

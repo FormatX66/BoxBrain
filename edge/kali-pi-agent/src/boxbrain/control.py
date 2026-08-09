@@ -129,6 +129,22 @@ class ControlServer(_ControlServerBase):  # type: ignore[misc,valid-type]
         if action == "target_report":
             report = self.diagnostics.latest_report(str(request.get("address", "")))
             return {"ok": True, "report": report}
+        if action == "windows_wlan":
+            result = self.diagnostics.windows_wlan(
+                str(request.get("address", "")),
+                str(request.get("wlan_action", "status")),
+                profile=(
+                    str(request["profile"]) if request.get("profile") is not None else None
+                ),
+                interface=(
+                    str(request["interface"])
+                    if request.get("interface") is not None
+                    else None
+                ),
+                authorization=str(request.get("authorization", "")),
+                confirmation=str(request.get("confirmation", "")),
+            )
+            return {"ok": True, "result": result}
         if action == "patches":
             return {"ok": True, "patches": self.patches.list()}
         if action == "deliver_patch":

@@ -140,7 +140,8 @@ class RescueBootManager:
         secure_boot: str,
         signed: bool | None,
         write_mode: str = "read-only",
-        expected_sha256: str | None = None,
+        expected_sha256: str,
+        checksum_source: str,
         authorization: str,
     ) -> dict[str, Any]:
         if authorization != IMPORT_CONFIRMATION:
@@ -161,12 +162,22 @@ class RescueBootManager:
         secure_boot = secure_boot.strip().lower()
         if secure_boot not in {"supported", "unsupported", "unknown"}:
             raise RescueBootError("Secure Boot metadata must be supported, unsupported, or unknown.")
+        expected_sha256 = expected_sha256.strip().lower()
+        if not re.fullmatch(r"[a-f0-9]{64}", expected_sha256):
+            raise RescueBootError("Expected SHA-256 must be 64 lowercase hexadecimal characters.")
+        checksum_source = checksum_source.strip()
+        if (
+            not checksum_source
+            or len(checksum_source) > 512
+            or any(ord(character) < 32 for character in checksum_source)
+        ):
+            raise RescueBootError("A bounded public checksum source is required.")
 
         source_path = Path(source).expanduser().resolve(strict=True)
         if source_path.is_symlink() or not source_path.is_file():
             raise RescueBootError("Rescue source must be a regular non-symlink file.")
         source_digest = _sha256(source_path)
-        if expected_sha256 and source_digest.lower() != expected_sha256.strip().lower():
+        if source_digest.lower() != expected_sha256:
             raise RescueBootError("Rescue image checksum does not match the expected SHA-256.")
 
         suffix = source_path.suffix.lower()
@@ -192,6 +203,7 @@ class RescueBootManager:
             "architecture": architecture,
             "path": str(destination),
             "sha256": source_digest,
+            "checksum_source": checksum_source,
             "size_bytes": destination.stat().st_size,
             "boot_compatibility": compatibility,
             "secure_boot": {
@@ -321,6 +333,27 @@ class RescueBootManager:
         udc_root = self.system_root / "sys/class/udc"
         udcs = sorted(item.name for item in udc_root.iterdir()) if udc_root.is_dir() else []
         configfs = (self.system_root / "sys/kernel/config/usb_gadget").is_dir()
+        exported_lun_count = 0
+        unapproved_lun_count = 0
+        gadget_root = self.system_root / "sys/kernel/config/usb_gadget"
+        if gadget_root.is_dir():
+            for lun_file in gadget_root.glob(
+                "*/functions/mass_storage.*/lun.*/file"
+            ):
+                try:
+                    exported_path_text = lun_file.read_text(encoding="utf-8").strip()
+                except OSError:
+                    unapproved_lun_count += 1
+                    continue
+                if not exported_path_text:
+                    continue
+                exported_lun_count += 1
+                try:
+                    Path(exported_path_text).resolve().relative_to(
+                        self.image_directory.resolve()
+                    )
+                except ValueError:
+                    unapproved_lun_count += 1
         raw_architecture = platform.machine().strip().lower() or "unknown"
         try:
             architecture = _normalized_architecture(raw_architecture)
@@ -335,8 +368,15 @@ class RescueBootManager:
             "configfs_usb_gadget": configfs,
             "usb_device_controllers": udcs,
             "exactly_one_udc": len(udcs) == 1,
-            "ready": is_pi4 and configfs and len(udcs) == 1,
-            "actual_boxbrain_filesystem_exported": False,
+            "ready": (
+                is_pi4
+                and configfs
+                and len(udcs) == 1
+                and unapproved_lun_count == 0
+            ),
+            "mass_storage_lun_count": exported_lun_count,
+            "unapproved_mass_storage_lun_count": unapproved_lun_count,
+            "actual_boxbrain_filesystem_exported": unapproved_lun_count > 0,
         }
 
     def _select_image(self, mode: str, target_architecture: str | None) -> dict[str, Any]:
@@ -375,6 +415,21 @@ class RescueBootManager:
         self._assert_within_image_store(path)
         if path.is_symlink() or not path.is_file():
             raise RescueBootError("Registered rescue image is not a regular file.")
+        expected_sha256 = image.get("sha256")
+        if not isinstance(expected_sha256, str) or not re.fullmatch(
+            r"[a-f0-9]{64}", expected_sha256
+        ):
+            raise RescueBootError("Registered rescue image SHA-256 is invalid.")
+        checksum_source = image.get("checksum_source")
+        if (
+            not isinstance(checksum_source, str)
+            or not checksum_source.strip()
+            or len(checksum_source) > 512
+            or any(ord(character) < 32 for character in checksum_source)
+        ):
+            raise RescueBootError(
+                "Registered rescue image requires a bounded checksum source."
+            )
         return path
 
     def _assert_within_image_store(self, path: Path) -> None:

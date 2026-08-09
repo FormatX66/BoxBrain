@@ -40,6 +40,7 @@ ap_rollback_service_existed=0
 ap_rollback_timer_existed=0
 ap_helper_existed=0
 ap_configure_helper_existed=0
+rescue_early_service_existed=0
 drive_timer_was_active=0
 [ ! -e /etc/systemd/system/boxbrain-drive-sync.service ] || drive_service_existed=1
 [ ! -e /etc/systemd/system/boxbrain-drive-sync.timer ] || drive_timer_existed=1
@@ -54,6 +55,7 @@ drive_timer_was_active=0
 [ ! -e /etc/systemd/system/boxbrain-access-point-rollback.timer ] || ap_rollback_timer_existed=1
 [ ! -e /usr/local/libexec/boxbrain-access-point ] || ap_helper_existed=1
 [ ! -e /usr/local/sbin/boxbrain-access-point-config ] || ap_configure_helper_existed=1
+[ ! -e /etc/systemd/system/boxbrain-rescue-early.service ] || rescue_early_service_existed=1
 if systemctl is-active --quiet boxbrain-drive-sync.timer; then
     drive_timer_was_active=1
 fi
@@ -103,14 +105,18 @@ for optional_path in \
     /etc/systemd/system/boxbrain-access-point-rollback.service \
     /etc/systemd/system/boxbrain-access-point-rollback.timer \
     /usr/local/libexec/boxbrain-access-point \
-    /usr/local/sbin/boxbrain-access-point-config; do
+    /usr/local/sbin/boxbrain-access-point-config \
+    /etc/systemd/system/boxbrain-rescue-early.service; do
     if [ -e "$optional_path" ]; then
         set -- "$@" "$optional_path"
     fi
 done
 
 if ! (
-    tar -czf "$backup" "$@" &&
+    tar -czf "$backup" \
+        --exclude=var/lib/boxbrain/rescue-images \
+        --exclude=var/lib/boxbrain/drive/rescue-media \
+        "$@" &&
         chmod 0600 "$backup" &&
         tar -tzf "$backup" >/dev/null
 ); then
@@ -142,6 +148,7 @@ rollback() {
     [ "$ap_rollback_timer_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-access-point-rollback.timer
     [ "$ap_helper_existed" -eq 1 ] || rm -f /usr/local/libexec/boxbrain-access-point
     [ "$ap_configure_helper_existed" -eq 1 ] || rm -f /usr/local/sbin/boxbrain-access-point-config
+    [ "$rescue_early_service_existed" -eq 1 ] || rm -f /etc/systemd/system/boxbrain-rescue-early.service
     restart_services
     systemctl is-active --quiet boxbrain.service
     systemctl is-active --quiet boxbrain-onboarding.service

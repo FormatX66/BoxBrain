@@ -29,6 +29,7 @@ from boxbrain.rescue_page import render_rescue_page
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
 from boxbrain.system import collect_status
+from boxbrain.windows_wlan import load_saved_inventories
 
 
 LOG = logging.getLogger("boxbrain")
@@ -149,6 +150,57 @@ def _dashboard(status: dict[str, Any]) -> str:
         )
     if not connection_cards:
         connection_cards = "<p>Connection inventory unavailable.</p>"
+    wlan_records = status.get("windows_wlan_inventories", [])
+    if not isinstance(wlan_records, list):
+        wlan_records = []
+    wlan_interface_rows = ""
+    wlan_profile_rows = ""
+    for record in wlan_records:
+        if not isinstance(record, dict):
+            continue
+        target = record.get("target", {})
+        inventory = record.get("inventory", {})
+        if not isinstance(target, dict) or not isinstance(inventory, dict):
+            continue
+        target_label = str(
+            target.get("hostname") or target.get("address") or "Windows target"
+        )
+        for item in inventory.get("interfaces", []):
+            if not isinstance(item, dict):
+                continue
+            wlan_interface_rows += (
+                "<tr>"
+                f"<td>{escape(target_label)}</td>"
+                f"<td>{escape(str(item.get('name', 'unknown')))}</td>"
+                f"<td>{escape(str(item.get('state', 'unknown')))}</td>"
+                f"<td>{escape(str(item.get('current_ssid') or 'None'))}</td>"
+                f"<td>{escape(str(item.get('signal_percent') if item.get('signal_percent') is not None else 'unknown'))}</td>"
+                f"<td>{escape(', '.join(str(value) for value in item.get('ipv4', [])))}</td>"
+                "</tr>"
+            )
+        for item in inventory.get("profiles", []):
+            if not isinstance(item, dict):
+                continue
+            wlan_profile_rows += (
+                "<tr>"
+                f"<td>{escape(target_label)}</td>"
+                f"<td>{escape(str(item.get('profile', 'unknown')))}</td>"
+                f"<td>{escape(str(item.get('interface', 'unknown')))}</td>"
+                f"<td>{escape(str(item.get('authentication') or 'unknown'))}</td>"
+                f"<td>{escape(str(item.get('encryption') or 'unknown'))}</td>"
+                f"<td>{'yes' if item.get('auto_connect') is True else 'no'}</td>"
+                f"<td>{escape(str(item.get('priority', 'unknown')))}</td>"
+                f"<td>{'available' if item.get('credential_available') is True else 'not reported'}</td>"
+                "</tr>"
+            )
+    if not wlan_interface_rows:
+        wlan_interface_rows = (
+            '<tr><td colspan="6">No Windows WLAN inventory has been collected.</td></tr>'
+        )
+    if not wlan_profile_rows:
+        wlan_profile_rows = (
+            '<tr><td colspan="8">No saved Windows WLAN profiles have been collected.</td></tr>'
+        )
     target_panels = ""
     for item in links:
         diagnostic = item.get("diagnostics", {})
@@ -334,6 +386,12 @@ def _dashboard(status: dict[str, Any]) -> str:
     </div>
     <div class="connection-grid">{connection_cards}</div>
   </section>
+  <section class="panel" style="margin-top:14px">
+    <div class="label">Networks / Windows WLAN interfaces</div>
+    <table><thead><tr><th>Target</th><th>Interface</th><th>State</th><th>SSID</th><th>Signal %</th><th>IPv4</th></tr></thead><tbody>{wlan_interface_rows}</tbody></table>
+    <div class="label" style="margin-top:22px">Saved profiles (credential values are never displayed)</div>
+    <table><thead><tr><th>Target</th><th>Profile / SSID</th><th>Interface</th><th>Authentication</th><th>Encryption</th><th>Auto</th><th>Priority</th><th>Credential</th></tr></thead><tbody>{wlan_profile_rows}</tbody></table>
+  </section>
   <section class="panel operator-panel" id="managed-systems">
     <div class="label">Managed systems</div>
     <table><thead><tr><th>Name</th><th>Address</th><th>Link</th><th>Transport</th><th>Platform</th><th>System status</th><th>Findings</th></tr></thead><tbody>{link_rows}</tbody></table>
@@ -399,6 +457,9 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
         )
         payload["rescue_boot"] = (
             cls.rescue_manager.status() if cls.rescue_manager is not None else None
+        )
+        payload["windows_wlan_inventories"] = load_saved_inventories(
+            os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain")
         )
         return payload
 
@@ -579,6 +640,21 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if parsed.path == "/rescue":
+            body = render_rescue_page(
+                self.server.rescue_csrf_token  # type: ignore[attr-defined]
+            ).encode("utf-8")
+            self._send(
+                body,
+                "text/html; charset=utf-8",
+                content_security_policy=(
+                    "default-src 'none'; style-src 'unsafe-inline'; "
+                    "script-src 'unsafe-inline'; connect-src 'self'; "
+                    "img-src 'self'"
+                ),
+            )
+            return
+
         self._send(b'{"error":"not_found"}', "application/json; charset=utf-8", 404)
 
     def do_POST(self) -> None:
@@ -722,8 +798,8 @@ def main() -> None:
     storage.initialize()
     manager = AssessmentManager(storage)
     diagnostics = TargetDiagnostics(state_directory)
-    patches = PatchManager(state_directory)
     rescue_manager = RescueBootManager(state_directory)
+    patches = PatchManager(state_directory)
     control = ControlServer(control_socket, storage, manager, diagnostics, patches)
     control_thread = threading.Thread(
         target=control.serve_forever,

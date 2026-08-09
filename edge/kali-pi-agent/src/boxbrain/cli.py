@@ -40,6 +40,10 @@ from boxbrain.wifi import (
     WifiProvisionError,
     provision_current_wifi,
 )
+from boxbrain.windows_wlan import (
+    WLAN_RECONNECT_AUTHORIZATION,
+    WLAN_RECONNECT_CONFIRMATION,
+)
 
 
 def _http_request(path: str) -> dict[str, Any]:
@@ -259,6 +263,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pi NetworkManager Wi-Fi interface.",
     )
 
+    windows_wlan = subparsers.add_parser(
+        "windows-wlan",
+        help="Inventory or reconnect WLAN on an authorized Windows target.",
+    )
+    windows_wlan.add_argument("address", help="Authorized private target IPv4 address.")
+    windows_wlan.add_argument(
+        "action",
+        choices=("interfaces", "profiles", "status", "diagnose", "reconnect"),
+    )
+    windows_wlan.add_argument("--profile", default=None)
+    windows_wlan.add_argument("--interface", default=None)
+    windows_wlan.add_argument("--authorized", action="store_true")
+    windows_wlan.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact reconnect phrase: {WLAN_RECONNECT_CONFIRMATION}",
+    )
+
     headless_link = subparsers.add_parser(
         "headless-windows-link",
         help="Preview or inject the fixed Windows link through USB HID.",
@@ -384,6 +406,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="read-only",
     )
     rescue_import.add_argument("--sha256", required=True, dest="expected_sha256")
+    rescue_import.add_argument(
+        "--checksum-source",
+        required=True,
+        help="Public official URL or signed manifest used for the expected SHA-256.",
+    )
     rescue_import.add_argument("--authorized", action="store_true")
     rescue_import.add_argument(
         "--confirmation",
@@ -546,6 +573,23 @@ def main() -> int:
                 WIFI_PROVISION_AUTHORIZATION,
                 interface=args.interface,
             )
+        elif command == "windows-wlan":
+            if args.action == "reconnect" and not args.authorized:
+                parser.error("--authorized is required to reconnect Windows WLAN.")
+            payload = _control_request(
+                {
+                    "action": "windows_wlan",
+                    "wlan_action": args.action,
+                    "address": args.address,
+                    "profile": args.profile,
+                    "interface": args.interface,
+                    "authorization": (
+                        WLAN_RECONNECT_AUTHORIZATION if args.authorized else ""
+                    ),
+                    "confirmation": args.confirmation,
+                },
+                timeout=150 if args.action == "reconnect" else 100,
+            )["result"]
         elif command == "headless-windows-link":
             if not args.execute:
                 payload = preview_headless_windows_link(
@@ -603,6 +647,7 @@ def main() -> int:
                     signed=args.signed,
                     write_mode=args.write_mode,
                     expected_sha256=args.expected_sha256,
+                    checksum_source=args.checksum_source,
                     authorization=args.confirmation,
                 )
             elif args.rescue_action == "arm":

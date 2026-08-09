@@ -37,6 +37,9 @@ install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/verif
 install -d -o boxbrain -g boxbrain -m 0700 /var/lib/boxbrain/drive/patches/receipts
 install -d -o root -g root -m 0700 /var/lib/boxbrain/usb-gadget
 install -d -o root -g boxbrain -m 0750 /var/lib/boxbrain/hid-kvm
+install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain/rescue
+install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain/rescue/backups
+install -d -o boxbrain -g boxbrain -m 0750 /var/lib/boxbrain/rescue-images
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -d -o root -g root -m 0755 /usr/local/sbin
 
@@ -104,6 +107,9 @@ install -o root -g root -m 0644 \
     "$project_dir"/systemd/boxbrain-usb-gadget.service \
     /etc/systemd/system/boxbrain-usb-gadget.service
 install -o root -g root -m 0644 \
+    "$project_dir"/systemd/boxbrain-rescue-early.service \
+    /etc/systemd/system/boxbrain-rescue-early.service
+install -o root -g root -m 0644 \
     "$project_dir"/systemd/boxbrain-usb-gadget-rollback.service \
     /etc/systemd/system/boxbrain-usb-gadget-rollback.service
 install -o root -g root -m 0644 \
@@ -152,6 +158,7 @@ fi
 
 systemctl daemon-reload
 systemctl enable boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
+systemctl enable boxbrain-rescue-early.service
 systemctl enable boxbrain-hid-kvm.service
 systemctl restart boxbrain.service boxbrain-onboarding.service boxbrain-link-monitor.service
 systemctl is-active --quiet boxbrain.service
