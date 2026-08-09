@@ -1,6 +1,7 @@
 # BoxBrain target link for Windows.
 # Review this file before running it. It creates a non-administrator local user,
-# enables Microsoft's OpenSSH server, and authorizes one BoxBrain public key.
+# enables Microsoft's OpenSSH server and authenticated WinRM, and authorizes one
+# BoxBrain node for persistent private-network management.
 
 [CmdletBinding()]
 param(
@@ -41,6 +42,7 @@ Write-Host ''
 Write-Host 'BOXBRAIN AUTHORIZATION' -ForegroundColor Cyan
 Write-Host 'This will enable an SSH service and create a non-administrator'
 Write-Host 'account named boxbrain-link for this authorized BoxBrain agent.'
+Write-Host 'It also enables WinRM only from the listed BoxBrain addresses.'
 Write-Host 'Only use this on a computer you own or are authorized to assess.'
 if (-not $Authorized) {
     $approval = Read-Host 'Type AUTHORIZE to continue'
@@ -77,23 +79,26 @@ if ($capability.State -ne 'Installed') {
     $installedNow = $true
 }
 
+$randomBytes = New-Object byte[] 48
+$randomGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $randomGenerator.GetBytes($randomBytes)
+} finally {
+    $randomGenerator.Dispose()
+}
+$randomPassword = [Convert]::ToBase64String($randomBytes)
+$securePassword = ConvertTo-SecureString $randomPassword -AsPlainText -Force
+
 $user = Get-LocalUser -Name $userName -ErrorAction SilentlyContinue
 if ($null -eq $user) {
-    $randomBytes = New-Object byte[] 48
-    $randomGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $randomGenerator.GetBytes($randomBytes)
-    } finally {
-        $randomGenerator.Dispose()
-    }
-    $randomPassword = [Convert]::ToBase64String($randomBytes)
-    $securePassword = ConvertTo-SecureString $randomPassword -AsPlainText -Force
     $user = New-LocalUser `
         -Name $userName `
         -Password $securePassword `
         -AccountNeverExpires `
         -UserMayNotChangePassword `
         -Description 'BoxBrain authorized target SSH link'
+} else {
+    Set-LocalUser -Name $userName -Password $securePassword
 }
 Enable-LocalUser -Name $userName
 $usersGroup = Get-LocalGroup -SID 'S-1-5-32-545'
@@ -101,6 +106,14 @@ $isUsersMember = Get-LocalGroupMember -Group $usersGroup -ErrorAction SilentlyCo
     Where-Object { $_.SID -eq $user.SID }
 if ($null -eq $isUsersMember) {
     Add-LocalGroupMember -Group $usersGroup -Member $userName
+}
+$remoteManagementGroup = Get-LocalGroup -SID 'S-1-5-32-580'
+$isRemoteManagementMember = Get-LocalGroupMember `
+    -Group $remoteManagementGroup `
+    -ErrorAction SilentlyContinue |
+    Where-Object { $_.SID -eq $user.SID }
+if ($null -eq $isRemoteManagementMember) {
+    Add-LocalGroupMember -Group $remoteManagementGroup -Member $userName
 }
 
 $profileDirectory = Join-Path $env:SystemDrive "Users\$userName"
@@ -220,10 +233,62 @@ if ($installedNow) {
 Set-Service -Name sshd -StartupType Automatic
 Restart-Service -Name sshd
 
+$boxBrainRoot = Join-Path $env:ProgramData 'BoxBrain'
+$backupRoot = Join-Path $boxBrainRoot 'backups'
+New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+$winRm = Get-CimInstance Win32_Service -Filter "Name='WinRM'"
+[ordered]@{
+    changed_at_utc = (Get-Date).ToUniversalTime().ToString('o')
+    previous_winrm_start_mode = [string]$winRm.StartMode
+    allowed_boxbrain_addresses = $remoteAddresses
+} | ConvertTo-Json | Set-Content -LiteralPath (
+    Join-Path $backupRoot "winrm-before-$(Get-Date -Format yyyyMMdd-HHmmss).json"
+) -Encoding UTF8
+
+Enable-PSRemoting -SkipNetworkProfileCheck -Force
+Set-Service WinRM -StartupType Automatic
+Start-Service WinRM
+Get-NetFirewallRule -DisplayGroup 'Windows Remote Management' -ErrorAction SilentlyContinue |
+    Set-NetFirewallRule -Enabled True -Action Allow
+Get-NetFirewallRule -DisplayGroup 'Windows Remote Management' -ErrorAction SilentlyContinue |
+    Get-NetFirewallAddressFilter |
+    Set-NetFirewallAddressFilter -RemoteAddress $remoteAddresses
+
+$passwordBytes = [Text.Encoding]::UTF8.GetBytes($randomPassword)
+$entropy = [Text.Encoding]::UTF8.GetBytes('BoxBrain-WinRM-Bootstrap-v1')
+try {
+    $protectedPassword = [Security.Cryptography.ProtectedData]::Protect(
+        $passwordBytes,
+        $entropy,
+        [Security.Cryptography.DataProtectionScope]::LocalMachine
+    )
+} finally {
+    [Array]::Clear($passwordBytes, 0, $passwordBytes.Length)
+}
+
+$bootstrapDirectory = Join-Path $profileDirectory '.boxbrain'
+$bootstrapPath = Join-Path $bootstrapDirectory 'winrm-bootstrap.json'
+New-Item -ItemType Directory -Force -Path $bootstrapDirectory | Out-Null
+[ordered]@{
+    schema_version = 1
+    username = "$env:COMPUTERNAME\$userName"
+    protected_password = [Convert]::ToBase64String($protectedPassword)
+    port = 5985
+    use_ssl = $false
+    authorized_at_utc = (Get-Date).ToUniversalTime().ToString('o')
+    allowed_boxbrain_addresses = $remoteAddresses
+} | ConvertTo-Json | Set-Content -LiteralPath $bootstrapPath -Encoding UTF8
+Set-Acl -Path $bootstrapDirectory -AclObject $directoryAcl
+Set-Acl -Path $bootstrapPath -AclObject $fileAcl
+$randomPassword = $null
+$securePassword = $null
+
 Write-Host ''
 Write-Host 'BoxBrain link authorized.' -ForegroundColor Green
 Write-Host 'The boxbrain-link account is not an administrator.'
 Write-Host ('Allowed Pi address(es): {0}' -f ($remoteAddresses -join ', '))
+Write-Host 'WinRM is enabled and restricted to those BoxBrain addresses.'
+Write-Host 'The node will capture and verify its protected WinRM connection over SSH.'
 Write-Host 'USB-C targets are detected automatically after this authorization.'
 Write-Host 'For Wi-Fi/Ethernet, run this on the Pi:'
 Write-Host '  boxbrainctl add-target <this-computer-private-ip> --authorized'

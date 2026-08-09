@@ -18,7 +18,12 @@ from boxbrain.diagnostics import (
     DiagnosticError,
     TargetDiagnostics,
 )
-from boxbrain.links import load_links
+from boxbrain.links import load_links, record_computer
+from boxbrain.winrm_access import (
+    WinRMAccessError,
+    ensure_winrm_access,
+    verification_due,
+)
 
 
 LOG = logging.getLogger("boxbrain.link-monitor")
@@ -128,9 +133,21 @@ def save_link(link: dict[str, Any]) -> dict[str, Any]:
     LINKS_DIRECTORY.mkdir(parents=True, exist_ok=True)
     destination = LINKS_DIRECTORY / f"{link['address'].replace('.', '-')}.json"
     merged: dict[str, Any] = {}
+    identity_changed = False
     try:
         existing = json.loads(destination.read_text(encoding="utf-8"))
         if isinstance(existing, dict):
+            old_hostname = str(existing.get("hostname", "")).strip().lower()
+            new_hostname = str(link.get("hostname", "")).strip().lower()
+            identity_changed = bool(old_hostname and new_hostname and old_hostname != new_hostname)
+            if identity_changed:
+                # Preserve the previous machine before this reusable address is reassigned.
+                record_computer(str(STATE_DIRECTORY), existing)
+                existing = {
+                    key: value
+                    for key, value in existing.items()
+                    if key not in {"target_id", "nickname", "diagnostics", "machine_id"}
+                }
             merged.update(existing)
     except (OSError, UnicodeError, json.JSONDecodeError):
         pass
@@ -151,6 +168,12 @@ def save_link(link: dict[str, Any]) -> dict[str, Any]:
             os.unlink(temporary_name)
         except FileNotFoundError:
             pass
+    try:
+        record_computer(str(STATE_DIRECTORY), merged)
+    except OSError:
+        LOG.warning("Could not update persistent computer registry for %s", link.get("address"))
+    if identity_changed:
+        LOG.info("Address %s moved to machine %s", link.get("address"), link.get("hostname"))
     return merged
 
 
@@ -166,6 +189,77 @@ def _diagnostic_due(link: dict[str, Any]) -> bool:
     except (ValueError, OverflowError):
         return True
     return time.time() - timestamp >= max(60, DIAGNOSTIC_INTERVAL)
+
+
+def _refresh_winrm(
+    link: dict[str, Any],
+    previous: dict[str, Any] | None,
+) -> dict[str, Any]:
+    platform = str(link.get("platform", ""))
+    if "windows" not in platform.casefold() and "microsoft" not in platform.casefold():
+        return link
+    enrollment = previous.get("winrm_enrollment", {}) if previous else {}
+    if isinstance(enrollment, dict):
+        try:
+            retry_after = int(enrollment.get("retry_after", 0))
+        except (TypeError, ValueError):
+            retry_after = 0
+        if retry_after > int(time.time()):
+            link["winrm_enrollment"] = enrollment
+            return link
+    previous_connections = previous.get("connections", []) if previous else []
+    connections = [
+        dict(value)
+        for value in previous_connections
+        if isinstance(value, dict) and value.get("connection_type") != "winrm"
+    ] if isinstance(previous_connections, list) else []
+    previous_winrm = next(
+        (
+            dict(value)
+            for value in previous_connections
+            if isinstance(value, dict) and value.get("connection_type") == "winrm"
+        ),
+        None,
+    ) if isinstance(previous_connections, list) else None
+    if not verification_due(previous_winrm):
+        connections.append(previous_winrm)
+        link["connections"] = connections
+        return link
+    try:
+        connection = ensure_winrm_access(
+            link,
+            STATE_DIRECTORY,
+            IDENTITY_FILE,
+            KNOWN_HOSTS_FILE,
+        )
+    except WinRMAccessError as error:
+        link["winrm_enrollment"] = {
+            "status": "waiting-authorization",
+            "last_checked": datetime_now(),
+            "retry_after": int(time.time()) + 60,
+            "message": str(error)[:300],
+        }
+        if previous_winrm is not None:
+            previous_winrm.update(
+                {
+                    "status": "unavailable",
+                    "last_seen_at": datetime_now(),
+                    "last_error": str(error)[:300],
+                }
+            )
+            connections.append(previous_winrm)
+        LOG.info("WinRM is not ready for %s: %s", link.get("address"), error)
+    else:
+        connections.append(connection)
+        link["winrm_enrollment"] = {
+            "status": "ready",
+            "last_checked": datetime_now(),
+            "retry_after": 0,
+        }
+        LOG.info("Captured and verified persistent WinRM for %s", link.get("address"))
+    if connections:
+        link["connections"] = connections
+    return link
 
 
 def run_once() -> int:
@@ -209,6 +303,7 @@ def run_once() -> int:
                 save_link(previous)
             continue
 
+        link = _refresh_winrm(link, registered.get(address))
         saved_link = save_link(link)
         connected += 1
         if _diagnostic_due(saved_link):

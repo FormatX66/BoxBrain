@@ -1,0 +1,12 @@
+[Unit]
+Description=Recheck BoxBrain target and standalone network modes
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=15s
+AccuracySec=2s
+Persistent=true
+Unit=boxbrain-network-mode.service
+
+[Install]
+WantedBy=timers.target

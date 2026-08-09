@@ -16,11 +16,16 @@ def render_kvm_page(csrf_token: str) -> str:
   <style>
     :root {{ color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }}
     body {{ margin: 0; background: #07100d; color: #e9fff5; }}
-    main {{ width: min(900px, calc(100% - 28px)); margin: 28px auto; }}
+    main {{ width: min(1100px, calc(100% - 28px)); margin: 28px auto; }}
     header {{ display:flex; align-items:center; justify-content:space-between; gap:16px; }}
+    .header-actions {{ display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:10px; }}
+    .view-switch {{ display:flex; gap:4px; padding:4px; border:1px solid #203b30; border-radius:14px; background:#091510; }}
+    .view-switch button {{ padding:8px 11px; border-color:transparent; background:transparent; }}
+    .view-switch button[aria-pressed="true"] {{ border-color:#2b7d55; background:#1d754b; }}
     h1 {{ margin:.2rem 0; font-size:clamp(2rem,6vw,4rem); letter-spacing:-.05em; }}
     .eyebrow,.label {{ color:#62f5a7; text-transform:uppercase; letter-spacing:.12em; font-size:.78rem; font-weight:750; }}
     .panel {{ background:#0d1b16; border:1px solid #203b30; border-radius:18px; padding:20px; margin-top:14px; }}
+    .workspace {{ display:block; }}
     .status {{ border-radius:999px; padding:8px 13px; background:#26352f; color:#c8d2cd; }}
     .status.ready {{ background:#133d29; color:#8fffc0; }}
     .status.error {{ background:#5d1c25; color:#ffb7c0; }}
@@ -29,37 +34,79 @@ def render_kvm_page(csrf_token: str) -> str:
     button.primary {{ background:#1d754b; }}
     button.danger {{ border-color:#88404a; background:#4a1c23; }}
     button:disabled {{ opacity:.45; cursor:not-allowed; }}
+    .button-link {{ display:inline-flex; align-items:center; border:1px solid #2b7d55; border-radius:12px; background:#1d754b; color:#e9fff5; padding:12px 16px; font-weight:700; text-decoration:none; }}
+    .video-frame {{ overflow:hidden; border:1px solid #203b30; border-radius:16px; margin-top:14px; background:#000; }}
+    #video {{ display:block; width:100%; aspect-ratio:16/9; object-fit:contain; background:#000; }}
     #pad {{ min-height:300px; display:grid; place-items:center; border:2px dashed #2b7d55; border-radius:16px; margin-top:14px; background:#091510; user-select:none; touch-action:none; outline:none; }}
     #pad.armed {{ border-style:solid; background:#0d271c; box-shadow:inset 0 0 40px #0c4028; }}
     textarea {{ width:100%; box-sizing:border-box; min-height:90px; margin-top:10px; border:1px solid #315244; border-radius:12px; background:#07100d; color:#e9fff5; padding:12px; }}
     .note {{ color:#9bb1a7; line-height:1.5; }}
+    .agent-panel {{ display:none; }}
+    .agent-state {{ margin:8px 0 0; overflow:auto; color:#c4ffe0; font:13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space:pre-wrap; }}
     a {{ color:#8fffc0; }}
     code {{ color:#c4ffe0; }}
+    body[data-view="agent"] main {{ width:min(1480px, calc(100% - 20px)); margin:10px auto; }}
+    body[data-view="agent"] h1 {{ font-size:clamp(1.8rem,4vw,3rem); }}
+    body[data-view="agent"] .panel {{ padding:14px; margin-top:10px; border-radius:14px; }}
+    body[data-view="agent"] .agent-panel {{ display:block; }}
+    body[data-view="agent"] .workspace {{ display:grid; grid-template-columns:minmax(0,1.7fr) minmax(340px,.8fr); gap:10px; align-items:start; }}
+    body[data-view="agent"] .video-panel {{ grid-column:1; grid-row:1 / span 2; }}
+    body[data-view="agent"] .control-panel {{ grid-column:2; grid-row:1; }}
+    body[data-view="agent"] .type-panel {{ grid-column:2; grid-row:2; }}
+    body[data-view="agent"] .video-frame {{ margin-top:8px; }}
+    body[data-view="agent"] #pad {{ min-height:150px; margin-top:10px; }}
+    body[data-view="agent"] textarea {{ min-height:70px; }}
+    body[data-view="agent"] .note {{ margin:.55rem 0; font-size:.9rem; }}
+    @media (max-width:900px) {{
+      header {{ align-items:flex-start; flex-direction:column; }}
+      .header-actions {{ justify-content:flex-start; }}
+      body[data-view="agent"] .workspace {{ display:block; }}
+    }}
   </style>
 </head>
 <body>
 <main>
   <header>
-    <div><div class="eyebrow">USB HID control</div><h1>Morris PC</h1></div>
-    <div id="status" class="status">Checking</div>
+    <div><div class="eyebrow">Pi physical KVM</div><h1>Morris PC</h1></div>
+    <div class="header-actions">
+      <div class="view-switch" aria-label="KVM screen view">
+        <button id="humanView" type="button" aria-pressed="true">Human view</button>
+        <button id="agentView" type="button" aria-pressed="false">Agent view</button>
+      </div>
+      <div id="status" class="status" role="status">Checking</div>
+    </div>
   </header>
-  <section class="panel">
+  <section id="agentPanel" class="panel agent-panel" aria-label="Machine-readable KVM state">
+    <div class="label">Structured KVM state</div>
+    <pre id="agentState" class="agent-state">{{"view":"agent","hidReady":false,"armed":false}}</pre>
+  </section>
+  <div class="workspace">
+  <section class="panel video-panel">
+    <div class="label">Live capture-card video</div>
+    <div class="video-frame"><img id="video" src="/api/v1/kvm/video" alt="Live video from Morris PC"></div>
+    <p class="note">This picture comes directly from the Pi's HDMI capture card. It does not use VNC or software installed on Morris PC.</p>
+  </section>
+  <section class="panel control-panel">
     <div class="label">Keyboard + relative mouse</div>
     <p class="note">Arm only while Morris PC is the intended USB target. Click the pad to capture the mouse. Press <code>Ctrl+Alt+Esc</code> or the Release button to stop and release every key and button.</p>
     <div class="controls">
       <button id="arm" class="primary">Arm controls</button>
       <button id="release" class="danger">Release all</button>
       <button id="ctrlAltDel">Ctrl+Alt+Delete</button>
+      <a id="openNoVnc" class="button-link" href="/current/vnc.html?host=127.0.0.1&amp;port=6081&amp;autoconnect=1&amp;resize=scale&amp;reconnect=1" target="_blank" rel="noopener">Open noVNC remote</a>
       <a href="/">Back to BoxBrain</a>
     </div>
+    <p class="note">noVNC opens Morris PC's software remote screen in a new tab. WinRM remains the command-shell connection.</p>
     <div id="pad" tabindex="0"><strong>Click here for mouse and keyboard control</strong></div>
   </section>
-  <section class="panel">
+  <section class="panel type-panel">
     <div class="label">Acknowledged single-character typing</div>
-    <textarea id="text" maxlength="256" placeholder="Up to 256 US-keyboard characters"></textarea>
+    <label class="note" for="text">Command text (not logged)</label>
+    <textarea id="text" maxlength="256" aria-label="Command text (not logged)" placeholder="Up to 256 US-keyboard characters"></textarea>
     <p class="note">Each character is sent as its own HID operation and must be acknowledged by the Pi before the next character is sent.</p>
     <div class="controls"><button id="sendText">Type one character at a time</button></div>
   </section>
+  </div>
   <p id="message" class="note">No input has been sent.</p>
 </main>
 <script>
@@ -67,14 +114,69 @@ const csrf = {token};
 const pad = document.getElementById('pad');
 const statusBadge = document.getElementById('status');
 const message = document.getElementById('message');
+const agentState = document.getElementById('agentState');
+const pageParams = new URLSearchParams(window.location.search);
+const noVncButton = document.getElementById('openNoVnc');
 let armed = false;
 let buttons = 0;
 let queue = Promise.resolve();
 let pendingX = 0;
 let pendingY = 0;
 let pointerScheduled = false;
+let viewMode = 'human';
+let hidReady = false;
+let lastAction = 'none';
+let lastActionOk = null;
+let acknowledgedCharacters = 0;
+
+function configureNoVncLink() {{
+  const requestedPort = Number(pageParams.get('novnc_port') || '6081');
+  const noVncPort = Number.isInteger(requestedPort) && requestedPort >= 1024 && requestedPort <= 65535
+    ? requestedPort
+    : 6081;
+  const url = new URL('/current/vnc.html', window.location.origin);
+  url.searchParams.set('host', window.location.hostname);
+  url.searchParams.set('port', String(noVncPort));
+  url.searchParams.set('autoconnect', '1');
+  url.searchParams.set('resize', 'scale');
+  url.searchParams.set('reconnect', '1');
+  noVncButton.href = url.toString();
+}}
+
+function updateAgentState() {{
+  agentState.textContent = JSON.stringify({{
+    view: viewMode,
+    hidReady,
+    armed,
+    pointerLocked: document.pointerLockElement === pad,
+    lastAction,
+    lastActionOk,
+    acknowledgedCharacters,
+    message: message.textContent
+  }});
+}}
+
+function setView(view, persist=true) {{
+  viewMode = view === 'agent' ? 'agent' : 'human';
+  document.body.dataset.view = viewMode;
+  document.getElementById('humanView').setAttribute('aria-pressed', String(viewMode === 'human'));
+  document.getElementById('agentView').setAttribute('aria-pressed', String(viewMode === 'agent'));
+  const url = new URL(window.location.href);
+  url.searchParams.set('view', viewMode);
+  history.replaceState(null, '', url);
+  if (persist) {{
+    try {{ localStorage.setItem('boxbrain-kvm-view', viewMode); }} catch (_) {{}}
+  }}
+  updateAgentState();
+}}
+
+document.getElementById('humanView').addEventListener('click', () => setView('human'));
+document.getElementById('agentView').addEventListener('click', () => setView('agent'));
 
 function request(payload) {{
+  lastAction = payload.action || 'unknown';
+  lastActionOk = null;
+  updateAgentState();
   queue = queue.then(async () => {{
     const response = await fetch('/api/v1/hid-kvm/input', {{
       method: 'POST',
@@ -84,6 +186,8 @@ function request(payload) {{
     }});
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || 'HID request failed');
+    lastActionOk = true;
+    updateAgentState();
     return result;
   }}).catch(error => {{
     statusBadge.textContent = 'Input error';
@@ -91,6 +195,8 @@ function request(payload) {{
     message.textContent = error.message;
     armed = false;
     pad.classList.remove('armed');
+    lastActionOk = false;
+    updateAgentState();
   }});
   return queue;
 }}
@@ -100,12 +206,16 @@ async function refreshStatus() {{
     const response = await fetch('/api/v1/hid-kvm/status', {{cache:'no-store'}});
     const result = await response.json();
     const ready = response.ok && result.ok && result.status.keyboard_ready && result.status.mouse_ready;
+    hidReady = Boolean(ready);
     statusBadge.textContent = ready ? (armed ? 'Armed' : 'Ready') : 'Unavailable';
     statusBadge.className = ready ? 'status ready' : 'status error';
     document.getElementById('arm').disabled = !ready;
+    updateAgentState();
   }} catch (_) {{
+    hidReady = false;
     statusBadge.textContent = 'Unavailable';
     statusBadge.className = 'status error';
+    updateAgentState();
   }}
 }}
 
@@ -115,6 +225,7 @@ function releaseAll(reason='operator') {{
   pad.classList.remove('armed');
   if (document.pointerLockElement) document.exitPointerLock();
   message.textContent = `Controls released (${{reason}}).`;
+  updateAgentState();
   request({{action:'release'}}).then(refreshStatus);
 }}
 
@@ -124,11 +235,13 @@ document.getElementById('arm').addEventListener('click', () => {{
   pad.focus();
   pad.requestPointerLock();
   message.textContent = 'Controls armed for Morris PC.';
+  updateAgentState();
   refreshStatus();
 }});
 document.getElementById('release').addEventListener('click', () => releaseAll());
 pad.addEventListener('click', () => {{ if (armed) pad.requestPointerLock(); }});
 pad.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener('pointerlockchange', updateAgentState);
 
 window.addEventListener('keydown', event => {{
   if (!armed || ['TEXTAREA','INPUT','BUTTON'].includes(event.target.tagName)) return;
@@ -141,7 +254,7 @@ window.addEventListener('keydown', event => {{
   if (!event.repeat) request({{action:'key',code:event.code,down:true}});
 }});
 window.addEventListener('keyup', event => {{
-  if (!armed || ['TEXTAREA','INPUT'].includes(event.target.tagName)) return;
+  if (!armed || ['TEXTAREA','INPUT','BUTTON'].includes(event.target.tagName)) return;
   event.preventDefault();
   request({{action:'key',code:event.code,down:false}});
 }});
@@ -194,12 +307,16 @@ document.getElementById('sendText').addEventListener('click', async () => {{
       const result = await request({{action:'character',character}});
       if (!result || !result.acknowledged) throw new Error('The Pi did not acknowledge the character.');
       acknowledged += 1;
+      acknowledgedCharacters = acknowledged;
       message.textContent = `Acknowledged ${{acknowledged}} of ${{text.length}} characters.`;
+      updateAgentState();
     }}
     document.getElementById('text').value = '';
     message.textContent = `Typed and acknowledged ${{acknowledged}} characters; text was not logged.`;
+    updateAgentState();
   }} catch (error) {{
     message.textContent = `Stopped after ${{acknowledged}} acknowledged characters: ${{error.message}}`;
+    updateAgentState();
   }} finally {{
     button.disabled = false;
   }}
@@ -219,6 +336,12 @@ window.addEventListener('beforeunload', () => {{
     body:JSON.stringify({{action:'release'}})
   }});
 }});
+configureNoVncLink();
+let initialView = pageParams.get('view');
+if (!initialView) {{
+  try {{ initialView = localStorage.getItem('boxbrain-kvm-view'); }} catch (_) {{}}
+}}
+setView(initialView === 'agent' ? 'agent' : 'human', false);
 refreshStatus();
 setInterval(refreshStatus, 3000);
 </script>

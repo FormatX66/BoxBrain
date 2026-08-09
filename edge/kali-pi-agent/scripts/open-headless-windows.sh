@@ -44,22 +44,59 @@ fi
 
 printf 'BoxBrain restricted SSH -> boxbrain-link@%s\n' "$target"
 printf 'This session is non-administrator and uses the pinned Pi trust store.\n\n'
+printf 'Each line runs in a fresh PowerShell process. Type exit to close.\n'
+printf 'Do not enter passwords, tokens, or other secrets.\n\n'
 
-set +e
-sudo -n -u boxbrain /usr/bin/ssh \
-    -T \
-    -i "$identity_file" \
-    -o BatchMode=yes \
-    -o ConnectTimeout=8 \
-    -o IdentitiesOnly=yes \
-    -o StrictHostKeyChecking=yes \
-    -o "UserKnownHostsFile=$known_hosts" \
-    -o ServerAliveInterval=30 \
-    -o ServerAliveCountMax=3 \
-    "boxbrain-link@$target" \
-    "powershell.exe -NoLogo -NoProfile"
-status=$?
-set -e
+while :; do
+    printf 'PS Windows target> '
+    if ! IFS= read -r command; then
+        break
+    fi
+    case "$command" in
+        exit|quit|EXIT|QUIT)
+            break
+            ;;
+        '')
+            continue
+            ;;
+    esac
 
-printf '\nBoxBrain target SSH exited with status %s.\n' "$status"
-pause_and_exit "$status"
+    encoded=$(
+        printf '%s' "$command" |
+            python3 -c '
+import base64
+import sys
+
+script = "$ProgressPreference=\x27SilentlyContinue\x27; " + sys.stdin.read()
+print(base64.b64encode(script.encode("utf-16-le")).decode("ascii"))
+'
+    )
+
+    set +e
+    sudo -n -u boxbrain /usr/bin/ssh \
+        -T \
+        -n \
+        -i "$identity_file" \
+        -o BatchMode=yes \
+        -o ConnectTimeout=8 \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        -o "UserKnownHostsFile=$known_hosts" \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        "boxbrain-link@$target" \
+        powershell.exe \
+        -NoLogo \
+        -NoProfile \
+        -NonInteractive \
+        -ExecutionPolicy Bypass \
+        -OutputFormat Text \
+        -EncodedCommand "$encoded"
+    status=$?
+    set -e
+    if [ "$status" -ne 0 ]; then
+        printf '[remote command exited with status %s]\n' "$status" >&2
+    fi
+done
+
+pause_and_exit 0

@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically discover BoxBrain and WinRM on the standalone LAN
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=5min
+RandomizedDelaySec=20s
+Persistent=true
+Unit=boxbrain-standalone-discovery.service
+
+[Install]
+WantedBy=timers.target

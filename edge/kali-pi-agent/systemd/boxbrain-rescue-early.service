@@ -1,0 +1,15 @@
+[Unit]
+Description=Consume BoxBrain one-shot rescue state before USB gadget startup
+After=local-fs.target
+Before=boxbrain-usb-gadget.service
+
+[Service]
+Type=oneshot
+User=boxbrain
+Group=boxbrain
+EnvironmentFile=-/etc/boxbrain/boxbrain.env
+ExecStart=/usr/local/bin/boxbrainctl rescue consume-early
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

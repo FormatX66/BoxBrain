@@ -20,9 +20,12 @@ from boxbrain.connections import build_connection_map
 from boxbrain.agent import agent_state
 from boxbrain.diagnostics import DiagnosticError, TargetDiagnostics
 from boxbrain.links import load_links
+from boxbrain.operator_console import OperatorConsole
 from boxbrain.hid_kvm import HidKvmClient, HidKvmError
 from boxbrain.kvm_page import render_kvm_page
 from boxbrain.patches import PatchManager
+from boxbrain.rescue_boot import RescueBootError, RescueBootManager
+from boxbrain.rescue_page import render_rescue_page
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
 from boxbrain.system import collect_status
@@ -99,6 +102,53 @@ def _dashboard(status: dict[str, Any]) -> str:
     )
     if not connection_rows:
         connection_rows = '<tr><td colspan="5">Connection inventory unavailable</td></tr>'
+    connection_cards = ""
+    for item in connection_items:
+        if not isinstance(item, dict):
+            continue
+        state = str(item.get("state", "unknown"))
+        state_class = (
+            "online"
+            if state in {"connected", "available", "active", "ready"}
+            else "offline"
+            if state in {"not-detected", "offline", "unavailable"}
+            else "waiting"
+        )
+        capabilities = item.get("capabilities", [])
+        if not isinstance(capabilities, list):
+            capabilities = []
+        capability_chips = "".join(
+            "<span class='capability-chip "
+            + (
+                "ready"
+                if str(capability.get("state", "")) in {"ready", "connected", "available"}
+                else "waiting"
+                if str(capability.get("state", "")).startswith("requires-")
+                else "off"
+            )
+            + "'>"
+            + escape(str(capability.get("id", "unknown")).replace("-", " "))
+            + "</span>"
+            for capability in capabilities
+            if isinstance(capability, dict)
+            and str(capability.get("state", ""))
+            not in {"unsupported", "not-configured"}
+        )
+        if not capability_chips:
+            capability_chips = "<span class='capability-chip off'>No active tools</span>"
+        interfaces_text = ", ".join(str(value) for value in item.get("interfaces", [])) or "No interface"
+        connection_cards += (
+            "<article class='connection-card'>"
+            "<div class='connection-head'>"
+            f"<h3>{escape(str(item.get('label', 'Unknown connection')))}</h3>"
+            f"<span class='connection-state {state_class}'>{escape(state)}</span>"
+            "</div>"
+            f"<p>{escape(interfaces_text)} &middot; {escape(str(item.get('target_count', 0)))} target(s)</p>"
+            f"<div class='capability-chips'>{capability_chips}</div>"
+            "</article>"
+        )
+    if not connection_cards:
+        connection_cards = "<p>Connection inventory unavailable.</p>"
     target_panels = ""
     for item in links:
         diagnostic = item.get("diagnostics", {})
@@ -201,6 +251,34 @@ def _dashboard(status: dict[str, Any]) -> str:
     .badge {{ border: 1px solid #2b7d55; border-radius: 999px; padding: 8px 14px; color: #8fffc0; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 14px; margin: 30px 0; }}
     .card, .panel {{ background: #0d1b16; border: 1px solid #203b30; border-radius: 18px; padding: 20px; }}
+    .operator-panel {{ margin-top: 28px; }}
+    .section-head {{ display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 14px; }}
+    .section-head h2 {{ margin: 5px 0 0; font-size: 1.55rem; }}
+    .section-note {{ margin: 0; color: #8eaa9e; max-width: 46ch; }}
+    .tool-grid {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 14px; }}
+    .tool {{ display: block; min-height: 138px; color: #e9fff5; text-decoration: none; background: #10221b; border: 1px solid #2a5541; border-radius: 18px; padding: 20px; }}
+    .tool:hover, .tool:focus-visible {{ border-color: #62f5a7; outline: none; transform: translateY(-1px); }}
+    .tool h3 {{ margin: 8px 0 6px; font-size: 1.2rem; }}
+    .tool p {{ margin: 0; color: #a9bbb3; line-height: 1.45; }}
+    .tool-tag {{ color: #62f5a7; text-transform: uppercase; letter-spacing: .09em; font-size: .72rem; font-weight: 800; }}
+    .tool-tag.fallback {{ color: #ffe59b; }}
+    .connection-grid {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 12px; }}
+    .connection-card {{ background: #0a1712; border: 1px solid #203b30; border-radius: 14px; padding: 16px; }}
+    .connection-head {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }}
+    .connection-head h3 {{ margin: 0; font-size: 1rem; }}
+    .connection-card p {{ color: #8eaa9e; margin: 10px 0 12px; }}
+    .connection-state {{ border-radius: 999px; padding: 4px 8px; text-transform: uppercase; font-size: .66rem; font-weight: 800; }}
+    .connection-state.online {{ color: #8fffc0; background: #133d29; }}
+    .connection-state.waiting {{ color: #ffe59b; background: #594513; }}
+    .connection-state.offline {{ color: #c8d2cd; background: #26352f; }}
+    .capability-chips {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+    .capability-chip {{ border-radius: 999px; padding: 4px 8px; font-size: .72rem; text-transform: capitalize; }}
+    .capability-chip.ready {{ color: #8fffc0; border: 1px solid #2b7d55; }}
+    .capability-chip.waiting {{ color: #ffe59b; border: 1px solid #80671f; }}
+    .capability-chip.off {{ color: #8eaa9e; border: 1px solid #35473f; }}
+    details {{ margin-top: 14px; }}
+    summary {{ cursor: pointer; color: #8fffc0; font-weight: 700; padding: 8px 0; }}
+    .technical {{ margin-top: 14px; }}
     .target {{ background: #0d1b16; border: 1px solid #203b30; border-radius: 18px; padding: 22px; margin-top: 14px; }}
     .target-head {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }}
     .target h2 {{ margin: 5px 0 0; }}
@@ -237,41 +315,56 @@ def _dashboard(status: dict[str, Any]) -> str:
     <div><div class="eyebrow">Kali Pi edge agent</div><h1>BoxBrain</h1></div>
     <div class="badge">Healthy</div>
   </header>
-  <div class="grid">
-    <div class="card"><div class="label">Device</div><div class="value">{escape(status['hostname'])}</div></div>
-    <div class="card"><div class="label">Model</div><div class="value">{escape(status['model'])}</div></div>
-    <div class="card"><div class="label">Temperature</div><div class="value">{temperature_text}</div></div>
-    <div class="card"><div class="label">System uptime</div><div class="value">{uptime_text}</div></div>
-    <div class="card"><div class="label">Memory available</div><div class="value">{_human_bytes(memory['available_bytes'])}</div></div>
-    <div class="card"><div class="label">Storage free</div><div class="value">{_human_bytes(storage['free_bytes'])}</div></div>
-    <div class="card"><div class="label">Latest assessment</div><div class="value">{escape(assessment_text)}</div></div>
-    <div class="card"><div class="label">Agent mode</div><div class="value">{escape(str(agent.get('operating_mode', 'advisory')))}</div></div>
-    <div class="card"><div class="label">Recommendations</div><div class="value">{escape(str(agent.get('recommendation_count', 0)))}</div></div>
-  </div>
-  <section class="panel">
-    <div class="label">Network interfaces</div>
-    <table><thead><tr><th>Name</th><th>State</th><th>IPv4</th></tr></thead><tbody>{interface_rows}</tbody></table>
+  <section class="operator-panel" aria-labelledby="tools-heading">
+    <div class="section-head">
+      <div><div class="label">Operator tools</div><h2 id="tools-heading">Choose what you want to do</h2></div>
+      <p class="section-note">Start with a direct connection or diagnosis. Use KVM only when a shell or managed connection is unavailable.</p>
+    </div>
+    <div class="tool-grid">
+      <a class="tool" href="#managed-systems"><span class="tool-tag">Observe</span><h3>Systems &amp; health</h3><p>See target reachability, the last health check, and current repair findings.</p></a>
+      <a class="tool" href="#connections"><span class="tool-tag">Connect</span><h3>Connection map</h3><p>See USB, Ethernet, Wi-Fi, Bluetooth, and the tools each path supports.</p></a>
+      <a class="tool" href="/rescue"><span class="tool-tag">Recover</span><h3>One-shot rescue</h3><p>Prepare a guarded Kali or Windows rescue boot, then return to normal BoxBrain.</p></a>
+      <a class="tool" href="/kvm"><span class="tool-tag fallback">Fallback</span><h3>Keyboard, mouse &amp; video</h3><p>Open the physical KVM path only when its capture and HID devices are available.</p></a>
+    </div>
   </section>
-  <section class="panel" style="margin-top:14px">
-    <div class="label">Connection map</div>
-    <table><thead><tr><th>Transport</th><th>State</th><th>Interfaces</th><th>Targets</th><th>Capabilities</th></tr></thead><tbody>{connection_rows}</tbody></table>
-    <p><a href="/kvm">Open Morris PC keyboard and mouse controls</a></p>
+  <section class="panel operator-panel" id="connections">
+    <div class="section-head">
+      <div><div class="label">Connections</div><h2>What is usable right now</h2></div>
+      <p class="section-note">Green tools are ready. Yellow tools need pairing or target authorization.</p>
+    </div>
+    <div class="connection-grid">{connection_cards}</div>
   </section>
-  <section class="panel" style="margin-top:14px">
+  <section class="panel operator-panel" id="managed-systems">
     <div class="label">Managed systems</div>
     <table><thead><tr><th>Name</th><th>Address</th><th>Link</th><th>Transport</th><th>Platform</th><th>System status</th><th>Findings</th></tr></thead><tbody>{link_rows}</tbody></table>
   </section>
   <section style="margin-top:14px">
     {target_panels}
   </section>
-  <section class="panel" style="margin-top:14px">
+  <section class="panel" id="recommendations" style="margin-top:14px">
     <div class="label">Edge-agent recommendations</div>
     {recommendation_html}
   </section>
-  <section class="panel" style="margin-top:14px">
-    <div class="label">Edge-agent capabilities</div>
+  <details class="panel technical">
+    <summary>Technical details and inventories</summary>
+    <div class="grid">
+      <div class="card"><div class="label">Device</div><div class="value">{escape(status['hostname'])}</div></div>
+      <div class="card"><div class="label">Model</div><div class="value">{escape(status['model'])}</div></div>
+      <div class="card"><div class="label">Temperature</div><div class="value">{temperature_text}</div></div>
+      <div class="card"><div class="label">System uptime</div><div class="value">{uptime_text}</div></div>
+      <div class="card"><div class="label">Memory available</div><div class="value">{_human_bytes(memory['available_bytes'])}</div></div>
+      <div class="card"><div class="label">Storage free</div><div class="value">{_human_bytes(storage['free_bytes'])}</div></div>
+      <div class="card"><div class="label">Latest assessment</div><div class="value">{escape(assessment_text)}</div></div>
+      <div class="card"><div class="label">Agent mode</div><div class="value">{escape(str(agent.get('operating_mode', 'advisory')))}</div></div>
+      <div class="card"><div class="label">Recommendations</div><div class="value">{escape(str(agent.get('recommendation_count', 0)))}</div></div>
+    </div>
+    <div class="label">Network interfaces</div>
+    <table><thead><tr><th>Name</th><th>State</th><th>IPv4</th></tr></thead><tbody>{interface_rows}</tbody></table>
+    <div class="label" style="margin-top:22px">Connection inventory</div>
+    <table><thead><tr><th>Transport</th><th>State</th><th>Interfaces</th><th>Targets</th><th>Capabilities</th></tr></thead><tbody>{connection_rows}</tbody></table>
+    <div class="label" style="margin-top:22px">Edge-agent capabilities</div>
     <table><thead><tr><th>Capability</th><th>Domain</th><th>Mode</th><th>Status</th></tr></thead><tbody>{capability_rows}</tbody></table>
-  </section>
+  </details>
   <footer>BoxBrain {__version__} / local management channel / refreshes every 10 seconds</footer>
 </main>
 </body>
@@ -283,6 +376,8 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
     sys_version = ""
     storage: Storage | None = None
     diagnostics: TargetDiagnostics | None = None
+    rescue_manager: RescueBootManager | None = None
+    operator_console: OperatorConsole | None = None
 
     @classmethod
     def status_payload(cls) -> dict[str, Any]:
@@ -301,6 +396,9 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
         payload["agent"] = agent_state(
             os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain"),
             payload["latest_assessment"],
+        )
+        payload["rescue_boot"] = (
+            cls.rescue_manager.status() if cls.rescue_manager is not None else None
         )
         return payload
 
@@ -329,6 +427,12 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+        if self.operator_console is not None and self.operator_console.handle_get(
+            self,
+            parsed,
+            self.status_payload,
+        ):
+            return
         if parsed.path == "/health":
             payload = {
                 "status": "ok",
@@ -364,6 +468,32 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
                 "application/json; charset=utf-8",
                 response_status,
             )
+            return
+
+        if parsed.path == "/api/v1/rescue/status":
+            if self.rescue_manager is None:
+                self._send(b'{"error":"rescue_unavailable"}', "application/json; charset=utf-8", 503)
+                return
+            payload = self.rescue_manager.status()
+            self._send(json.dumps(payload, separators=(",", ":")).encode("utf-8"), "application/json; charset=utf-8")
+            return
+
+        if parsed.path == "/api/v1/rescue/images":
+            if self.rescue_manager is None:
+                self._send(b'{"error":"rescue_unavailable"}', "application/json; charset=utf-8", 503)
+                return
+            # Dashboard refreshes must stay lightweight. Full image checksum
+            # verification remains an explicit CLI operation.
+            payload = {"images": self.rescue_manager.list_images(verify=False)}
+            self._send(json.dumps(payload, separators=(",", ":")).encode("utf-8"), "application/json; charset=utf-8")
+            return
+
+        if parsed.path == "/api/v1/rescue/hardware":
+            if self.rescue_manager is None:
+                self._send(b'{"error":"rescue_unavailable"}', "application/json; charset=utf-8", 503)
+                return
+            payload = self.rescue_manager.hardware_check()
+            self._send(json.dumps(payload, separators=(",", ":")).encode("utf-8"), "application/json; charset=utf-8")
             return
 
         if parsed.path == "/api/v1/jobs":
@@ -429,6 +559,21 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
                 "text/html; charset=utf-8",
                 content_security_policy=(
                     "default-src 'none'; style-src 'unsafe-inline'; "
+                    "script-src 'unsafe-inline'; connect-src 'self'; "
+                    "img-src 'self'"
+                ),
+            )
+            return
+
+        if parsed.path == "/rescue":
+            body = render_rescue_page(
+                self.server.rescue_csrf_token  # type: ignore[attr-defined]
+            ).encode("utf-8")
+            self._send(
+                body,
+                "text/html; charset=utf-8",
+                content_security_policy=(
+                    "default-src 'none'; style-src 'unsafe-inline'; "
                     "script-src 'unsafe-inline'; connect-src 'self'"
                 ),
             )
@@ -438,13 +583,22 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
-        if parsed.path != "/api/v1/hid-kvm/input":
+        if self.operator_console is not None and self.operator_console.handle_post(
+            self,
+            parsed,
+        ):
+            return
+        if parsed.path not in {"/api/v1/hid-kvm/input", "/api/v1/rescue/control"}:
             self._send(b'{"error":"not_found"}', "application/json; charset=utf-8", 404)
             return
         if self.client_address[0] not in {"127.0.0.1", "::1"}:
             self._send(b'{"error":"loopback_required"}', "application/json; charset=utf-8", 403)
             return
-        expected_token = self.server.hid_kvm_csrf_token  # type: ignore[attr-defined]
+        expected_token = (
+            self.server.hid_kvm_csrf_token  # type: ignore[attr-defined]
+            if parsed.path == "/api/v1/hid-kvm/input"
+            else self.server.rescue_csrf_token  # type: ignore[attr-defined]
+        )
         if not secrets.compare_digest(self.headers.get("X-BoxBrain-CSRF", ""), expected_token):
             self._send(b'{"error":"csrf_rejected"}', "application/json; charset=utf-8", 403)
             return
@@ -462,6 +616,45 @@ class BoxBrainHandler(BaseHTTPRequestHandler):
             return
         if not isinstance(payload, dict):
             self._send(b'{"error":"invalid_request"}', "application/json; charset=utf-8", 400)
+            return
+        if parsed.path == "/api/v1/rescue/control":
+            if self.rescue_manager is None:
+                self._send(b'{"error":"rescue_unavailable"}', "application/json; charset=utf-8", 503)
+                return
+            action = payload.get("action")
+            try:
+                if action == "arm":
+                    response = self.rescue_manager.arm(
+                        str(payload.get("mode", "")),
+                        target_architecture=(
+                            str(payload["target_architecture"])
+                            if payload.get("target_architecture")
+                            else None
+                        ),
+                        authorization=str(payload.get("confirmation", "")),
+                    )
+                elif action == "cancel":
+                    response = self.rescue_manager.cancel(
+                        authorization=str(payload.get("confirmation", ""))
+                    )
+                elif action == "reboot-normal":
+                    response = self.rescue_manager.reboot_normal(
+                        authorization=str(payload.get("confirmation", "")),
+                        execute=payload.get("execute") is True,
+                    )
+                else:
+                    raise RescueBootError("Unsupported rescue control action.")
+            except RescueBootError as error:
+                self._send(
+                    json.dumps({"ok": False, "error": str(error)}, separators=(",", ":")).encode("utf-8"),
+                    "application/json; charset=utf-8",
+                    400,
+                )
+                return
+            self._send(
+                json.dumps({"ok": True, "result": response}, separators=(",", ":")).encode("utf-8"),
+                "application/json; charset=utf-8",
+            )
             return
         try:
             response = self.server.hid_kvm_client.request(payload)  # type: ignore[attr-defined]
@@ -487,13 +680,28 @@ def build_server(
     diagnostics: TargetDiagnostics | None = None,
     hid_kvm_client: HidKvmClient | None = None,
     hid_kvm_csrf_token: str | None = None,
+    rescue_manager: RescueBootManager | None = None,
+    rescue_csrf_token: str | None = None,
+    manager: AssessmentManager | None = None,
+    state_directory: str | None = None,
 ) -> ThreadingHTTPServer:
     BoxBrainHandler.storage = storage
     BoxBrainHandler.diagnostics = diagnostics
+    BoxBrainHandler.rescue_manager = rescue_manager
+    BoxBrainHandler.operator_console = OperatorConsole(
+        state_directory
+        or os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain"),
+        diagnostics=diagnostics,
+        storage=storage,
+        manager=manager,
+    )
     server = ThreadingHTTPServer((bind, port), BoxBrainHandler)
     server.hid_kvm_client = hid_kvm_client or HidKvmClient()  # type: ignore[attr-defined]
     server.hid_kvm_csrf_token = (  # type: ignore[attr-defined]
         hid_kvm_csrf_token or secrets.token_urlsafe(32)
+    )
+    server.rescue_csrf_token = (  # type: ignore[attr-defined]
+        rescue_csrf_token or secrets.token_urlsafe(32)
     )
     return server
 
@@ -515,13 +723,22 @@ def main() -> None:
     manager = AssessmentManager(storage)
     diagnostics = TargetDiagnostics(state_directory)
     patches = PatchManager(state_directory)
+    rescue_manager = RescueBootManager(state_directory)
     control = ControlServer(control_socket, storage, manager, diagnostics, patches)
     control_thread = threading.Thread(
         target=control.serve_forever,
         name="boxbrain-control",
         daemon=True,
     )
-    server = build_server(bind, port, storage, diagnostics)
+    server = build_server(
+        bind,
+        port,
+        storage,
+        diagnostics,
+        rescue_manager=rescue_manager,
+        manager=manager,
+        state_directory=state_directory,
+    )
 
     def stop_server(_signum: int, _frame: object) -> None:
         threading.Thread(target=server.shutdown, daemon=True).start()
