@@ -733,6 +733,73 @@ class OperatorConsole:
 <label>Confirm<input name="confirmation" required maxlength="1" autocomplete="off" placeholder="Y"></label>
 <button>Connect Wi-Fi</button></form></div>"""
 
+    @staticmethod
+    def _windows_wlan_panel(status: dict[str, Any]) -> str:
+        records = status.get("windows_wlan_inventories", [])
+        if not isinstance(records, list):
+            records = []
+        interface_rows = ""
+        profile_rows = ""
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            target = record.get("target", {})
+            inventory = record.get("inventory", {})
+            if not isinstance(target, dict) or not isinstance(inventory, dict):
+                continue
+            if inventory.get("credential_material_included") is not False:
+                continue
+            target_label = str(
+                target.get("hostname") or target.get("address") or "Windows target"
+            )
+            for item in inventory.get("interfaces", []):
+                if not isinstance(item, dict):
+                    continue
+                signal = item.get("signal_percent")
+                signal_text = f"{signal}%" if isinstance(signal, int) else "unknown signal"
+                ipv4 = ", ".join(str(value) for value in item.get("ipv4", [])) or "no IPv4"
+                interface_rows += (
+                    "<div class='tool-row'><div>"
+                    f"<strong>{escape(target_label)} · {escape(str(item.get('name', 'unknown')))}</strong>"
+                    f"<small>{escape(str(item.get('current_ssid') or 'Not connected'))} · "
+                    f"{escape(str(item.get('state', 'unknown')))} · {escape(signal_text)} · {escape(ipv4)}</small>"
+                    "</div><span class='pill muted'>WLAN</span></div>"
+                )
+            for item in inventory.get("profiles", []):
+                if not isinstance(item, dict):
+                    continue
+                auto = "auto-connect" if item.get("auto_connect") is True else "manual"
+                credential = (
+                    "credential available"
+                    if item.get("credential_available") is True
+                    else "credential not reported"
+                )
+                profile_rows += (
+                    "<div><dt>"
+                    f"{escape(target_label)} · {escape(str(item.get('profile', 'unknown')))}"
+                    "</dt><dd>"
+                    f"{escape(str(item.get('interface', 'unknown')))} · "
+                    f"{escape(str(item.get('authentication') or 'unknown'))} / "
+                    f"{escape(str(item.get('encryption') or 'unknown'))} · "
+                    f"{escape(auto)} · priority {escape(str(item.get('priority', 'unknown')))} · "
+                    f"{escape(credential)}"
+                    "</dd></div>"
+                )
+        if not interface_rows:
+            interface_rows = (
+                "<div class='empty'>No Windows WLAN inventory has been collected.</div>"
+            )
+        if not profile_rows:
+            profile_rows = "<div><dt>Saved profiles</dt><dd>None collected</dd></div>"
+        return f"""
+<section class="panel">
+  <div class="eyebrow">Networks / Windows WLAN interfaces</div>
+  <h2>Credential-redacted Windows Wi-Fi inventory</h2>
+  <p class="panel-copy">Saved profile metadata only; credential values are never displayed.</p>
+  {interface_rows}
+  <details class="advanced"><summary>Saved profiles</summary><dl>{profile_rows}</dl></details>
+</section>"""
+
     def _home(self, status: dict[str, Any], links: list[dict[str, Any]]) -> str:
         online = sum(
             str(item.get("status", "offline")) in {"connected", "online", "detected"}
@@ -766,6 +833,7 @@ class OperatorConsole:
 <section class="section-head"><div><div class="eyebrow">Every remembered machine</div><h2>Machines</h2></div>
 <a href="/computers">Manage computers</a></section>
 <section class="machine-grid">{'' if load_node_preferences(self.state_directory).get('archived') else self._node_machine_card(status)}{machine_cards}</section>
+{self._windows_wlan_panel(status)}
 <section class="quick-grid">
   <a class="quick" href="/tools"><span>Tools</span><strong>Diagnostics &amp; assessments</strong><small>Run real checks and review job history.</small></a>
   <a class="quick" href="/computers"><span>Access</span><strong>Remembered computers</strong><small>Open current and historical connection paths for every computer.</small></a>

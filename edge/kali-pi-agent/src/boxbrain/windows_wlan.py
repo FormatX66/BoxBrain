@@ -11,16 +11,49 @@ import base64
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 
 WLAN_RECONNECT_AUTHORIZATION = "I am authorized to reconnect this Windows WLAN profile"
 WLAN_RECONNECT_CONFIRMATION = "RECONNECT WINDOWS WLAN"
 _ACTIONS = {"interfaces", "profiles", "status", "diagnose", "reconnect"}
+_FORBIDDEN_CREDENTIAL_KEYS = {
+    "key_content",
+    "keycontent",
+    "passphrase",
+    "password",
+    "pre_shared_key",
+    "private_key",
+    "psk",
+    "secret",
+}
 
 
 class WindowsWlanError(RuntimeError):
     """Raised when structured Windows WLAN collection fails."""
+
+
+def _contains_credential_material(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized = re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower()).strip("_")
+            if normalized in _FORBIDDEN_CREDENTIAL_KEYS:
+                return True
+            if _contains_credential_material(item):
+                return True
+        return False
+    if isinstance(value, list):
+        return any(_contains_credential_material(item) for item in value)
+    if isinstance(value, str):
+        return bool(
+            re.search(
+                r"(?:password|passphrase|psk|key[ _-]*content)\s*[:=]",
+                value,
+                flags=re.IGNORECASE,
+            )
+        )
+    return False
 
 
 _POWERSHELL = r"""
@@ -237,6 +270,8 @@ def parse_powershell_output(output: str) -> dict[str, Any]:
         inventory = payload["inventory"]
         if inventory.get("credential_material_included") is not False:
             raise WindowsWlanError("Windows WLAN inventory did not prove credential exclusion.")
+        if _contains_credential_material(inventory):
+            raise WindowsWlanError("Windows WLAN inventory contained credential material.")
         if not isinstance(inventory.get("interfaces"), list) or not isinstance(inventory.get("profiles"), list):
             raise WindowsWlanError("Windows WLAN inventory has an invalid schema.")
         return payload
@@ -300,6 +335,8 @@ def load_saved_inventories(state_directory: str | Path) -> list[dict[str, Any]]:
         if not isinstance(record, dict) or not isinstance(inventory, dict):
             continue
         if inventory.get("credential_material_included") is not False:
+            continue
+        if _contains_credential_material(record):
             continue
         records.append(record)
     return records

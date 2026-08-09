@@ -116,6 +116,30 @@ class WindowsWlanTests(unittest.TestCase):
                 json.dumps({"inventory": inventory, "action": "status"})
             )
 
+    def test_parser_rejects_credential_material_despite_exclusion_flag(self) -> None:
+        inventory = sample_inventory()
+        inventory["profiles"][0]["passphrase"] = "test-only-secret"
+        with self.assertRaisesRegex(WindowsWlanError, "credential material"):
+            parse_powershell_output(
+                json.dumps({"inventory": inventory, "action": "status"})
+            )
+
+    def test_saved_inventory_loader_rejects_credential_material(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "network-inventory"
+            directory.mkdir()
+            inventory = sample_inventory()
+            inventory["profiles"][0]["key_content"] = "test-only-secret"
+            record = {
+                "target": {"hostname": "AUTHORIZED-PC"},
+                "inventory": inventory,
+            }
+            (directory / "unsafe-windows-wlan.json").write_text(
+                json.dumps(record),
+                encoding="utf-8",
+            )
+            self.assertEqual(load_saved_inventories(temporary), [])
+
     def test_target_service_requires_authorized_windows_link_and_reconnect_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             diagnostics = TargetDiagnostics(temporary)
@@ -203,7 +227,8 @@ class WindowsWlanTests(unittest.TestCase):
             self.assertIn("Networks / Windows WLAN interfaces", page)
             self.assertIn("AUTHORIZED-PC", page)
             self.assertIn("Authorized-Lab", page)
-            self.assertNotIn("passphrase", page.lower())
+            self.assertIn("credential values are never displayed", page)
+            self.assertNotIn("test-only-secret", page)
             self.assertNotIn("key content", page.lower())
 
 
