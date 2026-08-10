@@ -14,11 +14,11 @@ $uiDirectory = Join-Path $repositoryRoot "ui"
 $edgeAgentDirectory = Join-Path $repositoryRoot "edge\kali-pi-agent"
 $python = Join-Path $controllerDirectory ".venv\Scripts\python.exe"
 
-if (-not (Test-Path -LiteralPath $python)) {
-    throw "Controller virtual environment is missing. Follow docs/DEVELOPMENT.md first."
+if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+    throw "Controller virtual environment is missing at '$python'. Follow docs/DEVELOPMENT.md to create it and install dependencies."
 }
-if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
-    throw "Flutter is not available on PATH."
+if (-not (Get-Command flutter -CommandType Application -ErrorAction SilentlyContinue)) {
+    throw "Flutter is not available on PATH. Install Flutter and ensure its bin directory is on PATH."
 }
 
 $results = [Collections.Generic.List[object]]::new()
@@ -35,16 +35,33 @@ function Invoke-ValidationStep {
         [string[]]$Arguments
     )
 
+    if (-not (Test-Path -LiteralPath $WorkingDirectory -PathType Container)) {
+        throw "$Name working directory does not exist: '$WorkingDirectory'."
+    }
+
+    if (Test-Path -LiteralPath $FilePath -PathType Leaf) {
+        $resolvedExecutable = (Resolve-Path -LiteralPath $FilePath).ProviderPath
+    }
+    else {
+        $commands = @(Get-Command $FilePath -CommandType Application -ErrorAction SilentlyContinue)
+        if ($commands.Count -eq 0) {
+            throw "$Name executable is not available: '$FilePath'."
+        }
+        $resolvedExecutable = $commands[0].Source
+    }
+
     Write-Host "[running] $Name"
     $timer = [Diagnostics.Stopwatch]::StartNew()
-    Push-Location $WorkingDirectory
+    $locationPushed = $false
     $previousErrorAction = $ErrorActionPreference
     try {
         # Native tools such as Python unittest legitimately write successful
         # progress to stderr. Capture both streams and use the process exit code
         # as the validation boundary instead of PowerShell's stream promotion.
         $ErrorActionPreference = "Continue"
-        $output = & $FilePath @Arguments 2>&1
+        Push-Location -LiteralPath $WorkingDirectory
+        $locationPushed = $true
+        $output = & $resolvedExecutable @Arguments 2>&1
         $exitCode = $LASTEXITCODE
         $output | ForEach-Object {
             $line = if ($_ -is [Management.Automation.ErrorRecord]) {
@@ -60,11 +77,13 @@ function Invoke-ValidationStep {
     }
     finally {
         $ErrorActionPreference = $previousErrorAction
-        Pop-Location
+        if ($locationPushed) {
+            Pop-Location
+        }
         $timer.Stop()
     }
     if ($exitCode -ne 0) {
-        throw "$Name failed with exit code $exitCode."
+        throw "$Name failed with exit code $exitCode. Executable: '$resolvedExecutable'. Working directory: '$WorkingDirectory'."
     }
     $results.Add(
         [pscustomobject]@{
