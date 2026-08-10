@@ -61,7 +61,7 @@ PRIORITY: HIGH
 DEPENDS: BB-006
 REQUIRES: CODEX, LOCAL_SHELL, COPILOT
 PROMOTED_FROM: BH-001
-CHECKPOINT: 2026-08-10T13:16:05-04:00 — Promoted and narrowed from BH-001. Implemented allowlisted metadata/code packets, root/path/size/secret guards, exact send confirmation, isolated GitHub Copilot CLI plan-mode dispatch, bounded content-free audit events, three API endpoints, documentation, and 5 focused/90 total controller tests. GitHub Copilot CLI 1.0.78 is installed through WinGet and authenticated as FormatX66. BoxBrain dispatch remains disabled, and no packet has been sent. Next checkpoint: select a small safe target, review its generated packet, explicitly confirm the send, and run one non-destructive plan-mode test.
+CHECKPOINT: 2026-08-10T13:44:15-04:00 — GitHub Copilot CLI is authenticated as FormatX66. Completed the first exact-confirmation dispatch: a metadata-only file-organization packet for 16 files in docs, with zero content bytes, no exclusions, a successful plan-mode response, content-free audit records, and no applied changes. The adapter was enabled only for that dispatch; persistent dispatch remains disabled. Next checkpoint: review the proposed documentation moves and decide whether to reject, revise, or validate them before any local application.
 
 DESCRIPTION:
 Extend the script-first router with a Copilot worker lane for suitable local Windows tasks. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.
