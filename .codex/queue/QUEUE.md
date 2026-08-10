@@ -187,3 +187,37 @@ ACCEPTANCE:
 - Add measurable reporting for GPT usage reduction, execution time, reliability, and error rate where data is available.
 - Preserve compatibility with future model-lane routing without requiring BH-001 to be implemented first.
 END TASK
+
+[TASK BB-007]
+STATUS: PENDING
+TITLE: GoPro Cloud Virtual Drive + Media Catalog Integration
+PRIORITY: HIGH
+DEPENDS:
+REQUIRES: CODEX, LOCAL_SHELL
+
+DESCRIPTION:
+Integrate GoPro Cloud into the BoxBrain media-storage system as a cloud storage tier that behaves like a browsable virtual drive/catalog. The goal is to expose GoPro Cloud media through a simple filesystem-like view without requiring the full cloud library to be stored locally. BoxBrain should maintain metadata and thumbnails locally where practical, retrieve full media on demand, cache recent/active footage, and support deliberate archival/mirroring to local SSD/HDD storage.
+
+Use the media catalog as the abstraction layer so GoPro Cloud can participate alongside OneDrive, Google Drive, GoPro Cloud, USB-C SSD storage, and long-term hard drives without duplicating the user's entire media library. Prefer script-first/background transfer logic for deterministic sync, inventory, hashing, cache management, and archival operations; use GPT only where classification or ambiguous decisions are needed.
+
+TARGET VIEW:
+- Present a GoPro Cloud virtual-drive style hierarchy such as Recent, year/month, 360, HERO, Favorites, Cloud Only, Cached Locally, and Archived.
+- Where practical expose it through a Windows filesystem mount or virtual drive letter; if a true mount is not reliable, provide an equivalent BoxBrain filesystem/catalog view with on-demand materialization.
+
+ACCEPTANCE:
+- Inventory GoPro Cloud media and persist stable cloud identifiers plus filename, capture date/time, camera/model metadata when available, media type, size/duration, thumbnail/proxy reference, and storage-state metadata.
+- Detect GoPro-origin media using reliable metadata/identifiers where available rather than filename assumptions alone.
+- Avoid downloading the complete GoPro Cloud library during normal cataloging.
+- Support on-demand download/materialization when a cloud-only item is opened, requested, or selected for editing.
+- Implement configurable local cache for recent/active media with size/age limits and safe eviction of cached copies only after verifying the authoritative source still exists.
+- Track storage state such as cloud-only, cached locally, active SSD, archived HDD, and mirrored.
+- Support user-directed transfer/mirroring from GoPro Cloud to active SSD and long-term HDD archive locations.
+- Hash downloaded originals so BoxBrain can detect exact duplicates across cloud, SSD, HDD, OneDrive, and Google Drive without deleting anything automatically.
+- Preserve GoPro metadata and timestamps during transfers where possible.
+- Provide CLI/API and BoxBrain console views for cloud inventory, download/cache status, transfer, archive, duplicate candidates, and errors.
+- Credentials/tokens must be stored using an appropriate secure secret mechanism and never committed to Git or written into normal logs.
+- Rate-limit and retry cloud operations conservatively; checkpoint resumable transfers when supported.
+- Before implementing a cloud connector, verify the currently supported GoPro Cloud access mechanisms and avoid relying on undocumented behavior without isolating it behind a replaceable adapter.
+- Add tests using mocked cloud responses and local storage targets before operating on the real media library.
+- No automatic deletion of cloud or local originals; destructive duplicate cleanup requires explicit human review/approval.
+END TASK
