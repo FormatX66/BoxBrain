@@ -51,7 +51,7 @@ FILES:
 - controller/tests/test_script_first.py
 - docs/SCRIPT_FIRST_ROUTING.md
 - controller/README.md
-COMMIT: 20df7c5
+COMMIT: 39eec10
 NOTES:
 The existing upstream Starlette TestClient migration warning remains non-failing and is not a BB-006 regression. No provider usage numbers were invented; metrics count observed local model-call avoidance only.
 ==================================================
