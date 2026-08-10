@@ -75,6 +75,18 @@ from .models import (
     UsageSummary,
 )
 from .chat_organizer import ChatOrganizerService
+from .copilot_offload import (
+    CopilotDispatchRequest,
+    CopilotDispatchResult,
+    CopilotOffloadError,
+    CopilotOffloadService,
+    CopilotPacketNotFoundError,
+    CopilotPrepareRequest,
+    CopilotProviderRuntime,
+    CopilotRuntimeStatus,
+    CopilotRuntimeUnavailable,
+    CopilotWorkPacket,
+)
 from .model_agents import (
     ModelAgentExecutionError,
     ModelAgentRuntimeUnavailable,
@@ -113,6 +125,11 @@ from .remote_targets import (
 )
 from .settings import settings
 from .task_store import TaskStore
+from .workflow_optimizer import (
+    WorkflowOptimizeRequest,
+    WorkflowOptimizerService,
+    WorkflowPlan,
+)
 
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
@@ -164,6 +181,21 @@ control_lock = Lock()
 script_first_service = ScriptFirstService(
     settings.repository_root,
     settings.data_dir,
+)
+copilot_offload_service = CopilotOffloadService(
+    settings.repository_root,
+    settings.data_dir,
+    allowed_roots=settings.github_copilot_allowed_roots,
+    enabled=settings.github_copilot_offload_enabled,
+    timeout_seconds=settings.github_copilot_timeout_seconds,
+    max_files=settings.github_copilot_max_files,
+    max_file_bytes=settings.github_copilot_max_file_bytes,
+    max_content_bytes=settings.github_copilot_max_content_bytes,
+    max_output_bytes=settings.github_copilot_max_output_bytes,
+)
+workflow_optimizer_service = WorkflowOptimizerService(
+    script_first_service,
+    copilot_offload_service,
 )
 
 
@@ -408,6 +440,56 @@ def run_registered_script(request: ScriptRunRequest) -> ScriptRunResult:
 @router.get("/processing/script-metrics", response_model=RoutingMetrics)
 def get_script_routing_metrics() -> RoutingMetrics:
     return script_first_service.metrics()
+
+
+@router.post("/processing/workflows/optimize", response_model=WorkflowPlan)
+def optimize_processing_workflow(request: WorkflowOptimizeRequest) -> WorkflowPlan:
+    return workflow_optimizer_service.optimize(request)
+
+
+@router.get("/processing/copilot/runtime", response_model=CopilotRuntimeStatus)
+def get_copilot_runtime() -> CopilotRuntimeStatus:
+    return copilot_offload_service.runtime_status()
+
+
+@router.get(
+    "/processing/copilot/providers",
+    response_model=tuple[CopilotProviderRuntime, ...],
+)
+def list_copilot_providers() -> tuple[CopilotProviderRuntime, ...]:
+    return copilot_offload_service.runtime_status().providers
+
+
+@router.post("/processing/copilot/packets", response_model=CopilotWorkPacket)
+def prepare_copilot_packet(request: CopilotPrepareRequest) -> CopilotWorkPacket:
+    try:
+        return copilot_offload_service.prepare(request)
+    except CopilotOffloadError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+
+@router.post("/processing/copilot/dispatches", response_model=CopilotDispatchResult)
+def dispatch_copilot_packet(request: CopilotDispatchRequest) -> CopilotDispatchResult:
+    try:
+        return copilot_offload_service.dispatch(request)
+    except CopilotPacketNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except CopilotRuntimeUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except CopilotOffloadError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
 
 
 @router.post("/processing/model-runs", response_model=ModelProcessingRun)

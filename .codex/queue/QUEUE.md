@@ -54,6 +54,34 @@ If required Codex/model/tool usage is unavailable:
 
 ## Active tasks
 
++[TASK BB-008]
+STATUS: IN_PROGRESS
+TITLE: GitHub Copilot Offload for Local Windows Tasks
+PRIORITY: HIGH
+DEPENDS: BB-006
+REQUIRES: CODEX, LOCAL_SHELL, COPILOT
+PROMOTED_FROM: BH-001
+CHECKPOINT: 2026-08-10T14:26:25-04:00 — Renumbered this Copilot milestone from BB-007 to BB-008 because current `main` already assigns BB-007 to the GoPro Cloud virtual-drive task. Added a provider-aware workflow optimizer that recommends but never executes an ordered lane. It prioritizes registered local scripts, uses local preprocessing to shrink GitHub Copilot packets, routes bounded code/plugin/file-organization reasoning to `github-copilot-cli`, exposes `windows-copilot-app` only as an explicitly requested manual workflow, keeps generic reasoning on the existing GPT lane, and blocks both Copilot products for high-impact/destructive work. The `/api/v1/processing/workflows/optimize` endpoint always returns `action_taken: false`; existing packet review and exact confirmation gates remain separate. Six focused and 96 total controller tests pass. A real smoke test verified local-only, GitHub guarded, and Windows manual lanes with no actions taken; persistent GitHub Copilot dispatch remains disabled. Next checkpoint: review BB-008 for publication.
+
+DESCRIPTION:
+Extend the script-first router with a GitHub Copilot CLI worker lane for suitable local Windows tasks. Treat Microsoft Copilot for Windows as a separate, manual-only product surface. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat GitHub Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.
+
+ACCEPTANCE:
+- Report `github-copilot-cli` and `windows-copilot-app` as separate provider records with vendor, product surface, installation, dispatch mode, and availability.
+- Detect the Microsoft Copilot Windows app without launching it or assuming that it exposes a safe automation API.
+- Classify only allowlisted task kinds: file-organization planning, Windows code, and plugin code.
+- Build minimal work packets with objective, selected paths, constraints, acceptance checks, and explicit exclusions.
+- File-organization packets contain metadata and propose moves/renames only; they never delete, overwrite, or execute the plan.
+- Code/plugin packets include only explicitly selected safe text files within configured roots and enforce size, extension, secret, key, credential, and environment-file exclusions.
+- Require the exact `SEND TO GITHUB COPILOT` confirmation before any packet is sent to GitHub Copilot CLI.
+- Provide a provider-aware workflow optimizer that favors registered local scripts, recommends bounded hybrid preprocessing, distinguishes automated GitHub from manual Windows Copilot, blocks high-impact delegation, and takes no action itself.
+- Invoke GitHub Copilot CLI without a shell, in plan mode, from an isolated packet directory, with shell/write/web/MCP tools unavailable.
+- Treat GitHub Copilot output as untrusted; store it separately and require BoxBrain/human review plus tests before changes are applied.
+- Record bounded audit events without prompts, file contents, secrets, tokens, or GitHub Copilot credentials.
+- Add API endpoints, focused tests, and operator documentation.
+END TASK
+
+
 [TASK BB-001]
 STATUS: BLOCKED
 TITLE: Windows WLAN / Wi-Fi Profile Integration

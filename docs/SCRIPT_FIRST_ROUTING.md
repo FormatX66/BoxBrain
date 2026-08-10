@@ -18,6 +18,44 @@ queue state, fallback route, and an optional future `model_lane`. High-impact or
 destructive work is always Hybrid and requires human review. The current
 registry contains no write-capable scripts.
 
+## Provider-aware workflow optimization
+
+`POST /api/v1/processing/workflows/optimize` turns a route decision into an
+ordered, advisory workflow. It takes no action, prepares no packet, and sends
+nothing externally. The response always has `action_taken: false` and names the
+exact provider when a provider lane is recommended.
+
+The optimizer applies these priorities:
+
+1. High-impact or destructive work stays behind local human review and is not
+   delegated to either Copilot product.
+2. A registered deterministic script wins and avoids an external model call.
+3. When local preprocessing can reduce a reasoning packet, the plan recommends
+   the script before GitHub Copilot CLI.
+4. `windows_code`, `plugin_code`, and metadata-only `file_organization`
+   reasoning can use guarded `github-copilot-cli` planning with the exact
+   `SEND TO GITHUB COPILOT` gate.
+5. `windows-copilot-app` is selected only when explicitly requested and always
+   returns a manual-copy workflow with automated dispatch unavailable.
+6. Requests without a supported Copilot task kind remain on the bounded GPT
+   lane chosen by the existing router.
+
+Example optimized Windows-code workflow:
+
+```json
+POST /api/v1/processing/workflows/optimize
+{
+  "task_id": "BB-008",
+  "description": "Review a local PowerShell validation helper",
+  "requires_reasoning": true,
+  "copilot_kind": "windows_code"
+}
+```
+
+The returned steps describe preparation, review, confirmation, external
+planning, and local validation. Callers must invoke the existing packet and
+dispatch endpoints separately; optimization never bypasses those gates.
+
 ## Initial script registry
 
 - `text.summary@1.0.0`: counts and bounded excerpts for large text.
@@ -86,3 +124,12 @@ POST /api/v1/processing/script-runs
 
 If the result is `escalated`, pass only its compact `data` evidence plus the
 original objective into the chosen model lane.
+
+## Copilot worker lane
+
+BB-008 adds a separate approval-gated Copilot lane for local Windows
+file-organization planning, Windows code, and plugin code. It does not weaken
+the Script/GPT/Hybrid decision: local scripts still handle deterministic work,
+while Copilot receives only a minimal prepared packet after operator review.
+Copilot output is a proposal and is never applied by the offload service. See
+[`COPILOT_WINDOWS_OFFLOAD.md`](COPILOT_WINDOWS_OFFLOAD.md).
