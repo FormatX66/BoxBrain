@@ -45,6 +45,7 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/processing/runs`
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`
+- `POST /api/v1/processing/workflows/optimize`
 - `GET /api/v1/processing/copilot/runtime`
 - `GET /api/v1/processing/copilot/providers`
 - `POST /api/v1/processing/copilot/packets`
@@ -101,6 +102,12 @@ Windows is reported separately as a manual-only app. Automated sending requires
 the exact `SEND TO GITHUB COPILOT` confirmation; the GitHub CLI is restricted to
 plan mode and one packet read, and returned work is never applied automatically. See
 [`docs/COPILOT_WINDOWS_OFFLOAD.md`](../docs/COPILOT_WINDOWS_OFFLOAD.md).
+
+The provider-aware workflow optimizer recommends local scripts before external
+reasoning, can combine bounded local preprocessing with GitHub Copilot planning,
+and emits manual-only steps for an explicitly requested Windows Copilot app. It
+never executes a step or bypasses the existing confirmation gates. See
+[`docs/SCRIPT_FIRST_ROUTING.md`](../docs/SCRIPT_FIRST_ROUTING.md).
 
 The ChatGPT organizer accepts an authenticated, normalized metadata snapshot,
 preserves existing project membership, classifies loose chats with inspectable

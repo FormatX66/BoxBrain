@@ -125,6 +125,11 @@ from .remote_targets import (
 )
 from .settings import settings
 from .task_store import TaskStore
+from .workflow_optimizer import (
+    WorkflowOptimizeRequest,
+    WorkflowOptimizerService,
+    WorkflowPlan,
+)
 
 router = APIRouter(prefix="/api/v1")
 task_store = TaskStore(settings.data_dir / "boxbrain.sqlite3")
@@ -187,6 +192,10 @@ copilot_offload_service = CopilotOffloadService(
     max_file_bytes=settings.github_copilot_max_file_bytes,
     max_content_bytes=settings.github_copilot_max_content_bytes,
     max_output_bytes=settings.github_copilot_max_output_bytes,
+)
+workflow_optimizer_service = WorkflowOptimizerService(
+    script_first_service,
+    copilot_offload_service,
 )
 
 
@@ -431,6 +440,11 @@ def run_registered_script(request: ScriptRunRequest) -> ScriptRunResult:
 @router.get("/processing/script-metrics", response_model=RoutingMetrics)
 def get_script_routing_metrics() -> RoutingMetrics:
     return script_first_service.metrics()
+
+
+@router.post("/processing/workflows/optimize", response_model=WorkflowPlan)
+def optimize_processing_workflow(request: WorkflowOptimizeRequest) -> WorkflowPlan:
+    return workflow_optimizer_service.optimize(request)
 
 
 @router.get("/processing/copilot/runtime", response_model=CopilotRuntimeStatus)

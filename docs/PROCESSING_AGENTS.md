@@ -131,6 +131,7 @@ usage summary and dashboard. The model output cap is separately controlled by
 - `GET /api/v1/processing/runs`
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`
+- `POST /api/v1/processing/workflows/optimize`
 - `GET /api/v1/agent-dashboard`
 - `GET /api/v1/projects`
 - `GET /api/v1/memory`

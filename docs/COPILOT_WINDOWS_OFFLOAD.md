@@ -121,14 +121,16 @@ Only after runtime status reports the CLI installed should an operator set
 
 ## API flow
 
-1. `GET /api/v1/processing/copilot/providers` and verify the exact provider ID.
-2. `GET /api/v1/processing/copilot/runtime` and verify that the automated
+1. `POST /api/v1/processing/workflows/optimize` to obtain an advisory,
+   provider-specific workflow with no action taken.
+2. `GET /api/v1/processing/copilot/providers` and verify the exact provider ID.
+3. `GET /api/v1/processing/copilot/runtime` and verify that the automated
    provider is `github-copilot-cli`.
-3. `POST /api/v1/processing/copilot/packets`.
-4. Review the returned provider, prompt, files, exclusions, and hash.
-5. `POST /api/v1/processing/copilot/dispatches` with
+4. `POST /api/v1/processing/copilot/packets`.
+5. Review the returned provider, prompt, files, exclusions, and hash.
+6. `POST /api/v1/processing/copilot/dispatches` with
    `SEND TO GITHUB COPILOT`.
-6. Review and validate the returned proposal separately.
+7. Review and validate the returned proposal separately.
 
 Example packet preparation:
 
