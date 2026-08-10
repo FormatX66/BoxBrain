@@ -107,26 +107,28 @@ class Settings:
     diagnostic_max_output_bytes: int = int(
         getenv("BOXBRAIN_DIAGNOSTIC_MAX_OUTPUT_BYTES", "32768")
     )
-    copilot_offload_enabled: bool = _bool_environment(
-        "BOXBRAIN_COPILOT_OFFLOAD_ENABLED",
+    github_copilot_offload_enabled: bool = _bool_environment(
+        "BOXBRAIN_GITHUB_COPILOT_OFFLOAD_ENABLED",
         False,
     )
-    copilot_allowed_roots: tuple[Path, ...] = _path_environment(
-        "BOXBRAIN_COPILOT_ALLOWED_ROOTS",
+    github_copilot_allowed_roots: tuple[Path, ...] = _path_environment(
+        "BOXBRAIN_GITHUB_COPILOT_ALLOWED_ROOTS",
         _REPOSITORY_ROOT,
     )
-    copilot_timeout_seconds: float = float(
-        getenv("BOXBRAIN_COPILOT_TIMEOUT_SECONDS", "120")
+    github_copilot_timeout_seconds: float = float(
+        getenv("BOXBRAIN_GITHUB_COPILOT_TIMEOUT_SECONDS", "120")
     )
-    copilot_max_files: int = int(getenv("BOXBRAIN_COPILOT_MAX_FILES", "100"))
-    copilot_max_file_bytes: int = int(
-        getenv("BOXBRAIN_COPILOT_MAX_FILE_BYTES", "32768")
+    github_copilot_max_files: int = int(
+        getenv("BOXBRAIN_GITHUB_COPILOT_MAX_FILES", "100")
     )
-    copilot_max_content_bytes: int = int(
-        getenv("BOXBRAIN_COPILOT_MAX_CONTENT_BYTES", "131072")
+    github_copilot_max_file_bytes: int = int(
+        getenv("BOXBRAIN_GITHUB_COPILOT_MAX_FILE_BYTES", "32768")
     )
-    copilot_max_output_bytes: int = int(
-        getenv("BOXBRAIN_COPILOT_MAX_OUTPUT_BYTES", "65536")
+    github_copilot_max_content_bytes: int = int(
+        getenv("BOXBRAIN_GITHUB_COPILOT_MAX_CONTENT_BYTES", "131072")
+    )
+    github_copilot_max_output_bytes: int = int(
+        getenv("BOXBRAIN_GITHUB_COPILOT_MAX_OUTPUT_BYTES", "65536")
     )
 
 

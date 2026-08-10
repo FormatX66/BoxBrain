@@ -18,7 +18,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, field_validator
 
 
-COPILOT_SEND_CONFIRMATION = "SEND TO COPILOT"
+GITHUB_COPILOT_SEND_CONFIRMATION = "SEND TO GITHUB COPILOT"
 _SAFE_CODE_SUFFIXES = {
     ".css",
     ".html",
@@ -72,6 +72,7 @@ class CopilotTaskKind(StrEnum):
 
 class CopilotProvider(StrEnum):
     GITHUB_COPILOT_CLI = "github-copilot-cli"
+    WINDOWS_COPILOT_APP = "windows-copilot-app"
 
 
 class CopilotOffloadError(ValueError):
@@ -110,7 +111,7 @@ class CopilotPrepareRequest(BaseModel):
 
 class CopilotDispatchRequest(BaseModel):
     packet_id: UUID
-    confirmation: Literal["SEND TO COPILOT"]
+    confirmation: Literal["SEND TO GITHUB COPILOT"]
 
 
 class CopilotFileRecord(BaseModel):
@@ -126,16 +127,26 @@ class CopilotExcludedPath(BaseModel):
     reason: str
 
 
-class CopilotRuntimeStatus(BaseModel):
-    enabled: bool
+class CopilotProviderRuntime(BaseModel):
     provider: CopilotProvider
-    cli_installed: bool
-    cli_path: str | None
+    display_name: str
+    vendor: Literal["GitHub", "Microsoft"]
+    surface: Literal["cli", "windows_app"]
+    installed: bool
+    boxbrain_dispatch_enabled: bool
+    dispatch_mode: Literal["guarded_automation", "manual_only"]
     dispatch_available: bool
-    supported_task_kinds: tuple[CopilotTaskKind, ...]
-    execution_mode: Literal["plan"] = "plan"
+    executable_path: str | None
+    automated_task_kinds: tuple[CopilotTaskKind, ...]
+    execution_mode: Literal["plan", "manual_chat"]
     mutation_tools_available: bool = False
-    manual_fallback: str
+    note: str
+
+
+class CopilotRuntimeStatus(BaseModel):
+    automated_provider: Literal[CopilotProvider.GITHUB_COPILOT_CLI]
+    providers: tuple[CopilotProviderRuntime, ...]
+    dispatch_available: bool
 
 
 class CopilotWorkPacket(BaseModel):
@@ -153,7 +164,10 @@ class CopilotWorkPacket(BaseModel):
     prompt_sha256: str
     total_content_bytes: int = Field(ge=0)
     human_review_required: bool = True
-    confirmation_phrase: Literal["SEND TO COPILOT"] = COPILOT_SEND_CONFIRMATION
+    confirmation_phrase: Literal[
+        "SEND TO GITHUB COPILOT",
+        "SEND TO COPILOT",
+    ] = GITHUB_COPILOT_SEND_CONFIRMATION
     dispatch_available: bool
 
 
@@ -205,10 +219,12 @@ def _run_copilot_command(
         return CopilotCommandResult(
             exit_code=124,
             stdout="",
-            stderr="Copilot timed out before completing the plan.",
+            stderr="GitHub Copilot CLI timed out before completing the plan.",
         )
     except OSError as error:
-        raise CopilotRuntimeUnavailable("The Copilot CLI process could not start.") from error
+        raise CopilotRuntimeUnavailable(
+            "The GitHub Copilot CLI process could not start."
+        ) from error
     return CopilotCommandResult(
         exit_code=completed.returncode,
         stdout=completed.stdout,
@@ -216,8 +232,33 @@ def _run_copilot_command(
     )
 
 
+def _detect_windows_copilot_app() -> bool:
+    """Detect the separate Microsoft Copilot Windows app without launching it."""
+    if os.name != "nt":
+        return False
+    try:
+        import winreg
+
+        key_path = (
+            r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion"
+            r"\AppModel\Repository\Packages"
+        )
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as packages:
+            index = 0
+            while True:
+                try:
+                    package_name = winreg.EnumKey(packages, index)
+                except OSError:
+                    return False
+                if package_name.casefold().startswith("microsoft.copilot_"):
+                    return True
+                index += 1
+    except (ImportError, OSError):
+        return False
+
+
 class CopilotOffloadService:
-    """Prepare and dispatch bounded, review-only work packets to Copilot."""
+    """Prepare and dispatch bounded work packets to GitHub Copilot CLI."""
 
     def __init__(
         self,
@@ -232,6 +273,7 @@ class CopilotOffloadService:
         max_content_bytes: int = 131_072,
         max_output_bytes: int = 65_536,
         cli_finder: Callable[[str], str | None] = shutil.which,
+        windows_app_detector: Callable[[], bool] = _detect_windows_copilot_app,
         command_runner: CopilotCommandRunner = _run_copilot_command,
     ) -> None:
         self.repository_root = Path(repository_root).expanduser().resolve()
@@ -253,6 +295,7 @@ class CopilotOffloadService:
         ) < 1:
             raise ValueError("Copilot byte limits must be positive.")
         self._cli_finder = cli_finder
+        self._windows_app_detector = windows_app_detector
         self._command_runner = command_runner
         self._lock = Lock()
         self.packet_root = self.state_dir / "copilot-offload"
@@ -260,17 +303,46 @@ class CopilotOffloadService:
 
     def runtime_status(self) -> CopilotRuntimeStatus:
         cli_path = self._cli_finder("copilot")
+        github_dispatch_available = self.enabled and cli_path is not None
         return CopilotRuntimeStatus(
-            enabled=self.enabled,
-            provider=CopilotProvider.GITHUB_COPILOT_CLI,
-            cli_installed=cli_path is not None,
-            cli_path=cli_path,
-            dispatch_available=self.enabled and cli_path is not None,
-            supported_task_kinds=tuple(CopilotTaskKind),
-            manual_fallback=(
-                "The Windows Microsoft Copilot app may receive a reviewed packet manually; "
-                "BoxBrain does not automate its UI or assume a private prompt API."
+            automated_provider=CopilotProvider.GITHUB_COPILOT_CLI,
+            providers=(
+                CopilotProviderRuntime(
+                    provider=CopilotProvider.GITHUB_COPILOT_CLI,
+                    display_name="GitHub Copilot CLI",
+                    vendor="GitHub",
+                    surface="cli",
+                    installed=cli_path is not None,
+                    boxbrain_dispatch_enabled=self.enabled,
+                    dispatch_mode="guarded_automation",
+                    dispatch_available=github_dispatch_available,
+                    executable_path=cli_path,
+                    automated_task_kinds=tuple(CopilotTaskKind),
+                    execution_mode="plan",
+                    note=(
+                        "This is BoxBrain's automated coding worker. It uses an isolated, "
+                        "read-only GitHub Copilot CLI plan-mode process."
+                    ),
+                ),
+                CopilotProviderRuntime(
+                    provider=CopilotProvider.WINDOWS_COPILOT_APP,
+                    display_name="Microsoft Copilot (Windows app)",
+                    vendor="Microsoft",
+                    surface="windows_app",
+                    installed=self._windows_app_detector(),
+                    boxbrain_dispatch_enabled=False,
+                    dispatch_mode="manual_only",
+                    dispatch_available=False,
+                    executable_path=None,
+                    automated_task_kinds=(),
+                    execution_mode="manual_chat",
+                    note=(
+                        "This is the separate consumer Windows app. Reviewed text can be copied "
+                        "to it manually, but BoxBrain does not automate it or assume a local API."
+                    ),
+                ),
             ),
+            dispatch_available=github_dispatch_available,
         )
 
     def prepare(self, request: CopilotPrepareRequest) -> CopilotWorkPacket:
@@ -318,13 +390,25 @@ class CopilotOffloadService:
         return packet
 
     def dispatch(self, request: CopilotDispatchRequest) -> CopilotDispatchResult:
-        if request.confirmation != COPILOT_SEND_CONFIRMATION:
-            raise CopilotOffloadError("Exact Copilot send confirmation is required.")
+        if request.confirmation != GITHUB_COPILOT_SEND_CONFIRMATION:
+            raise CopilotOffloadError("Exact GitHub Copilot send confirmation is required.")
         packet = self._load_packet(request.packet_id)
+        if packet.provider is not CopilotProvider.GITHUB_COPILOT_CLI:
+            raise CopilotRuntimeUnavailable(
+                "Only GitHub Copilot CLI packets support automated dispatch. "
+                "The Windows Copilot app is manual-only."
+            )
         runtime = self.runtime_status()
-        if not runtime.enabled:
-            raise CopilotRuntimeUnavailable("Copilot offload is disabled by local configuration.")
-        if runtime.cli_path is None:
+        github_runtime = next(
+            provider
+            for provider in runtime.providers
+            if provider.provider is CopilotProvider.GITHUB_COPILOT_CLI
+        )
+        if not github_runtime.boxbrain_dispatch_enabled:
+            raise CopilotRuntimeUnavailable(
+                "GitHub Copilot CLI offload is disabled by local configuration."
+            )
+        if github_runtime.executable_path is None:
             raise CopilotRuntimeUnavailable("GitHub Copilot CLI is not installed or on PATH.")
 
         packet_directory = self.packet_root / str(packet.packet_id)
@@ -332,7 +416,7 @@ class CopilotOffloadService:
         if response_path.exists():
             raise CopilotOffloadError("This Copilot work packet was already dispatched.")
         command = [
-            runtime.cli_path,
+            github_runtime.executable_path,
             "--mode=plan",
             "--no-auto-update",
             "--no-remote",

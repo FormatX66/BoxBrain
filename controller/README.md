@@ -46,6 +46,7 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/processing/runs/{run_id}`
 - `GET /api/v1/processing/usage`
 - `GET /api/v1/processing/copilot/runtime`
+- `GET /api/v1/processing/copilot/providers`
 - `POST /api/v1/processing/copilot/packets`
 - `POST /api/v1/processing/copilot/dispatches`
 - `GET /api/v1/agent-dashboard`
@@ -94,10 +95,11 @@ Script-first routing, its versioned local registry, duplicate protection, and
 usage-reduction metrics are documented in
 [`docs/SCRIPT_FIRST_ROUTING.md`](../docs/SCRIPT_FIRST_ROUTING.md).
 
-The BB-007 Copilot worker creates bounded review packets for local Windows file
-organization, code, and plugin tasks. Sending requires an exact confirmation;
-the CLI is restricted to plan mode and one packet read, and returned work is
-never applied automatically. See
+The BB-007 GitHub Copilot CLI worker creates bounded review packets for local
+Windows file organization, code, and plugin tasks. Microsoft Copilot for
+Windows is reported separately as a manual-only app. Automated sending requires
+the exact `SEND TO GITHUB COPILOT` confirmation; the GitHub CLI is restricted to
+plan mode and one packet read, and returned work is never applied automatically. See
 [`docs/COPILOT_WINDOWS_OFFLOAD.md`](../docs/COPILOT_WINDOWS_OFFLOAD.md).
 
 The ChatGPT organizer accepts an authenticated, normalized metadata snapshot,

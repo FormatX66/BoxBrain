@@ -82,6 +82,7 @@ from .copilot_offload import (
     CopilotOffloadService,
     CopilotPacketNotFoundError,
     CopilotPrepareRequest,
+    CopilotProviderRuntime,
     CopilotRuntimeStatus,
     CopilotRuntimeUnavailable,
     CopilotWorkPacket,
@@ -179,13 +180,13 @@ script_first_service = ScriptFirstService(
 copilot_offload_service = CopilotOffloadService(
     settings.repository_root,
     settings.data_dir,
-    allowed_roots=settings.copilot_allowed_roots,
-    enabled=settings.copilot_offload_enabled,
-    timeout_seconds=settings.copilot_timeout_seconds,
-    max_files=settings.copilot_max_files,
-    max_file_bytes=settings.copilot_max_file_bytes,
-    max_content_bytes=settings.copilot_max_content_bytes,
-    max_output_bytes=settings.copilot_max_output_bytes,
+    allowed_roots=settings.github_copilot_allowed_roots,
+    enabled=settings.github_copilot_offload_enabled,
+    timeout_seconds=settings.github_copilot_timeout_seconds,
+    max_files=settings.github_copilot_max_files,
+    max_file_bytes=settings.github_copilot_max_file_bytes,
+    max_content_bytes=settings.github_copilot_max_content_bytes,
+    max_output_bytes=settings.github_copilot_max_output_bytes,
 )
 
 
@@ -435,6 +436,14 @@ def get_script_routing_metrics() -> RoutingMetrics:
 @router.get("/processing/copilot/runtime", response_model=CopilotRuntimeStatus)
 def get_copilot_runtime() -> CopilotRuntimeStatus:
     return copilot_offload_service.runtime_status()
+
+
+@router.get(
+    "/processing/copilot/providers",
+    response_model=tuple[CopilotProviderRuntime, ...],
+)
+def list_copilot_providers() -> tuple[CopilotProviderRuntime, ...]:
+    return copilot_offload_service.runtime_status().providers
 
 
 @router.post("/processing/copilot/packets", response_model=CopilotWorkPacket)

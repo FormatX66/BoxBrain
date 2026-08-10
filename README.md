@@ -61,7 +61,7 @@ link to it.
 - [Product requirements](docs/PRD.md)
 - [Application architecture](docs/ARCHITECTURE.md)
 - [Application roadmap](docs/ROADMAP.md)
-- [Local Windows Copilot offload](docs/COPILOT_WINDOWS_OFFLOAD.md)
+- [Local Windows task offload to GitHub Copilot](docs/COPILOT_WINDOWS_OFFLOAD.md)
 - [Plugin contract](docs/PLUGIN_CONTRACT.md)
 - [Agent build brief](docs/AGENT_BUILD_BRIEF.md)
 - [Controller](controller/README.md)

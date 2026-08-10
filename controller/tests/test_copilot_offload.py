@@ -9,12 +9,13 @@ from fastapi.testclient import TestClient
 from boxbrain_controller import api
 from boxbrain_controller.app import create_app
 from boxbrain_controller.copilot_offload import (
-    COPILOT_SEND_CONFIRMATION,
+    GITHUB_COPILOT_SEND_CONFIRMATION,
     CopilotCommandResult,
     CopilotDispatchRequest,
     CopilotOffloadError,
     CopilotOffloadService,
     CopilotPrepareRequest,
+    CopilotProvider,
     CopilotRuntimeUnavailable,
     CopilotTaskKind,
 )
@@ -26,6 +27,7 @@ def _service(
     *,
     enabled: bool = False,
     installed: bool = False,
+    windows_installed: bool = False,
     runner=None,
 ) -> tuple[CopilotOffloadService, Path]:
     repository = tmp_path / "repo"
@@ -40,6 +42,7 @@ def _service(
             if installed
             else (lambda _name: None)
         ),
+        windows_app_detector=lambda: windows_installed,
         command_runner=runner or (lambda _command, _cwd, _timeout: None),
     )
     return service, repository
@@ -169,7 +172,7 @@ def test_dispatch_uses_isolated_plan_mode_and_never_applies_changes(tmp_path) ->
     result = service.dispatch(
         CopilotDispatchRequest(
             packet_id=packet.packet_id,
-            confirmation=COPILOT_SEND_CONFIRMATION,
+            confirmation=GITHUB_COPILOT_SEND_CONFIRMATION,
         )
     )
 
@@ -198,7 +201,7 @@ def test_dispatch_uses_isolated_plan_mode_and_never_applies_changes(tmp_path) ->
         service.dispatch(
             CopilotDispatchRequest(
                 packet_id=packet.packet_id,
-                confirmation=COPILOT_SEND_CONFIRMATION,
+                confirmation=GITHUB_COPILOT_SEND_CONFIRMATION,
             )
         )
 
@@ -220,15 +223,31 @@ def test_runtime_fails_closed_when_disabled_or_cli_missing(tmp_path) -> None:
     )
 
     runtime = service.runtime_status()
-    assert runtime.enabled is False
-    assert runtime.cli_installed is False
+    assert runtime.automated_provider is CopilotProvider.GITHUB_COPILOT_CLI
     assert runtime.dispatch_available is False
-    assert runtime.mutation_tools_available is False
+    providers = {item.provider: item for item in runtime.providers}
+    github = providers[CopilotProvider.GITHUB_COPILOT_CLI]
+    windows = providers[CopilotProvider.WINDOWS_COPILOT_APP]
+    assert github.display_name == "GitHub Copilot CLI"
+    assert github.vendor == "GitHub"
+    assert github.installed is False
+    assert github.boxbrain_dispatch_enabled is False
+    assert github.dispatch_mode == "guarded_automation"
+    assert github.dispatch_available is False
+    assert github.automated_task_kinds == tuple(CopilotTaskKind)
+    assert github.mutation_tools_available is False
+    assert windows.display_name == "Microsoft Copilot (Windows app)"
+    assert windows.vendor == "Microsoft"
+    assert windows.installed is False
+    assert windows.dispatch_mode == "manual_only"
+    assert windows.dispatch_available is False
+    assert windows.automated_task_kinds == ()
+    assert windows.mutation_tools_available is False
     with pytest.raises(CopilotRuntimeUnavailable, match="disabled"):
         service.dispatch(
             CopilotDispatchRequest(
                 packet_id=packet.packet_id,
-                confirmation=COPILOT_SEND_CONFIRMATION,
+                confirmation=GITHUB_COPILOT_SEND_CONFIRMATION,
             )
         )
 
@@ -247,6 +266,7 @@ def test_copilot_api_exposes_runtime_prepare_and_confirmed_dispatch(
         tmp_path,
         enabled=True,
         installed=True,
+        windows_installed=True,
         runner=runner,
     )
     (repository / "plugin.json").write_text(
@@ -264,7 +284,23 @@ def test_copilot_api_exposes_runtime_prepare_and_confirmed_dispatch(
         runtime = client.get("/api/v1/processing/copilot/runtime")
         assert runtime.status_code == 200
         assert runtime.json()["dispatch_available"] is True
-        assert runtime.json()["mutation_tools_available"] is False
+        assert runtime.json()["automated_provider"] == "github-copilot-cli"
+        runtime_providers = {
+            item["provider"]: item for item in runtime.json()["providers"]
+        }
+        assert runtime_providers["github-copilot-cli"]["vendor"] == "GitHub"
+        assert runtime_providers["github-copilot-cli"]["dispatch_available"] is True
+        assert runtime_providers["windows-copilot-app"]["vendor"] == "Microsoft"
+        assert runtime_providers["windows-copilot-app"]["installed"] is True
+        assert runtime_providers["windows-copilot-app"]["dispatch_mode"] == "manual_only"
+        assert runtime_providers["windows-copilot-app"]["dispatch_available"] is False
+
+        providers = client.get("/api/v1/processing/copilot/providers")
+        assert providers.status_code == 200
+        assert [item["provider"] for item in providers.json()] == [
+            "github-copilot-cli",
+            "windows-copilot-app",
+        ]
 
         prepared = client.post(
             "/api/v1/processing/copilot/packets",
@@ -277,11 +313,15 @@ def test_copilot_api_exposes_runtime_prepare_and_confirmed_dispatch(
         )
         assert prepared.status_code == 200
         packet_id = prepared.json()["packet_id"]
-        assert prepared.json()["confirmation_phrase"] == COPILOT_SEND_CONFIRMATION
+        assert (
+            prepared.json()["confirmation_phrase"]
+            == GITHUB_COPILOT_SEND_CONFIRMATION
+        )
+        assert prepared.json()["provider"] == "github-copilot-cli"
 
         rejected = client.post(
             "/api/v1/processing/copilot/dispatches",
-            json={"packet_id": packet_id, "confirmation": "yes"},
+            json={"packet_id": packet_id, "confirmation": "SEND TO COPILOT"},
         )
         assert rejected.status_code == 422
 
@@ -289,7 +329,7 @@ def test_copilot_api_exposes_runtime_prepare_and_confirmed_dispatch(
             "/api/v1/processing/copilot/dispatches",
             json={
                 "packet_id": packet_id,
-                "confirmation": COPILOT_SEND_CONFIRMATION,
+                "confirmation": GITHUB_COPILOT_SEND_CONFIRMATION,
             },
         )
         assert dispatched.status_code == 200

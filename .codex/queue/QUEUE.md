@@ -56,26 +56,27 @@ If required Codex/model/tool usage is unavailable:
 
 +[TASK BB-007]
 STATUS: IN_PROGRESS
-TITLE: Local Windows Copilot Task Offload
+TITLE: GitHub Copilot Offload for Local Windows Tasks
 PRIORITY: HIGH
 DEPENDS: BB-006
 REQUIRES: CODEX, LOCAL_SHELL, COPILOT
 PROMOTED_FROM: BH-001
-CHECKPOINT: 2026-08-10T13:44:15-04:00 — GitHub Copilot CLI is authenticated as FormatX66. Completed the first exact-confirmation dispatch: a metadata-only file-organization packet for 16 files in docs, with zero content bytes, no exclusions, a successful plan-mode response, content-free audit records, and no applied changes. The adapter was enabled only for that dispatch; persistent dispatch remains disabled. Next checkpoint: review the proposed documentation moves and decide whether to reject, revise, or validate them before any local application.
+CHECKPOINT: 2026-08-10T14:03:29-04:00 — Separated `github-copilot-cli` from `windows-copilot-app` throughout runtime status, provider inventory, configuration, confirmation wording, tests, and operator documentation. This PC reports both products installed, but only GitHub Copilot CLI supports guarded plan-mode automation; the Microsoft Windows app is explicitly manual-only and never dispatchable. New sends require `SEND TO GITHUB COPILOT`. Five focused and 90 total controller tests pass. Persistent GitHub Copilot dispatch remains disabled, and the first documentation proposal remains unapplied because its moves would affect references in 23 files. Next checkpoint: choose a small Windows-code or plugin-code packet and review it under the provider-specific gate.
 
 DESCRIPTION:
-Extend the script-first router with a Copilot worker lane for suitable local Windows tasks. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.
+Extend the script-first router with a GitHub Copilot CLI worker lane for suitable local Windows tasks. Treat Microsoft Copilot for Windows as a separate, manual-only product surface. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat GitHub Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.
 
 ACCEPTANCE:
-- Detect and report supported Copilot surfaces without assuming that an installed UI exposes a safe automation API.
+- Report `github-copilot-cli` and `windows-copilot-app` as separate provider records with vendor, product surface, installation, dispatch mode, and availability.
+- Detect the Microsoft Copilot Windows app without launching it or assuming that it exposes a safe automation API.
 - Classify only allowlisted task kinds: file-organization planning, Windows code, and plugin code.
 - Build minimal work packets with objective, selected paths, constraints, acceptance checks, and explicit exclusions.
 - File-organization packets contain metadata and propose moves/renames only; they never delete, overwrite, or execute the plan.
 - Code/plugin packets include only explicitly selected safe text files within configured roots and enforce size, extension, secret, key, credential, and environment-file exclusions.
-- Require an exact human confirmation before any packet is sent to Copilot.
-- Invoke a supported Copilot CLI without a shell, in plan mode, from an isolated packet directory, with shell/write/web/MCP tools unavailable.
-- Treat Copilot output as untrusted; store it separately and require BoxBrain/human review plus tests before changes are applied.
-- Record bounded audit events without prompts, file contents, secrets, tokens, or Copilot credentials.
+- Require the exact `SEND TO GITHUB COPILOT` confirmation before any packet is sent to GitHub Copilot CLI.
+- Invoke GitHub Copilot CLI without a shell, in plan mode, from an isolated packet directory, with shell/write/web/MCP tools unavailable.
+- Treat GitHub Copilot output as untrusted; store it separately and require BoxBrain/human review plus tests before changes are applied.
+- Record bounded audit events without prompts, file contents, secrets, tokens, or GitHub Copilot credentials.
 - Add API endpoints, focused tests, and operator documentation.
 END TASK
 

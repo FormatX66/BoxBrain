@@ -1,17 +1,39 @@
-# Local Windows Copilot Offload
+# Local Windows Tasks with GitHub Copilot
 
-BB-007 adds a review-only Copilot worker lane for three initial task kinds:
+BB-007 adds a review-only **GitHub Copilot CLI** worker lane for three initial
+task kinds. In this document, "Windows" describes the local task environment;
+it does not mean the Microsoft Copilot app for Windows.
 
 - `file_organization`: propose moves and renames from file metadata only;
 - `windows_code`: review or draft changes for selected Windows-oriented text files;
 - `plugin_code`: review or draft selected plugin code and manifests.
 
-Copilot never receives an open-ended Windows session. BoxBrain prepares a
+GitHub Copilot never receives an open-ended Windows session. BoxBrain prepares a
 minimal packet, the operator reviews it, and the exact confirmation
-`SEND TO COPILOT` is required before external transmission. Copilot output is
-stored as an untrusted proposal; this workflow never applies it.
+`SEND TO GITHUB COPILOT` is required before external transmission. GitHub
+GitHub Copilot output is stored as an untrusted proposal; this workflow never applies
+it.
 
-## Provider choice
+## Provider identity
+
+BoxBrain uses stable provider IDs and never labels either surface merely
+"Copilot":
+
+| Provider ID | Display name | Vendor | BoxBrain access |
+| --- | --- | --- | --- |
+| `github-copilot-cli` | GitHub Copilot CLI | GitHub | Guarded automated plan-mode dispatch |
+| `windows-copilot-app` | Microsoft Copilot (Windows app) | Microsoft | Detection and manual copy only; no automated dispatch |
+
+`GET /api/v1/processing/copilot/providers` returns these as separate typed
+records. The Windows detector reads the current user's registered
+`Microsoft.Copilot` app package without launching the app or inspecting its
+sign-in state.
+
+Microsoft documents the standalone [Microsoft Copilot app for Windows](https://support.microsoft.com/en-US/microsoft-copilot/getting-started-with-microsoft-copilot)
+as a conversational app using a personal Microsoft account. It is distinct
+from GitHub Copilot and from the Microsoft 365 Copilot app.
+
+## Automated provider
 
 The automated adapter uses the official GitHub Copilot CLI. GitHub documents
 non-interactive prompts through `copilot -p`, a plan mode, working-directory
@@ -21,9 +43,9 @@ selection, tool allowlists, and explicit deny/permission controls:
 - [Copilot CLI quickstart](https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-getting-started)
 - [Copilot CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference)
 
-The Microsoft Copilot and Microsoft 365 Copilot Windows apps may accept a
-reviewed packet manually. BoxBrain does not automate either UI or assume an
-undocumented local prompt API.
+The Microsoft Copilot Windows app may accept reviewed text manually. BoxBrain
+does not automate its UI or assume an undocumented local prompt API. Microsoft
+365 Copilot is a third, separate product and is outside this BB-007 adapter.
 
 ## Safety boundary
 
@@ -48,7 +70,7 @@ allowlisted extension. BoxBrain excludes:
 
 Rejected filenames and generic reasons may appear in the review packet, but
 their contents do not. Audit events contain IDs, counts, hashes, duration, and
-status only—never the objective, prompt, selected contents, Copilot response,
+status only—never the objective, prompt, selected contents, GitHub Copilot response,
 or credentials.
 
 ## Isolated dispatch
@@ -74,20 +96,20 @@ go through normal BoxBrain/human review, tests, and rollback controls.
 Dispatch is disabled by default. Relevant environment settings are:
 
 ```text
-BOXBRAIN_COPILOT_OFFLOAD_ENABLED=false
-BOXBRAIN_COPILOT_ALLOWED_ROOTS=
-BOXBRAIN_COPILOT_TIMEOUT_SECONDS=120
-BOXBRAIN_COPILOT_MAX_FILES=100
-BOXBRAIN_COPILOT_MAX_FILE_BYTES=32768
-BOXBRAIN_COPILOT_MAX_CONTENT_BYTES=131072
-BOXBRAIN_COPILOT_MAX_OUTPUT_BYTES=65536
+BOXBRAIN_GITHUB_COPILOT_OFFLOAD_ENABLED=false
+BOXBRAIN_GITHUB_COPILOT_ALLOWED_ROOTS=
+BOXBRAIN_GITHUB_COPILOT_TIMEOUT_SECONDS=120
+BOXBRAIN_GITHUB_COPILOT_MAX_FILES=100
+BOXBRAIN_GITHUB_COPILOT_MAX_FILE_BYTES=32768
+BOXBRAIN_GITHUB_COPILOT_MAX_CONTENT_BYTES=131072
+BOXBRAIN_GITHUB_COPILOT_MAX_OUTPUT_BYTES=65536
 ```
 
 On Windows, separate multiple allowed roots with semicolons. Configure the
 narrowest practical directories. Do not allow an entire user profile or drive.
 
 Install the CLI through its documented Windows package and authenticate in an
-interactive terminal; never place a Copilot token in a work packet or log:
+interactive terminal; never place GitHub Copilot credentials in a work packet or log:
 
 ```powershell
 winget install GitHub.Copilot
@@ -95,15 +117,18 @@ copilot login
 ```
 
 Only after runtime status reports the CLI installed should an operator set
-`BOXBRAIN_COPILOT_OFFLOAD_ENABLED=true`.
+`BOXBRAIN_GITHUB_COPILOT_OFFLOAD_ENABLED=true`.
 
 ## API flow
 
-1. `GET /api/v1/processing/copilot/runtime`
-2. `POST /api/v1/processing/copilot/packets`
-3. Review the returned prompt, files, exclusions, and hash.
-4. `POST /api/v1/processing/copilot/dispatches` with `SEND TO COPILOT`.
-5. Review and validate the returned proposal separately.
+1. `GET /api/v1/processing/copilot/providers` and verify the exact provider ID.
+2. `GET /api/v1/processing/copilot/runtime` and verify that the automated
+   provider is `github-copilot-cli`.
+3. `POST /api/v1/processing/copilot/packets`.
+4. Review the returned provider, prompt, files, exclusions, and hash.
+5. `POST /api/v1/processing/copilot/dispatches` with
+   `SEND TO GITHUB COPILOT`.
+6. Review and validate the returned proposal separately.
 
 Example packet preparation:
 
@@ -122,6 +147,6 @@ Example dispatch:
 ```json
 {
   "packet_id": "00000000-0000-0000-0000-000000000000",
-  "confirmation": "SEND TO COPILOT"
+  "confirmation": "SEND TO GITHUB COPILOT"
 }
 ```
