@@ -6,6 +6,9 @@ gadget="$gadget_root/boxbrain"
 configuration="$gadget/configs/c.1"
 keyboard_report_descriptor='\005\001\011\006\241\001\005\007\031\340\051\347\025\000\045\001\165\001\225\010\201\002\225\001\165\010\201\003\225\005\165\001\005\010\031\001\051\005\221\002\225\001\165\003\221\003\225\006\165\010\025\000\045\145\005\007\031\000\051\145\201\000\300'
 mouse_report_descriptor='\005\001\011\002\241\001\011\001\241\000\005\011\031\001\051\003\025\000\045\001\165\001\225\003\201\002\165\005\225\001\201\001\005\001\011\060\011\061\011\070\025\201\045\177\165\010\225\003\201\006\300\300'
+rescue_state_directory=${BOXBRAIN_STATE_DIR:-/var/lib/boxbrain}
+rescue_image=''
+rescue_write_mode='read-only'
 
 require_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -21,22 +24,61 @@ cleanup_gadget() {
     if [ -e "$gadget/UDC" ]; then
         printf '' >"$gadget/UDC" || true
     fi
+    if [ -e "$gadget/functions/mass_storage.rescue/lun.0/file" ]; then
+        printf '' >"$gadget/functions/mass_storage.rescue/lun.0/file" || true
+    fi
     rm -f \
         "$configuration/rndis.usb0" \
         "$configuration/hid.keyboard" \
         "$configuration/hid.mouse" \
+        "$configuration/mass_storage.rescue" \
         "$gadget/os_desc/c.1"
     rmdir "$configuration/strings/0x409" 2>/dev/null || true
     rmdir "$configuration" 2>/dev/null || true
     rmdir "$gadget/functions/hid.mouse" 2>/dev/null || true
     rmdir "$gadget/functions/hid.keyboard" 2>/dev/null || true
     rmdir "$gadget/functions/rndis.usb0" 2>/dev/null || true
+    rmdir "$gadget/functions/mass_storage.rescue" 2>/dev/null || true
     rmdir "$gadget/strings/0x409" 2>/dev/null || true
     rmdir "$gadget" 2>/dev/null || true
     if [ -d "$gadget" ]; then
         echo "The partial BoxBrain USB gadget could not be removed." >&2
         return 1
     fi
+}
+
+load_rescue_image() {
+    rescue_plan=$(
+        BOXBRAIN_STATE_DIR="$rescue_state_directory" \
+        PYTHONPATH=/opt/boxbrain/src \
+        python3 - <<'PY'
+import os
+from boxbrain.rescue_boot import RescueBootManager
+
+manager = RescueBootManager(os.environ["BOXBRAIN_STATE_DIR"])
+image = manager.active_image()
+if image:
+    print(f"{image['path']}|{image['write_mode']}")
+PY
+    )
+    if [ -z "$rescue_plan" ]; then
+        rescue_image=''
+        rescue_write_mode='read-only'
+        return
+    fi
+    rescue_image=${rescue_plan%%|*}
+    rescue_write_mode=${rescue_plan#*|}
+    if [ ! -f "$rescue_image" ]; then
+        echo "The consumed rescue image is unavailable." >&2
+        return 1
+    fi
+    case "$rescue_image" in
+        "$rescue_state_directory"/rescue-images/*) ;;
+        *)
+            echo "Refusing to export anything outside the dedicated rescue image store." >&2
+            return 1
+            ;;
+    esac
 }
 
 legacy_fallback() {
@@ -80,6 +122,10 @@ start_gadget() {
     modprobe libcomposite
     modprobe usb_f_rndis
     modprobe usb_f_hid
+    load_rescue_image
+    if [ -n "$rescue_image" ]; then
+        modprobe usb_f_mass_storage
+    fi
     cleanup_gadget
 
     serial=$(tr -d '\000' </proc/device-tree/serial-number 2>/dev/null || true)
@@ -110,11 +156,17 @@ start_gadget() {
     mkdir "$gadget/strings/0x409"
     printf '%s' "$serial" >"$gadget/strings/0x409/serialnumber"
     printf '%s' 'Raspberry Pi Ltd.' >"$gadget/strings/0x409/manufacturer"
-    printf '%s' 'BoxBrain USB Ethernet + Keyboard + Mouse' >"$gadget/strings/0x409/product"
+    product='BoxBrain USB Ethernet + Keyboard + Mouse'
+    configuration_label='BoxBrain RNDIS + HID Keyboard + Mouse'
+    if [ -n "$rescue_image" ]; then
+        product='BoxBrain One-Shot Rescue + Controls'
+        configuration_label='BoxBrain Rescue Media + RNDIS + HID'
+    fi
+    printf '%s' "$product" >"$gadget/strings/0x409/product"
 
     mkdir "$configuration"
     mkdir "$configuration/strings/0x409"
-    printf '%s' 'BoxBrain RNDIS + HID Keyboard + Mouse' >"$configuration/strings/0x409/configuration"
+    printf '%s' "$configuration_label" >"$configuration/strings/0x409/configuration"
     printf '250' >"$configuration/MaxPower"
 
     mkdir "$gadget/functions/rndis.usb0"
@@ -142,9 +194,28 @@ start_gadget() {
     printf '4' >"$gadget/functions/hid.mouse/report_length"
     printf '%b' "$mouse_report_descriptor" >"$gadget/functions/hid.mouse/report_desc"
 
+    if [ -n "$rescue_image" ]; then
+        mkdir "$gadget/functions/mass_storage.rescue"
+        printf '1' >"$gadget/functions/mass_storage.rescue/stall"
+        printf '1' >"$gadget/functions/mass_storage.rescue/lun.0/removable"
+        if [ "$rescue_write_mode" = 'read-write' ]; then
+            printf '0' >"$gadget/functions/mass_storage.rescue/lun.0/ro"
+        else
+            printf '1' >"$gadget/functions/mass_storage.rescue/lun.0/ro"
+        fi
+        case "$rescue_image" in
+            *.iso) printf '1' >"$gadget/functions/mass_storage.rescue/lun.0/cdrom" ;;
+            *) printf '0' >"$gadget/functions/mass_storage.rescue/lun.0/cdrom" ;;
+        esac
+        printf '%s' "$rescue_image" >"$gadget/functions/mass_storage.rescue/lun.0/file"
+    fi
+
     ln -s "$gadget/functions/rndis.usb0" "$configuration/rndis.usb0"
     ln -s "$gadget/functions/hid.keyboard" "$configuration/hid.keyboard"
     ln -s "$gadget/functions/hid.mouse" "$configuration/hid.mouse"
+    if [ -n "$rescue_image" ]; then
+        ln -s "$gadget/functions/mass_storage.rescue" "$configuration/mass_storage.rescue"
+    fi
     ln -s "$configuration" "$gadget/os_desc/c.1"
     printf '%s' "$udc" >"$gadget/UDC"
 

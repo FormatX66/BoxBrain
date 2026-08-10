@@ -8,6 +8,8 @@ pending="$state_dir/pending"
 helper=/usr/local/libexec/boxbrain-access-point
 service=boxbrain-access-point.service
 rollback_timer=boxbrain-access-point-rollback.timer
+network_mode_service=boxbrain-network-mode.service
+network_mode_timer=boxbrain-network-mode.timer
 
 require_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -121,6 +123,9 @@ case "$action" in
         "$helper" status | grep -q '"isolated":true'
         systemctl disable --now "$rollback_timer" >/dev/null
         rm -f "$pending"
+        systemctl disable "$service" >/dev/null 2>&1 || true
+        systemctl enable --now "$network_mode_timer" >/dev/null
+        systemctl start "$network_mode_service" || true
         printf '%s\n' '{"schema_version":1,"action":"commit","changed":true,"status":"persistent"}'
         ;;
     rollback)

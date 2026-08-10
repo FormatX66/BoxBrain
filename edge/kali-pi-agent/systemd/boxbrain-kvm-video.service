@@ -1,0 +1,38 @@
+[Unit]
+Description=BoxBrain private HDMI capture stream for physical KVM
+After=network.target
+ConditionPathExists=/dev/video0
+
+[Service]
+Type=simple
+User=boxbrain
+Group=boxbrain
+SupplementaryGroups=video
+ExecStart=/usr/bin/ustreamer --device=/dev/video0 --host=127.0.0.1 --port=8082 --resolution=1280x720 --format=MJPEG --encoder=HW --desired-fps=30 --device-timeout=5 --device-error-delay=1 --slowdown
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+DevicePolicy=closed
+DeviceAllow=/dev/video0 rw
+
+[Install]
+WantedBy=multi-user.target

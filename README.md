@@ -197,6 +197,9 @@ or raw diagnostic reports into its API. See [docs/EDGE_AGENT.md](docs/EDGE_AGENT
 for the architecture, tunnel command, USB-C and SSH/Wi-Fi target enrollment, and safe Pi upgrade
 path.
 
+The edge agent also documents its [credential-redacted Windows WLAN inventory](docs/WINDOWS_WLAN.md)
+and [guarded one-shot rescue boot](docs/ONE_SHOT_RESCUE.md) workflows separately.
+
 An optional live Pi screen is also available through a loopback-only
 VNC/WebSocket transport and key-only SSH tunnel. It can be opened manually or
 by a current-user Windows connection watcher; neither path is enabled by the

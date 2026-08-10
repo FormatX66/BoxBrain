@@ -1,24 +1,18 @@
 [Unit]
-Description=BoxBrain Kali Pi edge agent
+Description=BoxBrain bounded standalone trusted-LAN discovery
 Documentation=file:/opt/boxbrain/README.md
 Wants=network-online.target
-After=network-online.target
+After=network-online.target boxbrain-network-mode.service
 
 [Service]
-Type=simple
+Type=oneshot
 User=boxbrain
 Group=boxbrain
-WorkingDirectory=/var/lib/boxbrain
-RuntimeDirectory=boxbrain
-RuntimeDirectoryMode=0770
 Environment=PYTHONPATH=/opt/boxbrain/src
 EnvironmentFile=-/etc/boxbrain/boxbrain.env
-ExecStartPre=+/usr/bin/install -d -o boxbrain -g boxbrain -m 0770 /run/boxbrain
-ExecStart=/usr/bin/python3 -m boxbrain.server
-Restart=on-failure
-RestartSec=3
-TimeoutStopSec=10
-UMask=0077
+ExecStart=/usr/bin/python3 -m boxbrain.standalone_discovery
+TimeoutStartSec=90s
+UMask=0027
 
 NoNewPrivileges=true
 PrivateDevices=true
@@ -41,6 +35,3 @@ MemoryDenyWriteExecute=true
 CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
-
-[Install]
-WantedBy=multi-user.target

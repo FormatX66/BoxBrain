@@ -27,10 +27,22 @@ from boxbrain.patches import (
     PATCH_DELIVERY_CONFIRMATION,
 )
 from boxbrain.policy import AUTHORIZATION_ASSERTION
+from boxbrain.rescue_boot import (
+    ARM_CONFIRMATION,
+    CANCEL_CONFIRMATION,
+    IMPORT_CONFIRMATION,
+    REBOOT_NORMAL_CONFIRMATION,
+    RescueBootError,
+    RescueBootManager,
+)
 from boxbrain.wifi import (
     WIFI_PROVISION_AUTHORIZATION,
     WifiProvisionError,
     provision_current_wifi,
+)
+from boxbrain.windows_wlan import (
+    WLAN_RECONNECT_AUTHORIZATION,
+    WLAN_RECONNECT_CONFIRMATION,
 )
 
 
@@ -76,6 +88,12 @@ def _control_request(
     if not response.get("ok"):
         raise RuntimeError(str(response.get("error", "BoxBrain request failed.")))
     return response
+
+
+def _rescue_manager() -> RescueBootManager:
+    return RescueBootManager(
+        os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain")
+    )
 
 
 def _usb_keyboard_request(
@@ -245,6 +263,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pi NetworkManager Wi-Fi interface.",
     )
 
+    windows_wlan = subparsers.add_parser(
+        "windows-wlan",
+        help="Inventory or reconnect WLAN on an authorized Windows target.",
+    )
+    windows_wlan.add_argument("address", help="Authorized private target IPv4 address.")
+    windows_wlan.add_argument(
+        "action",
+        choices=("interfaces", "profiles", "status", "diagnose", "reconnect"),
+    )
+    windows_wlan.add_argument("--profile", default=None)
+    windows_wlan.add_argument("--interface", default=None)
+    windows_wlan.add_argument("--authorized", action="store_true")
+    windows_wlan.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact reconnect phrase: {WLAN_RECONNECT_CONFIRMATION}",
+    )
+
     headless_link = subparsers.add_parser(
         "headless-windows-link",
         help="Preview or inject the fixed Windows link through USB HID.",
@@ -316,6 +352,114 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirmation",
         default="",
         help="Exact action-specific confirmation phrase.",
+    )
+
+    rescue = subparsers.add_parser(
+        "rescue",
+        help="Manage verified one-shot rescue images and next-boot state.",
+    )
+    rescue_actions = rescue.add_subparsers(dest="rescue_action", required=True)
+    rescue_actions.add_parser("status", help="Show one-shot rescue state.")
+    rescue_images = rescue_actions.add_parser(
+        "images",
+        help="List registered rescue images and verify their checksums.",
+    )
+    rescue_images.add_argument(
+        "--no-verify",
+        action="store_true",
+        help="List metadata without re-reading full image contents.",
+    )
+    rescue_import = rescue_actions.add_parser(
+        "import",
+        help="Copy checksum-verified rescue media into the protected image store.",
+    )
+    rescue_import.add_argument("source", help="Source ISO or image path.")
+    rescue_import.add_argument("--id", required=True, dest="image_id")
+    rescue_import.add_argument(
+        "--kind",
+        required=True,
+        choices=("kali", "windows", "custom"),
+    )
+    rescue_import.add_argument(
+        "--architecture",
+        required=True,
+        choices=("arm64", "x86_64", "multi"),
+    )
+    rescue_import.add_argument(
+        "--boot-compatible",
+        action="append",
+        required=True,
+        choices=("bios", "uefi", "pi4"),
+    )
+    rescue_import.add_argument(
+        "--secure-boot",
+        required=True,
+        choices=("supported", "unsupported", "unknown"),
+    )
+    signed_group = rescue_import.add_mutually_exclusive_group()
+    signed_group.add_argument("--signed", action="store_const", const=True, dest="signed")
+    signed_group.add_argument("--unsigned", action="store_const", const=False, dest="signed")
+    rescue_import.set_defaults(signed=None)
+    rescue_import.add_argument(
+        "--write-mode",
+        choices=("read-only", "read-write"),
+        default="read-only",
+    )
+    rescue_import.add_argument("--sha256", required=True, dest="expected_sha256")
+    rescue_import.add_argument(
+        "--checksum-source",
+        required=True,
+        help="Public official URL or signed manifest used for the expected SHA-256.",
+    )
+    rescue_import.add_argument("--authorized", action="store_true")
+    rescue_import.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {IMPORT_CONFIRMATION}",
+    )
+
+    rescue_arm = rescue_actions.add_parser(
+        "arm",
+        help="Arm exactly one rescue boot after hardware and image verification.",
+    )
+    rescue_arm.add_argument("mode", help="rescue:kali, rescue:windows, or rescue:<image-id>")
+    rescue_arm.add_argument(
+        "--target-architecture",
+        choices=("arm64", "x86_64", "multi"),
+        default=None,
+    )
+    rescue_arm.add_argument("--authorized", action="store_true")
+    rescue_arm.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {ARM_CONFIRMATION}",
+    )
+
+    rescue_cancel = rescue_actions.add_parser("cancel", help="Cancel an armed rescue boot.")
+    rescue_cancel.add_argument("--authorized", action="store_true")
+    rescue_cancel.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {CANCEL_CONFIRMATION}",
+    )
+    rescue_actions.add_parser(
+        "hardware-check",
+        help="Check Pi 4 USB-device rescue prerequisites without changing them.",
+    )
+    rescue_reboot = rescue_actions.add_parser(
+        "reboot-normal",
+        help="Force the saved next boot to normal; reboot only with --execute.",
+    )
+    rescue_reboot.add_argument("--execute", action="store_true")
+    rescue_reboot.add_argument("--authorized", action="store_true")
+    rescue_reboot.add_argument(
+        "--confirmation",
+        default="",
+        help=f"Exact confirmation phrase: {REBOOT_NORMAL_CONFIRMATION}",
+    )
+    rescue_actions.add_parser(
+        "consume-early",
+        help="Internal least-privilege early-boot state consumer.",
     )
 
     subparsers.add_parser(
@@ -429,6 +573,23 @@ def main() -> int:
                 WIFI_PROVISION_AUTHORIZATION,
                 interface=args.interface,
             )
+        elif command == "windows-wlan":
+            if args.action == "reconnect" and not args.authorized:
+                parser.error("--authorized is required to reconnect Windows WLAN.")
+            payload = _control_request(
+                {
+                    "action": "windows_wlan",
+                    "wlan_action": args.action,
+                    "address": args.address,
+                    "profile": args.profile,
+                    "interface": args.interface,
+                    "authorization": (
+                        WLAN_RECONNECT_AUTHORIZATION if args.authorized else ""
+                    ),
+                    "confirmation": args.confirmation,
+                },
+                timeout=150 if args.action == "reconnect" else 100,
+            )["result"]
         elif command == "headless-windows-link":
             if not args.execute:
                 payload = preview_headless_windows_link(
@@ -465,6 +626,56 @@ def main() -> int:
                 authorized=args.authorized,
                 confirmation=args.confirmation,
             )
+        elif command == "rescue":
+            manager = _rescue_manager()
+            if args.rescue_action == "status":
+                payload = manager.status()
+            elif args.rescue_action == "images":
+                payload = {
+                    "images": manager.list_images(verify=not args.no_verify)
+                }
+            elif args.rescue_action == "import":
+                if not args.authorized:
+                    parser.error("--authorized is required to import rescue media.")
+                payload = manager.import_image(
+                    args.source,
+                    image_id=args.image_id,
+                    kind=args.kind,
+                    architecture=args.architecture,
+                    boot_compatibility=args.boot_compatible,
+                    secure_boot=args.secure_boot,
+                    signed=args.signed,
+                    write_mode=args.write_mode,
+                    expected_sha256=args.expected_sha256,
+                    checksum_source=args.checksum_source,
+                    authorization=args.confirmation,
+                )
+            elif args.rescue_action == "arm":
+                if not args.authorized:
+                    parser.error("--authorized is required to arm one-shot rescue.")
+                payload = manager.arm(
+                    args.mode,
+                    target_architecture=args.target_architecture,
+                    authorization=args.confirmation,
+                )
+            elif args.rescue_action == "cancel":
+                if not args.authorized:
+                    parser.error("--authorized is required to cancel one-shot rescue.")
+                payload = manager.cancel(authorization=args.confirmation)
+            elif args.rescue_action == "hardware-check":
+                payload = manager.hardware_check()
+            elif args.rescue_action == "reboot-normal":
+                if not args.authorized:
+                    parser.error("--authorized is required to select a normal reboot.")
+                payload = manager.reboot_normal(
+                    authorization=args.confirmation,
+                    execute=args.execute,
+                )
+            elif args.rescue_action == "consume-early":
+                payload = manager.consume_early_boot()
+            else:
+                parser.error(f"Unsupported rescue action: {args.rescue_action}")
+                return 2
         elif command == "patches":
             payload = _control_request({"action": "patches"})["patches"]
         elif command == "deliver-patch":
@@ -484,7 +695,7 @@ def main() -> int:
         else:
             parser.error(f"Unsupported command: {command}")
             return 2
-    except (HeadlessLinkError, RuntimeError, WifiProvisionError) as error:
+    except (HeadlessLinkError, RescueBootError, RuntimeError, WifiProvisionError) as error:
         print(str(error), file=sys.stderr)
         return 1
 

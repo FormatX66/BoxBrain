@@ -1,22 +1,19 @@
 [Unit]
-Description=BoxBrain Kali Pi edge agent
+Description=BoxBrain outbound BoxLink synchronization
 Documentation=file:/opt/boxbrain/README.md
-Wants=network-online.target
-After=network-online.target
+Wants=network-online.target boxbrain.service
+After=network-online.target boxbrain.service
 
 [Service]
 Type=simple
 User=boxbrain
 Group=boxbrain
 WorkingDirectory=/var/lib/boxbrain
-RuntimeDirectory=boxbrain
-RuntimeDirectoryMode=0770
 Environment=PYTHONPATH=/opt/boxbrain/src
 EnvironmentFile=-/etc/boxbrain/boxbrain.env
-ExecStartPre=+/usr/bin/install -d -o boxbrain -g boxbrain -m 0770 /run/boxbrain
-ExecStart=/usr/bin/python3 -m boxbrain.server
+ExecStart=/usr/bin/python3 -m boxbrain.sync
 Restart=on-failure
-RestartSec=3
+RestartSec=5
 TimeoutStopSec=10
 UMask=0077
 
@@ -32,7 +29,7 @@ ProtectKernelModules=true
 ProtectKernelTunables=true
 ProtectSystem=strict
 ReadWritePaths=/var/lib/boxbrain
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=true
 RestrictRealtime=true
 RestrictSUIDSGID=true

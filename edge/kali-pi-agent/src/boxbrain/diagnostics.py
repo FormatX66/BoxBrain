@@ -9,14 +9,24 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 from typing import Any
 
 from boxbrain.links import load_links
+from boxbrain.windows_wlan import (
+    WLAN_RECONNECT_AUTHORIZATION,
+    WLAN_RECONNECT_CONFIRMATION,
+    WindowsWlanError,
+    build_powershell as build_windows_wlan_powershell,
+    diagnose_inventory as diagnose_windows_wlan_inventory,
+    parse_powershell_output as parse_windows_wlan_output,
+)
 
 
 DIAGNOSTIC_AUTHORIZATION = "I am authorized to diagnose this computer"
+TRUST_HOST_KEY_CONFIRMATION = "TRUST NEW HOST KEY"
 WINDOWS_SCRIPT = r"""$ErrorActionPreference = 'SilentlyContinue'
 $version = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 Add-Type -AssemblyName Microsoft.VisualBasic
@@ -57,6 +67,16 @@ $adapters = @(
             }
         }
 )
+$knownUsers = @()
+try {
+    $knownUsers = @(
+        Get-CimInstance Win32_UserAccount -Filter "LocalAccount=True" |
+            Where-Object { -not $_.Disabled } |
+            ForEach-Object { [string]$_.Name }
+    )
+} catch {
+    $knownUsers = @()
+}
 $deviceErrors = @()
 $deviceErrorCheck = 'complete'
 $deviceJob = $null
@@ -100,67 +120,6 @@ $productName = [string]$version.ProductName
 if ([int]$version.CurrentBuildNumber -ge 22000) {
     $productName = $productName -replace 'Windows 10','Windows 11'
 }
-function Invoke-BoxBrainNetsh {
-    param([string[]]$Arguments)
-    $job = Start-Job -ScriptBlock {
-        param([string[]]$NetshArguments)
-        & netsh.exe @NetshArguments 2>$null
-    } -ArgumentList (,$Arguments)
-    try {
-        $finished = Wait-Job -Job $job -Timeout 8
-        if ($null -eq $finished) {
-            Stop-Job -Job $job -ErrorAction SilentlyContinue
-            return $null
-        }
-        return @(Receive-Job -Job $job -ErrorAction SilentlyContinue)
-    } finally {
-        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-    }
-}
-$wifi = [ordered]@{
-    connected = $false
-    ssid = $null
-    profile = $null
-    credential_check = 'not-applicable'
-    saved_key_visible_to_boxbrain_link = $false
-}
-try {
-    $wlanInterfaces = Invoke-BoxBrainNetsh @('wlan', 'show', 'interfaces')
-    $ssidMatch = $wlanInterfaces |
-        Select-String -Pattern '^\s*SSID\s*:\s*(.+?)\s*$' |
-        Select-Object -First 1
-    $profileMatch = $wlanInterfaces |
-        Select-String -Pattern '^\s*Profile\s*:\s*(.+?)\s*$' |
-        Select-Object -First 1
-    if ($null -ne $ssidMatch -and $null -ne $profileMatch) {
-        $wifi.connected = $true
-        $wifi.ssid = $ssidMatch.Matches[0].Groups[1].Value
-        $wifi.profile = $profileMatch.Matches[0].Groups[1].Value
-        $savedProfile = Invoke-BoxBrainNetsh @(
-            'wlan',
-            'show',
-            'profile',
-            "name=$($wifi.profile)",
-            'key=clear'
-        )
-        if ($null -eq $savedProfile) {
-            throw 'The restricted WLAN credential check timed out.'
-        }
-        $wifi.saved_key_visible_to_boxbrain_link = [bool](
-            $savedProfile |
-                Select-String -Pattern '^\s*Key Content\s*:\s*.+$' |
-                Select-Object -First 1
-        )
-        $wifi.credential_check = if ($wifi.saved_key_visible_to_boxbrain_link) {
-            'exposed'
-        } else {
-            'blocked'
-        }
-        $savedProfile = $null
-    }
-} catch {
-    $wifi.credential_check = 'unavailable'
-}
 $result = [ordered]@{
     schema_version = 1
     family = 'windows'
@@ -174,7 +133,7 @@ $result = [ordered]@{
     memory_free_bytes = [int64]$computer.AvailablePhysicalMemory
     disks = $disks
     network_adapters = $adapters
-    wifi = $wifi
+    known_users = $knownUsers
     device_error_count = [int]$deviceErrors.Count
     device_error_check = $deviceErrorCheck
     device_errors = $deviceErrors
@@ -337,26 +296,23 @@ def analyze(payload: dict[str, Any]) -> tuple[str, list[dict[str, str]], dict[st
             }
         )
 
-    wifi = payload.get("wifi")
-    if isinstance(wifi, dict):
-        visible = wifi.get("saved_key_visible_to_boxbrain_link") is True
-        metrics["wifi_saved_key_visible_to_restricted_account"] = visible
-        if visible:
-            findings.append(
-                {
-                    "severity": "high",
-                    "title": "Restricted account can read the saved Wi-Fi key",
-                    "detail": (
-                        "The non-administrator boxbrain-link account could request clear-text "
-                        "key content for the currently connected Windows Wi-Fi profile."
-                    ),
-                    "recommendation": (
-                        "Keep Wi-Fi provisioning administrator-only, update Windows, review "
-                        "local account and WLAN profile permissions, then rotate the Wi-Fi "
-                        "passphrase after the access boundary is corrected."
-                    ),
-                }
-            )
+    windows_wlan = payload.get("windows_wlan")
+    if isinstance(windows_wlan, dict):
+        wlan_diagnostics = windows_wlan.get("diagnostics")
+        if isinstance(wlan_diagnostics, dict):
+            metrics["windows_wlan_interface_count"] = wlan_diagnostics.get("interface_count")
+            metrics["windows_wlan_profile_count"] = wlan_diagnostics.get("profile_count")
+            for item in wlan_diagnostics.get("findings", []):
+                if not isinstance(item, dict):
+                    continue
+                findings.append(
+                    {
+                        "severity": str(item.get("severity", "low")),
+                        "title": str(item.get("title", "Windows WLAN finding")),
+                        "detail": "BoxBrain reviewed supported Windows WLAN interface and profile metadata.",
+                        "recommendation": str(item.get("recommendation", "Review Windows networking.")),
+                    }
+                )
 
     severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1}
     highest = max((severity_rank.get(item["severity"], 0) for item in findings), default=0)
@@ -480,6 +436,85 @@ class TargetDiagnostics:
             raise DiagnosticError(f"Target diagnostic failed: {detail[:300]}")
         return result.stdout
 
+    def probe(self, address: str, authorization: str) -> dict[str, Any]:
+        """Verify the saved BoxLink with its restricted key and no target mutation."""
+
+        if authorization != DIAGNOSTIC_AUTHORIZATION:
+            raise DiagnosticError("Explicit target diagnostic authorization is required.")
+        safe_address = _safe_address(address)
+        if not any(
+            item.get("address") == safe_address
+            for item in load_links(str(self.state_directory))
+        ):
+            raise DiagnosticError("Target is not an authorized BoxBrain link.")
+        output = self._ssh(
+            safe_address,
+            "echo BOXBRAIN_CONNECTED",
+            timeout=12,
+        )
+        if output.strip() != "BOXBRAIN_CONNECTED":
+            raise DiagnosticError("The target did not complete the BoxLink handshake.")
+        return {"address": safe_address, "connected": True, "transport": "boxlink-ssh"}
+
+    def reset_host_trust(
+        self,
+        address: str,
+        authorization: str,
+        confirmation: str,
+    ) -> dict[str, Any]:
+        """Replace a changed saved host key only after an explicit local confirmation."""
+
+        if authorization != DIAGNOSTIC_AUTHORIZATION:
+            raise DiagnosticError("Explicit target diagnostic authorization is required.")
+        if confirmation != TRUST_HOST_KEY_CONFIRMATION:
+            raise DiagnosticError(
+                f"Type {TRUST_HOST_KEY_CONFIRMATION} to replace the saved host key."
+            )
+        safe_address = _safe_address(address)
+        if not any(
+            item.get("address") == safe_address
+            for item in load_links(str(self.state_directory))
+        ):
+            raise DiagnosticError("Target is not an authorized BoxBrain link.")
+
+        known_hosts = self.state_directory / "identity" / "target_known_hosts"
+        if not known_hosts.is_file():
+            raise DiagnosticError("The BoxBrain host-key registry is unavailable.")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup = known_hosts.with_name(f"{known_hosts.name}.before-retrust-{stamp}")
+        try:
+            shutil.copy2(known_hosts, backup)
+            os.chmod(backup, 0o600)
+            for host in (safe_address, f"[{safe_address}]:22"):
+                subprocess.run(
+                    ["ssh-keygen", "-R", host, "-f", str(known_hosts)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=8,
+                )
+            output = self._ssh(
+                safe_address,
+                "echo BOXBRAIN_CONNECTED",
+                timeout=12,
+            )
+            if output.strip() != "BOXBRAIN_CONNECTED":
+                raise DiagnosticError("The new BoxLink host key could not be verified.")
+        except (OSError, subprocess.SubprocessError, DiagnosticError) as error:
+            try:
+                shutil.copy2(backup, known_hosts)
+            except OSError:
+                pass
+            if isinstance(error, DiagnosticError):
+                raise
+            raise DiagnosticError(f"BoxLink trust repair failed: {error}") from error
+        return {
+            "address": safe_address,
+            "connected": True,
+            "transport": "boxlink-ssh",
+            "previous_registry": str(backup),
+        }
+
     def _windows(self, address: str) -> dict[str, Any]:
         output = self._ssh(
             address,
@@ -497,8 +532,93 @@ class TargetDiagnostics:
                 except json.JSONDecodeError:
                     continue
                 if isinstance(payload, dict):
+                    try:
+                        wlan = self._run_windows_wlan(address, "status")
+                    except (DiagnosticError, WindowsWlanError) as error:
+                        payload["windows_wlan"] = {
+                            "status": "unavailable",
+                            "error": str(error)[:300],
+                            "credential_material_included": False,
+                        }
+                    else:
+                        inventory = wlan["inventory"]
+                        inventory["diagnostics"] = diagnose_windows_wlan_inventory(inventory)
+                        payload["windows_wlan"] = inventory
                     return payload
         raise DiagnosticError("Windows returned no usable diagnostic data.")
+
+    def _run_windows_wlan(
+        self,
+        address: str,
+        action: str,
+        *,
+        profile: str | None = None,
+        interface: str | None = None,
+    ) -> dict[str, Any]:
+        output = self._ssh(
+            address,
+            (
+                'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass '
+                '-Command "$script=[Console]::In.ReadToEnd(); Invoke-Expression $script"'
+            ),
+            input_text=build_windows_wlan_powershell(
+                action,
+                profile=profile,
+                interface=interface,
+            ),
+            timeout=120 if action == "reconnect" else 90,
+        )
+        return parse_windows_wlan_output(output)
+
+    def windows_wlan(
+        self,
+        address: str,
+        action: str,
+        *,
+        profile: str | None = None,
+        interface: str | None = None,
+        authorization: str = "",
+        confirmation: str = "",
+    ) -> dict[str, Any]:
+        link = self._link(address)
+        if "windows" not in str(link.get("platform", "")).lower():
+            raise DiagnosticError("Windows WLAN actions require an authorized Windows link.")
+        if action == "reconnect":
+            if authorization != WLAN_RECONNECT_AUTHORIZATION:
+                raise DiagnosticError("Explicit WLAN reconnect authorization is required.")
+            if confirmation != WLAN_RECONNECT_CONFIRMATION:
+                raise DiagnosticError("Exact WLAN reconnect confirmation is required.")
+            if not profile or not interface or len(profile) > 256 or len(interface) > 128:
+                raise DiagnosticError("A bounded profile and interface are required.")
+            if any(ord(character) < 32 for character in profile + interface):
+                raise DiagnosticError("WLAN profile and interface contain invalid characters.")
+        result = self._run_windows_wlan(
+            address,
+            action,
+            profile=profile,
+            interface=interface,
+        )
+        inventory = result["inventory"]
+        diagnostics = diagnose_windows_wlan_inventory(inventory)
+        inventory["diagnostics"] = diagnostics
+        record = {
+            "schema_version": 1,
+            "generated_at": utc_now(),
+            "target": {"address": address, "hostname": link.get("hostname")},
+            "inventory": inventory,
+            "reconnect": result.get("reconnect"),
+        }
+        _atomic_json(
+            self.state_directory / "network-inventory" / f"{address}-windows-wlan.json",
+            record,
+        )
+        if action == "interfaces":
+            return {"interfaces": inventory["interfaces"]}
+        if action == "profiles":
+            return {"profiles": inventory["profiles"]}
+        if action == "diagnose":
+            return {"diagnostics": diagnostics, "inventory": inventory}
+        return record
 
     def _linux(self, address: str) -> dict[str, Any]:
         script = r"""
@@ -524,6 +644,9 @@ df -P -B1 2>/dev/null | awk 'NR > 1 && $2 ~ /^[0-9]+$/ {printf "BB|disk|%s|%s|%s
 if command -v ip >/dev/null 2>&1; then
     ip -o -4 address show up 2>/dev/null | awk '{printf "BB|adapter|%s|%s\n",$2,$4}'
 fi
+if command -v getent >/dev/null 2>&1; then
+    getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(false|nologin)$/ {printf "BB|user|%s\n",$1}'
+fi
 """
         output = self._ssh(address, "sh -s", input_text=script, timeout=45)
         payload: dict[str, Any] = {
@@ -531,6 +654,7 @@ fi
             "family": "linux",
             "disks": [],
             "network_adapters": [],
+            "known_users": [],
             "pending_reboot": False,
             "device_error_count": 0,
         }
@@ -551,6 +675,8 @@ fi
                 payload["network_adapters"].append(
                     {"name": parts[2], "addresses": [parts[3]]}
                 )
+            elif len(parts) >= 3 and parts[1] == "user":
+                payload["known_users"].append("|".join(parts[2:]))
             elif len(parts) >= 3:
                 key = parts[1]
                 value: Any = "|".join(parts[2:])
@@ -624,6 +750,22 @@ fi
             "report_json": str(latest_json),
             "report_html": str(latest_html),
         }
+        wifi_state = diagnostic.get("wifi", {})
+        if isinstance(wifi_state, dict) and wifi_state.get("ssid"):
+            current["wifi_ssid"] = str(wifi_state["ssid"])
+            current["diagnostics"]["wifi_ssid"] = str(wifi_state["ssid"])
+        known_users = diagnostic.get("known_users", [])
+        if isinstance(known_users, list):
+            current["known_users"] = [str(value) for value in known_users if value]
+            current["diagnostics"]["known_users"] = current["known_users"]
+        ip_addresses: list[str] = []
+        for adapter in diagnostic.get("network_adapters", []):
+            if not isinstance(adapter, dict):
+                continue
+            addresses = adapter.get("addresses", [])
+            if isinstance(addresses, list):
+                ip_addresses.extend(str(value) for value in addresses if value)
+        current["ip_addresses"] = sorted(set(ip_addresses))
         _atomic_json(link_path, current)
         return report
 

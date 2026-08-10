@@ -1,24 +1,17 @@
 [Unit]
-Description=BoxBrain Kali Pi edge agent
-Documentation=file:/opt/boxbrain/README.md
-Wants=network-online.target
-After=network-online.target
+Description=BoxBrain Pi-only physical KVM gateway
+Requires=boxbrain.service
+Wants=boxbrain-hid-kvm.service boxbrain-kvm-video.service
+After=boxbrain.service boxbrain-hid-kvm.service boxbrain-kvm-video.service
 
 [Service]
 Type=simple
 User=boxbrain
 Group=boxbrain
-WorkingDirectory=/var/lib/boxbrain
-RuntimeDirectory=boxbrain
-RuntimeDirectoryMode=0770
 Environment=PYTHONPATH=/opt/boxbrain/src
-EnvironmentFile=-/etc/boxbrain/boxbrain.env
-ExecStartPre=+/usr/bin/install -d -o boxbrain -g boxbrain -m 0770 /run/boxbrain
-ExecStart=/usr/bin/python3 -m boxbrain.server
+ExecStart=/usr/bin/python3 -m boxbrain.console_gateway --bind 10.12.194.1 --port 8791 --directory /opt/boxbrain/pi-console --backend http://127.0.0.1:8787 --video-backend http://127.0.0.1:8082/stream --kvm-only
 Restart=on-failure
-RestartSec=3
-TimeoutStopSec=10
-UMask=0077
+RestartSec=2
 
 NoNewPrivileges=true
 PrivateDevices=true
@@ -31,8 +24,7 @@ ProtectKernelLogs=true
 ProtectKernelModules=true
 ProtectKernelTunables=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/boxbrain
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictAddressFamilies=AF_UNIX AF_INET
 RestrictNamespaces=true
 RestrictRealtime=true
 RestrictSUIDSGID=true

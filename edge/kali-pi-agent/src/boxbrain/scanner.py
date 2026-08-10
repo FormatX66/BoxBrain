@@ -7,7 +7,8 @@ import json
 from pathlib import Path
 import subprocess
 import threading
-from typing import Any
+import time
+from typing import Any, Callable
 import xml.etree.ElementTree as ET
 
 from boxbrain.policy import validate_target
@@ -113,10 +114,12 @@ class AssessmentManager:
 
     def _run_job(self, job_id: str, target: str, profile: str) -> None:
         self.storage.update_job(job_id, status="running", started_at=utc_now(), error=None)
+        self.storage.append_job_event(job_id, "Assessment started on the BoxBrain node.")
         try:
             scan_directory = self.storage.state_directory / "scans"
             scan_directory.mkdir(parents=True, exist_ok=True)
 
+            self.storage.append_job_event(job_id, f"Discovering devices on {target}.")
             discovery_xml = self._run_nmap(
                 [
                     "--unprivileged",
@@ -133,12 +136,21 @@ class AssessmentManager:
                     target,
                 ],
                 timeout=360,
+                progress=lambda elapsed: self.storage.append_job_event(
+                    job_id,
+                    f"Device discovery is running — {elapsed}s elapsed.",
+                ),
             )
             (scan_directory / f"{job_id}-discovery.xml").write_text(
                 discovery_xml,
                 encoding="utf-8",
             )
             assets = self._save_hosts(job_id, discovery_xml)
+            self.storage.append_job_event(
+                job_id,
+                f"Device discovery finished — {len(assets)} devices responded.",
+                level="success",
+            )
 
             if profile == "baseline" and assets:
                 selected = list(assets)[:MAX_BASELINE_HOSTS]
@@ -154,6 +166,10 @@ class AssessmentManager:
                         ),
                         "Split the authorized network into smaller assessment scopes.",
                     )
+                self.storage.append_job_event(
+                    job_id,
+                    f"Checking common services on {len(selected)} devices.",
+                )
                 service_xml = self._run_nmap(
                     [
                         "--unprivileged",
@@ -173,12 +189,22 @@ class AssessmentManager:
                         *selected,
                     ],
                     timeout=max(300, len(selected) * 120),
+                    progress=lambda elapsed: self.storage.append_job_event(
+                        job_id,
+                        f"Service scan is running — {elapsed}s elapsed.",
+                    ),
                 )
                 (scan_directory / f"{job_id}-services.xml").write_text(
                     service_xml,
                     encoding="utf-8",
                 )
                 self._save_services(job_id, service_xml, assets)
+                refreshed = self.storage.get_job(job_id) or {}
+                self.storage.append_job_event(
+                    job_id,
+                    f"Service scan finished — {refreshed.get('service_count', 0)} services recorded.",
+                    level="success",
+                )
 
             self.storage.update_job(
                 job_id,
@@ -188,6 +214,11 @@ class AssessmentManager:
             )
             report = self.storage.build_report(job_id)
             self.storage.write_report(job_id, render_report_html(report))
+            self.storage.append_job_event(
+                job_id,
+                "Assessment completed and the report is ready.",
+                level="success",
+            )
         except Exception as error:
             self.storage.update_job(
                 job_id,
@@ -195,28 +226,52 @@ class AssessmentManager:
                 finished_at=utc_now(),
                 error=str(error)[:2000],
             )
+            self.storage.append_job_event(
+                job_id,
+                f"Assessment failed: {str(error)[:400]}",
+                level="error",
+            )
         finally:
             with self._lock:
                 self._active_job = None
 
     @staticmethod
-    def _run_nmap(arguments: list[str], timeout: int) -> str:
+    def _run_nmap(
+        arguments: list[str],
+        timeout: int,
+        progress: Callable[[int], None] | None = None,
+    ) -> str:
         try:
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 ["nmap", *arguments],
-                check=False,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout,
             )
-        except subprocess.TimeoutExpired as error:
-            raise RuntimeError("The assessment exceeded its safety timeout.") from error
         except OSError as error:
             raise RuntimeError(f"Nmap could not start: {error}") from error
-        if completed.returncode != 0:
-            detail = completed.stderr.strip() or completed.stdout.strip()
+
+        started = time.monotonic()
+        while True:
+            elapsed = time.monotonic() - started
+            remaining = timeout - elapsed
+            if remaining <= 0:
+                process.kill()
+                process.communicate()
+                raise RuntimeError("The assessment exceeded its safety timeout.")
+            try:
+                stdout, stderr = process.communicate(timeout=min(5, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                if progress is not None:
+                    try:
+                        progress(max(1, round(time.monotonic() - started)))
+                    except Exception:
+                        pass
+        if process.returncode != 0:
+            detail = stderr.strip() or stdout.strip()
             raise RuntimeError(f"Nmap failed: {detail[:1000]}")
-        return completed.stdout
+        return stdout
 
     def _save_hosts(self, job_id: str, xml_text: str) -> dict[str, int]:
         root = ET.fromstring(xml_text)

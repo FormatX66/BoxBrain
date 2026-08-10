@@ -1,0 +1,9 @@
+[Unit]
+Description=Reconcile BoxBrain target and standalone network modes
+Wants=NetworkManager.service
+After=NetworkManager.service boxbrain-usb-gadget.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/boxbrain-network-mode reconcile
+TimeoutStartSec=30

@@ -61,10 +61,20 @@ CREATE TABLE IF NOT EXISTS findings (
     recommendation TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assessment_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assets_job_id ON assets(job_id);
 CREATE INDEX IF NOT EXISTS idx_services_job_id ON services(job_id);
 CREATE INDEX IF NOT EXISTS idx_findings_job_id ON findings(job_id);
+CREATE INDEX IF NOT EXISTS idx_assessment_events_job_id
+    ON assessment_events(job_id, id DESC);
 """
 
 
@@ -112,7 +122,46 @@ class Storage:
                 """,
                 (job_id, target, profile, digest, utc_now()),
             )
+        self.append_job_event(job_id, f"Assessment queued for {target} ({profile}).")
         return job_id
+
+    def append_job_event(
+        self,
+        job_id: str,
+        message: str,
+        *,
+        level: str = "info",
+    ) -> None:
+        clean_message = " ".join(str(message).split())[:500]
+        clean_level = level if level in {"info", "success", "warning", "error"} else "info"
+        if not clean_message:
+            return
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO assessment_events (job_id, created_at, level, message)
+                VALUES (?, ?, ?, ?)
+                """,
+                (job_id, utc_now(), clean_level, clean_message),
+            )
+
+    def list_job_events(self, job_id: str, limit: int = 40) -> list[dict[str, Any]]:
+        bounded_limit = max(1, min(limit, 200))
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM (
+                    SELECT id, job_id, created_at, level, message
+                    FROM assessment_events
+                    WHERE job_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                )
+                ORDER BY id ASC
+                """,
+                (job_id, bounded_limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def update_job(self, job_id: str, **values: Any) -> None:
         allowed = {
@@ -213,6 +262,9 @@ class Storage:
                     (SELECT COUNT(*) FROM assets WHERE assets.job_id = jobs.id) AS asset_count,
                     (SELECT COUNT(*) FROM services WHERE services.job_id = jobs.id) AS service_count,
                     (SELECT COUNT(*) FROM findings WHERE findings.job_id = jobs.id) AS finding_count
+                    ,(SELECT message FROM assessment_events
+                      WHERE assessment_events.job_id = jobs.id
+                      ORDER BY assessment_events.id DESC LIMIT 1) AS last_message
                 FROM jobs
                 ORDER BY created_at DESC
                 LIMIT ?
@@ -274,6 +326,7 @@ class Storage:
             "assets": [dict(row) for row in asset_rows],
             "services": [dict(row) for row in service_rows],
             "findings": [dict(row) for row in finding_rows],
+            "events": self.list_job_events(job_id, 200),
         }
 
     def write_report(self, job_id: str, html: str) -> tuple[str, str]:

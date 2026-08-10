@@ -59,16 +59,28 @@ def _run_json(command: list[str]) -> Any:
 def _network() -> dict[str, Any]:
     interfaces: list[dict[str, Any]] = []
     for item in _run_json(["ip", "-json", "-4", "address", "show"]):
-        addresses = [
-            address.get("local")
-            for address in item.get("addr_info", [])
-            if address.get("family") == "inet" and address.get("local")
-        ]
+        addresses: list[str] = []
+        networks: list[dict[str, Any]] = []
+        for address in item.get("addr_info", []):
+            local = address.get("local")
+            prefix_length = address.get("prefixlen")
+            if address.get("family") != "inet" or not local:
+                continue
+            addresses.append(str(local))
+            if isinstance(prefix_length, int):
+                networks.append(
+                    {
+                        "address": str(local),
+                        "prefix_length": prefix_length,
+                        "scope": address.get("scope", "unknown"),
+                    }
+                )
         interfaces.append(
             {
                 "name": item.get("ifname", "unknown"),
                 "state": item.get("operstate", "UNKNOWN"),
                 "addresses": addresses,
+                "networks": networks,
             }
         )
 
@@ -82,6 +94,28 @@ def _network() -> dict[str, Any]:
         }
 
     return {"interfaces": interfaces, "default_route": default_route}
+
+
+def _known_users(passwd_path: str = "/etc/passwd") -> list[str]:
+    """Return interactive human accounts without exposing password data."""
+
+    users: list[str] = []
+    try:
+        lines = Path(passwd_path).read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return users
+    for line in lines:
+        fields = line.split(":")
+        if len(fields) < 7:
+            continue
+        name, raw_uid, shell = fields[0], fields[2], fields[6]
+        try:
+            uid = int(raw_uid)
+        except ValueError:
+            continue
+        if 1000 <= uid < 60000 and not shell.endswith(("/false", "/nologin")):
+            users.append(name)
+    return sorted(set(users), key=str.casefold)
 
 
 def collect_status(started_monotonic: float) -> dict[str, Any]:
@@ -113,6 +147,7 @@ def collect_status(started_monotonic: float) -> dict[str, Any]:
         "memory": _memory(),
         "storage": storage,
         "network": _network(),
+        "known_users": _known_users(),
         "state_directory": os.environ.get("BOXBRAIN_STATE_DIR", "/var/lib/boxbrain"),
     }
 
