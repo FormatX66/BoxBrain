@@ -7,7 +7,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-from .models import EdgeAgentSummary
+from .models import (
+    EdgeAgentSummary,
+    EdgeConnectionCapability,
+    EdgeConnectionTransport,
+)
 
 
 class EdgeAgentConfigurationError(ValueError):
@@ -84,6 +88,7 @@ class KaliPiEdgeAgentClient:
             wifi_credential_audit=self._wifi_credential_audit(
                 payload.get("target_links")
             ),
+            connections=self._connection_map(payload.get("connection_map")),
         )
 
     def _fetch_status(self) -> dict[str, Any]:
@@ -142,3 +147,69 @@ class KaliPiEdgeAgentClient:
         if results:
             return "blocked"
         return "not-run"
+
+    @classmethod
+    def _connection_map(cls, value: object) -> tuple[EdgeConnectionTransport, ...]:
+        if not isinstance(value, dict):
+            return ()
+        transports = value.get("transports")
+        if not isinstance(transports, list):
+            return ()
+        result: list[EdgeConnectionTransport] = []
+        transport_states = {"connected", "available", "not-detected"}
+        capability_states = {
+            "ready",
+            "available",
+            "bounded",
+            "requires-authorization",
+            "requires-pairing",
+            "not-configured",
+            "unsupported",
+        }
+        for item in transports[:8]:
+            if not isinstance(item, dict):
+                continue
+            identifier = cls._optional_string(item.get("id"))
+            label = cls._optional_string(item.get("label"))
+            state = item.get("state")
+            if not identifier or not label or state not in transport_states:
+                continue
+            raw_interfaces = item.get("interfaces")
+            interfaces = (
+                tuple(
+                    value[:32]
+                    for value in raw_interfaces[:8]
+                    if isinstance(value, str) and value
+                )
+                if isinstance(raw_interfaces, list)
+                else ()
+            )
+            raw_capabilities = item.get("capabilities")
+            capabilities: list[EdgeConnectionCapability] = []
+            if isinstance(raw_capabilities, list):
+                for capability in raw_capabilities[:16]:
+                    if not isinstance(capability, dict):
+                        continue
+                    capability_id = cls._optional_string(capability.get("id"))
+                    capability_state = capability.get("state")
+                    detail = cls._optional_string(capability.get("detail")) or ""
+                    if not capability_id or capability_state not in capability_states:
+                        continue
+                    capabilities.append(
+                        EdgeConnectionCapability(
+                            id=capability_id[:48],
+                            state=capability_state,
+                            detail=detail[:240],
+                        )
+                    )
+            result.append(
+                EdgeConnectionTransport(
+                    id=identifier[:48],
+                    label=label[:80],
+                    state=state,
+                    interfaces=interfaces,
+                    target_count=cls._non_negative_int(item.get("target_count")),
+                    capabilities=tuple(capabilities),
+                )
+            )
+        return tuple(result)

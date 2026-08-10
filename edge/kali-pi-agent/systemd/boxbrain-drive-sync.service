@@ -1,0 +1,39 @@
+[Unit]
+Description=BoxBrain guarded Google Drive transport
+Documentation=file:/opt/boxbrain/README.md
+Wants=network-online.target
+After=network-online.target boxbrain.service
+ConditionPathExists=/var/lib/boxbrain/identity/rclone.conf
+
+[Service]
+Type=oneshot
+User=boxbrain
+Group=boxbrain
+WorkingDirectory=/var/lib/boxbrain
+Environment=PYTHONPATH=/opt/boxbrain/src
+EnvironmentFile=-/etc/boxbrain/boxbrain.env
+ExecStart=/usr/bin/python3 -m boxbrain.drive_sync
+TimeoutStartSec=1h
+UMask=0077
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/boxbrain
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native

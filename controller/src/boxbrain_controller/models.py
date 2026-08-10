@@ -287,6 +287,36 @@ class DiagnosticRuntimeStatus(BaseModel):
     arbitrary_commands_enabled: Literal[False] = False
 
 
+EdgeCapabilityState = Literal[
+    "ready",
+    "available",
+    "bounded",
+    "requires-authorization",
+    "requires-pairing",
+    "not-configured",
+    "unsupported",
+]
+EdgeTransportState = Literal["connected", "available", "not-detected"]
+
+
+class EdgeConnectionCapability(BaseModel):
+    id: str = Field(min_length=1, max_length=48)
+    state: EdgeCapabilityState
+    detail: str = Field(max_length=240)
+
+
+class EdgeConnectionTransport(BaseModel):
+    id: str = Field(min_length=1, max_length=48)
+    label: str = Field(min_length=1, max_length=80)
+    state: EdgeTransportState
+    interfaces: tuple[str, ...] = Field(default=(), max_length=8)
+    target_count: int = Field(ge=0)
+    capabilities: tuple[EdgeConnectionCapability, ...] = Field(
+        default=(),
+        max_length=16,
+    )
+
+
 class EdgeAgentSummary(BaseModel):
     id: Literal["kali-pi"]
     name: str
@@ -302,6 +332,10 @@ class EdgeAgentSummary(BaseModel):
     wifi_credential_audit: Literal[
         "blocked", "exposed", "not-run", "unavailable"
     ] = "unavailable"
+    connections: tuple[EdgeConnectionTransport, ...] = Field(
+        default=(),
+        max_length=8,
+    )
 ProcessingAgentId = Literal[
     "orchestrator",
     "quartermaster",

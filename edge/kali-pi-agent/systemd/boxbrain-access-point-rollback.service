@@ -1,0 +1,8 @@
+[Unit]
+Description=Disable an unverified BoxBrain recovery access point
+ConditionPathExists=/var/lib/boxbrain/access-point/pending
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/boxbrain-access-point-config rollback-pending
+TimeoutStartSec=60

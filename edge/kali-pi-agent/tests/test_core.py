@@ -27,7 +27,7 @@ from boxbrain.enrollment import (  # noqa: E402
     TargetEnrollmentError,
     enroll_target,
 )
-from boxbrain import link_monitor  # noqa: E402
+from boxbrain import __version__, link_monitor  # noqa: E402
 from boxbrain.links import load_links  # noqa: E402
 from boxbrain.onboarding import build_server as build_onboarding_server  # noqa: E402
 from boxbrain.policy import (  # noqa: E402
@@ -62,6 +62,35 @@ class BoxBrainTests(unittest.TestCase):
                 payload = json.load(response)
             self.assertEqual(payload["status"], "ok")
             self.assertEqual(payload["service"], "boxbrain")
+            self.assertEqual(payload["version"], __version__)
+            self.assertEqual(
+                payload["version"],
+                (Path(__file__).resolve().parents[1] / "VERSION")
+                .read_text(encoding="utf-8")
+                .strip(),
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+
+    def test_status_endpoint_includes_bounded_connection_map(self) -> None:
+        server = build_server("127.0.0.1", 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            host, port = server.server_address
+            with urlopen(
+                f"http://{host}:{port}/api/v1/status",
+                timeout=3,
+            ) as response:
+                payload = json.load(response)
+            connection_map = payload["connection_map"]
+            self.assertEqual(connection_map["schema_version"], 1)
+            self.assertEqual(
+                {item["id"] for item in connection_map["transports"]},
+                {"usb", "ethernet", "wifi", "bluetooth", "near-field"},
+            )
         finally:
             server.shutdown()
             server.server_close()
@@ -124,6 +153,15 @@ class BoxBrainTests(unittest.TestCase):
         self.assertIn("RedirectStandardInput = $true", wifi_helper)
         self.assertIn("StrictHostKeyChecking=yes", wifi_helper)
         self.assertIn("sudo -n /usr/local/bin/boxbrainctl", wifi_helper)
+        authorization_check = wifi_helper.index("if (-not $Authorized)")
+        credential_read = wifi_helper.index('key=clear')
+        self.assertLess(authorization_check, credential_read)
+        self.assertIn("No credential was read", wifi_helper)
+        self.assertIn("$profileOutput = $null", wifi_helper)
+        self.assertIn("$keyMatch = $null", wifi_helper)
+        self.assertIn("$passphrase = $null", wifi_helper)
+        self.assertNotIn("Write-Output $passphrase", wifi_helper)
+        self.assertNotIn("Write-Host $passphrase", wifi_helper)
         self.assertNotIn('$passphrase, $PiUser', wifi_helper)
         diagnostic_source = (
             root / "src" / "boxbrain" / "diagnostics.py"

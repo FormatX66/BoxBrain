@@ -197,9 +197,10 @@ or raw diagnostic reports into its API. See [docs/EDGE_AGENT.md](docs/EDGE_AGENT
 for the architecture, tunnel command, USB-C and SSH/Wi-Fi target enrollment, and safe Pi upgrade
 path.
 
-An optional, operator-started live Pi screen is also available through a
-loopback-only VNC/WebSocket transport and key-only SSH tunnel. It is not enabled
-by the normal edge-agent install and does not control enrolled targets. See
+An optional live Pi screen is also available through a loopback-only
+VNC/WebSocket transport and key-only SSH tunnel. It can be opened manually or
+by a current-user Windows connection watcher; neither path is enabled by the
+normal edge-agent install or controls enrolled targets. See
 [the edge-agent console setup](edge/kali-pi-agent/README.md#optional-live-pi-screen).
 
 ### 5. Connect an authorized host

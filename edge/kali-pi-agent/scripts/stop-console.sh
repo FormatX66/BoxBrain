@@ -8,6 +8,7 @@ fi
 
 for unit in \
     boxbrain-console-viewer.service \
+    boxbrain-console-target-websocket.service \
     boxbrain-console-websocket.service \
     boxbrain-console-desktop.service \
     boxbrain-console-display.service

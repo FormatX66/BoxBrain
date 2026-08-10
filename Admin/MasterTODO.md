@@ -107,8 +107,55 @@ The ordered details and stop conditions are recorded in
 The scrolling-specific continuation is recorded in
 [session BB-2026-07-29-012](../SessionHandoffs/BB-2026-07-29-012/ExecutionPlan.md).
 
+## BoxBrain Pi Drive transport
+
+- [x] Implement root-folder-restricted Pi Google Drive synchronization for
+  service snapshots, diagnostics, and guarded patch staging.
+- [x] Install checksum-verified rclone and deploy BoxBrain 0.10.0 to the live
+  Pi with a verified private rollback archive.
+- [x] Complete one-time Pi OAuth enrollment as `boxbrainprime@gmail.com`
+  without retaining credential-bearing output.
+- [ ] Verify completion of the first low-impact historical timer run.
+- [ ] Create a dedicated BoxBrain Google OAuth client and reconnect rclone
+  before the shared client ID retires.
+- [ ] Exercise one checksum-valid, non-executing patch delivery against a
+  disposable authorized target and verify its Drive receipt.
+
+## Headless Windows keystroke bootstrap
+
+- [x] Add a preview-first, fixed-command USB-HID bootstrap with exact local
+  authorization and no credential or arbitrary-text input.
+- [x] Require hash verification of the Pi-served Windows link helper and
+  key-only SSH proof before reporting success.
+- [ ] Decide and review the live Pi composite-gadget HID configuration; do not
+  change the deployed USB networking gadget until that daytime decision.
+- [x] Extend the source-only composite gadget with a standard three-button
+  relative mouse at `/dev/hidg1` while preserving keyboard and `usb0`.
+- [ ] Choose the bounded Bluetooth pairing-window trigger and trusted-host
+  policy before implementing or advertising Bluetooth HID.
+- [ ] Exercise one authorized disposable Windows target with an unlocked admin
+  console, then verify the restricted SSH link and restore the target.
+
 Detailed implementation work belongs in the canonical
 [BrainConnect roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md).
+
+## Pi appliance connection lifecycle
+
+- [x] Define one connect, map, assess, operate, log, and remote-enroll lifecycle.
+- [x] Publish a source-complete read-only connection map for USB, Ethernet,
+  Wi-Fi, Bluetooth, and near-field transports.
+- [x] Carry the connection map through the controller API into the Flutter
+  dashboard.
+- [x] Deploy BoxBrain 0.13.0 to the Pi without activating a new transport;
+  retain the root-only rollback archive and verify the live connection map.
+- [ ] Add event-driven adapter monitoring instead of status-time observation.
+- [ ] Prove USB Ethernet, keyboard, and mouse on the disposable target.
+- [ ] Select and implement explicit Bluetooth PAN/HID pairing policy.
+- [ ] Select near-field hardware and define its signed onboarding payload.
+- [ ] Unify Windows and Linux structured health inventories into the model
+  assessment contract.
+- [ ] Add append-only connection-session records and explicit remote enrollment,
+  revocation, and expiry.
 
 ## P1 — Ecosystem discovery
 

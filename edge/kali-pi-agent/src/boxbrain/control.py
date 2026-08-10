@@ -12,6 +12,7 @@ from boxbrain.agent import agent_state
 from boxbrain.diagnostics import TargetDiagnostics
 from boxbrain.enrollment import enroll_target
 from boxbrain.links import load_links
+from boxbrain.patches import PatchManager
 from boxbrain.scanner import AssessmentManager
 from boxbrain.storage import Storage
 
@@ -53,6 +54,7 @@ class ControlServer(_ControlServerBase):  # type: ignore[misc,valid-type]
         storage: Storage,
         manager: AssessmentManager,
         diagnostics: TargetDiagnostics,
+        patches: PatchManager,
     ) -> None:
         if not _HAS_UNIX_SERVER:
             raise RuntimeError("BoxBrain control sockets require Unix-domain socket support.")
@@ -60,6 +62,7 @@ class ControlServer(_ControlServerBase):  # type: ignore[misc,valid-type]
         self.storage = storage
         self.manager = manager
         self.diagnostics = diagnostics
+        self.patches = patches
         self.socket_path.parent.mkdir(parents=True, exist_ok=True)
         self.socket_path.unlink(missing_ok=True)
         super().__init__(str(self.socket_path), ControlHandler)
@@ -126,6 +129,15 @@ class ControlServer(_ControlServerBase):  # type: ignore[misc,valid-type]
         if action == "target_report":
             report = self.diagnostics.latest_report(str(request.get("address", "")))
             return {"ok": True, "report": report}
+        if action == "patches":
+            return {"ok": True, "patches": self.patches.list()}
+        if action == "deliver_patch":
+            receipt = self.patches.deliver(
+                str(request.get("reference", "")),
+                str(request.get("authorization", "")),
+                str(request.get("confirmation", "")),
+            )
+            return {"ok": True, "receipt": receipt}
         return {"ok": False, "error": "unsupported_action"}
 
     def server_close(self) -> None:

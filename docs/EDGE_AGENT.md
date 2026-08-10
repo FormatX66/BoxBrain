@@ -42,9 +42,10 @@ The controller rejects non-loopback URLs, credentials in URLs, HTTPS URLs, and
 extra URL paths. This keeps edge-agent access on the authenticated SSH channel
 and prevents the setting from becoming a general network-fetch feature.
 
-The optional operator-started Pi screen uses a separate loopback VNC/WebSocket
-SSH tunnel and is not part of the controller API or target executor. Its
-canonical setup and security boundary are documented under
+The optional Pi screen uses a separate loopback VNC/WebSocket SSH tunnel and is
+not part of the controller API or target executor. A current-user Windows
+watcher may open it when the preferred Pi SSH path comes online without
+changing that boundary. Its canonical setup is documented under
 [Optional live Pi screen](../edge/kali-pi-agent/README.md#optional-live-pi-screen).
 
 ## USB onboarding boundary
@@ -53,9 +54,71 @@ The onboarding service listens only on the dedicated USB gadget address
 `10.12.194.1:8788`. Version 0.6 migrates the old `0.0.0.0` default to that
 address while preserving any other operator-selected bind address.
 
-Onboarding still requires an explicit target-side `AUTHORIZE` confirmation and
-creates a restricted, key-only diagnostic account. It does not emulate input,
-install an administrator channel, or copy a private key to the target.
+Normal onboarding still requires an explicit target-side `AUTHORIZE`
+confirmation and creates a restricted, key-only diagnostic account. It does
+not install an administrator channel or copy a private key to the target.
+
+## Recovery access point
+
+Version 0.14 adds an optional recovery access point without replacing the Pi's
+existing Wi-Fi client. The Pi creates a separate `bbap0` virtual interface on
+the physical radio's current channel, uses `10.42.194.1/24`, supplies DHCP only
+to attached AP clients, and rejects forwarding from `bbap0` into other
+interfaces. WPA2/CCMP credentials are generated on the Pi and stored root-only;
+preview and status commands never print the key.
+
+Installation leaves the AP disabled. Staging requires explicit authorization,
+starts it immediately, and arms a 15-minute rollback. Commit is accepted only
+after the interface, address, NetworkManager connection, and isolation table
+are active. The AP provides a fallback SSH path; it does not expand target
+authority or expose the USB-only onboarding listener automatically.
+
+## Headless Windows keystroke bootstrap
+
+Version 0.12 adds an optional, preview-first USB-HID fallback for a physically
+attached Windows target with an unlocked interactive administrator console. It
+types only a fixed US-layout PowerShell sequence that downloads the existing
+Windows link helper from the Pi's USB-only onboarding address, verifies its
+SHA-256, and invokes its existing authorization gate. It cannot accept
+arbitrary text and never types a password, Wi-Fi passphrase, or saved `Key
+Content`.
+
+The source includes an optional ConfigFS composite profile containing RNDIS
+USB Ethernet (`usb0`), a boot-protocol keyboard (`/dev/hidg0`), and a
+boot-protocol three-button mouse with relative X/Y/wheel reports
+(`/dev/hidg1`). Installing the files leaves that profile disabled. Staging it requires root, exact
+authorization, and a working non-USB management interface; it modifies the
+next-boot module/service configuration without rebooting and arms a 15-minute
+rollback. A post-reboot commit is accepted only while the service, USB network,
+both HID devices, UDC binding, and absence of legacy `g_ether` are all verified.
+
+USB HID and Bluetooth HID are separate transports. Plugging in the USB cable
+does not make a USB device enumerate as Bluetooth. A future Bluetooth HID path
+may use USB attachment as a trigger for a short pairing window, but it must
+remain disabled until an operator explicitly authorizes pairing and a bounded
+trusted-host policy is selected. The current change does not advertise,
+pair, or accept Bluetooth clients automatically.
+
+The migration design follows the kernel's
+[ConfigFS gadget](https://docs.kernel.org/usb/gadget_configfs.html) and
+[HID gadget](https://docs.kernel.org/usb/gadget_hid.html) contracts and keeps
+the Raspberry Pi project's established RNDIS/`usb0` model. It is currently a
+Windows-focused USB profile; cross-host ECM support is not claimed.
+
+Keystroke execution additionally requires `--authorized` and the exact
+`CONNECT HEADLESS WINDOWS` confirmation. It refuses an already linked target,
+and a new result is not successful until the Pi proves the restricted target
+account over key-only SSH. Failure produces an unverified state and no
+automatic command-sequence retry. Version 0.14.1 permits only a bounded retry
+of the same eight-byte HID report when the kernel says the configured endpoint
+is transiently busy. Installation never changes the active gadget or reboots
+the Pi.
+
+This fallback cannot operate at a login screen, create an interactive session,
+or satisfy UAC that requires credentials. Sessionless servers still require
+WinRM/SSH, a hardware or hypervisor console, or a preinstalled agent. The
+canonical managed-Windows repair boundary remains BrainConnect's HTTPS/JEA
+Windows Headless Rescue workflow.
 
 ## Authorized Wi-Fi/Ethernet targets
 
@@ -83,6 +146,15 @@ trusted Pi SSH host key, and sends the passphrase only through SSH standard
 input. The passphrase is never placed in command arguments, BoxBrain reports,
 or logs. NetworkManager retains the resulting system connection using its
 root-only profile storage.
+
+Discovering the connected SSID and Windows profile is read-only and may be
+automatic. Retrieving saved `Key Content` with `netsh wlan show profile
+name="<profile>" key=clear` is credential access and is permitted only after the
+local operator explicitly authorizes the Wi-Fi provisioning workflow. The
+credential must never be displayed, copied to logs or reports, uploaded to
+Drive, retained by BoxBrain, or placed in process arguments. It may exist only
+transiently in memory and in the verified USB-C SSH standard-input stream, and
+the helper clears its transient variables after delivery.
 
 The ordinary `boxbrain-link` diagnostic account remains non-administrator. Its
 Windows health check attempts a bounded, redacted access-control audit and

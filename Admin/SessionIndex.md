@@ -2,6 +2,15 @@
 
 | Session | Date | Focus | Human handoff | Agent handoff |
 | --- | --- | --- | --- | --- |
+| BB-2026-08-04-002 | 2026-08-04 | Kali one-click headless Windows SSH shortcut | [Human](../SessionHandoffs/BB-2026-08-04-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-04-002/AgentHandoff.md) |
+| BB-2026-08-04-001 | 2026-08-04 | Verified headless Windows SSH and exact host-key rotation | [Human](../SessionHandoffs/BB-2026-08-04-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-04-001/AgentHandoff.md) |
+| BB-2026-08-03-006 | 2026-08-03 | Bounded retry for transient USB HID report readiness | [Human](../SessionHandoffs/BB-2026-08-03-006/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-006/AgentHandoff.md) |
+| BB-2026-08-03-005 | 2026-08-03 | Automatic Pi console opening on connection | [Human](../SessionHandoffs/BB-2026-08-03-005/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-005/AgentHandoff.md) |
+| BB-2026-08-03-004 | 2026-08-03 | Pi recovery AP and live composite USB activation | [Human](../SessionHandoffs/BB-2026-08-03-004/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-004/AgentHandoff.md) |
+| BB-2026-08-03-003 | 2026-08-03 | Live Pi 0.13.0 connection-map deployment | [Human](../SessionHandoffs/BB-2026-08-03-003/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-003/AgentHandoff.md) |
+| BB-2026-08-03-002 | 2026-08-03 | Pi connection lifecycle and console capability map | [Human](../SessionHandoffs/BB-2026-08-03-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-002/AgentHandoff.md) |
+| BB-2026-08-03-001 | 2026-08-03 | Pi core-appliance boundary and composite USB keyboard/mouse HID | [Human](../SessionHandoffs/BB-2026-08-03-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-08-03-001/AgentHandoff.md) |
+| BB-2026-07-31-001 | 2026-07-31 | Deployed and enrolled Raspberry Pi Google Drive transport and guarded patch staging | [Human](../SessionHandoffs/BB-2026-07-31-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-31-001/AgentHandoff.md) |
 | BB-2026-07-30-002 | 2026-07-30 | BrainConnect alpha completion and live scrolling proof | [Human](../SessionHandoffs/BB-2026-07-30-002/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-30-002/AgentHandoff.md) |
 | BB-2026-07-30-001 | 2026-07-30 | BoxBrain and BrainConnect canonical integration | [Human](../SessionHandoffs/BB-2026-07-30-001/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-30-001/AgentHandoff.md) |
 | BB-2026-07-29-012 | 2026-07-29 | BrainConnect bounded RDP scrolling source | [Human](../SessionHandoffs/BB-2026-07-29-012/HumanHandoff.md) | [Agent](../SessionHandoffs/BB-2026-07-29-012/AgentHandoff.md) |

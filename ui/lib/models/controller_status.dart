@@ -308,6 +308,61 @@ class TargetSummary {
   final String? startEndpoint;
 }
 
+class EdgeConnectionCapability {
+  const EdgeConnectionCapability({
+    required this.id,
+    required this.state,
+    required this.detail,
+  });
+
+  factory EdgeConnectionCapability.fromJson(Map<String, dynamic> json) {
+    return EdgeConnectionCapability(
+      id: json['id'] as String,
+      state: json['state'] as String,
+      detail: json['detail'] as String,
+    );
+  }
+
+  final String id;
+  final String state;
+  final String detail;
+}
+
+class EdgeConnectionTransport {
+  const EdgeConnectionTransport({
+    required this.id,
+    required this.label,
+    required this.state,
+    required this.interfaces,
+    required this.targetCount,
+    required this.capabilities,
+  });
+
+  factory EdgeConnectionTransport.fromJson(Map<String, dynamic> json) {
+    return EdgeConnectionTransport(
+      id: json['id'] as String,
+      label: json['label'] as String,
+      state: json['state'] as String,
+      interfaces: (json['interfaces'] as List<dynamic>).cast<String>(),
+      targetCount: json['target_count'] as int,
+      capabilities: (json['capabilities'] as List<dynamic>)
+          .map(
+            (item) => EdgeConnectionCapability.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  final String id;
+  final String label;
+  final String state;
+  final List<String> interfaces;
+  final int targetCount;
+  final List<EdgeConnectionCapability> capabilities;
+}
+
 class EdgeAgentSummary {
   const EdgeAgentSummary({
     required this.id,
@@ -322,6 +377,7 @@ class EdgeAgentSummary {
     required this.recommendationCount,
     required this.networkInterface,
     required this.wifiCredentialAudit,
+    this.connections = const [],
   });
 
   factory EdgeAgentSummary.fromJson(Map<String, dynamic> json) {
@@ -339,6 +395,13 @@ class EdgeAgentSummary {
       networkInterface: json['network_interface'] as String?,
       wifiCredentialAudit:
           json['wifi_credential_audit'] as String? ?? 'unavailable',
+      connections: ((json['connections'] as List<dynamic>?) ?? const [])
+          .map(
+            (item) => EdgeConnectionTransport.fromJson(
+              item as Map<String, dynamic>,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -354,6 +417,7 @@ class EdgeAgentSummary {
   final int recommendationCount;
   final String? networkInterface;
   final String wifiCredentialAudit;
+  final List<EdgeConnectionTransport> connections;
 }
 
 class RemoteTargetSummary {

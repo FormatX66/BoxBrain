@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=BoxBrain Headless Windows
+Comment=Open verified restricted SSH to the attached Windows target
+Exec=/usr/local/bin/boxbrain-headless-windows
+Icon=utilities-terminal
+Terminal=true
+Categories=System;RemoteAccess;
+StartupNotify=true

@@ -1,5 +1,10 @@
 # Knowledge and Execution Data Flow
 
+The Pi appliance's multi-transport discovery, capability mapping, health
+assessment, audit, and optional remote-enrollment sequence is defined in
+[Connection Lifecycle](ConnectionLifecycle.md). This file retains the detailed
+BrainConnect controller transaction flow.
+
 ```mermaid
 sequenceDiagram
     participant Human

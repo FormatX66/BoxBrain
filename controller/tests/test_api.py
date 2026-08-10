@@ -284,6 +284,7 @@ def test_kali_pi_is_reported_as_a_separate_read_only_edge_agent(
             "recommendation_count": 2,
             "network_interface": "wlan0",
             "wifi_credential_audit": "blocked",
+            "connections": [],
         }
     ]
 

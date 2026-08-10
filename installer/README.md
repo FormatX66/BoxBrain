@@ -74,7 +74,30 @@ powershell -ExecutionPolicy Bypass -File .\installer\open-pi-console.ps1
 ```
 
 The launcher requires the trusted Pi host key and dedicated SSH identity. VNC
-and WebSocket ports stay on Pi loopback; the browser reaches the WebSocket only
-through a Windows-loopback SSH tunnel. See
+and WebSocket ports stay on Pi loopback; both the viewer page and WebSocket are
+reached through Windows-loopback SSH forwards.
+
+To open the Pi screen automatically whenever its preferred reachable path
+changes from offline to online, install the current-user logon watcher and
+start it now:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\install-pi-console-auto-open.ps1 -StartNow
+```
+
+The single-instance watcher checks, in order, USB Ethernet (`10.12.194.1`), the
+known LAN address (`192.168.0.194`), and the recovery AP (`10.42.194.1`). It
+opens one screen for a newly selected path, does not create repeated tabs while
+that path remains available, and retries a failed launch no more than once per
+minute. It runs only while the current Windows user is signed in. Remove its
+exact Startup shortcut without changing SSH keys or Pi services:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\install-pi-console-auto-open.ps1 -Remove
+```
+
+See
 [`edge/kali-pi-agent/README.md`](../edge/kali-pi-agent/README.md#optional-live-pi-screen)
 for the transport boundary, prerequisites, stop command, and removal notes.

@@ -25,7 +25,7 @@ class ArchitectureAgent(BaseModel):
 
 
 class ArchitectureManifest(BaseModel):
-    version: Literal["1.0"] = "1.0"
+    version: Literal["1.1"] = "1.1"
     name: Literal["BoxBrain Master Architecture"] = "BoxBrain Master Architecture"
     interface: Literal["Arkmatx Interface"] = "Arkmatx Interface"
     flow: tuple[str, ...]

@@ -17,7 +17,7 @@ class PiConsoleScriptTests(unittest.TestCase):
         )
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
-        self.assertEqual(version, "0.9.0")
+        self.assertEqual(version, "0.14.1")
         self.assertNotIn("install-console.sh", default_install)
         self.assertNotIn("boxbrain-console-start", default_install)
         self.assertNotIn("boxbrain-console-display", default_install)
@@ -76,13 +76,46 @@ class PiConsoleScriptTests(unittest.TestCase):
         self.assertIn("sudo -n sh", setup)
         self.assertNotIn("StrictHostKeyChecking=no", setup)
 
+    def test_headless_desktop_shortcut_keeps_verified_usb_boundary(self) -> None:
+        helper = (ROOT / "scripts" / "open-headless-windows.sh").read_text(
+            encoding="utf-8"
+        )
+        installer = (ROOT / "scripts" / "install-desktop-shortcut.sh").read_text(
+            encoding="utf-8"
+        )
+        shortcut = (
+            ROOT / "desktop" / "boxbrain-headless-windows.desktop"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('item.get("status") == "connected"', helper)
+        self.assertIn('item.get("interface") == "usb0"', helper)
+        self.assertIn("10.12.194.0/24", helper)
+        self.assertIn("StrictHostKeyChecking=yes", helper)
+        self.assertIn("UserKnownHostsFile=", helper)
+        self.assertIn("BatchMode=yes", helper)
+        self.assertIn("sudo -n -u boxbrain", helper)
+        self.assertNotIn("StrictHostKeyChecking=accept-new", helper)
+        self.assertNotIn("headless-windows-link --execute", helper)
+        self.assertIn("/usr/local/bin/boxbrain-headless-windows", installer)
+        self.assertIn("dbus-run-session", installer)
+        self.assertIn("metadata::trusted true", installer)
+        self.assertIn("Terminal=true", shortcut)
+        self.assertIn("Exec=/usr/local/bin/boxbrain-headless-windows", shortcut)
+
     def test_posix_scripts_parse(self) -> None:
         shell = shutil.which("sh")
         if shell is None:
             self.skipTest("A POSIX shell is not available.")
 
         for name in (
+            "boxbrain-access-point.sh",
+            "boxbrain-usb-composite.sh",
+            "configure-access-point.sh",
+            "configure-usb-keyboard.sh",
+            "configure-drive.sh",
             "install-console.sh",
+            "install-desktop-shortcut.sh",
+            "open-headless-windows.sh",
             "start-console.sh",
             "stop-console.sh",
         ):
@@ -93,6 +126,34 @@ class PiConsoleScriptTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_drive_enrollment_is_explicit_and_does_not_install_dependencies(self) -> None:
+        configure = (ROOT / "scripts" / "configure-drive.sh").read_text(
+            encoding="utf-8"
+        )
+        install = (ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
+
+        self.assertIn("CONFIGURE DRIVE", configure)
+        self.assertIn("CONNECT $expected_email", configure)
+        self.assertIn("root_folder_id", configure)
+        self.assertIn("scope", configure)
+        self.assertIn("boxbrain-drive-sync.timer", configure)
+        self.assertIn('rclone config create "$remote" drive', configure)
+        self.assertIn("scope=drive", configure)
+        self.assertIn('root_folder_id="$root_folder_id"', configure)
+        self.assertIn("config_is_local=true", configure)
+        self.assertIn("--no-output", configure)
+        self.assertIn("configparser.ConfigParser", configure)
+        self.assertIn("systemctl start --no-block boxbrain-drive-sync.service", configure)
+        self.assertNotIn("rclone config redacted", configure)
+        self.assertNotIn("apt-get", configure)
+        self.assertNotIn("curl", configure)
+
+        service = (ROOT / "systemd" / "boxbrain-drive-sync.service").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("TimeoutStartSec=1h", service)
+        self.assertNotIn("enable boxbrain-drive-sync.timer", install)
 
 
 if __name__ == "__main__":

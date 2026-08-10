@@ -24,6 +24,18 @@ FILES = {
     ),
     "/linux-link.sh": ("linux-link.sh", "text/plain; charset=utf-8"),
     "/boxbrain-target.pub": ("boxbrain-target.pub", "text/plain; charset=utf-8"),
+    "/install-morris-vnc.ps1": (
+        "install-morris-vnc.ps1",
+        "text/plain; charset=utf-8",
+    ),
+    "/install-morri-profile.ps1": (
+        "install-morri-profile.ps1",
+        "text/plain; charset=utf-8",
+    ),
+    "/tightvnc-2.8.88-gpl-setup-64bit.msi": (
+        "tightvnc-2.8.88-gpl-setup-64bit.msi",
+        "application/octet-stream",
+    ),
 }
 
 

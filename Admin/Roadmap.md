@@ -227,6 +227,33 @@ See the [Hyper-V Windows lab runbook](../sandbox/hyperv/README.md).
 - Prepare Docker, Raspberry Pi, VM, and cloud deployment tracks only after
   their software dependencies are proven.
 
+## Implemented - BoxBrain Pi Drive transport
+
+- Selected maintained MIT-licensed rclone as the headless Google Drive
+  transport instead of building a custom Drive client.
+- Restricted the remote to one operator-selected BoxBrain folder and kept the
+  OAuth token in private Pi identity state outside Git.
+- Added a reboot-persistent five-minute timer using non-deleting copy
+  operations for service snapshots, diagnostics, and patch receipts.
+- Added manifest, size, filename, target-hostname, and SHA-256 gates before a
+  downloaded patch becomes locally verified.
+- Kept target delivery separate, explicitly authorized, pinned-host-key SFTP
+  only, and non-executing.
+- Deployed BoxBrain 0.10.0 and checksum-verified rclone 1.74.4 to the live Pi;
+  completed exact-root OAuth under `boxbrainprime@gmail.com`, enabled the timer,
+  and proved remote historical-report readback.
+- Recorded migration to a dedicated BoxBrain Google OAuth client as required
+  continuity work before rclone's shared client ID retires.
+
+## Completed - Pi recovery AP and composite USB transport
+
+- Added and deployed an isolated WPA2/CCMP recovery access point on `bbap0`
+  without replacing the Pi's existing Wi-Fi client.
+- Activated one composite USB-C device containing RNDIS Ethernet, keyboard HID,
+  and relative mouse HID.
+- Verified the AP beacon externally, retained `wlan0`, confirmed USB host
+  enumeration, and committed both guarded migrations after reboot.
+
 ## Long-term objective
 
 Operate BoxBrain as a searchable, auditable coordination system for multiple

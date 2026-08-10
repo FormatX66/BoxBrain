@@ -13,7 +13,11 @@ viewer_port=8790
 display_unit=boxbrain-console-display.service
 desktop_unit=boxbrain-console-desktop.service
 websocket_unit=boxbrain-console-websocket.service
+target_websocket_unit=boxbrain-console-target-websocket.service
 viewer_unit=boxbrain-console-viewer.service
+target_address=10.12.194.4
+target_port=5900
+target_websocket_port=6081
 
 if [ -r /etc/boxbrain/console.env ]; then
     # This file is installed root-owned and may contain only console settings.
@@ -21,18 +25,30 @@ if [ -r /etc/boxbrain/console.env ]; then
     . /etc/boxbrain/console.env
     console_bind=${BOXBRAIN_CONSOLE_BIND:-$console_bind}
     viewer_port=${BOXBRAIN_CONSOLE_VIEWER_PORT:-$viewer_port}
+    target_address=${BOXBRAIN_TARGET_ADDRESS:-$target_address}
+    target_port=${BOXBRAIN_TARGET_VNC_PORT:-$target_port}
+    target_websocket_port=${BOXBRAIN_TARGET_WEBSOCKET_PORT:-$target_websocket_port}
 fi
 
-python3 - "$console_bind" "$viewer_port" <<'PY'
+python3 - "$console_bind" "$viewer_port" "$target_address" "$target_port" "$target_websocket_port" <<'PY'
 import ipaddress
 import sys
 
 address = ipaddress.ip_address(sys.argv[1])
 port = int(sys.argv[2])
+target = ipaddress.ip_address(sys.argv[3])
+target_port = int(sys.argv[4])
+websocket_port = int(sys.argv[5])
 if not (address.is_private or address.is_link_local):
     raise SystemExit("Console bind address must be private or link-local.")
 if not 1024 <= port <= 65535:
     raise SystemExit("Console viewer port must be between 1024 and 65535.")
+if not (target.is_private or target.is_link_local):
+    raise SystemExit("Target address must be private or link-local.")
+if not 1 <= target_port <= 65535:
+    raise SystemExit("Target VNC port must be between 1 and 65535.")
+if not 1024 <= websocket_port <= 65535:
+    raise SystemExit("Target WebSocket port must be between 1024 and 65535.")
 PY
 
 if ! ip -4 -o address show | grep -Fq " $console_bind/"; then
@@ -133,6 +149,25 @@ if ! systemctl is-active --quiet "$websocket_unit"; then
 fi
 wait_for_port 127.0.0.1 6080
 
+if ! systemctl is-active --quiet "$target_websocket_unit"; then
+    if port_is_listening 127.0.0.1 "$target_websocket_port"; then
+        echo "Port 127.0.0.1:$target_websocket_port is already used by another process." >&2
+        exit 1
+    fi
+    prepare_unit "$target_websocket_unit"
+    systemd-run \
+        --unit="$target_websocket_unit" \
+        --collect \
+        --uid="$console_user" \
+        --gid="$console_gid" \
+        --property=Restart=no \
+        -- \
+        /usr/bin/websockify \
+        "127.0.0.1:$target_websocket_port" \
+        "$target_address:$target_port"
+fi
+wait_for_port 127.0.0.1 "$target_websocket_port"
+
 if ! systemctl is-active --quiet "$viewer_unit"; then
     if port_is_listening "$console_bind" "$viewer_port"; then
         echo "Port $console_bind:$viewer_port is already used by another process." >&2
@@ -145,9 +180,14 @@ if ! systemctl is-active --quiet "$viewer_unit"; then
         --uid="$console_user" \
         --gid="$console_gid" \
         --property=Restart=no \
+        --setenv=PYTHONPATH=/opt/boxbrain/src \
         --working-directory="$console_root" \
         -- \
-        /usr/bin/python3 -m http.server "$viewer_port" --bind "$console_bind"
+        /usr/bin/python3 -m boxbrain.console_gateway \
+        --bind "$console_bind" \
+        --port "$viewer_port" \
+        --directory "$console_root" \
+        --backend http://127.0.0.1:8787
 fi
 wait_for_port "$console_bind" "$viewer_port"
 
@@ -161,3 +201,7 @@ curl \
 printf 'BOXBRAIN_CONSOLE_READY address=%s port=%s\n' \
     "$console_bind" \
     "$viewer_port"
+printf 'BOXBRAIN_TARGET_CONSOLE_READY websocket_port=%s target=%s:%s\n' \
+    "$target_websocket_port" \
+    "$target_address" \
+    "$target_port"
