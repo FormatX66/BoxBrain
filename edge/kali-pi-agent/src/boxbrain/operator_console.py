@@ -52,6 +52,11 @@ _COMPUTER_RDP = re.compile(
     r"^/api/v1/operator/computers/(BB-TARGET-[A-Z0-9-]{6,64})/remote-desktop$",
     re.IGNORECASE,
 )
+_ASSESSMENT_PAGE = re.compile(r"^/assessments/([A-F0-9]{16,64})$", re.IGNORECASE)
+_ASSESSMENT_JSON = re.compile(
+    r"^/api/v1/operator/assessments/([A-F0-9]{16,64})$",
+    re.IGNORECASE,
+)
 _LOOPBACK = {"127.0.0.1", "::1"}
 _FORM_LIMIT = 8192
 
@@ -134,6 +139,30 @@ class OperatorConsole:
                 self._send_json(handler, {"error": "computer_not_found"}, 404)
             else:
                 self._send_remote_desktop(handler, item)
+            return True
+
+        assessment_match = _ASSESSMENT_PAGE.fullmatch(path)
+        assessment_json_match = _ASSESSMENT_JSON.fullmatch(path)
+        if assessment_match or assessment_json_match:
+            job_id = (assessment_match or assessment_json_match).group(1).lower()
+            if self.storage is None:
+                report = None
+            else:
+                try:
+                    report = self.storage.build_report(job_id)
+                except (KeyError, OSError, RuntimeError):
+                    report = None
+            if report is None:
+                self._send_json(handler, {"error": "assessment_not_found"}, 404)
+            elif assessment_json_match:
+                self._send_json(handler, report, 200)
+            else:
+                self._send_page(
+                    handler,
+                    "Port scan results",
+                    "tools",
+                    self._assessment_results(report),
+                )
             return True
 
         if path == "/":
@@ -1439,14 +1468,92 @@ class OperatorConsole:
         return jobs if isinstance(jobs, list) else []
 
     @staticmethod
+    def _assessment_results(report: dict[str, Any]) -> str:
+        job = report.get("job", {})
+        assets = report.get("assets", [])
+        services = report.get("services", [])
+        findings = report.get("findings", [])
+        events = report.get("events", [])
+        job_id = str(job.get("id", ""))
+        encoded_id = quote(job_id, safe="")
+        status = str(job.get("status", "unknown"))
+
+        asset_rows = "".join(
+            "<tr>"
+            f"<td><strong>{escape(str(item.get('ip_address', 'Unknown')))}</strong></td>"
+            f"<td>{escape(str(item.get('hostname') or 'Not identified'))}</td>"
+            f"<td>{escape(str(item.get('vendor') or 'Not identified'))}</td>"
+            f"<td>{escape(str(item.get('state') or 'unknown'))}</td>"
+            "</tr>"
+            for item in assets
+        ) or "<tr><td colspan='4' class='table-empty'>No responsive devices were recorded.</td></tr>"
+
+        service_rows = "".join(
+            "<tr>"
+            f"<td><strong>{escape(str(item.get('ip_address', 'Unknown')))}</strong></td>"
+            f"<td>{escape(str(item.get('port', '')))} / {escape(str(item.get('protocol', 'tcp')))}</td>"
+            f"<td>{escape(str(item.get('name') or 'Unknown'))}</td>"
+            f"<td>{escape(' '.join(str(value) for value in (item.get('product'), item.get('version')) if value) or 'Not identified')}</td>"
+            "</tr>"
+            for item in services
+        ) or "<tr><td colspan='4' class='table-empty'>No open services were recorded by this scan profile.</td></tr>"
+
+        finding_rows = "".join(
+            "<li>"
+            f"<span class='pill {'bad' if str(item.get('severity', '')).lower() in {'critical', 'high'} else 'muted'}'>{escape(str(item.get('severity', 'info')))}</span>"
+            f"<div><strong>{escape(str(item.get('title', 'Finding')))}</strong>"
+            f"<p>{escape(str(item.get('detail', '')))}</p>"
+            f"<small>{escape(str(item.get('recommendation', '')))}</small></div>"
+            "</li>"
+            for item in findings
+        ) or "<li><div><strong>No flagged findings</strong><p>The rule-based assessment did not flag a known issue.</p></div></li>"
+
+        event_rows = "".join(
+            "<div class='scan-line'>"
+            f"<time>{escape(str(item.get('created_at', ''))[11:19] or '--:--:--')}</time>"
+            f"<span>{escape(str(item.get('message', '')))}</span>"
+            "</div>"
+            for item in events
+        ) or "<div class='scan-line'><time>--:--:--</time><span>No activity log was retained for this older scan.</span></div>"
+
+        return f"""
+<section class="hero compact"><div><div class="eyebrow">Port scan report</div><h1>{escape(str(job.get('target', 'Assessment results')))}</h1>
+<p>{escape(str(job.get('profile', 'discovery')).title())} profile · {escape(str(job.get('created_at', 'Time not recorded')))}</p>
+<a class="back" href="/tools">← Back to Tools</a></div>
+<div class="report-actions"><span class="pill large {_status_class(status)}">{escape(status)}</span>
+<a class="button secondary" href="/api/v1/operator/assessments/{encoded_id}">View raw JSON</a></div></section>
+<section class="metrics">
+  {OperatorConsole._metric("Devices found", str(len(assets)), "good")}
+  {OperatorConsole._metric("Open services", str(len(services)), "good" if services else "muted")}
+  {OperatorConsole._metric("Findings", str(len(findings)), "bad" if findings else "good")}
+  {OperatorConsole._metric("Profile", str(job.get('profile', 'discovery')).title(), "muted")}
+</section>
+<section class="panel"><div class="eyebrow">Review first</div><h2>Findings</h2><ul class="findings">{finding_rows}</ul></section>
+<section class="panel"><div class="section-head"><div><div class="eyebrow">Network inventory</div><h2>Devices found</h2></div><span class="pill muted">{len(assets)}</span></div>
+<div class="report-table-wrap"><table class="report-table"><thead><tr><th>IP address</th><th>Hostname</th><th>Vendor</th><th>State</th></tr></thead><tbody>{asset_rows}</tbody></table></div></section>
+<section class="panel"><div class="section-head"><div><div class="eyebrow">Connection surface</div><h2>Open services</h2></div><span class="pill muted">{len(services)}</span></div>
+<div class="report-table-wrap"><table class="report-table"><thead><tr><th>IP address</th><th>Port</th><th>Service</th><th>Product</th></tr></thead><tbody>{service_rows}</tbody></table></div></section>
+<section class="panel"><div class="eyebrow">Scan record</div><h2>Activity</h2><div class="scan-console report-console" role="log">{event_rows}</div>
+<details class="advanced"><summary>Details</summary><dl>
+<div><dt>Job ID</dt><dd>{escape(job_id)}</dd></div><div><dt>Started</dt><dd>{escape(str(job.get('started_at') or 'Not recorded'))}</dd></div>
+<div><dt>Finished</dt><dd>{escape(str(job.get('finished_at') or 'Not recorded'))}</dd></div><div><dt>Status</dt><dd>{escape(status)}</dd></div>
+</dl></details></section>"""
+
+    @staticmethod
     def _job_row(job: dict[str, Any]) -> str:
         status = str(job.get("status", "unknown"))
         last_message = str(job.get("last_message") or "").strip()
         message = f"<small>{escape(last_message)}</small>" if last_message else ""
+        job_id = quote(str(job.get("id") or ""), safe="")
+        result_link = (
+            f'<a class="button secondary compact" href="/assessments/{job_id}">View results</a>'
+            if job_id and status not in {"queued", "running"}
+            else ""
+        )
         return f"""
 <div class="tool-row"><div><strong>{escape(str(job.get('target', 'Assessment')))}</strong>
 <small>{escape(str(job.get('profile', 'discovery')))} · {escape(str(job.get('created_at', '')))}</small>{message}</div>
-<span class="pill {_status_class(status)}">{escape(status)}</span></div>"""
+<div class="job-actions"><span class="pill {_status_class(status)}">{escape(status)}</span>{result_link}</div></div>"""
 
     @staticmethod
     def _metric(label: str, value: str, state: str) -> str:
@@ -1604,7 +1711,9 @@ _CSS = r"""
 .app-shell{min-height:100vh}.workspace{min-width:0}.side-rail{position:fixed;inset:0 auto 0 0;z-index:8;display:flex;flex-direction:column;width:280px;padding:22px 16px 16px;background:#17181b;border-right:1px solid var(--line);overflow-y:auto}.rail-brand{padding:4px 6px 16px}.side-rail>.control{align-self:flex-start;margin:0 6px 20px}.rail-group{display:grid;gap:4px;margin:0 0 22px}.rail-group>p{margin:0 8px 7px;color:#8f8b83;font-size:.68rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.rail-group>a{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:8px;color:#c1bcb3;font-weight:800}.rail-group>a:hover,.rail-group>a.active{color:#241700;background:var(--yellow)}.access-tree{min-height:0}.access-link>span:last-child{display:grid;min-width:0}.access-link strong,.access-link small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.access-link small{color:inherit;opacity:.7;font-size:.72rem;font-weight:600}.status-dot{flex:0 0 auto;width:9px;height:9px;border-radius:2px;background:#72737a}.status-dot.good{background:var(--yellow)}.status-dot.bad{background:var(--red)}.rail-empty{margin:4px 9px;color:var(--muted);font-size:.8rem}.rail-footer{display:flex;align-items:center;gap:9px;margin-top:auto;padding:14px 10px 2px;color:var(--muted);font-size:.82rem}.side-rail~.workspace main{width:min(1420px,calc(100% - 328px));margin:0 24px 0 304px;padding:34px 0 72px}.side-rail~.workspace .topbar,.side-rail~.workspace .bottom-nav{display:none}
 .field-help{display:block;margin-top:-5px;color:var(--muted);line-height:1.4}
 .scan-progress{border-color:#7d5d2c;box-shadow:0 0 0 1px #f28b2c18,0 18px 44px #0004}.scan-progress .section-head{margin:0 0 14px}.scan-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.scan-summary>span{color:var(--muted);font:700 .74rem ui-monospace,SFMono-Regular,monospace}.progress-track{height:8px;overflow:hidden;border-radius:99px;background:#111216;border:1px solid #494a50}.progress-track span{display:block;width:38%;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--yellow),var(--orange));animation:scan-sweep 1.7s ease-in-out infinite}.scan-console{display:grid;gap:4px;max-height:260px;overflow:auto;margin:14px 0;padding:13px;border:1px solid #414249;border-radius:9px;background:#0c0d0f;color:#ded9cf;font:600 .78rem/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}.scan-line{display:grid;grid-template-columns:68px minmax(0,1fr);gap:9px}.scan-line time{color:#817d75}.scan-line.success span{color:var(--yellow)}.scan-line.error span{color:var(--red)}.scan-line.warning span{color:var(--orange2)}.scan-cursor{color:var(--orange2);animation:scan-blink 1s steps(2,end) infinite}@keyframes scan-sweep{0%{transform:translateX(-105%)}50%{transform:translateX(85%)}100%{transform:translateX(265%)}}@keyframes scan-blink{50%{opacity:.4}}
+.job-actions,.report-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.button.compact{width:auto;padding:7px 10px;font-size:.76rem}.report-actions .button{width:auto}.report-table-wrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:10px}.report-table{width:100%;min-width:680px;border-collapse:collapse}.report-table th,.report-table td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}.report-table th{color:var(--yellow);background:#17181b;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}.report-table tbody tr:last-child td{border-bottom:0}.report-table td{color:#c9c4bb}.report-table td strong{color:var(--text)}.table-empty{color:var(--muted)!important;text-align:center!important;padding:24px!important}.report-console{max-height:360px}
 @media(max-width:1100px){.side-rail{width:248px}.side-rail~.workspace main{width:calc(100% - 288px);margin-left:272px}.machine-grid{grid-template-columns:1fr}}
 @media(max-width:900px){.side-rail{display:none}.side-rail~.workspace main{width:min(1120px,calc(100% - 32px));margin:0 auto;padding:34px 0 110px}.side-rail~.workspace .topbar{display:flex}.side-rail~.workspace .bottom-nav{display:flex}.machine-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.job-actions{align-items:flex-end;flex-direction:column}.report-actions{justify-content:flex-start}}
 @media(max-width:700px){main{width:min(100% - 24px,1120px);padding-top:18px}.topbar{padding:11px 14px}.control{font-size:.62rem}.hero{display:grid;padding-top:20px}.hero .button{justify-self:start}.metrics{grid-template-columns:1fr 1fr}.machine-grid{grid-template-columns:1fr}.machine-card{padding:15px}.machine-facts{grid-template-columns:1fr 1fr}.machine-facts>span:last-child{grid-column:1/-1}.wifi-form{grid-template-columns:1fr}.wifi-form button{width:100%}.inline-form{grid-template-columns:1fr}.inline-form button{justify-self:start}.action-grid,.quick-grid{grid-template-columns:1fr}.tool-row{align-items:flex-start}.tool-row .button{width:auto}.hero h1{font-size:2.7rem}.machine-tools{grid-template-columns:1fr}.connection-row{align-items:flex-start}.connection-action{flex-direction:column;align-items:flex-end}}
 """
