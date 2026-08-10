@@ -29,7 +29,7 @@ def _service(
     repository = tmp_path / "repo"
     (repository / ".codex" / "queue").mkdir(parents=True)
     (repository / ".codex" / "queue" / "QUEUE.md").write_text(
-        "[TASK BB-007]\nSTATUS: IN_PROGRESS\n",
+        "[TASK BB-008]\nSTATUS: IN_PROGRESS\n",
         encoding="utf-8",
     )
     (repository / ".codex" / "queue" / "COMPLETE.md").write_text(
@@ -54,7 +54,7 @@ def _service(
 def test_registered_local_script_wins_without_external_model_call(tmp_path) -> None:
     plan = _service(tmp_path).optimize(
         WorkflowOptimizeRequest(
-            task_id="BB-007",
+            task_id="BB-008",
             description="Summarize this deterministic text.",
             script_id="text.summary",
             deterministic=True,
@@ -74,7 +74,7 @@ def test_registered_local_script_wins_without_external_model_call(tmp_path) -> N
 def test_windows_code_routes_to_guarded_github_copilot_workflow(tmp_path) -> None:
     plan = _service(tmp_path).optimize(
         WorkflowOptimizeRequest(
-            task_id="BB-007",
+            task_id="BB-008",
             description="Review a local Windows PowerShell helper.",
             requires_reasoning=True,
             copilot_kind=CopilotTaskKind.WINDOWS_CODE,
@@ -163,7 +163,7 @@ def test_workflow_optimizer_api_returns_advice_without_execution(
         response = client.post(
             "/api/v1/processing/workflows/optimize",
             json={
-                "task_id": "BB-007",
+                "task_id": "BB-008",
                 "description": "Review a plugin manifest.",
                 "requires_reasoning": True,
                 "copilot_kind": "plugin_code",

@@ -96,7 +96,7 @@ Script-first routing, its versioned local registry, duplicate protection, and
 usage-reduction metrics are documented in
 [`docs/SCRIPT_FIRST_ROUTING.md`](../docs/SCRIPT_FIRST_ROUTING.md).
 
-The BB-007 GitHub Copilot CLI worker creates bounded review packets for local
+The BB-008 GitHub Copilot CLI worker creates bounded review packets for local
 Windows file organization, code, and plugin tasks. Microsoft Copilot for
 Windows is reported separately as a manual-only app. Automated sending requires
 the exact `SEND TO GITHUB COPILOT` confirmation; the GitHub CLI is restricted to

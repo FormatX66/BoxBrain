@@ -39,11 +39,11 @@ END HOLD
 [HOLD BH-001]
 STATUS: PROMOTED
 TITLE: Multi-GPT Revolving Cycle
-PROMOTED_TO: BB-007
+PROMOTED_TO: BB-008
 PROMOTED: 2026-08-10T13:00:03-04:00
 
 PROMOTION NOTE:
-The user narrowed the first implementation to safe local Windows task offload through Copilot: file-organization planning, Windows code, and plugin code. The broader multi-account/model revolving-cycle concept remains future scope; BB-007 owns this initial worker-lane milestone.
+The user narrowed the first implementation to safe local Windows task offload through Copilot: file-organization planning, Windows code, and plugin code. The broader multi-account/model revolving-cycle concept remains future scope; BB-008 owns this initial worker-lane milestone.
 
 ORIGINAL HOLD REASON:
 The concept needs architecture, account/usage-limit handling, model-routing rules, and implementation details before it is ready to build.
@@ -79,8 +79,8 @@ END HOLD
 STATUS: HOLD
 TITLE: Microsoft Copilot Task Offload
 
-RELATIONSHIP TO BB-007:
-BB-007 now owns the initial local-Windows Copilot worker lane promoted from BH-001. BH-003 remains on hold only for broader Microsoft 365/Copilot integration beyond file organization, local Windows code, and plugin code, preventing duplicate implementation.
+RELATIONSHIP TO BB-008:
+BB-008 now owns the initial local-Windows Copilot worker lane promoted from BH-001. BH-003 remains on hold only for broader Microsoft 365/Copilot integration beyond file organization, local Windows code, and plugin code, preventing duplicate implementation.
 
 WHY ON HOLD:
 The idea should remain a standalone build concept until BoxBrain/Codex task-routing rules, Copilot access methods, execution boundaries, and review requirements are defined. It may later integrate with broader multi-model cycle designs, but it should not depend on them initially.

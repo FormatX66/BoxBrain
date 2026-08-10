@@ -54,14 +54,14 @@ If required Codex/model/tool usage is unavailable:
 
 ## Active tasks
 
-+[TASK BB-007]
++[TASK BB-008]
 STATUS: IN_PROGRESS
 TITLE: GitHub Copilot Offload for Local Windows Tasks
 PRIORITY: HIGH
 DEPENDS: BB-006
 REQUIRES: CODEX, LOCAL_SHELL, COPILOT
 PROMOTED_FROM: BH-001
-CHECKPOINT: 2026-08-10T14:26:25-04:00 — Added a provider-aware workflow optimizer that recommends but never executes an ordered lane. It prioritizes registered local scripts, uses local preprocessing to shrink GitHub Copilot packets, routes bounded code/plugin/file-organization reasoning to `github-copilot-cli`, exposes `windows-copilot-app` only as an explicitly requested manual workflow, keeps generic reasoning on the existing GPT lane, and blocks both Copilot products for high-impact/destructive work. The new `/api/v1/processing/workflows/optimize` endpoint always returns `action_taken: false`; existing packet review and exact confirmation gates remain separate. Six focused and 96 total controller tests pass. A real smoke test verified local-only, GitHub guarded, and Windows manual lanes with no actions taken; persistent GitHub Copilot dispatch remains disabled. Next checkpoint: review BB-007 for publication.
+CHECKPOINT: 2026-08-10T14:26:25-04:00 — Renumbered this Copilot milestone from BB-007 to BB-008 because current `main` already assigns BB-007 to the GoPro Cloud virtual-drive task. Added a provider-aware workflow optimizer that recommends but never executes an ordered lane. It prioritizes registered local scripts, uses local preprocessing to shrink GitHub Copilot packets, routes bounded code/plugin/file-organization reasoning to `github-copilot-cli`, exposes `windows-copilot-app` only as an explicitly requested manual workflow, keeps generic reasoning on the existing GPT lane, and blocks both Copilot products for high-impact/destructive work. The `/api/v1/processing/workflows/optimize` endpoint always returns `action_taken: false`; existing packet review and exact confirmation gates remain separate. Six focused and 96 total controller tests pass. A real smoke test verified local-only, GitHub guarded, and Windows manual lanes with no actions taken; persistent GitHub Copilot dispatch remains disabled. Next checkpoint: review BB-008 for publication.
 
 DESCRIPTION:
 Extend the script-first router with a GitHub Copilot CLI worker lane for suitable local Windows tasks. Treat Microsoft Copilot for Windows as a separate, manual-only product surface. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat GitHub Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.

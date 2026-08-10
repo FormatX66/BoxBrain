@@ -58,7 +58,7 @@ def test_file_organization_packet_contains_metadata_only(tmp_path) -> None:
 
     packet = service.prepare(
         CopilotPrepareRequest(
-            task_id="BB-007",
+            task_id="BB-008",
             description="Group these files into sensible folders.",
             kind=CopilotTaskKind.FILE_ORGANIZATION,
             paths=("Downloads",),
@@ -95,7 +95,7 @@ def test_code_packet_is_scoped_and_rejects_credential_material(tmp_path) -> None
 
     packet = service.prepare(
         CopilotPrepareRequest(
-            task_id="BB-007",
+            task_id="BB-008",
             description="Review the Windows plugin implementation.",
             kind=CopilotTaskKind.PLUGIN_CODE,
             paths=("plugin",),
@@ -163,7 +163,7 @@ def test_dispatch_uses_isolated_plan_mode_and_never_applies_changes(tmp_path) ->
     description = "Improve this local Windows inventory helper."
     packet = service.prepare(
         CopilotPrepareRequest(
-            task_id="BB-007",
+            task_id="BB-008",
             description=description,
             kind=CopilotTaskKind.WINDOWS_CODE,
             paths=("tool.ps1",),
@@ -305,7 +305,7 @@ def test_copilot_api_exposes_runtime_prepare_and_confirmed_dispatch(
         prepared = client.post(
             "/api/v1/processing/copilot/packets",
             json={
-                "task_id": "BB-007",
+                "task_id": "BB-008",
                 "description": "Review the plugin manifest.",
                 "kind": "plugin_code",
                 "paths": ["plugin.json"],

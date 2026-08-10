@@ -45,7 +45,7 @@ Example optimized Windows-code workflow:
 ```json
 POST /api/v1/processing/workflows/optimize
 {
-  "task_id": "BB-007",
+  "task_id": "BB-008",
   "description": "Review a local PowerShell validation helper",
   "requires_reasoning": true,
   "copilot_kind": "windows_code"
@@ -127,7 +127,7 @@ original objective into the chosen model lane.
 
 ## Copilot worker lane
 
-BB-007 adds a separate approval-gated Copilot lane for local Windows
+BB-008 adds a separate approval-gated Copilot lane for local Windows
 file-organization planning, Windows code, and plugin code. It does not weaken
 the Script/GPT/Hybrid decision: local scripts still handle deterministic work,
 while Copilot receives only a minimal prepared packet after operator review.

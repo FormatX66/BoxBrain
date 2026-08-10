@@ -1,6 +1,6 @@
 # Local Windows Tasks with GitHub Copilot
 
-BB-007 adds a review-only **GitHub Copilot CLI** worker lane for three initial
+BB-008 adds a review-only **GitHub Copilot CLI** worker lane for three initial
 task kinds. In this document, "Windows" describes the local task environment;
 it does not mean the Microsoft Copilot app for Windows.
 
@@ -45,7 +45,7 @@ selection, tool allowlists, and explicit deny/permission controls:
 
 The Microsoft Copilot Windows app may accept reviewed text manually. BoxBrain
 does not automate its UI or assume an undocumented local prompt API. Microsoft
-365 Copilot is a third, separate product and is outside this BB-007 adapter.
+365 Copilot is a third, separate product and is outside this BB-008 adapter.
 
 ## Safety boundary
 
@@ -136,7 +136,7 @@ Example packet preparation:
 
 ```json
 {
-  "task_id": "BB-007",
+  "task_id": "BB-008",
   "description": "Review the selected PowerShell inventory helper",
   "kind": "windows_code",
   "root": ".",
