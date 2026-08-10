@@ -54,6 +54,32 @@ If required Codex/model/tool usage is unavailable:
 
 ## Active tasks
 
++[TASK BB-007]
+STATUS: IN_PROGRESS
+TITLE: Local Windows Copilot Task Offload
+PRIORITY: HIGH
+DEPENDS: BB-006
+REQUIRES: CODEX, LOCAL_SHELL, COPILOT
+PROMOTED_FROM: BH-001
+CHECKPOINT: 2026-08-10T13:00:03-04:00 — Promoted and narrowed from BH-001. Implemented allowlisted metadata/code packets, root/path/size/secret guards, exact send confirmation, isolated GitHub Copilot CLI plan-mode dispatch, bounded content-free audit events, three API endpoints, documentation, and 5 focused/90 total controller tests. GitHub Copilot CLI 1.0.78 is installed through WinGet; OAuth login and BoxBrain dispatch remain disabled, and no packet has been sent. Next checkpoint: authenticate deliberately, enable the local adapter, and run one reviewed non-destructive test packet.
+
+DESCRIPTION:
+Extend the script-first router with a Copilot worker lane for suitable local Windows tasks. Start with file-organization planning, local Windows code, and plugin development. Send only operator-selected, repository-bounded or explicitly allowlisted context; treat Copilot output as untrusted proposed work that BoxBrain reviews and tests before any application.
+
+ACCEPTANCE:
+- Detect and report supported Copilot surfaces without assuming that an installed UI exposes a safe automation API.
+- Classify only allowlisted task kinds: file-organization planning, Windows code, and plugin code.
+- Build minimal work packets with objective, selected paths, constraints, acceptance checks, and explicit exclusions.
+- File-organization packets contain metadata and propose moves/renames only; they never delete, overwrite, or execute the plan.
+- Code/plugin packets include only explicitly selected safe text files within configured roots and enforce size, extension, secret, key, credential, and environment-file exclusions.
+- Require an exact human confirmation before any packet is sent to Copilot.
+- Invoke a supported Copilot CLI without a shell, in plan mode, from an isolated packet directory, with shell/write/web/MCP tools unavailable.
+- Treat Copilot output as untrusted; store it separately and require BoxBrain/human review plus tests before changes are applied.
+- Record bounded audit events without prompts, file contents, secrets, tokens, or Copilot credentials.
+- Add API endpoints, focused tests, and operator documentation.
+END TASK
+
+
 [TASK BB-001]
 STATUS: BLOCKED
 TITLE: Windows WLAN / Wi-Fi Profile Integration

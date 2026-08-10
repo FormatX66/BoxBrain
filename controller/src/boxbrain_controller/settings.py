@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
+import re
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,17 @@ def _bool_environment(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _path_environment(name: str, default: Path) -> tuple[Path, ...]:
+    value = getenv(name)
+    if value is None or not value.strip():
+        return (default.resolve(),)
+    return tuple(
+        Path(item.strip()).expanduser().resolve()
+        for item in re.split(r"[;,]", value)
+        if item.strip()
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +106,27 @@ class Settings:
     )
     diagnostic_max_output_bytes: int = int(
         getenv("BOXBRAIN_DIAGNOSTIC_MAX_OUTPUT_BYTES", "32768")
+    )
+    copilot_offload_enabled: bool = _bool_environment(
+        "BOXBRAIN_COPILOT_OFFLOAD_ENABLED",
+        False,
+    )
+    copilot_allowed_roots: tuple[Path, ...] = _path_environment(
+        "BOXBRAIN_COPILOT_ALLOWED_ROOTS",
+        _REPOSITORY_ROOT,
+    )
+    copilot_timeout_seconds: float = float(
+        getenv("BOXBRAIN_COPILOT_TIMEOUT_SECONDS", "120")
+    )
+    copilot_max_files: int = int(getenv("BOXBRAIN_COPILOT_MAX_FILES", "100"))
+    copilot_max_file_bytes: int = int(
+        getenv("BOXBRAIN_COPILOT_MAX_FILE_BYTES", "32768")
+    )
+    copilot_max_content_bytes: int = int(
+        getenv("BOXBRAIN_COPILOT_MAX_CONTENT_BYTES", "131072")
+    )
+    copilot_max_output_bytes: int = int(
+        getenv("BOXBRAIN_COPILOT_MAX_OUTPUT_BYTES", "65536")
     )
 
 

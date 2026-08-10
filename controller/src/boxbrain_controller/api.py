@@ -75,6 +75,17 @@ from .models import (
     UsageSummary,
 )
 from .chat_organizer import ChatOrganizerService
+from .copilot_offload import (
+    CopilotDispatchRequest,
+    CopilotDispatchResult,
+    CopilotOffloadError,
+    CopilotOffloadService,
+    CopilotPacketNotFoundError,
+    CopilotPrepareRequest,
+    CopilotRuntimeStatus,
+    CopilotRuntimeUnavailable,
+    CopilotWorkPacket,
+)
 from .model_agents import (
     ModelAgentExecutionError,
     ModelAgentRuntimeUnavailable,
@@ -164,6 +175,17 @@ control_lock = Lock()
 script_first_service = ScriptFirstService(
     settings.repository_root,
     settings.data_dir,
+)
+copilot_offload_service = CopilotOffloadService(
+    settings.repository_root,
+    settings.data_dir,
+    allowed_roots=settings.copilot_allowed_roots,
+    enabled=settings.copilot_offload_enabled,
+    timeout_seconds=settings.copilot_timeout_seconds,
+    max_files=settings.copilot_max_files,
+    max_file_bytes=settings.copilot_max_file_bytes,
+    max_content_bytes=settings.copilot_max_content_bytes,
+    max_output_bytes=settings.copilot_max_output_bytes,
 )
 
 
@@ -408,6 +430,43 @@ def run_registered_script(request: ScriptRunRequest) -> ScriptRunResult:
 @router.get("/processing/script-metrics", response_model=RoutingMetrics)
 def get_script_routing_metrics() -> RoutingMetrics:
     return script_first_service.metrics()
+
+
+@router.get("/processing/copilot/runtime", response_model=CopilotRuntimeStatus)
+def get_copilot_runtime() -> CopilotRuntimeStatus:
+    return copilot_offload_service.runtime_status()
+
+
+@router.post("/processing/copilot/packets", response_model=CopilotWorkPacket)
+def prepare_copilot_packet(request: CopilotPrepareRequest) -> CopilotWorkPacket:
+    try:
+        return copilot_offload_service.prepare(request)
+    except CopilotOffloadError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+
+@router.post("/processing/copilot/dispatches", response_model=CopilotDispatchResult)
+def dispatch_copilot_packet(request: CopilotDispatchRequest) -> CopilotDispatchResult:
+    try:
+        return copilot_offload_service.dispatch(request)
+    except CopilotPacketNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except CopilotRuntimeUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except CopilotOffloadError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
 
 
 @router.post("/processing/model-runs", response_model=ModelProcessingRun)

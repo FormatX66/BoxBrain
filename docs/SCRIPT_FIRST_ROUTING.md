@@ -86,3 +86,12 @@ POST /api/v1/processing/script-runs
 
 If the result is `escalated`, pass only its compact `data` evidence plus the
 original objective into the chosen model lane.
+
+## Copilot worker lane
+
+BB-007 adds a separate approval-gated Copilot lane for local Windows
+file-organization planning, Windows code, and plugin code. It does not weaken
+the Script/GPT/Hybrid decision: local scripts still handle deterministic work,
+while Copilot receives only a minimal prepared packet after operator review.
+Copilot output is a proposal and is never applied by the offload service. See
+[`COPILOT_WINDOWS_OFFLOAD.md`](COPILOT_WINDOWS_OFFLOAD.md).
