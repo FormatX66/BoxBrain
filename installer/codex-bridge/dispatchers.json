@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "dispatchers": [
+    {
+      "id": "readonly-repository-status",
+      "task_types": [
+        "READ_ONLY_REPOSITORY_STATUS"
+      ],
+      "script": "installer/codex-bridge/dispatch-readonly-repository-status.ps1",
+      "impact": "read_only",
+      "description": "Collect a bounded Git commit, branch, tracked-file count, and dirty-entry count without changing the repository."
+    }
+  ]
+}
