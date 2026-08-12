@@ -109,6 +109,12 @@ class AurumNode:
         self.put("checkpoint",checkpoint)
         return checkpoint
 
+    def run(self, interval: float=2.0) -> None:
+        interval=max(0.25,min(float(interval),60.0))
+        while True:
+            self.process_inbox()
+            time.sleep(interval)
+
     def status(self) -> dict:
         with self._db() as con:
             cycle=int(con.execute("SELECT value FROM meta WHERE key='cycle'").fetchone()[0])
@@ -125,6 +131,7 @@ def main():
     p.add_argument("--root",type=Path,required=True); p.add_argument("--name",required=True)
     sub=p.add_subparsers(dest="cmd",required=True)
     sub.add_parser("status"); sub.add_parser("cycle"); sub.add_parser("process-inbox")
+    run=sub.add_parser("run"); run.add_argument("--interval",type=float,default=2.0)
     pub=sub.add_parser("publish"); pub.add_argument("capability"); pub.add_argument("payload")
     ing=sub.add_parser("ingest"); ing.add_argument("event",nargs="?")
     a=p.parse_args(); n=AurumNode(a.root,a.name)
@@ -132,6 +139,9 @@ def main():
     elif a.cmd=="cycle": out=n.cycle()
     elif a.cmd=="process-inbox": out=n.process_inbox()
     elif a.cmd=="publish": out={"path":str(n.publish(a.capability,json.loads(a.payload)))}
+    elif a.cmd=="run":
+        n.run(a.interval)
+        return
     else:
         raw=a.event if a.event is not None else sys.stdin.read()
         out=n.ingest(json.loads(raw))
