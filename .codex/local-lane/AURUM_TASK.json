@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "request_id": "aurum-bbpi4-confirm-usb-20260812T211900Z",
-  "action": "deploy",
+  "request_id": "aurum-bbpi4-verify-20260812T211930Z",
+  "action": "verify",
   "target": "BBPI4",
-  "address": "10.12.194.1",
-  "requested_at": "2026-08-12T21:19:00Z"
+  "address": "192.168.0.194",
+  "requested_at": "2026-08-12T21:19:30Z"
 }
