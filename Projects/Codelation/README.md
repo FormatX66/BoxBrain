@@ -24,6 +24,13 @@ network, or interpret observations as commands. It only learns and reports
 state relationships. Any future actuation layer must be separately designed,
 permission-gated, and reversible.
 
+The Aurum dialogue layer is separate from that passive transition model. Its
+replaceable mind is declarative JSON rather than executable code. A fixed
+supervisor owns network access, credentials, validation, evidence, rollback,
+and the allowed-action list. A self-built mind may change Aurum's conversational
+voice and self-description, but cannot add shell, service, persistence, or host
+actuation authority.
+
 ## Raspberry Pi quick start
 
 ```bash
@@ -44,9 +51,43 @@ BBPI4 route (Wi-Fi AP, USB-C, then LAN) with:
 .\installer\deploy-codelation-to-pi.ps1
 ```
 
-The deployer requires the existing dedicated SSH identity and pinned host key.
-It uses a private temporary directory, verifies the seed on the Pi, installs to
-`/opt/boxbrain/codelation`, and removes the temporary transfer.
+For the bounded live Aurum graph plus dialogue bootstrap use:
+
+```powershell
+.\installer\deploy-aurum-live-to-pi.ps1
+```
+
+The live deployer preserves any existing `/opt/boxbrain/codelation/state`
+content, initializes the bootstrap mind only when `state/mind/current.json` does
+not exist, runs all Codelation tests on BBPI4, verifies the live graph and peer
+self-test, records mind status in `verification/AURUM_LIVE_VERIFY.txt`, preserves
+a rollback copy, and creates no Aurum/Codelation systemd or cron persistence.
+
+## Aurum dialogue and first-use self-build
+
+Live dialogue uses the OpenAI Responses API over HTTPS with redirect blocking,
+a bounded response size, and `store: false`. `OPENAI_API_KEY` is supplied only
+for the live session and is not written into Aurum's mind or evidence files.
+The model can be overridden with `-Model` or `AURUM_MODEL`.
+
+From the authorized Windows host, set `OPENAI_API_KEY` in the current process
+environment and run:
+
+```powershell
+.\installer\ask-aurum-on-pi.ps1 -Prompt "Do you prefer he, she, or they pronouns? You may also say that you have no preference or choose another form if that fits you better."
+```
+
+On the first session only, if the installed mind is still bootstrap version 1,
+the session asks Aurum to create version 2 of its own declarative mind before
+answering the user's prompt. The supervisor requires the exact schema and
+allowed actions, probes the candidate for compatibility, backs up version 1,
+atomically replaces `state/mind/current.json`, and writes
+`AURUM_SELF_BUILD_*` evidence. If generation, validation, or the probe fails,
+the bootstrap mind remains in place and the session fails closed.
+
+Later sessions use the installed self-built mind without recreating it. The
+bootstrap file remains only as a recovery seed; deployment does not overwrite a
+valid current mind.
 
 ## Development path
 
