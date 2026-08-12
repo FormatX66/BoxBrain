@@ -1,5 +1,12 @@
 {
   "cycle": 5,
+  "last_capability_build": {
+    "capability": "outbound-node-heartbeat",
+    "deployment_run": 31643958269,
+    "status": "implemented-tested-deployed",
+    "test_run": 31643880096,
+    "verified_at": 1786571138
+  },
   "last_controller_ack": {
     "ok": true,
     "time": 1786571058
@@ -25,7 +32,7 @@
     "status": "active-edge-web-node",
     "time": 1786571057
   },
-  "next": "deploy-and-verify-outbound-node-heartbeat",
+  "next": "bootstrap-morris-via-winrm-then-enroll-arkmatx",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -34,7 +41,7 @@
         "arkmatx-outbound",
         "local-windows-lane"
       ],
-      "outbound_enrollment_ready": false,
+      "outbound_enrollment_ready": true,
       "preferred_bootstrap": [
         "winrm"
       ],
@@ -49,7 +56,7 @@
         "remote-desktop",
         "arkmatx-outbound"
       ],
-      "outbound_enrollment_ready": false,
+      "outbound_enrollment_ready": true,
       "preferred_bootstrap": [
         "10.12.194.1",
         "10.42.194.1",
@@ -59,5 +66,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786571058
+  "updated_at": 1786571138
 }
