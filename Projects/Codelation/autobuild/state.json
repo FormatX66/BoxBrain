@@ -1,5 +1,5 @@
 {
-  "cycle": 9,
+  "cycle": 10,
   "last_capability_build": {
     "capability": "bbpi4-local-lane-route-fallback",
     "deployment_blocker": "morris-local-lane-reapproval-required",
@@ -15,7 +15,7 @@
   },
   "last_controller_ack": {
     "ok": true,
-    "time": 1786576297
+    "time": 1786577136
   },
   "last_controller_status": {
     "capabilities": [
@@ -31,15 +31,15 @@
       "node_directory"
     ],
     "events": {
-      "merged": 19,
+      "merged": 20,
       "nodes": 4,
-      "outbox": 19,
+      "outbox": 20,
       "rejected": 0
     },
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1786576296
+    "time": 1786577136
   },
   "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
   "schema": 1,
@@ -78,5 +78,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786576297
+  "updated_at": 1786577136
 }
