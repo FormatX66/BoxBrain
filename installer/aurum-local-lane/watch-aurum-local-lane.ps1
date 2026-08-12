@@ -119,19 +119,9 @@ function Save-State {
 
 function Invoke-PiEvidence {
     $key = [string]$script:Config.key_path
-    $target = "kali@192.168.0.194"
+    $addresses = @("10.42.194.1", "10.12.194.1", "192.168.0.194")
     $options = @("-i", $key, "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=4")
     $remote = "cat /opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt"
-    $old = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = "Continue"
-        $lines = @(& $script:Ssh @options $target $remote 2>&1)
-        $code = $LASTEXITCODE
-    }
-    finally { $ErrorActionPreference = $old }
-    if ($code -ne 0) { throw "BBPI4 verification evidence is unavailable." }
-    $text = ($lines -join "`n")
-    if ($text.Length -gt 16384) { throw "BBPI4 verification evidence exceeded the bounded size." }
     $required = @(
         "identity=BBPI4/Aurum",
         "AURUM_LIVE_VERIFIED",
@@ -140,10 +130,32 @@ function Invoke-PiEvidence {
         "matching_user_cron=0",
         "matching_root_cron=0"
     )
-    foreach ($marker in $required) {
-        if (-not $text.Contains($marker)) { throw "BBPI4 verification evidence is missing required marker: $marker" }
+
+    foreach ($address in $addresses) {
+        $target = "kali@$address"
+        $old = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $lines = @(& $script:Ssh @options $target $remote 2>&1)
+            $code = $LASTEXITCODE
+        }
+        finally { $ErrorActionPreference = $old }
+        if ($code -ne 0) { continue }
+
+        $text = ($lines -join "`n")
+        if ($text.Length -gt 16384) { throw "BBPI4 verification evidence exceeded the bounded size." }
+        $valid = $true
+        foreach ($marker in $required) {
+            if (-not $text.Contains($marker)) {
+                $valid = $false
+                break
+            }
+        }
+        if ($valid) {
+            return [pscustomobject]@{ Address = $address; Text = $text }
+        }
     }
-    return $text
+    throw "BBPI4 verification evidence is unavailable on approved AP, USB-C, and LAN routes."
 }
 
 function Invoke-Deploy {
@@ -161,7 +173,7 @@ function Invoke-Deploy {
     $old = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $output = @(& $script:PowerShell -NoProfile -ExecutionPolicy Bypass -File $deployer -PiAddresses "192.168.0.194" -KeyPath ([string]$script:Config.key_path) 2>&1)
+        $output = @(& $script:PowerShell -NoProfile -ExecutionPolicy Bypass -File $deployer -KeyPath ([string]$script:Config.key_path) 2>&1)
         $code = $LASTEXITCODE
     }
     finally { $ErrorActionPreference = $old }
@@ -238,11 +250,11 @@ function Invoke-Cycle {
             request_id = [string]$task.request_id
             action = [string]$task.action
             target = "BBPI4"
-            address = "192.168.0.194"
+            address = [string]$evidence.Address
             verified = $true
             status = "AURUM_LOCAL_LANE_OK"
-            evidence_sha256 = New-ResultHash -Value $evidence
-            evidence = @($evidence -split "`n" | Where-Object { $_ -match '^(identity|python|architecture|before|peer|after|mind|seed|seed_migration|matching_|rollback=)' })
+            evidence_sha256 = New-ResultHash -Value ([string]$evidence.Text)
+            evidence = @(([string]$evidence.Text) -split "`n" | Where-Object { $_ -match '^(identity|python|architecture|before|peer|after|mind|seed|seed_migration|matching_|rollback=)' })
             deploy_tail = $deployTail
             started_at = $started.ToString("o")
             completed_at = [DateTimeOffset]::UtcNow.ToString("o")
