@@ -8,6 +8,10 @@ on:
       - '.github/workflows/aurum-autobuild.yml'
       - 'Projects/Codelation/autobuild_cycle.py'
       - 'Projects/Codelation/tests/test_autobuild_cycle.py'
+      - 'Projects/Codelation/tests/test_arkmatx_node_heartbeat.py'
+      - 'Web/Aurum-Arkmatx/index.php'
+      - 'Web/Aurum-Arkmatx/bootstrap.sh'
+      - 'Web/Aurum-Arkmatx/bootstrap.ps1'
   schedule:
     - cron: '*/15 * * * *'
 
