@@ -1,74 +1,148 @@
 #!/usr/bin/env python3
-import argparse, asyncio, ipaddress, json, socket, time
+import argparse
+import asyncio
+import ipaddress
+import json
+import socket
+import time
 
 DEFAULT_PORTS = (22, 80, 443, 3000, 3389, 5985, 5986, 8000, 8080)
+MAX_CONCURRENCY = 256
 
 
-def is_allowed_host(value: str) -> bool:
+def _is_allowed_ip(value: str) -> bool:
     try:
         ip = ipaddress.ip_address(value)
     except ValueError:
-        try:
-            infos = socket.getaddrinfo(value, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
-        except socket.gaierror:
-            return False
-        return any(is_allowed_host(info[4][0]) for info in infos)
-    return ip.is_private or ip.is_link_local or ip.is_loopback
+        return False
+    return ip.version == 4 and (ip.is_private or ip.is_link_local or ip.is_loopback)
 
 
-async def probe(host: str, port: int, timeout: float):
+def resolve_allowed_host(value: str) -> tuple[str, ...]:
+    """Resolve once and return only private/link-local/loopback IPv4 addresses."""
+    if _is_allowed_ip(value):
+        return (str(ipaddress.ip_address(value)),)
+    try:
+        infos = socket.getaddrinfo(
+            value,
+            None,
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+        )
+    except socket.gaierror:
+        return ()
+    addresses = {
+        info[4][0]
+        for info in infos
+        if info[4] and _is_allowed_ip(info[4][0])
+    }
+    return tuple(sorted(addresses, key=ipaddress.ip_address))
+
+
+def resolve_targets(values: list[str]) -> list[tuple[str, str]]:
+    """Return de-duplicated (requested-host, validated-address) probe targets."""
+    targets: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for host in dict.fromkeys(values):
+        addresses = resolve_allowed_host(host)
+        if not addresses:
+            raise ValueError(f"refusing non-private or unresolved target: {host}")
+        for address in addresses:
+            item = (host, address)
+            if item not in seen:
+                seen.add(item)
+                targets.append(item)
+    return targets
+
+
+async def probe(label: str, address: str, port: int, timeout: float):
     started = time.perf_counter()
     try:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
+        _reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(address, port), timeout
+        )
         writer.close()
         try:
             await writer.wait_closed()
         except Exception:
             pass
-        return {"host": host, "port": port, "open": True, "latency_ms": round((time.perf_counter()-started)*1000, 1)}
+        return {
+            "host": label,
+            "address": address,
+            "port": port,
+            "open": True,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
     except Exception:
-        return {"host": host, "port": port, "open": False}
+        return {"host": label, "address": address, "port": port, "open": False}
 
 
-async def run(hosts, ports, timeout, concurrency):
+async def run(targets, ports, timeout, concurrency):
     sem = asyncio.Semaphore(concurrency)
-    async def one(h, p):
+
+    async def one(label, address, port):
         async with sem:
-            return await probe(h, p, timeout)
-    results = await asyncio.gather(*(one(h, p) for h in hosts for p in ports))
-    open_results = [r for r in results if r.get("open")]
-    by_host = {}
-    for r in open_results:
-        by_host.setdefault(r["host"], []).append(r["port"])
+            return await probe(label, address, port, timeout)
+
+    results = await asyncio.gather(
+        *(one(label, address, port) for label, address in targets for port in ports)
+    )
+    open_results = [result for result in results if result.get("open")]
+    by_host: dict[str, set[int]] = {}
+    for result in open_results:
+        by_host.setdefault(result["host"], set()).add(result["port"])
+    resolved: dict[str, list[str]] = {}
+    for label, address in targets:
+        resolved.setdefault(label, []).append(address)
     return {
         "schema": "aurum.observation.connectivity.v0",
         "kind": "connectivity-observation",
-        "hosts": hosts,
+        "hosts": list(resolved),
+        "resolved": resolved,
         "ports": list(ports),
         "open": open_results,
-        "services_by_host": {h: sorted(ps) for h, ps in sorted(by_host.items())},
-        "verification": {"connect_only": True, "private_or_link_local_only": True, "reversible": True},
+        "services_by_host": {
+            host: sorted(ports) for host, ports in sorted(by_host.items())
+        },
+        "verification": {
+            "connect_only": True,
+            "private_or_link_local_only": True,
+            "resolve_once_then_pin": True,
+            "reversible": True,
+        },
     }
 
 
+def parse_ports(value: str) -> tuple[int, ...]:
+    try:
+        ports = tuple(sorted({int(item) for item in value.split(",") if item.strip()}))
+    except ValueError as exc:
+        raise ValueError("invalid ports") from exc
+    if not ports or any(port < 1 or port > 65535 for port in ports):
+        raise ValueError("invalid ports")
+    return ports
+
+
 def main():
-    ap = argparse.ArgumentParser(description="Aurum bounded private-network cluster probe")
-    ap.add_argument("hosts", nargs="+", help="Private/link-local IPv4 addresses or local hostnames")
-    ap.add_argument("--ports", default=','.join(map(str, DEFAULT_PORTS)))
-    ap.add_argument("--timeout", type=float, default=0.7)
-    ap.add_argument("--concurrency", type=int, default=128)
-    args = ap.parse_args()
-    hosts = []
-    for host in dict.fromkeys(args.hosts):
-        if not is_allowed_host(host):
-            raise SystemExit(f"refusing non-private target: {host}")
-        hosts.append(host)
-    ports = tuple(sorted({int(p) for p in args.ports.split(',') if p.strip()}))
-    if not ports or any(p < 1 or p > 65535 for p in ports):
-        raise SystemExit("invalid ports")
-    concurrency = max(1, min(args.concurrency, 256))
-    result = asyncio.run(run(hosts, ports, max(0.05, args.timeout), concurrency))
+    parser = argparse.ArgumentParser(
+        description="Aurum bounded private-network cluster probe"
+    )
+    parser.add_argument(
+        "hosts", nargs="+", help="Private/link-local IPv4 addresses or local hostnames"
+    )
+    parser.add_argument("--ports", default=",".join(map(str, DEFAULT_PORTS)))
+    parser.add_argument("--timeout", type=float, default=0.7)
+    parser.add_argument("--concurrency", type=int, default=128)
+    args = parser.parse_args()
+    try:
+        targets = resolve_targets(args.hosts)
+        ports = parse_ports(args.ports)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    concurrency = max(1, min(args.concurrency, MAX_CONCURRENCY))
+    result = asyncio.run(run(targets, ports, max(0.05, args.timeout), concurrency))
     print(json.dumps(result, separators=(",", ":"), sort_keys=True))
+
 
 if __name__ == "__main__":
     main()
