@@ -8,10 +8,10 @@
       "38d930f5a1f0a0ce4880c716b4dba057c9dcd825"
     ],
     "status": "implemented-tested-not-deployed",
-    "test_job": 94287647567,
-    "test_run": 31648561718,
-    "test_scope": "codelation-tests-success",
-    "verified_at": 1786575127
+    "test_job": 94288301307,
+    "test_run": 31648770287,
+    "test_scope": "full-boxbrain-ci-success",
+    "verified_at": 1786575270
   },
   "last_controller_ack": {
     "ok": true,
@@ -76,5 +76,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786575127
+  "updated_at": 1786575270
 }
