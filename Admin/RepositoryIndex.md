@@ -14,6 +14,10 @@ This is the canonical registry of repositories known to BoxBrain.
 | Security | No repository discovered | Proposed | — | — |
 | Research | No repository discovered | Proposed | — | — |
 
+## Local web surfaces
+
+- [Aurum-Arkmatx web edge](../Web/Aurum-Arkmatx/README.md)
+
 ## Governance
 
 - [Roadmap](Roadmap.md)
