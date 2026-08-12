@@ -1,12 +1,12 @@
 {
     "schema_version":  1,
-    "request_id":  "aurum-v014-bbpi4-20260812T193700Z",
+    "request_id":  "aurum-bbpi4-morris-relay-20260812T200425Z",
     "action":  "deploy",
     "target":  "BBPI4",
     "address":  "192.168.0.194",
     "verified":  false,
     "status":  "AURUM_LOCAL_LANE_FAILED",
     "error":  "Codelation source changed after local approval; reinstall the lane to review it.",
-    "started_at":  "2026-08-12T20:01:46.4567950+00:00",
-    "completed_at":  "2026-08-12T20:01:46.5458589+00:00"
+    "started_at":  "2026-08-12T20:09:54.9055780+00:00",
+    "completed_at":  "2026-08-12T20:09:55.0065941+00:00"
 }
