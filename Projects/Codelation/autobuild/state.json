@@ -1,17 +1,25 @@
 {
-  "cycle": 11,
+  "cycle": 12,
   "last_capability_build": {
-    "capability": "bbpi4-local-lane-route-fallback",
-    "deployment_blocker": "morris-local-lane-reapproval-required",
+    "capability": "bounded-private-connectivity-observation",
+    "deployment_blocker": "not-yet-wired-into-enrolled-node-runtime",
     "implementation_commits": [
-      "54b7d74632cb88a0297e09b0f8982e5c5993c788",
-      "38d930f5a1f0a0ce4880c716b4dba057c9dcd825"
+      "6ef07c82c8e176d81c6d57faa41c4425289cbba8",
+      "0d25bbb1d8a5f98eb56eddbfaf81d0cd0e2a9a69",
+      "8bd719e77def7621b51a63f7f6b9712f4858609d"
     ],
     "status": "implemented-tested-not-deployed",
-    "test_job": 94288301307,
-    "test_run": 31648770287,
+    "test_job": 94300101155,
+    "test_run": 31652626620,
     "test_scope": "full-boxbrain-ci-success",
-    "verified_at": 1786575270
+    "verification": {
+      "connect_only": true,
+      "max_concurrency": 256,
+      "private_or_link_local_only": true,
+      "resolve_once_then_pin": true,
+      "reversible": true
+    },
+    "verified_at": 1786578993
   },
   "last_controller_ack": {
     "ok": true,
@@ -59,6 +67,7 @@
       "status": "confirmed"
     },
     "BBPI4": {
+      "bounded_connectivity_observation_status": "implemented-tested-not-deployed",
       "carriers": [
         "10.12.194.1",
         "10.42.194.1",
@@ -78,5 +87,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786577154
+  "updated_at": 1786578993
 }
