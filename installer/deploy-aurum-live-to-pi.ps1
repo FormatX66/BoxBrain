@@ -82,7 +82,40 @@ before=`$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)
 peer=`$(python3 seed/aurum_live.py peer-self-test --graph state/aurum-live.json)
 after=`$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)
 mind=`$(python3 seed/aurum_dialogue.py --root /opt/boxbrain/codelation status)
-seed=`$(python3 seed/codelation_seed.py summary --model seed.bin)
+seed_migration=none
+if seed=`$(python3 seed/codelation_seed.py summary --model seed.bin 2>/dev/null); then
+  :
+else
+  legacy="verification/seed-bin-incompatible-`$stamp.bin"
+  legacy_sha=none
+  if [ -f seed.bin ]; then
+    cp -a seed.bin "`$legacy"
+    chmod 600 "`$legacy"
+    legacy_sha=`$(sha256sum "`$legacy" | awk '{print `$1}')
+  fi
+  recovered=''
+  if [ -d /opt/boxbrain/rollback ]; then
+    for candidate in `$(find /opt/boxbrain/rollback -maxdepth 2 -type f -name seed.bin -print 2>/dev/null | sort -r); do
+      if python3 seed/codelation_seed.py summary --model "`$candidate" >/dev/null 2>&1; then
+        cp -a "`$candidate" seed.bin
+        recovered="`$candidate"
+        break
+      fi
+    done
+  fi
+  if [ -n "`$recovered" ]; then
+    seed=`$(python3 seed/codelation_seed.py summary --model seed.bin)
+    seed_migration="recovered_valid_rollback source=`$recovered legacy_sha256=`$legacy_sha"
+  else
+    python3 - <<'PY'
+from pathlib import Path
+from seed.codelation_seed import SeedGraph
+SeedGraph().save(Path('seed.bin'))
+PY
+    seed=`$(python3 seed/codelation_seed.py summary --model seed.bin)
+    seed_migration="reinitialized_empty_v1 legacy_sha256=`$legacy_sha"
+  fi
+fi
 pythonv=`$(python3 --version 2>&1)
 arch=`$(uname -m)
 units=`$(systemctl list-unit-files --no-legend 2>/dev/null | grep -Eic 'aurum|codelation' || true)
@@ -99,13 +132,14 @@ peer=`$peer
 after=`$after
 mind=`$mind
 seed=`$seed
+seed_migration=`$seed_migration
 matching_systemd_units=`$units
 matching_user_cron=`$usercron
 matching_root_cron=`$rootcron
 rollback=`$rollback
 EOF
 chmod 600 verification/AURUM_LIVE_VERIFY.txt
-printf '%s\n' "`$before" "`$peer" "`$after" "`$mind" "`$seed" "`$pythonv" "rollback=`$rollback" "matching_systemd_units=`$units" "matching_user_cron=`$usercron" "matching_root_cron=`$rootcron"
+printf '%s\n' "`$before" "`$peer" "`$after" "`$mind" "`$seed" "seed_migration=`$seed_migration" "`$pythonv" "rollback=`$rollback" "matching_systemd_units=`$units" "matching_user_cron=`$usercron" "matching_root_cron=`$rootcron"
 "@
     $install = $install -replace "`r", ""
     $install | & $ssh.Source @options $target "bash -s"
