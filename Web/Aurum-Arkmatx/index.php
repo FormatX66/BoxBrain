@@ -36,7 +36,7 @@ function status_payload() {
         'schema' => SCHEMA,
         'carrier' => 'https',
         'portal' => 'https://aurum.arkmatx.com/',
-        'capabilities' => array('uaf_receive','uaf_store','uaf_emit','human_projection','content_addressed_state','node_enroll','prompt_ingest'),
+        'capabilities' => array('uaf_receive','uaf_store','uaf_emit','human_projection','content_addressed_state','node_enroll','node_heartbeat','prompt_ingest'),
         'events' => array('merged'=>count($merged),'rejected'=>count($rejected),'outbox'=>count($outbox),'nodes'=>count($nodes))
     );
 }
@@ -90,21 +90,45 @@ $digest = hash('sha256', $raw);
 $file = $inboxDir . '/' . $digest . '.merged.json';
 if (!file_exists($file)) @file_put_contents($file, $raw, LOCK_EX);
 
-if ($frame['intent'] === 'node_enroll') {
+if ($frame['intent'] === 'node_enroll' || $frame['intent'] === 'node_heartbeat') {
     $delta = is_array($frame['state_delta']) ? $frame['state_delta'] : array();
     $nodeId = isset($delta['node_id']) ? preg_replace('/[^A-Za-z0-9._-]/', '', (string)$delta['node_id']) : '';
     if ($nodeId === '' || strlen($nodeId) > 64) respond_json(400, array('error'=>'node-id'));
-    $record = array(
-        'schema'=>'aurum.node.v0',
-        'node_id'=>$nodeId,
-        'name'=>isset($delta['name']) ? substr((string)$delta['name'],0,128) : $nodeId,
-        'os'=>isset($delta['os']) ? substr((string)$delta['os'],0,128) : 'unknown',
-        'arch'=>isset($delta['arch']) ? substr((string)$delta['arch'],0,64) : 'unknown',
-        'last_seen'=>time(),
-        'controller'=>NODE_NAME,
-        'frame_sha256'=>$digest
-    );
-    @file_put_contents($nodesDir . '/' . $nodeId . '.json', json_encode($record, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
+    $nodePath = $nodesDir . '/' . $nodeId . '.json';
+    $existing = null;
+    if (is_file($nodePath)) {
+        $existing = json_decode((string)@file_get_contents($nodePath), true);
+        if (!is_array($existing)) $existing = null;
+    }
+    if ($frame['intent'] === 'node_heartbeat' && $existing === null) {
+        respond_json(409, array('status'=>'rejected','reason'=>'node-not-enrolled','node_id'=>$nodeId));
+    }
+    $now = time();
+    if ($frame['intent'] === 'node_enroll') {
+        $record = array(
+            'schema'=>'aurum.node.v0',
+            'node_id'=>$nodeId,
+            'name'=>isset($delta['name']) ? substr((string)$delta['name'],0,128) : $nodeId,
+            'os'=>isset($delta['os']) ? substr((string)$delta['os'],0,128) : 'unknown',
+            'arch'=>isset($delta['arch']) ? substr((string)$delta['arch'],0,64) : 'unknown',
+            'carrier'=>isset($delta['carrier']) ? substr((string)$delta['carrier'],0,64) : 'https-outbound',
+            'status'=>'online',
+            'first_seen'=>($existing && isset($existing['first_seen'])) ? (int)$existing['first_seen'] : $now,
+            'last_seen'=>$now,
+            'controller'=>NODE_NAME,
+            'frame_sha256'=>$digest
+        );
+    } else {
+        $record = $existing;
+        $record['last_seen'] = $now;
+        $record['status'] = 'online';
+        $record['frame_sha256'] = $digest;
+        if (isset($delta['carrier'])) $record['carrier'] = substr((string)$delta['carrier'],0,64);
+        if (isset($delta['addresses']) && is_array($delta['addresses'])) {
+            $record['addresses'] = array_slice(array_map('strval', $delta['addresses']), 0, 8);
+        }
+    }
+    @file_put_contents($nodePath, json_encode($record, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
 }
 
 $receipt = array(
