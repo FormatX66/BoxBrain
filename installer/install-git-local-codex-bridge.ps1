@@ -19,10 +19,22 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 $sourceRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $git = (Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-$remoteOutput = @(& $git -C $sourceRoot remote get-url $RemoteName 2>$null)
-$remoteExitCode = $LASTEXITCODE
-$remoteUrl = [string]($remoteOutput | Select-Object -First 1)
-if ($remoteExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($remoteUrl)) {
+
+function Invoke-InstallerGit {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& $git @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally { $ErrorActionPreference = $previousPreference }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = $output }
+}
+
+$remote = Invoke-InstallerGit -Arguments @("-C", $sourceRoot, "remote", "get-url", $RemoteName)
+$remoteUrl = [string]($remote.Output | Select-Object -First 1)
+if ($remote.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($remoteUrl)) {
     throw "The configured Git remote is unavailable."
 }
 if ($remoteUrl -notmatch '(?i)github\.com[:/]FormatX66/BoxBrain(?:\.git)?$') {
@@ -67,23 +79,22 @@ if ($PSCmdlet.ShouldProcess($resolvedInstallRoot, "Install locally reviewed BoxB
     }
 
     if (-not (Test-Path -LiteralPath $runtimeRepo -PathType Container)) {
-        & $git clone --no-tags --single-branch --branch $RemoteBranch $remoteUrl $runtimeRepo 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not create the isolated bridge repository." }
+        $clone = Invoke-InstallerGit -Arguments @("clone", "--no-tags", "--single-branch", "--branch", $RemoteBranch, $remoteUrl, $runtimeRepo)
+        if ($clone.ExitCode -ne 0) { throw "Could not create the isolated bridge repository." }
     }
     else {
-        $actualUrlOutput = @(& $git -C $runtimeRepo remote get-url $RemoteName 2>$null)
-        $actualUrlExitCode = $LASTEXITCODE
-        $actualUrl = [string]($actualUrlOutput | Select-Object -First 1)
-        if ($actualUrlExitCode -ne 0) { throw "The existing bridge repository remote is unavailable." }
+        $actualRemote = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "remote", "get-url", $RemoteName)
+        $actualUrl = [string]($actualRemote.Output | Select-Object -First 1)
+        if ($actualRemote.ExitCode -ne 0) { throw "The existing bridge repository remote is unavailable." }
         if ($actualUrl -ne $remoteUrl) { throw "The existing bridge repository uses a different remote URL." }
-        $dirty = @(& $git -C $runtimeRepo status --porcelain)
-        if ($dirty.Count -gt 0) { throw "The isolated bridge repository contains local changes; inspect them before reinstalling." }
-        & $git -C $runtimeRepo fetch --no-tags $RemoteName "+refs/heads/${RemoteBranch}:refs/remotes/${RemoteName}/${RemoteBranch}" 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not refresh the isolated bridge repository." }
-        & $git -C $runtimeRepo checkout $RemoteBranch 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not select the configured bridge branch." }
-        & $git -C $runtimeRepo merge --ff-only "refs/remotes/${RemoteName}/${RemoteBranch}" 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "The bridge repository could not fast-forward cleanly." }
+        $status = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "status", "--porcelain")
+        if ($status.ExitCode -ne 0 -or $status.Output.Count -gt 0) { throw "The isolated bridge repository contains local changes; inspect them before reinstalling." }
+        $fetch = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "fetch", "--no-tags", $RemoteName, "+refs/heads/${RemoteBranch}:refs/remotes/${RemoteName}/${RemoteBranch}")
+        if ($fetch.ExitCode -ne 0) { throw "Could not refresh the isolated bridge repository." }
+        $checkout = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "checkout", $RemoteBranch)
+        if ($checkout.ExitCode -ne 0) { throw "Could not select the configured bridge branch." }
+        $merge = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "merge", "--ff-only", "refs/remotes/${RemoteName}/${RemoteBranch}")
+        if ($merge.ExitCode -ne 0) { throw "The bridge repository could not fast-forward cleanly." }
     }
 
     Copy-Item -LiteralPath $sourceModule -Destination (Join-Path $binRoot "BoxBrainCodexBridge.psm1") -Force
@@ -120,7 +131,7 @@ if ($PSCmdlet.ShouldProcess($resolvedInstallRoot, "Install locally reviewed BoxB
     }
     $trust = [ordered]@{
         schema_version = 1
-        source_commit = (& $git -C $sourceRoot rev-parse HEAD).Trim()
+        source_commit = [string]((Invoke-InstallerGit -Arguments @("-C", $sourceRoot, "rev-parse", "HEAD")).Output | Select-Object -First 1)
         dispatchers = $trusted
     }
     [IO.File]::WriteAllText(
@@ -169,11 +180,13 @@ if ($PSCmdlet.ShouldProcess($resolvedInstallRoot, "Install locally reviewed BoxB
         [Text.UTF8Encoding]::new($false)
     )
 
-    if (-not (& $git -C $runtimeRepo config user.name)) {
-        & $git -C $runtimeRepo config user.name "BoxBrain Queue Watcher"
+    $userName = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "config", "user.name")
+    if ($userName.ExitCode -ne 0 -or $userName.Output.Count -eq 0) {
+        if ((Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "config", "user.name", "BoxBrain Queue Watcher")).ExitCode -ne 0) { throw "Could not configure the isolated Git author name." }
     }
-    if (-not (& $git -C $runtimeRepo config user.email)) {
-        & $git -C $runtimeRepo config user.email "56238984+FormatX66@users.noreply.github.com"
+    $userEmail = Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "config", "user.email")
+    if ($userEmail.ExitCode -ne 0 -or $userEmail.Output.Count -eq 0) {
+        if ((Invoke-InstallerGit -Arguments @("-C", $runtimeRepo, "config", "user.email", "56238984+FormatX66@users.noreply.github.com")).ExitCode -ne 0) { throw "Could not configure the isolated Git author email." }
     }
 
     $powerShell = (Get-Command powershell.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source

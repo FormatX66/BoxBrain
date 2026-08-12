@@ -12,6 +12,22 @@ $script:AllowedStatuses = @(
     "REJECTED"
 )
 
+function Invoke-BridgeGitNative {
+    param(
+        [Parameter(Mandatory)][string]$GitPath,
+        [Parameter(Mandatory)][string[]]$Arguments
+    )
+
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& $GitPath @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally { $ErrorActionPreference = $previousPreference }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = $output }
+}
+
 function ConvertTo-BridgeHashtable {
     param([Parameter(Mandatory)]$InputObject)
 
@@ -442,10 +458,9 @@ function Test-BridgeRemoteConfiguration {
     if ($Config["remote_ref"] -notmatch '^refs/heads/[A-Za-z0-9._/-]+$' -or $Config["remote_ref"] -match '\.\.|\\') {
         throw "Invalid configured remote ref."
     }
-    $remoteOutput = @(& $GitPath -C $Config["repository_root"] remote get-url $Config["remote_name"] 2>$null)
-    $remoteExitCode = $LASTEXITCODE
-    $actual = $remoteOutput | Select-Object -First 1
-    if ($remoteExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($actual)) { throw "Configured Git remote is unavailable." }
+    $remote = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $Config["repository_root"], "remote", "get-url", $Config["remote_name"])
+    $actual = $remote.Output | Select-Object -First 1
+    if ($remote.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($actual)) { throw "Configured Git remote is unavailable." }
     if ($actual.Trim() -ne [string]$Config["remote_url"]) { throw "Configured Git remote URL does not match the locally approved URL." }
     if ($actual -notmatch '(?i)github\.com[:/]FormatX66/BoxBrain(?:\.git)?$') {
         throw "Only the configured FormatX66/BoxBrain remote is permitted."
@@ -462,13 +477,16 @@ function Invoke-BridgeFetch {
 
     Test-BridgeRemoteConfiguration -Config $Config -GitPath $GitPath | Out-Null
     $tracking = [string]$Config["remote_tracking_ref"]
-    & $GitPath -C $Config["repository_root"] fetch --no-tags --prune $Config["remote_name"] "+$($Config['remote_ref']):$tracking" 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Git fetch failed." }
+    $fetch = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @(
+        "-C", $Config["repository_root"], "fetch", "--no-tags", "--prune", $Config["remote_name"],
+        "+$($Config['remote_ref']):$tracking"
+    )
+    if ($fetch.ExitCode -ne 0) { throw "Git fetch failed." }
     if ($FastForward) {
-        $dirty = @(& $GitPath -C $Config["repository_root"] status --porcelain --untracked-files=no)
-        if ($LASTEXITCODE -ne 0 -or $dirty.Count -gt 0) { throw "Bridge repository contains unrelated local changes." }
-        & $GitPath -C $Config["repository_root"] merge --ff-only $tracking 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Bridge branch could not fast-forward cleanly." }
+        $status = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $Config["repository_root"], "status", "--porcelain", "--untracked-files=no")
+        if ($status.ExitCode -ne 0 -or $status.Output.Count -gt 0) { throw "Bridge repository contains unrelated local changes." }
+        $merge = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $Config["repository_root"], "merge", "--ff-only", $tracking)
+        if ($merge.ExitCode -ne 0) { throw "Bridge branch could not fast-forward cleanly." }
     }
     return $true
 }
@@ -729,18 +747,20 @@ function Publish-BridgeTaskCompletion {
         ([string]$Config["queue_path"] -replace '\\', '/'),
         ([string]$Config["complete_path"] -replace '\\', '/')
     )
-    $changed = @(& $GitPath -C $repo status --porcelain | ForEach-Object { $_.Substring(3) -replace '\\', '/' })
+    $status = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $repo, "status", "--porcelain")
+    if ($status.ExitCode -ne 0) { throw "Could not inspect bounded queue changes." }
+    $changed = @($status.Output | ForEach-Object { ([string]$_).Substring(3) -replace '\\', '/' })
     foreach ($path in $changed) {
         if ($allowed -notcontains $path) { throw "Bridge repository contains an unrelated change." }
     }
     if ($changed.Count -gt 0) {
-        & $GitPath -C $repo add -- $Config["queue_path"] $Config["complete_path"]
-        if ($LASTEXITCODE -ne 0) { throw "Could not stage bounded queue records." }
-        & $GitPath -C $repo commit -m "Record $($Task.Id) bridge checkpoint" 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "Could not commit bounded queue record." }
+        $add = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $repo, "add", "--", $Config["queue_path"], $Config["complete_path"])
+        if ($add.ExitCode -ne 0) { throw "Could not stage bounded queue records." }
+        $commit = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $repo, "commit", "-m", "Record $($Task.Id) bridge checkpoint")
+        if ($commit.ExitCode -ne 0) { throw "Could not commit bounded queue record." }
     }
-    & $GitPath -C $repo push $Config["remote_name"] "HEAD:$($Config['remote_ref'])" 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not push bounded queue result." }
+    $push = Invoke-BridgeGitNative -GitPath $GitPath -Arguments @("-C", $repo, "push", $Config["remote_name"], "HEAD:$($Config['remote_ref'])")
+    if ($push.ExitCode -ne 0) { throw "Could not push bounded queue result." }
     return $true
 }
 
