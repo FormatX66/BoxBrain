@@ -54,6 +54,40 @@ If required Codex/model/tool usage is unavailable:
 
 ## Active tasks
 
+[TASK BB-009]
+STATUS: PENDING
+TITLE: Deploy Codelation Seed to BBPI4
+PRIORITY: CRITICAL
+DEPENDS:
+REQUIRES: CODEX, LOCAL_SHELL, HARDWARE
+SOURCE_PR: https://github.com/FormatX66/BoxBrain/pull/14
+
+DESCRIPTION:
+Deploy the passive Codelation seed from branch `agent/codelation-seed` to the
+authorized BBPI4 appliance. The Codex instance with local network access must
+try the established BoxBrain Wi-Fi access point first, then USB-C, then LAN.
+
+EXECUTION:
+- Fetch `agent/codelation-seed` and run its focused tests locally.
+- Try key-only SSH as `kali` at `10.42.194.1`, `10.12.194.1`, then
+  `192.168.0.194`, using the existing dedicated BoxBrain identity and strict
+  host-key verification.
+- Copy only `Projects/Codelation` through a uniquely named temporary directory.
+- Install at `/opt/boxbrain/codelation` with least-privilege ownership.
+- Do not enable autorun, network access, systemd services, or actuation.
+- Remove the temporary transfer directory after verification.
+- Post the bounded verification result to BoxBrain PR #14.
+
+ACCEPTANCE:
+- Local Codelation tests pass before transfer.
+- Pi Python version and installed path are recorded.
+- All Codelation tests pass on BBPI4.
+- `seed/codelation_seed.py summary --model seed.bin` succeeds on BBPI4.
+- No password, SSH key, credential, or private host data is logged.
+- Temporary transfer data is removed.
+- PR #14 contains the route used and verification result.
+END TASK
+
 +[TASK BB-008]
 STATUS: IN_PROGRESS
 TITLE: GitHub Copilot Offload for Local Windows Tasks
