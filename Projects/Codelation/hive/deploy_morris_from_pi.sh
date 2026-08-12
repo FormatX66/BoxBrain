@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ROOT="${AURUM_ROOT:-/opt/boxbrain/codelation}"
+NODE="$ROOT/hive/aurum_node.py"
 NODE_NAME="Aurum-Morris"
 SSH_OPTS=(-o BatchMode=yes -o IdentitiesOnly=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=4)
+SCP_OPTS=(-o BatchMode=yes -o IdentitiesOnly=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=4)
 
-log(){ printf '%s\n' "$*"; }
+[ -f "$NODE" ] || { echo 'AURUM_MORRIS_BLOCKED reason=node_payload_missing'; exit 19; }
 
 candidates=()
 for h in morris morris.local; do
@@ -17,7 +19,6 @@ while read -r ip _; do
   case "${name,,}" in *morris*) candidates+=("$ip");; esac
 done < <(ip neigh show 2>/dev/null | awk '$1 ~ /^[0-9]/ {print $1,$NF}')
 
-# de-duplicate while preserving order
 uniq=(); declare -A seen=()
 for h in "${candidates[@]}"; do
   [[ ${seen[$h]+x} ]] && continue
@@ -29,7 +30,6 @@ if [ ${#uniq[@]} -eq 0 ]; then
   exit 20
 fi
 
-# Existing SSH config/user is preferred. No password guessing or credential spraying.
 target=''
 for h in "${uniq[@]}"; do
   if ssh "${SSH_OPTS[@]}" "$h" 'exit 0' </dev/null >/dev/null 2>&1; then target="$h"; break; fi
@@ -44,12 +44,15 @@ if [ -z "$target" ]; then
   exit 21
 fi
 
-# Detect Windows vs POSIX over the already-authorized channel.
 if ssh "${SSH_OPTS[@]}" "$target" 'powershell.exe -NoProfile -NonInteractive -Command "$PSVersionTable.PSVersion.ToString()"' </dev/null >/dev/null 2>&1; then
-  cat "$ROOT/hive/install_morris_node.ps1" | ssh "${SSH_OPTS[@]}" "$target" 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command -'
+  winroot="$(ssh "${SSH_OPTS[@]}" "$target" 'powershell.exe -NoProfile -NonInteractive -Command "$p=Join-Path $env:LOCALAPPDATA '\''BoxBrain\AurumMorris'\''; New-Item -ItemType Directory -Force -Path $p | Out-Null; $p.Replace('\''\'\'', '\''/'\'')"' | tr -d '\r')"
+  [ -n "$winroot" ] || { echo 'AURUM_MORRIS_BLOCKED reason=windows_install_path_unavailable'; exit 22; }
+  scp "${SCP_OPTS[@]}" "$NODE" "${target}:$winroot/aurum_node.py"
+  ssh "${SSH_OPTS[@]}" "$target" 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$root=Join-Path $env:LOCALAPPDATA '\''BoxBrain\AurumMorris'\''; $node=Join-Path $root '\''aurum_node.py'\''; $python=(Get-Command pythonw.exe -ErrorAction SilentlyContinue).Source; if(-not $python){$python=(Get-Command python.exe -ErrorAction SilentlyContinue).Source}; if(-not $python){throw '\''Python runtime unavailable'\''}; $args='\''"'\''+$node+'\''" --root "'\''+$root+'\''" --name Aurum-Morris run --interval 2'\''; New-ItemProperty -Path '\''HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'\'' -Name '\''AurumMorris'\'' -Value ('\''"'\''+$python+'\''" '\''+$args) -PropertyType String -Force | Out-Null; Get-CimInstance Win32_Process | Where-Object {$_.CommandLine -like '\''*aurum_node.py*Aurum-Morris*run*'\''} | ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}; Start-Process -FilePath $python -ArgumentList $args -WindowStyle Hidden; $check=(Get-Command python.exe -ErrorAction SilentlyContinue).Source; if(-not $check){$check=$python}; & $check $node --root $root --name Aurum-Morris cycle | Out-Null; & $check $node --root $root --name Aurum-Morris status"'
 else
-  tar -C "$ROOT" -cf - aurum_hive.py slush_query.py state_diff.py capability_registry.py human_projection.py autonomous_cycle.py intrinsic_policy.py hive_event_integration.py 2>/dev/null \
-    | ssh "${SSH_OPTS[@]}" "$target" 'set -eu; umask 077; mkdir -p "$HOME/.aurum"; tar -C "$HOME/.aurum" -xf -; printf "%s\n" "AURUM_NODE_READY name=Aurum-Morris path=$HOME/.aurum"'
+  ssh "${SSH_OPTS[@]}" "$target" 'set -eu; umask 077; mkdir -p "$HOME/.aurum"'
+  scp "${SCP_OPTS[@]}" "$NODE" "${target}:~/.aurum/aurum_node.py"
+  ssh "${SSH_OPTS[@]}" "$target" 'set -eu; command -v python3 >/dev/null; pkill -f "aurum_node.py.*Aurum-Morris.*run" 2>/dev/null || true; nohup python3 "$HOME/.aurum/aurum_node.py" --root "$HOME/.aurum/state" --name Aurum-Morris run --interval 2 >"$HOME/.aurum/aurum.log" 2>&1 </dev/null & python3 "$HOME/.aurum/aurum_node.py" --root "$HOME/.aurum/state" --name Aurum-Morris cycle >/dev/null; python3 "$HOME/.aurum/aurum_node.py" --root "$HOME/.aurum/state" --name Aurum-Morris status'
 fi
 
 printf 'AURUM_MORRIS_DEPLOYED target=%s node=%s\n' "$target" "$NODE_NAME"
