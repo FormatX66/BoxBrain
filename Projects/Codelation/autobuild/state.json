@@ -1,11 +1,17 @@
 {
   "cycle": 7,
   "last_capability_build": {
-    "capability": "outbound-node-heartbeat",
-    "deployment_run": 31643958269,
-    "status": "implemented-tested-deployed",
-    "test_run": 31643880096,
-    "verified_at": 1786571138
+    "capability": "bbpi4-local-lane-route-fallback",
+    "deployment_blocker": "morris-local-lane-reapproval-required",
+    "implementation_commits": [
+      "54b7d74632cb88a0297e09b0f8982e5c5993c788",
+      "38d930f5a1f0a0ce4880c716b4dba057c9dcd825"
+    ],
+    "status": "implemented-tested-not-deployed",
+    "test_job": 94287647567,
+    "test_run": 31648561718,
+    "test_scope": "codelation-tests-success",
+    "verified_at": 1786575127
   },
   "last_controller_ack": {
     "ok": true,
@@ -33,7 +39,7 @@
     "status": "active-edge-web-node",
     "time": 1786574946
   },
-  "next": "bootstrap-morris-via-winrm-then-enroll-arkmatx",
+  "next": "reapprove-morris-local-lane-then-deploy-bbpi4-via-fallback-routes",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -42,11 +48,13 @@
         "arkmatx-outbound",
         "local-windows-lane"
       ],
+      "confirmation": "operator-observed-bootstrap-heartbeat",
+      "node_id": "825e5a7b7d4a7aed",
       "outbound_enrollment_ready": true,
       "preferred_bootstrap": [
         "winrm"
       ],
-      "status": "unconfirmed"
+      "status": "confirmed"
     },
     "BBPI4": {
       "carriers": [
@@ -57,6 +65,7 @@
         "remote-desktop",
         "arkmatx-outbound"
       ],
+      "local_lane_route_fallback_ready": true,
       "outbound_enrollment_ready": true,
       "preferred_bootstrap": [
         "10.12.194.1",
@@ -67,5 +76,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786574947
+  "updated_at": 1786575127
 }
