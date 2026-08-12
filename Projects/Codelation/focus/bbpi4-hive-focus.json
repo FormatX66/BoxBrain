@@ -1,0 +1,34 @@
+{
+  "schema": "aurum.focus.v0",
+  "focus_id": "bbpi4-enrollment",
+  "priority": 100,
+  "target": "BBPI4",
+  "desired_state": "confirmed-enrolled-heartbeating-with-Aurum-Arkmatx",
+  "stop_condition": "fresh controller heartbeat from distinct BBPI4 node identity",
+  "participants": {
+    "Aurum-Arkmatx": ["controller", "node-registry", "uaf-receipt"],
+    "Aurum-Morris": ["direct-link-discovery", "bootstrap-carrier", "heartbeat-observer"],
+    "Aurum-Windows-PC": ["alternate-network-observer", "bootstrap-assist"],
+    "Aurum-GPT": ["reasoning", "state-analysis", "adapter-design"],
+    "Aurum-iPhone": ["human-projection"]
+  },
+  "carrier_order": [
+    "morris-direct-usb:10.12.194.1",
+    "morris-pi-ap:10.42.194.1",
+    "morris-mdns:bbpi4.local",
+    "morris-lan:192.168.0.194",
+    "remote-desktop",
+    "bbpi4-outbound-to-arkmatx"
+  ],
+  "constraints": [
+    "do-not-guess-credentials",
+    "preserve-local-authorization-boundaries",
+    "do-not-mark-confirmed-without-fresh-heartbeat",
+    "prefer-stable-bootstrap-over-evolving-payload"
+  ],
+  "defer_until_confirmed": [
+    "slush-repo-migration",
+    "portal-inference-expansion",
+    "nonessential-self-build-features"
+  ]
+}
