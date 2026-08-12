@@ -37,6 +37,17 @@ python3 seed/codelation_seed.py summary --model seed.bin
 
 Run verification with `python3 -m unittest discover -s tests -v`.
 
+From an authorized Windows BoxBrain checkout, deploy over the first reachable
+BBPI4 route (Wi-Fi AP, USB-C, then LAN) with:
+
+```powershell
+.\installer\deploy-codelation-to-pi.ps1
+```
+
+The deployer requires the existing dedicated SSH identity and pinned host key.
+It uses a private temporary directory, verifies the seed on the Pi, installs to
+`/opt/boxbrain/codelation`, and removes the temporary transfer.
+
 ## Development path
 
 - Seed 0: passive transition learning and prediction.
