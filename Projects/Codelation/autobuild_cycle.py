@@ -16,11 +16,13 @@ DEFAULT={
   'targets':{
     'BBPI4':{
       'status':'unconfirmed',
+      'outbound_enrollment_ready':False,
       'carriers':['10.12.194.1','10.42.194.1','bbpi4.local','192.168.0.194','remote-desktop','arkmatx-outbound'],
       'preferred_bootstrap':['10.12.194.1','10.42.194.1','bbpi4.local','remote-desktop']
     },
     'Aurum-Morris':{
       'status':'unconfirmed',
+      'outbound_enrollment_ready':False,
       'carriers':['winrm','arkmatx-outbound','local-windows-lane'],
       'preferred_bootstrap':['winrm']
     }
@@ -35,6 +37,7 @@ def load_state():
     for name,defaults in DEFAULT['targets'].items():
         target=current.setdefault('targets',{}).setdefault(name,{})
         target.setdefault('status','unconfirmed')
+        target.setdefault('outbound_enrollment_ready',False)
         existing=list(target.get('carriers',[]))
         target['carriers']=list(dict.fromkeys(defaults['carriers']+existing))
         target['preferred_bootstrap']=defaults.get('preferred_bootstrap',[])
@@ -67,16 +70,23 @@ def controller_emit(cycle,next_intent,targets):
     with urllib.request.urlopen(req,timeout=10) as r: return json.load(r)
 
 def choose_next(s):
+    morris=s['targets']['Aurum-Morris']; bb=s['targets']['BBPI4']
+    if not morris.get('outbound_enrollment_ready') or not bb.get('outbound_enrollment_ready'):
+        return 'deploy-and-verify-outbound-node-heartbeat'
     # Prefer concrete, already-authorized local bootstrap carriers before generic outbound enrollment.
-    if s['targets']['Aurum-Morris']['status']!='confirmed': return 'bootstrap-morris-via-winrm-then-enroll-arkmatx'
-    if s['targets']['BBPI4']['status']!='confirmed': return 'bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx'
+    if morris['status']!='confirmed': return 'bootstrap-morris-via-winrm-then-enroll-arkmatx'
+    if bb['status']!='confirmed': return 'bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx'
     return 'slush-repo-ingest'
 
 def main():
     s=load_state();s['cycle']=int(s.get('cycle',0))+1
     try:
         c=controller_status()
-        s['last_controller_status']={'ok':True,'node':c.get('node'),'status':c.get('status'),'events':c.get('events'),'time':int(time.time())}
+        capabilities=list(c.get('capabilities') or [])
+        s['last_controller_status']={'ok':True,'node':c.get('node'),'status':c.get('status'),'events':c.get('events'),'capabilities':capabilities,'time':int(time.time())}
+        if 'node_enroll' in capabilities and 'node_heartbeat' in capabilities:
+            s['targets']['BBPI4']['outbound_enrollment_ready']=True
+            s['targets']['Aurum-Morris']['outbound_enrollment_ready']=True
         event('controller-heartbeat',s['last_controller_status'])
     except Exception as e:
         s['last_controller_status']={'ok':False,'error':type(e).__name__,'time':int(time.time())}
