@@ -19,7 +19,16 @@ $now=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $heartbeat=[ordered]@{schema='aurum.uaf.v0';frame_id="heartbeat-$nodeId-$now";origin="Aurum-Node-$nodeId";target='Aurum-Arkmatx';intent='node_heartbeat';state_delta=@{node_id=$nodeId;carrier='https-outbound'};provenance=@{node="Aurum-Node-$nodeId";created=$now};verification=@{content_addressed=$true;reversible=$true}}
 $beatResponse=Invoke-RestMethod -Method Post -Uri $Controller -ContentType 'application/json' -Body ($heartbeat|ConvertTo-Json -Depth 8 -Compress)
 $beatResponse | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Root 'heartbeat.json') -Encoding UTF8
+$workerPath=Join-Path $Root 'worker.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri "$Portal/worker.ps1" -OutFile $workerPath
+$runKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+New-Item -Path $runKey -Force | Out-Null
+$workerCmd='powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $workerPath
+Set-ItemProperty -Path $runKey -Name 'AurumWorker' -Value $workerCmd
+$existing=Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*$workerPath*" }
+if(-not $existing){Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$workerPath)}
 Write-Host "Aurum node enrolled and heartbeat confirmed."
 Write-Host "Node: $nodeId"
 Write-Host "Controller: $Controller"
 Write-Host "Config: $(Join-Path $Root 'node.json')"
+Write-Host "Worker: installed and started"
