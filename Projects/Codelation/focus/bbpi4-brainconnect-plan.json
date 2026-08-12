@@ -1,0 +1,38 @@
+{
+  "schema":"aurum.capability-plan.v0",
+  "target":"BBPI4",
+  "goal":"fresh-distinct-arkmatx-enrollment-heartbeat",
+  "strategy":[
+    {
+      "step":1,
+      "capability":"candidate-discovery",
+      "node":"Aurum-Morris",
+      "candidates":["10.12.194.1","10.42.194.1","bbpi4.local","192.168.0.194"]
+    },
+    {
+      "step":2,
+      "capability":"target-identity-probe",
+      "implementation":"BrainConnect.TargetProbeService",
+      "requirement":"candidate identity must match expected target before execution"
+    },
+    {
+      "step":3,
+      "capability":"minimal-bootstrap-execution",
+      "implementation":"Web/Aurum-Arkmatx/bootstrap.sh",
+      "constraint":"do not deploy evolving Codelation tree before enrollment"
+    },
+    {
+      "step":4,
+      "capability":"outbound-enrollment",
+      "controller":"Aurum-Arkmatx",
+      "transport":"https-outbound-uaf"
+    },
+    {
+      "step":5,
+      "capability":"confirmation",
+      "condition":"new BBPI4 node registry record plus fresh heartbeat"
+    }
+  ],
+  "fallback":"remote-desktop command execution if no machine carrier is available",
+  "safety":["no credential guessing","no identity mismatch execution","reversible bootstrap","fresh heartbeat required"]
+}
