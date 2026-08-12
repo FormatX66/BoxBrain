@@ -3,3 +3,6 @@
 {"kind": "controller-heartbeat", "payload": {"events": {"merged": 1, "nodes": 0, "outbox": 1, "rejected": 0}, "node": "Aurum-Arkmatx", "ok": true, "status": "active-edge-web-node", "time": 1786570818}, "time": 1786570818}
 {"kind": "controller-build-ack", "payload": {"ok": true, "time": 1786570819}, "time": 1786570819}
 {"kind": "cycle-checkpoint", "payload": {"cycle": 2, "next": "enroll-bbpi4-via-outbound-controller"}, "time": 1786570819}
+{"kind": "controller-heartbeat", "payload": {"events": {"merged": 2, "nodes": 0, "outbox": 2, "rejected": 0}, "node": "Aurum-Arkmatx", "ok": true, "status": "active-edge-web-node", "time": 1786571005}, "time": 1786571005}
+{"kind": "controller-build-ack", "payload": {"ok": true, "time": 1786571006}, "time": 1786571006}
+{"kind": "cycle-checkpoint", "payload": {"cycle": 3, "next": "bootstrap-morris-via-winrm-then-enroll-arkmatx", "targets": {"Aurum-Morris": {"carriers": ["winrm", "arkmatx-outbound", "local-windows-lane"], "preferred_bootstrap": ["winrm"], "status": "unconfirmed"}, "BBPI4": {"carriers": ["10.12.194.1", "10.42.194.1", "bbpi4.local", "192.168.0.194", "remote-desktop", "arkmatx-outbound"], "preferred_bootstrap": ["10.12.194.1", "10.42.194.1", "bbpi4.local", "remote-desktop"], "status": "unconfirmed"}}}, "time": 1786571006}

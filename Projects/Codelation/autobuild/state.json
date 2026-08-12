@@ -1,28 +1,32 @@
 {
-  "cycle": 2,
+  "cycle": 3,
   "last_controller_ack": {
     "ok": true,
-    "time": 1786570819
+    "time": 1786571006
   },
   "last_controller_status": {
     "events": {
-      "merged": 1,
+      "merged": 2,
       "nodes": 0,
-      "outbox": 1,
+      "outbox": 2,
       "rejected": 0
     },
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1786570818
+    "time": 1786571005
   },
-  "next": "enroll-bbpi4-via-outbound-controller",
+  "next": "bootstrap-morris-via-winrm-then-enroll-arkmatx",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
       "carriers": [
+        "winrm",
         "arkmatx-outbound",
         "local-windows-lane"
+      ],
+      "preferred_bootstrap": [
+        "winrm"
       ],
       "status": "unconfirmed"
     },
@@ -32,10 +36,17 @@
         "10.42.194.1",
         "bbpi4.local",
         "192.168.0.194",
+        "remote-desktop",
         "arkmatx-outbound"
+      ],
+      "preferred_bootstrap": [
+        "10.12.194.1",
+        "10.42.194.1",
+        "bbpi4.local",
+        "remote-desktop"
       ],
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786570819
+  "updated_at": 1786571006
 }
