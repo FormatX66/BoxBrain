@@ -6,7 +6,8 @@ const MAX_BODY = 65536;
 $stateDir = __DIR__ . '/state';
 $inboxDir = $stateDir . '/inbox';
 $outboxDir = $stateDir . '/outbox';
-foreach (array($stateDir, $inboxDir, $outboxDir) as $d) {
+$nodesDir = $stateDir . '/nodes';
+foreach (array($stateDir, $inboxDir, $outboxDir, $nodesDir) as $d) {
     if (!is_dir($d)) { @mkdir($d, 0700, true); }
 }
 
@@ -24,28 +25,42 @@ function respond_json($code, $body) {
 }
 
 function status_payload() {
-    global $inboxDir, $outboxDir;
+    global $inboxDir, $outboxDir, $nodesDir;
     $merged = glob($inboxDir . '/*.merged.json'); if ($merged === false) $merged = array();
     $rejected = glob($inboxDir . '/*.rejected.json'); if ($rejected === false) $rejected = array();
     $outbox = glob($outboxDir . '/*.json'); if ($outbox === false) $outbox = array();
+    $nodes = glob($nodesDir . '/*.json'); if ($nodes === false) $nodes = array();
     return array(
         'node' => NODE_NAME,
         'status' => 'active-edge-web-node',
         'schema' => SCHEMA,
         'carrier' => 'https',
-        'capabilities' => array('uaf_receive','uaf_store','uaf_emit','human_projection','content_addressed_state'),
-        'events' => array('merged'=>count($merged),'rejected'=>count($rejected),'outbox'=>count($outbox))
+        'portal' => 'https://aurum.arkmatx.com/',
+        'capabilities' => array('uaf_receive','uaf_store','uaf_emit','human_projection','content_addressed_state','node_enroll','prompt_ingest'),
+        'events' => array('merged'=>count($merged),'rejected'=>count($rejected),'outbox'=>count($outbox),'nodes'=>count($nodes))
     );
 }
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 $requestUri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
 $path = parse_url($requestUri, PHP_URL_PATH); if (!$path) $path = '/';
+$host = isset($_SERVER['HTTP_HOST']) ? strtolower(preg_replace('/:\\d+$/', '', $_SERVER['HTTP_HOST'])) : '';
+$isPortalHost = ($host === 'aurum.arkmatx.com');
 
-if ($method === 'GET' && ($path === '/' || ends_with($path, '/index.php') || ends_with($path, '/status'))) {
+if ($method === 'GET' && $isPortalHost && ($path === '/' || ends_with($path, '/index.php'))) {
+    $portal = __DIR__ . '/portal.html';
+    if (!is_file($portal)) respond_json(503, array('error'=>'portal-unavailable'));
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store');
+    readfile($portal);
+    exit;
+}
+
+if ($method === 'GET' && ($path === '/status' || ends_with($path, '/status') || (!$isPortalHost && ($path === '/' || ends_with($path, '/index.php'))))) {
     respond_json(200, status_payload());
 }
-$uafPost = ($method === 'POST') && (ends_with($path, '/uaf') || ends_with($path, '/index.php'));
+
+$uafPost = ($method === 'POST') && (ends_with($path, '/uaf') || ends_with($path, '/index.php') || ends_with($path, '/enroll'));
 if (!$uafPost) {
     respond_json(404, array('error'=>'not-found'));
 }
@@ -63,6 +78,7 @@ foreach ($required as $key) {
 }
 if ($frame['schema'] !== SCHEMA) respond_json(400, array('error'=>'schema'));
 if ($frame['target'] !== NODE_NAME && $frame['target'] !== '*') respond_json(409, array('error'=>'wrong-target'));
+if (ends_with($path, '/enroll') && $frame['intent'] !== 'node_enroll') respond_json(409, array('error'=>'enroll-intent-required'));
 if (!isset($frame['verification']['reversible']) || $frame['verification']['reversible'] !== true) {
     $digest = hash('sha256', $raw);
     @file_put_contents($inboxDir . '/' . $digest . '.rejected.json', $raw, LOCK_EX);
@@ -74,13 +90,30 @@ $digest = hash('sha256', $raw);
 $file = $inboxDir . '/' . $digest . '.merged.json';
 if (!file_exists($file)) @file_put_contents($file, $raw, LOCK_EX);
 
+if ($frame['intent'] === 'node_enroll') {
+    $delta = is_array($frame['state_delta']) ? $frame['state_delta'] : array();
+    $nodeId = isset($delta['node_id']) ? preg_replace('/[^A-Za-z0-9._-]/', '', (string)$delta['node_id']) : '';
+    if ($nodeId === '' || strlen($nodeId) > 64) respond_json(400, array('error'=>'node-id'));
+    $record = array(
+        'schema'=>'aurum.node.v0',
+        'node_id'=>$nodeId,
+        'name'=>isset($delta['name']) ? substr((string)$delta['name'],0,128) : $nodeId,
+        'os'=>isset($delta['os']) ? substr((string)$delta['os'],0,128) : 'unknown',
+        'arch'=>isset($delta['arch']) ? substr((string)$delta['arch'],0,64) : 'unknown',
+        'last_seen'=>time(),
+        'controller'=>NODE_NAME,
+        'frame_sha256'=>$digest
+    );
+    @file_put_contents($nodesDir . '/' . $nodeId . '.json', json_encode($record, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
+}
+
 $receipt = array(
     'schema'=>SCHEMA,
     'frame_id'=>bin2hex(random_bytes(16)),
     'origin'=>NODE_NAME,
     'target'=>(string)$frame['origin'],
     'intent'=>'receipt',
-    'state_delta'=>array('received_frame'=>(string)$frame['frame_id'],'sha256'=>$digest,'status'=>'merged'),
+    'state_delta'=>array('received_frame'=>(string)$frame['frame_id'],'sha256'=>$digest,'status'=>'merged','intent'=>(string)$frame['intent']),
     'provenance'=>array('node'=>NODE_NAME,'created'=>time()),
     'verification'=>array('content_addressed'=>true,'reversible'=>true)
 );
