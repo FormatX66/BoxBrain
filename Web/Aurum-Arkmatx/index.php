@@ -45,7 +45,8 @@ $path = parse_url($requestUri, PHP_URL_PATH); if (!$path) $path = '/';
 if ($method === 'GET' && ($path === '/' || ends_with($path, '/index.php') || ends_with($path, '/status'))) {
     respond_json(200, status_payload());
 }
-if ($method !== 'POST' || !ends_with($path, '/uaf')) {
+$uafPost = ($method === 'POST') && (ends_with($path, '/uaf') || ends_with($path, '/index.php'));
+if (!$uafPost) {
     respond_json(404, array('error'=>'not-found'));
 }
 
