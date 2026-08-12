@@ -27,14 +27,16 @@ function Add-Candidate([System.Collections.Generic.HashSet[string]]$set,$value,[
   if($RequireLocal -and -not (Test-PrivateOrLinkLocalIPv4 $v)){return}
   $null=$set.Add($v)
 }
-function Get-Candidates($work){
+function Get-Candidates($work,[bool]$IncludeSystemDiscovery=$true){
   $set=New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
   $seeds=@('10.12.194.1','10.42.194.1','bbpi4.local','192.168.0.194')
   if($work.payload.addresses){$seeds=@($work.payload.addresses)}
   foreach($v in $seeds){Add-Candidate $set $v $false}
-  try{foreach($n in @(Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {$_.State -ne 'Unreachable'} | Sort-Object InterfaceIndex,IPAddress)){Add-Candidate $set $n.IPAddress $true;if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}
-  if($set.Count -lt $MaxDiscoveredCandidates){try{foreach($r in @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric,InterfaceMetric)){Add-Candidate $set $r.NextHop $true;if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}}
-  if($set.Count -lt $MaxDiscoveredCandidates){try{foreach($c in @(Get-NetIPConfiguration -ErrorAction SilentlyContinue)){if($c.IPv4DefaultGateway){Add-Candidate $set $c.IPv4DefaultGateway.NextHop $true};if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}}
+  if($IncludeSystemDiscovery){
+    try{foreach($n in @(Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {$_.State -ne 'Unreachable'} | Sort-Object InterfaceIndex,IPAddress)){Add-Candidate $set $n.IPAddress $true;if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}
+    if($set.Count -lt $MaxDiscoveredCandidates){try{foreach($r in @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric,InterfaceMetric)){Add-Candidate $set $r.NextHop $true;if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}}
+    if($set.Count -lt $MaxDiscoveredCandidates){try{foreach($c in @(Get-NetIPConfiguration -ErrorAction SilentlyContinue)){if($c.IPv4DefaultGateway){Add-Candidate $set $c.IPv4DefaultGateway.NextHop $true};if($set.Count -ge $MaxDiscoveredCandidates){break}}}catch{}}
+  }
   return @($set | Select-Object -First $MaxDiscoveredCandidates)
 }
 function Get-SeedSet($work){
@@ -51,7 +53,7 @@ function Try-AuthorizedSshBootstrap($address,$ssh,$keyPresent){
   return @{attempted=$true;exit=$code;output=(@($output|Select-Object -Last 12)-join "`n")}
 }
 function Invoke-BBPI4Bootstrap($nodeId,$work){
-  $addresses=Get-Candidates $work;$seedSet=Get-SeedSet $work
+  $addresses=Get-Candidates $work $true;$seedSet=Get-SeedSet $work
   $ssh=(Get-Command ssh.exe -ErrorAction SilentlyContinue | Select-Object -First 1)
   $keyPresent=Test-Path -LiteralPath $KeyPath -PathType Leaf
   $observations=@()
@@ -76,7 +78,7 @@ if($env:AURUM_WORKER_SELFTEST -eq '1'){
   if(-not (Test-PrivateOrLinkLocalIPv4 '169.254.10.20')){throw 'link-local classification failed'}
   if(Test-PrivateOrLinkLocalIPv4 '8.8.8.8'){throw 'public address classified as local'}
   $work=[pscustomobject]@{payload=[pscustomobject]@{addresses=@('10.12.194.1','bbpi4.local','10.12.194.1')}}
-  $candidates=Get-Candidates $work
+  $candidates=Get-Candidates $work $false
   if($candidates.Count -ne 2){throw "candidate de-duplication failed: $($candidates.Count)"}
   $seeds=Get-SeedSet $work
   if(-not $seeds.Contains('10.12.194.1') -or -not $seeds.Contains('bbpi4.local')){throw 'seed-set construction failed'}
