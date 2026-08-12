@@ -29,7 +29,9 @@ function Invoke-BridgeGitNative {
 }
 
 function ConvertTo-BridgeHashtable {
-    param([Parameter(Mandatory)]$InputObject)
+    param([Parameter(Mandatory)][AllowNull()]$InputObject)
+
+    if ($null -eq $InputObject) { return $null }
 
     if ($InputObject -is [Collections.IDictionary]) {
         $result = @{}

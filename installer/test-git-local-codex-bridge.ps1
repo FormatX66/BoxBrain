@@ -76,6 +76,12 @@ try {
         Assert-BridgeTest (Test-BridgeTaskVerifiedComplete -Task $validTask -State $state -DispatcherHash ("b" * 64)) "Verified duplicate was not skipped."
         $changedTask = (ConvertFrom-BridgeQueueText -Text (New-TestTaskText -Title "Changed status report") -Source "test").Tasks["BB-990"]
         Assert-BridgeTest (-not (Test-BridgeTaskVerifiedComplete -Task $changedTask -State $state -DispatcherHash ("b" * 64))) "Changed work was incorrectly treated as a duplicate."
+
+        $statePath = Join-Path $testRoot "state\bridge-state.json"
+        Save-BridgeState -Path $statePath -State $state
+        $restoredState = Read-BridgeState -Path $statePath
+        Assert-BridgeTest ($restoredState["tasks"]["BB-990"]["status"] -eq "COMPLETE") "Saved execution state did not survive a fresh read."
+        Assert-BridgeTest ($null -eq $restoredState["next_retry_at"]) "Null state fields were treated as corruption."
     }
 
     Invoke-BridgeTest "malformed queue entries" {
