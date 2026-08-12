@@ -1,0 +1,37 @@
+{
+  "cycle": 1,
+  "last_controller_status": {
+    "events": {
+      "merged": 1,
+      "nodes": 0,
+      "outbox": 1,
+      "rejected": 0
+    },
+    "node": "Aurum-Arkmatx",
+    "ok": true,
+    "status": "active-edge-web-node",
+    "time": 1786570804
+  },
+  "next": "enroll-bbpi4-via-outbound-controller",
+  "schema": 1,
+  "targets": {
+    "Aurum-Morris": {
+      "carriers": [
+        "arkmatx-outbound",
+        "local-windows-lane"
+      ],
+      "status": "unconfirmed"
+    },
+    "BBPI4": {
+      "carriers": [
+        "10.12.194.1",
+        "10.42.194.1",
+        "bbpi4.local",
+        "192.168.0.194",
+        "arkmatx-outbound"
+      ],
+      "status": "unconfirmed"
+    }
+  },
+  "updated_at": 1786570804
+}
