@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "request_id": "aurum-bbpi4-morris-relay-20260812T200425Z",
+  "request_id": "aurum-bbpi4-confirm-usb-20260812T211900Z",
   "action": "deploy",
   "target": "BBPI4",
-  "address": "192.168.0.194",
-  "requested_at": "2026-08-12T20:04:25Z"
+  "address": "10.12.194.1",
+  "requested_at": "2026-08-12T21:19:00Z"
 }
