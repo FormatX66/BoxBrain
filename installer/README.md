@@ -101,3 +101,14 @@ powershell -ExecutionPolicy Bypass -File `
 See
 [`edge/kali-pi-agent/README.md`](../edge/kali-pi-agent/README.md#optional-live-pi-screen)
 for the transport boundary, prerequisites, stop command, and removal notes.
+
+## Git-to-local Codex bridge
+
+The current-user Windows watcher can safely reconcile the Git queue with the
+Desktop cue files and run only locally reviewed, hash-pinned dispatchers. It
+includes installer, uninstaller, lifecycle/status controls, dry-run, health and
+redacted logs, retry/backoff, stale-lock recovery, and automated security tests.
+
+See [`docs/GIT_LOCAL_CODEX_BRIDGE.md`](../docs/GIT_LOCAL_CODEX_BRIDGE.md) for the
+threat model, task format, local approval process, installation commands, and
+recovery guide.

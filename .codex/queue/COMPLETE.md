@@ -55,3 +55,16 @@ COMMIT: 39eec10
 NOTES:
 The existing upstream Starlette TestClient migration warning remains non-failing and is not a BB-006 regression. No provider usage numbers were invented; metrics count observed local model-call avoidance only.
 ==================================================
+
+[TASK BB-990]
+STATUS: COMPLETE
+TITLE: Verify one-time Git-to-local bridge wake-up
+TASK_TYPE: READ_ONLY_REPOSITORY_STATUS
+EXECUTOR: readonly-repository-status
+COMPLETED_AT: 2026-08-12T05:27:06.6026639+00:00
+VERIFIED: true
+RESULT: Read-only repository status verified at commit 4cea893a6f78; tracked_files=579; dirty_entries=0.
+TASK_HASH: eccc039b374d10fd3ce7ceb96e73752d69f48b85dbf87396fd4890b4913ee98c
+RESULT_HASH: 058237e57be17b7bb88249a5c10e45f8f49a140839d5cb57b88280e43002bc54
+DISPATCHER_HASH: 958a279226aa05883c3d877e0d0d4f03efc02dc283bc983916067a204a789ff6
+END TASK
