@@ -56,6 +56,32 @@ jobs:
       - name: Run Codelation seed suite
         run: python -m unittest discover -s Projects/Codelation/tests -v
 
+  aurum-windows-worker:
+    name: Aurum Windows worker
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Parse worker PowerShell
+        shell: pwsh
+        run: |
+          $tokens=$null
+          $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'Web/Aurum-Arkmatx/worker.ps1'),[ref]$tokens,[ref]$errors)
+          if($errors.Count -gt 0){$errors | Format-List | Out-String | Write-Error; exit 1}
+      - name: Run deterministic carrier-discovery self-test
+        shell: pwsh
+        env:
+          AURUM_WORKER_SELFTEST: "1"
+        run: |
+          $raw=& ./Web/Aurum-Arkmatx/worker.ps1
+          $result=$raw | ConvertFrom-Json
+          if(-not $result.ok){throw 'worker self-test did not return ok'}
+          if($result.execution_scope -ne 'seed-routes-only'){throw "unsafe execution scope: $($result.execution_scope)"}
+          foreach($port in @(22,80,443,5985,5986,3389)){if($result.probe_ports -notcontains $port){throw "missing probe port $port"}}
+          if([int]$result.discovery_limit -gt 32){throw "discovery limit too broad: $($result.discovery_limit)"}
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
