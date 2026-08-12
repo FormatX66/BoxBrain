@@ -1,12 +1,12 @@
 {
     "schema_version":  1,
-    "request_id":  "aurum-bbpi4-morris-relay-20260812T200425Z",
+    "request_id":  "aurum-approved-bootstrap-bbpi4-20260812T201300Z",
     "action":  "deploy",
     "target":  "BBPI4",
     "address":  "192.168.0.194",
     "verified":  false,
     "status":  "AURUM_LOCAL_LANE_FAILED",
-    "error":  "Codelation source changed after local approval; reinstall the lane to review it.",
-    "started_at":  "2026-08-12T20:09:54.9055780+00:00",
-    "completed_at":  "2026-08-12T20:09:55.0065941+00:00"
+    "error":  "Aurum deployer failed: ssh.exe : ssh: connect to host 192.168.0.194 port 22: Connection timed out | At C:\\Users\\bruce\\AppData\\Local\\BoxBrain\\AurumLocalLane\\repository\\installer\\deploy-aurum-live-to-pi.ps1:34 char:5 | +     \u0026 $ssh.Source @options \"$PiUser@$address\" \"true\" 2\u003e$null | +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ | + CategoryInfo          : NotSpecified: (ssh: connect to...ction timed out:String) [], RemoteException | + FullyQualifiedErrorId : NativeCommandError |",
+    "started_at":  "2026-08-12T20:21:04.5213257+00:00",
+    "completed_at":  "2026-08-12T20:21:09.1273887+00:00"
 }
