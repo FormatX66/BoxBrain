@@ -13,6 +13,7 @@ one metadata index; implementation details stay in the registered repository.
 | Automation | Proposed | P1 | 0% | [Project index](Automation/ProjectIndex.md) |
 | Security | Proposed | P1 | 0% | [Project index](Security/ProjectIndex.md) |
 | Research | Proposed | P1 | 0% | [Project index](Research/ProjectIndex.md) |
+| Codelation | Experimental seed | P1 | 5% | [Project index](Codelation/ProjectIndex.md) |
 
 Completion values are planning estimates, not release claims. Register new
 repositories in the [Repository Index](../Admin/RepositoryIndex.md) before
