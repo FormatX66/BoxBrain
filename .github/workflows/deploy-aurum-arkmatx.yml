@@ -1,0 +1,84 @@
+name: Deploy Aurum Arkmatx
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Web/Aurum-Arkmatx/**'
+      - '.github/workflows/deploy-aurum-arkmatx.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-arkmatx-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: arkmatx
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require deployment configuration
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          KEY: ${{ secrets.ARKMATX_SSH_KEY }}
+          HOST_KEY: ${{ secrets.ARKMATX_SSH_HOST_KEY }}
+          REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          for name in HOST USER KEY HOST_KEY REMOTE_PATH; do
+            test -n "${!name:-}" || { echo "Missing $name" >&2; exit 2; }
+          done
+
+      - name: Configure pinned SSH identity
+        env:
+          KEY: ${{ secrets.ARKMATX_SSH_KEY }}
+          HOST_KEY: ${{ secrets.ARKMATX_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verify host and PHP
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          PORT: ${{ secrets.ARKMATX_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
+            "php -v >/dev/null && mkdir -p -- '$REMOTE_PATH'"
+
+      - name: Upload web node
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          PORT: ${{ secrets.ARKMATX_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          tar -C Web/Aurum-Arkmatx -czf /tmp/aurum-arkmatx.tgz .
+          scp -P "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes /tmp/aurum-arkmatx.tgz "$USER@$HOST:/tmp/aurum-arkmatx.tgz"
+          ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
+            "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -xzf /tmp/aurum-arkmatx.tgz -C '$REMOTE_PATH'; rm -f /tmp/aurum-arkmatx.tgz; php -l '$REMOTE_PATH/index.php'"
+
+      - name: Verify public node
+        env:
+          URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$URL"
+          body="$(curl --fail --silent --show-error --max-time 10 "${URL%/}/status")"
+          printf '%s' "$body" | grep -F 'Aurum-Arkmatx' >/dev/null
+          printf '%s' "$body" | grep -F 'active-edge-web-node' >/dev/null
