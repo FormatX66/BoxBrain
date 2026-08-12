@@ -68,3 +68,27 @@ TASK_HASH: eccc039b374d10fd3ce7ceb96e73752d69f48b85dbf87396fd4890b4913ee98c
 RESULT_HASH: 058237e57be17b7bb88249a5c10e45f8f49a140839d5cb57b88280e43002bc54
 DISPATCHER_HASH: 958a279226aa05883c3d877e0d0d4f03efc02dc283bc983916067a204a789ff6
 END TASK
+
+==================================================
+TASK: BB-009
+TITLE: Deploy Codelation Seed to BBPI4
+STATUS: COMPLETE
+COMPLETED: 2026-08-12T10:32:52Z
+VERIFIED: YES
+IMPLEMENTED:
+- Installed the passive seed at `/opt/boxbrain/codelation` through the established pinned-key LAN route.
+- Preserved least-privilege `kali:kali` ownership and mode `700` on the installation root.
+- Left network authority, actuation, autorun, systemd, and cron disabled.
+TESTS:
+- Local `python -m unittest discover -s Projects/Codelation/tests -v`: 3 passed.
+- Pi `python3 -m unittest discover -s tests -v`: 3 passed.
+- Pi `python3 seed/codelation_seed.py summary --model seed.bin`: succeeded with version 1 and an empty passive graph.
+- Pi Python: 3.13.12.
+- Temporary transfer directories: 0 remaining.
+- Codelation systemd units and cron entries: 0.
+FILES:
+- /opt/boxbrain/codelation
+COMMIT: bab09a5 (verified deployment source)
+NOTES:
+The deployment enables no background execution or action authority. The binary model remains empty until an explicitly invoked observation is recorded.
+==================================================
