@@ -1,5 +1,9 @@
 {
-  "cycle": 1,
+  "cycle": 2,
+  "last_controller_ack": {
+    "ok": true,
+    "time": 1786570819
+  },
   "last_controller_status": {
     "events": {
       "merged": 1,
@@ -10,7 +14,7 @@
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1786570804
+    "time": 1786570818
   },
   "next": "enroll-bbpi4-via-outbound-controller",
   "schema": 1,
@@ -33,5 +37,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786570804
+  "updated_at": 1786570819
 }
