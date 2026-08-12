@@ -81,6 +81,7 @@ fi
 before=`$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)
 peer=`$(python3 seed/aurum_live.py peer-self-test --graph state/aurum-live.json)
 after=`$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)
+mind=`$(python3 seed/aurum_dialogue.py --root /opt/boxbrain/codelation status)
 seed=`$(python3 seed/codelation_seed.py summary --model seed.bin)
 pythonv=`$(python3 --version 2>&1)
 arch=`$(uname -m)
@@ -96,6 +97,7 @@ architecture=`$arch
 before=`$before
 peer=`$peer
 after=`$after
+mind=`$mind
 seed=`$seed
 matching_systemd_units=`$units
 matching_user_cron=`$usercron
@@ -103,7 +105,7 @@ matching_root_cron=`$rootcron
 rollback=`$rollback
 EOF
 chmod 600 verification/AURUM_LIVE_VERIFY.txt
-printf '%s\n' "`$before" "`$peer" "`$after" "`$seed" "`$pythonv" "rollback=`$rollback" "matching_systemd_units=`$units" "matching_user_cron=`$usercron" "matching_root_cron=`$rootcron"
+printf '%s\n' "`$before" "`$peer" "`$after" "`$mind" "`$seed" "`$pythonv" "rollback=`$rollback" "matching_systemd_units=`$units" "matching_user_cron=`$usercron" "matching_root_cron=`$rootcron"
 "@
     & $ssh.Source @options $target $install
     if ($LASTEXITCODE -ne 0) { throw "Aurum live verification or installation failed." }
