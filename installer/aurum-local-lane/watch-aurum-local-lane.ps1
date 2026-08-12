@@ -24,7 +24,7 @@ function Write-JsonAtomic {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
     }
     $temporary = "$Path.tmp-$PID-$([Guid]::NewGuid().ToString('N'))"
-    [IO.File]::WriteAllText($temporary, (($Value | ConvertTo-Json -Depth 8) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($temporary, (($Value | ConvertTo-Json -Depth 10) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $temporary -Destination $Path -Force
 }
 
@@ -38,6 +38,26 @@ function Invoke-GitBounded {
     }
     finally { $ErrorActionPreference = $old }
     return [pscustomobject]@{ ExitCode = $code; Output = $output }
+}
+
+function Get-CodelationTreeHash {
+    param([Parameter(Mandatory)][string]$Root)
+    $tree = Join-Path $Root "Projects\Codelation"
+    if (-not (Test-Path -LiteralPath $tree -PathType Container)) { throw "Codelation source is missing." }
+    $prefix = $tree.TrimEnd('\') + '\'
+    $lines = @(
+        Get-ChildItem -LiteralPath $tree -File -Recurse | Sort-Object FullName | ForEach-Object {
+            $relative = $_.FullName.Substring($prefix.Length).Replace('\','/')
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$relative|$hash"
+        }
+    )
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace("-", "").ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
 }
 
 function Sync-Repository {
@@ -79,15 +99,22 @@ function Read-Task {
 function Read-State {
     $path = [string]$script:Config.state_path
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        return [ordered]@{ schema_version = 1; last_request_id = $null; last_completed_at = $null }
+        return [ordered]@{ schema_version = 1; last_request_id = $null; last_completed_at = $null; publish_pending = $false; pending_result = $null }
     }
-    $state = Read-JsonFile -Path $path -MaximumBytes 8192
+    $state = Read-JsonFile -Path $path -MaximumBytes 32768
     if ([int]$state.schema_version -ne 1) { throw "Aurum lane state schema is unsupported." }
     return [ordered]@{
         schema_version = 1
         last_request_id = [string]$state.last_request_id
         last_completed_at = [string]$state.last_completed_at
+        publish_pending = [bool]$state.publish_pending
+        pending_result = $state.pending_result
     }
+}
+
+function Save-State {
+    param([Parameter(Mandatory)]$State)
+    Write-JsonAtomic -Path ([string]$script:Config.state_path) -Value $State
 }
 
 function Invoke-PiEvidence {
@@ -120,8 +147,17 @@ function Invoke-PiEvidence {
 }
 
 function Invoke-Deploy {
-    $deployer = Join-Path ([string]$script:Config.repository_root) "installer\deploy-aurum-live-to-pi.ps1"
+    $repo = [string]$script:Config.repository_root
+    $deployer = Join-Path $repo "installer\deploy-aurum-live-to-pi.ps1"
     if (-not (Test-Path -LiteralPath $deployer -PathType Leaf)) { throw "Approved Aurum deployer is missing." }
+    $actualDeployer = (Get-FileHash -LiteralPath $deployer -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualDeployer -ne [string]$script:Config.approved_deployer_sha256) {
+        throw "Aurum deployer changed after local approval; reinstall the lane to review it."
+    }
+    $actualTree = Get-CodelationTreeHash -Root $repo
+    if ($actualTree -ne [string]$script:Config.approved_codelation_tree_sha256) {
+        throw "Codelation source changed after local approval; reinstall the lane to review it."
+    }
     $old = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
@@ -138,15 +174,19 @@ function Invoke-Deploy {
 }
 
 function Publish-Result {
-    param([Parameter(Mandatory)]$Task, [Parameter(Mandatory)]$Result)
+    param([Parameter(Mandatory)]$Result)
     $repo = [string]$script:Config.repository_root
     $relative = ".codex/local-lane/AURUM_RESULT.json"
     $path = Join-Path $repo ($relative -replace '/', '\')
     Write-JsonAtomic -Path $path -Value $Result
-    $add = Invoke-GitBounded @("-C", $repo, "add", "--", $relative)
-    if ($add.ExitCode -ne 0) { throw "Could not stage Aurum lane result." }
-    $commit = Invoke-GitBounded @("-C", $repo, "commit", "-m", "Record Aurum local lane result $([string]$Task.request_id)")
-    if ($commit.ExitCode -ne 0) { throw "Could not commit Aurum lane result." }
+    $changed = Invoke-GitBounded @("-C", $repo, "status", "--porcelain", "--", $relative)
+    if ($changed.ExitCode -ne 0) { throw "Could not inspect Aurum lane result state." }
+    if ($changed.Output.Count -gt 0) {
+        $add = Invoke-GitBounded @("-C", $repo, "add", "--", $relative)
+        if ($add.ExitCode -ne 0) { throw "Could not stage Aurum lane result." }
+        $commit = Invoke-GitBounded @("-C", $repo, "commit", "-m", "Record Aurum local lane result $([string]$Result.request_id)")
+        if ($commit.ExitCode -ne 0) { throw "Could not commit Aurum lane result." }
+    }
     $push = Invoke-GitBounded @("-C", $repo, "push", "origin", "HEAD:refs/heads/main")
     if ($push.ExitCode -eq 0) { return }
     $fetch = Invoke-GitBounded @("-C", $repo, "fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main")
@@ -157,15 +197,39 @@ function Publish-Result {
     if ($push.ExitCode -ne 0) { throw "Could not publish Aurum lane result." }
 }
 
+function New-ResultHash {
+    param([Parameter(Mandatory)][string]$Value)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value)))).Replace("-", "").ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
+}
+
+function Complete-PendingPublish {
+    param([Parameter(Mandatory)]$State)
+    if (-not [bool]$State.publish_pending -or $null -eq $State.pending_result) { return $State }
+    Publish-Result -Result $State.pending_result
+    $State.publish_pending = $false
+    $State.pending_result = $null
+    Save-State -State $State
+    return $State
+}
+
 function Invoke-Cycle {
+    $state = Read-State
+    if ([bool]$state.publish_pending) {
+        $state = Complete-PendingPublish -State $state
+    }
+
     Sync-Repository
     $task = Read-Task
     if ($null -eq $task) { return }
-    $state = Read-State
     if ([string]$state.last_request_id -eq [string]$task.request_id) { return }
 
     $started = [DateTimeOffset]::UtcNow
     $deployTail = @()
+    $result = $null
     try {
         if ([string]$task.action -eq "deploy") { $deployTail = Invoke-Deploy }
         $evidence = Invoke-PiEvidence
@@ -177,23 +241,17 @@ function Invoke-Cycle {
             address = "192.168.0.194"
             verified = $true
             status = "AURUM_LOCAL_LANE_OK"
-            evidence_sha256 = ([BitConverter]::ToString(([Security.Cryptography.SHA256]::Create()).ComputeHash([Text.Encoding]::UTF8.GetBytes($evidence)))).Replace("-", "").ToLowerInvariant()
+            evidence_sha256 = New-ResultHash -Value $evidence
             evidence = @($evidence -split "`n" | Where-Object { $_ -match '^(identity|python|architecture|before|peer|after|mind|seed|seed_migration|matching_|rollback=)' })
             deploy_tail = $deployTail
             started_at = $started.ToString("o")
             completed_at = [DateTimeOffset]::UtcNow.ToString("o")
         }
-        Publish-Result -Task $task -Result $result
-        Write-JsonAtomic -Path ([string]$script:Config.state_path) -Value ([ordered]@{
-            schema_version = 1
-            last_request_id = [string]$task.request_id
-            last_completed_at = [DateTimeOffset]::UtcNow.ToString("o")
-        })
     }
     catch {
         $message = ([string]$_.Exception.Message -replace '[\r\n]+', ' ').Trim()
         if ($message.Length -gt 1600) { $message = $message.Substring(0, 1600) }
-        $failure = [ordered]@{
+        $result = [ordered]@{
             schema_version = 1
             request_id = [string]$task.request_id
             action = [string]$task.action
@@ -205,17 +263,23 @@ function Invoke-Cycle {
             started_at = $started.ToString("o")
             completed_at = [DateTimeOffset]::UtcNow.ToString("o")
         }
-        try { Publish-Result -Task $task -Result $failure } catch { }
-        Write-JsonAtomic -Path ([string]$script:Config.state_path) -Value ([ordered]@{
-            schema_version = 1
-            last_request_id = [string]$task.request_id
-            last_completed_at = [DateTimeOffset]::UtcNow.ToString("o")
-        })
     }
+
+    $state = [ordered]@{
+        schema_version = 1
+        last_request_id = [string]$task.request_id
+        last_completed_at = [DateTimeOffset]::UtcNow.ToString("o")
+        publish_pending = $true
+        pending_result = $result
+    }
+    Save-State -State $state
+    Complete-PendingPublish -State $state | Out-Null
 }
 
 $script:Config = Read-JsonFile -Path $ConfigPath -MaximumBytes 16384
 if ([int]$script:Config.schema_version -ne 1) { throw "Aurum lane configuration schema is unsupported." }
+$actualWatcher = (Get-FileHash -LiteralPath $MyInvocation.MyCommand.Path -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualWatcher -ne [string]$script:Config.approved_watcher_sha256) { throw "Installed Aurum lane watcher hash mismatch." }
 $script:Git = (Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $script:Ssh = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $script:PowerShell = (Get-Command powershell.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
