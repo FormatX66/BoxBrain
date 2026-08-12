@@ -249,3 +249,33 @@ ACCEPTANCE:
 - Add tests using mocked cloud responses and local storage targets before operating on the real media library.
 - No automatic deletion of cloud or local originals; destructive duplicate cleanup requires explicit human review/approval.
 END TASK
+
+[TASK BB-010]
+STATUS: PENDING
+TITLE: Wake Codelation Seed as Bounded Aurum Live Graph on BBPI4
+PRIORITY: CRITICAL
+DEPENDS: BB-009
+REQUIRES: CODEX, LOCAL_SHELL
+TASK_TYPE: REASONING
+EXECUTOR: codex
+CHECKPOINT: 2026-08-12T14:57:00Z — BB-009 is verified complete. PR #17 is merged at `7bb95f9d80650c43083abb7d15661d2f19f7e643`; its CI passed repository integrity, backend, Flutter, and all six Codelation tests. The live deployment now needs to run from the authorized Windows BoxBrain host because the Git bridge intentionally does not grant new Git-authored dispatchers execution authority.
+
+DESCRIPTION:
+From the existing authorized BoxBrain Windows host, pull current `main`, inspect the already verified `/opt/boxbrain/codelation` deployment, preserve rollback, then run `installer/deploy-aurum-live-to-pi.ps1`. Use the established pinned-key SSH route to BBPI4. Do not broaden authority. The deployment must evolve the passive seed into the minimum first live graph containing BBPI4/Aurum identity, current-state facts, fixed read-only capabilities, evidence/verification nodes, and a bounded explicitly addressed outbound heartbeat transport. The first heartbeat proof may use only the built-in ephemeral loopback peer self-test; do not invent an external endpoint.
+
+ACCEPTANCE:
+- Pull and verify main contains merge `7bb95f9d80650c43083abb7d15661d2f19f7e643`.
+- Run the full Codelation test suite locally before deployment; six tests must pass.
+- Reach BBPI4 using the existing pinned key-only SSH route; prefer `10.42.194.1`, then `10.12.194.1`, then the verified LAN route.
+- Preserve the prior `/opt/boxbrain/codelation` as `/opt/boxbrain/rollback/codelation-<UTCSTAMP>` before replacement.
+- Run all six Codelation tests successfully on BBPI4 before installation is accepted.
+- Initialize `/opt/boxbrain/codelation/state/aurum-live.json` with identity `BBPI4/Aurum`, actual hostname/Python/architecture facts, and install path `/opt/boxbrain/codelation`.
+- Verify `AURUM_LIVE_VERIFIED` before and after peer testing with a valid graph digest.
+- Verify the bounded peer transport using `peer-self-test`; require `AURUM_PEER_SELF_TEST_OK sequence=1 status=204` or a truthful higher sequence if a prior verified self-test already exists.
+- Preserve the original passive seed summary and verify it still succeeds.
+- Record `/opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt` with identity, Python, architecture, graph verification, heartbeat evidence, seed summary, rollback path, and persistence checks.
+- Confirm zero Aurum/Codelation systemd units and zero user/root cron entries unless a separately reviewed later task explicitly authorizes persistence.
+- Confirm there is no shell/exec/write/delete/reboot/actuation capability in the live graph and no broad network scanning/authority.
+- Confirm temporary transfer directories are removed.
+- Append a verified BB-010 completion record to Git and local completion logs only after checking the actual Pi evidence.
+END TASK
