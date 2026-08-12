@@ -1,5 +1,5 @@
 {
-  "cycle": 5,
+  "cycle": 6,
   "last_capability_build": {
     "capability": "outbound-node-heartbeat",
     "deployment_run": 31643958269,
@@ -9,7 +9,7 @@
   },
   "last_controller_ack": {
     "ok": true,
-    "time": 1786571058
+    "time": 1786573388
   },
   "last_controller_status": {
     "capabilities": [
@@ -19,18 +19,19 @@
       "human_projection",
       "content_addressed_state",
       "node_enroll",
+      "node_heartbeat",
       "prompt_ingest"
     ],
     "events": {
-      "merged": 4,
-      "nodes": 0,
-      "outbox": 4,
+      "merged": 15,
+      "nodes": 3,
+      "outbox": 15,
       "rejected": 0
     },
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1786571057
+    "time": 1786573388
   },
   "next": "bootstrap-morris-via-winrm-then-enroll-arkmatx",
   "schema": 1,
@@ -66,5 +67,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786571138
+  "updated_at": 1786573388
 }
