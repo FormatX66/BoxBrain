@@ -12,8 +12,6 @@ on:
       - 'Web/Aurum-Arkmatx/index.php'
       - 'Web/Aurum-Arkmatx/bootstrap.sh'
       - 'Web/Aurum-Arkmatx/bootstrap.ps1'
-  schedule:
-    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
