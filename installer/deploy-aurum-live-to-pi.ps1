@@ -107,7 +107,8 @@ EOF
 chmod 600 verification/AURUM_LIVE_VERIFY.txt
 printf '%s\n' "`$before" "`$peer" "`$after" "`$mind" "`$seed" "`$pythonv" "rollback=`$rollback" "matching_systemd_units=`$units" "matching_user_cron=`$usercron" "matching_root_cron=`$rootcron"
 "@
-    & $ssh.Source @options $target $install
+    $install = $install -replace "`r", ""
+    $install | & $ssh.Source @options $target "bash -s"
     if ($LASTEXITCODE -ne 0) { throw "Aurum live verification or installation failed." }
 }
 finally {
