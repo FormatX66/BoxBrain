@@ -88,6 +88,13 @@ ACCEPTANCE:
 - PR #14 contains the route used and verification result.
 END TASK
 
+[TASK BB-990]
+STATUS: PENDING
+TITLE: Verify one-time Git-to-local bridge wake-up
+TASK_TYPE: READ_ONLY_REPOSITORY_STATUS
+EXECUTOR: readonly-repository-status
+END TASK
+
 +[TASK BB-008]
 STATUS: IN_PROGRESS
 TITLE: GitHub Copilot Offload for Local Windows Tasks
