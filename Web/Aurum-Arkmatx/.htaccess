@@ -1,0 +1,8 @@
+Options -Indexes
+RewriteEngine On
+RewriteRule ^status$ index.php/status [L,QSA]
+RewriteRule ^uaf$ index.php/uaf [L,QSA]
+
+<FilesMatch "^(?:\.|state)">
+  Require all denied
+</FilesMatch>
