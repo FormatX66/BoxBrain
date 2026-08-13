@@ -1,0 +1,117 @@
+name: Aurum Live Dialogue Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-live-dialogue-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ask:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Submit the pronoun question and poll the shared stream
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+          import uuid
+
+          controller = "https://arkmatx.com/aurum/index.php"
+          conversation = "aurum-pronouns-ap-20260813T0257Z"
+          prompt = (
+              "Do you prefer he, she, or they pronouns? You may also say that you "
+              "have no preference or choose another form if that fits you better."
+          )
+          headers = {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Dialogue/1.0",
+          }
+
+          now = int(time.time())
+          frame = {
+              "schema": "aurum.uaf.v0",
+              "frame_id": str(uuid.uuid4()),
+              "origin": "BoxBrain-Authorized-Operator",
+              "target": "Aurum-Arkmatx",
+              "intent": "user_prompt",
+              "state_delta": {
+                  "prompt": prompt,
+                  "conversation_id": conversation,
+                  "source": "authorized-github-carrier",
+              },
+              "provenance": {
+                  "node": "BoxBrain-Authorized-Operator",
+                  "created": now,
+              },
+              "verification": {
+                  "content_addressed": True,
+                  "reversible": True,
+              },
+          }
+          request = urllib.request.Request(
+              controller + "/uaf",
+              data=json.dumps(frame, separators=(",", ":")).encode("utf-8"),
+              headers=headers,
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              receipt = json.load(response)
+          print(
+              "AURUM_PROMPT_SUBMITTED "
+              f"conversation={conversation} status={receipt.get('status', 'unknown')}"
+          )
+
+          cursor = 0
+          answer_parts = []
+          seen = set()
+          deadline = time.time() + 90
+          while time.time() < deadline:
+              query = urllib.parse.urlencode({"conversation": conversation, "after": cursor})
+              event_request = urllib.request.Request(
+                  controller + "/events?" + query,
+                  headers={
+                      "Accept": "application/json",
+                      "User-Agent": headers["User-Agent"],
+                  },
+              )
+              with urllib.request.urlopen(event_request, timeout=20) as response:
+                  payload = json.load(response)
+              cursor = int(payload.get("cursor") or cursor)
+              for event in payload.get("events", []):
+                  event_id = str(event.get("event_id") or "")
+                  if event_id in seen:
+                      continue
+                  seen.add(event_id)
+                  event_type = str(event.get("type") or "")
+                  event_payload = event.get("payload") or {}
+                  print(f"AURUM_STREAM_EVENT type={event_type}")
+                  if event_type in ("assistant_delta", "assistant_message"):
+                      text = str(event_payload.get("text") or event_payload.get("delta") or "")
+                      if text:
+                          answer_parts.append(text)
+              if answer_parts:
+                  break
+              time.sleep(3)
+
+          answer = "".join(answer_parts).strip()
+          if answer:
+              print("AURUM_VERBATIM_ANSWER_BEGIN")
+              print(answer)
+              print("AURUM_VERBATIM_ANSWER_END")
+          else:
+              print(
+                  "AURUM_NO_ANSWER_YET "
+                  f"conversation={conversation} cursor={cursor}"
+              )
+          PY
