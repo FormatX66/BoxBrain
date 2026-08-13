@@ -82,6 +82,51 @@ class FieldNativeBatchTests(unittest.TestCase):
         self.assertEqual(first.batch_identity, second.batch_identity)
         self.assertEqual(first.results, second.results)
 
+    def test_duplicate_examples_do_not_change_batch_identity_or_repeat_verification(self):
+        example = NativeExample({"text": "a a b"}, 2)
+        expression = {
+            "op": "length",
+            "value": {
+                "op": "unique",
+                "value": {"op": "split", "value": {"op": "input", "name": "text"}},
+            },
+        }
+        unique = NativeBatchItem(
+            name="unique-count",
+            parameters=("text",),
+            expression=expression,
+            examples=(example,),
+            invocation_arguments={"text": "a a b c"},
+        )
+        repeated = NativeBatchItem(
+            name="unique-count",
+            parameters=("text",),
+            expression=expression,
+            examples=(example, example, example),
+            invocation_arguments={"text": "a a b c"},
+        )
+        one = run_native_batch((unique,))
+        many = run_native_batch((repeated,))
+        self.assertEqual(one.batch_identity, many.batch_identity)
+        self.assertEqual(many.results[0].examples, 1)
+        self.assertEqual(many.results[0].input_examples, 3)
+        self.assertEqual(many.results[0].duplicate_examples_removed, 2)
+        self.assertEqual(many.results[0].passed, 1)
+
+    def test_conflicting_duplicate_arguments_fail_closed(self):
+        item = NativeBatchItem(
+            name="count",
+            parameters=("text",),
+            expression={"op": "length", "value": {"op": "split", "value": {"op": "input", "name": "text"}}},
+            examples=(
+                NativeExample({"text": "a b"}, 2),
+                NativeExample({"text": "a b"}, 3),
+            ),
+            invocation_arguments={"text": "a b"},
+        )
+        with self.assertRaisesRegex(ValueError, "conflicting expected outputs"):
+            run_native_batch((item,))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
