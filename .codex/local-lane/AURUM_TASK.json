@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "request_id": "aurum-verify-20260813T024536Z",
+  "action": "verify",
+  "target": "BBPI4",
+  "address": "192.168.0.194",
+  "requested_at": "2026-08-13T02:45:36Z"
+}
