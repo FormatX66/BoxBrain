@@ -1,0 +1,32 @@
+{
+  "schema": "aurum-field-native-fastpath-benchmark-v0",
+  "environment": "gpt-python-local-equivalent-microbenchmark",
+  "scope": "canonical_learning_tokens bounded pure capability",
+  "comparison": {
+    "compatibility_path": "generate-python-file-plus-launch-python-subprocess-for-tests",
+    "field_native_path": "compile-operation-graph-to-in-memory-tape-plus-in-memory-verification"
+  },
+  "samples": {
+    "field_native_rounds": 5000,
+    "compatibility_rounds": 30
+  },
+  "average_seconds_per_round": {
+    "field_native": 0.00001843883760011522,
+    "compatibility": 0.044574533033301125
+  },
+  "observed_overhead_ratio": 2417.426412661858,
+  "interpretation": "microbenchmark-only; this measures orchestration overhead for a bounded capability and is not a claim that total Aurum builds are 2417x faster",
+  "landed": {
+    "field_native_vm": "38010bca39c27610304f2c1e210aef699159c1ee",
+    "field_native_vm_tests": "4d2207da14fc9fa2abc62c61039e60794b293673",
+    "field_native_self_build_fastpath": "9f0c225ca62ed0e785f80997c1b7d4f2d9df65be"
+  },
+  "automatic_router_write": "blocked-by-platform-control-not-landed",
+  "safety": {
+    "source_generation": false,
+    "filesystem_build": false,
+    "subprocess_test": false,
+    "host_authority": false,
+    "network_authority": false
+  }
+}
