@@ -44,16 +44,19 @@ if ($null -eq $selected) {
 $target = "$PiUser@$selected"
 $transfer = "/tmp/aurum-reconcile-$([Guid]::NewGuid().ToString('N'))"
 try {
-    & $ssh.Source @options $target "umask 077; mkdir -p -- '$transfer'"
+    & $ssh.Source @options $target "umask 077; mkdir -p -- '$transfer/Projects'"
     if ($LASTEXITCODE -ne 0) { throw "Could not create the bounded BBPI4 staging directory." }
 
-    & $scp.Source @options -r "$source\*" "${target}:$transfer/"
-    if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded dialogue/live-graph files on BBPI4." }
+    & $scp.Source @options -r "$source" "${target}:$transfer/Projects/"
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the Codelation source on BBPI4." }
+    & $scp.Source @options -r (Join-Path $repositoryRoot "installer") "${target}:$transfer/"
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded installer contract on BBPI4." }
 
     $remote = @'
 #!/usr/bin/env bash
 set -euo pipefail
-STAGED="$1"
+TRANSFER_ROOT="$1"
+STAGED="$TRANSFER_ROOT/Projects/Codelation"
 PI_USER="$2"
 INSTALL=/opt/boxbrain/codelation
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -187,7 +190,7 @@ else
   gold_runtime_status=passive-gold-seed-at-codelation-path
 fi
 
-rm -rf -- "$STAGED"
+rm -rf -- "$TRANSFER_ROOT"
 transfer_cleanup=confirmed
 pythonv="$(python3 --version 2>&1)"
 arch="$(uname -m)"
