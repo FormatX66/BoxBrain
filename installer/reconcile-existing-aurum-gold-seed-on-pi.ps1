@@ -252,7 +252,7 @@ printf '%s\n' \
 '@
 
     $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($remote -replace "`r", "")))
-    $remoteCommand = "python3 -c 'import base64;open(\"/tmp/aurum-reconcile.sh\",\"wb\").write(base64.b64decode(\"$payload\"))' && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh '$transfer' '$PiUser'; rc=`$?; rm -f /tmp/aurum-reconcile.sh; exit `$rc"
+    $remoteCommand = 'python3 -c ''import base64;open("/tmp/aurum-reconcile.sh","wb").write(base64.b64decode("{0}"))'' && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh ''{1}'' ''{2}''; rc=$?; rm -f /tmp/aurum-reconcile.sh; exit $rc' -f $payload, $transfer, $PiUser
     & $ssh.Source @options $target $remoteCommand
     if ($LASTEXITCODE -ne 0) {
         throw "Aurum gold-seed reconciliation or verification failed. The prior Codelation directory was preserved in rollback."
