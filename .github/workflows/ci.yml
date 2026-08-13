@@ -71,6 +71,7 @@ jobs:
             'Aurum.ps1',
             'installer/deploy-aurum-live-to-pi.ps1',
             'installer/reconcile-existing-aurum-gold-seed-on-pi.ps1',
+            'installer/invoke-aurum-via-bbpi4-ap.ps1',
             'installer/ask-aurum-on-pi.ps1'
           )
           foreach($path in $paths){
