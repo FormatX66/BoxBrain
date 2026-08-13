@@ -1,42 +1,35 @@
 {
-  "cycle": 21,
+  "cycle": 22,
   "last_capability_build": {
-    "capability": "slush-media-self-build-v0",
+    "capability": "slush-sparse-image-assembler-v0",
     "implementation_commits": [
-      "7d7bec452abca4a9d73131f33fa6811b0518427b",
-      "909ae3271bf95bc12e14a9b912282c9b7a1cf390",
-      "947ded772b120307cdda0cda5a869f8c30a3271b"
+      "614b064c04600c6cc2051ed038cb097291c5058f",
+      "8d586a416a173b775a51739f51c594e9383e02e5",
+      "6959de950f77f315de5f3953a596db66ad2e628c"
     ],
-    "status": "implemented-tested-reference-only-not-physically-written-or-booted",
-    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-36-pass-run-31731058739-success",
+    "status": "implemented-tested-image-file-only-not-physical-media",
+    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-44-pass-run-31731382921-success",
     "verification": {
-      "raspberry_pi_3_first_target": true,
-      "node_to_slush_media_path_declared": true,
-      "compatibility_boot_shim_separate_from_aurum_semantics": true,
-      "fat_compatible_pi_boot_carrier_declared": true,
-      "raw_aurum_slush_region_declared": true,
-      "slush_receives_majority_of_media_capacity": true,
-      "media_plan_identity_deterministic": true,
-      "different_media_capacity_changes_plan_identity": true,
-      "hardware_observed_before_runtime_materialization": true,
-      "hardware_profile_not_prebaked": true,
-      "slush_authoritative_during_first_boot": true,
-      "compatibility_shim_not_os_owner": true,
-      "runtime_verification_before_promotion_required": true,
-      "rollback_checkpoint_required": true,
-      "field_bootstrap_projection_has_no_missing_refs": true,
-      "physical_media_write_gate_fails_closed": true,
-      "system_disk_rejected": true,
-      "mounted_or_in_use_media_rejected": true,
-      "exact_media_capacity_verification_required": true,
-      "removable_media_verification_required": true,
-      "operator_authorization_required_for_physical_write": true,
+      "sparse_image_file_only": true,
+      "block_device_not_opened": true,
+      "mbr_signature_valid": true,
+      "fat32_boot_partition_entry": true,
+      "raw_slush_partition_entry": true,
+      "primary_slush_anchor": true,
+      "mirror_slush_anchor": true,
+      "anchors_share_media_plan_identity": true,
+      "anchor_corruption_detected": true,
+      "boot_payload_bounded_to_boot_region": true,
+      "existing_output_not_overwritten": true,
+      "wrong_plan_capacity_rejected": true,
+      "sparse_round_trip_verified": true,
       "physical_card_written": false,
+      "boot_shim_bootability_verified": false,
       "live_pi3_first_boot_verified": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786645890
+    "verified_at": 1786646100
   },
   "last_controller_ack": {
     "ok": true,
@@ -106,9 +99,9 @@
     "capacity_mesh_v0": {
       "status": "event-driven-reference-capability-tested-isolated",
       "branch": "aurum/capacity-mesh-v0",
-      "ci_workflow_run": 31731058739,
+      "ci_workflow_run": 31731382921,
       "parallel_lanes": 8,
-      "integrated_tests": 36,
+      "integrated_tests": 44,
       "timer_dependency": false,
       "event_handoff": true,
       "capability_gap_growth": true,
@@ -141,9 +134,22 @@
       "physical_media_write": false,
       "live_first_boot": false,
       "authoritative_storage_unchanged": true
+    },
+    "slush_sparse_image_v0": {
+      "status": "image-artifact-assembler-tested",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31731382921,
+      "integrated_tests": 44,
+      "mbr": true,
+      "boot_partition_type": "fat32-lba",
+      "slush_partition_type": "aurum-raw",
+      "mirrored_slush_anchors": true,
+      "physical_media_write": false,
+      "bootable_boot_shim_inserted": false,
+      "authoritative_storage_unchanged": true
     }
   },
-  "next": "build-pi3-boot-compatibility-shim-and-nondestructive-slush-image-artifact-then-on-authorized-microsd-run-first-boot-hardware-observation-runtime-materialization-verification-and-rollback-checkpoint",
+  "next": "build-and-verify-pi3-fat-boot-compatibility-shim-from-pinned-firmware-kernel-initramfs-assets-then-insert-it-into-the-verified-slush-image-before-any-authorized-physical-media-write",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -188,5 +194,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786645890
+  "updated_at": 1786646100
 }
