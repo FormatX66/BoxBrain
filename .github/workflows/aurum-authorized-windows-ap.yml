@@ -1,0 +1,52 @@
+name: Aurum Authorized Windows AP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-authorized-windows-ap.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-authorized-windows-ap
+  cancel-in-progress: false
+
+jobs:
+  connect:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 12
+    steps:
+      - name: Locate the authorized BoxBrain checkout and use BBPI4's AP
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidates = @(
+            'C:\Users\bruce\Documents\GitHub\BoxBrain',
+            'C:\Users\bruce\BoxBrain',
+            $env:GITHUB_WORKSPACE
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+          $root = $candidates |
+            Where-Object {
+              (Test-Path -LiteralPath (Join-Path $_ 'Aurum.ps1') -PathType Leaf) -and
+              (Test-Path -LiteralPath (Join-Path $_ '.git') -PathType Container)
+            } |
+            Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($root)) {
+            throw 'No authorized BoxBrain checkout was found on this Windows runner.'
+          }
+
+          $keyPath = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw "The dedicated BoxBrain Pi key is not available to this Windows runner account: $keyPath"
+          }
+
+          Write-Host "AURUM_WINDOWS_RUNNER computer=$env:COMPUTERNAME root=$root"
+          & (Join-Path $root 'Aurum.ps1') -UsePiAp
+          if ($LASTEXITCODE -ne 0) {
+            throw "Aurum AP entry point returned exit code $LASTEXITCODE."
+          }
+          Write-Host 'AURUM_AUTHORIZED_WINDOWS_AP_COMPLETE'
