@@ -1,0 +1,26 @@
+{
+  "schema": "aurum-self-build-semantic-review-v0",
+  "review_identity": "c078bb5d0397f05ead592da34b2f1ad0dea539d698fc79e5c88fcc6feb963f54",
+  "parent_gap": "learning_delta_score",
+  "reviewer": "gpt-reasoning",
+  "artifacts": {
+    "self-build-op:length": {
+      "candidate_sha256": "e43af5bb3ad4112ce8e129c54949b6dbf66c636b610af25d76c77ab5c8125dce",
+      "test_sha256": "9272234bf187cf7b660aedca243cf22883368b3aad6734789cd535de95ea8f3c",
+      "semantic_match": true,
+      "pure": true,
+      "host_authority": false,
+      "review": "Implements bounded collection cardinality exactly as specified."
+    },
+    "self-build-op:symmetric_difference": {
+      "candidate_sha256": "9cccd9c64a6c84e7adcc5f88a2226e39779bded6eb72148a6d6787351f1e3e92",
+      "test_sha256": "9f617c57cc2c334794f615cc1d85936b150327602b44c02628cde97f7e439965",
+      "semantic_match": true,
+      "pure": true,
+      "host_authority": false,
+      "review": "Implements duplicate-insensitive set symmetric difference exactly as specified; set result is substrate-internal and should be canonicalized before Field projection."
+    }
+  },
+  "decision": "approve-registry-promotion-only",
+  "kernel_promotion": false
+}
