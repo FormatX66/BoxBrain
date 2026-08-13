@@ -1,41 +1,38 @@
 {
-  "cycle": 19,
+  "cycle": 20,
   "last_capability_build": {
-    "capability": "durable-event-handoff-ledger",
+    "capability": "universal-io-fabric-v0",
     "implementation_commits": [
-      "3850993b8e8a4f0e1644d06bf8045048d61ab50f",
-      "c107c908426f5153b518e2be505ffef8b09aaf99",
-      "72dc8a0b18cee406606dc9d9009caf5a7e6523ce",
-      "21e9a53abf7eb92a22634e2a47274c268d4c16a0",
-      "aba6a84fa4635f10dab4972627af1c0e249090ef",
-      "ea2c5385c9ea37c4055eb80525d0b5e1ba98d8da",
-      "351ac716b8d8b171b9008c9c4cdec3e6169cd563",
-      "9c4094883575c5e977662eb25e3265bc32f9f0a5",
-      "f303661a36028ed65126c89183d337ad4b458262"
+      "14308e469b509d30b5634240012edfd4c8a25cc0",
+      "fdbc0f791d8e05d5e1e156cfee9ad842052a36a6"
     ],
-    "status": "implemented-tested-reference-only-not-deployed",
-    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-26-pass-run-31720449180-success",
+    "status": "implemented-local-invariant-tested-reference-only-not-runtime-bound",
+    "test_scope": "local-deterministic-io-invariants-25-unique-ports-permission-gates-and-field-shape-pass; focused-tests-persisted; broader-workflow-write-blocked-by-platform-control",
     "verification": {
-      "event_driven_no_timer_input": true,
-      "completion_fanout": true,
-      "duplicate_handoff_converges": true,
-      "reward_guided_priority": true,
-      "false_or_policy_rejected_completion_does_not_propagate": true,
-      "independent_blocked_work_does_not_block_safe_work": true,
-      "node_capability_matching": true,
-      "missing_capabilities_explicit": true,
-      "capability_gap_becomes_need": true,
-      "declarative_build_candidate_generation": true,
-      "missing_builder_capability_explicit": true,
-      "field_provenance": true,
-      "claimable_handoff_field_round_trip": true,
-      "matching_capacity_can_select_restored_work": true,
-      "clock_not_semantic_to_handoff_state": true,
-      "live_autonomous_continuation_deployed": false,
+      "io_ports_unique": true,
+      "io_port_count": 25,
+      "keyboard_input_declared": true,
+      "pointer_input_declared": true,
+      "touch_and_gamepad_declared": true,
+      "text_and_llm_dialogue_declared": true,
+      "microphone_and_speaker_declared": true,
+      "display_and_screen_observation_declared": true,
+      "network_declared": true,
+      "usb_bluetooth_serial_declared": true,
+      "camera_haptic_clipboard_declared": true,
+      "gpio_machine_bus_midi_declared": true,
+      "motion_location_power_thermal_declared": true,
+      "storage_io_declared": true,
+      "sensitive_or_actuator_ports_permission_visible": true,
+      "declarative_non_executable": true,
+      "field_projection_shape_verified": true,
+      "live_runtime_binding_complete": false,
+      "audio_runtime_bridge_complete": false,
+      "screen_observation_runtime_bridge_complete": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786638250
+    "verified_at": 1786644660
   },
   "last_controller_ack": {
     "ok": true,
@@ -115,9 +112,23 @@
       "field_round_trip_verified": true,
       "live_autonomous_continuation": false,
       "authoritative_storage_unchanged": true
+    },
+    "universal_io_fabric_v0": {
+      "status": "declarative-reference-capability-local-invariant-tested",
+      "branch": "aurum/capacity-mesh-v0",
+      "ports": 25,
+      "existing_boxbrain_hid_evidence_commit": "c46df446bb5ad217fe31c26cebc1b0da5e001003",
+      "existing_bounded_dialogue_evidence_commit": "dd442f3815ed6e9934569fe2c3f9e67bd9e1ec91",
+      "existing_display_carrier": "vnc-novnc-and-browser-console",
+      "existing_network_carrier": true,
+      "audio_runtime_carrier": false,
+      "screen_observation_runtime_carrier": false,
+      "native_io_dispatch": false,
+      "permission_visible_sensitive_io": true,
+      "authoritative_storage_unchanged": true
     }
   },
-  "next": "bind-durable-handoff-ledger-to-real-verified-work-result-artifacts-and-worker-claims-without-timer-polling-or-authority-expansion",
+  "next": "bind-universal-io-capabilities-to-existing-safe-keyboard-pointer-text-network-display-carriers-then-add-permission-visible-audio-in-out-and-screen-observation-without-unbounded-actuation",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -162,5 +173,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786638250
+  "updated_at": 1786644660
 }
