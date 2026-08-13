@@ -1,0 +1,33 @@
+{
+  "schema": "aurum-self-build-generation-evidence-v0",
+  "generation": 3,
+  "gap": "learning_overlap_score",
+  "source_generation_evidence": "505cecfd37dd8a892338fb4950e64728a1d2d2d9",
+  "gap_spec_commit": "b01e5fe8d1625192d2b65bda67792f31254c04b1",
+  "executor": "gpt-python-sandbox",
+  "temporary_registry": true,
+  "repo_kernel_modified": false,
+  "substrate": {
+    "self-build-op:intersection": {
+      "candidate_sha256": "5132fb8b9311b701b1da2d2fe574976a2f31c4cfd8783a331bde5f66c1168761",
+      "test_sha256": "1d7d5932d61868cfcc3be867e3c81432b024aa22a873351d2c8dea833e8844fc",
+      "tests_passed": true,
+      "stdout_marker": "AURUM_INTERSECTION_TEST_OK",
+      "stderr_empty": true
+    }
+  },
+  "tests_passed": true,
+  "test_stdout_marker": "AURUM_SELF_BUILD_GEN3_TEST_OK",
+  "test_stderr_empty": true,
+  "candidate_sha256": "a3c32d6d7ed2c61751da2ebbdcfc6bcf6f99fe8b25aa697c5696a1c3d8007ffd",
+  "promoted_sha256": "a3c32d6d7ed2c61751da2ebbdcfc6bcf6f99fe8b25aa697c5696a1c3d8007ffd",
+  "promotion_digest_match": true,
+  "promoted_capability_invoked": true,
+  "invocation_input": {
+    "before": "field slush",
+    "after": "field slush aurum"
+  },
+  "invocation_output": 2,
+  "next_gap": "learning_union_size",
+  "interpretation": "third self-build generation completed using learning from prior generations and one newly verified temporary substrate primitive; no durable kernel integration or GitHub CI is claimed"
+}
