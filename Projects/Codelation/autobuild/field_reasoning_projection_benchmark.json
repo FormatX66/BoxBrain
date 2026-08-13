@@ -1,0 +1,23 @@
+{
+  "schema": "aurum-field-reasoning-projection-benchmark-v0",
+  "environment": "gpt-python-local-equivalent",
+  "scope": "synthetic-reference-closed-32-grain-self-build-context",
+  "comparison": {
+    "verbose_projection": "full-grain-identity-per-record-plus-full-reference-hashes",
+    "compact_projection": "field-id-once-plus-canonical-local-grain-indexes-plus-indexed-references"
+  },
+  "results": {
+    "grains": 32,
+    "verbose_utf8_bytes": 7484,
+    "compact_utf8_bytes": 2549,
+    "reduction_ratio": 0.6594067343666489
+  },
+  "interpretation": "synthetic benchmark only; compact reasoning projection reduces repeated identity text for model-facing context while canonical Field remains authoritative",
+  "landed": {
+    "field_reasoning_projection": "f16c05e4ba7877348d55647467c51ab2ddb047bf"
+  },
+  "limitations": {
+    "github_ci_verified": false,
+    "repo_test_write": "blocked-by-platform-control"
+  }
+}
