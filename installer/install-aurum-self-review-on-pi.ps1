@@ -94,7 +94,7 @@ printf 'AURUM_SELF_REVIEW_SUPERVISOR_INSTALLED\nsha256=%s\nstatus=%s\nbackup=%s\
 $payload = [Convert]::ToBase64String(
     [Text.Encoding]::UTF8.GetBytes($remoteScript.Replace("`r", ""))
 )
-$command = "python3 -c 'import base64;open(\"/tmp/aurum-self-review-install.sh\",\"wb\").write(base64.b64decode(\"$payload\"))' && chmod 700 /tmp/aurum-self-review-install.sh && /tmp/aurum-self-review-install.sh '$remoteSource' '$expectedSha256'; rc=`$?; rm -f /tmp/aurum-self-review-install.sh; exit `$rc"
+$command = "printf '%s' '$payload' | base64 -d > /tmp/aurum-self-review-install.sh && chmod 700 /tmp/aurum-self-review-install.sh && /tmp/aurum-self-review-install.sh '$remoteSource' '$expectedSha256'; rc=`$?; rm -f /tmp/aurum-self-review-install.sh; exit `$rc"
 & $ssh @options $target $command
 if ($LASTEXITCODE -ne 0) {
     throw "The iterative self-review supervisor failed verification; the previous supervisor state was restored when present."
