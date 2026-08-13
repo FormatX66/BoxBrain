@@ -1,0 +1,68 @@
+name: Aurum Parallel Buildout
+
+on:
+  push:
+    branches:
+      - aurum/capacity-mesh-v0
+    paths:
+      - 'Projects/Codelation/field/boot_aperture.py'
+      - 'Projects/Codelation/field/slush_lifecycle.py'
+      - 'Projects/Codelation/field/runtime_recipe.py'
+      - 'Projects/Codelation/field/pi3_boot_shim.py'
+      - 'Projects/Codelation/tests/test_boot_aperture.py'
+      - 'Projects/Codelation/tests/test_slush_lifecycle.py'
+      - 'Projects/Codelation/tests/test_runtime_recipe.py'
+      - 'Projects/Codelation/tests/test_pi3_boot_shim.py'
+      - '.github/workflows/aurum-parallel-buildout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-parallel-buildout-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capability-lane:
+    name: Buildout lane - ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - Projects.Codelation.tests.test_boot_aperture
+          - Projects.Codelation.tests.test_slush_lifecycle
+          - Projects.Codelation.tests.test_runtime_recipe
+          - Projects.Codelation.tests.test_pi3_boot_shim
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Run capability lane
+        run: python -m unittest ${{ matrix.module }} -v
+
+  integrated-buildout:
+    name: Integrated Aurum buildout
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: capability-lane
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Run integrated buildout suites
+        run: >-
+          python -m unittest
+          Projects.Codelation.tests.test_boot_aperture
+          Projects.Codelation.tests.test_slush_lifecycle
+          Projects.Codelation.tests.test_runtime_recipe
+          Projects.Codelation.tests.test_pi3_boot_shim
+          -v
