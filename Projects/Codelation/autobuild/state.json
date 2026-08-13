@@ -1,36 +1,22 @@
 {
-  "cycle": 13,
+  "cycle": 14,
   "last_capability_build": {
-    "capability": "windows-runtime-bounded-connectivity-observation",
-    "deployment_blocker": "arkmatx-github-environment-deploy-secrets-empty",
-    "deployment_attempt": {
-      "run": 31655404399,
-      "job": 94308641782,
-      "status": "blocked-before-deploy",
-      "first_missing_field": "HOST",
-      "no_remote_changes_made": true
-    },
+    "capability": "local-lane-approval-drift-inspection",
     "implementation_commits": [
-      "6ef07c82c8e176d81c6d57faa41c4425289cbba8",
-      "0d25bbb1d8a5f98eb56eddbfaf81d0cd0e2a9a69",
-      "8bd719e77def7621b51a63f7f6b9712f4858609d",
-      "418ef02018ac9b6b7ad40540b3a16853bcd1a346"
+      "8b841e8088e2c77aa721aac5b76b125186dcd773"
     ],
-    "status": "implemented-tested-not-deployed-to-enrolled-node",
-    "test_job": 94308642033,
-    "test_run": 31655404466,
-    "test_scope": "full-boxbrain-ci-success",
+    "status": "implemented-tested-read-only",
+    "test_scope": "local-deterministic-unittest-4-pass",
     "verification": {
-      "connect_only": true,
-      "explicit_targets_only": true,
-      "host_limit": 16,
-      "port_limit": 16,
-      "private_or_link_local_only": true,
-      "resolve_once_then_pin": true,
-      "reversible": true,
-      "worker_capability": "connectivity-observation"
+      "read_only": true,
+      "reports_deployer_hash_drift": true,
+      "reports_codelation_tree_hash_drift": true,
+      "reports_watcher_hash_drift": true,
+      "does_not_modify_approval": true,
+      "does_not_deploy": true,
+      "reversible": true
     },
-    "verified_at": 1786581895
+    "verified_at": 1786589329
   },
   "last_controller_ack": {
     "ok": true,
@@ -60,7 +46,7 @@
     "status": "active-edge-web-node",
     "time": 1786577154
   },
-  "next": "restore-or-bypass-arkmatx-deploy-carrier-then-refresh-morris-worker-and-enqueue-explicit-bbpi4-observation",
+  "next": "use-read-only-approval-drift-report-to-restore-local-lane-approval-then-consume-pending-bbpi4-verify-result-before-any-deploy",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -76,6 +62,7 @@
         "winrm"
       ],
       "runtime_connectivity_observation_status": "worker-code-tested-not-deployed",
+      "local_lane_approval_drift_inspection_status": "implemented-tested-read-only",
       "status": "confirmed"
     },
     "BBPI4": {
@@ -90,6 +77,7 @@
       ],
       "local_lane_route_fallback_ready": true,
       "outbound_enrollment_ready": true,
+      "pending_local_lane_verify_request": "aurum-verify-20260813T024536Z",
       "preferred_bootstrap": [
         "10.12.194.1",
         "10.42.194.1",
@@ -99,5 +87,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786581895
+  "updated_at": 1786589329
 }
