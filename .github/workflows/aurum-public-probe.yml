@@ -30,8 +30,18 @@ jobs:
               "85404f41d5507372": "bruce",
           }
 
-          with urllib.request.urlopen(controller + "/status", timeout=15) as response:
-              status = json.load(response)
+          def load_json(path):
+              request = urllib.request.Request(
+                  controller + path,
+                  headers={
+                      "Accept": "application/json",
+                      "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Probe/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  return json.load(response)
+
+          status = load_json("/status")
           print(
               "AURUM_PUBLIC_STATUS "
               f"node={status.get('node')} "
@@ -39,8 +49,7 @@ jobs:
               f"work_count={int(status.get('events', {}).get('work', 0))}"
           )
 
-          with urllib.request.urlopen(controller + "/nodes", timeout=15) as response:
-              payload = json.load(response)
+          payload = load_json("/nodes")
           now = int(payload.get("time") or time.time())
           by_id = {str(item.get("node_id")): item for item in payload.get("nodes", [])}
           for node_id, label in expected.items():
