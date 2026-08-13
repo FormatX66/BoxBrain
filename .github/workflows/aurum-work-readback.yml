@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Read bounded carrier evidence from queued work
+      - name: Read bounded AP observation evidence from queued work
         shell: bash
         run: |
           set -euo pipefail
@@ -38,7 +38,7 @@ jobs:
               query = urllib.parse.urlencode(
                   {
                       "node_id": node_id,
-                      "capabilities": "bbpi4-bootstrap,connectivity-observation",
+                      "capabilities": "connectivity-observation",
                   }
               )
               request = urllib.request.Request(
@@ -49,28 +49,27 @@ jobs:
                   payload = json.load(response)
               work = payload.get("work")
               if not work:
-                  print(f"AURUM_WORK_READBACK label={label} work=none")
+                  print(f"AURUM_CONNECTIVITY_READBACK label={label} work=none")
                   continue
               last = work.get("last_result") or {}
               detail = last.get("detail") or {}
+              addresses = work.get("payload", {}).get("addresses") or []
+              ports = work.get("payload", {}).get("ports") or []
               print(
-                  "AURUM_WORK_READBACK "
+                  "AURUM_CONNECTIVITY_READBACK "
                   f"label={label} "
                   f"work_id={work.get('work_id')} "
-                  f"capability={work.get('capability')} "
                   f"attempts={int(work.get('attempts') or 0)} "
+                  f"addresses={','.join(map(str, addresses)) or 'none'} "
+                  f"ports={','.join(map(str, ports)) or 'default'} "
                   f"prior_result={last.get('status') or 'none'} "
                   f"reason={detail.get('reason') or 'none'}"
               )
-              for observation in detail.get("observations") or []:
-                  if str(observation.get("address")) != "10.42.194.1":
-                      continue
+              for observation in detail.get("open") or []:
                   print(
-                      "AURUM_AP_PRIOR_EVIDENCE "
+                      "AURUM_CONNECTIVITY_OPEN "
                       f"label={label} "
-                      f"icmp={str(bool(observation.get('icmp'))).lower()} "
-                      f"ssh22={str(bool(observation.get('ssh22'))).lower()} "
-                      f"ssh_attempted={str(bool(observation.get('ssh_attempted'))).lower()} "
-                      f"ssh_exit={observation.get('ssh_exit')}"
+                      f"address={observation.get('address')} "
+                      f"port={observation.get('port')}"
                   )
           PY
