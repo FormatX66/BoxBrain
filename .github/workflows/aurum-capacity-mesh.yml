@@ -1,6 +1,13 @@
 name: Aurum Capacity Mesh
 
 on:
+  push:
+    branches:
+      - aurum/capacity-mesh-v0
+    paths:
+      - 'Projects/Codelation/field/capacity_mesh.py'
+      - 'Projects/Codelation/tests/test_capacity_mesh.py'
+      - '.github/workflows/aurum-capacity-mesh.yml'
   pull_request:
     branches:
       - main
