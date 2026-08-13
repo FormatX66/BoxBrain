@@ -1,0 +1,46 @@
+{
+  "schema": "aurum-native-speed-batch-evidence-v0",
+  "environment": "gpt-python-local-native-vm-equivalent",
+  "branch": "aurum/capacity-mesh-v0",
+  "capabilities": [
+    {
+      "name": "token_jaccard_score",
+      "program_identity": "d804c65ff9e751a32b444f22b9e1752186f377665c0609fd07c15b2125a86b74",
+      "tape_identity": "19dfc8f09132dfa868d67a4802ac51349bba3a898d22e491422111dfbcd9b556",
+      "instructions": 21,
+      "examples": 2,
+      "examples_passed": 2,
+      "verified": true
+    },
+    {
+      "name": "token_uniqueness_ratio",
+      "program_identity": "8b1116b595a3e478f570efb3a6d63f1eacda7454710869aac893d0a88e0326fc",
+      "tape_identity": "027510ee14fd663af17e2aeba5ceff149c4b6a2fceff9bdaff30c666e21c10c4",
+      "instructions": 12,
+      "examples": 2,
+      "examples_passed": 2,
+      "verified": true
+    },
+    {
+      "name": "normalized_learning_delta",
+      "program_identity": "73a8eab809eea778fff49e7f902c9e673b2d928b0d5e45684cd481d8b5f1049f",
+      "tape_identity": "6e88bc27a377cf6288d780a6c6a61c799d4d7775b2ad2b972aee1039c29b0919",
+      "instructions": 21,
+      "examples": 2,
+      "examples_passed": 2,
+      "verified": true
+    }
+  ],
+  "execution": {
+    "source_generation": false,
+    "filesystem_build": false,
+    "subprocess_test": false,
+    "model_calls_for_execution": false
+  },
+  "intended_use": "reduce repeated GPT reasoning and context churn by measuring semantic overlap, duplicate-token pressure, and normalized learning change before escalating to a model",
+  "limitations": {
+    "github_ci_verified": false,
+    "durable_native_carriers_persisted": false,
+    "promotion_state": "not-promoted"
+  }
+}
