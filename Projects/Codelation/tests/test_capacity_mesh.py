@@ -18,6 +18,11 @@ from capacity_mesh import (  # noqa: E402
     semantic_recall,
     shadow_state,
 )
+from event_handoff import (  # noqa: E402
+    CompletionEvent,
+    continue_from_events,
+    handoff_field,
+)
 
 
 class CapacityMeshTests(unittest.TestCase):
@@ -108,6 +113,50 @@ class CapacityMeshTests(unittest.TestCase):
         field, rebuilt = shadow_state({"a": 1, "b": 1})
         self.assertEqual(rebuilt, {"a": 1, "b": 1})
         self.assertEqual(len(field), 3)
+
+    def test_event_completion_fans_out_without_a_clock(self):
+        completion = CompletionEvent(
+            "kernel-complete",
+            "worker-source",
+            RewardSignal(verified=True, reusable=True),
+            (
+                WorkItem("recall-next", frozenset({"python"}), weight=3),
+                WorkItem("shadow-next", frozenset({"python"}), weight=3),
+            ),
+        )
+        plan = continue_from_events(
+            [completion],
+            [
+                Node("worker-a", frozenset({"python"}), capacity=1),
+                Node("worker-b", frozenset({"python"}), capacity=1),
+            ],
+        )
+        self.assertEqual(set(plan.assignments), {"worker-a", "worker-b"})
+        self.assertEqual(plan.unassigned, ())
+
+    def test_no_completion_event_produces_no_work(self):
+        plan = continue_from_events(
+            [],
+            [Node("worker", frozenset({"python"}), capacity=1)],
+        )
+        self.assertEqual(plan.emitted, ())
+        self.assertEqual(plan.assignments, {})
+
+    def test_event_handoff_is_preserved_in_field(self):
+        completion = CompletionEvent(
+            "verified-result",
+            "worker-a",
+            RewardSignal(verified=True, generalized=True),
+            (WorkItem("next-capability", frozenset({"python"}), weight=2),),
+            ("deterministic-test-pass",),
+        )
+        plan = continue_from_events(
+            [completion],
+            [Node("worker-b", frozenset({"python"}), capacity=1)],
+        )
+        field = handoff_field([completion], plan)
+        self.assertEqual(field.missing_refs(), set())
+        self.assertGreaterEqual(len(field), 3)
 
 
 if __name__ == "__main__":
