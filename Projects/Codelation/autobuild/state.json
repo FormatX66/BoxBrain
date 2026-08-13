@@ -1,44 +1,54 @@
 {
-  "cycle": 23,
+  "cycle": 24,
   "last_capability_build": {
-    "capability": "morris-evidence-gated-prototype-builder-v0",
+    "capability": "parallel-boot-slush-runtime-buildout-v0",
     "implementation_commits": [
-      "71bd82b28f6b551482bb6ed189653dc3b6b46fe2",
-      "57bc9e171eb7361c464ce6652d57de4f24ac7c73",
-      "cf0751b62454bac9f0f3386277cef9abd6312182",
-      "1808b2bfaadf2de6932c07686e24c60772c265e4",
-      "7beee6efdd225b93abc96c80fa9368408e3b799a"
+      "79357c9c54391a7991b862f8af36e5660b9decea",
+      "010910f12e1f4477c97e99802fde62bb0156ca50",
+      "a8546235937fad5850768ad63e5ae918c58efefa",
+      "e2980b92c6b7a879bf55715cc989e9c351d3aed5",
+      "78fdad5d29504485a645582772260f5273c6b448",
+      "63d2110d56739af11e63e5e4220aa064ae0bb0e7",
+      "d12f42683de54b0704ca50afec95de0bc11d431a"
     ],
-    "status": "implemented-reference-growth-model-partially-verified-not-deployed",
-    "test_scope": "github-capacity-mesh-8-parallel-lanes-pass-plus-integrated-52-of-53-run-31733536827; single-test-harness-binary-projection-assertion-error; correction-write-blocked-by-platform-control",
+    "status": "implemented-tested-parallel-reference-buildout-not-live-host-bound",
+    "test_scope": "github-aurum-parallel-buildout-4-independent-lanes-plus-integrated-24-pass-run-31735178527-success",
     "verification": {
-      "pinned_morris_identity": true,
-      "resource_observation_capability_declared": true,
-      "resource_observation_is_read_only_by_contract": true,
-      "slush_extent_plan_evidence_gated": true,
-      "slush_extent_provision_evidence_gated": true,
-      "slush_seed_requires_verified_extent": true,
-      "prototype_runtime_requires_verified_isolation_carrier": true,
-      "preferred_slush_bytes": 68719476736,
-      "minimum_slush_bytes": 34359738368,
-      "minimum_host_reserve_bytes": 34359738368,
-      "partition_shrink_allowed": false,
-      "raw_physical_disk_write_allowed": false,
-      "host_boot_change_allowed": false,
-      "wrong_node_identity_rejected": true,
-      "eight_parallel_capacity_lanes_passed": true,
-      "integrated_growth_tests_complete": false,
-      "integrated_tests_passed": 52,
-      "integrated_tests_total": 53,
-      "known_test_harness_error": "Field.project returns canonical bytes; one test incorrectly asserted mapping membership",
-      "test_harness_fix_write_blocked_by_platform_control": true,
-      "windows_resource_observation_carrier_write_blocked_by_platform_control": true,
-      "morris_worker_live_capabilities_expanded": false,
-      "morris_host_storage_changed": false,
+      "generic_boot_aperture": true,
+      "network_boot_preferred_over_persistent_media_when_verified": true,
+      "pi3_fat_boot_retained_as_compatibility_fallback": true,
+      "boot_aperture_identity_deterministic": true,
+      "slush_lifecycle_evidence_gated": true,
+      "slush_state_skips_rejected": true,
+      "slush_next_work_declarative": true,
+      "runtime_recipe_derived_from_observed_capabilities": true,
+      "missing_runtime_capability_explicit": true,
+      "verified_isolation_carrier_unlocks_isolated_runtime": true,
+      "pi3_boot_shim_no_prebuilt_rootfs": true,
+      "pi3_boot_shim_observe_before_materialize": true,
+      "parallel_lanes": 4,
+      "parallel_lanes_passed": 4,
+      "integrated_tests": 24,
+      "integrated_tests_passed": 24,
+      "live_morris_resource_carrier": false,
+      "live_morris_slush_materialization": false,
+      "live_pi3_boot": false,
+      "host_partition_changed": false,
+      "raw_physical_disk_write": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786647570
+    "blocked_writes": {
+      "node_resource_protocol": "platform-control",
+      "io_runtime_binding": "platform-control",
+      "slush_extent_file_materializer": "platform-control",
+      "slush_seed_manifest": "platform-control",
+      "isolated_child_node_identity": "platform-control",
+      "morris_event_growth_bridge": "platform-control",
+      "windows_resource_observation_carrier": "platform-control",
+      "windows_node_growth_test_harness_fix": "platform-control"
+    },
+    "verified_at": 1786648729
   },
   "last_controller_ack": {
     "ok": true,
@@ -122,6 +132,18 @@
       "live_autonomous_continuation": false,
       "authoritative_storage_unchanged": true
     },
+    "parallel_buildout_v0": {
+      "status": "tested-parallel-reference-buildout",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31735178527,
+      "parallel_lanes": 4,
+      "integrated_tests": 24,
+      "boot_aperture": true,
+      "slush_lifecycle": true,
+      "runtime_recipe": true,
+      "pi3_boot_shim": true,
+      "live_host_binding": false
+    },
     "universal_io_fabric_v0": {
       "status": "declarative-reference-capability-local-invariant-tested",
       "branch": "aurum/capacity-mesh-v0",
@@ -181,7 +203,7 @@
       "slush_extent_created": false
     }
   },
-  "next": "restore-or-add-an-approved-bounded-windows-resource-observation-carrier-for-morris-then-feed-real-capacity-evidence-into-the-growth-planner-and-only-if-gates-pass-materialize-the-sparse-slush-extent-without-partition-or-boot-changes",
+  "next": "run-all-independent-safe-lanes-event-first; when-an-approved-live-morris-resource-carrier-exists-consume-real-capacity-evidence-then-materialize-seed-and-verify-slush-without-partition-or-boot-change; in-parallel-continue-pi3-boot-aperture-to-live-card-when-authorized-media-is-present",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -239,5 +261,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786647570
+  "updated_at": 1786648729
 }
