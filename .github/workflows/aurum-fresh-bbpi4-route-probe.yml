@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
-      - name: Requeue one bounded route probe and observe actual node activity
+      - name: Requeue one bounded route probe through the second Windows node
         shell: bash
         run: |
           set -euo pipefail
@@ -26,8 +26,8 @@ jobs:
           import urllib.request
 
           controller = "https://arkmatx.com/aurum/index.php"
-          node_id = "825e5a7b7d4a7aed"
-          expected_work = "bbpi4-bootstrap-v1"
+          node_id = "85404f41d5507372"
+          expected_work = "bbpi4-swarm-85404f41d5507372"
           expected_capability = "bbpi4-bootstrap"
           headers = {
               "Accept": "application/json",
@@ -106,7 +106,6 @@ jobs:
           deadline = time.time() + 130
           while time.time() < deadline:
               payload = request_json("/nodes")
-              current_time = int(payload.get("time") or time.time())
               for item in payload.get("nodes", []):
                   item_id = str(item.get("node_id") or "")
                   last_seen = int(item.get("last_seen") or 0)
