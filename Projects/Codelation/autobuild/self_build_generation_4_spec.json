@@ -1,0 +1,35 @@
+{
+  "schema": "aurum-self-build-gap-specification-v0",
+  "generation": 4,
+  "source_generation_evidence": "791de9dbd550a9817ffbc00d566bfbbe5c1d886b",
+  "gap": "learning_union_size",
+  "purpose": "Measure total distinct vocabulary present across two learning states so Aurum can compare retained, removed, and newly added knowledge against the whole observed vocabulary.",
+  "parameters": ["before", "after"],
+  "semantic_expression": "length(union(unique(split(casefold(strip(before)))), unique(split(casefold(strip(after))))))",
+  "required_operations": [
+    "input",
+    "strip",
+    "casefold",
+    "split",
+    "unique",
+    "union",
+    "length"
+  ],
+  "already_available_or_candidate_verified": [
+    "input",
+    "strip",
+    "casefold",
+    "split",
+    "unique",
+    "length"
+  ],
+  "missing_substrate_operations": ["union"],
+  "examples": [
+    {"before": "field slush", "after": "field slush aurum", "expected": 3},
+    {"before": "Pi3 Morris", "after": "morris pi3", "expected": 2},
+    {"before": "alpha beta", "after": "beta gamma", "expected": 3}
+  ],
+  "constraints": ["pure function", "no I/O", "no host authority"],
+  "reasoner": "gpt-reasoning",
+  "next_stage": "isolated-build-test-self-build-op:union"
+}
