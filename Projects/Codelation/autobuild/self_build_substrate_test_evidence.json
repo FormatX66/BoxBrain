@@ -1,0 +1,28 @@
+{
+  "schema": "aurum-self-build-substrate-test-evidence-v0",
+  "parent_gap": "learning_delta_score",
+  "executor": "gpt-python-sandbox",
+  "isolation": "temporary-directory-python-minus-S",
+  "promotion_performed": false,
+  "kernel_modified": false,
+  "candidates": {
+    "self-build-op:length": {
+      "candidate_sha256": "e43af5bb3ad4112ce8e129c54949b6dbf66c636b610af25d76c77ab5c8125dce",
+      "test_sha256": "9272234bf187cf7b660aedca243cf22883368b3aad6734789cd535de95ea8f3c",
+      "tests_passed": true,
+      "stdout_marker": "AURUM_SUBSTRATE_TEST_OK",
+      "stderr_empty": true,
+      "reasoner_proposal_commit": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b"
+    },
+    "self-build-op:symmetric_difference": {
+      "candidate_sha256": "9cccd9c64a6c84e7adcc5f88a2226e39779bded6eb72148a6d6787351f1e3e92",
+      "test_sha256": "9f617c57cc2c334794f615cc1d85936b150327602b44c02628cde97f7e439965",
+      "tests_passed": true,
+      "stdout_marker": "AURUM_SUBSTRATE_TEST_OK",
+      "stderr_empty": true,
+      "reasoner_proposal_commit": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b"
+    }
+  },
+  "evidence_interpretation": "both bounded substrate candidate semantics passed their proposal examples in an isolated GPT Python execution lane; this is candidate evidence only and is not evidence of kernel integration or GitHub CI",
+  "next": "semantic-review-then-promotion-gate-for-self-build-kernel-extension"
+}
