@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 AURUM_ENTRY = ROOT / "Aurum.ps1"
 ASKER = ROOT / "installer" / "ask-aurum-on-pi.ps1"
+AP_HELPER = ROOT / "installer" / "invoke-aurum-via-bbpi4-ap.ps1"
 WATCHER = ROOT / "installer" / "aurum-local-lane" / "watch-aurum-local-lane.ps1"
 DEPLOYER = ROOT / "installer" / "deploy-aurum-live-to-pi.ps1"
 RECONCILER = ROOT / "installer" / "reconcile-existing-aurum-gold-seed-on-pi.ps1"
@@ -29,6 +30,28 @@ class LocalLaneContractTests(unittest.TestCase):
         entry = AURUM_ENTRY.read_text(encoding="utf-8")
         self.assertIn("-PiAddresses $PiAddresses", entry)
         self.assertIn("USB-SSH first", entry)
+
+    def test_direct_entry_can_delegate_to_the_pi_access_point(self):
+        entry = AURUM_ENTRY.read_text(encoding="utf-8")
+        self.assertIn("[switch]$UsePiAp", entry)
+        self.assertIn("invoke-aurum-via-bbpi4-ap.ps1", entry)
+        self.assertIn("KeepPiApConnected", entry)
+
+    def test_pi_access_point_route_is_saved_profile_only_and_bounded(self):
+        text = AP_HELPER.read_text(encoding="utf-8")
+        lower = text.lower()
+        self.assertIn('"wlan", "show", "profiles"', text)
+        self.assertIn('"wlan", "connect"', text)
+        self.assertNotIn("key=clear", lower)
+        self.assertNotIn("export profile", lower)
+        self.assertIn("MaxProfileAttempts = 6", text)
+        self.assertIn('ApAddress = "10.42.194.1"', text)
+        self.assertIn(
+            "SHA256:hFesq9DxC+gOdl8rT6a4RDptEsNp6yn2FhwYv/lXC1o", text
+        )
+        self.assertIn("StrictHostKeyChecking=yes", text)
+        self.assertIn("-PiAddresses @($ApAddress)", text)
+        self.assertIn("AURUM_AP_ROUTE_RESTORED", text)
 
     def test_codelation_is_diagnostic_not_an_aurum_gate(self):
         text = RECONCILER.read_text(encoding="utf-8")
