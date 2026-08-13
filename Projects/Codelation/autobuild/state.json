@@ -1,22 +1,28 @@
 {
-  "cycle": 14,
+  "cycle": 15,
   "last_capability_build": {
-    "capability": "local-lane-approval-drift-inspection",
+    "capability": "local-lane-result-freshness-classification",
     "implementation_commits": [
-      "8b841e8088e2c77aa721aac5b76b125186dcd773"
+      "9806d1915c5dca367e3686a00ff95491c8de2375",
+      "81744657d6269d2e0cb4a072c8b823554fe78509"
     ],
     "status": "implemented-tested-read-only",
-    "test_scope": "local-deterministic-unittest-4-pass",
+    "test_scope": "local-deterministic-unittest-5-pass-plus-boxbrain-ci-31665699885-success",
     "verification": {
       "read_only": true,
-      "reports_deployer_hash_drift": true,
-      "reports_codelation_tree_hash_drift": true,
-      "reports_watcher_hash_drift": true,
+      "matching_request_result_can_be_accepted": true,
+      "stale_result_is_rejected": true,
+      "missing_result_is_pending": true,
+      "missing_task_request_id_is_invalid": true,
+      "current_request_id": "aurum-verify-20260813T024536Z",
+      "observed_result_request_id": "aurum-bbpi4-morris-relay-20260812T200425Z",
+      "current_result_status": "pending-stale-result-rejected",
       "does_not_modify_approval": true,
       "does_not_deploy": true,
+      "does_not_touch_bbpi4": true,
       "reversible": true
     },
-    "verified_at": 1786589329
+    "verified_at": 1786593776
   },
   "last_controller_ack": {
     "ok": true,
@@ -46,7 +52,31 @@
     "status": "active-edge-web-node",
     "time": 1786577154
   },
-  "next": "use-read-only-approval-drift-report-to-restore-local-lane-approval-then-consume-pending-bbpi4-verify-result-before-any-deploy",
+  "observations": {
+    "pending_local_lane_verify": {
+      "request_id": "aurum-verify-20260813T024536Z",
+      "result": "pending",
+      "reason": "repository result belongs to older request and is not valid evidence for this verify request"
+    },
+    "fresh_bounded_route_probe": {
+      "morris": {
+        "workflow_run": 31662829935,
+        "worker_consumed_requeued_work": false,
+        "fresh_bbpi4_heartbeat": false
+      },
+      "bruce": {
+        "workflow_run": 31662988570,
+        "worker_consumed_requeued_work": false,
+        "fresh_bbpi4_heartbeat": false
+      }
+    },
+    "authorized_windows_ap_runner": {
+      "workflow_run": 31663227799,
+      "status_observed": "queued",
+      "interpretation": "no matching self-hosted Windows runner had started the job at observation time"
+    }
+  },
+  "next": "restore-local-lane-approval-on-an-authorized-windows-node-then-accept-only-a-matching-result-for-aurum-verify-20260813T024536Z-before-any-bbpi4-deploy",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -63,6 +93,7 @@
       ],
       "runtime_connectivity_observation_status": "worker-code-tested-not-deployed",
       "local_lane_approval_drift_inspection_status": "implemented-tested-read-only",
+      "fresh_route_probe_worker_consumption": "not-observed",
       "status": "confirmed"
     },
     "BBPI4": {
@@ -78,6 +109,8 @@
       "local_lane_route_fallback_ready": true,
       "outbound_enrollment_ready": true,
       "pending_local_lane_verify_request": "aurum-verify-20260813T024536Z",
+      "local_lane_verify_result_status": "pending-stale-result-rejected",
+      "fresh_route_probe_status": "no-worker-consumption-or-fresh-bbpi4-heartbeat-observed",
       "preferred_bootstrap": [
         "10.12.194.1",
         "10.42.194.1",
@@ -87,5 +120,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786589329
+  "updated_at": 1786593776
 }
