@@ -222,14 +222,16 @@ class CapacityMeshTests(unittest.TestCase):
 
 
 def load_tests(loader, tests, pattern):
-    """Make convergence execute the event and Slush-media capability suites."""
+    """Make convergence execute event, Slush-media, and Slush-image suites."""
     event_module = importlib.import_module("Projects.Codelation.tests.test_event_handoff")
     slush_module = importlib.import_module("Projects.Codelation.tests.test_slush_media")
+    image_module = importlib.import_module("Projects.Codelation.tests.test_slush_image")
     return unittest.TestSuite(
         [
             tests,
             loader.loadTestsFromModule(event_module),
             loader.loadTestsFromModule(slush_module),
+            loader.loadTestsFromModule(image_module),
         ]
     )
 
