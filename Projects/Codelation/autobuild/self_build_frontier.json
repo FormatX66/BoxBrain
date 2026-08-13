@@ -1,8 +1,8 @@
 {
-  "schema": "aurum-self-build-frontier-v0",
+  "schema": "aurum-self-build-frontier-v1",
   "priority": "close-autonomous-recurring-self-build-loop",
   "branch": "aurum/capacity-mesh-v0",
-  "head": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b",
+  "head": "3003994778b109e44f639bd7a7a247cbc9de2cd9",
   "landed": {
     "first_self_build_kernel": "ab9aa0d80cff15d24251ee6b0d92dc2ef672391f",
     "one_command_first_proof": "5ccac93013016c91ed3441b16bc1037cc008b9d4",
@@ -11,35 +11,44 @@
     "next_gap_spec_and_kernel_introspection": "aa26b2557d503995e5af384c3eaf1244a09940e3",
     "parallel_substrate_growth": "f838ac88ccb413e9b84e1f3d33f28dcfd7df11d6",
     "one_command_frontier": "bcc8aac0a9ab0a1a474b538d12d371788d9fc289",
-    "bounded_substrate_reasoner_proposals": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b"
+    "bounded_substrate_reasoner_proposals": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b",
+    "substrate_test_evidence": "15f25b1a5ec54d04dbcf12ab792253e1cfca60bf",
+    "generation_2_evidence": "505cecfd37dd8a892338fb4950e64728a1d2d2d9",
+    "generation_3_spec": "b01e5fe8d1625192d2b65bda67792f31254c04b1",
+    "generation_3_evidence": "791de9dbd550a9817ffbc00d566bfbbe5c1d886b",
+    "generation_4_spec": "fe8b2b0a5941dee1b75a6fce942f88a72d3595b9",
+    "capability_registry": "1bf922a6eb399656fe8b0af6596d901a411f1a5a",
+    "registry_evidence_import": "718a3a8df499fc35f1b521d78a6b755084af95e6",
+    "one_command_registry_import": "3003994778b109e44f639bd7a7a247cbc9de2cd9"
   },
   "frontier": {
     "completed_capability": "canonical_learning_tokens",
     "emitted_next_gap": "learning_delta_score",
     "recurrence_connected": true,
     "durable_handoff_claimed": true,
-    "initial_ready_stage": "specify-gap",
-    "initial_ready_resource": "gpt-reasoning",
     "next_gap_specified": true,
-    "next_gap_directly_buildable_by_current_kernel": false,
-    "missing_self_build_operations": [
-      "length",
-      "symmetric_difference"
-    ],
-    "substrate_gaps": [
+    "next_gap_directly_buildable_by_durable_kernel": false,
+    "verified_substrate_candidates": [
       "self-build-op:length",
       "self-build-op:symmetric_difference"
     ],
-    "substrate_candidate_generation_parallel": true,
-    "substrate_reasoner_proposals_present": true,
-    "substrate_reasoner_proposals_executable": false,
-    "substrate_reasoner_proposals_promoted": false,
-    "next_required_stage": "isolated-build-test-substrate-candidates",
+    "verified_registry_import_runnable": true,
+    "verified_registry_import_executed_from_clean_branch": false,
+    "temporary_runtime_generations_completed_through": 6,
+    "temporary_runtime_latest_gap_completed": "learning_novelty_ratio",
+    "temporary_runtime_latest_next_gap": "learning_stability_index",
+    "temporary_runtime_is_durable_kernel": false,
+    "durable_generation_evidence_through": 3,
+    "shared_learning_not_shared_binary": true,
+    "next_required_durable_stage": "verified-registry-promotion-and-runtime-resolution",
     "timer_dependency": false
   },
   "verification": {
     "first_self_build_executed_on_gpt_python_lane": true,
     "first_self_build_github_ci_verified": false,
+    "generation_2_temporary_runtime_verified": true,
+    "generation_3_temporary_runtime_verified": true,
+    "temporary_runtime_recurrence_observed_through_generation_6": true,
     "recurrence_repo_tests_persisted": false,
     "recurrence_test_write_blocked_by_platform_control": true,
     "clean_container_branch_clone_attempted": true,
@@ -49,7 +58,8 @@
   "platform_blocked_writes": [
     "extend-bounded-self-build-language-for-length-and-symmetric-difference",
     "persist-self-build-recurrence-tests",
-    "persist-strict-stage-evidence-gate"
+    "persist-strict-stage-evidence-gate",
+    "persist-generation-4-evidence"
   ],
   "safety_invariants": {
     "no_host_partition_change": true,
@@ -57,7 +67,8 @@
     "no_timer_loop": true,
     "no_promotion_before_verification": true,
     "reasoner_proposals_non_executable": true,
+    "registry_stores_metadata_not_executable_source": true,
     "source_node_learning_shared_not_source_binary": true
   },
-  "next": "isolate-build-and-test-self-build-op-length-and-self-build-op-symmetric_difference-from-the-bounded-reasoner-proposals-then-promote-only-with-positive-evidence-and-retry-learning_delta_score"
+  "next": "reconstruct-verified-length-and-symmetric-difference-variants-into-field-backed-registry-then-add-a-bounded-runtime-resolver-that-can-use-promoted-local-variants-without-copying-them-to-other-nodes"
 }
