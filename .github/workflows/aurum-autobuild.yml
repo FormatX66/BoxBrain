@@ -45,6 +45,8 @@ jobs:
           python3 Projects/Codelation/run_native_autonomous_chain.py | tee /tmp/aurum-native-chain.json
 
       - name: Verify native self-build contracts
+        id: verify
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -54,6 +56,24 @@ jobs:
             Projects.Codelation.tests.test_field_native_batch \
             Projects.Codelation.tests.test_field_native_cache \
             -v
+
+      - name: Record verification outcome
+        shell: bash
+        env:
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          state_path = Path('Projects/Codelation/autobuild/native_chain_state.json')
+          state = json.loads(state_path.read_text())
+          state['workflow_verification'] = {
+              'outcome': os.environ['VERIFY_OUTCOME'],
+              'trusted_for_continuation': os.environ['VERIFY_OUTCOME'] == 'success',
+          }
+          state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + '\n')
+          PY
 
       - name: Commit durable chain state
         shell: bash
@@ -69,17 +89,28 @@ jobs:
           git push origin HEAD:aurum/capacity-mesh-v0
 
       - name: Report continuation boundary
+        if: always()
         shell: bash
         run: |
-          set -euo pipefail
           python3 - <<'PY'
           import json
           from pathlib import Path
           p = Path('Projects/Codelation/autobuild/native_chain_state.json')
+          if not p.is_file():
+              print('native_chain_state=missing')
+              raise SystemExit(0)
           state = json.loads(p.read_text())
           print('completed_generations=', state.get('completed_generations'))
           print('latest_completed_gap=', state.get('latest_completed_gap'))
           print('next_gap=', state.get('next_gap'))
           print('blocked_reason=', state.get('blocked_reason'))
           print('reasoning_required=', state.get('reasoning_required'))
+          print('workflow_verification=', state.get('workflow_verification'))
           PY
+
+      - name: Fail closed on verification failure
+        if: steps.verify.outcome != 'success'
+        shell: bash
+        run: |
+          echo 'Aurum state was checkpointed, but verification failed; continuation is not trusted.'
+          exit 1
