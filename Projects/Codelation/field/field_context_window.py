@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import hashlib
 from typing import Iterable
 
-from aurum_field import Field, Grain, Ref
+from aurum_field import Field
 from capacity_mesh import semantic_recall
 
 
@@ -71,14 +71,10 @@ def select_field_context(
         raise ValueError("source Field must be reference-closed")
 
     recalled = semantic_recall(source, query, limit=recall_limit)
-    identities_by_body = {source.get(identity).body: identity for identity in source.identities()}
     chosen: set[bytes] = set()
 
     for grain in recalled:
-        identity = identities_by_body.get(grain.body)
-        if identity is None:
-            continue
-        proposed = _closure(source, tuple(chosen | {identity}))
+        proposed = _closure(source, tuple(chosen | {grain.identity}))
         candidate = _subset(source, proposed)
         if len(candidate.project()) <= max_bytes:
             chosen = set(proposed)
