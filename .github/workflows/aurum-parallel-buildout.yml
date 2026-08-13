@@ -10,11 +10,13 @@ on:
       - 'Projects/Codelation/field/slush_lifecycle.py'
       - 'Projects/Codelation/field/runtime_recipe.py'
       - 'Projects/Codelation/field/pi3_boot_shim.py'
+      - 'Projects/Codelation/field/windows_capacity_mapping.py'
       - 'Projects/Codelation/tests/test_boot_aperture.py'
       - 'Projects/Codelation/tests/test_boot_aperture_handshake.py'
       - 'Projects/Codelation/tests/test_slush_lifecycle.py'
       - 'Projects/Codelation/tests/test_runtime_recipe.py'
       - 'Projects/Codelation/tests/test_pi3_boot_shim.py'
+      - 'Projects/Codelation/tests/test_windows_capacity_mapping.py'
       - '.github/workflows/aurum-parallel-buildout.yml'
   workflow_dispatch:
 
@@ -39,6 +41,7 @@ jobs:
           - Projects.Codelation.tests.test_slush_lifecycle
           - Projects.Codelation.tests.test_runtime_recipe
           - Projects.Codelation.tests.test_pi3_boot_shim
+          - Projects.Codelation.tests.test_windows_capacity_mapping
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -69,4 +72,5 @@ jobs:
           Projects.Codelation.tests.test_slush_lifecycle
           Projects.Codelation.tests.test_runtime_recipe
           Projects.Codelation.tests.test_pi3_boot_shim
+          Projects.Codelation.tests.test_windows_capacity_mapping
           -v
