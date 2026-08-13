@@ -70,10 +70,13 @@ The legacy command remains compatible and now routes to the same reconciler:
 .\installer\deploy-aurum-live-to-pi.ps1
 ```
 
-The reconciler runs all current Codelation tests in staging, creates a rollback
-copy of `/opt/boxbrain/codelation`, installs only the bounded live-graph and
-dialogue files, leaves an existing `seed.bin` byte-for-byte intact even when its
-format is opaque to the passive-seed diagnostic, and inventories the running
+The reconciler requires only the focused Aurum live-graph and dialogue tests.
+It also runs the broader Codelation suite for diagnostic evidence, but a failure
+in that broader suite is explicitly non-blocking and cannot veto the existing
+operator-approved Aurum gold seed. The reconciler creates a rollback copy of
+`/opt/boxbrain/codelation`, installs only the bounded live-graph and dialogue
+files, leaves an existing `seed.bin` byte-for-byte intact even when its format
+is opaque to the passive-seed diagnostic, and inventories the running
 `/opt/aurum` runtime when present. Existing Aurum/Codelation systemd or cron
 entries are snapshotted as the operator-approved baseline. Verification rejects
 only newly added or removed persistence, rather than incorrectly requiring all
@@ -81,7 +84,8 @@ approved Aurum services to disappear.
 
 The reconciler records `/opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt`
 with the live graph, heartbeat, mind, gold-seed hash/status, runtime health,
-existing persistence inventory, rollback path, and transfer-cleanup evidence.
+focused Aurum test status, non-blocking Codelation diagnostic status, existing
+persistence inventory, rollback path, and transfer-cleanup evidence.
 
 The repository-root entry point performs that direct reconciliation without a
 Git/Codelation queue gate:
