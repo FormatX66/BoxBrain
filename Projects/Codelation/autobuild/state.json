@@ -1,35 +1,44 @@
 {
-  "cycle": 22,
+  "cycle": 23,
   "last_capability_build": {
-    "capability": "slush-sparse-image-assembler-v0",
+    "capability": "morris-evidence-gated-prototype-builder-v0",
     "implementation_commits": [
-      "614b064c04600c6cc2051ed038cb097291c5058f",
-      "8d586a416a173b775a51739f51c594e9383e02e5",
-      "6959de950f77f315de5f3953a596db66ad2e628c"
+      "71bd82b28f6b551482bb6ed189653dc3b6b46fe2",
+      "57bc9e171eb7361c464ce6652d57de4f24ac7c73",
+      "cf0751b62454bac9f0f3386277cef9abd6312182",
+      "1808b2bfaadf2de6932c07686e24c60772c265e4",
+      "7beee6efdd225b93abc96c80fa9368408e3b799a"
     ],
-    "status": "implemented-tested-image-file-only-not-physical-media",
-    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-44-pass-run-31731382921-success",
+    "status": "implemented-reference-growth-model-partially-verified-not-deployed",
+    "test_scope": "github-capacity-mesh-8-parallel-lanes-pass-plus-integrated-52-of-53-run-31733536827; single-test-harness-binary-projection-assertion-error; correction-write-blocked-by-platform-control",
     "verification": {
-      "sparse_image_file_only": true,
-      "block_device_not_opened": true,
-      "mbr_signature_valid": true,
-      "fat32_boot_partition_entry": true,
-      "raw_slush_partition_entry": true,
-      "primary_slush_anchor": true,
-      "mirror_slush_anchor": true,
-      "anchors_share_media_plan_identity": true,
-      "anchor_corruption_detected": true,
-      "boot_payload_bounded_to_boot_region": true,
-      "existing_output_not_overwritten": true,
-      "wrong_plan_capacity_rejected": true,
-      "sparse_round_trip_verified": true,
-      "physical_card_written": false,
-      "boot_shim_bootability_verified": false,
-      "live_pi3_first_boot_verified": false,
+      "pinned_morris_identity": true,
+      "resource_observation_capability_declared": true,
+      "resource_observation_is_read_only_by_contract": true,
+      "slush_extent_plan_evidence_gated": true,
+      "slush_extent_provision_evidence_gated": true,
+      "slush_seed_requires_verified_extent": true,
+      "prototype_runtime_requires_verified_isolation_carrier": true,
+      "preferred_slush_bytes": 68719476736,
+      "minimum_slush_bytes": 34359738368,
+      "minimum_host_reserve_bytes": 34359738368,
+      "partition_shrink_allowed": false,
+      "raw_physical_disk_write_allowed": false,
+      "host_boot_change_allowed": false,
+      "wrong_node_identity_rejected": true,
+      "eight_parallel_capacity_lanes_passed": true,
+      "integrated_growth_tests_complete": false,
+      "integrated_tests_passed": 52,
+      "integrated_tests_total": 53,
+      "known_test_harness_error": "Field.project returns canonical bytes; one test incorrectly asserted mapping membership",
+      "test_harness_fix_write_blocked_by_platform_control": true,
+      "windows_resource_observation_carrier_write_blocked_by_platform_control": true,
+      "morris_worker_live_capabilities_expanded": false,
+      "morris_host_storage_changed": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786646100
+    "verified_at": 1786647570
   },
   "last_controller_ack": {
     "ok": true,
@@ -99,9 +108,12 @@
     "capacity_mesh_v0": {
       "status": "event-driven-reference-capability-tested-isolated",
       "branch": "aurum/capacity-mesh-v0",
-      "ci_workflow_run": 31731382921,
+      "ci_workflow_run": 31733536827,
       "parallel_lanes": 8,
-      "integrated_tests": 44,
+      "parallel_lanes_passed": 8,
+      "integrated_tests_passed": 52,
+      "integrated_tests_total": 53,
+      "integrated_conclusion": "test-harness-error",
       "timer_dependency": false,
       "event_handoff": true,
       "capability_gap_growth": true,
@@ -147,9 +159,29 @@
       "physical_media_write": false,
       "bootable_boot_shim_inserted": false,
       "authoritative_storage_unchanged": true
+    },
+    "morris_prototype_builder_v0": {
+      "status": "reference-growth-model-partially-verified-not-deployed",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31733536827,
+      "deployed_worker_capabilities": [
+        "bbpi4-bootstrap",
+        "connectivity-observation"
+      ],
+      "planned_evidence_gated_capabilities": [
+        "resource-observation",
+        "slush-extent-plan",
+        "slush-extent-provision",
+        "slush-seed",
+        "prototype-runtime-materialize"
+      ],
+      "windows_resource_carrier_persisted": false,
+      "host_storage_changed": false,
+      "live_resource_observation": false,
+      "slush_extent_created": false
     }
   },
-  "next": "build-and-verify-pi3-fat-boot-compatibility-shim-from-pinned-firmware-kernel-initramfs-assets-then-insert-it-into-the-verified-slush-image-before-any-authorized-physical-media-write",
+  "next": "restore-or-add-an-approved-bounded-windows-resource-observation-carrier-for-morris-then-feed-real-capacity-evidence-into-the-growth-planner-and-only-if-gates-pass-materialize-the-sparse-slush-extent-without-partition-or-boot-changes",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -165,6 +197,19 @@
         "winrm"
       ],
       "runtime_connectivity_observation_status": "worker-code-tested-not-deployed",
+      "deployed_worker_capabilities": [
+        "bbpi4-bootstrap",
+        "connectivity-observation"
+      ],
+      "planned_capability_ladder": [
+        "resource-observation",
+        "slush-extent-plan",
+        "slush-extent-provision",
+        "slush-seed",
+        "prototype-runtime-materialize"
+      ],
+      "resource_observation_status": "carrier-write-blocked-not-live",
+      "prototype_slush_status": "not-created",
       "local_lane_approval_drift_inspection_status": "implemented-tested-read-only",
       "fresh_route_probe_worker_consumption": "not-observed",
       "status": "confirmed",
@@ -194,5 +239,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786646100
+  "updated_at": 1786647570
 }
