@@ -1,6 +1,9 @@
 Options -Indexes
 RewriteEngine On
 RewriteRule ^status$ index.php/status [L,QSA]
+RewriteRule ^nodes$ index.php/nodes [L,QSA]
+RewriteRule ^events$ index.php/events [L,QSA]
+RewriteRule ^work/(.*)$ index.php/work/$1 [L,QSA]
 RewriteRule ^uaf$ index.php/uaf [L,QSA]
 
 <FilesMatch "^(?:\.|state)">
