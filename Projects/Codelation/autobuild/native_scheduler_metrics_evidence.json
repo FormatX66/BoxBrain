@@ -1,0 +1,44 @@
+{
+  "schema": "aurum-native-scheduler-metrics-evidence-v0",
+  "environment": "gpt-python-local-native-vm-equivalent",
+  "branch": "aurum/capacity-mesh-v0",
+  "capabilities": [
+    {
+      "name": "capability_coverage_ratio",
+      "program_identity": "c6d6a70b4c0dd0219d54113c864a37ae6b60577ac362702ae4fe077933abe57d",
+      "tape_identity": "ceaa187e39764121f739b1615bdce7f877815c6a39f38ad048eb35d056ee47f7",
+      "instructions": 19,
+      "examples": 3,
+      "examples_passed": 3,
+      "verified": true
+    },
+    {
+      "name": "learning_reuse_ratio",
+      "program_identity": "08ca28b33d252c0db4a12dd2717ee2fbcb283b5127e3d8d9b57da558727d66d7",
+      "tape_identity": "67fbae29b24a8b7e811fd0491e53a3c924622b62bb367c5d13047193a77c736c",
+      "instructions": 19,
+      "examples": 3,
+      "examples_passed": 3,
+      "verified": true
+    }
+  ],
+  "assumption_correction": {
+    "capability": "capability_coverage_ratio",
+    "initial_bad_expectation": "required='field native vm', available='field git' expected 2/3",
+    "native_verifier_observed": 0.3333333333333333,
+    "corrected_expectation": 0.3333333333333333,
+    "result": "corrected-and-reverified"
+  },
+  "execution": {
+    "source_generation": false,
+    "filesystem_build": false,
+    "subprocess_test": false,
+    "model_call_needed_for_execution": false
+  },
+  "intended_use": "let Aurum estimate prerequisite coverage and learned-capability reuse before escalating a build gap to a reasoning model",
+  "limitations": {
+    "github_ci_verified": false,
+    "durable_native_carriers_persisted": false,
+    "promotion_state": "not-promoted"
+  }
+}
