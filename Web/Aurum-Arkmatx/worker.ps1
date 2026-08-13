@@ -5,7 +5,11 @@ $ConfigPath=Join-Path $Root 'node.json'
 $LogPath=Join-Path $Root 'worker.log'
 $KeyPath=Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
 $ProbePorts=@(22,80,443,5985,5986,3389)
+$ObservationPorts=@(22,80,443,3000,3389,5985,5986,8000,8080)
 $MaxDiscoveredCandidates=32
+$MaxObservationHosts=16
+$MaxObservationPorts=16
+$ObservationTimeoutMs=700
 
 function Log($m){Add-Content -LiteralPath $LogPath -Value ("{0:o} {1}" -f [DateTimeOffset]::UtcNow,$m)}
 function Post-Result($nodeId,$workId,$status,$detail){$body=[ordered]@{node_id=$nodeId;work_id=$workId;status=$status;detail=$detail;completed_at=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()};try{Invoke-RestMethod -Method Post -Uri "$Controller/work/result" -ContentType 'application/json' -Body ($body|ConvertTo-Json -Depth 12 -Compress)|Out-Null}catch{Log "result-post-failed $($_.Exception.Message)"}}
@@ -19,6 +23,13 @@ function Test-PrivateOrLinkLocalIPv4([string]$Address){
   if($bytes[0] -eq 192 -and $bytes[1] -eq 168){return $true}
   if($bytes[0] -eq 169 -and $bytes[1] -eq 254){return $true}
   return $false
+}
+function Test-AllowedObservationIPv4([string]$Address){
+  $ip=$null
+  if(-not [System.Net.IPAddress]::TryParse($Address,[ref]$ip)){return $false}
+  $bytes=$ip.GetAddressBytes();if($bytes.Length -ne 4){return $false}
+  if($bytes[0] -eq 127){return $true}
+  return Test-PrivateOrLinkLocalIPv4 $Address
 }
 function Add-Candidate([System.Collections.Generic.HashSet[string]]$set,$value,[bool]$RequireLocal){
   if($null -eq $value){return}
@@ -45,6 +56,42 @@ function Get-SeedSet($work){
   if($work.payload.addresses){$seeds=@($work.payload.addresses)}
   foreach($v in $seeds){if($null -ne $v){$null=$set.Add(([string]$v).Trim())}}
   return $set
+}
+function Resolve-ObservationTargets($values){
+  $targets=@();$refused=@();$seen=New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  foreach($raw in @($values | Select-Object -First $MaxObservationHosts)){
+    if($null -eq $raw){continue};$label=([string]$raw).Trim();if(-not $label){continue}
+    $addresses=@();$literal=$null
+    if([System.Net.IPAddress]::TryParse($label,[ref]$literal)){
+      if(Test-AllowedObservationIPv4 $label){$addresses=@($literal.ToString())}
+    }else{
+      try{$addresses=@([System.Net.Dns]::GetHostAddresses($label) | Where-Object {$_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork} | ForEach-Object {$_.ToString()} | Where-Object {Test-AllowedObservationIPv4 $_} | Sort-Object -Unique)}catch{$addresses=@()}
+    }
+    if($addresses.Count -eq 0){$refused += $label;continue}
+    foreach($address in $addresses){$key="$label|$address";if($seen.Add($key)){$targets += [pscustomobject]@{host=$label;address=$address}}}
+  }
+  return @{targets=@($targets);refused=@($refused)}
+}
+function Get-ObservationPortSet($work){
+  $values=$ObservationPorts;if($work.payload.ports){$values=@($work.payload.ports)}
+  $set=New-Object 'System.Collections.Generic.HashSet[int]'
+  foreach($raw in $values){$port=0;if(-not [int]::TryParse(([string]$raw),[ref]$port) -or $port -lt 1 -or $port -gt 65535){return @{ok=$false;reason='invalid-port';value=[string]$raw}};$null=$set.Add($port);if($set.Count -gt $MaxObservationPorts){return @{ok=$false;reason='too-many-ports';limit=$MaxObservationPorts}}}
+  if($set.Count -eq 0){return @{ok=$false;reason='no-ports'}}
+  return @{ok=$true;ports=@($set | Sort-Object)}
+}
+function Probe-TcpPinned([string]$address,[int]$port,[int]$timeoutMs=$ObservationTimeoutMs){
+  $client=New-Object System.Net.Sockets.TcpClient
+  try{$task=$client.ConnectAsync($address,$port);if(-not $task.Wait($timeoutMs)){return $false};return [bool]$client.Connected}catch{return $false}finally{$client.Dispose()}
+}
+function Invoke-ConnectivityObservation($nodeId,$work){
+  if(-not $work.payload.addresses){return @{status='completed';detail=@{schema='aurum.observation.connectivity.v0';kind='connectivity-observation';node_id=$nodeId;reason='no-explicit-targets';hosts=@();resolved=@{};ports=@();open=@();services_by_host=@{};verification=@{connect_only=$true;private_or_link_local_only=$true;resolve_once_then_pin=$true;explicit_targets_only=$true;reversible=$true}}}}
+  $portResult=Get-ObservationPortSet $work;if(-not $portResult.ok){return @{status='completed';detail=@{schema='aurum.observation.connectivity.v0';kind='connectivity-observation';node_id=$nodeId;reason=$portResult.reason;refused_port=$portResult.value;hosts=@();resolved=@{};ports=@();open=@();services_by_host=@{};verification=@{connect_only=$true;private_or_link_local_only=$true;resolve_once_then_pin=$true;explicit_targets_only=$true;reversible=$true}}}}
+  $resolvedResult=Resolve-ObservationTargets @($work.payload.addresses);$targets=@($resolvedResult.targets);$ports=@($portResult.ports)
+  $resolved=[ordered]@{};foreach($target in $targets){if(-not $resolved.Contains($target.host)){$resolved[$target.host]=@()};$resolved[$target.host]=@($resolved[$target.host]) + $target.address}
+  $open=@();$services=[ordered]@{}
+  foreach($target in $targets){foreach($port in $ports){if(Probe-TcpPinned ([string]$target.address) ([int]$port)){$open += [pscustomobject]@{host=$target.host;address=$target.address;port=[int]$port;open=$true};if(-not $services.Contains($target.host)){$services[$target.host]=@()};$services[$target.host]=@($services[$target.host]) + [int]$port}}}
+  foreach($key in @($services.Keys)){$services[$key]=@($services[$key] | Sort-Object -Unique)}
+  return @{status='completed';detail=@{schema='aurum.observation.connectivity.v0';kind='connectivity-observation';node_id=$nodeId;hosts=@($resolved.Keys);resolved=$resolved;refused_hosts=@($resolvedResult.refused);ports=$ports;open=$open;services_by_host=$services;verification=@{connect_only=$true;private_or_link_local_only=$true;resolve_once_then_pin=$true;explicit_targets_only=$true;host_limit=$MaxObservationHosts;port_limit=$MaxObservationPorts;reversible=$true}}}
 }
 function Try-AuthorizedSshBootstrap($address,$ssh,$keyPresent){
   if(-not $ssh -or -not $keyPresent){return @{attempted=$false;exit=$null;output=$null}}
@@ -77,14 +124,23 @@ if($env:AURUM_WORKER_SELFTEST -eq '1'){
   if(-not (Test-PrivateOrLinkLocalIPv4 '192.168.0.194')){throw '192.168/16 classification failed'}
   if(-not (Test-PrivateOrLinkLocalIPv4 '169.254.10.20')){throw 'link-local classification failed'}
   if(Test-PrivateOrLinkLocalIPv4 '8.8.8.8'){throw 'public address classified as local'}
+  if(-not (Test-AllowedObservationIPv4 '127.0.0.1')){throw 'loopback observation classification failed'}
+  if(Test-AllowedObservationIPv4 '8.8.8.8'){throw 'public address allowed for observation'}
   $work=[pscustomobject]@{payload=[pscustomobject]@{addresses=@('10.12.194.1','bbpi4.local','10.12.194.1')}}
   $candidates=Get-Candidates $work $false
   if($candidates.Count -ne 2){throw "candidate de-duplication failed: $($candidates.Count)"}
   $seeds=Get-SeedSet $work
   if(-not $seeds.Contains('10.12.194.1') -or -not $seeds.Contains('bbpi4.local')){throw 'seed-set construction failed'}
   foreach($requiredPort in @(22,80,443,5985,5986,3389)){if($ProbePorts -notcontains $requiredPort){throw "missing carrier port $requiredPort"}}
-  [pscustomobject]@{ok=$true;candidate_count=$candidates.Count;probe_ports=$ProbePorts;discovery_limit=$MaxDiscoveredCandidates;execution_scope='seed-routes-only'}|ConvertTo-Json -Compress
+  foreach($requiredPort in @(22,80,443,3000,3389,5985,5986,8000,8080)){if($ObservationPorts -notcontains $requiredPort){throw "missing observation port $requiredPort"}}
+  $observationWork=[pscustomobject]@{payload=[pscustomobject]@{addresses=@('127.0.0.1','8.8.8.8');ports=@(9)}}
+  $observation=Invoke-ConnectivityObservation 'self-test' $observationWork
+  if($observation.status -ne 'completed'){throw 'observation self-test did not complete'}
+  if($observation.detail.schema -ne 'aurum.observation.connectivity.v0'){throw 'observation schema mismatch'}
+  if(-not $observation.detail.verification.connect_only -or -not $observation.detail.verification.resolve_once_then_pin -or -not $observation.detail.verification.explicit_targets_only){throw 'observation verification flags missing'}
+  if($observation.detail.refused_hosts -notcontains '8.8.8.8'){throw 'public observation target was not refused'}
+  [pscustomobject]@{ok=$true;candidate_count=$candidates.Count;probe_ports=$ProbePorts;observation_ports=$ObservationPorts;discovery_limit=$MaxDiscoveredCandidates;observation_host_limit=$MaxObservationHosts;observation_port_limit=$MaxObservationPorts;observation_schema=$observation.detail.schema;observation_scope='explicit-private-targets-only';execution_scope='seed-routes-only'}|ConvertTo-Json -Compress
   exit 0
 }
 
-while($true){try{if(-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)){Start-Sleep -Seconds 5;continue};$cfg=Get-Content -LiteralPath $ConfigPath -Raw|ConvertFrom-Json;$nodeId=[string]$cfg.node_id;$lease=Invoke-RestMethod -Method Get -Uri "$Controller/work/lease?node_id=$([uri]::EscapeDataString($nodeId))&capabilities=bbpi4-bootstrap" -TimeoutSec 20;if($lease.work){$work=$lease.work;Log "leased $($work.work_id) capability=$($work.capability)";if([string]$work.capability -eq 'bbpi4-bootstrap'){$r=Invoke-BBPI4Bootstrap $nodeId $work}else{$r=@{status='rejected';detail=@{reason='capability-not-allowlisted'}}};Post-Result $nodeId ([string]$work.work_id) ([string]$r.status) $r.detail}}catch{Log "cycle-error $($_.Exception.Message)"};Start-Sleep -Seconds 8}
+while($true){try{if(-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)){Start-Sleep -Seconds 5;continue};$cfg=Get-Content -LiteralPath $ConfigPath -Raw|ConvertFrom-Json;$nodeId=[string]$cfg.node_id;$lease=Invoke-RestMethod -Method Get -Uri "$Controller/work/lease?node_id=$([uri]::EscapeDataString($nodeId))&capabilities=bbpi4-bootstrap,connectivity-observation" -TimeoutSec 20;if($lease.work){$work=$lease.work;Log "leased $($work.work_id) capability=$($work.capability)";if([string]$work.capability -eq 'bbpi4-bootstrap'){$r=Invoke-BBPI4Bootstrap $nodeId $work}elseif([string]$work.capability -eq 'connectivity-observation'){$r=Invoke-ConnectivityObservation $nodeId $work}else{$r=@{status='rejected';detail=@{reason='capability-not-allowlisted'}}};Post-Result $nodeId ([string]$work.work_id) ([string]$r.status) $r.detail}}catch{Log "cycle-error $($_.Exception.Message)"};Start-Sleep -Seconds 8}
