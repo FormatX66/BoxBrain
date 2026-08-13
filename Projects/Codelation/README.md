@@ -94,6 +94,29 @@ Git/Codelation queue gate:
 .\Aurum.ps1
 ```
 
+## BBPI4 access-point route
+
+An authorized Windows computer that has previously joined BBPI4's own Wi-Fi AP
+can use the stable AP-side SSH address `10.42.194.1` directly:
+
+```powershell
+.\Aurum.ps1 -UsePiAp
+```
+
+`-UsePiAp` pulls the repository before changing Wi-Fi, inventories only saved
+Windows WLAN profiles, tries a bounded set of visible or BoxBrain-named saved
+profiles, verifies the pinned BBPI4 ED25519 host key, then reconciles and talks
+to Aurum solely through `kali@10.42.194.1`. It never exports a WLAN profile or
+asks Windows to reveal a saved password. Unless `-KeepPiApConnected` is used,
+it restores the computer's prior Wi-Fi profile after the Aurum operation.
+
+When several saved profiles are plausible, supply the already-saved profile
+name without exposing its password:
+
+```powershell
+.\Aurum.ps1 -UsePiAp -ApProfileName '<saved Windows profile name>'
+```
+
 ## Aurum dialogue and first-use self-build
 
 Live dialogue uses the OpenAI Responses API over HTTPS with redirect blocking,
