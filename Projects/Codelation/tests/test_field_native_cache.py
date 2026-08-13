@@ -29,6 +29,7 @@ class FieldNativeCacheTests(unittest.TestCase):
         self.assertTrue(second.verification_cache_hit)
         self.assertEqual(first.program, second.program)
         self.assertEqual(first.verification, second.verification)
+        self.assertEqual(first.example_set_identity, second.example_set_identity)
 
     def test_new_examples_reuse_program_but_not_verification(self):
         cache = NativeBuildCache()
@@ -67,6 +68,42 @@ class FieldNativeCacheTests(unittest.TestCase):
         )
         self.assertFalse(second.compile_cache_hit)
         self.assertFalse(second.verification_cache_hit)
+
+    def test_duplicate_and_reordered_examples_share_one_verification_identity(self):
+        cache = NativeBuildCache()
+        expression = {
+            "op": "length",
+            "value": {
+                "op": "unique",
+                "value": {"op": "split", "value": {"op": "input", "name": "text"}},
+            },
+        }
+        a = NativeExample({"text": "a a b"}, 2)
+        b = NativeExample({"text": "c c"}, 1)
+        first = cache.resolve(("text",), expression, (a, b))
+        second = cache.resolve(("text",), expression, (b, a, b, a))
+        self.assertFalse(first.verification_cache_hit)
+        self.assertTrue(second.verification_cache_hit)
+        self.assertEqual(first.example_set_identity, second.example_set_identity)
+        self.assertEqual(second.duplicate_examples_removed, 2)
+        self.assertEqual(first.verification, second.verification)
+
+    def test_conflicting_expectations_fail_before_cache_reuse(self):
+        cache = NativeBuildCache()
+        expression = {
+            "op": "length",
+            "value": {"op": "split", "value": {"op": "input", "name": "text"}},
+        }
+        cache.resolve(("text",), expression, (NativeExample({"text": "a b"}, 2),))
+        with self.assertRaisesRegex(ValueError, "conflicting expected outputs"):
+            cache.resolve(
+                ("text",),
+                expression,
+                (
+                    NativeExample({"text": "a b"}, 2),
+                    NativeExample({"text": "a b"}, 3),
+                ),
+            )
 
 
 if __name__ == "__main__":
