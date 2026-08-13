@@ -1,17 +1,20 @@
 {
-  "cycle": 18,
+  "cycle": 19,
   "last_capability_build": {
-    "capability": "event-driven-capacity-growth-mesh",
+    "capability": "durable-event-handoff-ledger",
     "implementation_commits": [
       "3850993b8e8a4f0e1644d06bf8045048d61ab50f",
       "c107c908426f5153b518e2be505ffef8b09aaf99",
       "72dc8a0b18cee406606dc9d9009caf5a7e6523ce",
       "21e9a53abf7eb92a22634e2a47274c268d4c16a0",
       "aba6a84fa4635f10dab4972627af1c0e249090ef",
-      "ea2c5385c9ea37c4055eb80525d0b5e1ba98d8da"
+      "ea2c5385c9ea37c4055eb80525d0b5e1ba98d8da",
+      "351ac716b8d8b171b9008c9c4cdec3e6169cd563",
+      "9c4094883575c5e977662eb25e3265bc32f9f0a5",
+      "f303661a36028ed65126c89183d337ad4b458262"
     ],
     "status": "implemented-tested-reference-only-not-deployed",
-    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-24-pass-run-31719889984-success",
+    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-26-pass-run-31720449180-success",
     "verification": {
       "event_driven_no_timer_input": true,
       "completion_fanout": true,
@@ -22,16 +25,17 @@
       "node_capability_matching": true,
       "missing_capabilities_explicit": true,
       "capability_gap_becomes_need": true,
-      "repeated_gap_strengthens_demand": true,
       "declarative_build_candidate_generation": true,
-      "build_candidate_assignment_by_capability": true,
       "missing_builder_capability_explicit": true,
       "field_provenance": true,
+      "claimable_handoff_field_round_trip": true,
+      "matching_capacity_can_select_restored_work": true,
+      "clock_not_semantic_to_handoff_state": true,
       "live_autonomous_continuation_deployed": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786637220
+    "verified_at": 1786638250
   },
   "last_controller_ack": {
     "ok": true,
@@ -101,17 +105,19 @@
     "capacity_mesh_v0": {
       "status": "event-driven-reference-capability-tested-isolated",
       "branch": "aurum/capacity-mesh-v0",
-      "ci_workflow_run": 31719889984,
+      "ci_workflow_run": 31720449180,
       "parallel_lanes": 8,
-      "integrated_tests": 24,
+      "integrated_tests": 26,
       "timer_dependency": false,
       "event_handoff": true,
       "capability_gap_growth": true,
+      "durable_handoff_ledger": true,
+      "field_round_trip_verified": true,
       "live_autonomous_continuation": false,
       "authoritative_storage_unchanged": true
     }
   },
-  "next": "connect-verified-work-result-events-to-persisted-claimable-handoffs-without-timers-or-authority-expansion",
+  "next": "bind-durable-handoff-ledger-to-real-verified-work-result-artifacts-and-worker-claims-without-timer-polling-or-authority-expansion",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -156,5 +162,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786637220
+  "updated_at": 1786638250
 }
