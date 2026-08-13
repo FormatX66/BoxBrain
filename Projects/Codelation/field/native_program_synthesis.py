@@ -8,7 +8,7 @@ from aurum_field import encode
 from field_native_vm import NativeExample, compile_native, execute_native
 
 
-SYNTHESIS_REVISION = "aurum-native-synthesis-v0"
+SYNTHESIS_REVISION = "aurum-native-synthesis-v1"
 
 
 @dataclass(frozen=True)
@@ -44,12 +44,29 @@ def _value_type(value: Any) -> str | None:
     return None
 
 
+def _identity_value(value: Any) -> Any:
+    """Project runtime values into Field's canonical scalar vocabulary for identity only."""
+    if isinstance(value, float):
+        return {"float_hex": value.hex()}
+    if isinstance(value, (str, int, bytes)) or value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_identity_value(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        projected = [_identity_value(item) for item in value]
+        return sorted(projected, key=encode)
+    if isinstance(value, Mapping):
+        return {str(key): _identity_value(item) for key, item in value.items()}
+    raise ValueError(f"unsupported synthesis identity value: {type(value).__name__}")
+
+
 def _signature(values: Sequence[Any]) -> tuple[str, str]:
     out_type = _value_type(values[0]) if values else None
     if out_type is None or any(_value_type(value) != out_type for value in values):
         raise ValueError("synthesis signature values must have one supported type")
     identity = hashlib.blake2s(
-        b"AURUM-NATIVE-SYNTHESIS-SIGNATURE-0\x00" + encode(list(values))
+        b"AURUM-NATIVE-SYNTHESIS-SIGNATURE-0\x00"
+        + encode([_identity_value(value) for value in values])
     ).hexdigest()
     return out_type, identity
 
