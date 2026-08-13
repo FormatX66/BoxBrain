@@ -31,6 +31,12 @@ and the allowed-action list. A self-built mind may change Aurum's conversational
 voice and self-description, but cannot add shell, service, persistence, or host
 actuation authority.
 
+Codelation is not a deployment or liveness gate for Aurum. When an operator has
+already installed and started an Aurum gold seed, that observed runtime is the
+preserved baseline. A newer dialogue/live-graph layer must reconcile into it
+without re-seeding, replacing an opaque seed file, or rejecting operator-approved
+services merely because they exist.
+
 ## Raspberry Pi quick start
 
 ```bash
@@ -44,24 +50,45 @@ python3 seed/codelation_seed.py summary --model seed.bin
 
 Run verification with `python3 -m unittest discover -s tests -v`.
 
-From an authorized Windows BoxBrain checkout, deploy over the first reachable
-BBPI4 route (Wi-Fi AP, USB-C, then LAN) with:
+From an authorized Windows BoxBrain checkout, deploy the original passive seed
+over the first reachable BBPI4 route with:
 
 ```powershell
 .\installer\deploy-codelation-to-pi.ps1
 ```
 
-For the bounded live Aurum graph plus dialogue bootstrap use:
+When the gold seed already exists on BBPI4, reconcile the bounded live graph and
+dialogue files into that existing runtime with:
+
+```powershell
+.\installer\reconcile-existing-aurum-gold-seed-on-pi.ps1
+```
+
+The legacy command remains compatible and now routes to the same reconciler:
 
 ```powershell
 .\installer\deploy-aurum-live-to-pi.ps1
 ```
 
-The live deployer preserves any existing `/opt/boxbrain/codelation/state`
-content, initializes the bootstrap mind only when `state/mind/current.json` does
-not exist, runs all Codelation tests on BBPI4, verifies the live graph and peer
-self-test, records mind status in `verification/AURUM_LIVE_VERIFY.txt`, preserves
-a rollback copy, and creates no Aurum/Codelation systemd or cron persistence.
+The reconciler runs all current Codelation tests in staging, creates a rollback
+copy of `/opt/boxbrain/codelation`, installs only the bounded live-graph and
+dialogue files, leaves an existing `seed.bin` byte-for-byte intact even when its
+format is opaque to the passive-seed diagnostic, and inventories the running
+`/opt/aurum` runtime when present. Existing Aurum/Codelation systemd or cron
+entries are snapshotted as the operator-approved baseline. Verification rejects
+only newly added or removed persistence, rather than incorrectly requiring all
+approved Aurum services to disappear.
+
+The reconciler records `/opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt`
+with the live graph, heartbeat, mind, gold-seed hash/status, runtime health,
+existing persistence inventory, rollback path, and transfer-cleanup evidence.
+
+The repository-root entry point performs that direct reconciliation without a
+Git/Codelation queue gate:
+
+```powershell
+.\Aurum.ps1
+```
 
 ## Aurum dialogue and first-use self-build
 
@@ -86,8 +113,8 @@ atomically replaces `state/mind/current.json`, and writes
 the bootstrap mind remains in place and the session fails closed.
 
 Later sessions use the installed self-built mind without recreating it. The
-bootstrap file remains only as a recovery seed; deployment does not overwrite a
-valid current mind.
+bootstrap file remains only as a recovery seed; reconciliation does not
+overwrite a valid current mind.
 
 ## Development path
 
