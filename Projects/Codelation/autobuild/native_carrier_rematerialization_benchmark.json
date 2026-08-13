@@ -1,0 +1,19 @@
+{
+  "schema": "aurum-native-carrier-rematerialization-benchmark-v0",
+  "environment": "gpt-python-local-equivalent",
+  "scope": "canonical_learning_tokens canonical Field-native carrier",
+  "rounds": 5000,
+  "carrier_bytes": 730,
+  "unique_carrier_sha256_values_observed": 1,
+  "carrier_sha256": "28a369306a7408b26d5e51f523adc60b71fec2c579f99e5b31de280b0ff61e88",
+  "program_identity": "02f40dcb7b1e5e0f03c942b3b94c47603b70f52d4e87e2bccd0c927b7ea57dd6",
+  "tape_identity": "88cdbe7029ed0f0cc92825b424e2ad3c5727e9a0e9c8b4747831d3e7215787f1",
+  "average_seconds_per_full_carrier_rematerialization": 0.00015211736699966423,
+  "interpretation": "local-equivalent benchmark only; deterministic rematerialization may be a better carrier strategy for tiny native capabilities than persisting installed carrier bytes, but promotion semantics have not been changed",
+  "safety": {
+    "promotion_semantics_changed": false,
+    "carrier_persisted": false,
+    "host_write": false,
+    "network_write": false
+  }
+}
