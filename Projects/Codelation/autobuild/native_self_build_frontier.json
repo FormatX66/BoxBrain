@@ -1,7 +1,8 @@
 {
-  "schema": "aurum-native-self-build-frontier-v1",
+  "schema": "aurum-native-self-build-frontier-v2",
   "priority": "durable-fast-self-build-loop",
   "branch": "aurum/capacity-mesh-v0",
+  "head": "bdbaaec93dbf583d6055502c56472010d056099d",
   "landed": {
     "field_native_vm": "38010bca39c27610304f2c1e210aef699159c1ee",
     "field_native_vm_tests": "4d2207da14fc9fa2abc62c61039e60794b293673",
@@ -28,17 +29,20 @@
     "native_speed_batch_evidence": "c066720c7dcb5ca6aa26951a7a66f08eadb4a7a4",
     "compact_reasoning_projection": "f16c05e4ba7877348d55647467c51ab2ddb047bf",
     "reasoning_projection_benchmark": "5cce751908a38e204f60433eea80426d649ec0a9",
-    "bounded_reasoning_packet": "45ef77608c079dfc0c8b27a5d42b7af9265e41fb"
+    "bounded_reasoning_packet": "45ef77608c079dfc0c8b27a5d42b7af9265e41fb",
+    "native_scheduler_metrics_evidence": "93ace3746b2f9f237ca5e8ca5719cdbb4f9256a7",
+    "native_carrier_rematerialization_benchmark": "bdbaaec93dbf583d6055502c56472010d056099d"
   },
   "current_path": [
     "gap-specification",
     "bounded-field-context",
     "compact-reasoning-projection-when-model-needed",
+    "skip-model-when-semantics-already-native",
     "field-native-compile",
     "in-memory-example-verification",
     "canonical-field-native-carrier",
     "verified-registry-record",
-    "durable-carrier-presence-proof",
+    "durable-carrier-presence-proof-or-future-approved-rematerialization-proof",
     "optional-native-batch-bundle",
     "separate-promotion-gate",
     "promoted-only-runtime-resolution",
@@ -54,13 +58,18 @@
     "compact_reasoning_projection_available": true,
     "synthetic_10000_grain_binary_context_reduction_ratio": 0.9964,
     "synthetic_32_grain_reasoning_text_reduction_ratio": 0.6594067343666489,
-    "verified_speed_metrics": [
+    "native_speed_metrics": [
       "token_jaccard_score",
       "token_uniqueness_ratio",
-      "normalized_learning_delta"
+      "normalized_learning_delta",
+      "capability_coverage_ratio",
+      "learning_reuse_ratio"
     ],
     "tiny_program_cache_hot_path_enabled": false,
-    "tiny_program_cache_reason": "benchmark-showed-key-hashing-cost-can-exceed-recompile-cost"
+    "tiny_program_cache_reason": "benchmark-showed-key-hashing-cost-can-exceed-recompile-cost",
+    "canonical_learning_tokens_full_carrier_rematerialization_average_seconds": 0.00015211736699966423,
+    "canonical_learning_tokens_rematerialization_rounds": 5000,
+    "canonical_learning_tokens_unique_carrier_digests_observed": 1
   },
   "trust": {
     "verified_is_not_promoted": true,
@@ -70,12 +79,15 @@
     "runtime_resolution_requires_promoted_registry_state": true,
     "runtime_resolution_requires_matching_carrier_digest": true,
     "runtime_resolution_requires_matching_local_variant_identity": true,
-    "shared_learning_not_shared_implementation": true
+    "shared_learning_not_shared_implementation": true,
+    "rematerialization_benchmark_does_not_change_promotion_semantics": true
   },
   "verification": {
     "focused_test_files_persisted": true,
-    "native_speed_batch_verified_on_gpt_python_lane": true,
+    "native_speed_batches_verified_on_gpt_python_lane": true,
+    "scheduler_metric_bad-expectation-was-rejected-corrected-and-reverified": true,
     "reasoning_projection_locally_validated": true,
+    "carrier_rematerialization_locally_benchmarked": true,
     "current_native_frontier_github_ci_verified": false,
     "do_not_claim_ci_pass_without_run_evidence": true
   },
@@ -92,7 +104,9 @@
     "multi-node-learning-convergence-module",
     "reasoning-projection-test-file",
     "bounded-reasoning-request-module",
-    "git-build-cell-branch-creation"
+    "git-build-cell-branch-creation",
+    "reasoning-escalation-advisory-module",
+    "native-rematerialization-proof-module"
   ],
-  "next": "continue-native-self-building-in-memory-and-use-bounded-reasoning-packets-for-new-semantics; close-promotion-immediately-when-an-approved-durable-carrier-locator-can-provide-readback-digest-evidence; do-not-copy-local-implementation-between-nodes"
+  "next": "keep-self-building-native-compatible-capabilities-without-model-calls; use-bounded-reasoning-packets-only-for-new-semantics; preserve-rematerialization-evidence-for-future-approved-promotion-semantics; close-promotion-immediately-when-an-approved-durable-presence-or-rematerialization-proof-carrier-is-available"
 }
