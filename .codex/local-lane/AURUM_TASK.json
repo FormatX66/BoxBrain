@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "request_id": "aurum-bbpi4-deploy-morris-20260812T214900Z",
-  "action": "deploy",
+  "request_id": "aurum-bbpi4-verify-20260813T012500Z",
+  "action": "verify",
   "target": "BBPI4",
   "address": "192.168.0.194",
-  "requested_at": "2026-08-12T21:49:00Z"
+  "requested_at": "2026-08-13T01:25:00Z"
 }
