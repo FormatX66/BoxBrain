@@ -1,7 +1,20 @@
 {
   "blocked_reason": "native-synthesis-not-found",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 4,
+  "completed_generations": 3,
+  "failed_attempt": {
+    "attempted_generation": 4,
+    "gap": "learning_retention_ratio",
+    "synthesis": {
+      "candidates_evaluated": 226,
+      "cost": null,
+      "expression": null,
+      "found": false,
+      "proof_identity": "ca2232a97710f1ec767cb4dfe5427ab361ca705bca7870b338fe089a25e8ead3",
+      "signatures_retained": 34
+    },
+    "verified": false
+  },
   "generations": [
     {
       "artifact_identity": "0609f8869c607742e751b2cd7f5721297f021e7ce42bd560893f0fc511ee8cea",
@@ -65,26 +78,18 @@
       "synthesis_cost": 6,
       "synthesis_proof_identity": "7025b875eee4ae66a4d3e2ab503814320df96c6eba20f81d0ef0a9d1cdf0d96c",
       "verification_identity": "a0953125e135c0aa902f2b3ec3b4a18b9ffd81a2a694dafc3cbacdecfbd942ce"
-    },
-    {
-      "gap": "learning_retention_ratio",
-      "generation": 4,
-      "synthesis": {
-        "candidates_evaluated": 226,
-        "cost": null,
-        "expression": null,
-        "found": false,
-        "proof_identity": "ca2232a97710f1ec767cb4dfe5427ab361ca705bca7870b338fe089a25e8ead3",
-        "signatures_retained": 34
-      },
-      "verified": false
     }
   ],
-  "latest_completed_gap": "learning_retention_ratio",
+  "latest_completed_gap": "learning_union_size",
   "next_gap": "learning_retention_ratio",
-  "reasoning_request": null,
-  "reasoning_required": false,
-  "schema": "aurum-native-autonomous-chain-v0",
+  "reasoning_request": {
+    "gap": "learning_retention_ratio",
+    "reason": "native-synthesis-not-found",
+    "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
+    "shared_implementation": false
+  },
+  "reasoning_required": true,
+  "schema": "aurum-native-autonomous-chain-v1",
   "start_gap": "learning_delta_score",
   "synthesis_revision": "aurum-native-synthesis-v1",
   "timer_dependency": false,
