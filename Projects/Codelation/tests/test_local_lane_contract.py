@@ -19,6 +19,13 @@ class LocalLaneContractTests(unittest.TestCase):
         self.assertIn("AURUM_GOLD_SEED_PRESERVED", reconciler)
         self.assertIn("new_unapproved_systemd_units=0", reconciler)
 
+    def test_codelation_is_diagnostic_not_an_aurum_gate(self):
+        text = RECONCILER.read_text(encoding="utf-8")
+        self.assertIn("test_aurum_live.py", text)
+        self.assertIn("test_aurum_dialogue.py", text)
+        self.assertIn("codelation_diagnostic_status=failed-nonblocking", text)
+        self.assertNotIn("codelation_tests=passed", text)
+
     def test_watcher_does_not_force_the_lan_only_route(self):
         text = WATCHER.read_text(encoding="utf-8")
         self.assertNotIn('-PiAddresses "192.168.0.194"', text)
