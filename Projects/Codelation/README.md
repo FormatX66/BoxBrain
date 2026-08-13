@@ -143,6 +143,10 @@ Later sessions use the installed self-built mind without recreating it. The
 bootstrap file remains only as a recovery seed; reconciliation does not
 overwrite a valid current mind.
 
+For explicit version 2+ review and one-version-at-a-time self-revision, see
+[Aurum iterative self-revision](SELF_REVISION.md). That path is operator-started,
+records keep/revise evidence, and does not add an automatic model loop.
+
 ## Development path
 
 - Seed 0: passive transition learning and prediction.
