@@ -1,35 +1,37 @@
 {
-  "cycle": 17,
+  "cycle": 18,
   "last_capability_build": {
-    "capability": "aurum-field-v0-machine-native-storage",
+    "capability": "event-driven-capacity-growth-mesh",
     "implementation_commits": [
-      "89fd273a1d1e3f4dcc36c115d8025f076611b867",
-      "93ad2ca8b620cffd37c3fce92fefe3254c0bf13e",
-      "d2554ea28996f450c3aef0483f6019bc4d3df3d0",
-      "0574ab9c113fbb88f144d19d071e23a05dc8df0c"
+      "3850993b8e8a4f0e1644d06bf8045048d61ab50f",
+      "c107c908426f5153b518e2be505ffef8b09aaf99",
+      "72dc8a0b18cee406606dc9d9009caf5a7e6523ce",
+      "21e9a53abf7eb92a22634e2a47274c268d4c16a0",
+      "aba6a84fa4635f10dab4972627af1c0e249090ef",
+      "ea2c5385c9ea37c4055eb80525d0b5e1ba98d8da"
     ],
     "status": "implemented-tested-reference-only-not-deployed",
-    "test_scope": "local-deterministic-unittest-12-pass-including-500-randomized-values-plus-10000-grain-shuffled-carrier-stress-plus-boxbrain-ci-31697182130-success",
+    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-24-pass-run-31719889984-success",
     "verification": {
-      "separate_from_authoritative_state": true,
-      "own_canonical_binary_value_grammar": true,
-      "json_not_used_inside_field": true,
-      "immutable_self_addressed_grains": true,
-      "location_independent_identity": true,
-      "insertion_order_independent": true,
-      "carrier_record_order_independent": true,
-      "content_deduplication": true,
-      "commutative_field_merge": true,
-      "partial_field_allowed": true,
-      "missing_reference_detection": true,
-      "corruption_detected": true,
-      "damaged_carrier_region_recovery": true,
-      "capability_grains_declarative_non_executable": true,
-      "webhost_sidecar_deployed": false,
+      "event_driven_no_timer_input": true,
+      "completion_fanout": true,
+      "duplicate_handoff_converges": true,
+      "reward_guided_priority": true,
+      "false_or_policy_rejected_completion_does_not_propagate": true,
+      "independent_blocked_work_does_not_block_safe_work": true,
+      "node_capability_matching": true,
+      "missing_capabilities_explicit": true,
+      "capability_gap_becomes_need": true,
+      "repeated_gap_strengthens_demand": true,
+      "declarative_build_candidate_generation": true,
+      "build_candidate_assignment_by_capability": true,
+      "missing_builder_capability_explicit": true,
+      "field_provenance": true,
+      "live_autonomous_continuation_deployed": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786621820
+    "verified_at": 1786637220
   },
   "last_controller_ack": {
     "ok": true,
@@ -95,9 +97,21 @@
       "stress_field_id": "7c5941e236ba89d818da5cf847014e8b8859c4ff0b063607b87f56718b4090c0",
       "authoritative_storage_unchanged": true,
       "webhost_sidecar_present": false
+    },
+    "capacity_mesh_v0": {
+      "status": "event-driven-reference-capability-tested-isolated",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31719889984,
+      "parallel_lanes": 8,
+      "integrated_tests": 24,
+      "timer_dependency": false,
+      "event_handoff": true,
+      "capability_gap_growth": true,
+      "live_autonomous_continuation": false,
+      "authoritative_storage_unchanged": true
     }
   },
-  "next": "shadow-write-aurum-field-v0-on-arkmatx-sidecar-without-migrating-authoritative-json-state",
+  "next": "connect-verified-work-result-events-to-persisted-claimable-handoffs-without-timers-or-authority-expansion",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -142,5 +156,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786621820
+  "updated_at": 1786637220
 }
