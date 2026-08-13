@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 import unittest
 from pathlib import Path
@@ -157,6 +158,12 @@ class CapacityMeshTests(unittest.TestCase):
         field = handoff_field([completion], plan)
         self.assertEqual(field.missing_refs(), set())
         self.assertGreaterEqual(len(field), 3)
+
+
+def load_tests(loader, tests, pattern):
+    """Make the existing convergence job also execute the full event suite."""
+    event_module = importlib.import_module("Projects.Codelation.tests.test_event_handoff")
+    return unittest.TestSuite([tests, loader.loadTestsFromModule(event_module)])
 
 
 if __name__ == "__main__":
