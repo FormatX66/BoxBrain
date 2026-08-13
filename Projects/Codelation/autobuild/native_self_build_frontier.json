@@ -1,5 +1,5 @@
 {
-  "schema": "aurum-native-self-build-frontier-v0",
+  "schema": "aurum-native-self-build-frontier-v1",
   "priority": "durable-fast-self-build-loop",
   "branch": "aurum/capacity-mesh-v0",
   "landed": {
@@ -22,14 +22,23 @@
     "native_batch_bundle_tests": "ba6821d172152062bc3a119343b40d6b9cf6740e",
     "native_runtime_resolver": "b19e6ad49fe0ae73cd9f2ca00fed10944b9eb596",
     "native_runtime_resolver_tests": "b7162ce98d4a05c2d958212951067b9cd1e1c3e3",
-    "context_reduction_benchmark": "f63581d803fcb372bf0087773fe0a9fb303c7c4d"
+    "context_reduction_benchmark": "f63581d803fcb372bf0087773fe0a9fb303c7c4d",
+    "durable_carrier_presence_proof": "490c87b703fa8113453612eb1b95beb496b82c93",
+    "durable_carrier_presence_tests": "d9aa72c6812ba399f731343359382918d59d6a1a",
+    "native_speed_batch_evidence": "c066720c7dcb5ca6aa26951a7a66f08eadb4a7a4",
+    "compact_reasoning_projection": "f16c05e4ba7877348d55647467c51ab2ddb047bf",
+    "reasoning_projection_benchmark": "5cce751908a38e204f60433eea80426d649ec0a9",
+    "bounded_reasoning_packet": "45ef77608c079dfc0c8b27a5d42b7af9265e41fb"
   },
   "current_path": [
     "gap-specification",
+    "bounded-field-context",
+    "compact-reasoning-projection-when-model-needed",
     "field-native-compile",
     "in-memory-example-verification",
     "canonical-field-native-carrier",
     "verified-registry-record",
+    "durable-carrier-presence-proof",
     "optional-native-batch-bundle",
     "separate-promotion-gate",
     "promoted-only-runtime-resolution",
@@ -42,12 +51,22 @@
     "known_gaps_can_batch": true,
     "multiple_local_variants_can_share_one_bundle_carrier": true,
     "bounded_context_projection_available": true,
-    "synthetic_10000_grain_context_reduction_ratio": 0.9964,
+    "compact_reasoning_projection_available": true,
+    "synthetic_10000_grain_binary_context_reduction_ratio": 0.9964,
+    "synthetic_32_grain_reasoning_text_reduction_ratio": 0.6594067343666489,
+    "verified_speed_metrics": [
+      "token_jaccard_score",
+      "token_uniqueness_ratio",
+      "normalized_learning_delta"
+    ],
     "tiny_program_cache_hot_path_enabled": false,
     "tiny_program_cache_reason": "benchmark-showed-key-hashing-cost-can-exceed-recompile-cost"
   },
   "trust": {
     "verified_is_not_promoted": true,
+    "durable_presence_requires_immutable_locator": true,
+    "durable_presence_requires_readback_digest_match": true,
+    "durable_presence_requires_local_variant_ownership": true,
     "runtime_resolution_requires_promoted_registry_state": true,
     "runtime_resolution_requires_matching_carrier_digest": true,
     "runtime_resolution_requires_matching_local_variant_identity": true,
@@ -55,6 +74,8 @@
   },
   "verification": {
     "focused_test_files_persisted": true,
+    "native_speed_batch_verified_on_gpt_python_lane": true,
+    "reasoning_projection_locally_validated": true,
     "current_native_frontier_github_ci_verified": false,
     "do_not_claim_ci_pass_without_run_evidence": true
   },
@@ -65,7 +86,13 @@
     "field-delta-transport",
     "indexed-semantic-recall",
     "node-local-native-carrier-store",
-    "in-place-streaming-semantic-recall-optimization"
+    "in-place-streaming-semantic-recall-optimization",
+    "git-blob-native-carrier-persistence",
+    "native-promotion-readiness-adapter",
+    "multi-node-learning-convergence-module",
+    "reasoning-projection-test-file",
+    "bounded-reasoning-request-module",
+    "git-build-cell-branch-creation"
   ],
-  "next": "obtain-an-approved-durable-local-carrier-presence-mechanism-or-existing-approved-storage-carrier-then-close-verified-to-promoted-to-learning-wave-without-copying-implementation-between-nodes"
+  "next": "continue-native-self-building-in-memory-and-use-bounded-reasoning-packets-for-new-semantics; close-promotion-immediately-when-an-approved-durable-carrier-locator-can-provide-readback-digest-evidence; do-not-copy-local-implementation-between-nodes"
 }
