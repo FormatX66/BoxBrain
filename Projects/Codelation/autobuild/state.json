@@ -1,37 +1,33 @@
 {
-  "cycle": 24,
+  "cycle": 25,
   "last_capability_build": {
-    "capability": "parallel-boot-slush-runtime-buildout-v0",
+    "capability": "boot-aperture-handshake-and-dynamic-node-scheduling-v0",
     "implementation_commits": [
-      "79357c9c54391a7991b862f8af36e5660b9decea",
-      "010910f12e1f4477c97e99802fde62bb0156ca50",
-      "a8546235937fad5850768ad63e5ae918c58efefa",
-      "e2980b92c6b7a879bf55715cc989e9c351d3aed5",
-      "78fdad5d29504485a645582772260f5273c6b448",
-      "63d2110d56739af11e63e5e4220aa064ae0bb0e7",
-      "d12f42683de54b0704ca50afec95de0bc11d431a"
+      "a716bedbf2b8be532013910a29d5b41bffa084ac",
+      "18b7bd694994bf146fb7b61399582d434964128f",
+      "2bcf15296b40146d0cbf322ddee58c8ec40e8d63",
+      "a78d64380f693d0f8187b629300786685d94d8f5",
+      "ed9c729df5171901badb0a65c2ad6b4e74137ff9"
     ],
-    "status": "implemented-tested-parallel-reference-buildout-not-live-host-bound",
-    "test_scope": "github-aurum-parallel-buildout-4-independent-lanes-plus-integrated-24-pass-run-31735178527-success",
+    "status": "implemented-tested-reference-capability-not-live-host-bound",
+    "test_scope": "github-aurum-parallel-buildout-6-independent-lanes-plus-integrated-34-pass-run-31735651091-success",
     "verification": {
-      "generic_boot_aperture": true,
-      "network_boot_preferred_over_persistent_media_when_verified": true,
-      "pi3_fat_boot_retained_as_compatibility_fallback": true,
-      "boot_aperture_identity_deterministic": true,
-      "slush_lifecycle_evidence_gated": true,
-      "slush_state_skips_rejected": true,
-      "slush_next_work_declarative": true,
-      "runtime_recipe_derived_from_observed_capabilities": true,
-      "missing_runtime_capability_explicit": true,
-      "verified_isolation_carrier_unlocks_isolated_runtime": true,
-      "pi3_boot_shim_no_prebuilt_rootfs": true,
-      "pi3_boot_shim_observe_before_materialize": true,
-      "parallel_lanes": 4,
-      "parallel_lanes_passed": 4,
-      "integrated_tests": 24,
-      "integrated_tests_passed": 24,
-      "live_morris_resource_carrier": false,
-      "live_morris_slush_materialization": false,
+      "boot_request_content_addressed": true,
+      "boot_offer_bound_to_target_and_aperture": true,
+      "boot_receipt_accepts_only_offered_digest": true,
+      "boot_handshake_field_projection_closed": true,
+      "morris_worker_slots_derived_from_cpu_and_available_memory": true,
+      "morris_worker_slots_bounded": true,
+      "morris_capabilities_evidence_gated": true,
+      "morris_storage_headroom_preserves_host_reserve": true,
+      "verified_isolation_adds_runtime_capability": true,
+      "parallel_lanes": 6,
+      "parallel_lanes_passed": 6,
+      "integrated_tests": 34,
+      "integrated_tests_passed": 34,
+      "live_morris_resource_observation": false,
+      "live_morris_worker_capacity_known": false,
+      "live_morris_slush_created": false,
       "live_pi3_boot": false,
       "host_partition_changed": false,
       "raw_physical_disk_write": false,
@@ -45,10 +41,12 @@
       "slush_seed_manifest": "platform-control",
       "isolated_child_node_identity": "platform-control",
       "morris_event_growth_bridge": "platform-control",
+      "morris_composed_prototype_plan": "platform-control",
+      "slush_carrier_selection": "platform-control",
       "windows_resource_observation_carrier": "platform-control",
       "windows_node_growth_test_harness_fix": "platform-control"
     },
-    "verified_at": 1786648729
+    "verified_at": 1786649070
   },
   "last_controller_ack": {
     "ok": true,
@@ -144,6 +142,20 @@
       "pi3_boot_shim": true,
       "live_host_binding": false
     },
+    "parallel_buildout_v1": {
+      "status": "tested-parallel-reference-buildout",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31735651091,
+      "parallel_lanes": 6,
+      "integrated_tests": 34,
+      "boot_aperture": true,
+      "boot_aperture_handshake": true,
+      "slush_lifecycle": true,
+      "runtime_recipe": true,
+      "pi3_boot_shim": true,
+      "morris_dynamic_capacity_mapping": true,
+      "live_host_binding": false
+    },
     "universal_io_fabric_v0": {
       "status": "declarative-reference-capability-local-invariant-tested",
       "branch": "aurum/capacity-mesh-v0",
@@ -197,13 +209,14 @@
         "slush-seed",
         "prototype-runtime-materialize"
       ],
+      "dynamic_capacity_mapping_tested": true,
       "windows_resource_carrier_persisted": false,
       "host_storage_changed": false,
       "live_resource_observation": false,
       "slush_extent_created": false
     }
   },
-  "next": "run-all-independent-safe-lanes-event-first; when-an-approved-live-morris-resource-carrier-exists-consume-real-capacity-evidence-then-materialize-seed-and-verify-slush-without-partition-or-boot-change; in-parallel-continue-pi3-boot-aperture-to-live-card-when-authorized-media-is-present",
+  "next": "keep-independent-safe-lanes-running-event-first; acquire-approved-live-morris-resource-evidence-without-authority-expansion; derive-real-worker-slots-and-slush-plan; materialize-only-after-write-gates; independently-use-boot-aperture-handshake-for-pi3-first-boot-when-authorized-media-or-network-boot-carrier-is-present",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -230,6 +243,7 @@
         "slush-seed",
         "prototype-runtime-materialize"
       ],
+      "dynamic_capacity_mapping_status": "implemented-tested-needs-live-resource-vector",
       "resource_observation_status": "carrier-write-blocked-not-live",
       "prototype_slush_status": "not-created",
       "local_lane_approval_drift_inspection_status": "implemented-tested-read-only",
@@ -261,5 +275,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786648729
+  "updated_at": 1786649070
 }
