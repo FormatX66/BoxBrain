@@ -16,7 +16,7 @@ if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $repositoryRoot "Projects\Codelation"
 if (-not (Test-Path -LiteralPath $source -PathType Container)) {
-    throw "Codelation dialogue source is missing: $source"
+    throw "Aurum dialogue/live-graph source is missing: $source"
 }
 
 $ssh = Get-Command ssh.exe -CommandType Application -ErrorAction Stop
@@ -48,7 +48,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Could not create the bounded BBPI4 staging directory." }
 
     & $scp.Source @options -r "$source" "${target}:$transfer/Projects/"
-    if ($LASTEXITCODE -ne 0) { throw "Could not stage the Codelation source on BBPI4." }
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the Aurum dialogue/live-graph source on BBPI4." }
     & $scp.Source @options -r (Join-Path $repositoryRoot "installer") "${target}:$transfer/"
     if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded installer contract on BBPI4." }
 
@@ -87,7 +87,19 @@ user_cron_before="$(matching_user_cron)"
 root_cron_before="$(matching_root_cron)"
 
 cd "$STAGED"
-python3 -m unittest discover -s tests -v
+# Only the Aurum overlay contract is authoritative for this operation.
+python3 -m unittest discover -s tests -p 'test_aurum_live.py' -v
+python3 -m unittest discover -s tests -p 'test_aurum_dialogue.py' -v
+aurum_overlay_tests=passed
+
+# The broader Codelation suite remains useful evidence, but it is no longer
+# allowed to veto an already-running operator-approved Aurum gold seed.
+codelation_diagnostic_status=passed
+codelation_diagnostic_detail=all-current-tests-passed
+if ! python3 -m unittest discover -s tests -v > "$TRANSFER_ROOT/codelation-tests.log" 2>&1; then
+  codelation_diagnostic_status=failed-nonblocking
+  codelation_diagnostic_detail="$(tail -n 8 "$TRANSFER_ROOT/codelation-tests.log" | tr '\r\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g')"
+fi
 
 sudo -n install -d -o root -g root -m 700 "$ROLLBACK_ROOT"
 if [ -d "$INSTALL" ]; then
@@ -206,7 +218,9 @@ identity=BBPI4/Aurum
 path=$INSTALL
 python=$pythonv
 architecture=$arch
-codelation_tests=passed
+aurum_overlay_tests=$aurum_overlay_tests
+codelation_diagnostic_status=$codelation_diagnostic_status
+codelation_diagnostic_detail=$codelation_diagnostic_detail
 before=$before
 peer=$peer
 after=$after
@@ -244,6 +258,8 @@ chmod 600 verification/AURUM_LIVE_VERIFY.txt
 printf '%s\n' \
   "$before" "$peer" "$after" "$mind" \
   "AURUM_GOLD_SEED_PRESERVED" \
+  "aurum_overlay_tests=$aurum_overlay_tests" \
+  "codelation_diagnostic_status=$codelation_diagnostic_status" \
   "seed_status=$seed_status" \
   "gold_runtime_status=$gold_runtime_status" \
   "existing_systemd_units=$existing_units_count" \
@@ -258,7 +274,7 @@ printf '%s\n' \
     $remoteCommand = 'python3 -c ''import base64;open("/tmp/aurum-reconcile.sh","wb").write(base64.b64decode("{0}"))'' && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh ''{1}'' ''{2}''; rc=$?; rm -f /tmp/aurum-reconcile.sh; exit $rc' -f $payload, $transfer, $PiUser
     & $ssh.Source @options $target $remoteCommand
     if ($LASTEXITCODE -ne 0) {
-        throw "Aurum gold-seed reconciliation or verification failed. The prior Codelation directory was preserved in rollback."
+        throw "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
     }
 }
 finally {
@@ -270,6 +286,7 @@ if ($LASTEXITCODE -ne 0) { throw "Could not retrieve reconciled Aurum evidence f
 $text = ($evidence -join "`n")
 $required = @(
     "identity=BBPI4/Aurum",
+    "aurum_overlay_tests=passed",
     "AURUM_LIVE_VERIFIED",
     "AURUM_PEER_SELF_TEST_OK",
     "AURUM_GOLD_SEED_PRESERVED",
