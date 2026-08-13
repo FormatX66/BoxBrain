@@ -1,30 +1,35 @@
 {
-  "cycle": 16,
+  "cycle": 17,
   "last_capability_build": {
-    "capability": "local-lane-reapproval-planning",
+    "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
-      "1c52c02a70cbb9daf5d1514e99613663db7b55d7",
-      "257c98cf3abc3e30e2e736adcf5960ddce1319cf"
+      "89fd273a1d1e3f4dcc36c115d8025f076611b867",
+      "93ad2ca8b620cffd37c3fce92fefe3254c0bf13e",
+      "d2554ea28996f450c3aef0483f6019bc4d3df3d0",
+      "0574ab9c113fbb88f144d19d071e23a05dc8df0c"
     ],
-    "status": "implemented-tested-read-only-not-applied",
-    "test_scope": "local-deterministic-unittest-8-pass-plus-boxbrain-ci-31668113258-success",
+    "status": "implemented-tested-reference-only-not-deployed",
+    "test_scope": "local-deterministic-unittest-12-pass-including-500-randomized-values-plus-10000-grain-shuffled-carrier-stress-plus-boxbrain-ci-31697182130-success",
     "verification": {
-      "read_only": true,
-      "approval_current_classifies_already_approved": true,
-      "codelation_only_drift_with_matching_tested_commit_classifies_refresh_eligible": true,
-      "deployer_drift_requires_review": true,
-      "watcher_drift_requires_review": true,
-      "unknown_drift_requires_review": true,
-      "missing_test_confirmation_requires_review": true,
-      "tested_commit_mismatch_requires_review": true,
-      "deterministic_output": true,
-      "planner_applied_to_authorized_local_config": false,
-      "does_not_modify_approval": true,
-      "does_not_deploy": true,
-      "does_not_touch_bbpi4": true,
+      "separate_from_authoritative_state": true,
+      "own_canonical_binary_value_grammar": true,
+      "json_not_used_inside_field": true,
+      "immutable_self_addressed_grains": true,
+      "location_independent_identity": true,
+      "insertion_order_independent": true,
+      "carrier_record_order_independent": true,
+      "content_deduplication": true,
+      "commutative_field_merge": true,
+      "partial_field_allowed": true,
+      "missing_reference_detection": true,
+      "corruption_detected": true,
+      "damaged_carrier_region_recovery": true,
+      "capability_grains_declarative_non_executable": true,
+      "webhost_sidecar_deployed": false,
+      "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786596518
+    "verified_at": 1786621820
   },
   "last_controller_ack": {
     "ok": true,
@@ -81,9 +86,18 @@
       "status": "capability-ready-not-run-on-authorized-node",
       "reason": "this runtime does not have the authorized Windows local-lane config or execution carrier",
       "ci_workflow_run": 31668113258
+    },
+    "aurum_field_v0": {
+      "status": "reference-capability-tested-isolated",
+      "ci_workflow_run": 31697182130,
+      "stress_grains": 10000,
+      "stress_carrier_bytes": 690448,
+      "stress_field_id": "7c5941e236ba89d818da5cf847014e8b8859c4ff0b063607b87f56718b4090c0",
+      "authoritative_storage_unchanged": true,
+      "webhost_sidecar_present": false
     }
   },
-  "next": "run-read-only-local-lane-reapproval-plan-on-an-authorized-windows-node-then-only-if-refresh-eligible-atomically-refresh-approval-before-consuming-a-matching-result-for-aurum-verify-20260813T024536Z",
+  "next": "shadow-write-aurum-field-v0-on-arkmatx-sidecar-without-migrating-authoritative-json-state",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -128,5 +142,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786596518
+  "updated_at": 1786621820
 }
