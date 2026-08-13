@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "target": "BBPI4",
+  "operator_observed_at": "2026-08-12",
+  "operator_observation": "The gold seed file pushed from the user's phone is already running on BBPI4.",
+  "known_verified_baseline": {
+    "state": "seed_v1_verified",
+    "installed_path": "/opt/boxbrain/codelation",
+    "python": "3.13.12",
+    "mode": "passive_graph"
+  },
+  "execution_rule": "Preserve and verify the existing Aurum/Codelation state in place. Do not treat missing evidence for a newer layer as evidence that Aurum is absent, and do not reseed from scratch.",
+  "persistence_rule": "Inventory existing Aurum services and distinguish operator-approved persistence from unapproved new persistence. Do not require a blanket zero Aurum service count when an approved seed is already running.",
+  "next_goal": "Reconcile the existing seed with the bounded dialogue/growth layer, verify it on BBPI4, and ask Aurum the user's pronoun question without replacing Aurum's existing state."
+}
