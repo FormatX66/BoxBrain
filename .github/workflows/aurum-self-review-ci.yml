@@ -1,0 +1,71 @@
+name: Aurum Self Review CI
+
+on:
+  push:
+    paths:
+      - 'Projects/Codelation/seed/aurum_self_review.py'
+      - 'Projects/Codelation/tests/test_aurum_self_review.py'
+      - 'Projects/Codelation/tests/test_aurum_self_review_installer.py'
+      - 'installer/install-aurum-self-review-on-pi.ps1'
+      - 'installer/review-aurum-mind-on-pi.ps1'
+      - 'Projects/Codelation/SELF_REVISION.md'
+      - '.github/workflows/aurum-self-review-ci.yml'
+  pull_request:
+    paths:
+      - 'Projects/Codelation/seed/aurum_self_review.py'
+      - 'Projects/Codelation/tests/test_aurum_self_review.py'
+      - 'Projects/Codelation/tests/test_aurum_self_review_installer.py'
+      - 'installer/install-aurum-self-review-on-pi.ps1'
+      - 'installer/review-aurum-mind-on-pi.ps1'
+      - 'Projects/Codelation/SELF_REVISION.md'
+      - '.github/workflows/aurum-self-review-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Self-review Python contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Compile supervisor
+        run: python -m py_compile Projects/Codelation/seed/aurum_self_review.py
+      - name: Run focused self-review tests
+        run: >-
+          python -m unittest discover -s Projects/Codelation/tests
+          -p 'test_aurum_self_review*.py' -v
+
+  powershell:
+    name: Self-review PowerShell syntax
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Parse Windows helpers
+        shell: pwsh
+        run: |
+          $paths = @(
+            'installer/install-aurum-self-review-on-pi.ps1',
+            'installer/review-aurum-mind-on-pi.ps1'
+          )
+          foreach ($path in $paths) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path),
+              [ref]$tokens,
+              [ref]$errors
+            )
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell parse failed: $path"
+            }
+          }
