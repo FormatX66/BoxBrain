@@ -16,12 +16,13 @@ from native_program_synthesis import SYNTHESIS_REVISION, synthesize_native_expre
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v0"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v1"
 
 
 def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 16) -> dict:
     current = start_gap
-    generations: list[dict] = []
+    completed: list[dict] = []
+    failed_attempt: dict | None = None
     blocked_reason: str | None = None
 
     for index in range(max_generations):
@@ -37,14 +38,12 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         )
         if not synthesis.found or synthesis.expression is None:
             blocked_reason = "native-synthesis-not-found"
-            generations.append(
-                {
-                    "generation": index + 1,
-                    "gap": current,
-                    "synthesis": asdict(synthesis),
-                    "verified": False,
-                }
-            )
+            failed_attempt = {
+                "attempted_generation": len(completed) + 1,
+                "gap": current,
+                "synthesis": asdict(synthesis),
+                "verified": False,
+            }
             break
 
         gap = NativeGap(
@@ -63,11 +62,16 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         )
         if built.artifact.state != "verified":
             blocked_reason = "verified-registry-bridge-rejected"
+            failed_attempt = {
+                "attempted_generation": len(completed) + 1,
+                "gap": current,
+                "verified": False,
+            }
             break
 
-        generations.append(
+        completed.append(
             {
-                "generation": index + 1,
+                "generation": len(completed) + 1,
                 "gap": spec.name,
                 "next_gap": spec.next_gap,
                 "synthesis_proof_identity": synthesis.proof_identity,
@@ -92,27 +96,30 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
     else:
         blocked_reason = "generation-bound-reached"
 
+    reasoning_required = blocked_reason in {"semantic-spec-missing", "native-synthesis-not-found"}
     return {
         "schema": STATE_SCHEMA,
         "catalog_revision": CATALOG_REVISION,
         "synthesis_revision": SYNTHESIS_REVISION,
         "start_gap": start_gap,
-        "completed_generations": len(generations),
-        "latest_completed_gap": generations[-1]["gap"] if generations else None,
+        "completed_generations": len(completed),
+        "latest_completed_gap": completed[-1]["gap"] if completed else None,
         "next_gap": current,
         "blocked_reason": blocked_reason,
-        "reasoning_required": blocked_reason == "semantic-spec-missing",
+        "failed_attempt": failed_attempt,
+        "reasoning_required": reasoning_required,
         "reasoning_request": (
             {
                 "gap": current,
-                "required_output": "semantic contract plus bounded input-output examples; do not provide implementation",
+                "reason": blocked_reason,
+                "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
                 "shared_implementation": False,
             }
-            if blocked_reason == "semantic-spec-missing"
+            if reasoning_required
             else None
         ),
         "timer_dependency": False,
-        "generations": generations,
+        "generations": completed,
     }
 
 
@@ -121,7 +128,7 @@ def main() -> int:
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(state, indent=2, sort_keys=True))
-    # Reaching an unknown semantic gap is a normal safe stopping boundary, not failure.
+    # A real reasoning/build boundary is a normal safe stop when prior verified work exists.
     return 0 if state["completed_generations"] > 0 else 1
 
 
