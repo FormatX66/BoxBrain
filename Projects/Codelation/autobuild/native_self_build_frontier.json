@@ -1,8 +1,7 @@
 {
-  "schema": "aurum-native-self-build-frontier-v2",
+  "schema": "aurum-native-self-build-frontier-v3",
   "priority": "durable-fast-self-build-loop",
   "branch": "aurum/capacity-mesh-v0",
-  "head": "bdbaaec93dbf583d6055502c56472010d056099d",
   "landed": {
     "field_native_vm": "38010bca39c27610304f2c1e210aef699159c1ee",
     "field_native_vm_tests": "4d2207da14fc9fa2abc62c61039e60794b293673",
@@ -31,7 +30,15 @@
     "reasoning_projection_benchmark": "5cce751908a38e204f60433eea80426d649ec0a9",
     "bounded_reasoning_packet": "45ef77608c079dfc0c8b27a5d42b7af9265e41fb",
     "native_scheduler_metrics_evidence": "93ace3746b2f9f237ca5e8ca5719cdbb4f9256a7",
-    "native_carrier_rematerialization_benchmark": "bdbaaec93dbf583d6055502c56472010d056099d"
+    "native_carrier_rematerialization_benchmark": "bdbaaec93dbf583d6055502c56472010d056099d",
+    "canonical_native_example_set": "54b6464e9bcc4e236f062bd4b754d18270abdd2b",
+    "canonical_native_example_set_tests": "afad548599c12dbdb4463d477bdd11369b633a96",
+    "native_batch_example_dedupe": "d0e631bc19d67338835c4a6f640ec627381fe339",
+    "native_batch_example_dedupe_tests": "b4e92a9aebf68b128e36c798f542ab4bc38fb72b",
+    "native_work_cost_estimator": "f3c6605e0ce7a8b5d1cac9b5d9709e6759fcf771",
+    "native_verification_sharding": "0f9f9667afc8cc63b7691a68779437483269b075",
+    "canonical_native_verification_cache": "0c730fc4996eca02edfc54d6b0f3f309fbecb09c",
+    "canonical_native_verification_cache_tests": "a834bf94a29e4214b30ba8987a326ce5cc9eca9b"
   },
   "current_path": [
     "gap-specification",
@@ -39,6 +46,10 @@
     "compact-reasoning-projection-when-model-needed",
     "skip-model-when-semantics-already-native",
     "field-native-compile",
+    "canonicalize-verification-example-set",
+    "collapse-duplicate-examples-and-reject-conflicts",
+    "estimate-native-verification-work",
+    "keep-tiny-verification-local-or-deterministically-shard-large-unique-sets",
     "in-memory-example-verification",
     "canonical-field-native-carrier",
     "verified-registry-record",
@@ -53,6 +64,11 @@
     "native_filesystem_build_required": false,
     "native_subprocess_test_required": false,
     "known_gaps_can_batch": true,
+    "duplicate_native_examples_are_not_reverified": true,
+    "contradictory_expectations_fail_before_verification_or_cache_reuse": true,
+    "reordered_or_duplicated_example_sets_share_verification_identity": true,
+    "large_unique_verification_sets_can_be_deterministically_sharded": true,
+    "native_work_cost_is_relative_not_wall_clock": true,
     "multiple_local_variants_can_share_one_bundle_carrier": true,
     "bounded_context_projection_available": true,
     "compact_reasoning_projection_available": true,
@@ -73,6 +89,8 @@
   },
   "trust": {
     "verified_is_not_promoted": true,
+    "verification_example_conflicts_fail_closed": true,
+    "verification_shards_do_not_invent_worker_capacity": true,
     "durable_presence_requires_immutable_locator": true,
     "durable_presence_requires_readback_digest_match": true,
     "durable_presence_requires_local_variant_ownership": true,
@@ -83,7 +101,9 @@
     "rematerialization_benchmark_does_not_change_promotion_semantics": true
   },
   "verification": {
-    "focused_test_files_persisted": true,
+    "focused_test_files_persisted_for_example_set_batch-and-cache": true,
+    "native_work_cost_locally_validated": true,
+    "native_verification_sharding_locally_validated": true,
     "native_speed_batches_verified_on_gpt_python_lane": true,
     "scheduler_metric_bad-expectation-was-rejected-corrected-and-reverified": true,
     "reasoning_projection_locally_validated": true,
@@ -106,7 +126,13 @@
     "bounded-reasoning-request-module",
     "git-build-cell-branch-creation",
     "reasoning-escalation-advisory-module",
-    "native-rematerialization-proof-module"
+    "native-rematerialization-proof-module",
+    "self-build-gap-deduplication",
+    "native-work-cost-test-file",
+    "native-work-cost-evidence-file",
+    "native-verification-shard-test-file",
+    "native-verification-shard-evidence-convergence",
+    "native-verification-shard-capacity-assignment"
   ],
-  "next": "keep-self-building-native-compatible-capabilities-without-model-calls; use-bounded-reasoning-packets-only-for-new-semantics; preserve-rematerialization-evidence-for-future-approved-promotion-semantics; close-promotion-immediately-when-an-approved-durable-presence-or-rematerialization-proof-carrier-is-available"
+  "next": "keep-native-self-build-model-free-when-semantics-are-known; canonicalize-and-deduplicate-verification-before-work; shard-only-large-unique-example-sets; use-bounded-reasoning-packets-only-for-new-semantics; close-promotion-immediately-when-approved-durable-presence-or-rematerialization-proof-becomes-available"
 }
