@@ -1,0 +1,76 @@
+name: Aurum Work Readback
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-work-readback.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read bounded carrier evidence from queued work
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+
+          controller = "https://arkmatx.com/aurum/index.php"
+          nodes = (
+              ("morris", "825e5a7b7d4a7aed"),
+              ("bruce", "85404f41d5507372"),
+          )
+          headers = {
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Readback/1.0",
+          }
+
+          for label, node_id in nodes:
+              query = urllib.parse.urlencode(
+                  {
+                      "node_id": node_id,
+                      "capabilities": "bbpi4-bootstrap,connectivity-observation",
+                  }
+              )
+              request = urllib.request.Request(
+                  controller + "/work/lease?" + query,
+                  headers=headers,
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.load(response)
+              work = payload.get("work")
+              if not work:
+                  print(f"AURUM_WORK_READBACK label={label} work=none")
+                  continue
+              last = work.get("last_result") or {}
+              detail = last.get("detail") or {}
+              print(
+                  "AURUM_WORK_READBACK "
+                  f"label={label} "
+                  f"work_id={work.get('work_id')} "
+                  f"capability={work.get('capability')} "
+                  f"attempts={int(work.get('attempts') or 0)} "
+                  f"prior_result={last.get('status') or 'none'} "
+                  f"reason={detail.get('reason') or 'none'}"
+              )
+              for observation in detail.get("observations") or []:
+                  if str(observation.get("address")) != "10.42.194.1":
+                      continue
+                  print(
+                      "AURUM_AP_PRIOR_EVIDENCE "
+                      f"label={label} "
+                      f"icmp={str(bool(observation.get('icmp'))).lower()} "
+                      f"ssh22={str(bool(observation.get('ssh22'))).lower()} "
+                      f"ssh_attempted={str(bool(observation.get('ssh_attempted'))).lower()} "
+                      f"ssh_exit={observation.get('ssh_exit')}"
+                  )
+          PY
