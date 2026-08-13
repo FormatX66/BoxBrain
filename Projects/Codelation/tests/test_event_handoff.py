@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "field"))
 
+from aurum_field import Field  # noqa: E402
 from capacity_mesh import Node, RewardSignal, WorkItem  # noqa: E402
 from event_handoff import (  # noqa: E402
     CompletionEvent,
@@ -14,6 +15,7 @@ from event_handoff import (  # noqa: E402
     emit_handoffs,
     handoff_field,
 )
+from handoff_ledger import HandoffLedger, ledger_field, restore_ledger  # noqa: E402
 
 
 class EventHandoffTests(unittest.TestCase):
@@ -146,6 +148,31 @@ class EventHandoffTests(unittest.TestCase):
         )[0]
         self.assertLess(repeated.work.weight, neutral.work.weight)
         self.assertGreaterEqual(repeated.work.weight, 1)
+
+    def test_durable_work_record_round_trip(self):
+        completion = CompletionEvent(
+            "source",
+            "origin",
+            RewardSignal(verified=True),
+            (WorkItem("durable", frozenset({"python"}), 4),),
+        )
+        plan = continue_from_events([completion], [])
+        original = HandoffLedger.from_plan(plan)
+        persisted = Field.absorb(ledger_field(original).project())
+        restored = restore_ledger(persisted)
+        self.assertEqual(restored.entries(), original.entries())
+
+    def test_matching_capacity_selects_durable_work(self):
+        completion = CompletionEvent(
+            "source",
+            "origin",
+            RewardSignal(verified=True),
+            (WorkItem("durable", frozenset({"python"}), 4),),
+        )
+        ledger = HandoffLedger.from_plan(continue_from_events([completion], []))
+        selected = ledger.claim(Node("worker", frozenset({"python"}), 1))
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.work.name, "durable")
 
 
 if __name__ == "__main__":
