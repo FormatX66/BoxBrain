@@ -1,0 +1,61 @@
+name: Aurum Public Carrier Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-public-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Inspect current authorized node freshness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.request
+
+          controller = "https://arkmatx.com/aurum/index.php"
+          expected = {
+              "825e5a7b7d4a7aed": "morris",
+              "85404f41d5507372": "bruce",
+          }
+
+          with urllib.request.urlopen(controller + "/status", timeout=15) as response:
+              status = json.load(response)
+          print(
+              "AURUM_PUBLIC_STATUS "
+              f"node={status.get('node')} "
+              f"status={status.get('status')} "
+              f"work_count={int(status.get('events', {}).get('work', 0))}"
+          )
+
+          with urllib.request.urlopen(controller + "/nodes", timeout=15) as response:
+              payload = json.load(response)
+          now = int(payload.get("time") or time.time())
+          by_id = {str(item.get("node_id")): item for item in payload.get("nodes", [])}
+          for node_id, label in expected.items():
+              item = by_id.get(node_id)
+              if not item:
+                  print(f"AURUM_NODE label={label} node_id={node_id} enrolled=false")
+                  continue
+              age = max(0, now - int(item.get("last_seen") or 0))
+              print(
+                  "AURUM_NODE "
+                  f"label={label} "
+                  f"node_id={node_id} "
+                  f"enrolled=true "
+                  f"age_seconds={age} "
+                  f"carrier={item.get('carrier', 'unknown')} "
+                  f"status={item.get('status', 'unknown')}"
+              )
+          PY
