@@ -1,28 +1,30 @@
 {
-  "cycle": 15,
+  "cycle": 16,
   "last_capability_build": {
-    "capability": "local-lane-result-freshness-classification",
+    "capability": "local-lane-reapproval-planning",
     "implementation_commits": [
-      "9806d1915c5dca367e3686a00ff95491c8de2375",
-      "81744657d6269d2e0cb4a072c8b823554fe78509"
+      "1c52c02a70cbb9daf5d1514e99613663db7b55d7",
+      "257c98cf3abc3e30e2e736adcf5960ddce1319cf"
     ],
-    "status": "implemented-tested-read-only",
-    "test_scope": "local-deterministic-unittest-5-pass-plus-boxbrain-ci-31665699885-success",
+    "status": "implemented-tested-read-only-not-applied",
+    "test_scope": "local-deterministic-unittest-8-pass-plus-boxbrain-ci-31668113258-success",
     "verification": {
       "read_only": true,
-      "matching_request_result_can_be_accepted": true,
-      "stale_result_is_rejected": true,
-      "missing_result_is_pending": true,
-      "missing_task_request_id_is_invalid": true,
-      "current_request_id": "aurum-verify-20260813T024536Z",
-      "observed_result_request_id": "aurum-bbpi4-morris-relay-20260812T200425Z",
-      "current_result_status": "pending-stale-result-rejected",
+      "approval_current_classifies_already_approved": true,
+      "codelation_only_drift_with_matching_tested_commit_classifies_refresh_eligible": true,
+      "deployer_drift_requires_review": true,
+      "watcher_drift_requires_review": true,
+      "unknown_drift_requires_review": true,
+      "missing_test_confirmation_requires_review": true,
+      "tested_commit_mismatch_requires_review": true,
+      "deterministic_output": true,
+      "planner_applied_to_authorized_local_config": false,
       "does_not_modify_approval": true,
       "does_not_deploy": true,
       "does_not_touch_bbpi4": true,
       "reversible": true
     },
-    "verified_at": 1786593776
+    "verified_at": 1786596518
   },
   "last_controller_ack": {
     "ok": true,
@@ -74,9 +76,14 @@
       "workflow_run": 31663227799,
       "status_observed": "queued",
       "interpretation": "no matching self-hosted Windows runner had started the job at observation time"
+    },
+    "local_lane_reapproval_plan": {
+      "status": "capability-ready-not-run-on-authorized-node",
+      "reason": "this runtime does not have the authorized Windows local-lane config or execution carrier",
+      "ci_workflow_run": 31668113258
     }
   },
-  "next": "restore-local-lane-approval-on-an-authorized-windows-node-then-accept-only-a-matching-result-for-aurum-verify-20260813T024536Z-before-any-bbpi4-deploy",
+  "next": "run-read-only-local-lane-reapproval-plan-on-an-authorized-windows-node-then-only-if-refresh-eligible-atomically-refresh-approval-before-consuming-a-matching-result-for-aurum-verify-20260813T024536Z",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -94,7 +101,8 @@
       "runtime_connectivity_observation_status": "worker-code-tested-not-deployed",
       "local_lane_approval_drift_inspection_status": "implemented-tested-read-only",
       "fresh_route_probe_worker_consumption": "not-observed",
-      "status": "confirmed"
+      "status": "confirmed",
+      "local_lane_reapproval_plan_status": "implemented-tested-read-only-not-applied"
     },
     "BBPI4": {
       "bounded_connectivity_observation_status": "wired-into-windows-worker-tested-not-deployed",
@@ -120,5 +128,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786593776
+  "updated_at": 1786596518
 }
