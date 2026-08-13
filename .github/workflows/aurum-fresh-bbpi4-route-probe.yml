@@ -1,0 +1,173 @@
+name: Aurum Fresh BBPI4 Route Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-fresh-bbpi4-route-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Requeue one bounded route probe and observe actual node activity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+
+          controller = "https://arkmatx.com/aurum/index.php"
+          node_id = "825e5a7b7d4a7aed"
+          expected_work = "bbpi4-bootstrap-v1"
+          expected_capability = "bbpi4-bootstrap"
+          headers = {
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Fresh-Route-Probe/1.0",
+          }
+
+          def request_json(path, *, data=None, method="GET"):
+              request_headers = dict(headers)
+              body = None
+              if data is not None:
+                  request_headers["Content-Type"] = "application/json"
+                  body = json.dumps(data, separators=(",", ":")).encode("utf-8")
+              request = urllib.request.Request(
+                  controller + path,
+                  data=body,
+                  headers=request_headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response)
+
+          def lease():
+              query = urllib.parse.urlencode(
+                  {
+                      "node_id": node_id,
+                      "capabilities": expected_capability,
+                  }
+              )
+              return request_json("/work/lease?" + query).get("work")
+
+          def release_failed(work_id, reason, detail=None):
+              payload = {
+                  "node_id": node_id,
+                  "work_id": work_id,
+                  "status": "failed",
+                  "detail": {
+                      "reason": reason,
+                      "operator_probe": True,
+                      **(detail or {}),
+                  },
+                  "completed_at": int(time.time()),
+              }
+              return request_json("/work/result", data=payload, method="POST")
+
+          before = request_json("/nodes")
+          before_seen = {
+              str(item.get("node_id")): int(item.get("last_seen") or 0)
+              for item in before.get("nodes", [])
+          }
+
+          work = lease()
+          if work is None:
+              print("AURUM_ROUTE_PROBE_WAITING reason=existing-lease")
+              time.sleep(130)
+              work = lease()
+          if work is None:
+              raise SystemExit("No releasable BBPI4 bootstrap work became available.")
+          if work.get("work_id") != expected_work or work.get("capability") != expected_capability:
+              raise SystemExit(
+                  f"Unexpected work item: {work.get('work_id')} {work.get('capability')}"
+              )
+
+          initial_attempts = int(work.get("attempts") or 0)
+          release_failed(
+              expected_work,
+              "operator-fresh-bbpi4-route-probe-requeue",
+              {"attempts_at_requeue": initial_attempts},
+          )
+          requeued_at = int(time.time())
+          print(
+              "AURUM_ROUTE_PROBE_REQUEUED "
+              f"node_id={node_id} work_id={expected_work} attempts={initial_attempts}"
+          )
+
+          fresh_nodes = []
+          deadline = time.time() + 130
+          while time.time() < deadline:
+              payload = request_json("/nodes")
+              current_time = int(payload.get("time") or time.time())
+              for item in payload.get("nodes", []):
+                  item_id = str(item.get("node_id") or "")
+                  last_seen = int(item.get("last_seen") or 0)
+                  if item_id in ("825e5a7b7d4a7aed", "85404f41d5507372"):
+                      continue
+                  if last_seen < requeued_at:
+                      continue
+                  if last_seen <= before_seen.get(item_id, 0):
+                      continue
+                  fresh_nodes.append(item)
+              if fresh_nodes:
+                  break
+              time.sleep(8)
+
+          if fresh_nodes:
+              for item in fresh_nodes:
+                  print(
+                      "AURUM_FRESH_BBPI4_NODE "
+                      f"node_id={item.get('node_id')} "
+                      f"name={str(item.get('name') or 'unknown').replace(' ', '_')} "
+                      f"carrier={item.get('carrier', 'unknown')} "
+                      f"last_seen={int(item.get('last_seen') or 0)}"
+                  )
+              print("AURUM_BBPI4_ROUTE_CONFIRMED fresh_node_heartbeat=true")
+              raise SystemExit(0)
+
+          final_work = lease()
+          if final_work is None:
+              print(
+                  "AURUM_ROUTE_PROBE_STATE work_unavailable=true "
+                  "inference=worker_may_hold_lease_or_completed_without_new_node"
+              )
+              raise SystemExit(0)
+
+          final_attempts = int(final_work.get("attempts") or 0)
+          last = final_work.get("last_result") or {}
+          detail = last.get("detail") or {}
+          observations = detail.get("observations") or []
+          print(
+              "AURUM_ROUTE_PROBE_STATE "
+              f"initial_attempts={initial_attempts} "
+              f"final_attempts={final_attempts} "
+              f"worker_leased_during_probe={str(final_attempts >= initial_attempts + 2).lower()} "
+              f"last_result={last.get('status') or 'none'} "
+              f"reason={detail.get('reason') or 'none'}"
+          )
+          for observation in observations:
+              print(
+                  "AURUM_ROUTE_OBSERVATION "
+                  f"address={observation.get('address')} "
+                  f"icmp={str(bool(observation.get('icmp'))).lower()} "
+                  f"ssh22={str(bool(observation.get('ssh22'))).lower()} "
+                  f"ssh_attempted={str(bool(observation.get('ssh_attempted'))).lower()} "
+                  f"ssh_exit={observation.get('ssh_exit')}"
+              )
+          release_failed(
+              expected_work,
+              "operator-probe-readback-release",
+              {
+                  "initial_attempts": initial_attempts,
+                  "final_attempts": final_attempts,
+              },
+          )
+          PY
