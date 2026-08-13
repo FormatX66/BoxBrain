@@ -1,38 +1,42 @@
 {
-  "cycle": 20,
+  "cycle": 21,
   "last_capability_build": {
-    "capability": "universal-io-fabric-v0",
+    "capability": "slush-media-self-build-v0",
     "implementation_commits": [
-      "14308e469b509d30b5634240012edfd4c8a25cc0",
-      "fdbc0f791d8e05d5e1e156cfee9ad842052a36a6"
+      "7d7bec452abca4a9d73131f33fa6811b0518427b",
+      "909ae3271bf95bc12e14a9b912282c9b7a1cf390",
+      "947ded772b120307cdda0cda5a869f8c30a3271b"
     ],
-    "status": "implemented-local-invariant-tested-reference-only-not-runtime-bound",
-    "test_scope": "local-deterministic-io-invariants-25-unique-ports-permission-gates-and-field-shape-pass; focused-tests-persisted; broader-workflow-write-blocked-by-platform-control",
+    "status": "implemented-tested-reference-only-not-physically-written-or-booted",
+    "test_scope": "github-capacity-mesh-8-parallel-lanes-plus-integrated-36-pass-run-31731058739-success",
     "verification": {
-      "io_ports_unique": true,
-      "io_port_count": 25,
-      "keyboard_input_declared": true,
-      "pointer_input_declared": true,
-      "touch_and_gamepad_declared": true,
-      "text_and_llm_dialogue_declared": true,
-      "microphone_and_speaker_declared": true,
-      "display_and_screen_observation_declared": true,
-      "network_declared": true,
-      "usb_bluetooth_serial_declared": true,
-      "camera_haptic_clipboard_declared": true,
-      "gpio_machine_bus_midi_declared": true,
-      "motion_location_power_thermal_declared": true,
-      "storage_io_declared": true,
-      "sensitive_or_actuator_ports_permission_visible": true,
-      "declarative_non_executable": true,
-      "field_projection_shape_verified": true,
-      "live_runtime_binding_complete": false,
-      "audio_runtime_bridge_complete": false,
-      "screen_observation_runtime_bridge_complete": false,
+      "raspberry_pi_3_first_target": true,
+      "node_to_slush_media_path_declared": true,
+      "compatibility_boot_shim_separate_from_aurum_semantics": true,
+      "fat_compatible_pi_boot_carrier_declared": true,
+      "raw_aurum_slush_region_declared": true,
+      "slush_receives_majority_of_media_capacity": true,
+      "media_plan_identity_deterministic": true,
+      "different_media_capacity_changes_plan_identity": true,
+      "hardware_observed_before_runtime_materialization": true,
+      "hardware_profile_not_prebaked": true,
+      "slush_authoritative_during_first_boot": true,
+      "compatibility_shim_not_os_owner": true,
+      "runtime_verification_before_promotion_required": true,
+      "rollback_checkpoint_required": true,
+      "field_bootstrap_projection_has_no_missing_refs": true,
+      "physical_media_write_gate_fails_closed": true,
+      "system_disk_rejected": true,
+      "mounted_or_in_use_media_rejected": true,
+      "exact_media_capacity_verification_required": true,
+      "removable_media_verification_required": true,
+      "operator_authorization_required_for_physical_write": true,
+      "physical_card_written": false,
+      "live_pi3_first_boot_verified": false,
       "authoritative_state_migrated": false,
       "reversible": true
     },
-    "verified_at": 1786644660
+    "verified_at": 1786645890
   },
   "last_controller_ack": {
     "ok": true,
@@ -102,9 +106,9 @@
     "capacity_mesh_v0": {
       "status": "event-driven-reference-capability-tested-isolated",
       "branch": "aurum/capacity-mesh-v0",
-      "ci_workflow_run": 31720449180,
+      "ci_workflow_run": 31731058739,
       "parallel_lanes": 8,
-      "integrated_tests": 26,
+      "integrated_tests": 36,
       "timer_dependency": false,
       "event_handoff": true,
       "capability_gap_growth": true,
@@ -126,9 +130,20 @@
       "native_io_dispatch": false,
       "permission_visible_sensitive_io": true,
       "authoritative_storage_unchanged": true
+    },
+    "slush_media_self_build_v0": {
+      "status": "reference-capability-tested-isolated",
+      "branch": "aurum/capacity-mesh-v0",
+      "ci_workflow_run": 31731058739,
+      "target": "raspberry-pi-3",
+      "layout": "small-fat-compatible-bootstrap-shim-plus-raw-aurum-slush",
+      "first_boot_model": "observe-hardware-then-materialize-runtime",
+      "physical_media_write": false,
+      "live_first_boot": false,
+      "authoritative_storage_unchanged": true
     }
   },
-  "next": "bind-universal-io-capabilities-to-existing-safe-keyboard-pointer-text-network-display-carriers-then-add-permission-visible-audio-in-out-and-screen-observation-without-unbounded-actuation",
+  "next": "build-pi3-boot-compatibility-shim-and-nondestructive-slush-image-artifact-then-on-authorized-microsd-run-first-boot-hardware-observation-runtime-materialization-verification-and-rollback-checkpoint",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -173,5 +188,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786644660
+  "updated_at": 1786645890
 }
