@@ -82,3 +82,52 @@ jobs:
           body="$(curl --fail --silent --show-error --max-time 10 "${URL%/}/status")"
           printf '%s' "$body" | grep -F 'Aurum-Arkmatx' >/dev/null
           printf '%s' "$body" | grep -F 'active-edge-web-node' >/dev/null
+
+      - name: Observe bounded BBPI4 AP probes
+        env:
+          URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.parse
+          import urllib.request
+
+          base = os.environ["URL"].rstrip("/")
+          work_ids = (
+              "bbpi4-ap-probe-morris-v1",
+              "bbpi4-ap-probe-bruce-v1",
+          )
+          latest = {}
+          deadline = time.time() + 90
+          while time.time() < deadline:
+              for work_id in work_ids:
+                  url = base + "/work/status?id=" + urllib.parse.quote(work_id)
+                  try:
+                      with urllib.request.urlopen(url, timeout=10) as response:
+                          latest[work_id] = json.load(response)
+                  except Exception as exc:
+                      latest[work_id] = {
+                          "work_id": work_id,
+                          "status": "unavailable",
+                          "attempts": 0,
+                          "ap_ssh_open": False,
+                          "error_type": type(exc).__name__,
+                      }
+              if all(latest.get(work_id, {}).get("status") == "completed" for work_id in work_ids):
+                  break
+              time.sleep(5)
+
+          for work_id in work_ids:
+              item = latest.get(work_id, {})
+              print(
+                  "AURUM_AP_PROBE "
+                  f"work_id={work_id} "
+                  f"status={item.get('status', 'missing')} "
+                  f"attempts={int(item.get('attempts') or 0)} "
+                  f"ap_ssh_open={str(bool(item.get('ap_ssh_open'))).lower()} "
+                  f"result={item.get('last_result_status') or 'none'}"
+              )
+          PY
