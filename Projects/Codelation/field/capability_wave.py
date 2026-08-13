@@ -19,25 +19,41 @@ class UpgradeNode:
 
 @dataclass(frozen=True)
 class CapabilityCompletion:
+    """One node's verified local solution and the learning extracted from it.
+
+    source_variant_identity identifies only the source node's implementation.
+    It is evidence, never an install target for another node.
+    """
+
     capability: str
     source_node: str
-    semantic_identity: str
+    source_variant_identity: str
     requires: frozenset[str]
     reward: RewardSignal
     evidence: tuple[str, ...] = ()
+    learned_principles: tuple[str, ...] = ()
+    constraints: tuple[str, ...] = ()
+    success_conditions: tuple[str, ...] = ()
+    failed_approaches: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class UpgradeLane:
     node: str
     capability: str
-    semantic_identity: str
-    requires: frozenset[str]
+    learning_packet_identity: str
+    source_variant_identity: str
+    missing_prerequisites: frozenset[str]
+    mode: str
     stages: tuple[str, ...] = (
-        "adapt-local-carrier",
-        "build-isolated-candidate",
-        "verify-local-candidate",
-        "promote-local-capability",
+        "ingest-cluster-learning",
+        "observe-local-state",
+        "derive-local-capability-design",
+        "adapt-or-build-local-prerequisites",
+        "build-isolated-local-variant",
+        "verify-local-variant",
+        "promote-local-variant",
+        "publish-new-learning",
         "emit-local-completion",
     )
 
@@ -45,13 +61,13 @@ class UpgradeLane:
 @dataclass(frozen=True)
 class CapabilityWave:
     wave_id: str
+    learning_packet_identity: str
     source_node: str
     capability: str
-    semantic_identity: str
+    source_variant_identity: str
     lanes: tuple[UpgradeLane, ...]
     unavailable_nodes: tuple[str, ...]
-    incompatible_nodes: tuple[str, ...]
-    already_current_nodes: tuple[str, ...]
+    source_current_nodes: tuple[str, ...]
     blocked_reason: str | None = None
 
     @property
@@ -63,11 +79,31 @@ def _completion_payload(completion: CapabilityCompletion) -> Mapping[str, object
     return {
         "capability": completion.capability,
         "source_node": completion.source_node,
-        "semantic_identity": completion.semantic_identity,
+        "source_variant_identity": completion.source_variant_identity,
         "requires": sorted(completion.requires),
         "evidence": sorted(set(completion.evidence)),
+        "learned_principles": sorted(set(completion.learned_principles)),
+        "constraints": sorted(set(completion.constraints)),
+        "success_conditions": sorted(set(completion.success_conditions)),
+        "failed_approaches": sorted(set(completion.failed_approaches)),
         "reward_score": score_reward(completion.reward),
     }
+
+
+def learning_packet_identity(completion: CapabilityCompletion) -> str:
+    """Identify the transferable learning, not a cluster-wide implementation."""
+    payload = {
+        "capability": completion.capability,
+        "source_variant_identity": completion.source_variant_identity,
+        "requires": sorted(completion.requires),
+        "evidence": sorted(set(completion.evidence)),
+        "learned_principles": sorted(set(completion.learned_principles)),
+        "constraints": sorted(set(completion.constraints)),
+        "success_conditions": sorted(set(completion.success_conditions)),
+        "failed_approaches": sorted(set(completion.failed_approaches)),
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.blake2s(b"AURUM-CAPABILITY-LEARNING-0\x00" + raw).hexdigest()
 
 
 def wave_identity(completion: CapabilityCompletion) -> str:
@@ -76,22 +112,20 @@ def wave_identity(completion: CapabilityCompletion) -> str:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    return hashlib.blake2s(b"AURUM-CAPABILITY-WAVE-0\x00" + raw).hexdigest()
+    return hashlib.blake2s(b"AURUM-CAPABILITY-LEARNING-WAVE-0\x00" + raw).hexdigest()
 
 
 def emit_capability_wave(
     completion: CapabilityCompletion,
     nodes: Iterable[UpgradeNode],
-    *,
-    current_semantic_identities: Mapping[str, frozenset[str]] | None = None,
 ) -> CapabilityWave:
-    """Fan one verified capability completion to every eligible node at once.
+    """Broadcast learning so every verified available node invents its own variant.
 
-    The wave carries semantic capability identity, not a shared binary. Each node
-    receives an independent local materialization lane and may promote only after
-    its own local verification succeeds.
+    The source implementation is never copied or treated as the target identity.
+    Every other node receives the same learned evidence, inspects its own state,
+    and independently derives a local implementation. Nodes missing prerequisites
+    enter an adaptation lane instead of being excluded.
     """
-    current = current_semantic_identities or {}
     blocked_reason = None
     if completion.reward.unsafe_or_unauthorized:
         blocked_reason = "unsafe-or-unauthorized-completion"
@@ -100,67 +134,68 @@ def emit_capability_wave(
     elif not completion.reward.verified:
         blocked_reason = "completion-not-verified"
 
+    packet_id = learning_packet_identity(completion)
     wave_id = wave_identity(completion)
     if blocked_reason is not None:
         return CapabilityWave(
             wave_id=wave_id,
+            learning_packet_identity=packet_id,
             source_node=completion.source_node,
             capability=completion.capability,
-            semantic_identity=completion.semantic_identity,
+            source_variant_identity=completion.source_variant_identity,
             lanes=(),
             unavailable_nodes=(),
-            incompatible_nodes=(),
-            already_current_nodes=(),
+            source_current_nodes=(),
             blocked_reason=blocked_reason,
         )
 
     lanes: list[UpgradeLane] = []
     unavailable: list[str] = []
-    incompatible: list[str] = []
-    already_current: list[str] = []
+    source_current: list[str] = []
 
     for node in sorted(nodes, key=lambda item: item.name):
         if node.name == completion.source_node:
-            already_current.append(node.name)
+            source_current.append(node.name)
             continue
         if not node.available or not node.verified:
             unavailable.append(node.name)
             continue
-        if completion.semantic_identity in current.get(node.name, frozenset()):
-            already_current.append(node.name)
-            continue
-        if not completion.requires.issubset(node.capabilities):
-            incompatible.append(node.name)
-            continue
+
+        missing = completion.requires - node.capabilities
+        mode = "derive-local-variant" if not missing else "adapt-prerequisites-then-derive"
         lanes.append(
             UpgradeLane(
                 node=node.name,
                 capability=completion.capability,
-                semantic_identity=completion.semantic_identity,
-                requires=completion.requires,
+                learning_packet_identity=packet_id,
+                source_variant_identity=completion.source_variant_identity,
+                missing_prerequisites=frozenset(missing),
+                mode=mode,
             )
         )
 
     return CapabilityWave(
         wave_id=wave_id,
+        learning_packet_identity=packet_id,
         source_node=completion.source_node,
         capability=completion.capability,
-        semantic_identity=completion.semantic_identity,
+        source_variant_identity=completion.source_variant_identity,
         lanes=tuple(lanes),
         unavailable_nodes=tuple(unavailable),
-        incompatible_nodes=tuple(incompatible),
-        already_current_nodes=tuple(already_current),
+        source_current_nodes=tuple(source_current),
         blocked_reason=None,
     )
 
 
 def capability_wave_field(completion: CapabilityCompletion, wave: CapabilityWave) -> Field:
     field = Field()
-    completion_ref = field.add(
+    learning_ref = field.add(
         "fact",
         {
-            "kind": "verified-capability-completion",
+            "kind": "verified-capability-learning",
+            "learning_packet_identity": wave.learning_packet_identity,
             **_completion_payload(completion),
+            "source_variant_is_evidence_not-template": True,
         },
     )
     lane_refs = []
@@ -169,32 +204,40 @@ def capability_wave_field(completion: CapabilityCompletion, wave: CapabilityWave
             field.add(
                 "relation",
                 {
-                    "kind": "parallel-capability-upgrade-lane",
+                    "kind": "parallel-capability-learning-lane",
                     "wave_id": wave.wave_id,
-                    "caused_by": completion_ref,
+                    "learns_from": learning_ref,
                     "node": lane.node,
-                    "capability": lane.capability,
-                    "semantic_identity": lane.semantic_identity,
-                    "requires": sorted(lane.requires),
+                    "capability_goal": lane.capability,
+                    "learning_packet_identity": lane.learning_packet_identity,
+                    "source_variant_identity": lane.source_variant_identity,
+                    "copy_source_variant": False,
+                    "derive_own_variant": True,
+                    "missing_prerequisites": sorted(lane.missing_prerequisites),
+                    "mode": lane.mode,
                     "stages": list(lane.stages),
                     "local_verification_before_promotion": True,
+                    "publish_new_learning_after_local_result": True,
                 },
             )
         )
     field.add(
         "view",
         {
-            "name": "aurum-capability-wave",
+            "name": "aurum-capability-learning-wave",
             "wave_id": wave.wave_id,
+            "learning_packet_identity": wave.learning_packet_identity,
             "source_node": wave.source_node,
-            "capability": wave.capability,
-            "semantic_identity": wave.semantic_identity,
+            "capability_goal": wave.capability,
+            "source_variant_identity": wave.source_variant_identity,
             "lanes": lane_refs,
             "target_nodes": list(wave.target_nodes),
             "unavailable_nodes": list(wave.unavailable_nodes),
-            "incompatible_nodes": list(wave.incompatible_nodes),
-            "already_current_nodes": list(wave.already_current_nodes),
+            "source_current_nodes": list(wave.source_current_nodes),
             "blocked_reason": wave.blocked_reason,
+            "shared_implementation": False,
+            "shared_learning": True,
+            "local_variants_expected_to_differ": True,
             "timer_dependency": False,
             "global_barrier_before_start": False,
         },
@@ -209,5 +252,6 @@ __all__ = [
     "UpgradeNode",
     "capability_wave_field",
     "emit_capability_wave",
+    "learning_packet_identity",
     "wave_identity",
 ]
