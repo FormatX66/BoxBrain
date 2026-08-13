@@ -1,0 +1,71 @@
+{
+  "schema": "aurum-native-self-build-frontier-v0",
+  "priority": "durable-fast-self-build-loop",
+  "branch": "aurum/capacity-mesh-v0",
+  "landed": {
+    "field_native_vm": "38010bca39c27610304f2c1e210aef699159c1ee",
+    "field_native_vm_tests": "4d2207da14fc9fa2abc62c61039e60794b293673",
+    "field_native_self_build": "9f0c225ca62ed0e785f80997c1b7d4f2d9df65be",
+    "native_batch": "2d66d5a76f18b48f8ea89993384da3b8c2d2f7b0",
+    "native_batch_tests": "83da3c80d5ec17df41a4d32dba40eaae9c1624c8",
+    "bounded_field_context": "2a324606f9dd8046d9ec2b3912d6e171fc3127ce",
+    "native_compile_verification_cache": "4d72dd644dd152cdb65fc2c89ce73af99fb62923",
+    "native_cache_tests": "eca3f9136232e006db5eab4f477b5e3c54976160",
+    "native_single_carrier": "7b3f2210504229476eb6868a51d1166dd70c3df7",
+    "native_single_carrier_tests": "6178e259daee8a94fe6aee5ae02d61c474e66297",
+    "native_verified_registry_bridge": "c0ac6dcdf8de8033d0a7bcd912121637616a3467",
+    "native_verified_registry_bridge_tests": "379c12d436dd4faff97c7d37d9924164cb70ca43",
+    "one_command_native_verified_build": "c47ca842b623376dc58423d0dfcb1ee3990d22d2",
+    "native_bundle": "e25d4d36802be3a483869f62c16e97b0646f6fa8",
+    "native_bundle_tests": "2ef90455cfa438e330a7ba4c5cd77ec7f1f52eb8",
+    "native_batch_bundle": "ed4b8094411feedac051856c3c399cddc57ff42f",
+    "native_batch_bundle_tests": "ba6821d172152062bc3a119343b40d6b9cf6740e",
+    "native_runtime_resolver": "b19e6ad49fe0ae73cd9f2ca00fed10944b9eb596",
+    "native_runtime_resolver_tests": "b7162ce98d4a05c2d958212951067b9cd1e1c3e3",
+    "context_reduction_benchmark": "f63581d803fcb372bf0087773fe0a9fb303c7c4d"
+  },
+  "current_path": [
+    "gap-specification",
+    "field-native-compile",
+    "in-memory-example-verification",
+    "canonical-field-native-carrier",
+    "verified-registry-record",
+    "optional-native-batch-bundle",
+    "separate-promotion-gate",
+    "promoted-only-runtime-resolution",
+    "learning-wave"
+  ],
+  "speed": {
+    "native_source_generation_required": false,
+    "native_filesystem_build_required": false,
+    "native_subprocess_test_required": false,
+    "known_gaps_can_batch": true,
+    "multiple_local_variants_can_share_one_bundle_carrier": true,
+    "bounded_context_projection_available": true,
+    "synthetic_10000_grain_context_reduction_ratio": 0.9964,
+    "tiny_program_cache_hot_path_enabled": false,
+    "tiny_program_cache_reason": "benchmark-showed-key-hashing-cost-can-exceed-recompile-cost"
+  },
+  "trust": {
+    "verified_is_not_promoted": true,
+    "runtime_resolution_requires_promoted_registry_state": true,
+    "runtime_resolution_requires_matching_carrier_digest": true,
+    "runtime_resolution_requires_matching_local_variant_identity": true,
+    "shared_learning_not_shared_implementation": true
+  },
+  "verification": {
+    "focused_test_files_persisted": true,
+    "current_native_frontier_github_ci_verified": false,
+    "do_not_claim_ci_pass_without_run_evidence": true
+  },
+  "blocked": [
+    "automatic-native-first-router",
+    "general-native-vocabulary-expansion",
+    "learned-native-recipe-cache",
+    "field-delta-transport",
+    "indexed-semantic-recall",
+    "node-local-native-carrier-store",
+    "in-place-streaming-semantic-recall-optimization"
+  ],
+  "next": "obtain-an-approved-durable-local-carrier-presence-mechanism-or-existing-approved-storage-carrier-then-close-verified-to-promoted-to-learning-wave-without-copying-implementation-between-nodes"
+}
