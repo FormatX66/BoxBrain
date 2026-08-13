@@ -12,6 +12,7 @@ from field_native_vm import (
     compile_native,
     verify_native,
 )
+from native_example_set import canonicalize_examples
 
 
 CACHE_REVISION = "aurum-field-native-cache-v0"
@@ -23,6 +24,8 @@ class NativeCacheResult:
     verification: NativeVerification
     compile_cache_hit: bool
     verification_cache_hit: bool
+    example_set_identity: str = ""
+    duplicate_examples_removed: int = 0
 
 
 class NativeBuildCache:
@@ -30,7 +33,8 @@ class NativeBuildCache:
 
     No clocks are semantic. Eviction follows deterministic insertion order.
     Cached verification is valid only for the exact VM-bound program identity and
-    exact canonical example set.
+    exact canonical example set. Duplicate/reordered examples therefore share one
+    verification identity, while conflicting expectations fail closed.
     """
 
     def __init__(self, *, max_programs: int = 256, max_verifications: int = 512) -> None:
@@ -54,13 +58,11 @@ class NativeBuildCache:
 
     @staticmethod
     def verification_identity(program: NativeProgram, examples: Sequence[NativeExample]) -> str:
+        canonical = canonicalize_examples(examples)
         payload = encode(
             {
                 "program_identity": program.identity,
-                "examples": [
-                    {"arguments": dict(example.arguments), "expected": example.expected}
-                    for example in examples
-                ],
+                "example_set_identity": canonical.identity,
             }
         )
         return hashlib.blake2s(b"AURUM-NATIVE-VERIFY-REQUEST-0\x00" + payload).hexdigest()
@@ -81,6 +83,7 @@ class NativeBuildCache:
         expression: Mapping[str, Any],
         examples: Sequence[NativeExample],
     ) -> NativeCacheResult:
+        canonical = canonicalize_examples(examples)
         compile_key = self.request_identity(parameters, expression)
         program = self._programs.get(compile_key)
         compile_hit = program is not None
@@ -88,11 +91,11 @@ class NativeBuildCache:
             program = compile_native(parameters, expression)
             self._bounded_put(self._programs, compile_key, program, self.max_programs)
 
-        verify_key = self.verification_identity(program, examples)
+        verify_key = self.verification_identity(program, canonical.examples)
         verification = self._verifications.get(verify_key)
         verification_hit = verification is not None
         if verification is None:
-            verification = verify_native(program, examples)
+            verification = verify_native(program, canonical.examples)
             self._bounded_put(
                 self._verifications,
                 verify_key,
@@ -105,6 +108,8 @@ class NativeBuildCache:
             verification=verification,
             compile_cache_hit=compile_hit,
             verification_cache_hit=verification_hit,
+            example_set_identity=canonical.identity,
+            duplicate_examples_removed=canonical.duplicate_examples_removed,
         )
 
     def stats(self) -> Mapping[str, int]:
