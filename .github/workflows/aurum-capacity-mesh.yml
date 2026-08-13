@@ -1,0 +1,63 @@
+name: Aurum Capacity Mesh
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Projects/Codelation/field/capacity_mesh.py'
+      - 'Projects/Codelation/tests/test_capacity_mesh.py'
+      - '.github/workflows/aurum-capacity-mesh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-capacity-mesh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capability-lane:
+    name: Capacity lane - ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - test_verified_generalized_capability_beats_unverified_success
+          - test_false_claim_and_unsafe_behavior_are_selection_negative
+          - test_semantic_recall_finds_related_meaning
+          - test_capabilities_compose_without_program_ownership
+          - test_parallel_assignment_uses_multiple_nodes
+          - test_missing_node_capability_is_explicit
+          - test_shadow_state_round_trip_preserves_meaning
+          - test_shadow_projection_preserves_distinct_key_meaning
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Run isolated capability lane
+        run: >-
+          python -m unittest
+          Projects.Codelation.tests.test_capacity_mesh.CapacityMeshTests.${{ matrix.test }}
+          -v
+
+  integrated-mesh:
+    name: Integrated capacity mesh
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: capability-lane
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Run mesh as one converged capability set
+        run: python -m unittest Projects.Codelation.tests.test_capacity_mesh -v
