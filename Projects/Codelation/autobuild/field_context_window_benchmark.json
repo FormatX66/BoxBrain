@@ -1,0 +1,33 @@
+{
+  "schema": "aurum-field-context-window-benchmark-v0",
+  "environment": "gpt-python-local-equivalent-synthetic-field",
+  "scope": "bounded semantic context projection over 10000-grain Field",
+  "query": "self build native capability verification evidence",
+  "source_grains": 10000,
+  "selected_grains": 32,
+  "full_carrier_bytes": 1331354,
+  "context_carrier_bytes": 4828,
+  "saved_bytes": 1326526,
+  "saved_ratio": 0.996373616633893,
+  "selection_seconds": 0.2781189990000712,
+  "interpretation": "synthetic benchmark only; demonstrates potential context/carrier reduction for a narrow query, not a claim that all Aurum contexts shrink by this ratio",
+  "landed": {
+    "field_context_window": "593a8a99dd42d47e2f761f2d62234c6fb43f7c4d",
+    "canonical_identity_fix": "2a324606f9dd8046d9ec2b3912d6e171fc3127ce",
+    "field_native_batch": "2d66d5a76f18b48f8ea89993384da3b8c2d2f7b0",
+    "field_native_batch_tests": "83da3c80d5ec17df41a4d32dba40eaae9c1624c8",
+    "field_native_cache": "4d72dd644dd152cdb65fc2c89ce73af99fb62923",
+    "field_native_cache_tests": "eca3f9136232e006db5eab4f477b5e3c54976160"
+  },
+  "observed_bottleneck": "linear semantic recall rescans every grain before projection",
+  "blocked_optimization": "indexed Field semantic recall write blocked by platform control",
+  "cache_note": "identity cache is intentionally not integrated into the tiny native hot path because local microbenchmarking showed cache-key hashing can cost more than recompiling very small tapes",
+  "safety": {
+    "read_only_selection": true,
+    "source_generation": false,
+    "filesystem_execution": false,
+    "subprocess_execution": false,
+    "host_authority": false,
+    "network_authority": false
+  }
+}
