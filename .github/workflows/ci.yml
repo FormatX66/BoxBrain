@@ -63,13 +63,25 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Parse worker PowerShell
+      - name: Parse Aurum PowerShell
         shell: pwsh
         run: |
-          $tokens=$null
-          $errors=$null
-          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'Web/Aurum-Arkmatx/worker.ps1'),[ref]$tokens,[ref]$errors)
-          if($errors.Count -gt 0){$errors | Format-List | Out-String | Write-Error; exit 1}
+          $paths = @(
+            'Web/Aurum-Arkmatx/worker.ps1',
+            'Aurum.ps1',
+            'installer/deploy-aurum-live-to-pi.ps1',
+            'installer/reconcile-existing-aurum-gold-seed-on-pi.ps1',
+            'installer/ask-aurum-on-pi.ps1'
+          )
+          foreach($path in $paths){
+            $tokens=$null
+            $errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path),[ref]$tokens,[ref]$errors)
+            if($errors.Count -gt 0){
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell parse failed: $path"
+            }
+          }
       - name: Run deterministic carrier-discovery self-test
         shell: pwsh
         env:
