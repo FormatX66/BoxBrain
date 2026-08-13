@@ -19,6 +19,7 @@ from capacity_mesh import (  # noqa: E402
     semantic_recall,
     shadow_state,
 )
+from capability_growth import growth_field, plan_growth  # noqa: E402
 from event_handoff import (  # noqa: E402
     CompletionEvent,
     continue_from_events,
@@ -156,6 +157,66 @@ class CapacityMeshTests(unittest.TestCase):
             [Node("worker-b", frozenset({"python"}), capacity=1)],
         )
         field = handoff_field([completion], plan)
+        self.assertEqual(field.missing_refs(), set())
+        self.assertGreaterEqual(len(field), 3)
+
+    def test_missing_ability_turns_into_build_work(self):
+        completion = CompletionEvent(
+            "result",
+            "worker-a",
+            RewardSignal(verified=True),
+            (WorkItem("accelerated-task", frozenset({"accelerator"}), weight=2),),
+        )
+        handoff = continue_from_events(
+            [completion],
+            [Node("ordinary", frozenset({"python"}), capacity=1)],
+        )
+        growth = plan_growth(
+            [handoff],
+            [Node("builder", frozenset({"capability-build"}), capacity=1)],
+        )
+        self.assertEqual(growth.needs[0].name, "accelerator")
+        self.assertEqual(
+            growth.assignments,
+            {"builder": ("build-capability:accelerator",)},
+        )
+
+    def test_missing_builder_remains_explicit(self):
+        completion = CompletionEvent(
+            "result",
+            "worker-a",
+            RewardSignal(verified=True),
+            (WorkItem("special-task", frozenset({"special-cap"}), weight=2),),
+        )
+        handoff = continue_from_events(
+            [completion],
+            [Node("ordinary", frozenset({"python"}), capacity=1)],
+        )
+        growth = plan_growth(
+            [handoff],
+            [Node("ordinary", frozenset({"python"}), capacity=1)],
+        )
+        self.assertEqual(
+            growth.missing_builder_capabilities,
+            frozenset({"capability-build"}),
+        )
+
+    def test_growth_intent_is_declarative_field_state(self):
+        completion = CompletionEvent(
+            "result",
+            "worker-a",
+            RewardSignal(verified=True),
+            (WorkItem("special-task", frozenset({"special-cap"}), weight=2),),
+        )
+        handoff = continue_from_events(
+            [completion],
+            [Node("ordinary", frozenset({"python"}), capacity=1)],
+        )
+        growth = plan_growth(
+            [handoff],
+            [Node("builder", frozenset({"capability-build"}), capacity=1)],
+        )
+        field = growth_field(growth)
         self.assertEqual(field.missing_refs(), set())
         self.assertGreaterEqual(len(field), 3)
 
