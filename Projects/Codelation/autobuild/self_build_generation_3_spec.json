@@ -1,0 +1,35 @@
+{
+  "schema": "aurum-self-build-gap-specification-v0",
+  "generation": 3,
+  "source_generation_evidence": "505cecfd37dd8a892338fb4950e64728a1d2d2d9",
+  "gap": "learning_overlap_score",
+  "purpose": "Measure stable vocabulary shared by two learning states so Aurum can distinguish retained knowledge from changed knowledge.",
+  "parameters": ["before", "after"],
+  "semantic_expression": "length(intersection(unique(split(casefold(strip(before)))), unique(split(casefold(strip(after))))))",
+  "required_operations": [
+    "input",
+    "strip",
+    "casefold",
+    "split",
+    "unique",
+    "intersection",
+    "length"
+  ],
+  "already_available_or_candidate_verified": [
+    "input",
+    "strip",
+    "casefold",
+    "split",
+    "unique",
+    "length"
+  ],
+  "missing_substrate_operations": ["intersection"],
+  "examples": [
+    {"before": "field slush", "after": "field slush aurum", "expected": 2},
+    {"before": "Pi3 Morris", "after": "morris pi3", "expected": 2},
+    {"before": "alpha beta", "after": "beta gamma", "expected": 1}
+  ],
+  "constraints": ["pure function", "no I/O", "no host authority"],
+  "reasoner": "gpt-reasoning",
+  "next_stage": "isolated-build-test-self-build-op:intersection"
+}
