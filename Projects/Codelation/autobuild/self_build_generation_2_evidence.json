@@ -1,0 +1,27 @@
+{
+  "schema": "aurum-self-build-generation-evidence-v0",
+  "generation": 2,
+  "gap": "learning_delta_score",
+  "executor": "gpt-python-sandbox",
+  "reasoning_inputs": {
+    "gap_spec_commit": "aa26b2557d503995e5af384c3eaf1244a09940e3",
+    "substrate_proposal_commit": "1c2b81bd6b058d49b4c862f8bebd7a4f9795641b",
+    "substrate_test_evidence_commit": "15f25b1a5ec54d04dbcf12ab792253e1cfca60bf"
+  },
+  "temporary_registry": true,
+  "repo_kernel_modified": false,
+  "tests_passed": true,
+  "test_stdout_marker": "AURUM_SELF_BUILD_GEN2_TEST_OK",
+  "test_stderr_empty": true,
+  "candidate_sha256": "6113174fa6c49f8bac61347aafd960251c7b53ce86da814915649f3fb87ee56e",
+  "promoted_sha256": "6113174fa6c49f8bac61347aafd960251c7b53ce86da814915649f3fb87ee56e",
+  "promotion_digest_match": true,
+  "promoted_capability_invoked": true,
+  "invocation_input": {
+    "before": "field slush",
+    "after": "field slush aurum"
+  },
+  "invocation_output": 1,
+  "next_gap": "learning_overlap_score",
+  "interpretation": "second self-build generation completed in a temporary isolated capability registry; this is recurrence evidence but not durable kernel integration or GitHub CI evidence"
+}
