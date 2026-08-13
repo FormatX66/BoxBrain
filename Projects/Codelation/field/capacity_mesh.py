@@ -6,6 +6,9 @@ from typing import Any, Iterable, Mapping, Sequence
 from aurum_field import Field, Grain, Ref
 
 
+MESH_REVISION = "event-ledger-v0"
+
+
 @dataclass(frozen=True)
 class RewardSignal:
     verified: bool = False
@@ -221,6 +224,7 @@ __all__ = [
     "AssignmentPlan",
     "Capability",
     "Composition",
+    "MESH_REVISION",
     "Node",
     "RewardSignal",
     "WorkItem",
