@@ -6,7 +6,7 @@ param(
     [string]$Prompt,
 
     [string]$Model = "gpt-5-mini",
-    [string[]]$PiAddresses = @("10.42.194.1", "10.12.194.1", "192.168.0.194"),
+    [string[]]$PiAddresses = @("10.12.194.1", "10.42.194.1", "192.168.0.194"),
     [string]$PiUser = "kali",
     [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519"),
     [switch]$SkipBootstrapSelfBuild
@@ -40,7 +40,7 @@ foreach ($address in $PiAddresses) {
     }
 }
 if ($null -eq $selected) {
-    throw "BBPI4 with the Aurum dialogue surface was not reachable over the AP, USB-C, or LAN SSH routes."
+    throw "BBPI4 with the Aurum dialogue surface was not reachable over the USB-C, AP, or LAN SSH routes."
 }
 
 $payload = [ordered]@{
