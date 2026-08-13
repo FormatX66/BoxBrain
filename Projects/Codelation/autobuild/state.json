@@ -1,25 +1,36 @@
 {
-  "cycle": 12,
+  "cycle": 13,
   "last_capability_build": {
-    "capability": "bounded-private-connectivity-observation",
-    "deployment_blocker": "not-yet-wired-into-enrolled-node-runtime",
+    "capability": "windows-runtime-bounded-connectivity-observation",
+    "deployment_blocker": "arkmatx-github-environment-deploy-secrets-empty",
+    "deployment_attempt": {
+      "run": 31655404399,
+      "job": 94308641782,
+      "status": "blocked-before-deploy",
+      "first_missing_field": "HOST",
+      "no_remote_changes_made": true
+    },
     "implementation_commits": [
       "6ef07c82c8e176d81c6d57faa41c4425289cbba8",
       "0d25bbb1d8a5f98eb56eddbfaf81d0cd0e2a9a69",
-      "8bd719e77def7621b51a63f7f6b9712f4858609d"
+      "8bd719e77def7621b51a63f7f6b9712f4858609d",
+      "418ef02018ac9b6b7ad40540b3a16853bcd1a346"
     ],
-    "status": "implemented-tested-not-deployed",
-    "test_job": 94300101155,
-    "test_run": 31652626620,
+    "status": "implemented-tested-not-deployed-to-enrolled-node",
+    "test_job": 94308642033,
+    "test_run": 31655404466,
     "test_scope": "full-boxbrain-ci-success",
     "verification": {
       "connect_only": true,
-      "max_concurrency": 256,
+      "explicit_targets_only": true,
+      "host_limit": 16,
+      "port_limit": 16,
       "private_or_link_local_only": true,
       "resolve_once_then_pin": true,
-      "reversible": true
+      "reversible": true,
+      "worker_capability": "connectivity-observation"
     },
-    "verified_at": 1786578993
+    "verified_at": 1786581895
   },
   "last_controller_ack": {
     "ok": true,
@@ -49,7 +60,7 @@
     "status": "active-edge-web-node",
     "time": 1786577154
   },
-  "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
+  "next": "restore-or-bypass-arkmatx-deploy-carrier-then-refresh-morris-worker-and-enqueue-explicit-bbpi4-observation",
   "schema": 1,
   "targets": {
     "Aurum-Morris": {
@@ -64,10 +75,11 @@
       "preferred_bootstrap": [
         "winrm"
       ],
+      "runtime_connectivity_observation_status": "worker-code-tested-not-deployed",
       "status": "confirmed"
     },
     "BBPI4": {
-      "bounded_connectivity_observation_status": "implemented-tested-not-deployed",
+      "bounded_connectivity_observation_status": "wired-into-windows-worker-tested-not-deployed",
       "carriers": [
         "10.12.194.1",
         "10.42.194.1",
@@ -87,5 +99,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1786578993
+  "updated_at": 1786581895
 }
