@@ -144,5 +144,10 @@ if [ -z "${ISO:-}" ] || [ ! -f "$ISO" ]; then
   exit 1
 fi
 cp "$ISO" "$DIST/$IMAGE_NAME"
-sha256sum "$DIST/$IMAGE_NAME" > "$DIST/$IMAGE_NAME.sha256"
+# Write a repository-relative checksum entry so the host-side CI can verify
+# the ISO after the Debian build container exits.
+(
+  cd "$REPO_ROOT"
+  sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
+)
 ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
