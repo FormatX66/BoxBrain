@@ -17,14 +17,31 @@ from native_gap_catalog import get_native_semantic_gap
 from native_program_synthesis import synthesize_native_expression
 
 
-SPLIT_LANE_SCHEMA = "aurum-bottleneck-split-lane-v1"
+SPLIT_LANE_SCHEMA = "aurum-bottleneck-split-lane-v2"
 ADVENTUROUS_MAX_COST = 20
 ADVENTUROUS_MAX_SIGNATURES = 30000
 
 
 def _identity(payload: Mapping[str, Any]) -> str:
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.blake2s(b"AURUM-BOTTLENECK-SPLIT-1\x00" + raw).hexdigest()
+    return hashlib.blake2s(b"AURUM-BOTTLENECK-SPLIT-2\x00" + raw).hexdigest()
+
+
+def _normalize_seed_expressions(raw: Any) -> dict[str, Mapping[str, Any]]:
+    if not isinstance(raw, Mapping):
+        return {}
+    normalized: dict[str, Mapping[str, Any]] = {}
+    for name, expression in sorted(raw.items()):
+        if isinstance(name, str) and name and isinstance(expression, Mapping):
+            normalized[name] = dict(expression)
+    return normalized
+
+
+def _safe_seed_snapshot(safe_state: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    captured = safe_state.get("initial_seed_expressions")
+    if isinstance(captured, Mapping):
+        return _normalize_seed_expressions(captured)
+    return load_converged_seed_expressions()
 
 
 def _bounded_synthesis_candidate(safe_state: Mapping[str, Any]) -> dict:
@@ -43,7 +60,7 @@ def _bounded_synthesis_candidate(safe_state: Mapping[str, Any]) -> dict:
         }
         return {**payload, "identity": _identity(payload)}
 
-    seeds = load_converged_seed_expressions()
+    seeds = _safe_seed_snapshot(safe_state)
     max_cost = min(ADVENTUROUS_MAX_COST, max(spec.max_synthesis_cost + 8, 18))
     synthesis = synthesize_native_expression(
         spec.parameters,
@@ -83,6 +100,7 @@ def _bounded_synthesis_candidate(safe_state: Mapping[str, Any]) -> dict:
         "progress_made": verified,
         "source_block_preserved": True,
         "global_barrier": False,
+        "safe_seed_capabilities": sorted(seeds),
         "safe_max_cost": spec.max_synthesis_cost,
         "adventurous_max_cost": max_cost,
         "candidates_evaluated": synthesis.candidates_evaluated,
@@ -119,7 +137,7 @@ def _adjacent_frontier_candidate(safe_state: Mapping[str, Any]) -> dict:
         }
         return {**payload, "identity": _identity(payload)}
 
-    adjacent = run_gap(target_gap)
+    adjacent = run_gap(target_gap, seed_expressions=_safe_seed_snapshot(safe_state))
     payload = {
         "schema": SPLIT_LANE_SCHEMA,
         "source_gap": source_gap,
@@ -147,7 +165,11 @@ def run_adventurous(safe_state: Mapping[str, Any]) -> dict:
     return _adjacent_frontier_candidate(safe_state)
 
 
-def run_verifier(safe_state: Mapping[str, Any]) -> dict:
+def run_verifier(
+    safe_state: Mapping[str, Any],
+    *,
+    seed_expressions: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict:
     source_gap = str(safe_state.get("gap", ""))
     checks: dict[str, bool] = {
         "frontier_schema_valid": safe_state.get("schema") == FRONTIER_GAP_SCHEMA,
@@ -163,7 +185,11 @@ def run_verifier(safe_state: Mapping[str, Any]) -> dict:
         if spec is None:
             checks["semantic_spec_present"] = False
         else:
-            seeds = load_converged_seed_expressions()
+            seeds = (
+                _safe_seed_snapshot(safe_state)
+                if seed_expressions is None
+                else _normalize_seed_expressions(seed_expressions)
+            )
             replay = synthesize_native_expression(
                 spec.parameters,
                 spec.examples,
@@ -174,6 +200,7 @@ def run_verifier(safe_state: Mapping[str, Any]) -> dict:
             checks["safe_search_block_reproduced"] = reproduced
             independent_search = {
                 "max_cost": spec.max_synthesis_cost,
+                "seed_capabilities": sorted(seeds),
                 "found": replay.found,
                 "proof_identity": replay.proof_identity,
                 "candidates_evaluated": replay.candidates_evaluated,
