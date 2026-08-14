@@ -1,0 +1,76 @@
+name: Aurum Self-Kernel Compiler
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/self-kernel-compiler-v0
+    paths:
+      - '.github/workflows/aurum-self-kernel-compiler.yml'
+      - 'Projects/Codelation/kernel_selfbuild/**'
+      - 'Projects/Codelation/tests/test_self_kernel_compiler.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-self-kernel-compiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observe-and-plan:
+    name: Observe hosted seed and build kernel plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify self-kernel contracts
+        run: python3 -m unittest Projects.Codelation.tests.test_self_kernel_compiler -v
+      - name: Profile this generic seed boot
+        env:
+          PYTHONPATH: Projects/Codelation
+        run: python3 -m kernel_selfbuild.bootstrap --output-dir aurum-kernel-state
+      - name: Validate emitted plan is read-only and bounded
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          profile = json.loads(Path('aurum-kernel-state/machine-profile.json').read_text())
+          plan = json.loads(Path('aurum-kernel-state/kernel-build-plan.json').read_text())
+          assert profile['architecture'] in {'x86_64', 'arm64'}
+          assert plan['deployment_strategy'].startswith('trial-slot')
+          assert 'a-b-fallback-preserved' in plan['verification_gates']
+          assert all(item['action'] in {'reuse-bound-driver','resolve-modalias','research-hardware-contract'} for item in plan['driver_work_items'])
+          print({'architecture': profile['architecture'], 'devices': len(profile['devices']), 'required_modules': len(plan['required_modules']), 'unresolved_modaliases': len(plan['unresolved_modaliases'])})
+          PY
+
+  architecture-contract:
+    name: Architecture contract - ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify architecture is eligible for machine-specific compilation
+        env:
+          PYTHONPATH: Projects/Codelation
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from kernel_selfbuild.hardware_profile import MachineProfile
+          from kernel_selfbuild.kernel_plan import make_kernel_build_plan
+          profile = MachineProfile(os.environ['TARGET_ARCH'], os.environ['TARGET_ARCH'], 'seed', 'uefi', 'synthetic', ())
+          plan = make_kernel_build_plan(profile, ())
+          assert plan.ready_for_compile
+          assert plan.architecture == os.environ['TARGET_ARCH']
+          print(plan.to_dict())
+          PY
