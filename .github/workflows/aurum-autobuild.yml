@@ -21,6 +21,7 @@ on:
       - 'Projects/Codelation/field/set_constraints.py'
       - 'Projects/Codelation/field/reversible_state_delta.py'
       - 'Projects/Codelation/field/preference_evidence.py'
+      - 'Projects/Codelation/field/categorical_policy.py'
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
@@ -44,18 +45,15 @@ jobs:
         with:
           ref: aurum/capacity-mesh-v0
           fetch-depth: 1
-
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-
       - name: Run Aurum until a real boundary
         shell: bash
         run: |
           set -euo pipefail
           python3 Projects/Codelation/run_native_autonomous_chain.py | tee /tmp/aurum-native-chain.json
-
       - name: Verify native self-build contracts
         id: verify
         continue-on-error: true
@@ -67,9 +65,7 @@ jobs:
             Projects.Codelation.tests.test_local_capability_verification \
             Projects.Codelation.tests.test_field_native_vm \
             Projects.Codelation.tests.test_field_native_batch \
-            Projects.Codelation.tests.test_field_native_cache \
-            -v
-
+            Projects.Codelation.tests.test_field_native_cache -v
       - name: Record verification outcome
         shell: bash
         env:
@@ -79,23 +75,16 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          state_path = Path('Projects/Codelation/autobuild/native_chain_state.json')
-          state = json.loads(state_path.read_text())
-          state['workflow_verification'] = {'outcome': os.environ['VERIFY_OUTCOME'], 'trusted_for_continuation': os.environ['VERIFY_OUTCOME'] == 'success'}
-          state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + '\n')
+          p=Path('Projects/Codelation/autobuild/native_chain_state.json');s=json.loads(p.read_text());s['workflow_verification']={'outcome':os.environ['VERIFY_OUTCOME'],'trusted_for_continuation':os.environ['VERIFY_OUTCOME']=='success'};p.write_text(json.dumps(s,indent=2,sort_keys=True)+'\n')
           PY
-
       - name: Commit durable chain state
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'aurum-autobuild[bot]'
-          git config user.email 'aurum-autobuild@users.noreply.github.com'
+          git config user.name 'aurum-autobuild[bot]'; git config user.email 'aurum-autobuild@users.noreply.github.com'
           git add Projects/Codelation/autobuild/native_chain_state.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Aurum event-driven self-build checkpoint'
-          git push origin HEAD:aurum/capacity-mesh-v0
-
+          git commit -m 'Aurum event-driven self-build checkpoint'; git push origin HEAD:aurum/capacity-mesh-v0
       - name: Report continuation boundary
         if: always()
         shell: bash
@@ -105,11 +94,9 @@ jobs:
           from pathlib import Path
           p=Path('Projects/Codelation/autobuild/native_chain_state.json')
           if not p.is_file(): print('native_chain_state=missing'); raise SystemExit(0)
-          state=json.loads(p.read_text())
-          for key in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'):
-              print(f'{key}=', state.get(key))
+          s=json.loads(p.read_text())
+          for k in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'): print(f'{k}=',s.get(k))
           PY
-
       - name: Fail closed on verification failure
         if: steps.verify.outcome != 'success'
         shell: bash
