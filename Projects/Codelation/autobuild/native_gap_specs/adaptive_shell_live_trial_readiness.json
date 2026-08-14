@@ -4,12 +4,12 @@
   "parameters": ["physical_node_present", "display_carrier_verified", "input_carrier_verified", "permission_present", "rollback_verified", "proof_view_present"],
   "examples": [
     {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "ready-for-bounded-live-trial"},
-    {"arguments": {"physical_node_present": "no", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-physical-node-present"},
+    {"arguments": {"physical_node_present": "no", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-physical-node"},
     {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "no", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-display-carrier-verified"},
     {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "no", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-input-carrier-verified"},
-    {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "no", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-permission-present"},
+    {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "no", "rollback_verified": "yes", "proof_view_present": "yes"}, "expected": "blocked-permission"},
     {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "no", "proof_view_present": "yes"}, "expected": "blocked-rollback-verified"},
-    {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "no"}, "expected": "blocked-proof-view-present"}
+    {"arguments": {"physical_node_present": "yes", "display_carrier_verified": "yes", "input_carrier_verified": "yes", "permission_present": "yes", "rollback_verified": "yes", "proof_view_present": "no"}, "expected": "blocked-proof-view"}
   ],
   "invocation_arguments": {"physical_node_present": "no", "display_carrier_verified": "no", "input_carrier_verified": "no", "permission_present": "no", "rollback_verified": "yes", "proof_view_present": "yes"},
   "next_gap": "adaptive_shell_live_trial",
