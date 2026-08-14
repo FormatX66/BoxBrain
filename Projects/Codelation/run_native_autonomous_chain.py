@@ -15,10 +15,11 @@ from field_native_self_build import NativeGap  # noqa: E402
 from native_failure_diagnosis import diagnose_native_synthesis_failure  # noqa: E402
 from native_gap_catalog import CATALOG_REVISION, get_native_semantic_gap  # noqa: E402
 from native_program_synthesis import SYNTHESIS_REVISION, synthesize_native_expression  # noqa: E402
+from native_self_debug import SELF_DEBUG_REVISION, audit_native_self_build  # noqa: E402
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v3"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v4"
 
 
 def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 16) -> dict:
@@ -34,6 +35,21 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             blocked_reason = "semantic-spec-missing"
             break
 
+        preflight = audit_native_self_build(
+            spec.parameters,
+            spec.examples,
+            stage="preflight",
+        )
+        if preflight.status == "blocked":
+            blocked_reason = "self-debug-preflight-rejected"
+            failed_attempt = {
+                "attempted_generation": len(completed) + 1,
+                "gap": current,
+                "self_debug": asdict(preflight),
+                "verified": False,
+            }
+            break
+
         synthesis = synthesize_native_expression(
             spec.parameters,
             spec.examples,
@@ -43,11 +59,19 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         if not synthesis.found or synthesis.expression is None:
             blocked_reason = "native-synthesis-not-found"
             diagnosis = diagnose_native_synthesis_failure(spec.parameters, spec.examples)
+            self_debug = audit_native_self_build(
+                spec.parameters,
+                spec.examples,
+                stage="post-failure",
+                synthesis=asdict(synthesis),
+                diagnosis=asdict(diagnosis),
+            )
             failed_attempt = {
                 "attempted_generation": len(completed) + 1,
                 "gap": current,
                 "synthesis": asdict(synthesis),
                 "diagnosis": asdict(diagnosis),
+                "self_debug": asdict(self_debug),
                 "verified": False,
             }
             break
@@ -82,6 +106,12 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 "generation": len(completed) + 1,
                 "gap": spec.name,
                 "next_gap": spec.next_gap,
+                "preflight_self_debug": {
+                    "status": preflight.status,
+                    "report_identity": preflight.report_identity,
+                    "issues": len(preflight.issues),
+                    "counterexamples": len(preflight.counterexamples),
+                },
                 "synthesis_proof_identity": synthesis.proof_identity,
                 "synthesis_cost": synthesis.cost,
                 "candidates_evaluated": synthesis.candidates_evaluated,
@@ -106,19 +136,34 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
     else:
         blocked_reason = "generation-bound-reached"
 
-    reasoning_required = blocked_reason in {"semantic-spec-missing", "native-synthesis-not-found"}
-    builder_learning = []
+    builder_learning: list[str] = []
+    self_debug_payload: dict[str, Any] | None = None
     if failed_attempt is not None:
         diagnosis = failed_attempt.get("diagnosis")
         if isinstance(diagnosis, dict):
             raw = diagnosis.get("builder_learning", [])
             if isinstance(raw, (list, tuple)):
                 builder_learning = [str(item) for item in raw]
+        raw_self_debug = failed_attempt.get("self_debug")
+        if isinstance(raw_self_debug, dict):
+            self_debug_payload = raw_self_debug
+
+    if blocked_reason == "semantic-spec-missing":
+        reasoning_required = True
+        internal_next_action = None
+    elif self_debug_payload is not None:
+        reasoning_required = bool(self_debug_payload.get("model_escalation_advised"))
+        raw_action = self_debug_payload.get("internal_next_action")
+        internal_next_action = str(raw_action) if raw_action else None
+    else:
+        reasoning_required = False
+        internal_next_action = None
 
     return {
         "schema": STATE_SCHEMA,
         "catalog_revision": CATALOG_REVISION,
         "synthesis_revision": SYNTHESIS_REVISION,
+        "self_debug_revision": SELF_DEBUG_REVISION,
         "start_gap": start_gap,
         "completed_generations": len(completed),
         "latest_completed_gap": completed[-1]["gap"] if completed else None,
@@ -126,13 +171,17 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         "blocked_reason": blocked_reason,
         "failed_attempt": failed_attempt,
         "reusable_native_capabilities": sorted(learned_expressions),
+        "internal_next_action": internal_next_action,
         "reasoning_required": reasoning_required,
         "reasoning_request": (
             {
                 "gap": current,
                 "reason": blocked_reason,
-                "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
+                "required_output": "bounded diagnosis or builder-learning proposal only after Aurum self-debug has exhausted internal deterministic checks; do not provide a promoted implementation",
                 "builder_learning": builder_learning,
+                "self_debug_report_identity": (
+                    self_debug_payload.get("report_identity") if self_debug_payload else None
+                ),
                 "shared_implementation": False,
             }
             if reasoning_required
