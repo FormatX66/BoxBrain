@@ -1,0 +1,19 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "resource_context_actuation_readiness",
+  "parameters": ["proposal_verified", "user_allowed", "thermal_ok", "power_ok", "reversible"],
+  "examples": [
+    {"arguments": {"proposal_verified": "yes", "user_allowed": "yes", "thermal_ok": "yes", "power_ok": "yes", "reversible": "yes"}, "expected": "ready"},
+    {"arguments": {"proposal_verified": "no", "user_allowed": "yes", "thermal_ok": "yes", "power_ok": "yes", "reversible": "yes"}, "expected": "blocked-proposal-verified"},
+    {"arguments": {"proposal_verified": "yes", "user_allowed": "no", "thermal_ok": "yes", "power_ok": "yes", "reversible": "yes"}, "expected": "blocked-user-allowed"},
+    {"arguments": {"proposal_verified": "yes", "user_allowed": "yes", "thermal_ok": "no", "power_ok": "yes", "reversible": "yes"}, "expected": "blocked-thermal-ok"},
+    {"arguments": {"proposal_verified": "yes", "user_allowed": "yes", "thermal_ok": "yes", "power_ok": "no", "reversible": "yes"}, "expected": "blocked-power-ok"},
+    {"arguments": {"proposal_verified": "yes", "user_allowed": "yes", "thermal_ok": "yes", "power_ok": "yes", "reversible": "no"}, "expected": "blocked-reversible"}
+  ],
+  "invocation_arguments": {"proposal_verified": "yes", "user_allowed": "yes", "thermal_ok": "yes", "power_ok": "yes", "reversible": "yes"},
+  "next_gap": "adaptive_shell_closed_loop",
+  "purpose": "Classify whether a resource-profile proposal has enough independent evidence to be eligible for a future bounded actuation trial. This capability does not perform the actuation.",
+  "principles": ["verified proposal is necessary but not sufficient", "user permission is independent", "thermal and power safety are independent gates", "reversibility is required", "classification never grants host authority"],
+  "constraints": ["pure", "deterministic", "classification-only", "no-resource-actuation", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}
