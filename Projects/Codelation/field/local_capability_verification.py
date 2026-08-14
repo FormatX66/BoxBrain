@@ -11,7 +11,7 @@ from builder_capability_catalog import get_builder_capability
 from native_gap_catalog import NativeSemanticGap
 
 
-LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v4"
+LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v5"
 
 
 @dataclass(frozen=True)
@@ -80,8 +80,12 @@ def _invoke(adapter: str, callable_obj: Any, arguments: Mapping[str, object], pa
         if "candidate" not in parameters:
             raise ValueError("protected token filter requires candidate parameter")
         protected_names = tuple(name for name in parameters if name != "candidate")
-        result = callable_obj(_tokens(arguments["candidate"]), *(_tokens(arguments[name]) for name in protected_names))
-        return " ".join(result)
+        return " ".join(callable_obj(_tokens(arguments["candidate"]), *(_tokens(arguments[name]) for name in protected_names)))
+    if adapter == "reversible-state-delta-v0":
+        required = {"current", "target", "evidence"}
+        if not required.issubset(arguments):
+            raise ValueError("reversible state delta adapter requires current, target, evidence")
+        return callable_obj(_tokens(arguments["current"]), _tokens(arguments["target"]), evidence=str(arguments["evidence"]), empty_value="none")
     raise ValueError(f"unsupported local verification adapter: {adapter}")
 
 
@@ -91,8 +95,7 @@ def verify_local_capability_for_gap(gap: NativeSemanticGap, capability_name: str
         raise ValueError("unknown local builder capability")
     if descriptor.authority != "none":
         raise ValueError("local capability verification requires authority-free candidate")
-    required_constraints = {"pure-decision", "deterministic", "no-host-authority"}
-    if not required_constraints.issubset(descriptor.constraints):
+    if not {"pure-decision", "deterministic", "no-host-authority"}.issubset(descriptor.constraints):
         raise ValueError("local capability is not eligible for authority-free verification")
     if not descriptor.verification_adapter:
         raise ValueError("local capability has no bounded verification adapter")
@@ -106,33 +109,16 @@ def verify_local_capability_for_gap(gap: NativeSemanticGap, capability_name: str
     elif descriptor.verification_adapter == "thresholded-unique-best-v0":
         config = _score_config(gap)
 
-    outputs: list[Any] = []
-    passed = 0
+    outputs=[]; passed=0
     for example in gap.examples:
-        observed = _invoke(descriptor.verification_adapter, callable_obj, example.arguments, gap.parameters, config)
+        observed=_invoke(descriptor.verification_adapter, callable_obj, example.arguments, gap.parameters, config)
         outputs.append(observed)
-        if observed == example.expected:
-            passed += 1
-    verified = passed == len(gap.examples)
-    invocation_output = _invoke(descriptor.verification_adapter, callable_obj, gap.invocation_arguments, gap.parameters, config)
-    payload = {
-        "revision": LOCAL_VERIFICATION_REVISION,
-        "gap": gap.name,
-        "capability": descriptor.name,
-        "module": descriptor.module,
-        "callable": descriptor.callable_name,
-        "adapter": descriptor.verification_adapter,
-        "adapter_config": dict(config),
-        "implementation_sha256": implementation_sha256,
-        "examples": len(gap.examples),
-        "passed": passed,
-        "outputs": outputs,
-        "verified": verified,
-        "authority_granted": False,
-        "routed_to_host": False,
-    }
-    verification_identity = hashlib.sha256(encode(payload)).hexdigest()
-    return LocalCapabilityVerification(descriptor.name, descriptor.module, descriptor.callable_name, descriptor.verification_adapter, implementation_sha256, len(gap.examples), passed, verified, invocation_output, verification_identity)
+        if observed==example.expected: passed+=1
+    verified=passed==len(gap.examples)
+    invocation_output=_invoke(descriptor.verification_adapter, callable_obj, gap.invocation_arguments, gap.parameters, config)
+    payload={"revision":LOCAL_VERIFICATION_REVISION,"gap":gap.name,"capability":descriptor.name,"module":descriptor.module,"callable":descriptor.callable_name,"adapter":descriptor.verification_adapter,"adapter_config":dict(config),"implementation_sha256":implementation_sha256,"examples":len(gap.examples),"passed":passed,"outputs":outputs,"verified":verified,"authority_granted":False,"routed_to_host":False}
+    verification_identity=hashlib.sha256(encode(payload)).hexdigest()
+    return LocalCapabilityVerification(descriptor.name,descriptor.module,descriptor.callable_name,descriptor.verification_adapter,implementation_sha256,len(gap.examples),passed,verified,invocation_output,verification_identity)
 
 
-__all__ = ["LOCAL_VERIFICATION_REVISION", "LocalCapabilityVerification", "verify_local_capability_for_gap"]
+__all__=["LOCAL_VERIFICATION_REVISION","LocalCapabilityVerification","verify_local_capability_for_gap"]
