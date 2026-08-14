@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "io_safe_port_choice",
+  "parameters": ["required", "available", "permissions"],
+  "examples": [
+    {"arguments": {"required": "human-readable", "available": "text-dialogue display-output", "permissions": ""}, "expected": "text-dialogue"},
+    {"arguments": {"required": "visual-output", "available": "display-output text-dialogue", "permissions": "visible-output"}, "expected": "display-output"},
+    {"arguments": {"required": "visual-output", "available": "display-output text-dialogue", "permissions": ""}, "expected": ""},
+    {"arguments": {"required": "natural-language-output", "available": "llm-dialogue text-dialogue", "permissions": ""}, "expected": "text-dialogue"}
+  ],
+  "invocation_arguments": {"required": "visual-output", "available": "display-output text-dialogue", "permissions": "visible-output"},
+  "next_gap": "interface_human_state_projection",
+  "purpose": "Choose the least-privileged available I/O port that satisfies the requested interface semantics and has its required permission. Return no port when the requested semantic cannot be safely satisfied. Prefer non-sensitive and non-model carriers when equivalent semantics are available.",
+  "principles": [
+    "semantic fit precedes carrier preference",
+    "missing permission means blocked rather than silently authorized",
+    "least privilege wins among equivalent ports",
+    "privacy-sensitive or model-backed carriers are not preferred when a simpler carrier satisfies the same need"
+  ],
+  "constraints": ["pure", "deterministic", "no-live-io", "no-host-authority", "fail-closed-on-missing-permission", "no-implicit-permission-grant"],
+  "max_synthesis_cost": 16
+}
