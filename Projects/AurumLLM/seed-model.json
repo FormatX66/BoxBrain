@@ -1,0 +1,28 @@
+{
+  "schema": "aurum-llm-seed-v0",
+  "generation": "seed-0",
+  "interface_name": "aurum-local-llm",
+  "model_alias": "aurum-seed",
+  "seed": {
+    "organization": "ggml-org",
+    "repository": "Qwen3.5-0.8B-GGUF",
+    "upstream_model": "Qwen/Qwen3.5-0.8B",
+    "file": "Qwen3.5-0.8B-Q4_0.gguf",
+    "revision": "8fea620",
+    "quantization": "Q4_0",
+    "license": "Apache-2.0"
+  },
+  "runtime": {
+    "repository": "ggml-org/llama.cpp",
+    "release": "b10173",
+    "license": "MIT",
+    "backend": "cpu-reference"
+  },
+  "policy": {
+    "remote_inference_required": false,
+    "loopback_default": true,
+    "seed_is_replaceable": true,
+    "model_is_authority": false,
+    "deterministic_verification_external_to_model": true
+  }
+}
