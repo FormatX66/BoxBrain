@@ -376,7 +376,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "4da92236ecf5102fdcb292f8a1195c6d943e141cddbf5594a48723ed11bd01e0"
+      "verification_identity": "f70d2e691cc6d57f94b5235fae25a259e341716bb87ad867c179bf387af3649b"
     },
     {
       "authority_granted": false,
@@ -421,7 +421,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "dbeb0c71faff367554d9588c1723da21ce30ed455490aa7db2b9991f8ec9584a"
+      "verification_identity": "d9a3e3e89387c0e5c315b2dca7b99c54f59017f74cdf72f57963b1a9d83ecda6"
     },
     {
       "authority_granted": false,
@@ -467,7 +467,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "f51d1e15a34aafe2fff48d67fde55fe56d6c0318ddc358e52d7c8a622200ee8f"
+      "verification_identity": "9d5d80a8dc024ef43bdd21c43df49efe0b2ec605e2f8c7482368dbc3fc5e8bd7"
     },
     {
       "artifact_identity": "24929b7e58bf408465cd75af10ba9535fc7bc5fb65d8db85778ffa887bcfa889",
@@ -578,7 +578,7 @@
   ],
   "internal_next_action": "review-search-bound",
   "latest_completed_gap": "interface_context_mode_confidence",
-  "local_verification_revision": "aurum-local-capability-verification-v2",
+  "local_verification_revision": "aurum-local-capability-verification-v3",
   "next_gap": "interface_mode_selection",
   "reasoning_request": {
     "builder_learning": [],
