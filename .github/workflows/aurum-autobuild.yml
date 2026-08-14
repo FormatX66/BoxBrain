@@ -20,6 +20,7 @@ on:
       - 'Projects/Codelation/field/score_selection.py'
       - 'Projects/Codelation/field/set_constraints.py'
       - 'Projects/Codelation/field/reversible_state_delta.py'
+      - 'Projects/Codelation/field/preference_evidence.py'
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
@@ -80,10 +81,7 @@ jobs:
           from pathlib import Path
           state_path = Path('Projects/Codelation/autobuild/native_chain_state.json')
           state = json.loads(state_path.read_text())
-          state['workflow_verification'] = {
-              'outcome': os.environ['VERIFY_OUTCOME'],
-              'trusted_for_continuation': os.environ['VERIFY_OUTCOME'] == 'success',
-          }
+          state['workflow_verification'] = {'outcome': os.environ['VERIFY_OUTCOME'], 'trusted_for_continuation': os.environ['VERIFY_OUTCOME'] == 'success'}
           state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + '\n')
           PY
 
@@ -94,9 +92,7 @@ jobs:
           git config user.name 'aurum-autobuild[bot]'
           git config user.email 'aurum-autobuild@users.noreply.github.com'
           git add Projects/Codelation/autobuild/native_chain_state.json
-          if git diff --cached --quiet; then
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m 'Aurum event-driven self-build checkpoint'
           git push origin HEAD:aurum/capacity-mesh-v0
 
@@ -107,20 +103,11 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
-          p = Path('Projects/Codelation/autobuild/native_chain_state.json')
-          if not p.is_file():
-              print('native_chain_state=missing')
-              raise SystemExit(0)
-          state = json.loads(p.read_text())
-          print('completed_generations=', state.get('completed_generations'))
-          print('latest_completed_gap=', state.get('latest_completed_gap'))
-          print('next_gap=', state.get('next_gap'))
-          print('blocked_reason=', state.get('blocked_reason'))
-          print('self_debug_revision=', state.get('self_debug_revision'))
-          print('local_verification_revision=', state.get('local_verification_revision'))
-          print('internal_next_action=', state.get('internal_next_action'))
-          print('reasoning_required=', state.get('reasoning_required'))
-          print('workflow_verification=', state.get('workflow_verification'))
+          p=Path('Projects/Codelation/autobuild/native_chain_state.json')
+          if not p.is_file(): print('native_chain_state=missing'); raise SystemExit(0)
+          state=json.loads(p.read_text())
+          for key in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'):
+              print(f'{key}=', state.get(key))
           PY
 
       - name: Fail closed on verification failure
