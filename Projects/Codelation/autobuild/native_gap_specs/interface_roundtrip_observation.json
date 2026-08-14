@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_roundtrip_observation",
+  "parameters": ["emitted", "observed"],
+  "examples": [
+    {"arguments": {"emitted": "open-menu focus-search", "observed": "open-menu focus-search"}, "expected": 1.0},
+    {"arguments": {"emitted": "open-menu focus-search", "observed": "open-menu"}, "expected": 0.5},
+    {"arguments": {"emitted": "open-menu", "observed": "open-menu redraw"}, "expected": 0.5},
+    {"arguments": {"emitted": "", "observed": ""}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"emitted": "open-menu focus-search", "observed": "open-menu focus-search redraw"},
+  "next_gap": "interface_context_mode_confidence",
+  "purpose": "Measure semantic round-trip fidelity between an emitted interface action description and what is observed back. Missing or extra semantics reduce fidelity; empty-to-empty yields zero rather than artificial certainty.",
+  "principles": [
+    "round-trip evidence is observation rather than authority",
+    "missing and unexpected semantics both reduce fidelity",
+    "token order and duplicates do not change semantic fidelity",
+    "zero observed vocabulary yields zero confidence"
+  ],
+  "constraints": ["pure", "deterministic", "observation-only", "no-live-io", "no-host-authority", "no-implicit-permission-grant"],
+  "max_synthesis_cost": 16
+}
