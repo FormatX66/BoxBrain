@@ -9,19 +9,23 @@ from run_native_autonomous_chain import run_chain
 
 
 FRONTIER_GAP_SCHEMA = "aurum-native-frontier-gap-v0"
+_NONBLOCKING_BOUNDARIES = frozenset({None, "generation-bound-reached"})
 
 
 def run_gap(gap: str) -> dict:
     state = run_chain(start_gap=gap, max_generations=1)
-    progressed = bool(state.get("completed_generations"))
+    progress_made = bool(state.get("completed_generations"))
+    blocked_reason = state.get("blocked_reason")
+    blocked = blocked_reason not in _NONBLOCKING_BOUNDARIES
     return {
         "schema": FRONTIER_GAP_SCHEMA,
         "gap": gap,
-        "status": "progressed" if progressed else "blocked",
+        "status": "blocked" if blocked else "progressed",
+        "progress_made": progress_made,
         "completed_generations": state.get("completed_generations", 0),
         "latest_completed_gap": state.get("latest_completed_gap"),
         "next_gap": state.get("next_gap"),
-        "blocked_reason": state.get("blocked_reason"),
+        "blocked_reason": blocked_reason,
         "blocked_output": state.get("blocked_output"),
         "external_evidence": state.get("external_evidence"),
         "failed_attempt": state.get("failed_attempt"),
@@ -30,7 +34,7 @@ def run_gap(gap: str) -> dict:
         "internal_next_action": state.get("internal_next_action"),
         "reasoning_required": state.get("reasoning_required", False),
         "reasoning_request": state.get("reasoning_request"),
-        "generation": state.get("generations", [None])[-1] if progressed else None,
+        "generation": state.get("generations", [None])[-1] if progress_made else None,
         "global_barrier": False,
         "blocks_other_frontiers": False,
     }
