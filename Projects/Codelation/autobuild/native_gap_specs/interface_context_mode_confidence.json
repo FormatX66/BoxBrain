@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_context_mode_confidence",
+  "parameters": ["evidence", "profile"],
+  "examples": [
+    {"arguments": {"evidence": "fullscreen gamepad gpu-render", "profile": "fullscreen gamepad gpu-render"}, "expected": 1.0},
+    {"arguments": {"evidence": "editor terminal compiler", "profile": "editor terminal compiler tests"}, "expected": 0.75},
+    {"arguments": {"evidence": "browser tabs citations", "profile": "browser citations"}, "expected": 0.6666666666666666},
+    {"arguments": {"evidence": "", "profile": ""}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"evidence": "editor terminal compiler tests", "profile": "editor terminal compiler"},
+  "next_gap": "interface_mode_selection",
+  "purpose": "Estimate bounded semantic confidence that current operational evidence matches one activity profile. The score is evidence/profile overlap normalized by total distinct evidence and profile vocabulary; it does not select or activate a mode.",
+  "principles": [
+    "context confidence is classification evidence, not authority",
+    "extra and missing signals both reduce confidence",
+    "one application name alone is weak evidence",
+    "token order and duplicates do not amplify confidence"
+  ],
+  "constraints": ["pure", "deterministic", "classification-only", "no-host-authority", "no-user-trait-inference", "no-mode-actuation"],
+  "max_synthesis_cost": 16
+}
