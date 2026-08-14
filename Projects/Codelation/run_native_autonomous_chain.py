@@ -10,6 +10,7 @@ from typing import Any, Mapping
 FIELD_DIR = Path(__file__).resolve().parent / "field"
 sys.path.insert(0, str(FIELD_DIR))
 
+from external_prerequisite_evidence import apply_external_prerequisite_evidence_from_file  # noqa: E402
 from field_native_registry_bridge import build_verified_native_registry_artifact  # noqa: E402
 from field_native_self_build import NativeGap  # noqa: E402
 from local_capability_verification import (  # noqa: E402
@@ -64,12 +65,26 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
     blocked_reason: str | None = None
     learned_expressions: dict[str, Mapping[str, Any]] = {}
     verified_local_capabilities: set[str] = set()
+    external_evidence_status: dict[str, Any] | None = None
 
     for _ in range(max_generations):
         spec = get_native_semantic_gap(current)
         if spec is None:
             blocked_reason = "semantic-spec-missing"
             break
+
+        evidence_application = apply_external_prerequisite_evidence_from_file(spec)
+        spec = evidence_application.spec
+        if spec.name == "adaptive_shell_live_trial_readiness":
+            external_evidence_status = {
+                "applied": evidence_application.applied,
+                "reason": evidence_application.reason,
+                "evidence": (
+                    dict(evidence_application.evidence)
+                    if evidence_application.evidence is not None
+                    else None
+                ),
+            }
 
         preflight = audit_native_self_build(
             spec.parameters,
@@ -150,6 +165,11 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                             "local_implementation_sha256": local.implementation_sha256,
                             "verification_identity": local.verification_identity,
                             "invocation_output": local.invocation_output,
+                            "external_evidence": (
+                                dict(evidence_application.evidence)
+                                if evidence_application.applied and evidence_application.evidence is not None
+                                else None
+                            ),
                             "state": "verified",
                             "authority_granted": local.authority_granted,
                             "routed_to_host": local.routed_to_host,
@@ -253,6 +273,11 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 "carrier_field_id": built.carrier.field_id,
                 "verification_identity": built.verification_identity,
                 "invocation_output": built.invocation_output,
+                "external_evidence": (
+                    dict(evidence_application.evidence)
+                    if evidence_application.applied and evidence_application.evidence is not None
+                    else None
+                ),
                 "state": built.artifact.state,
                 "promotion_performed": False,
                 "model_reasoning_used": False,
@@ -304,6 +329,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             if blocked_reason == "external-prerequisite-blocked" and completed
             else None
         ),
+        "external_evidence": external_evidence_status,
         "failed_attempt": failed_attempt,
         "reusable_native_capabilities": sorted(learned_expressions),
         "reusable_local_capabilities": sorted(verified_local_capabilities),
