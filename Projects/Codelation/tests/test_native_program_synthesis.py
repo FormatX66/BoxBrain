@@ -8,6 +8,7 @@ FIELD = Path(__file__).resolve().parents[1] / "field"
 sys.path.insert(0, str(FIELD))
 
 from field_native_vm import NativeExample, compile_native, execute_native
+from native_failure_diagnosis import diagnose_native_synthesis_failure
 from native_program_synthesis import synthesize_native_expression
 
 
@@ -83,6 +84,32 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         program = compile_native(("left", "right"), result.expression)
         self.assertEqual(execute_native(program, {"left": 0, "right": 0}), 0.0)
         self.assertEqual(execute_native(program, {"left": 3, "right": 4}), 0.75)
+
+    def test_text_selection_failure_identifies_builder_learning(self):
+        examples = (
+            NativeExample(
+                {"required": "human-readable", "available": "text-dialogue display-output", "permissions": ""},
+                "text-dialogue",
+            ),
+            NativeExample(
+                {"required": "visual-output", "available": "display-output text-dialogue", "permissions": "visible-output"},
+                "display-output",
+            ),
+            NativeExample(
+                {"required": "visual-output", "available": "display-output text-dialogue", "permissions": ""},
+                "",
+            ),
+        )
+        diagnosis = diagnose_native_synthesis_failure(
+            ("required", "available", "permissions"),
+            examples,
+        )
+        self.assertIn("select-token-from-input", diagnosis.categories)
+        self.assertIn("conditional-empty-or-choice", diagnosis.categories)
+        self.assertIn("cross-vocabulary-fact-binding", diagnosis.categories)
+        self.assertIn("bounded-token-selection", diagnosis.builder_learning)
+        self.assertIn("deterministic-conditional-selection", diagnosis.builder_learning)
+        self.assertIn("declarative-fact-binding", diagnosis.builder_learning)
 
     def test_not_found_is_bounded_and_explicit(self):
         examples = (
