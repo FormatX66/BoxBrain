@@ -54,6 +54,16 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         self.assertFalse(verification.authority_granted)
         self.assertFalse(verification.routed_to_host)
 
+    def test_protected_token_filter_satisfies_stability_budget_without_authority(self):
+        gap = get_native_semantic_gap("interface_stability_budget")
+        self.assertIsNotNone(gap)
+        verification = verify_local_capability_for_gap(gap, "protected-token-filter")
+        self.assertTrue(verification.verified)
+        self.assertEqual(verification.passed, verification.examples)
+        self.assertEqual(verification.invocation_output, "wallpaper workspace")
+        self.assertFalse(verification.authority_granted)
+        self.assertFalse(verification.routed_to_host)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
