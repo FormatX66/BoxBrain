@@ -34,19 +34,32 @@ jobs:
           python3 -m py_compile Projects/AurumPC/aurum_console.py
           sh -n Projects/AurumPC/build-iso.sh
 
-      - name: Install image and VM tooling
+      - name: Install independent VM tooling
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            live-build qemu-system-x86 ovmf xorriso isolinux syslinux-common
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          docker info >/dev/null
 
-      - name: Build Aurum PC live ISO
+      - name: Build Aurum PC live ISO with Debian-native tooling
         shell: bash
         run: |
           set -euo pipefail
-          sudo sh Projects/AurumPC/build-iso.sh
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap \
+                xorriso isolinux syslinux-common squashfs-tools \
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+              lb --version
+              sh Projects/AurumPC/build-iso.sh
+            '
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
 
@@ -54,10 +67,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code=$(find /usr/share/OVMF -maxdepth 1 -type f -name 'OVMF_CODE*.fd' | sort | head -n 1)
-          vars=$(find /usr/share/OVMF -maxdepth 1 -type f -name 'OVMF_VARS*.fd' | sort | head -n 1)
-          test -n "$code"
-          test -n "$vars"
+          if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            code=/usr/share/OVMF/OVMF_CODE.fd
+            vars=/usr/share/OVMF/OVMF_VARS.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            code=/usr/share/OVMF/OVMF_CODE_4M.fd
+            vars=/usr/share/OVMF/OVMF_VARS_4M.fd
+          else
+            echo 'No matching OVMF CODE/VARS pair found.' >&2
+            exit 1
+          fi
           cp "$vars" /tmp/AURUM_OVMF_VARS.fd
           set +e
           timeout 150s qemu-system-x86_64 \
@@ -93,7 +112,7 @@ jobs:
           cat dist/Aurum-PC-v0.01-amd64.iso.sha256
 
       - name: Publish boot-verified ISO
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Aurum-PC-v0.01-amd64
           path: |
