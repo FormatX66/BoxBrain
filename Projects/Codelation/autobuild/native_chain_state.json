@@ -1,8 +1,107 @@
 {
-  "blocked_reason": "semantic-spec-missing",
+  "blocked_reason": "native-synthesis-not-found",
   "catalog_revision": "aurum-native-gap-catalog-v1",
   "completed_generations": 13,
-  "failed_attempt": null,
+  "failed_attempt": {
+    "attempted_generation": 14,
+    "diagnosis": {
+      "builder_learning": [
+        "constraint-preserving-filter",
+        "deterministic-conditional-selection",
+        "deterministic-token-canonicalization",
+        "multi-source-protected-set-difference"
+      ],
+      "categories": [
+        "conditional-empty-or-choice",
+        "multi-source-protected-set-difference"
+      ],
+      "diagnosis_identity": "1efcd729295c9039df0920ed183d478ec85e83d9fea32e06e3209be6d9a00ccf",
+      "local_capability_candidates": [
+        {
+          "authority": "none",
+          "callable": "subtract_protected_tokens",
+          "coverage": 0.75,
+          "executed": false,
+          "matched": [
+            "constraint-preserving-filter",
+            "deterministic-token-canonicalization",
+            "multi-source-protected-set-difference"
+          ],
+          "missing": [
+            "deterministic-conditional-selection"
+          ],
+          "module": "set_constraints",
+          "name": "protected-token-filter",
+          "routed": false,
+          "verification_adapter": "protected-token-filter-v0"
+        },
+        {
+          "authority": "none",
+          "callable": "plan_io",
+          "coverage": 0.25,
+          "executed": false,
+          "matched": [
+            "deterministic-conditional-selection"
+          ],
+          "missing": [
+            "constraint-preserving-filter",
+            "deterministic-token-canonicalization",
+            "multi-source-protected-set-difference"
+          ],
+          "module": "io_fabric",
+          "name": "io-plan",
+          "routed": false,
+          "verification_adapter": "semantic-port-plan-v0"
+        }
+      ],
+      "observations": [
+        "examples require both an empty result and a non-empty text result",
+        "expected tokens are exactly candidate tokens minus the union of every protected input, with canonical ordering"
+      ],
+      "target_type": "text"
+    },
+    "gap": "interface_stability_budget",
+    "self_debug": {
+      "counterexamples": [],
+      "internal_next_action": "grow-builder-vocabulary",
+      "invariants_checked": [
+        "duplicate-example-consistency",
+        "example-arguments-match-parameters",
+        "post-failure-domain-triage",
+        "target-representation-supported",
+        "verifier-synthesis-equivalence-agreement"
+      ],
+      "issues": [],
+      "model_escalation_advised": true,
+      "probable_failure_domains": [
+        "builder-vocabulary"
+      ],
+      "recommended_action": "grow-builder-vocabulary",
+      "report_identity": "b84a7b1efff24b1c46e36afc0a9e5ed5241418bf340dd7004fada74cf1e41715",
+      "stage": "post-failure",
+      "status": "actionable"
+    },
+    "synthesis": {
+      "candidates_evaluated": 9281,
+      "cost": null,
+      "expression": null,
+      "found": false,
+      "proof_identity": "75a1d1df3edee761445afe226ef05a38fd33d6aff82ee346363e8a5616d08880",
+      "seed_expressions_considered": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "signatures_retained": 515
+    },
+    "verified": false
+  },
   "generations": [
     {
       "artifact_identity": "0609f8869c607742e751b2cd7f5721297f021e7ce42bd560893f0fc511ee8cea",
@@ -325,7 +424,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "f70d2e691cc6d57f94b5235fae25a259e341716bb87ad867c179bf387af3649b"
+      "verification_identity": "c814b3923485839179c55eea0ffc4dff6977603682c84ad395177f54a8d07a1a"
     },
     {
       "authority_granted": false,
@@ -370,7 +469,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "d9a3e3e89387c0e5c315b2dca7b99c54f59017f74cdf72f57963b1a9d83ecda6"
+      "verification_identity": "ea20b0dde742438c623f687c3e20ee025ebc3679be66bd2d2e598225bcd30a20"
     },
     {
       "authority_granted": false,
@@ -416,7 +515,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "9d5d80a8dc024ef43bdd21c43df49efe0b2ec605e2f8c7482368dbc3fc5e8bd7"
+      "verification_identity": "cb1351b03c09b74447b70a337a526dc9c4bfb098ae7e8cb242f12e12dd706ce2"
     },
     {
       "artifact_identity": "24929b7e58bf408465cd75af10ba9535fc7bc5fb65d8db85778ffa887bcfa889",
@@ -571,19 +670,24 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "a7a37f4ec23872c926efd2c30d5e492b35d0ed087e4c65b55287dab4942d55b5"
+      "verification_identity": "5d299f4d8799a152db3a0e95fd149d33ab28a3225b75466248012906a602fc2c"
     }
   ],
-  "internal_next_action": null,
+  "internal_next_action": "grow-builder-vocabulary",
   "latest_completed_gap": "interface_mode_selection",
-  "local_verification_revision": "aurum-local-capability-verification-v3",
+  "local_verification_revision": "aurum-local-capability-verification-v4",
   "next_gap": "interface_stability_budget",
   "reasoning_request": {
-    "builder_learning": [],
+    "builder_learning": [
+      "constraint-preserving-filter",
+      "deterministic-conditional-selection",
+      "deterministic-token-canonicalization",
+      "multi-source-protected-set-difference"
+    ],
     "gap": "interface_stability_budget",
-    "reason": "semantic-spec-missing",
+    "reason": "native-synthesis-not-found",
     "required_output": "bounded diagnosis or builder-learning proposal only after Aurum self-debug has exhausted internal deterministic checks; do not provide a promoted implementation",
-    "self_debug_report_identity": null,
+    "self_debug_report_identity": "b84a7b1efff24b1c46e36afc0a9e5ed5241418bf340dd7004fada74cf1e41715",
     "shared_implementation": false
   },
   "reasoning_required": true,
