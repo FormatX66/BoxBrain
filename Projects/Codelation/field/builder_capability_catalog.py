@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-CATALOG_REVISION = "aurum-builder-capability-catalog-v5"
+CATALOG_REVISION = "aurum-builder-capability-catalog-v6"
 
 
 @dataclass(frozen=True)
@@ -33,51 +33,12 @@ class BuilderCapabilityCandidate:
 def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
     pure = frozenset({"pure-decision", "deterministic", "no-host-authority"})
     return (
-        BuilderCapabilityDescriptor(
-            name="io-plan",
-            module="io_fabric",
-            callable_name="plan_io",
-            provides=frozenset({"bounded-token-selection","declarative-fact-binding","deterministic-conditional-selection","least-privilege-ranking","permission-aware-selection","semantic-port-selection"}),
-            constraints=pure | frozenset({"permission-does-not-equal-authority"}),
-            authority="none",
-            verification_adapter="semantic-port-plan-v0",
-        ),
-        BuilderCapabilityDescriptor(
-            name="labeled-text-projection",
-            module="structured_projection",
-            callable_name="project_labeled_state",
-            provides=frozenset({"deterministic-labeled-text-projection","empty-value-normalization","human-readable-state-projection"}),
-            constraints=pure | frozenset({"view-only", "field-remains-authoritative"}),
-            authority="none",
-            verification_adapter="labeled-text-projection-v0",
-        ),
-        BuilderCapabilityDescriptor(
-            name="required-condition-classifier",
-            module="constraint_classification",
-            callable_name="classify_required_conditions",
-            provides=frozenset({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"}),
-            constraints=pure | frozenset({"classification-only", "no-implicit-authority"}),
-            authority="none",
-            verification_adapter="required-condition-classification-v0",
-        ),
-        BuilderCapabilityDescriptor(
-            name="thresholded-unique-best-selector",
-            module="score_selection",
-            callable_name="select_thresholded_unique_max",
-            provides=frozenset({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"}),
-            constraints=pure | frozenset({"recommendation-only", "no-actuation"}),
-            authority="none",
-            verification_adapter="thresholded-unique-best-v0",
-        ),
-        BuilderCapabilityDescriptor(
-            name="protected-token-filter",
-            module="set_constraints",
-            callable_name="subtract_protected_tokens",
-            provides=frozenset({"multi-source-protected-set-difference","deterministic-token-canonicalization","constraint-preserving-filter"}),
-            constraints=pure | frozenset({"simulation-only", "no-actuation"}),
-            authority="none",
-            verification_adapter="protected-token-filter-v0",
-        ),
+        BuilderCapabilityDescriptor("io-plan","io_fabric","plan_io",frozenset({"bounded-token-selection","declarative-fact-binding","deterministic-conditional-selection","least-privilege-ranking","permission-aware-selection","semantic-port-selection"}),pure|frozenset({"permission-does-not-equal-authority"}),"none","semantic-port-plan-v0"),
+        BuilderCapabilityDescriptor("labeled-text-projection","structured_projection","project_labeled_state",frozenset({"deterministic-labeled-text-projection","empty-value-normalization","human-readable-state-projection"}),pure|frozenset({"view-only","field-remains-authoritative"}),"none","labeled-text-projection-v0"),
+        BuilderCapabilityDescriptor("required-condition-classifier","constraint_classification","classify_required_conditions",frozenset({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"}),pure|frozenset({"classification-only","no-implicit-authority"}),"none","required-condition-classification-v0"),
+        BuilderCapabilityDescriptor("thresholded-unique-best-selector","score_selection","select_thresholded_unique_max",frozenset({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"}),pure|frozenset({"recommendation-only","no-actuation"}),"none","thresholded-unique-best-v0"),
+        BuilderCapabilityDescriptor("protected-token-filter","set_constraints","subtract_protected_tokens",frozenset({"multi-source-protected-set-difference","deterministic-token-canonicalization","constraint-preserving-filter"}),pure|frozenset({"simulation-only","no-actuation"}),"none","protected-token-filter-v0"),
+        BuilderCapabilityDescriptor("reversible-state-delta-projection","reversible_state_delta","project_reversible_set_delta",frozenset({"reversible-set-delta","evidence-preserving-projection","deterministic-delta-canonicalization"}),pure|frozenset({"proposal-only","no-actuation","reversible"}),"none","reversible-state-delta-v0"),
     )
 
 
