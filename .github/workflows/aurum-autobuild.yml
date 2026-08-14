@@ -16,6 +16,7 @@ on:
       - 'Projects/Codelation/field/builder_capability_catalog.py'
       - 'Projects/Codelation/field/local_capability_verification.py'
       - 'Projects/Codelation/field/structured_projection.py'
+      - 'Projects/Codelation/field/constraint_classification.py'
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
