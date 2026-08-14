@@ -44,7 +44,7 @@ permissions:
 
 concurrency:
   group: aurum-autonomous-self-build-${{ github.ref || 'dispatch' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   cycle:
