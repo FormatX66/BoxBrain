@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_closed_loop",
+  "parameters": ["observation_valid", "proposal_verified", "user_allowed", "apply_verified", "rollback_available", "feedback_recorded"],
+  "examples": [
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "yes"}, "expected": "closed-loop-ready"},
+    {"arguments": {"observation_valid": "no", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "yes"}, "expected": "blocked-observation-valid"},
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "no", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "yes"}, "expected": "blocked-proposal-verified"},
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "no", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "yes"}, "expected": "blocked-user-allowed"},
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "no", "rollback_available": "yes", "feedback_recorded": "yes"}, "expected": "blocked-apply-verified"},
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "no", "feedback_recorded": "yes"}, "expected": "blocked-rollback-available"},
+    {"arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "no"}, "expected": "blocked-feedback-recorded"}
+  ],
+  "invocation_arguments": {"observation_valid": "yes", "proposal_verified": "yes", "user_allowed": "yes", "apply_verified": "yes", "rollback_available": "yes", "feedback_recorded": "yes"},
+  "next_gap": "adaptive_shell_live_trial_readiness",
+  "purpose": "Classify whether the complete observe-propose-authorize-apply-verify-rollback-learn evidence cycle is present. This is proof-state classification only, not permission to actuate a live shell.",
+  "principles": ["every closed loop preserves observation evidence", "proposal and application are independently verified", "user authorization is explicit", "rollback remains available", "feedback is recorded before learning"],
+  "constraints": ["pure", "deterministic", "classification-only", "no-interface-actuation", "no-resource-actuation", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}
