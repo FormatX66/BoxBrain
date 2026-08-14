@@ -12,6 +12,10 @@ sys.path.insert(0, str(FIELD_DIR))
 
 from field_native_registry_bridge import build_verified_native_registry_artifact  # noqa: E402
 from field_native_self_build import NativeGap  # noqa: E402
+from local_capability_verification import (  # noqa: E402
+    LOCAL_VERIFICATION_REVISION,
+    verify_local_capability_for_gap,
+)
 from native_failure_diagnosis import diagnose_native_synthesis_failure  # noqa: E402
 from native_gap_catalog import CATALOG_REVISION, get_native_semantic_gap  # noqa: E402
 from native_program_synthesis import SYNTHESIS_REVISION, synthesize_native_expression  # noqa: E402
@@ -19,15 +23,31 @@ from native_self_debug import SELF_DEBUG_REVISION, audit_native_self_build  # no
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v4"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v5"
 
 
-def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 16) -> dict:
+def _complete_local_candidates(diagnosis: Mapping[str, Any]) -> tuple[str, ...]:
+    raw = diagnosis.get("local_capability_candidates", ())
+    names: list[str] = []
+    if isinstance(raw, (list, tuple)):
+        for candidate in raw:
+            if not isinstance(candidate, Mapping):
+                continue
+            if candidate.get("missing") or candidate.get("authority") != "none":
+                continue
+            name = str(candidate.get("name", ""))
+            if name:
+                names.append(name)
+    return tuple(dict.fromkeys(names))
+
+
+def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 24) -> dict:
     current = start_gap
     completed: list[dict] = []
     failed_attempt: dict | None = None
     blocked_reason: str | None = None
     learned_expressions: dict[str, Mapping[str, Any]] = {}
+    verified_local_capabilities: set[str] = set()
 
     for _ in range(max_generations):
         spec = get_native_semantic_gap(current)
@@ -57,7 +77,6 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             seed_expressions=learned_expressions,
         )
         if not synthesis.found or synthesis.expression is None:
-            blocked_reason = "native-synthesis-not-found"
             diagnosis = diagnose_native_synthesis_failure(spec.parameters, spec.examples)
             self_debug = audit_native_self_build(
                 spec.parameters,
@@ -66,6 +85,88 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 synthesis=asdict(synthesis),
                 diagnosis=asdict(diagnosis),
             )
+
+            # Internal deterministic continuation: if self-debug discovers a complete,
+            # authority-free local candidate, verify that exact local implementation
+            # against the unchanged semantic contract before escalating or stopping.
+            if self_debug.internal_next_action == "verify-existing-local-capability":
+                local_failures: list[dict[str, Any]] = []
+                for capability_name in _complete_local_candidates(asdict(diagnosis)):
+                    try:
+                        local = verify_local_capability_for_gap(spec, capability_name)
+                    except (ImportError, AttributeError, TypeError, ValueError) as exc:
+                        local_failures.append({"capability": capability_name, "error": str(exc)})
+                        continue
+                    if not local.verified:
+                        local_failures.append(
+                            {
+                                "capability": capability_name,
+                                "verification_identity": local.verification_identity,
+                                "passed": local.passed,
+                                "examples": local.examples,
+                            }
+                        )
+                        continue
+
+                    verified_local_capabilities.add(local.capability)
+                    completed.append(
+                        {
+                            "generation": len(completed) + 1,
+                            "gap": spec.name,
+                            "next_gap": spec.next_gap,
+                            "representation": "verified-local-capability-reuse",
+                            "preflight_self_debug": {
+                                "status": preflight.status,
+                                "report_identity": preflight.report_identity,
+                                "issues": len(preflight.issues),
+                                "counterexamples": len(preflight.counterexamples),
+                            },
+                            "native_synthesis_found": False,
+                            "native_synthesis_proof_identity": synthesis.proof_identity,
+                            "native_candidates_evaluated": synthesis.candidates_evaluated,
+                            "native_signatures_retained": synthesis.signatures_retained,
+                            "post_failure_self_debug_identity": self_debug.report_identity,
+                            "local_capability": local.capability,
+                            "local_module": local.module,
+                            "local_callable": local.callable_name,
+                            "local_verification_adapter": local.adapter,
+                            "local_implementation_sha256": local.implementation_sha256,
+                            "verification_identity": local.verification_identity,
+                            "invocation_output": local.invocation_output,
+                            "state": "verified",
+                            "authority_granted": local.authority_granted,
+                            "routed_to_host": local.routed_to_host,
+                            "promotion_performed": False,
+                            "model_reasoning_used": False,
+                            "source_generation_used": False,
+                            "filesystem_build_used": False,
+                            "subprocess_test_used": False,
+                            "reusable_native_capabilities_after_build": sorted(learned_expressions),
+                            "reusable_local_capabilities_after_build": sorted(verified_local_capabilities),
+                        }
+                    )
+                    current = spec.next_gap
+                    failed_attempt = None
+                    blocked_reason = None
+                    break
+                else:
+                    blocked_reason = "local-capability-verification-failed"
+                    failed_attempt = {
+                        "attempted_generation": len(completed) + 1,
+                        "gap": current,
+                        "synthesis": asdict(synthesis),
+                        "diagnosis": asdict(diagnosis),
+                        "self_debug": asdict(self_debug),
+                        "local_verification_failures": local_failures,
+                        "verified": False,
+                    }
+                    break
+
+                # A local capability was verified and the gap advanced; continue in
+                # this same event rather than waiting for another user/model prompt.
+                continue
+
+            blocked_reason = "native-synthesis-not-found"
             failed_attempt = {
                 "attempted_generation": len(completed) + 1,
                 "gap": current,
@@ -99,13 +200,13 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             }
             break
 
-        # Only verified local capabilities become reusable synthesis primitives.
         learned_expressions[spec.name] = dict(synthesis.expression)
         completed.append(
             {
                 "generation": len(completed) + 1,
                 "gap": spec.name,
                 "next_gap": spec.next_gap,
+                "representation": "field-native-program",
                 "preflight_self_debug": {
                     "status": preflight.status,
                     "report_identity": preflight.report_identity,
@@ -118,6 +219,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 "signatures_retained": synthesis.signatures_retained,
                 "seed_expressions_considered": list(synthesis.seed_expressions_considered),
                 "reusable_native_capabilities_after_build": sorted(learned_expressions),
+                "reusable_local_capabilities_after_build": sorted(verified_local_capabilities),
                 "artifact_identity": built.artifact_identity,
                 "local_variant_identity": built.artifact.local_variant_identity,
                 "carrier_sha256": built.artifact.carrier_sha256,
@@ -164,6 +266,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         "catalog_revision": CATALOG_REVISION,
         "synthesis_revision": SYNTHESIS_REVISION,
         "self_debug_revision": SELF_DEBUG_REVISION,
+        "local_verification_revision": LOCAL_VERIFICATION_REVISION,
         "start_gap": start_gap,
         "completed_generations": len(completed),
         "latest_completed_gap": completed[-1]["gap"] if completed else None,
@@ -171,6 +274,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         "blocked_reason": blocked_reason,
         "failed_attempt": failed_attempt,
         "reusable_native_capabilities": sorted(learned_expressions),
+        "reusable_local_capabilities": sorted(verified_local_capabilities),
         "internal_next_action": internal_next_action,
         "reasoning_required": reasoning_required,
         "reasoning_request": (
@@ -197,7 +301,6 @@ def main() -> int:
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(state, indent=2, sort_keys=True))
-    # A real reasoning/build boundary is a normal safe stop when prior verified work exists.
     return 0 if state["completed_generations"] > 0 else 1
 
 
