@@ -302,7 +302,7 @@
     }
   },
   "convergence_required": true,
-  "convergence_verification": "success",
+  "convergence_verification": "failure",
   "expected_frontiers": [
     "adaptive_shell_closed_loop",
     "adaptive_shell_live_trial_readiness",
@@ -329,9 +329,7 @@
   "frontier_count": 20,
   "global_barrier": false,
   "initial_blocked_frontiers": [
-    "adaptive_shell_live_trial_readiness",
-    "learning_novelty_ratio",
-    "learning_retention_ratio"
+    "adaptive_shell_live_trial_readiness"
   ],
   "lanes": {
     "adaptive_shell_closed_loop": {
@@ -466,13 +464,13 @@
     },
     "learning_novelty_ratio": {
       "blocked_output": null,
-      "blocked_reason": "native-synthesis-not-found",
+      "blocked_reason": "generation-bound-reached",
       "global_barrier": false,
-      "latest_completed_gap": null,
-      "next_gap": "learning_novelty_ratio",
-      "progress_made": false,
-      "reasoning_required": true,
-      "status": "blocked"
+      "latest_completed_gap": "learning_novelty_ratio",
+      "next_gap": "learning_stability_index",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
     },
     "learning_overlap_score": {
       "blocked_output": null,
@@ -486,13 +484,13 @@
     },
     "learning_retention_ratio": {
       "blocked_output": null,
-      "blocked_reason": "native-synthesis-not-found",
+      "blocked_reason": "generation-bound-reached",
       "global_barrier": false,
-      "latest_completed_gap": null,
-      "next_gap": "learning_retention_ratio",
-      "progress_made": false,
-      "reasoning_required": true,
-      "status": "blocked"
+      "latest_completed_gap": "learning_retention_ratio",
+      "next_gap": "learning_novelty_ratio",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
     },
     "learning_stability_index": {
       "blocked_output": null,
@@ -550,7 +548,9 @@
     "io_safe_port_choice",
     "io_semantic_coverage_ratio",
     "learning_delta_score",
+    "learning_novelty_ratio",
     "learning_overlap_score",
+    "learning_retention_ratio",
     "learning_stability_index",
     "learning_union_size",
     "resource_context_actuation_readiness",
@@ -560,16 +560,11 @@
   "remaining_blocked_frontiers": [
     "adaptive_shell_live_trial_readiness"
   ],
-  "resolved_by_split_frontiers": [
-    "learning_novelty_ratio",
-    "learning_retention_ratio"
-  ],
+  "resolved_by_split_frontiers": [],
   "safe_path_reuses_original_evidence": true,
   "schema": "aurum-native-frontier-convergence-v1",
   "selected_paths": {
-    "adaptive_shell_live_trial_readiness": "safe-hold",
-    "learning_novelty_ratio": "adventurous",
-    "learning_retention_ratio": "adventurous"
+    "adaptive_shell_live_trial_readiness": "safe-hold"
   },
   "split_convergence": {
     "adaptive_shell_live_trial_readiness": {
@@ -582,28 +577,6 @@
       "independent_verifier_verified": true,
       "safe_path": "blocked-preserved",
       "selected_path": "safe-hold"
-    },
-    "learning_novelty_ratio": {
-      "adventurous_progress_made": true,
-      "adventurous_status": "verified-candidate",
-      "candidate_verification_identity": "e50223867fd0441db9a37f73be04fff64cede260f7c05dd55260e742da419aba",
-      "candidate_verified_at_convergence": true,
-      "global_barrier": false,
-      "independent_verifier_status": "verified-block-classification",
-      "independent_verifier_verified": true,
-      "safe_path": "blocked-preserved",
-      "selected_path": "adventurous"
-    },
-    "learning_retention_ratio": {
-      "adventurous_progress_made": true,
-      "adventurous_status": "verified-candidate",
-      "candidate_verification_identity": "307e58979f064d4f7577296d28fed594d15d087a0ffc0f17a85cbbda79c17d9f",
-      "candidate_verified_at_convergence": true,
-      "global_barrier": false,
-      "independent_verifier_status": "verified-block-classification",
-      "independent_verifier_verified": true,
-      "safe_path": "blocked-preserved",
-      "selected_path": "adventurous"
     }
   },
   "split_on_every_blocked_frontier": true
