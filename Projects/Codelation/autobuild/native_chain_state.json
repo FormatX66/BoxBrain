@@ -424,7 +424,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "c814b3923485839179c55eea0ffc4dff6977603682c84ad395177f54a8d07a1a"
+      "verification_identity": "f05167fc020a9b42f278b36570d547b1a5260d31b3dc85ea8fe5ece97c109de6"
     },
     {
       "authority_granted": false,
@@ -469,7 +469,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "ea20b0dde742438c623f687c3e20ee025ebc3679be66bd2d2e598225bcd30a20"
+      "verification_identity": "0fccb785b8048c4c572c204e894ac1f329880b5164caf069c173f99076094502"
     },
     {
       "authority_granted": false,
@@ -515,7 +515,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "cb1351b03c09b74447b70a337a526dc9c4bfb098ae7e8cb242f12e12dd706ce2"
+      "verification_identity": "775c98711b66bb4bf8f591374f59452c17c9c95f0bbfd4fdeae091d98e685535"
     },
     {
       "artifact_identity": "24929b7e58bf408465cd75af10ba9535fc7bc5fb65d8db85778ffa887bcfa889",
@@ -670,12 +670,12 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "5d299f4d8799a152db3a0e95fd149d33ab28a3225b75466248012906a602fc2c"
+      "verification_identity": "68f2a848eba5abdfc3029c4e84eb490872d88ff19cf5ea9243566393cf83b9bf"
     }
   ],
   "internal_next_action": "grow-builder-vocabulary",
   "latest_completed_gap": "interface_mode_selection",
-  "local_verification_revision": "aurum-local-capability-verification-v4",
+  "local_verification_revision": "aurum-local-capability-verification-v5",
   "next_gap": "interface_stability_budget",
   "reasoning_request": {
     "builder_learning": [
