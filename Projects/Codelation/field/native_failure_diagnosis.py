@@ -5,10 +5,11 @@ import hashlib
 from typing import Any, Mapping, Sequence
 
 from aurum_field import encode
+from builder_capability_catalog import find_builder_capability_candidates
 from field_native_vm import NativeExample
 
 
-DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v0"
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v1"
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class NativeFailureDiagnosis:
     categories: tuple[str, ...]
     observations: tuple[str, ...]
     builder_learning: tuple[str, ...]
+    local_capability_candidates: tuple[Mapping[str, Any], ...]
     diagnosis_identity: str
 
 
@@ -45,8 +47,9 @@ def diagnose_native_synthesis_failure(
     """Classify an observed native-synthesis boundary without proposing code.
 
     This runs only after synthesis has already failed. It does not short-circuit search,
-    grant authority, choose an implementation, or modify the VM. Its purpose is to turn
-    a generic "not found" result into bounded builder-learning evidence.
+    grant authority, choose an implementation, route work, or modify the VM. Its purpose
+    is to turn a generic "not found" result into bounded builder-learning evidence and
+    discover local capability candidates that may deserve separate verification.
     """
     parameters = tuple(parameters)
     examples = tuple(examples)
@@ -105,6 +108,40 @@ def diagnose_native_synthesis_failure(
                 )
                 learning.add("declarative-fact-binding")
 
+    discovered = find_builder_capability_candidates(learning)
+    local_candidates: list[Mapping[str, Any]] = []
+    for candidate in discovered:
+        local_candidates.append(
+            {
+                "name": candidate.name,
+                "module": candidate.module,
+                "callable": candidate.callable_name,
+                "matched": list(candidate.matched),
+                "missing": list(candidate.missing),
+                "coverage": candidate.coverage,
+                "authority": candidate.authority,
+                "routed": False,
+                "executed": False,
+            }
+        )
+        if not candidate.missing:
+            categories.add("local-capability-candidate-covers-builder-learning")
+            observations.add(
+                f"local capability candidate '{candidate.name}' covers all diagnosed builder-learning requirements but has not been routed or executed"
+            )
+
+    identity_candidates = [
+        {
+            "name": candidate.name,
+            "module": candidate.module,
+            "callable": candidate.callable_name,
+            "matched": list(candidate.matched),
+            "missing": list(candidate.missing),
+            "coverage_ratio": [len(candidate.matched), max(1, len(learning))],
+            "authority": candidate.authority,
+        }
+        for candidate in discovered
+    ]
     payload: Mapping[str, Any] = {
         "revision": DIAGNOSIS_REVISION,
         "parameters": list(parameters),
@@ -112,6 +149,7 @@ def diagnose_native_synthesis_failure(
         "categories": sorted(categories),
         "observations": sorted(observations),
         "builder_learning": sorted(learning),
+        "local_capability_candidates": identity_candidates,
     }
     identity = hashlib.blake2s(
         b"AURUM-NATIVE-FAILURE-DIAGNOSIS-0\x00" + encode(payload)
@@ -121,6 +159,7 @@ def diagnose_native_synthesis_failure(
         categories=tuple(sorted(categories)),
         observations=tuple(sorted(observations)),
         builder_learning=tuple(sorted(learning)),
+        local_capability_candidates=tuple(local_candidates),
         diagnosis_identity=identity,
     )
 
