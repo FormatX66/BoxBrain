@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-CATALOG_REVISION = "aurum-builder-capability-catalog-v1"
+CATALOG_REVISION = "aurum-builder-capability-catalog-v2"
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,7 @@ def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
     but discovery itself never routes work, executes a callable, grants permission,
     verifies an artifact, or promotes a capability.
     """
+    pure = frozenset({"pure-decision", "deterministic", "no-host-authority"})
     return (
         BuilderCapabilityDescriptor(
             name="io-plan",
@@ -52,16 +53,24 @@ def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
                     "semantic-port-selection",
                 }
             ),
-            constraints=frozenset(
-                {
-                    "pure-decision",
-                    "deterministic",
-                    "no-host-authority",
-                    "permission-does-not-equal-authority",
-                }
-            ),
+            constraints=pure | frozenset({"permission-does-not-equal-authority"}),
             authority="none",
             verification_adapter="semantic-port-plan-v0",
+        ),
+        BuilderCapabilityDescriptor(
+            name="labeled-text-projection",
+            module="structured_projection",
+            callable_name="project_labeled_state",
+            provides=frozenset(
+                {
+                    "deterministic-labeled-text-projection",
+                    "empty-value-normalization",
+                    "human-readable-state-projection",
+                }
+            ),
+            constraints=pure | frozenset({"view-only", "field-remains-authoritative"}),
+            authority="none",
+            verification_adapter="labeled-text-projection-v0",
         ),
     )
 
