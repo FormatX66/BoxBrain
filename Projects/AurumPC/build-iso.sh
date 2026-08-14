@@ -61,6 +61,19 @@ usbutils
 ca-certificates
 EOF
 
+# Debian live-build's EFI GRUB config expects this font at boot. With
+# apt-recommends disabled it was not being copied into the ISO, leaving OVMF
+# at GRUB with: /boot/grub/fonts/unicode.pf2 not found. Put the build host's
+# canonical GRUB font into the binary filesystem explicitly and fail closed if
+# the toolchain does not provide it.
+GRUB_FONT=/usr/share/grub/unicode.pf2
+if [ ! -s "$GRUB_FONT" ]; then
+  echo "Required GRUB font is missing: $GRUB_FONT" >&2
+  exit 1
+fi
+mkdir -p config/includes.binary/boot/grub/fonts
+cp "$GRUB_FONT" config/includes.binary/boot/grub/fonts/unicode.pf2
+
 mkdir -p config/includes.chroot/opt/aurum
 cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
