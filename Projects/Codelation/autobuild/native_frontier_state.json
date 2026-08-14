@@ -302,7 +302,7 @@
     }
   },
   "convergence_required": true,
-  "convergence_verification": "failure",
+  "convergence_verification": "success",
   "expected_frontiers": [
     "adaptive_shell_closed_loop",
     "adaptive_shell_live_trial_readiness",
