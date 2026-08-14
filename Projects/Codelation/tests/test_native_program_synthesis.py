@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from dataclasses import asdict
 from pathlib import Path
 
 FIELD = Path(__file__).resolve().parents[1] / "field"
@@ -10,6 +11,7 @@ sys.path.insert(0, str(FIELD))
 from field_native_vm import NativeExample, compile_native, execute_native
 from native_failure_diagnosis import diagnose_native_synthesis_failure
 from native_program_synthesis import synthesize_native_expression
+from native_self_debug import audit_native_self_build
 
 
 class NativeProgramSynthesisTests(unittest.TestCase):
@@ -85,6 +87,48 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         self.assertEqual(execute_native(program, {"left": 0, "right": 0}), 0.0)
         self.assertEqual(execute_native(program, {"left": 3, "right": 4}), 0.75)
 
+    def test_self_debug_accepts_current_numeric_equivalence_contract(self):
+        examples = (
+            NativeExample({"left": 1, "right": 2}, 0.5),
+            NativeExample({"left": 0, "right": 0}, 0.0),
+            NativeExample({"left": 2, "right": 2}, 1.0),
+        )
+        report = audit_native_self_build(("left", "right"), examples, stage="preflight")
+        self.assertEqual(report.status, "clean")
+        self.assertFalse(report.issues)
+        self.assertFalse(report.model_escalation_advised)
+
+    def test_self_debug_catches_verifier_identity_disconnect_with_counterexample(self):
+        examples = (
+            NativeExample({"left": 0, "right": 0}, 0.0),
+            NativeExample({"left": 2, "right": 2}, 1.0),
+        )
+
+        def broken_identity(value):
+            return (type(value).__name__, repr(value))
+
+        report = audit_native_self_build(
+            ("left", "right"),
+            examples,
+            stage="preflight",
+            identity_projector=broken_identity,
+        )
+        self.assertEqual(report.status, "blocked")
+        self.assertIn("builder-equivalence", report.probable_failure_domains)
+        self.assertEqual(report.recommended_action, "repair-builder-equivalence")
+        self.assertTrue(report.counterexamples)
+        self.assertFalse(report.model_escalation_advised)
+
+    def test_self_debug_rejects_conflicting_semantic_examples_before_search(self):
+        examples = (
+            NativeExample({"text": "same"}, 1),
+            NativeExample({"text": "same"}, 2),
+        )
+        report = audit_native_self_build(("text",), examples, stage="preflight")
+        self.assertEqual(report.status, "blocked")
+        self.assertIn("semantic-spec", report.probable_failure_domains)
+        self.assertEqual(report.recommended_action, "repair-semantic-spec")
+
     def test_text_selection_failure_identifies_builder_learning(self):
         examples = (
             NativeExample(
@@ -117,6 +161,18 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         self.assertEqual(candidate["authority"], "none")
         self.assertFalse(candidate["routed"])
         self.assertFalse(candidate["executed"])
+
+        post = audit_native_self_build(
+            ("required", "available", "permissions"),
+            examples,
+            stage="post-failure",
+            synthesis={"candidates_evaluated": 841, "signatures_retained": 73},
+            diagnosis=asdict(diagnosis),
+        )
+        self.assertEqual(post.status, "actionable")
+        self.assertEqual(post.recommended_action, "verify-existing-local-capability")
+        self.assertEqual(post.internal_next_action, "verify-existing-local-capability")
+        self.assertFalse(post.model_escalation_advised)
 
     def test_not_found_is_bounded_and_explicit(self):
         examples = (
