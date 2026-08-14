@@ -20,6 +20,7 @@ on:
       - 'Projects/Codelation/field/external_prerequisite_evidence.py'
       - 'Projects/Codelation/field/mesh_efficiency.py'
       - 'Projects/Codelation/field/capacity_mesh.py'
+      - 'Projects/Codelation/field/windows_node_growth.py'
       - 'Projects/Codelation/field/structured_projection.py'
       - 'Projects/Codelation/field/constraint_classification.py'
       - 'Projects/Codelation/field/score_selection.py'
@@ -36,6 +37,7 @@ on:
       - 'Projects/Codelation/tests/test_local_capability_verification.py'
       - 'Projects/Codelation/tests/test_mesh_efficiency.py'
       - 'Projects/Codelation/tests/test_capacity_mesh.py'
+      - 'Projects/Codelation/tests/test_windows_node_growth.py'
 
 permissions:
   contents: write
