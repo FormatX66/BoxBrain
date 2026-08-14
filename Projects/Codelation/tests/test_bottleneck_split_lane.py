@@ -19,6 +19,7 @@ class BottleneckSplitLaneTests(unittest.TestCase):
             "blocked_reason": reason,
             "blocked_output": None,
             "next_gap": gap,
+            "initial_seed_expressions": {},
             "global_barrier": False,
             "blocks_other_frontiers": False,
         }
@@ -49,6 +50,23 @@ class BottleneckSplitLaneTests(unittest.TestCase):
         self.assertTrue(result["verified"])
         self.assertTrue(result["checks"]["safe_search_block_reproduced"])
         self.assertEqual(result["independent_safe_search"]["max_cost"], 12)
+        self.assertEqual(result["independent_safe_search"]["seed_capabilities"], [])
+
+    def test_verifier_uses_captured_seed_snapshot_not_newer_convergence(self):
+        state = self._blocked_state("learning_retention_ratio", "native-synthesis-not-found")
+        state["initial_seed_expressions"] = {
+            "learning_delta_score": {
+                "op": "length",
+                "value": {
+                    "op": "symmetric_difference",
+                    "left": {"op": "split", "value": {"op": "input", "name": "after"}},
+                    "right": {"op": "split", "value": {"op": "input", "name": "before"}},
+                },
+            }
+        }
+        result = run_verifier(state)
+        self.assertIn("learning_delta_score", result["independent_safe_search"]["seed_capabilities"])
+        self.assertNotIn("learning_retention_ratio", result["independent_safe_search"]["seed_capabilities"])
 
     def test_external_block_remains_local_and_lookahead_only(self):
         state = self._blocked_state(
