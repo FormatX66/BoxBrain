@@ -1,10 +1,306 @@
 {
-  "blocked_frontiers": [
-    "adaptive_shell_live_trial_readiness",
-    "learning_novelty_ratio",
-    "learning_retention_ratio"
-  ],
   "checkpoint_count": 20,
+  "converged_native_expression_count": 9,
+  "converged_native_expressions": {
+    "interface_context_mode_confidence": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "profile",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "evidence",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "profile",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "evidence",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "interface_roundtrip_observation": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "emitted",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "emitted",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "io_semantic_coverage_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "required",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "learning_delta_score": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "symmetric_difference",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "learning_novelty_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "learning_overlap_score": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "intersection",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "learning_retention_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "learning_stability_index": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "learning_union_size": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "union",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    }
+  },
   "convergence_required": true,
   "convergence_verification": "success",
   "expected_frontiers": [
@@ -29,8 +325,14 @@
     "resource_context_actuation_readiness",
     "resource_context_proposal"
   ],
+  "expression_conflicts": [],
   "frontier_count": 20,
   "global_barrier": false,
+  "initial_blocked_frontiers": [
+    "adaptive_shell_live_trial_readiness",
+    "learning_novelty_ratio",
+    "learning_retention_ratio"
+  ],
   "lanes": {
     "adaptive_shell_closed_loop": {
       "blocked_output": null,
@@ -254,10 +556,55 @@
     "resource_context_actuation_readiness",
     "resource_context_proposal"
   ],
-  "reasoning_frontiers": [
+  "reasoning_frontiers": [],
+  "remaining_blocked_frontiers": [
+    "adaptive_shell_live_trial_readiness"
+  ],
+  "resolved_by_split_frontiers": [
     "learning_novelty_ratio",
     "learning_retention_ratio"
   ],
-  "schema": "aurum-native-frontier-convergence-v0",
-  "split_on_bottleneck": true
+  "safe_path_reuses_original_evidence": true,
+  "schema": "aurum-native-frontier-convergence-v1",
+  "selected_paths": {
+    "adaptive_shell_live_trial_readiness": "safe-hold",
+    "learning_novelty_ratio": "adventurous",
+    "learning_retention_ratio": "adventurous"
+  },
+  "split_convergence": {
+    "adaptive_shell_live_trial_readiness": {
+      "adventurous_progress_made": false,
+      "adventurous_status": "adjacent-frontier-blocked",
+      "candidate_verification_identity": null,
+      "candidate_verified_at_convergence": false,
+      "global_barrier": false,
+      "independent_verifier_status": "verified-block-classification",
+      "independent_verifier_verified": true,
+      "safe_path": "blocked-preserved",
+      "selected_path": "safe-hold"
+    },
+    "learning_novelty_ratio": {
+      "adventurous_progress_made": true,
+      "adventurous_status": "verified-candidate",
+      "candidate_verification_identity": "e50223867fd0441db9a37f73be04fff64cede260f7c05dd55260e742da419aba",
+      "candidate_verified_at_convergence": true,
+      "global_barrier": false,
+      "independent_verifier_status": "verified-block-classification",
+      "independent_verifier_verified": true,
+      "safe_path": "blocked-preserved",
+      "selected_path": "adventurous"
+    },
+    "learning_retention_ratio": {
+      "adventurous_progress_made": true,
+      "adventurous_status": "verified-candidate",
+      "candidate_verification_identity": "307e58979f064d4f7577296d28fed594d15d087a0ffc0f17a85cbbda79c17d9f",
+      "candidate_verified_at_convergence": true,
+      "global_barrier": false,
+      "independent_verifier_status": "verified-block-classification",
+      "independent_verifier_verified": true,
+      "safe_path": "blocked-preserved",
+      "selected_path": "adventurous"
+    }
+  },
+  "split_on_every_blocked_frontier": true
 }
