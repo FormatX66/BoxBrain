@@ -63,7 +63,7 @@ jobs:
           test -s "$BUNDLE/models/seed.gguf"
           (cd "$BUNDLE" && sha256sum -c SHA256SUMS)
 
-      - name: Local inference smoke test
+      - name: Local inference smoke test and install-path recommendation
         shell: bash
         run: |
           set -euo pipefail
@@ -73,7 +73,7 @@ jobs:
             -a aurum-seed \
             --host 127.0.0.1 \
             --port 8080 \
-            -c 2048 \
+            -c 4096 \
             -np 1 \
             -ngl 0 \
             --jinja \
@@ -113,19 +113,36 @@ jobs:
             --json \
             > aurum-llm-smoke.json
 
+          python3 Projects/AurumLLM/aurum_llm.py \
+            --model aurum-seed \
+            --system "$(cat Projects/AurumLLM/system.txt)" \
+            --prompt 'Aurum PC v0.01 is a bootable x86_64 hybrid ISO of about 300 MB built on a Debian live compatibility substrate. It is intended for rapid first physical testing on ordinary UEFI PCs while preserving the existing OS and keeping rollback easy. What is the best and fastest practical way to load Aurum onto a computer for first testing? Compare direct raw USB image writing, a Ventoy-style multiboot USB, direct internal-disk installation, and network/PXE boot. Recommend one default path and one fallback. Optimize for few user steps, boot reliability, reversibility, and rapid iteration. Do not claim physical evidence you do not have.' \
+            --temperature 0 \
+            --max-tokens 512 \
+            --json \
+            > aurum-install-recommendation.json
+
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          payload = json.loads(Path('aurum-llm-smoke.json').read_text(encoding='utf-8'))
-          choices = payload.get('choices') or []
-          assert choices, 'no inference choices returned'
-          message = choices[0].get('message') or {}
-          text = (message.get('content') or message.get('reasoning_content') or '').strip()
-          assert text, 'model returned no text'
+          def text_from(path):
+              payload = json.loads(Path(path).read_text(encoding='utf-8'))
+              choices = payload.get('choices') or []
+              assert choices, f'no inference choices returned for {path}'
+              message = choices[0].get('message') or {}
+              text = (message.get('content') or message.get('reasoning_content') or '').strip()
+              assert text, f'model returned no text for {path}'
+              return text
+
+          smoke = text_from('aurum-llm-smoke.json')
+          recommendation = text_from('aurum-install-recommendation.json')
           print('AURUM_LLM_READY version=0.01 arch=x86_64 alias=aurum-seed')
           print('selftest=ok')
-          print(text[:500])
+          print(smoke[:500])
+          print('AURUM_INSTALL_RECOMMENDATION_BEGIN')
+          print(recommendation[:6000])
+          print('AURUM_INSTALL_RECOMMENDATION_END')
           PY
 
           cleanup
@@ -149,6 +166,7 @@ jobs:
             dist/Aurum-LLM-v0.01-x86_64/**
             aurum-llm-health.json
             aurum-llm-smoke.json
+            aurum-install-recommendation.json
             aurum-llm-server.log
           if-no-files-found: error
           retention-days: 14
