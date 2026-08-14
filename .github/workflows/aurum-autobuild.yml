@@ -18,6 +18,7 @@ on:
       - 'Projects/Codelation/field/structured_projection.py'
       - 'Projects/Codelation/field/constraint_classification.py'
       - 'Projects/Codelation/field/score_selection.py'
+      - 'Projects/Codelation/field/set_constraints.py'
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
