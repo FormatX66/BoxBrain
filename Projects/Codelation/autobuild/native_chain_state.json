@@ -15,7 +15,7 @@
         "conditional-empty-or-choice",
         "multi-source-protected-set-difference"
       ],
-      "diagnosis_identity": "1efcd729295c9039df0920ed183d478ec85e83d9fea32e06e3209be6d9a00ccf",
+      "diagnosis_identity": "dcc967628e203488b2915d5f98cd58769c857fa5ca5918c6ac9450b3812fed67",
       "local_capability_candidates": [
         {
           "authority": "none",
