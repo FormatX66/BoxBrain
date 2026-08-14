@@ -35,10 +35,7 @@ jobs:
           python3 -m unittest discover -s Projects/AurumGUI/tests -p 'test_*.py' -v
           node --check Projects/AurumGUI/static/app.js
           node --check Projects/AurumGUI/static/adaptive.js
-          test -s Projects/AurumGUI/static/adaptive.css
-          grep -F 'Auto learn' Projects/AurumGUI/static/index.html
-          grep -F 'Windows-like' Projects/AurumGUI/static/index.html
-          grep -F 'macOS-like' Projects/AurumGUI/static/index.html
+          node --check Projects/AurumGUI/static/interaction.js
 
       - name: Run local interface smoke test
         shell: bash
@@ -66,7 +63,7 @@ jobs:
           print('AURUM_GUI_STATUS_VERIFIED')
           PY
           curl -fsS http://127.0.0.1:8765/ | grep -F '<title>Aurum</title>'
-          curl -fsS http://127.0.0.1:8765/adaptive.js | grep -F 'aurum.ui.adaptation.v0'
-          curl -fsS http://127.0.0.1:8765/adaptive.css | grep -F 'data-ui-profile="windows"'
+          curl -fsS http://127.0.0.1:8765/interaction.js | grep -F 'aurum.ui.interaction.v0'
+          curl -fsS http://127.0.0.1:8765/interaction.css | grep -F '.assist-strip'
           grep -F 'AURUM_GUI_READY version=0.01' aurum-gui.log
-          echo 'AURUM_GUI_V001_ADAPTIVE_SMOKE_VERIFIED'
+          echo 'AURUM_GUI_V001_SMOKE_VERIFIED'
