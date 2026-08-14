@@ -24,6 +24,19 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         self.assertTrue(verification.implementation_sha256)
         self.assertTrue(verification.verification_identity)
 
+    def test_labeled_projection_satisfies_human_state_projection_without_authority(self):
+        gap = get_native_semantic_gap("interface_human_state_projection")
+        self.assertIsNotNone(gap)
+        verification = verify_local_capability_for_gap(gap, "labeled-text-projection")
+        self.assertTrue(verification.verified)
+        self.assertEqual(verification.passed, verification.examples)
+        self.assertEqual(
+            verification.invocation_output,
+            "selected=text-dialogue;blocked=display-output;missing=visual-output",
+        )
+        self.assertFalse(verification.authority_granted)
+        self.assertFalse(verification.routed_to_host)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
