@@ -14,8 +14,10 @@ on:
       - 'Projects/Codelation/run_capacity_mesh_lane.py'
       - 'Projects/Codelation/field/mesh_efficiency.py'
       - 'Projects/Codelation/field/capacity_mesh.py'
+      - 'Projects/Codelation/field/windows_node_growth.py'
       - 'Projects/Codelation/tests/test_mesh_efficiency.py'
       - 'Projects/Codelation/tests/test_capacity_mesh.py'
+      - 'Projects/Codelation/tests/test_windows_node_growth.py'
 
 permissions:
   contents: read
