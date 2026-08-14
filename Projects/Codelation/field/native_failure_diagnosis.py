@@ -9,7 +9,7 @@ from builder_capability_catalog import find_builder_capability_candidates
 from field_native_vm import NativeExample
 
 
-DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v1"
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v2"
 
 
 @dataclass(frozen=True)
@@ -40,17 +40,20 @@ def _tokens(value: Any) -> set[str]:
     return set()
 
 
+def _labeled_projection_matches(parameters: Sequence[str], example: NativeExample) -> bool:
+    expected = str(example.expected)
+    parts: list[str] = []
+    for name in parameters:
+        raw = example.arguments.get(name)
+        text = "" if raw is None else str(raw)
+        parts.append(f"{name}={text if text else 'none'}")
+    return expected == ";".join(parts)
+
+
 def diagnose_native_synthesis_failure(
     parameters: Sequence[str],
     examples: Sequence[NativeExample],
 ) -> NativeFailureDiagnosis:
-    """Classify an observed native-synthesis boundary without proposing code.
-
-    This runs only after synthesis has already failed. It does not short-circuit search,
-    grant authority, choose an implementation, route work, or modify the VM. Its purpose
-    is to turn a generic "not found" result into bounded builder-learning evidence and
-    discover local capability candidates that may deserve separate verification.
-    """
     parameters = tuple(parameters)
     examples = tuple(examples)
     if not parameters or not examples:
@@ -70,6 +73,15 @@ def diagnose_native_synthesis_failure(
             observations.add("examples require both an empty result and a non-empty text result")
             learning.add("deterministic-conditional-selection")
 
+        if all(_labeled_projection_matches(parameters, example) for example in examples):
+            categories.add("labeled-parameter-projection")
+            observations.add("expected text is a stable parameter-labeled projection in declared parameter order")
+            learning.add("deterministic-labeled-text-projection")
+            if any(any(not str(example.arguments.get(name) or "") for name in parameters) for example in examples):
+                categories.add("explicit-empty-normalization")
+                observations.add("empty values are represented explicitly as 'none'")
+                learning.add("empty-value-normalization")
+
         drawn_from: dict[str, int] = {name: 0 for name in parameters}
         for example in examples:
             wanted = str(example.expected)
@@ -84,9 +96,6 @@ def diagnose_native_synthesis_failure(
                 observations.add(f"every non-empty expected result is a token drawn from input '{name}'")
                 learning.add("bounded-token-selection")
 
-        # Detect the common relational shape where one input describes requested meaning
-        # while another contains the identifiers that must be selected. The examples then
-        # require a fact relation between two vocabularies rather than direct token algebra.
         if "required" in parameters:
             required_vocab = set().union(*(_tokens(example.arguments.get("required")) for example in examples))
             output_vocab = set(nonempty)
@@ -103,9 +112,7 @@ def diagnose_native_synthesis_failure(
             ]
             if carrier_params and output_vocab.isdisjoint(required_vocab):
                 categories.add("cross-vocabulary-fact-binding")
-                observations.add(
-                    "requested semantic tokens and selected identifier tokens occupy different vocabularies"
-                )
+                observations.add("requested semantic tokens and selected identifier tokens occupy different vocabularies")
                 learning.add("declarative-fact-binding")
 
     discovered = find_builder_capability_candidates(learning)
@@ -120,6 +127,7 @@ def diagnose_native_synthesis_failure(
                 "missing": list(candidate.missing),
                 "coverage": candidate.coverage,
                 "authority": candidate.authority,
+                "verification_adapter": candidate.verification_adapter,
                 "routed": False,
                 "executed": False,
             }
@@ -139,6 +147,7 @@ def diagnose_native_synthesis_failure(
             "missing": list(candidate.missing),
             "coverage_ratio": [len(candidate.matched), max(1, len(learning))],
             "authority": candidate.authority,
+            "verification_adapter": candidate.verification_adapter,
         }
         for candidate in discovered
     ]
@@ -151,9 +160,7 @@ def diagnose_native_synthesis_failure(
         "builder_learning": sorted(learning),
         "local_capability_candidates": identity_candidates,
     }
-    identity = hashlib.blake2s(
-        b"AURUM-NATIVE-FAILURE-DIAGNOSIS-0\x00" + encode(payload)
-    ).hexdigest()
+    identity = hashlib.blake2s(b"AURUM-NATIVE-FAILURE-DIAGNOSIS-0\x00" + encode(payload)).hexdigest()
     return NativeFailureDiagnosis(
         target_type=target_type,
         categories=tuple(sorted(categories)),
