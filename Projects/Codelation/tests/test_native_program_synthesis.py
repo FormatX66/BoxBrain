@@ -110,6 +110,13 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         self.assertIn("bounded-token-selection", diagnosis.builder_learning)
         self.assertIn("deterministic-conditional-selection", diagnosis.builder_learning)
         self.assertIn("declarative-fact-binding", diagnosis.builder_learning)
+        self.assertTrue(diagnosis.local_capability_candidates)
+        candidate = diagnosis.local_capability_candidates[0]
+        self.assertEqual(candidate["name"], "io-plan")
+        self.assertEqual(candidate["coverage"], 1.0)
+        self.assertEqual(candidate["authority"], "none")
+        self.assertFalse(candidate["routed"])
+        self.assertFalse(candidate["executed"])
 
     def test_not_found_is_bounded_and_explicit(self):
         examples = (
