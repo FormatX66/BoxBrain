@@ -10,6 +10,7 @@ on:
     paths:
       - '.github/workflows/aurum-autobuild.yml'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
+      - 'Projects/Codelation/run_native_frontier_gap.py'
       - 'Projects/Codelation/run_capacity_mesh_cycle.py'
       - 'Projects/Codelation/run_capacity_mesh_lane.py'
       - 'Projects/Codelation/field/native_program_synthesis.py'
@@ -20,6 +21,7 @@ on:
       - 'Projects/Codelation/field/external_prerequisite_evidence.py'
       - 'Projects/Codelation/field/mesh_efficiency.py'
       - 'Projects/Codelation/field/capacity_mesh.py'
+      - 'Projects/Codelation/field/bottleneck_mesh.py'
       - 'Projects/Codelation/field/windows_node_growth.py'
       - 'Projects/Codelation/field/structured_projection.py'
       - 'Projects/Codelation/field/constraint_classification.py'
@@ -29,15 +31,16 @@ on:
       - 'Projects/Codelation/field/preference_evidence.py'
       - 'Projects/Codelation/field/categorical_policy.py'
       - 'Projects/Codelation/field/io_fabric.py'
+      - 'Projects/Codelation/field/io_binding.py'
+      - 'Projects/Codelation/field/io_event.py'
+      - 'Projects/Codelation/field/capability_wave.py'
+      - 'Projects/Codelation/field/capability_growth.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
+      - 'Projects/Codelation/interface/**'
       - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/autobuild/external_evidence/**'
-      - 'Projects/Codelation/tests/test_native_program_synthesis.py'
-      - 'Projects/Codelation/tests/test_local_capability_verification.py'
-      - 'Projects/Codelation/tests/test_mesh_efficiency.py'
-      - 'Projects/Codelation/tests/test_capacity_mesh.py'
-      - 'Projects/Codelation/tests/test_windows_node_growth.py'
+      - 'Projects/Codelation/tests/**'
 
 permissions:
   contents: write
@@ -47,9 +50,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  discover-frontier:
+    name: Discover all native frontiers
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    outputs:
+      gaps: ${{ steps.frontier.outputs.gaps }}
+    steps:
+      - name: Check out Aurum branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/capacity-mesh-v0
+          fetch-depth: 1
+      - name: Emit semantic frontier matrix
+        id: frontier
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import sys
+          sys.path.insert(0, 'Projects/Codelation/field')
+          from native_gap_catalog import native_semantic_gap_names
+          print('gaps=' + json.dumps(list(native_semantic_gap_names()), separators=(',', ':')))
+          PY
+
   cycle:
+    name: Compatibility chain checkpoint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Check out Aurum self-build branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -60,7 +89,7 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Run Aurum until a real boundary
+      - name: Run compatibility chain until its local boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -78,7 +107,8 @@ jobs:
             Projects.Codelation.tests.test_field_native_batch \
             Projects.Codelation.tests.test_field_native_cache \
             Projects.Codelation.tests.test_capacity_mesh \
-            Projects.Codelation.tests.test_mesh_efficiency -v
+            Projects.Codelation.tests.test_mesh_efficiency \
+            Projects.Codelation.tests.test_bottleneck_mesh -v
       - name: Record verification outcome
         shell: bash
         env:
@@ -88,17 +118,27 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          p=Path('Projects/Codelation/autobuild/native_chain_state.json');s=json.loads(p.read_text());s['workflow_verification']={'outcome':os.environ['VERIFY_OUTCOME'],'trusted_for_continuation':os.environ['VERIFY_OUTCOME']=='success'};p.write_text(json.dumps(s,indent=2,sort_keys=True)+'\n')
+          p=Path('Projects/Codelation/autobuild/native_chain_state.json')
+          s=json.loads(p.read_text())
+          s['workflow_verification']={
+              'outcome':os.environ['VERIFY_OUTCOME'],
+              'trusted_for_continuation':os.environ['VERIFY_OUTCOME']=='success',
+          }
+          s['global_barrier']=False
+          s['blocks_parallel_frontiers']=False
+          p.write_text(json.dumps(s,indent=2,sort_keys=True)+'\n')
           PY
-      - name: Commit durable chain state
+      - name: Commit durable compatibility state
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'aurum-autobuild[bot]'; git config user.email 'aurum-autobuild@users.noreply.github.com'
+          git config user.name 'aurum-autobuild[bot]'
+          git config user.email 'aurum-autobuild@users.noreply.github.com'
           git add Projects/Codelation/autobuild/native_chain_state.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Aurum event-driven self-build checkpoint'; git push origin HEAD:aurum/capacity-mesh-v0
-      - name: Report continuation boundary
+          git commit -m 'Aurum compatibility-chain checkpoint'
+          git push origin HEAD:aurum/capacity-mesh-v0
+      - name: Report local boundary
         if: always()
         shell: bash
         run: |
@@ -106,13 +146,181 @@ jobs:
           import json
           from pathlib import Path
           p=Path('Projects/Codelation/autobuild/native_chain_state.json')
-          if not p.is_file(): print('native_chain_state=missing'); raise SystemExit(0)
+          if not p.is_file():
+              print('native_chain_state=missing')
+              raise SystemExit(0)
           s=json.loads(p.read_text())
-          for k in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','blocked_output','external_evidence','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'): print(f'{k}=',s.get(k))
+          for k in (
+              'completed_generations','latest_completed_gap','next_gap','blocked_reason',
+              'blocked_output','external_evidence','internal_next_action','reasoning_required',
+              'global_barrier','blocks_parallel_frontiers','workflow_verification'
+          ):
+              print(f'{k}=',s.get(k))
           PY
       - name: Fail closed on verification failure
         if: steps.verify.outcome != 'success'
         shell: bash
         run: |
-          echo 'Aurum state was checkpointed, but verification failed; continuation is not trusted.'
+          echo 'Compatibility state was checkpointed, but verification failed.'
+          exit 1
+
+  native-frontier:
+    name: Native frontier - ${{ matrix.gap }}
+    needs: discover-frontier
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        gap: ${{ fromJson(needs.discover-frontier.outputs.gaps) }}
+    steps:
+      - name: Check out Aurum frontier source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/capacity-mesh-v0
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Build one semantic frontier without blocking siblings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p frontier-results
+          python3 Projects/Codelation/run_native_frontier_gap.py \
+            --gap '${{ matrix.gap }}' \
+            --output 'frontier-results/${{ matrix.gap }}.json'
+      - name: Publish independent frontier evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-native-frontier-${{ matrix.gap }}-${{ github.run_id }}
+          path: frontier-results/${{ matrix.gap }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  convergence:
+    name: Converge autonomous frontiers
+    if: always()
+    needs:
+      - discover-frontier
+      - cycle
+      - native-frontier
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out converged branch head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/capacity-mesh-v0
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Download all frontier evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: aurum-native-frontier-*-${{ github.run_id }}
+          path: frontier-results
+          merge-multiple: true
+      - name: Verify split and convergence contracts
+        id: converge_verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest \
+            Projects.Codelation.tests.test_bottleneck_mesh \
+            Projects.Codelation.tests.test_capacity_mesh \
+            Projects.Codelation.tests.test_capability_wave \
+            Projects.Codelation.tests.test_io_fabric \
+            Projects.Codelation.tests.test_io_event \
+            Projects.Codelation.tests.test_native_program_synthesis \
+            Projects.Codelation.tests.test_local_capability_verification \
+            Projects.Codelation.tests.test_mesh_efficiency -v
+      - name: Aggregate all frontier checkpoints
+        shell: bash
+        env:
+          CONVERGENCE_VERIFY: ${{ steps.converge_verify.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, 'Projects/Codelation/field')
+          from native_gap_catalog import native_semantic_gap_names
+
+          root = Path('frontier-results')
+          expected = list(native_semantic_gap_names())
+          lanes = {}
+          missing = []
+          progressed = []
+          blocked = []
+          reasoning = []
+          for gap in expected:
+              path = root / f'{gap}.json'
+              if not path.is_file():
+                  missing.append(gap)
+                  continue
+              state = json.loads(path.read_text(encoding='utf-8'))
+              lanes[gap] = {
+                  'status': state.get('status'),
+                  'progress_made': state.get('progress_made', False),
+                  'latest_completed_gap': state.get('latest_completed_gap'),
+                  'next_gap': state.get('next_gap'),
+                  'blocked_reason': state.get('blocked_reason'),
+                  'blocked_output': state.get('blocked_output'),
+                  'reasoning_required': state.get('reasoning_required', False),
+                  'global_barrier': False,
+              }
+              if state.get('status') == 'blocked':
+                  blocked.append(gap)
+              else:
+                  progressed.append(gap)
+              if state.get('reasoning_required'):
+                  reasoning.append(gap)
+
+          aggregate = {
+              'schema': 'aurum-native-frontier-convergence-v0',
+              'expected_frontiers': expected,
+              'frontier_count': len(expected),
+              'checkpoint_count': len(lanes),
+              'progressed_frontiers': progressed,
+              'blocked_frontiers': blocked,
+              'reasoning_frontiers': reasoning,
+              'missing_frontier_states': missing,
+              'global_barrier': False,
+              'physical_block_is_local': True,
+              'split_on_bottleneck': True,
+              'convergence_required': True,
+              'convergence_verification': os.environ['CONVERGENCE_VERIFY'],
+              'lanes': lanes,
+          }
+          out = Path('Projects/Codelation/autobuild/native_frontier_state.json')
+          out.write_text(json.dumps(aggregate, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(aggregate, indent=2, sort_keys=True))
+          if missing:
+              raise SystemExit('missing frontier checkpoints: ' + ', '.join(missing))
+          PY
+      - name: Commit converged frontier state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-convergence[bot]'
+          git config user.email 'aurum-convergence@users.noreply.github.com'
+          git add Projects/Codelation/autobuild/native_frontier_state.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Aurum parallel frontier convergence'
+          git push origin HEAD:aurum/capacity-mesh-v0
+      - name: Fail closed on convergence verification failure
+        if: steps.converge_verify.outcome != 'success'
+        shell: bash
+        run: |
+          echo 'Parallel frontier evidence was collected, but convergence verification failed.'
           exit 1
