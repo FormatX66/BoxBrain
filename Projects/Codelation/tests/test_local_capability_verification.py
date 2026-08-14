@@ -1,9 +1,10 @@
 from __future__ import annotations
 import sys,unittest
 from pathlib import Path
-FIELD=Path(__file__).resolve().parents[1]/"field";sys.path.insert(0,str(FIELD))
+ROOT=Path(__file__).resolve().parents[1];FIELD=ROOT/"field";sys.path.insert(0,str(ROOT));sys.path.insert(0,str(FIELD))
 from local_capability_verification import verify_local_capability_for_gap
 from native_gap_catalog import get_native_semantic_gap
+from run_native_autonomous_chain import _is_external_prerequisite_block
 
 class LocalCapabilityVerificationTests(unittest.TestCase):
     def _v(self,gap_name,capability):
@@ -16,5 +17,10 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
     def test_reversible_delta(self):self.assertEqual(self._v("interface_adaptation_proposal","reversible-state-delta-projection").invocation_output,"add=terminal;remove=none;evidence=coding-confidence-high")
     def test_preference_evidence(self):self.assertEqual(self._v("interface_user_feedback_learning","bounded-preference-evidence").invocation_output,"prefer=terminal workspace;avoid=none;lock=terminal;neutral=tips")
     def test_categorical_resource_policy(self):self.assertEqual(self._v("resource_context_proposal","categorical-token-policy").invocation_output,"cpu memory storage")
+    def test_live_trial_readiness_block_is_safe_external_stop(self):
+        gap=get_native_semantic_gap("adaptive_shell_live_trial_readiness");self.assertIsNotNone(gap)
+        v=self._v("adaptive_shell_live_trial_readiness","required-condition-classifier")
+        self.assertEqual(v.invocation_output,"blocked-physical-node")
+        self.assertTrue(_is_external_prerequisite_block(gap,v.invocation_output))
 
 if __name__=="__main__":unittest.main(verbosity=2)
