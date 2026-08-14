@@ -1,0 +1,114 @@
+name: Aurum Contributor Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  helper-intake:
+    if: ${{ github.event_name == 'issues' && startsWith(github.event.issue.title, '[AURUM HELPER]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Route and welcome new Aurum helper
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          USERNAME: ${{ github.event.issue.user.login }}
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+
+          lane="general"
+          lane_label="helper:general"
+          starter="Read the Aurum starter-task page and pick one small task that sounds comfortable."
+
+          if grep -Fq "I am not sure — give me something easy" <<<"$BODY"; then
+            lane="beginner"
+            lane_label="helper:beginner"
+            starter="Read START_HERE and tell us one thing that was clear and one thing that was confusing. No coding is required."
+          elif grep -Fq "Documentation and plain-English explanations" <<<"$BODY"; then
+            lane="documentation"
+            lane_label="helper:docs"
+            starter="Find one confusing sentence, missing step, or unexplained term in an Aurum/BoxBrain document and propose a clearer version."
+          elif grep -Fq "Windows / PC testing" <<<"$BODY"; then
+            lane="Windows testing"
+            lane_label="helper:windows"
+            starter="Verify one documented Windows step on an authorized PC and report expected versus actual behavior."
+          elif grep -Fq "Raspberry Pi / hardware testing" <<<"$BODY"; then
+            lane="Pi / hardware testing"
+            lane_label="helper:hardware"
+            starter="Verify one documented Raspberry Pi or hardware step on equipment you own or are authorized to use, then report the result."
+          elif grep -Fq "Research and fact checking" <<<"$BODY"; then
+            lane="research"
+            lane_label="helper:research"
+            starter="Pick one technical question from an Aurum issue or document, find two reliable sources, and post a short sourced summary."
+          elif grep -Fq "UI / workflow ideas" <<<"$BODY"; then
+            lane="UI / workflow"
+            lane_label="helper:ui"
+            starter="Find one place where a first-time user would not know what to do next and describe the simplest clearer flow."
+          elif grep -Fq "Coding / debugging" <<<"$BODY"; then
+            lane="coding"
+            lane_label="helper:code"
+            starter="Choose one narrowly scoped Aurum issue or improvement, make the smallest useful change, run the relevant validation, and open a pull request."
+          elif grep -Fq "Review pull requests" <<<"$BODY"; then
+            lane="review"
+            lane_label="helper:review"
+            starter="Read one open pull request and verify one thing you understand: documentation, a test, an edge case, or a safety/privacy concern."
+          elif grep -Fq "Try Aurum and report what happens" <<<"$BODY"; then
+            lane="testing"
+            lane_label="helper:testing"
+            starter="Try one documented Aurum behavior and report the exact step, expected result, and actual result without posting private information."
+          fi
+
+          gh label create "aurum-helper" --repo "$REPO" --color "7057ff" --description "Aurum contributor onboarding" --force
+          gh label create "$lane_label" --repo "$REPO" --color "bfd4f2" --description "Aurum helper lane" --force
+          gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label "aurum-helper" --add-label "$lane_label"
+
+          cat > "$RUNNER_TEMP/aurum-welcome.md" <<EOF
+          Welcome @$USERNAME — you are in the Aurum helper crew.
+
+          **Suggested lane:** $lane
+
+          **Your first task:** $starter
+
+          Starter-task menu: https://github.com/$REPO/blob/main/Projects/Aurum/HELPER_TASKS.md
+
+          Aurum start page: https://github.com/$REPO/blob/main/Projects/Aurum/START_HERE.md
+
+          You do not need direct write access to help. Issues, testing notes, research, documentation suggestions, and fork-based pull requests are all useful contributions.
+
+          When you finish the first task, post the result in this issue. If you changed repository files, open a pull request and the repository will provide the review checklist automatically.
+          EOF
+
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/aurum-welcome.md"
+
+  pull-request-welcome:
+    if: ${{ github.event_name == 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome pull request contributor
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          USERNAME: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/aurum-pr-welcome.md" <<EOF
+          Thanks @$USERNAME for contributing.
+
+          Please complete the pull request checklist, keep the change focused, and mention any validation you could not run. Do not include passwords, tokens, credentials, or private data in code, logs, screenshots, or comments.
+
+          A maintainer can review the change before it reaches the main branch.
+          EOF
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/aurum-pr-welcome.md"
