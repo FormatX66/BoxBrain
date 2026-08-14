@@ -1,0 +1,24 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "resource_context_proposal",
+  "parameters": ["mode", "available"],
+  "examples": [
+    {"arguments": {"mode": "gaming", "available": "cpu gpu memory network display storage"}, "expected": "display gpu memory"},
+    {"arguments": {"mode": "coding", "available": "cpu gpu memory network storage display"}, "expected": "cpu memory storage"},
+    {"arguments": {"mode": "research", "available": "cpu memory network storage display"}, "expected": "memory network"},
+    {"arguments": {"mode": "media-social", "available": "cpu gpu memory network storage display"}, "expected": "gpu network storage"},
+    {"arguments": {"mode": "general", "available": "cpu gpu network"}, "expected": "cpu gpu network"}
+  ],
+  "invocation_arguments": {"mode": "coding", "available": "cpu gpu memory network storage display"},
+  "next_gap": "resource_context_actuation_readiness",
+  "purpose": "Propose which currently available resource classes deserve emphasis for one selected activity mode. The proposal is bounded to observed available resources and does not change scheduling, clocks, services, network policy, display settings, or hardware state.",
+  "principles": [
+    "resource policy begins as a proposal",
+    "never propose resources that were not observed as available",
+    "activity mode does not itself grant actuation authority",
+    "general mode preserves a balanced available set",
+    "user and safety constraints remain independent gates"
+  ],
+  "constraints": ["pure", "deterministic", "proposal-only", "no-resource-actuation", "no-host-authority", "available-resource-bounded"],
+  "max_synthesis_cost": 16
+}
