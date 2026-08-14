@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "capability_stability_ratio",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "build verify", "after": "build verify route"}, "expected": 0.6666666666666666},
+    {"arguments": {"before": "build verify", "after": "build route"}, "expected": 0.3333333333333333},
+    {"arguments": {"before": "build verify", "after": "build verify"}, "expected": 1.0},
+    {"arguments": {"before": "", "after": ""}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"before": "build verify", "after": "build verify route"},
+  "next_gap": "learning_delta_score",
+  "purpose": "Measure stable shared capability vocabulary relative to the total capability vocabulary observed across two states.",
+  "principles": ["stability is shared capability over total capability vocabulary", "empty observations yield zero stability"],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority"],
+  "max_synthesis_cost": 12
+}

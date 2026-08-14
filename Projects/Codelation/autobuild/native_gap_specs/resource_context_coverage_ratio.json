@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "resource_context_coverage_ratio",
+  "parameters": ["required", "observed"],
+  "examples": [
+    {"arguments": {"required": "cpu memory network", "observed": "cpu memory network storage"}, "expected": 1.0},
+    {"arguments": {"required": "cpu memory network", "observed": "cpu network"}, "expected": 0.6666666666666666},
+    {"arguments": {"required": "cpu memory", "observed": "storage"}, "expected": 0.0},
+    {"arguments": {"required": "", "observed": "cpu"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"required": "cpu memory network", "observed": "cpu memory network storage"},
+  "next_gap": "resource_context_delta_score",
+  "purpose": "Measure how much required resource context is present in an observed resource description without actuating resources.",
+  "principles": ["resource context is semantic and set-like", "observation is not authority", "empty requirements yield zero coverage"],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority", "classification-only"],
+  "max_synthesis_cost": 12
+}

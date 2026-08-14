@@ -1,0 +1,16 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "resource_context_delta_score",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "cpu memory", "after": "cpu memory network"}, "expected": 1},
+    {"arguments": {"before": "cpu memory", "after": "cpu storage"}, "expected": 2},
+    {"arguments": {"before": "cpu memory", "after": "cpu memory"}, "expected": 0}
+  ],
+  "invocation_arguments": {"before": "cpu memory", "after": "cpu memory network"},
+  "next_gap": "resource_context_proposal",
+  "purpose": "Measure semantic change between two bounded resource-context observations without performing resource actuation.",
+  "principles": ["resource change is set-like", "observation does not grant authority", "duplicate tokens do not amplify change"],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority"],
+  "max_synthesis_cost": 8
+}

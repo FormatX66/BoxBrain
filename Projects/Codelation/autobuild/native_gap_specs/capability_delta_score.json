@@ -1,0 +1,16 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "capability_delta_score",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "build verify", "after": "build verify route"}, "expected": 1},
+    {"arguments": {"before": "build verify", "after": "build route"}, "expected": 2},
+    {"arguments": {"before": "build verify", "after": "build verify"}, "expected": 0}
+  ],
+  "invocation_arguments": {"before": "build verify", "after": "build verify route"},
+  "next_gap": "capability_stability_ratio",
+  "purpose": "Measure unique semantic capability change between two capability observations.",
+  "principles": ["capability change is set-like", "token order does not change capability identity", "duplicate tokens do not amplify change"],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority"],
+  "max_synthesis_cost": 8
+}

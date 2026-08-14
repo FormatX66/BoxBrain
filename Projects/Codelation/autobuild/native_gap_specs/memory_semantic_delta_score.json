@@ -1,0 +1,16 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "memory_semantic_delta_score",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "retain recall", "after": "retain recall compact"}, "expected": 1},
+    {"arguments": {"before": "retain recall", "after": "retain verify"}, "expected": 2},
+    {"arguments": {"before": "retain recall", "after": "retain recall"}, "expected": 0}
+  ],
+  "invocation_arguments": {"before": "retain recall", "after": "retain recall compact"},
+  "next_gap": "capability_coverage_ratio",
+  "purpose": "Measure semantic change between bounded memory-state descriptions without reading or writing external memory.",
+  "principles": ["memory semantic change is set-like", "duplicate tokens do not amplify change", "measurement is not persistence"],
+  "constraints": ["pure", "deterministic", "no-external-memory-io", "no-host-authority"],
+  "max_synthesis_cost": 8
+}

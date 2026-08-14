@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "memory_semantic_coverage_ratio",
+  "parameters": ["required", "observed"],
+  "examples": [
+    {"arguments": {"required": "retain recall verify", "observed": "retain recall verify compact"}, "expected": 1.0},
+    {"arguments": {"required": "retain recall verify", "observed": "retain verify"}, "expected": 0.6666666666666666},
+    {"arguments": {"required": "retain recall", "observed": "compact"}, "expected": 0.0},
+    {"arguments": {"required": "", "observed": "retain"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"required": "retain recall verify", "observed": "retain recall verify compact"},
+  "next_gap": "memory_semantic_delta_score",
+  "purpose": "Measure semantic memory coverage against required retention and recall vocabulary without reading or writing external memory.",
+  "principles": ["memory semantics are set-like", "coverage does not imply persistence", "empty requirements yield zero coverage"],
+  "constraints": ["pure", "deterministic", "no-external-memory-io", "no-host-authority", "classification-only"],
+  "max_synthesis_cost": 12
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_feedback_stability_ratio",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "clear fast", "after": "clear fast concise"}, "expected": 0.6666666666666666},
+    {"arguments": {"before": "clear fast", "after": "clear concise"}, "expected": 0.3333333333333333},
+    {"arguments": {"before": "clear fast", "after": "clear fast"}, "expected": 1.0},
+    {"arguments": {"before": "", "after": ""}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"before": "clear fast", "after": "clear fast concise"},
+  "next_gap": "interface_user_feedback_learning",
+  "purpose": "Measure stability of bounded interface-feedback semantics across observations without changing the live interface.",
+  "principles": ["feedback stability is shared semantics over total observed semantics", "measurement does not mutate interface state", "empty observations yield zero stability"],
+  "constraints": ["pure", "deterministic", "no-live-interface-io", "no-host-authority"],
+  "max_synthesis_cost": 12
+}

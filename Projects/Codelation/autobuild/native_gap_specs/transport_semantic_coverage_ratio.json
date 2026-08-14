@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "transport_semantic_coverage_ratio",
+  "parameters": ["required", "observed"],
+  "examples": [
+    {"arguments": {"required": "address route payload", "observed": "address route payload checksum"}, "expected": 1.0},
+    {"arguments": {"required": "address route payload", "observed": "address payload"}, "expected": 0.6666666666666666},
+    {"arguments": {"required": "address route", "observed": "checksum"}, "expected": 0.0},
+    {"arguments": {"required": "", "observed": "address"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"required": "address route payload", "observed": "address route payload checksum"},
+  "next_gap": "io_safe_port_choice",
+  "purpose": "Measure semantic readiness of a transport description against required transport vocabulary without opening or binding a transport.",
+  "principles": ["transport semantics are distinct from carrier reachability", "coverage does not grant permission", "empty requirements yield zero coverage"],
+  "constraints": ["pure", "deterministic", "no-live-io", "no-host-authority", "classification-only"],
+  "max_synthesis_cost": 12
+}
