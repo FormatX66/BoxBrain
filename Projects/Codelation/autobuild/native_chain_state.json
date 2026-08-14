@@ -4,6 +4,25 @@
   "completed_generations": 7,
   "failed_attempt": {
     "attempted_generation": 8,
+    "diagnosis": {
+      "builder_learning": [
+        "bounded-token-selection",
+        "declarative-fact-binding",
+        "deterministic-conditional-selection"
+      ],
+      "categories": [
+        "conditional-empty-or-choice",
+        "cross-vocabulary-fact-binding",
+        "select-token-from-input"
+      ],
+      "diagnosis_identity": "f0ee92ae5258b5bedf9b8be1020ddb829dc5741591feef858ae6b45153575c7b",
+      "observations": [
+        "every non-empty expected result is a token drawn from input 'available'",
+        "examples require both an empty result and a non-empty text result",
+        "requested semantic tokens and selected identifier tokens occupy different vocabularies"
+      ],
+      "target_type": "text"
+    },
     "gap": "io_safe_port_choice",
     "synthesis": {
       "candidates_evaluated": 841,
@@ -252,6 +271,11 @@
   "latest_completed_gap": "io_semantic_coverage_ratio",
   "next_gap": "io_safe_port_choice",
   "reasoning_request": {
+    "builder_learning": [
+      "bounded-token-selection",
+      "declarative-fact-binding",
+      "deterministic-conditional-selection"
+    ],
     "gap": "io_safe_port_choice",
     "reason": "native-synthesis-not-found",
     "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
@@ -267,7 +291,7 @@
     "learning_stability_index",
     "learning_union_size"
   ],
-  "schema": "aurum-native-autonomous-chain-v2",
+  "schema": "aurum-native-autonomous-chain-v3",
   "start_gap": "learning_delta_score",
   "synthesis_revision": "aurum-native-synthesis-v3",
   "timer_dependency": false,
