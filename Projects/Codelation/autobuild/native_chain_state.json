@@ -1,107 +1,8 @@
 {
-  "blocked_reason": "native-synthesis-not-found",
+  "blocked_reason": "semantic-spec-missing",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 13,
-  "failed_attempt": {
-    "attempted_generation": 14,
-    "diagnosis": {
-      "builder_learning": [
-        "constraint-preserving-filter",
-        "deterministic-conditional-selection",
-        "deterministic-token-canonicalization",
-        "multi-source-protected-set-difference"
-      ],
-      "categories": [
-        "conditional-empty-or-choice",
-        "multi-source-protected-set-difference"
-      ],
-      "diagnosis_identity": "dcc967628e203488b2915d5f98cd58769c857fa5ca5918c6ac9450b3812fed67",
-      "local_capability_candidates": [
-        {
-          "authority": "none",
-          "callable": "subtract_protected_tokens",
-          "coverage": 0.75,
-          "executed": false,
-          "matched": [
-            "constraint-preserving-filter",
-            "deterministic-token-canonicalization",
-            "multi-source-protected-set-difference"
-          ],
-          "missing": [
-            "deterministic-conditional-selection"
-          ],
-          "module": "set_constraints",
-          "name": "protected-token-filter",
-          "routed": false,
-          "verification_adapter": "protected-token-filter-v0"
-        },
-        {
-          "authority": "none",
-          "callable": "plan_io",
-          "coverage": 0.25,
-          "executed": false,
-          "matched": [
-            "deterministic-conditional-selection"
-          ],
-          "missing": [
-            "constraint-preserving-filter",
-            "deterministic-token-canonicalization",
-            "multi-source-protected-set-difference"
-          ],
-          "module": "io_fabric",
-          "name": "io-plan",
-          "routed": false,
-          "verification_adapter": "semantic-port-plan-v0"
-        }
-      ],
-      "observations": [
-        "examples require both an empty result and a non-empty text result",
-        "expected tokens are exactly candidate tokens minus the union of every protected input, with canonical ordering"
-      ],
-      "target_type": "text"
-    },
-    "gap": "interface_stability_budget",
-    "self_debug": {
-      "counterexamples": [],
-      "internal_next_action": "grow-builder-vocabulary",
-      "invariants_checked": [
-        "duplicate-example-consistency",
-        "example-arguments-match-parameters",
-        "post-failure-domain-triage",
-        "target-representation-supported",
-        "verifier-synthesis-equivalence-agreement"
-      ],
-      "issues": [],
-      "model_escalation_advised": true,
-      "probable_failure_domains": [
-        "builder-vocabulary"
-      ],
-      "recommended_action": "grow-builder-vocabulary",
-      "report_identity": "b84a7b1efff24b1c46e36afc0a9e5ed5241418bf340dd7004fada74cf1e41715",
-      "stage": "post-failure",
-      "status": "actionable"
-    },
-    "synthesis": {
-      "candidates_evaluated": 9281,
-      "cost": null,
-      "expression": null,
-      "found": false,
-      "proof_identity": "75a1d1df3edee761445afe226ef05a38fd33d6aff82ee346363e8a5616d08880",
-      "seed_expressions_considered": [
-        "interface_context_mode_confidence",
-        "interface_roundtrip_observation",
-        "io_semantic_coverage_ratio",
-        "learning_delta_score",
-        "learning_novelty_ratio",
-        "learning_overlap_score",
-        "learning_retention_ratio",
-        "learning_stability_index",
-        "learning_union_size"
-      ],
-      "signatures_retained": 515
-    },
-    "verified": false
-  },
+  "completed_generations": 15,
+  "failed_attempt": null,
   "generations": [
     {
       "artifact_identity": "0609f8869c607742e751b2cd7f5721297f021e7ce42bd560893f0fc511ee8cea",
@@ -671,30 +572,128 @@
       "state": "verified",
       "subprocess_test_used": false,
       "verification_identity": "68f2a848eba5abdfc3029c4e84eb490872d88ff19cf5ea9243566393cf83b9bf"
+    },
+    {
+      "authority_granted": false,
+      "filesystem_build_used": false,
+      "gap": "interface_stability_budget",
+      "generation": 14,
+      "invocation_output": "wallpaper workspace",
+      "local_callable": "subtract_protected_tokens",
+      "local_capability": "protected-token-filter",
+      "local_implementation_sha256": "46d9e84bb1db37aa21b871401e89dde79dd4d7563c40e42cbe7c005f8ced9200",
+      "local_module": "set_constraints",
+      "local_verification_adapter": "protected-token-filter-v0",
+      "model_reasoning_used": false,
+      "native_candidates_evaluated": 9281,
+      "native_signatures_retained": 515,
+      "native_synthesis_found": false,
+      "native_synthesis_proof_identity": "75a1d1df3edee761445afe226ef05a38fd33d6aff82ee346363e8a5616d08880",
+      "next_gap": "interface_adaptation_proposal",
+      "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
+      "preflight_self_debug": {
+        "counterexamples": 0,
+        "issues": 0,
+        "report_identity": "4620c44f4cc75753c3429ca48e6fe01b55608e6cdf0f250db579e9a8bf2d4764",
+        "status": "clean"
+      },
+      "promotion_performed": false,
+      "representation": "verified-local-capability-reuse",
+      "reusable_local_capabilities_after_build": [
+        "io-plan",
+        "labeled-text-projection",
+        "protected-token-filter",
+        "required-condition-classifier",
+        "thresholded-unique-best-selector"
+      ],
+      "reusable_native_capabilities_after_build": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "routed_to_host": false,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "verification_identity": "4a4ae9033f6c8979c4d19e3928119cf96efd05618f7fbc81baeeb241115bafc1"
+    },
+    {
+      "authority_granted": false,
+      "filesystem_build_used": false,
+      "gap": "interface_adaptation_proposal",
+      "generation": 15,
+      "invocation_output": "add=terminal;remove=none;evidence=coding-confidence-high",
+      "local_callable": "project_reversible_set_delta",
+      "local_capability": "reversible-state-delta-projection",
+      "local_implementation_sha256": "61eaa158d83db71adc5fe3dcf27db422dc036531302d8b3aa466f6fa605e82af",
+      "local_module": "reversible_state_delta",
+      "local_verification_adapter": "reversible-state-delta-v0",
+      "model_reasoning_used": false,
+      "native_candidates_evaluated": 2173,
+      "native_signatures_retained": 266,
+      "native_synthesis_found": false,
+      "native_synthesis_proof_identity": "ac86ae90947b111b6dfce93201390eb6b04d4c55b3824f651580722049ddbe60",
+      "next_gap": "interface_user_feedback_learning",
+      "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
+      "preflight_self_debug": {
+        "counterexamples": 0,
+        "issues": 0,
+        "report_identity": "4620c44f4cc75753c3429ca48e6fe01b55608e6cdf0f250db579e9a8bf2d4764",
+        "status": "clean"
+      },
+      "promotion_performed": false,
+      "representation": "verified-local-capability-reuse",
+      "reusable_local_capabilities_after_build": [
+        "io-plan",
+        "labeled-text-projection",
+        "protected-token-filter",
+        "required-condition-classifier",
+        "reversible-state-delta-projection",
+        "thresholded-unique-best-selector"
+      ],
+      "reusable_native_capabilities_after_build": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "routed_to_host": false,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "verification_identity": "8bbb5436e8d7ea68be938822f90a203cc4d84ba54d338594bd484cd0cc140ccf"
     }
   ],
-  "internal_next_action": "grow-builder-vocabulary",
-  "latest_completed_gap": "interface_mode_selection",
+  "internal_next_action": null,
+  "latest_completed_gap": "interface_adaptation_proposal",
   "local_verification_revision": "aurum-local-capability-verification-v5",
-  "next_gap": "interface_stability_budget",
+  "next_gap": "interface_user_feedback_learning",
   "reasoning_request": {
-    "builder_learning": [
-      "constraint-preserving-filter",
-      "deterministic-conditional-selection",
-      "deterministic-token-canonicalization",
-      "multi-source-protected-set-difference"
-    ],
-    "gap": "interface_stability_budget",
-    "reason": "native-synthesis-not-found",
+    "builder_learning": [],
+    "gap": "interface_user_feedback_learning",
+    "reason": "semantic-spec-missing",
     "required_output": "bounded diagnosis or builder-learning proposal only after Aurum self-debug has exhausted internal deterministic checks; do not provide a promoted implementation",
-    "self_debug_report_identity": "b84a7b1efff24b1c46e36afc0a9e5ed5241418bf340dd7004fada74cf1e41715",
+    "self_debug_report_identity": null,
     "shared_implementation": false
   },
   "reasoning_required": true,
   "reusable_local_capabilities": [
     "io-plan",
     "labeled-text-projection",
+    "protected-token-filter",
     "required-condition-classifier",
+    "reversible-state-delta-projection",
     "thresholded-unique-best-selector"
   ],
   "reusable_native_capabilities": [
