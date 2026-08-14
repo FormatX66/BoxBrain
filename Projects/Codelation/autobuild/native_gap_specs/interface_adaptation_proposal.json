@@ -1,0 +1,23 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_adaptation_proposal",
+  "parameters": ["current", "target", "evidence"],
+  "examples": [
+    {"arguments": {"current": "dock workspace", "target": "dock workspace game-panel", "evidence": "gaming-confidence-high"}, "expected": "add=game-panel;remove=none;evidence=gaming-confidence-high"},
+    {"arguments": {"current": "dock social-panel music", "target": "dock workspace music", "evidence": "coding-confidence-high"}, "expected": "add=workspace;remove=social-panel;evidence=coding-confidence-high"},
+    {"arguments": {"current": "dock workspace", "target": "dock workspace", "evidence": "general-confidence"}, "expected": "add=none;remove=none;evidence=general-confidence"},
+    {"arguments": {"current": "", "target": "workspace search", "evidence": "research-confidence-high"}, "expected": "add=search workspace;remove=none;evidence=research-confidence-high"}
+  ],
+  "invocation_arguments": {"current": "dock workspace", "target": "dock workspace terminal", "evidence": "coding-confidence-high"},
+  "next_gap": "interface_user_feedback_learning",
+  "purpose": "Produce a deterministic reversible proposal describing what interface regions would be added and removed, while preserving the supplied evidence as part of the human-readable proposal. This is a proposal only and never mutates the shell.",
+  "principles": [
+    "every adaptation is represented as a reversible delta",
+    "proposal evidence remains visible",
+    "no-op adaptations remain explicit",
+    "token order and duplicates do not change the proposed delta",
+    "user override remains authoritative"
+  ],
+  "constraints": ["pure", "deterministic", "proposal-only", "no-interface-actuation", "no-host-authority", "reversible", "evidence-visible"],
+  "max_synthesis_cost": 16
+}
