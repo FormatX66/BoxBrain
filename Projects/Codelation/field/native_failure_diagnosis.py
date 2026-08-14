@@ -9,7 +9,7 @@ from builder_capability_catalog import find_builder_capability_candidates
 from field_native_vm import NativeExample
 
 
-DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v2"
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v3"
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,30 @@ def _labeled_projection_matches(parameters: Sequence[str], example: NativeExampl
     return expected == ";".join(parts)
 
 
+def _reason_label(name: str) -> str:
+    normalized = name[:-8] if name.endswith("_present") else name
+    return normalized.replace("_", "-")
+
+
+def _required_condition_pattern(parameters: Sequence[str], examples: Sequence[NativeExample]) -> bool:
+    success = [example for example in examples if not str(example.expected).startswith("blocked-")]
+    if len(success) != 1:
+        return False
+    baseline = success[0]
+    positive_values = {str(baseline.arguments.get(name)) for name in parameters}
+    if len(positive_values) != 1:
+        return False
+    for example in examples:
+        if example is baseline:
+            continue
+        changed = [name for name in parameters if example.arguments.get(name) != baseline.arguments.get(name)]
+        if len(changed) != 1:
+            return False
+        if str(example.expected) != f"blocked-{_reason_label(changed[0])}":
+            return False
+    return True
+
+
 def diagnose_native_synthesis_failure(
     parameters: Sequence[str],
     examples: Sequence[NativeExample],
@@ -81,6 +105,17 @@ def diagnose_native_synthesis_failure(
                 categories.add("explicit-empty-normalization")
                 observations.add("empty values are represented explicitly as 'none'")
                 learning.add("empty-value-normalization")
+
+        if _required_condition_pattern(parameters, examples):
+            categories.add("ordered-required-condition-classification")
+            observations.add("one baseline success state is preserved while each single failed condition maps to its explicit blocked reason")
+            learning.update(
+                {
+                    "ordered-required-condition-classification",
+                    "explicit-failure-reason-projection",
+                    "fail-closed-condition-classification",
+                }
+            )
 
         drawn_from: dict[str, int] = {name: 0 for name in parameters}
         for example in examples:
