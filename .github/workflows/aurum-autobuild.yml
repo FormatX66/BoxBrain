@@ -10,12 +10,16 @@ on:
     paths:
       - '.github/workflows/aurum-autobuild.yml'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
+      - 'Projects/Codelation/run_capacity_mesh_cycle.py'
+      - 'Projects/Codelation/run_capacity_mesh_lane.py'
       - 'Projects/Codelation/field/native_program_synthesis.py'
       - 'Projects/Codelation/field/native_self_debug.py'
       - 'Projects/Codelation/field/native_failure_diagnosis.py'
       - 'Projects/Codelation/field/builder_capability_catalog.py'
       - 'Projects/Codelation/field/local_capability_verification.py'
       - 'Projects/Codelation/field/external_prerequisite_evidence.py'
+      - 'Projects/Codelation/field/mesh_efficiency.py'
+      - 'Projects/Codelation/field/capacity_mesh.py'
       - 'Projects/Codelation/field/structured_projection.py'
       - 'Projects/Codelation/field/constraint_classification.py'
       - 'Projects/Codelation/field/score_selection.py'
@@ -25,10 +29,13 @@ on:
       - 'Projects/Codelation/field/categorical_policy.py'
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
+      - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/autobuild/external_evidence/**'
       - 'Projects/Codelation/tests/test_native_program_synthesis.py'
       - 'Projects/Codelation/tests/test_local_capability_verification.py'
+      - 'Projects/Codelation/tests/test_mesh_efficiency.py'
+      - 'Projects/Codelation/tests/test_capacity_mesh.py'
 
 permissions:
   contents: write
@@ -67,7 +74,9 @@ jobs:
             Projects.Codelation.tests.test_local_capability_verification \
             Projects.Codelation.tests.test_field_native_vm \
             Projects.Codelation.tests.test_field_native_batch \
-            Projects.Codelation.tests.test_field_native_cache -v
+            Projects.Codelation.tests.test_field_native_cache \
+            Projects.Codelation.tests.test_capacity_mesh \
+            Projects.Codelation.tests.test_mesh_efficiency -v
       - name: Record verification outcome
         shell: bash
         env:
