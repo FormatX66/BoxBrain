@@ -11,7 +11,7 @@ from builder_capability_catalog import get_builder_capability
 from native_gap_catalog import NativeSemanticGap
 
 
-LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v3"
+LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v4"
 
 
 @dataclass(frozen=True)
@@ -46,11 +46,7 @@ def _condition_config(gap: NativeSemanticGap) -> Mapping[str, str]:
     positive_values = {str(success_example.arguments[name]) for name in gap.parameters}
     if len(positive_values) != 1:
         raise ValueError("required-condition adapter needs one shared positive token")
-    return {
-        "positive": next(iter(positive_values)),
-        "success": str(success_example.expected),
-        "blocked_prefix": "blocked-",
-    }
+    return {"positive": next(iter(positive_values)), "success": str(success_example.expected), "blocked_prefix": "blocked-"}
 
 
 def _score_config(gap: NativeSemanticGap) -> Mapping[str, str]:
@@ -64,44 +60,32 @@ def _score_config(gap: NativeSemanticGap) -> Mapping[str, str]:
     return {"fallback": next(iter(fallbacks))}
 
 
-def _invoke(
-    adapter: str,
-    callable_obj: Any,
-    arguments: Mapping[str, object],
-    parameters: Sequence[str],
-    config: Mapping[str, str],
-) -> Any:
+def _invoke(adapter: str, callable_obj: Any, arguments: Mapping[str, object], parameters: Sequence[str], config: Mapping[str, str]) -> Any:
     if adapter == "semantic-port-plan-v0":
-        required = _tokens(arguments["required"])
-        available = _tokens(arguments["available"])
-        permissions = _tokens(arguments["permissions"])
-        plan = callable_obj(required, available_ports=available, permissions=permissions)
+        plan = callable_obj(_tokens(arguments["required"]), available_ports=_tokens(arguments["available"]), permissions=_tokens(arguments["permissions"]))
         if getattr(plan, "missing", ()) or len(getattr(plan, "selected", ())) != 1:
             return ""
         return str(plan.selected[0])
     if adapter == "labeled-text-projection-v0":
         return callable_obj(arguments, order=parameters, empty_value="none", separator=";")
     if adapter == "required-condition-classification-v0":
-        return callable_obj(
-            arguments,
-            order=parameters,
-            positive=config["positive"],
-            success=config["success"],
-            blocked_prefix=config["blocked_prefix"],
-        )
+        return callable_obj(arguments, order=parameters, positive=config["positive"], success=config["success"], blocked_prefix=config["blocked_prefix"])
     if adapter == "thresholded-unique-best-v0":
         threshold = arguments.get("threshold")
         if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
             raise ValueError("thresholded selector requires numeric threshold")
         scores = {name: arguments[name] for name in parameters if name != "threshold"}
         return callable_obj(scores, threshold=float(threshold), fallback=config["fallback"])
+    if adapter == "protected-token-filter-v0":
+        if "candidate" not in parameters:
+            raise ValueError("protected token filter requires candidate parameter")
+        protected_names = tuple(name for name in parameters if name != "candidate")
+        result = callable_obj(_tokens(arguments["candidate"]), *(_tokens(arguments[name]) for name in protected_names))
+        return " ".join(result)
     raise ValueError(f"unsupported local verification adapter: {adapter}")
 
 
-def verify_local_capability_for_gap(
-    gap: NativeSemanticGap,
-    capability_name: str,
-) -> LocalCapabilityVerification:
+def verify_local_capability_for_gap(gap: NativeSemanticGap, capability_name: str) -> LocalCapabilityVerification:
     descriptor = get_builder_capability(capability_name)
     if descriptor is None:
         raise ValueError("unknown local builder capability")
@@ -115,8 +99,7 @@ def verify_local_capability_for_gap(
 
     module = importlib.import_module(descriptor.module)
     callable_obj = getattr(module, descriptor.callable_name)
-    source = inspect.getsource(callable_obj).encode("utf-8")
-    implementation_sha256 = hashlib.sha256(source).hexdigest()
+    implementation_sha256 = hashlib.sha256(inspect.getsource(callable_obj).encode("utf-8")).hexdigest()
     config: Mapping[str, str] = {}
     if descriptor.verification_adapter == "required-condition-classification-v0":
         config = _condition_config(gap)
@@ -131,14 +114,7 @@ def verify_local_capability_for_gap(
         if observed == example.expected:
             passed += 1
     verified = passed == len(gap.examples)
-    invocation_output = _invoke(
-        descriptor.verification_adapter,
-        callable_obj,
-        gap.invocation_arguments,
-        gap.parameters,
-        config,
-    )
-
+    invocation_output = _invoke(descriptor.verification_adapter, callable_obj, gap.invocation_arguments, gap.parameters, config)
     payload = {
         "revision": LOCAL_VERIFICATION_REVISION,
         "gap": gap.name,
@@ -156,22 +132,7 @@ def verify_local_capability_for_gap(
         "routed_to_host": False,
     }
     verification_identity = hashlib.sha256(encode(payload)).hexdigest()
-    return LocalCapabilityVerification(
-        capability=descriptor.name,
-        module=descriptor.module,
-        callable_name=descriptor.callable_name,
-        adapter=descriptor.verification_adapter,
-        implementation_sha256=implementation_sha256,
-        examples=len(gap.examples),
-        passed=passed,
-        verified=verified,
-        invocation_output=invocation_output,
-        verification_identity=verification_identity,
-    )
+    return LocalCapabilityVerification(descriptor.name, descriptor.module, descriptor.callable_name, descriptor.verification_adapter, implementation_sha256, len(gap.examples), passed, verified, invocation_output, verification_identity)
 
 
-__all__ = [
-    "LOCAL_VERIFICATION_REVISION",
-    "LocalCapabilityVerification",
-    "verify_local_capability_for_gap",
-]
+__all__ = ["LOCAL_VERIFICATION_REVISION", "LocalCapabilityVerification", "verify_local_capability_for_gap"]
