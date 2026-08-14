@@ -8,7 +8,7 @@ on:
     paths:
       - '.github/workflows/aurum-self-kernel-compiler.yml'
       - 'Projects/Codelation/kernel_selfbuild/**'
-      - 'Projects/Codelation/tests/test_self_kernel_compiler.py'
+      - 'Projects/Codelation/tests/test_self_kernel_compiler*.py'
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Verify self-kernel contracts
+      - name: Verify self-kernel observation contracts
         run: python3 -m unittest Projects.Codelation.tests.test_self_kernel_compiler -v
       - name: Profile this generic seed boot
         env:
@@ -46,6 +46,18 @@ jobs:
           assert all(item['action'] in {'reuse-bound-driver','resolve-modalias','research-hardware-contract'} for item in plan['driver_work_items'])
           print({'architecture': profile['architecture'], 'devices': len(profile['devices']), 'required_modules': len(plan['required_modules']), 'unresolved_modaliases': len(plan['unresolved_modaliases'])})
           PY
+
+  compiler-contract:
+    name: Compiler, module, hotplug and boot-media contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify all self-kernel compiler contracts
+        run: python3 -m unittest discover -s Projects/Codelation/tests -p 'test_self_kernel_compiler*.py' -v
 
   architecture-contract:
     name: Architecture contract - ${{ matrix.arch }}
@@ -68,9 +80,12 @@ jobs:
           import os
           from kernel_selfbuild.hardware_profile import MachineProfile
           from kernel_selfbuild.kernel_plan import make_kernel_build_plan
+          from kernel_selfbuild.boot_media import make_boot_media_plan
           profile = MachineProfile(os.environ['TARGET_ARCH'], os.environ['TARGET_ARCH'], 'seed', 'uefi', 'synthetic', ())
           plan = make_kernel_build_plan(profile, ())
+          boot = make_boot_media_plan(os.environ['TARGET_ARCH'])
           assert plan.ready_for_compile
           assert plan.architecture == os.environ['TARGET_ARCH']
-          print(plan.to_dict())
+          assert boot.fallback_required
+          print({'kernel': plan.to_dict(), 'boot': boot.to_dict()})
           PY
