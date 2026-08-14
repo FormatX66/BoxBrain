@@ -9,7 +9,7 @@ from builder_capability_catalog import find_builder_capability_candidates
 from field_native_vm import NativeExample
 
 
-DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v4"
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v5"
 
 
 @dataclass(frozen=True)
@@ -63,28 +63,35 @@ def _required_condition_pattern(parameters: Sequence[str], examples: Sequence[Na
 def _thresholded_unique_best_pattern(parameters: Sequence[str], examples: Sequence[NativeExample]) -> bool:
     if "threshold" not in parameters: return False
     score_names=[n for n in parameters if n!="threshold"]
-    valid_labels={n.replace("_","-") for n in score_names}
-    fallback_labels=set()
+    valid_labels={n.replace("_","-") for n in score_names}; fallback_labels=set()
     for e in examples:
         threshold=e.arguments.get("threshold")
         if isinstance(threshold,bool) or not isinstance(threshold,(int,float)): return False
         scores={n:e.arguments.get(n) for n in score_names}
         if any(isinstance(v,bool) or not isinstance(v,(int,float)) for v in scores.values()): return False
-        best=max(float(v) for v in scores.values())
-        winners=[n for n,v in scores.items() if float(v)==best]
-        expected=str(e.expected)
-        if best < float(threshold) or len(winners)!=1:
-            fallback_labels.add(expected)
-        elif expected != winners[0].replace("_","-"):
-            return False
+        best=max(float(v) for v in scores.values()); winners=[n for n,v in scores.items() if float(v)==best]; expected=str(e.expected)
+        if best < float(threshold) or len(winners)!=1: fallback_labels.add(expected)
+        elif expected != winners[0].replace("_","-"): return False
     return len(fallback_labels)==1 and not fallback_labels.intersection(valid_labels)
+
+
+def _protected_set_difference_pattern(parameters: Sequence[str], examples: Sequence[NativeExample]) -> bool:
+    if "candidate" not in parameters: return False
+    protected=[name for name in parameters if name!="candidate"]
+    if not protected: return False
+    for e in examples:
+        expected=_tokens(e.expected)
+        candidate=_tokens(e.arguments.get("candidate"))
+        protected_tokens=set().union(*(_tokens(e.arguments.get(name)) for name in protected))
+        if expected != candidate-protected_tokens: return False
+        if str(e.expected) != " ".join(sorted(expected)): return False
+    return True
 
 
 def diagnose_native_synthesis_failure(parameters: Sequence[str], examples: Sequence[NativeExample]) -> NativeFailureDiagnosis:
     parameters=tuple(parameters); examples=tuple(examples)
     if not parameters or not examples: raise ValueError("failure diagnosis requires parameters and examples")
-    expected=tuple(e.expected for e in examples)
-    target_types={_value_type(v) for v in expected}; target_type=next(iter(target_types)) if len(target_types)==1 else "mixed"
+    expected=tuple(e.expected for e in examples); target_types={_value_type(v) for v in expected}; target_type=next(iter(target_types)) if len(target_types)==1 else "mixed"
     categories:set[str]=set(); observations:set[str]=set(); learning:set[str]=set()
 
     if target_type=="text":
@@ -93,14 +100,13 @@ def diagnose_native_synthesis_failure(parameters: Sequence[str], examples: Seque
             categories.add("conditional-empty-or-choice"); observations.add("examples require both an empty result and a non-empty text result"); learning.add("deterministic-conditional-selection")
         if all(_labeled_projection_matches(parameters,e) for e in examples):
             categories.add("labeled-parameter-projection"); observations.add("expected text is a stable parameter-labeled projection in declared parameter order"); learning.add("deterministic-labeled-text-projection")
-            if any(any(not str(e.arguments.get(n) or "") for n in parameters) for e in examples):
-                categories.add("explicit-empty-normalization"); observations.add("empty values are represented explicitly as 'none'"); learning.add("empty-value-normalization")
+            if any(any(not str(e.arguments.get(n) or "") for n in parameters) for e in examples): categories.add("explicit-empty-normalization"); observations.add("empty values are represented explicitly as 'none'"); learning.add("empty-value-normalization")
         if _required_condition_pattern(parameters,examples):
-            categories.add("ordered-required-condition-classification"); observations.add("one baseline success state is preserved while each single failed condition maps to its explicit blocked reason")
-            learning.update({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"})
+            categories.add("ordered-required-condition-classification"); observations.add("one baseline success state is preserved while each single failed condition maps to its explicit blocked reason"); learning.update({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"})
         if _thresholded_unique_best_pattern(parameters,examples):
-            categories.add("thresholded-unique-best-selection"); observations.add("examples choose one unique highest score only above threshold and otherwise use one stable fallback")
-            learning.update({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"})
+            categories.add("thresholded-unique-best-selection"); observations.add("examples choose one unique highest score only above threshold and otherwise use one stable fallback"); learning.update({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"})
+        if _protected_set_difference_pattern(parameters,examples):
+            categories.add("multi-source-protected-set-difference"); observations.add("expected tokens are exactly candidate tokens minus the union of every protected input, with canonical ordering"); learning.update({"multi-source-protected-set-difference","deterministic-token-canonicalization","constraint-preserving-filter"})
         drawn_from={n:0 for n in parameters}
         for e in examples:
             wanted=str(e.expected)
