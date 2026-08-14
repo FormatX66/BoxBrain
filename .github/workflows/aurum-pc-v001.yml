@@ -1,0 +1,104 @@
+name: Aurum PC v0.01 Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/pc-v0.01
+    paths:
+      - '.github/workflows/aurum-pc-v001.yml'
+      - 'Projects/AurumPC/**'
+      - 'Projects/Codelation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pc-v001-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out Aurum PC branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Validate bounded runtime sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumPC/aurum_console.py
+          sh -n Projects/AurumPC/build-iso.sh
+
+      - name: Install image and VM tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            live-build qemu-system-x86 ovmf xorriso isolinux syslinux-common
+
+      - name: Build Aurum PC live ISO
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo sh Projects/AurumPC/build-iso.sh
+          test -s dist/Aurum-PC-v0.01-amd64.iso
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+
+      - name: UEFI boot smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(find /usr/share/OVMF -maxdepth 1 -type f -name 'OVMF_CODE*.fd' | sort | head -n 1)
+          vars=$(find /usr/share/OVMF -maxdepth 1 -type f -name 'OVMF_VARS*.fd' | sort | head -n 1)
+          test -n "$code"
+          test -n "$vars"
+          cp "$vars" /tmp/AURUM_OVMF_VARS.fd
+          set +e
+          timeout 150s qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -cpu qemu64 \
+            -m 1024 \
+            -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$code" \
+            -drive if=pflash,format=raw,file=/tmp/AURUM_OVMF_VARS.fd \
+            -cdrom dist/Aurum-PC-v0.01-amd64.iso \
+            -boot d \
+            -display none \
+            -serial stdio \
+            -monitor none \
+            -no-reboot \
+            > aurum-pc-qemu.log 2>&1
+          qemu_status=$?
+          set -e
+          cat aurum-pc-qemu.log
+          grep -F 'AURUM_PC_READY version=0.01 arch=x86_64' aurum-pc-qemu.log
+          grep -F 'selftest=ok' aurum-pc-qemu.log
+          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
+            echo "QEMU exited unexpectedly with status $qemu_status" >&2
+            exit "$qemu_status"
+          fi
+          echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+
+      - name: Record image metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lh dist/Aurum-PC-v0.01-amd64.iso
+          cat dist/Aurum-PC-v0.01-amd64.iso.sha256
+
+      - name: Publish boot-verified ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-PC-v0.01-amd64
+          path: |
+            dist/Aurum-PC-v0.01-amd64.iso
+            dist/Aurum-PC-v0.01-amd64.iso.sha256
+            aurum-pc-qemu.log
+          if-no-files-found: error
+          retention-days: 14
