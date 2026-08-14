@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "capability_coverage_ratio",
+  "parameters": ["required", "observed"],
+  "examples": [
+    {"arguments": {"required": "build verify", "observed": "build verify route"}, "expected": 1.0},
+    {"arguments": {"required": "build verify", "observed": "build"}, "expected": 0.5},
+    {"arguments": {"required": "build verify", "observed": "route"}, "expected": 0.0},
+    {"arguments": {"required": "", "observed": "build"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"required": "build verify", "observed": "build verify route"},
+  "next_gap": "capability_delta_score",
+  "purpose": "Measure how much of a required capability vocabulary is present in an observed capability set without granting authority or performing work.",
+  "principles": ["capability coverage is semantic and set-like", "duplicate tokens do not increase coverage", "empty requirements yield zero coverage"],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority", "classification-only"],
+  "max_synthesis_cost": 12
+}
