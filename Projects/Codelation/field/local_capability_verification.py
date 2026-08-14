@@ -11,7 +11,7 @@ from builder_capability_catalog import get_builder_capability
 from native_gap_catalog import NativeSemanticGap
 
 
-LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v1"
+LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v2"
 
 
 @dataclass(frozen=True)
@@ -38,26 +38,48 @@ def _tokens(value: object) -> tuple[str, ...]:
     raise ValueError("verification adapter requires text/list token inputs")
 
 
+def _condition_config(gap: NativeSemanticGap) -> Mapping[str, str]:
+    success_examples = [
+        example for example in gap.examples if not str(example.expected).startswith("blocked-")
+    ]
+    if len(success_examples) != 1:
+        raise ValueError("required-condition adapter needs one success example")
+    success_example = success_examples[0]
+    positive_values = {str(success_example.arguments[name]) for name in gap.parameters}
+    if len(positive_values) != 1:
+        raise ValueError("required-condition adapter needs one shared positive token")
+    return {
+        "positive": next(iter(positive_values)),
+        "success": str(success_example.expected),
+        "blocked_prefix": "blocked-",
+    }
+
+
 def _invoke(
     adapter: str,
     callable_obj: Any,
     arguments: Mapping[str, object],
     parameters: Sequence[str],
+    config: Mapping[str, str],
 ) -> Any:
     if adapter == "semantic-port-plan-v0":
         required = _tokens(arguments["required"])
         available = _tokens(arguments["available"])
         permissions = _tokens(arguments["permissions"])
-        plan = callable_obj(
-            required,
-            available_ports=available,
-            permissions=permissions,
-        )
+        plan = callable_obj(required, available_ports=available, permissions=permissions)
         if getattr(plan, "missing", ()) or len(getattr(plan, "selected", ())) != 1:
             return ""
         return str(plan.selected[0])
     if adapter == "labeled-text-projection-v0":
         return callable_obj(arguments, order=parameters, empty_value="none", separator=";")
+    if adapter == "required-condition-classification-v0":
+        return callable_obj(
+            arguments,
+            order=parameters,
+            positive=config["positive"],
+            success=config["success"],
+            blocked_prefix=config["blocked_prefix"],
+        )
     raise ValueError(f"unsupported local verification adapter: {adapter}")
 
 
@@ -65,13 +87,6 @@ def verify_local_capability_for_gap(
     gap: NativeSemanticGap,
     capability_name: str,
 ) -> LocalCapabilityVerification:
-    """Verify an already-present authority-free local capability against a gap.
-
-    This executes only bounded pure decision/view code on semantic examples. It does
-    not touch host I/O, grant authority, promote the implementation, or route work to
-    a machine. Exact implementation source is hashed so verification is tied to the
-    locally observed callable variant.
-    """
     descriptor = get_builder_capability(capability_name)
     if descriptor is None:
         raise ValueError("unknown local builder capability")
@@ -87,6 +102,9 @@ def verify_local_capability_for_gap(
     callable_obj = getattr(module, descriptor.callable_name)
     source = inspect.getsource(callable_obj).encode("utf-8")
     implementation_sha256 = hashlib.sha256(source).hexdigest()
+    config: Mapping[str, str] = {}
+    if descriptor.verification_adapter == "required-condition-classification-v0":
+        config = _condition_config(gap)
 
     outputs: list[Any] = []
     passed = 0
@@ -96,6 +114,7 @@ def verify_local_capability_for_gap(
             callable_obj,
             example.arguments,
             gap.parameters,
+            config,
         )
         outputs.append(observed)
         if observed == example.expected:
@@ -106,6 +125,7 @@ def verify_local_capability_for_gap(
         callable_obj,
         gap.invocation_arguments,
         gap.parameters,
+        config,
     )
 
     payload = {
@@ -115,6 +135,7 @@ def verify_local_capability_for_gap(
         "module": descriptor.module,
         "callable": descriptor.callable_name,
         "adapter": descriptor.verification_adapter,
+        "adapter_config": dict(config),
         "implementation_sha256": implementation_sha256,
         "examples": len(gap.examples),
         "passed": passed,
