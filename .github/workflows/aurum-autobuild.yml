@@ -11,6 +11,10 @@ on:
       - '.github/workflows/aurum-autobuild.yml'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
       - 'Projects/Codelation/field/native_program_synthesis.py'
+      - 'Projects/Codelation/field/native_self_debug.py'
+      - 'Projects/Codelation/field/native_failure_diagnosis.py'
+      - 'Projects/Codelation/field/builder_capability_catalog.py'
+      - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/tests/test_native_program_synthesis.py'
@@ -104,6 +108,8 @@ jobs:
           print('latest_completed_gap=', state.get('latest_completed_gap'))
           print('next_gap=', state.get('next_gap'))
           print('blocked_reason=', state.get('blocked_reason'))
+          print('self_debug_revision=', state.get('self_debug_revision'))
+          print('internal_next_action=', state.get('internal_next_action'))
           print('reasoning_required=', state.get('reasoning_required'))
           print('workflow_verification=', state.get('workflow_verification'))
           PY
