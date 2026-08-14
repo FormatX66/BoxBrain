@@ -1,0 +1,21 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "io_semantic_coverage_ratio",
+  "parameters": ["required", "observed"],
+  "examples": [
+    {"arguments": {"required": "human-text-input visual-output", "observed": "human-text-input visual-output packet-transport"}, "expected": 1.0},
+    {"arguments": {"required": "human-text-input visual-output", "observed": "human-text-input"}, "expected": 0.5},
+    {"arguments": {"required": "audio-observation visual-output packet-transport", "observed": "packet-transport audio-observation"}, "expected": 0.6666666666666666},
+    {"arguments": {"required": "", "observed": "packet-transport"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"required": "human-text-input visual-output packet-transport", "observed": "human-text-input packet-transport"},
+  "next_gap": "io_safe_port_choice",
+  "purpose": "Measure how completely currently observed I/O semantics cover a requested interface need. Extra observed semantics do not reduce coverage; missing required semantics do.",
+  "principles": [
+    "reason about I/O by semantics before carrier names",
+    "extra capabilities are not missing capabilities",
+    "zero requested semantics yields zero coverage rather than artificial certainty"
+  ],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority", "permission-neutral-analysis"],
+  "max_synthesis_cost": 12
+}
