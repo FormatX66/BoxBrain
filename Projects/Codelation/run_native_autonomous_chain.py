@@ -24,7 +24,7 @@ from native_self_debug import SELF_DEBUG_REVISION, audit_native_self_build  # no
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v5"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v6"
 
 
 def _complete_local_candidates(diagnosis: Mapping[str, Any]) -> tuple[str, ...]:
@@ -43,12 +43,7 @@ def _complete_local_candidates(diagnosis: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def _is_external_prerequisite_block(spec: Any, invocation_output: Any) -> bool:
-    """Stop at verified fail-closed classification boundaries without inventing work.
-
-    A blocked classification is evidence that the next action is not currently
-    authorized/possible. It must not be treated as permission to advance into a
-    live or otherwise unavailable semantic gap.
-    """
+    """Stop at verified fail-closed classification boundaries without inventing work."""
     constraints = set(getattr(spec, "constraints", ()) or ())
     return (
         isinstance(invocation_output, str)
@@ -58,12 +53,29 @@ def _is_external_prerequisite_block(spec: Any, invocation_output: Any) -> bool:
     )
 
 
-def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 24) -> dict:
+def _normalize_seed_expressions(
+    seed_expressions: Mapping[str, Mapping[str, Any]] | None,
+) -> dict[str, Mapping[str, Any]]:
+    normalized: dict[str, Mapping[str, Any]] = {}
+    for name, expression in sorted((seed_expressions or {}).items()):
+        if not isinstance(name, str) or not name or not isinstance(expression, Mapping):
+            raise ValueError("seed expressions must map non-empty names to expression mappings")
+        normalized[name] = dict(expression)
+    return normalized
+
+
+def run_chain(
+    start_gap: str = "learning_delta_score",
+    *,
+    max_generations: int = 24,
+    seed_expressions: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict:
     current = start_gap
     completed: list[dict] = []
     failed_attempt: dict | None = None
     blocked_reason: str | None = None
-    learned_expressions: dict[str, Mapping[str, Any]] = {}
+    learned_expressions: dict[str, Mapping[str, Any]] = _normalize_seed_expressions(seed_expressions)
+    initial_seed_names = tuple(sorted(learned_expressions))
     verified_local_capabilities: set[str] = set()
     external_evidence_status: dict[str, Any] | None = None
 
@@ -117,9 +129,6 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 diagnosis=asdict(diagnosis),
             )
 
-            # Internal deterministic continuation: if self-debug discovers a complete,
-            # authority-free local candidate, verify that exact local implementation
-            # against the unchanged semantic contract before escalating or stopping.
             if self_debug.internal_next_action == "verify-existing-local-capability":
                 local_failures: list[dict[str, Any]] = []
                 external_prerequisite_blocked = False
@@ -184,9 +193,6 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                     )
                     failed_attempt = None
                     if _is_external_prerequisite_block(spec, local.invocation_output):
-                        # Keep current on the blocked classifier. A later event may retry
-                        # after external evidence changes, but this event does not invent
-                        # a successor implementation or treat absence as model work.
                         blocked_reason = "external-prerequisite-blocked"
                         external_prerequisite_blocked = True
                     else:
@@ -208,9 +214,6 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
 
                 if external_prerequisite_blocked:
                     break
-
-                # A local capability was verified and the gap advanced; continue in
-                # this same event rather than waiting for another user/model prompt.
                 continue
 
             blocked_reason = "native-synthesis-not-found"
@@ -331,7 +334,11 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         ),
         "external_evidence": external_evidence_status,
         "failed_attempt": failed_attempt,
+        "initial_seed_capabilities": list(initial_seed_names),
         "reusable_native_capabilities": sorted(learned_expressions),
+        "reusable_native_expressions": {
+            name: dict(expression) for name, expression in sorted(learned_expressions.items())
+        },
         "reusable_local_capabilities": sorted(verified_local_capabilities),
         "internal_next_action": internal_next_action,
         "reasoning_required": reasoning_required,
