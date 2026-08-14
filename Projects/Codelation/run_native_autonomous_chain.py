@@ -5,6 +5,7 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any, Mapping
 
 FIELD_DIR = Path(__file__).resolve().parent / "field"
 sys.path.insert(0, str(FIELD_DIR))
@@ -16,7 +17,7 @@ from native_program_synthesis import SYNTHESIS_REVISION, synthesize_native_expre
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v1"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v2"
 
 
 def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 16) -> dict:
@@ -24,8 +25,9 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
     completed: list[dict] = []
     failed_attempt: dict | None = None
     blocked_reason: str | None = None
+    learned_expressions: dict[str, Mapping[str, Any]] = {}
 
-    for index in range(max_generations):
+    for _ in range(max_generations):
         spec = get_native_semantic_gap(current)
         if spec is None:
             blocked_reason = "semantic-spec-missing"
@@ -35,6 +37,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             spec.parameters,
             spec.examples,
             max_cost=spec.max_synthesis_cost,
+            seed_expressions=learned_expressions,
         )
         if not synthesis.found or synthesis.expression is None:
             blocked_reason = "native-synthesis-not-found"
@@ -69,6 +72,8 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             }
             break
 
+        # Only verified local capabilities become reusable synthesis primitives.
+        learned_expressions[spec.name] = dict(synthesis.expression)
         completed.append(
             {
                 "generation": len(completed) + 1,
@@ -78,6 +83,8 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 "synthesis_cost": synthesis.cost,
                 "candidates_evaluated": synthesis.candidates_evaluated,
                 "signatures_retained": synthesis.signatures_retained,
+                "seed_expressions_considered": list(synthesis.seed_expressions_considered),
+                "reusable_native_capabilities_after_build": sorted(learned_expressions),
                 "artifact_identity": built.artifact_identity,
                 "local_variant_identity": built.artifact.local_variant_identity,
                 "carrier_sha256": built.artifact.carrier_sha256,
@@ -107,6 +114,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         "next_gap": current,
         "blocked_reason": blocked_reason,
         "failed_attempt": failed_attempt,
+        "reusable_native_capabilities": sorted(learned_expressions),
         "reasoning_required": reasoning_required,
         "reasoning_request": (
             {
