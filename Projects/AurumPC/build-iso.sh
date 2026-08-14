@@ -24,6 +24,10 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
+# Ubuntu 24.04 currently ships an older live-build that still emits the retired
+# Debian security suite path "bookworm/updates". v0.01 is a disposable live
+# image, so disable only that legacy security stanza while retaining Bookworm
+# and bookworm-updates. This avoids accepting an invalid repository definition.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -33,6 +37,7 @@ lb config \
   --debian-installer none \
   --archive-areas main \
   --apt-recommends false \
+  --security false \
   --memtest none \
   --bootappend-live "boot=live components quiet console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
@@ -130,7 +135,7 @@ chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 
 lb build
 
-ISO=$(find . -maxdepth 1 -type f -name 'live-image-amd64*.hybrid.iso' -o -name 'live-image-amd64*.iso' | head -n 1)
+ISO=$(find . -maxdepth 1 -type f \( -name 'live-image-amd64*.hybrid.iso' -o -name 'live-image-amd64*.iso' \) | head -n 1)
 if [ -z "${ISO:-}" ] || [ ! -f "$ISO" ]; then
   echo "live-build completed without an ISO." >&2
   exit 1
