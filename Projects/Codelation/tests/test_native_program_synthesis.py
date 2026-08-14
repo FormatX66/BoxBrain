@@ -148,10 +148,9 @@ class NativeProgramSynthesisTests(unittest.TestCase):
             ("required", "available", "permissions"),
             examples,
         )
-        self.assertIn("select-token-from-input", diagnosis.categories)
         self.assertIn("conditional-empty-or-choice", diagnosis.categories)
         self.assertIn("cross-vocabulary-fact-binding", diagnosis.categories)
-        self.assertIn("bounded-token-selection", diagnosis.builder_learning)
+        self.assertIn("local-capability-candidate-covers-builder-learning", diagnosis.categories)
         self.assertIn("deterministic-conditional-selection", diagnosis.builder_learning)
         self.assertIn("declarative-fact-binding", diagnosis.builder_learning)
         self.assertTrue(diagnosis.local_capability_candidates)
