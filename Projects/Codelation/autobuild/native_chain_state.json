@@ -1,8 +1,59 @@
 {
-  "blocked_reason": "semantic-spec-missing",
+  "blocked_reason": "native-synthesis-not-found",
   "catalog_revision": "aurum-native-gap-catalog-v1",
   "completed_generations": 16,
-  "failed_attempt": null,
+  "failed_attempt": {
+    "attempted_generation": 17,
+    "diagnosis": {
+      "builder_learning": [],
+      "categories": [],
+      "diagnosis_identity": "a2e0ecde5db6e2549b0cbd3fbf7b5264a64a6c6d09602ad3582597fc434a01c5",
+      "local_capability_candidates": [],
+      "observations": [],
+      "target_type": "text"
+    },
+    "gap": "resource_context_proposal",
+    "self_debug": {
+      "counterexamples": [],
+      "internal_next_action": null,
+      "invariants_checked": [
+        "duplicate-example-consistency",
+        "example-arguments-match-parameters",
+        "post-failure-domain-triage",
+        "target-representation-supported",
+        "verifier-synthesis-equivalence-agreement"
+      ],
+      "issues": [],
+      "model_escalation_advised": true,
+      "probable_failure_domains": [
+        "unclassified-builder-failure"
+      ],
+      "recommended_action": "bounded-model-diagnosis",
+      "report_identity": "b36691165f198baa02f5fe1d4147cbaf82849c66fb940a23a1e5c15c3f8eaf12",
+      "stage": "post-failure",
+      "status": "actionable"
+    },
+    "synthesis": {
+      "candidates_evaluated": 230,
+      "cost": null,
+      "expression": null,
+      "found": false,
+      "proof_identity": "dffa2a43a12fb3a27620f9e132f1bcaf0d1c9f3ab350756be250d7c609b21b86",
+      "seed_expressions_considered": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "signatures_retained": 24
+    },
+    "verified": false
+  },
   "generations": [
     {
       "artifact_identity": "0609f8869c607742e751b2cd7f5721297f021e7ce42bd560893f0fc511ee8cea",
@@ -734,9 +785,9 @@
   "reasoning_request": {
     "builder_learning": [],
     "gap": "resource_context_proposal",
-    "reason": "semantic-spec-missing",
+    "reason": "native-synthesis-not-found",
     "required_output": "bounded diagnosis or builder-learning proposal only after Aurum self-debug has exhausted internal deterministic checks; do not provide a promoted implementation",
-    "self_debug_report_identity": null,
+    "self_debug_report_identity": "b36691165f198baa02f5fe1d4147cbaf82849c66fb940a23a1e5c15c3f8eaf12",
     "shared_implementation": false
   },
   "reasoning_required": true,
