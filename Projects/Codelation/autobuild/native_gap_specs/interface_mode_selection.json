@@ -1,0 +1,24 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_mode_selection",
+  "parameters": ["gaming", "coding", "research", "media_social", "threshold"],
+  "examples": [
+    {"arguments": {"gaming": 0.9, "coding": 0.2, "research": 0.1, "media_social": 0.1, "threshold": 0.6}, "expected": "gaming"},
+    {"arguments": {"gaming": 0.2, "coding": 0.85, "research": 0.2, "media_social": 0.1, "threshold": 0.6}, "expected": "coding"},
+    {"arguments": {"gaming": 0.2, "coding": 0.2, "research": 0.8, "media_social": 0.1, "threshold": 0.6}, "expected": "research"},
+    {"arguments": {"gaming": 0.2, "coding": 0.2, "research": 0.2, "media_social": 0.8, "threshold": 0.6}, "expected": "media-social"},
+    {"arguments": {"gaming": 0.4, "coding": 0.5, "research": 0.4, "media_social": 0.3, "threshold": 0.6}, "expected": "general"},
+    {"arguments": {"gaming": 0.8, "coding": 0.8, "research": 0.1, "media_social": 0.1, "threshold": 0.6}, "expected": "general"}
+  ],
+  "invocation_arguments": {"gaming": 0.15, "coding": 0.82, "research": 0.4, "media_social": 0.2, "threshold": 0.6},
+  "next_gap": "interface_stability_budget",
+  "purpose": "Select the single strongest supported activity mode only when its confidence meets the threshold and is unambiguous. Otherwise choose general. This is a recommendation-only decision and does not change resources or the shell.",
+  "principles": [
+    "ambiguous evidence falls back to general",
+    "sub-threshold evidence falls back to general",
+    "mode choice is separate from resource or interface actuation",
+    "user override remains authoritative"
+  ],
+  "constraints": ["pure", "deterministic", "recommendation-only", "no-host-authority", "no-resource-actuation", "no-interface-actuation"],
+  "max_synthesis_cost": 16
+}
