@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import hashlib
+from typing import Any, Mapping, Sequence
+
+from aurum_field import encode
+from field_native_vm import NativeExample
+
+
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v0"
+
+
+@dataclass(frozen=True)
+class NativeFailureDiagnosis:
+    target_type: str
+    categories: tuple[str, ...]
+    observations: tuple[str, ...]
+    builder_learning: tuple[str, ...]
+    diagnosis_identity: str
+
+
+def _value_type(value: Any) -> str:
+    if isinstance(value, str):
+        return "text"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return "number"
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return "tokens"
+    return type(value).__name__
+
+
+def _tokens(value: Any) -> set[str]:
+    if isinstance(value, str):
+        return set(value.split())
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return {str(item) for item in value}
+    return set()
+
+
+def diagnose_native_synthesis_failure(
+    parameters: Sequence[str],
+    examples: Sequence[NativeExample],
+) -> NativeFailureDiagnosis:
+    """Classify an observed native-synthesis boundary without proposing code.
+
+    This runs only after synthesis has already failed. It does not short-circuit search,
+    grant authority, choose an implementation, or modify the VM. Its purpose is to turn
+    a generic "not found" result into bounded builder-learning evidence.
+    """
+    parameters = tuple(parameters)
+    examples = tuple(examples)
+    if not parameters or not examples:
+        raise ValueError("failure diagnosis requires parameters and examples")
+
+    expected = tuple(example.expected for example in examples)
+    target_types = {_value_type(value) for value in expected}
+    target_type = next(iter(target_types)) if len(target_types) == 1 else "mixed"
+    categories: set[str] = set()
+    observations: set[str] = set()
+    learning: set[str] = set()
+
+    if target_type == "text":
+        nonempty = [str(value) for value in expected if str(value)]
+        if nonempty and any(str(value) == "" for value in expected):
+            categories.add("conditional-empty-or-choice")
+            observations.add("examples require both an empty result and a non-empty text result")
+            learning.add("deterministic-conditional-selection")
+
+        drawn_from: dict[str, int] = {name: 0 for name in parameters}
+        for example in examples:
+            wanted = str(example.expected)
+            if not wanted:
+                continue
+            for name in parameters:
+                if wanted in _tokens(example.arguments.get(name)):
+                    drawn_from[name] += 1
+        for name, count in sorted(drawn_from.items()):
+            if nonempty and count == len(nonempty):
+                categories.add("select-token-from-input")
+                observations.add(f"every non-empty expected result is a token drawn from input '{name}'")
+                learning.add("bounded-token-selection")
+
+        # Detect the common relational shape where one input describes requested meaning
+        # while another contains the identifiers that must be selected. The examples then
+        # require a fact relation between two vocabularies rather than direct token algebra.
+        if "required" in parameters:
+            required_vocab = set().union(*(_tokens(example.arguments.get("required")) for example in examples))
+            output_vocab = set(nonempty)
+            carrier_params = [
+                name
+                for name in parameters
+                if name != "required"
+                and output_vocab
+                and all(
+                    (not str(example.expected))
+                    or str(example.expected) in _tokens(example.arguments.get(name))
+                    for example in examples
+                )
+            ]
+            if carrier_params and output_vocab.isdisjoint(required_vocab):
+                categories.add("cross-vocabulary-fact-binding")
+                observations.add(
+                    "requested semantic tokens and selected identifier tokens occupy different vocabularies"
+                )
+                learning.add("declarative-fact-binding")
+
+    payload: Mapping[str, Any] = {
+        "revision": DIAGNOSIS_REVISION,
+        "parameters": list(parameters),
+        "target_type": target_type,
+        "categories": sorted(categories),
+        "observations": sorted(observations),
+        "builder_learning": sorted(learning),
+    }
+    identity = hashlib.blake2s(
+        b"AURUM-NATIVE-FAILURE-DIAGNOSIS-0\x00" + encode(payload)
+    ).hexdigest()
+    return NativeFailureDiagnosis(
+        target_type=target_type,
+        categories=tuple(sorted(categories)),
+        observations=tuple(sorted(observations)),
+        builder_learning=tuple(sorted(learning)),
+        diagnosis_identity=identity,
+    )
+
+
+__all__ = [
+    "DIAGNOSIS_REVISION",
+    "NativeFailureDiagnosis",
+    "diagnose_native_synthesis_failure",
+]
