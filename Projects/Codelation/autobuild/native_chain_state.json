@@ -374,12 +374,12 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "68dec0807fedb12e00b03e48017cc0f9f064c3c813cde38b2a14d7c0de220706"
+      "verification_identity": "bd72673c35c683c6ff9fca6609f3307a9f6dd3cabad2484b5f4e7f123bcf83e9"
     }
   ],
   "internal_next_action": null,
   "latest_completed_gap": "io_safe_port_choice",
-  "local_verification_revision": "aurum-local-capability-verification-v0",
+  "local_verification_revision": "aurum-local-capability-verification-v1",
   "next_gap": "interface_human_state_projection",
   "reasoning_request": {
     "builder_learning": [],
