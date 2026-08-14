@@ -11,7 +11,7 @@ from builder_capability_catalog import get_builder_capability
 from native_gap_catalog import NativeSemanticGap
 
 
-LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v2"
+LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v3"
 
 
 @dataclass(frozen=True)
@@ -39,9 +39,7 @@ def _tokens(value: object) -> tuple[str, ...]:
 
 
 def _condition_config(gap: NativeSemanticGap) -> Mapping[str, str]:
-    success_examples = [
-        example for example in gap.examples if not str(example.expected).startswith("blocked-")
-    ]
+    success_examples = [example for example in gap.examples if not str(example.expected).startswith("blocked-")]
     if len(success_examples) != 1:
         raise ValueError("required-condition adapter needs one success example")
     success_example = success_examples[0]
@@ -53,6 +51,17 @@ def _condition_config(gap: NativeSemanticGap) -> Mapping[str, str]:
         "success": str(success_example.expected),
         "blocked_prefix": "blocked-",
     }
+
+
+def _score_config(gap: NativeSemanticGap) -> Mapping[str, str]:
+    if "threshold" not in gap.parameters:
+        raise ValueError("thresholded selector adapter requires threshold parameter")
+    score_names = tuple(name for name in gap.parameters if name != "threshold")
+    valid_labels = {name.replace("_", "-") for name in score_names}
+    fallbacks = {str(example.expected) for example in gap.examples if str(example.expected) not in valid_labels}
+    if len(fallbacks) != 1:
+        raise ValueError("thresholded selector adapter requires one stable fallback label")
+    return {"fallback": next(iter(fallbacks))}
 
 
 def _invoke(
@@ -80,6 +89,12 @@ def _invoke(
             success=config["success"],
             blocked_prefix=config["blocked_prefix"],
         )
+    if adapter == "thresholded-unique-best-v0":
+        threshold = arguments.get("threshold")
+        if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+            raise ValueError("thresholded selector requires numeric threshold")
+        scores = {name: arguments[name] for name in parameters if name != "threshold"}
+        return callable_obj(scores, threshold=float(threshold), fallback=config["fallback"])
     raise ValueError(f"unsupported local verification adapter: {adapter}")
 
 
@@ -105,17 +120,13 @@ def verify_local_capability_for_gap(
     config: Mapping[str, str] = {}
     if descriptor.verification_adapter == "required-condition-classification-v0":
         config = _condition_config(gap)
+    elif descriptor.verification_adapter == "thresholded-unique-best-v0":
+        config = _score_config(gap)
 
     outputs: list[Any] = []
     passed = 0
     for example in gap.examples:
-        observed = _invoke(
-            descriptor.verification_adapter,
-            callable_obj,
-            example.arguments,
-            gap.parameters,
-            config,
-        )
+        observed = _invoke(descriptor.verification_adapter, callable_obj, example.arguments, gap.parameters, config)
         outputs.append(observed)
         if observed == example.expected:
             passed += 1
