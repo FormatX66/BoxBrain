@@ -3,6 +3,11 @@
   "blocked_reason": "external-prerequisite-blocked",
   "catalog_revision": "aurum-native-gap-catalog-v1",
   "completed_generations": 20,
+  "external_evidence": {
+    "applied": false,
+    "evidence": null,
+    "reason": "evidence-file-missing"
+  },
   "failed_attempt": null,
   "generations": [
     {
@@ -10,6 +15,7 @@
       "candidates_evaluated": 41,
       "carrier_field_id": "e66c95b7b063f8c75d3d2a882add643a7753ec0d88ef307662f16b58f3e3903a",
       "carrier_sha256": "8b2a32c116390e8732ebadc7b2aeeab4659637dd33458c7098e3e341b0b6f6eb",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_delta_score",
       "generation": 1,
@@ -43,6 +49,7 @@
       "candidates_evaluated": 47,
       "carrier_field_id": "9ac29bce9e35a0b38101c2a17fb10cd8a78f6b425d5e14c5405f0e7b99c6771d",
       "carrier_sha256": "a061a991faec68440362a36e4a1c80a7b74f862cac8a0152e66595b1d81e017d",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_overlap_score",
       "generation": 2,
@@ -79,6 +86,7 @@
       "candidates_evaluated": 68,
       "carrier_field_id": "1344bcd451fed3851adc5c1e14b95742c9af3611fe3b5ffc8c3e10936b574e95",
       "carrier_sha256": "63336f27a0f496bab8bc4fef9a366ae442c8fa61f208b5b112156c34e5e4f4b5",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_union_size",
       "generation": 3,
@@ -117,6 +125,7 @@
       "candidates_evaluated": 21,
       "carrier_field_id": "9b808aeeabcad4051e231424836a4a26781c3c788359345486e77b1f0c11748e",
       "carrier_sha256": "853fbee8bebcfb76b1d50b7e249968433ee40f72c6e926e0739e8dc1b1ac60f0",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_retention_ratio",
       "generation": 4,
@@ -157,6 +166,7 @@
       "candidates_evaluated": 27,
       "carrier_field_id": "6377465b642d0a3894410f9d3803c6f0db6cedd9b751af155031d14ae68978cb",
       "carrier_sha256": "c0938822bbe2da0297861e8ee63e3fb3229e6020cc3198dcd83af0aa2322bf47",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_novelty_ratio",
       "generation": 5,
@@ -199,6 +209,7 @@
       "candidates_evaluated": 83,
       "carrier_field_id": "b2c5954b3932ea42e3f725e301508392d15d88694f83e5e7ed4b527ecac5430e",
       "carrier_sha256": "c8f2563426af316d3bf0b46703e69f854b4df1f50e31ae422a34b53429eed09f",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "learning_stability_index",
       "generation": 6,
@@ -243,6 +254,7 @@
       "candidates_evaluated": 210,
       "carrier_field_id": "31e896985e5e021276c6c572c1aba7a520dbb3278af9113b6c98217e6e1afdaa",
       "carrier_sha256": "d18c0116c2d60ab2d27ae607c8efae4bafcabac9ad459e6ac50c27540fa06aca",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "io_semantic_coverage_ratio",
       "generation": 7,
@@ -286,6 +298,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "io_safe_port_choice",
       "generation": 8,
@@ -330,6 +343,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_human_state_projection",
       "generation": 9,
@@ -375,6 +389,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "io_binding_readiness",
       "generation": 10,
@@ -424,6 +439,7 @@
       "candidates_evaluated": 380,
       "carrier_field_id": "7c4ef2f3293cac37c68dc8a5b2daed52c275cc0bd5d71d02f52fc1593a30493c",
       "carrier_sha256": "2a5b52a8d8322fbbdf89f0dc2c59e2ebb6af8fa05020559950498c1503211adb",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_roundtrip_observation",
       "generation": 11,
@@ -476,6 +492,7 @@
       "candidates_evaluated": 381,
       "carrier_field_id": "84e2a248ab6aa5588f036ff51d7ca9e72c299bdf1b30deeb8c3c3f76617bbad9",
       "carrier_sha256": "42a9065a5dfeb3250e0819188068d178db20af5afa53ee541fb2f44621b69a38",
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_context_mode_confidence",
       "generation": 12,
@@ -527,6 +544,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_mode_selection",
       "generation": 13,
@@ -576,6 +594,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_stability_budget",
       "generation": 14,
@@ -626,6 +645,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_adaptation_proposal",
       "generation": 15,
@@ -677,6 +697,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "interface_user_feedback_learning",
       "generation": 16,
@@ -729,6 +750,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "resource_context_proposal",
       "generation": 17,
@@ -782,6 +804,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "resource_context_actuation_readiness",
       "generation": 18,
@@ -835,6 +858,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "adaptive_shell_closed_loop",
       "generation": 19,
@@ -888,6 +912,7 @@
     },
     {
       "authority_granted": false,
+      "external_evidence": null,
       "filesystem_build_used": false,
       "gap": "adaptive_shell_live_trial_readiness",
       "generation": 20,
