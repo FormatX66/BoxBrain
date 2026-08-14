@@ -8,7 +8,7 @@ from aurum_field import encode
 from field_native_vm import NativeExample, compile_native, execute_native
 
 
-SYNTHESIS_REVISION = "aurum-native-synthesis-v1"
+SYNTHESIS_REVISION = "aurum-native-synthesis-v2"
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class SynthesisResult:
     candidates_evaluated: int
     signatures_retained: int
     proof_identity: str
+    seed_expressions_considered: tuple[str, ...] = ()
 
 
 _TYPE_TEXT = "text"
@@ -99,15 +100,21 @@ def synthesize_native_expression(
     *,
     max_cost: int = 8,
     max_signatures: int = 10000,
+    seed_expressions: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> SynthesisResult:
     """Find a small bounded native expression matching all examples.
 
     Search is deterministic and pure. It never generates source code, touches the
     filesystem, launches subprocesses, calls a model, or gains host authority.
-    Observationally equivalent expressions are collapsed by their output signatures.
+    Previously verified local native capabilities may be supplied as seed expressions;
+    each is treated as a reusable primitive with composition cost 1. The seed's
+    expression is still re-evaluated against the current examples before admission.
+    Observationally equivalent expressions are collapsed by output signature.
     """
     examples = tuple(examples)
     parameters = tuple(parameters)
+    seeds = dict(seed_expressions or {})
+    seed_names = tuple(sorted(seeds))
     if not parameters or len(set(parameters)) != len(parameters):
         raise ValueError("parameters must be non-empty and unique")
     if not examples:
@@ -126,6 +133,28 @@ def synthesize_native_expression(
     retained: dict[tuple[str, str], SynthesisCandidate] = {}
     evaluated = 0
 
+    def result_for(candidate: SynthesisCandidate) -> SynthesisResult:
+        proof = hashlib.blake2s(
+            b"AURUM-NATIVE-SYNTHESIS-PROOF-0\x00"
+            + encode(
+                {
+                    "revision": SYNTHESIS_REVISION,
+                    "expression": dict(candidate.expression),
+                    "target": target_signature,
+                    "seed_names": list(seed_names),
+                }
+            )
+        ).hexdigest()
+        return SynthesisResult(
+            True,
+            candidate.expression,
+            candidate.cost,
+            evaluated,
+            len(retained),
+            proof,
+            seed_names,
+        )
+
     def admit(expression: Mapping[str, Any], cost: int) -> SynthesisCandidate | None:
         nonlocal evaluated
         values = _evaluate(parameters, expression, examples)
@@ -142,16 +171,31 @@ def synthesize_native_expression(
         if current is None or (cost, _expression_key(expression)) < (current.cost, _expression_key(current.expression)):
             retained[key] = candidate
             by_cost.setdefault(cost, []).append(candidate)
-        return candidate
+            return candidate
+        return current
+
+    def check(candidate: SynthesisCandidate | None) -> SynthesisResult | None:
+        if candidate and candidate.output_type == target_type and candidate.signature_identity == target_signature:
+            return result_for(candidate)
+        return None
 
     for name in sorted(parameters):
         kind = _input_type(name, examples)
         if kind is None:
             continue
-        candidate = admit({"op": "input", "name": name}, 1)
-        if candidate and candidate.output_type == target_type and candidate.signature_identity == target_signature:
-            proof = hashlib.blake2s(b"AURUM-NATIVE-SYNTHESIS-PROOF-0\x00" + _expression_key(candidate.expression)).hexdigest()
-            return SynthesisResult(True, candidate.expression, candidate.cost, evaluated, len(retained), proof)
+        result = check(admit({"op": "input", "name": name}, 1))
+        if result:
+            return result
+
+    # Reuse previously verified local capabilities as first-class synthesis primitives.
+    # Invalid or irrelevant seeds are simply not admitted for this gap.
+    for name in seed_names:
+        expression = seeds[name]
+        if not isinstance(expression, Mapping):
+            raise ValueError(f"seed expression must be a mapping: {name}")
+        result = check(admit(expression, 1))
+        if result:
+            return result
 
     unary_ops: tuple[tuple[str, str, str], ...] = (
         ("strip", _TYPE_TEXT, _TYPE_TEXT),
@@ -167,15 +211,6 @@ def synthesize_native_expression(
         ("union", _TYPE_TOKENS, _TYPE_TOKENS, _TYPE_TOKENS),
         ("safe_divide", _TYPE_NUMBER, _TYPE_NUMBER, _TYPE_NUMBER),
     )
-
-    def check(candidate: SynthesisCandidate | None) -> SynthesisResult | None:
-        if candidate and candidate.output_type == target_type and candidate.signature_identity == target_signature:
-            proof = hashlib.blake2s(
-                b"AURUM-NATIVE-SYNTHESIS-PROOF-0\x00"
-                + encode({"revision": SYNTHESIS_REVISION, "expression": dict(candidate.expression), "target": target_signature})
-            ).hexdigest()
-            return SynthesisResult(True, candidate.expression, candidate.cost, evaluated, len(retained), proof)
-        return None
 
     for cost in range(2, max_cost + 1):
         prior = tuple(
@@ -224,9 +259,17 @@ def synthesize_native_expression(
 
     proof = hashlib.blake2s(
         b"AURUM-NATIVE-SYNTHESIS-NOT-FOUND-0\x00"
-        + encode({"revision": SYNTHESIS_REVISION, "parameters": list(parameters), "target": target_signature, "max_cost": max_cost})
+        + encode(
+            {
+                "revision": SYNTHESIS_REVISION,
+                "parameters": list(parameters),
+                "target": target_signature,
+                "max_cost": max_cost,
+                "seed_names": list(seed_names),
+            }
+        )
     ).hexdigest()
-    return SynthesisResult(False, None, None, evaluated, len(retained), proof)
+    return SynthesisResult(False, None, None, evaluated, len(retained), proof, seed_names)
 
 
 __all__ = [
