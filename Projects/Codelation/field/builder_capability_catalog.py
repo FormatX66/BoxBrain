@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-CATALOG_REVISION = "aurum-builder-capability-catalog-v0"
+CATALOG_REVISION = "aurum-builder-capability-catalog-v1"
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,7 @@ class BuilderCapabilityDescriptor:
     provides: frozenset[str]
     constraints: frozenset[str]
     authority: str = "none"
+    verification_adapter: str | None = None
 
 
 @dataclass(frozen=True)
@@ -26,13 +27,15 @@ class BuilderCapabilityCandidate:
     missing: tuple[str, ...]
     coverage: float
     authority: str
+    verification_adapter: str | None
 
 
 def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
     """Describe reusable local builder substrate without invoking it.
 
-    This is an inventory only. Discovery does not route work, execute a callable,
-    grant permission, verify an artifact, or promote a capability.
+    Discovery is inventory-only. A descriptor may name a bounded verification adapter,
+    but discovery itself never routes work, executes a callable, grants permission,
+    verifies an artifact, or promotes a capability.
     """
     return (
         BuilderCapabilityDescriptor(
@@ -58,8 +61,16 @@ def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
                 }
             ),
             authority="none",
+            verification_adapter="semantic-port-plan-v0",
         ),
     )
+
+
+def get_builder_capability(name: str) -> BuilderCapabilityDescriptor | None:
+    for descriptor in default_builder_capabilities():
+        if descriptor.name == name:
+            return descriptor
+    return None
 
 
 def find_builder_capability_candidates(
@@ -85,6 +96,7 @@ def find_builder_capability_candidates(
                 missing=missing,
                 coverage=len(matched) / len(required),
                 authority=descriptor.authority,
+                verification_adapter=descriptor.verification_adapter,
             )
         )
     return tuple(
@@ -101,4 +113,5 @@ __all__ = [
     "BuilderCapabilityDescriptor",
     "default_builder_capabilities",
     "find_builder_capability_candidates",
+    "get_builder_capability",
 ]
