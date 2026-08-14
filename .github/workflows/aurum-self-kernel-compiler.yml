@@ -7,6 +7,7 @@ on:
       - aurum/self-kernel-compiler-v0
     paths:
       - '.github/workflows/aurum-self-kernel-compiler.yml'
+      - 'Projects/AurumKernel/**'
       - 'Projects/Codelation/kernel_selfbuild/**'
       - 'Projects/Codelation/tests/test_self_kernel_compiler*.py'
 
@@ -18,74 +19,96 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  observe-and-plan:
-    name: Observe hosted seed and build kernel plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - name: Check out Aurum kernel branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          python-version: '3.13'
-      - name: Verify self-kernel observation contracts
-        run: python3 -m unittest Projects.Codelation.tests.test_self_kernel_compiler -v
-      - name: Profile this generic seed boot
-        env:
-          PYTHONPATH: Projects/Codelation
-        run: python3 -m kernel_selfbuild.bootstrap --output-dir aurum-kernel-state
-      - name: Validate emitted plan is read-only and bounded
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          profile = json.loads(Path('aurum-kernel-state/machine-profile.json').read_text())
-          plan = json.loads(Path('aurum-kernel-state/kernel-build-plan.json').read_text())
-          assert profile['architecture'] in {'x86_64', 'arm64'}
-          assert plan['deployment_strategy'].startswith('trial-slot')
-          assert 'a-b-fallback-preserved' in plan['verification_gates']
-          assert all(item['action'] in {'reuse-bound-driver','resolve-modalias','research-hardware-contract'} for item in plan['driver_work_items'])
-          print({'architecture': profile['architecture'], 'devices': len(profile['devices']), 'required_modules': len(plan['required_modules']), 'unresolved_modaliases': len(plan['unresolved_modaliases'])})
-          PY
+          fetch-depth: 1
 
-  compiler-contract:
-    name: Compiler, module, hotplug and boot-media contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.13'
-      - name: Verify all self-kernel compiler contracts
-        run: python3 -m unittest discover -s Projects/Codelation/tests -p 'test_self_kernel_compiler*.py' -v
-
-  architecture-contract:
-    name: Architecture contract - ${{ matrix.arch }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x86_64, arm64]
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.13'
-      - name: Verify architecture is eligible for machine-specific compilation
-        env:
-          PYTHONPATH: Projects/Codelation
-          TARGET_ARCH: ${{ matrix.arch }}
+      - name: Validate bounded kernel build sources
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import os
-          from kernel_selfbuild.hardware_profile import MachineProfile
-          from kernel_selfbuild.kernel_plan import make_kernel_build_plan
-          from kernel_selfbuild.boot_media import make_boot_media_plan
-          profile = MachineProfile(os.environ['TARGET_ARCH'], os.environ['TARGET_ARCH'], 'seed', 'uefi', 'synthetic', ())
-          plan = make_kernel_build_plan(profile, ())
-          boot = make_boot_media_plan(os.environ['TARGET_ARCH'])
-          assert plan.ready_for_compile
-          assert plan.architecture == os.environ['TARGET_ARCH']
-          assert boot.fallback_required
-          print({'kernel': plan.to_dict(), 'boot': boot.to_dict()})
-          PY
+          set -euo pipefail
+          sh -n Projects/AurumKernel/build-kernel.sh
+          python3 -m py_compile Projects/Codelation/kernel_selfbuild/*.py
+          python3 -m unittest discover -s Projects/Codelation/tests -p 'test_self_kernel_compiler*.py' -v
+
+      - name: Install independent VM tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86
+          docker info >/dev/null
+
+      - name: Build Aurum machine kernel with Debian-native tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                linux-source build-essential bc bison flex \
+                libssl-dev libelf-dev cpio gzip xz-utils \
+                kmod rsync busybox-static python3
+              sh Projects/AurumKernel/build-kernel.sh
+            '
+          test -s dist/Aurum-Kernel-v0.01-x86_64/bzImage
+          test -s dist/Aurum-Kernel-v0.01-x86_64/initramfs.cpio.gz
+          sha256sum -c dist/Aurum-Kernel-v0.01-x86_64/SHA256SUMS
+
+      - name: Kernel boot smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 120s qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -cpu qemu64 \
+            -m 768 \
+            -smp 2 \
+            -kernel dist/Aurum-Kernel-v0.01-x86_64/bzImage \
+            -initrd dist/Aurum-Kernel-v0.01-x86_64/initramfs.cpio.gz \
+            -append 'console=ttyS0 rdinit=/init panic=-1' \
+            -display none \
+            -serial stdio \
+            -monitor none \
+            -no-reboot \
+            > aurum-kernel-qemu.log 2>&1
+          qemu_status=$?
+          set -e
+          cat aurum-kernel-qemu.log
+          grep -F 'AURUM_KERNEL_READY version=0.01 arch=x86_64' aurum-kernel-qemu.log
+          grep -F 'selftest=ok' aurum-kernel-qemu.log
+          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
+            echo "QEMU exited unexpectedly with status $qemu_status" >&2
+            exit "$qemu_status"
+          fi
+          echo 'AURUM_KERNEL_V001_BOOT_VERIFIED'
+
+      - name: Record kernel metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lh dist/Aurum-Kernel-v0.01-x86_64/
+          cat dist/Aurum-Kernel-v0.01-x86_64/kernel-version.txt
+          cat dist/Aurum-Kernel-v0.01-x86_64/SHA256SUMS
+          cat dist/Aurum-Kernel-v0.01-x86_64/aurum-kernel-manifest.json
+
+      - name: Publish boot-verified kernel bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Kernel-v0.01-x86_64
+          path: |
+            dist/Aurum-Kernel-v0.01-x86_64/**
+            aurum-kernel-qemu.log
+          if-no-files-found: error
+          retention-days: 14
