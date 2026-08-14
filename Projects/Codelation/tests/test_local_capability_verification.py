@@ -30,10 +30,7 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         verification = verify_local_capability_for_gap(gap, "labeled-text-projection")
         self.assertTrue(verification.verified)
         self.assertEqual(verification.passed, verification.examples)
-        self.assertEqual(
-            verification.invocation_output,
-            "selected=text-dialogue;blocked=display-output;missing=visual-output",
-        )
+        self.assertEqual(verification.invocation_output, "selected=text-dialogue;blocked=display-output;missing=visual-output")
         self.assertFalse(verification.authority_granted)
         self.assertFalse(verification.routed_to_host)
 
@@ -44,6 +41,16 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         self.assertTrue(verification.verified)
         self.assertEqual(verification.passed, verification.examples)
         self.assertEqual(verification.invocation_output, "ready")
+        self.assertFalse(verification.authority_granted)
+        self.assertFalse(verification.routed_to_host)
+
+    def test_thresholded_unique_best_selector_satisfies_mode_selection_without_authority(self):
+        gap = get_native_semantic_gap("interface_mode_selection")
+        self.assertIsNotNone(gap)
+        verification = verify_local_capability_for_gap(gap, "thresholded-unique-best-selector")
+        self.assertTrue(verification.verified)
+        self.assertEqual(verification.passed, verification.examples)
+        self.assertEqual(verification.invocation_output, "coding")
         self.assertFalse(verification.authority_granted)
         self.assertFalse(verification.routed_to_host)
 
