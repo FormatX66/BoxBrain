@@ -1,0 +1,82 @@
+{
+  "schema": "aurum-driver-seed-contract-v0",
+  "source_of_truth": "kernel-seed-semantic-device-contract",
+  "persistent_driver_binary_required": false,
+  "materialized_driver_is_disposable": true,
+  "conventional_driver_update_required": false,
+  "knowledge_updates_allowed": true,
+  "lifecycle": [
+    "observed",
+    "identified",
+    "device-contract-resolved",
+    "machine-realization-planned",
+    "materialized",
+    "verified",
+    "bound",
+    "operating",
+    "quiesced",
+    "unbound",
+    "reclaimed"
+  ],
+  "attach_path": [
+    "observe",
+    "identify",
+    "resolve-device-contract",
+    "resolve-bus-contract",
+    "resolve-machine-contract",
+    "materialize-driver-capability",
+    "verify",
+    "bind"
+  ],
+  "detach_path": [
+    "quiesce-device",
+    "stop-new-io",
+    "drain-or-cancel-inflight-work",
+    "release-device-owned-resources",
+    "unbind",
+    "decrement-shared-capability-references",
+    "reclaim-unreferenced-executable-capabilities"
+  ],
+  "durable_knowledge": [
+    "device-protocol-semantics",
+    "compatible-device-identities",
+    "bus-semantics",
+    "construction-rules",
+    "machine-lowering-rules",
+    "verification-rules",
+    "known-failure-evidence",
+    "proof-identities"
+  ],
+  "disposable_realization": [
+    "native-driver-instructions",
+    "device-specific-executable-capability",
+    "temporary-mappings",
+    "device-owned-runtime-state"
+  ],
+  "verification_gates": [
+    "semantic-contract-valid",
+    "required-evidence-present",
+    "authority-bounded",
+    "machine-realization-valid",
+    "static-construction-pass",
+    "deterministic-tests-pass-if-available",
+    "isolated-execution-pass-if-available",
+    "hardware-trial-pass-before-promotion"
+  ],
+  "fail_closed_on_missing": [
+    "register-map",
+    "dma-layout",
+    "firmware-protocol",
+    "interrupt-semantics",
+    "reset-semantics",
+    "power-semantics",
+    "timing-contract",
+    "required-authority"
+  ],
+  "kernel_shape": {
+    "expands_on_verified_attach": true,
+    "contracts_on_safe_detach": true,
+    "shared_capabilities_reference_counted": true,
+    "unrelated_frontiers_blocked_by_device_failure": false
+  }
+}
