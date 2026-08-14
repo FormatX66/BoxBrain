@@ -1,17 +1,18 @@
 {
   "blocked_reason": "native-synthesis-not-found",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 6,
+  "completed_generations": 7,
   "failed_attempt": {
-    "attempted_generation": 7,
-    "gap": "io_semantic_coverage_ratio",
+    "attempted_generation": 8,
+    "gap": "io_safe_port_choice",
     "synthesis": {
-      "candidates_evaluated": 374,
+      "candidates_evaluated": 841,
       "cost": null,
       "expression": null,
       "found": false,
-      "proof_identity": "6489526195c8bb6fecec8e40329bea0a132f9d3b945d2fe070f19b2c189cfc77",
+      "proof_identity": "3647bbc05a803eb32e8ed7dc13a4d88f079f255f02cdf9de85db446d3d9808ec",
       "seed_expressions_considered": [
+        "io_semantic_coverage_ratio",
         "learning_delta_score",
         "learning_novelty_ratio",
         "learning_overlap_score",
@@ -19,7 +20,7 @@
         "learning_stability_index",
         "learning_union_size"
       ],
-      "signatures_retained": 45
+      "signatures_retained": 73
     },
     "verified": false
   },
@@ -46,7 +47,7 @@
       "state": "verified",
       "subprocess_test_used": false,
       "synthesis_cost": 6,
-      "synthesis_proof_identity": "4a3bda2a539b3183b23bfc40941dc38eccd315ff8a2f678c7b125e44d47dc250",
+      "synthesis_proof_identity": "5b367906cfc3c9075ca0df22899b349795d9e5dc0a0c35c29d8b4238557e4f72",
       "verification_identity": "26d49e6b3549e86fb4ebdcb4ac71f3b8b64d5f9c98d7dda134904401cbd5728c"
     },
     {
@@ -69,12 +70,12 @@
       "seed_expressions_considered": [
         "learning_delta_score"
       ],
-      "signatures_retained": 21,
+      "signatures_retained": 20,
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
       "synthesis_cost": 6,
-      "synthesis_proof_identity": "92b26169b6673649559189f3df3f9fee40e372fc6882ae7b0bd559ece4dd3c48",
+      "synthesis_proof_identity": "e5a13807152e3e7d47ab3421d6ef17c62b9ea4a4fdbd2489895f371c9896820c",
       "verification_identity": "b769925bae5327929b52014ac09c708c1a7f89aaff368018c01a36e58d5f4a17"
     },
     {
@@ -99,12 +100,12 @@
         "learning_delta_score",
         "learning_overlap_score"
       ],
-      "signatures_retained": 37,
+      "signatures_retained": 32,
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
       "synthesis_cost": 6,
-      "synthesis_proof_identity": "9b2825adb8987137276417223e8de33c66d909bec7dfeda7a1a4021fcb9bb8c8",
+      "synthesis_proof_identity": "88c34354a9a302c68f6e8b126d54ddf4c3aac15a465371e94dc290c32a58e855",
       "verification_identity": "a0953125e135c0aa902f2b3ec3b4a18b9ffd81a2a694dafc3cbacdecfbd942ce"
     },
     {
@@ -131,24 +132,24 @@
         "learning_overlap_score",
         "learning_union_size"
       ],
-      "signatures_retained": 13,
+      "signatures_retained": 11,
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
       "synthesis_cost": 3,
-      "synthesis_proof_identity": "155210d7161d0b425bc98384bd4850181ce6df26243468781648857a9184aef2",
+      "synthesis_proof_identity": "4298daec213113dafcc064187ae75910fe7c550fa5e310f8eb6ffb0958b7c560",
       "verification_identity": "59f9bf141baf1f7b93a8ebef8acf1c21683425d2f2e19e0497c7a24e69aa71ac"
     },
     {
-      "artifact_identity": "2a9ace470ae095cb835033b5e04ad08663b7f11b65977335dbcc5ae2af825170",
-      "candidates_evaluated": 81,
-      "carrier_field_id": "8cd3c4c26310c7aef98269f3e614e5bc1abd181e0a07bc8fa1987046413cfe56",
-      "carrier_sha256": "0053cc4b4b0aa85728e110cb0fe2a8745e88f9227b66ad6c7af46ead4959ef64",
+      "artifact_identity": "67aeb9d5a9d0bae390dbf281f6378def16402d9fca751b8ef532b0d3ea818898",
+      "candidates_evaluated": 27,
+      "carrier_field_id": "6377465b642d0a3894410f9d3803c6f0db6cedd9b751af155031d14ae68978cb",
+      "carrier_sha256": "c0938822bbe2da0297861e8ee63e3fb3229e6020cc3198dcd83af0aa2322bf47",
       "filesystem_build_used": false,
       "gap": "learning_novelty_ratio",
       "generation": 5,
       "invocation_output": 0.3333333333333333,
-      "local_variant_identity": "358eabc53fdc193d5019397280ea234c4732587099347625b4bcb70aabff30ef",
+      "local_variant_identity": "6be71e3fe64fde3481cfb2c76a2ffff5df4c9ba894de20279fa6ceac56137455",
       "model_reasoning_used": false,
       "next_gap": "learning_stability_index",
       "promotion_performed": false,
@@ -165,24 +166,24 @@
         "learning_retention_ratio",
         "learning_union_size"
       ],
-      "signatures_retained": 48,
+      "signatures_retained": 16,
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "synthesis_cost": 5,
-      "synthesis_proof_identity": "8f7a26e34a15b095a315d89142f2959acb768953efc9349700153b3d8768e746",
-      "verification_identity": "d3f926194cccb20319f0ebec3c869be4e7c5fff163fa9a52e44534d778280701"
+      "synthesis_cost": 3,
+      "synthesis_proof_identity": "f694eca0ae0181cd052fa39df26662ec53bff512874b330a098a3e063c46a072",
+      "verification_identity": "38e56bd6173cf14cb2038dc5f0f338479190b369663b576d7ee5dabaf49ab96f"
     },
     {
-      "artifact_identity": "fe912cd0c8488f4bea094ecb105ba98c65502e539c562a5277fa20f1deff7e68",
-      "candidates_evaluated": 7659,
-      "carrier_field_id": "27aae0f6a0f6db88e909f4e8953e1c3df18346e8f70695ab9c120fc2b96dc8ed",
-      "carrier_sha256": "6a5c18b101223f3cdcc6f6c3727beb2c8282fcf16808726ec5327f7e6cf0abd9",
+      "artifact_identity": "1c0147ce420c66bc5789a4cb7358a32db756c4d8d64635c71ca79c80f92af736",
+      "candidates_evaluated": 83,
+      "carrier_field_id": "b2c5954b3932ea42e3f725e301508392d15d88694f83e5e7ed4b527ecac5430e",
+      "carrier_sha256": "c8f2563426af316d3bf0b46703e69f854b4df1f50e31ae422a34b53429eed09f",
       "filesystem_build_used": false,
       "gap": "learning_stability_index",
       "generation": 6,
       "invocation_output": 0.6666666666666666,
-      "local_variant_identity": "a50dc36f7ba0a4734e49ce85fba318291003f57694faa39cac98dfe4ee3dfcad",
+      "local_variant_identity": "20f0796693e68ed1a584b50898c370a09b47e75f77f21029d3de6ee89f1dc49b",
       "model_reasoning_used": false,
       "next_gap": "io_semantic_coverage_ratio",
       "promotion_performed": false,
@@ -201,25 +202,64 @@
         "learning_retention_ratio",
         "learning_union_size"
       ],
-      "signatures_retained": 1175,
+      "signatures_retained": 44,
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "synthesis_cost": 9,
-      "synthesis_proof_identity": "137de2d41fec1a85f6cd7df7a8d9d2949ac11008596e48e14b7705087e200851",
-      "verification_identity": "3c99af8572fb1b230d2e647c96a5686866fc47abc8306a7108a9e47db3375a77"
+      "synthesis_cost": 5,
+      "synthesis_proof_identity": "70bf5028eabae36d142ab007fe13b03aa1818b36aa44dc5367184088cb0b9a3b",
+      "verification_identity": "f9c12e309eb3e7ca7b3be65e6d052cace4ab754e381bc1739e94e776ac96f987"
+    },
+    {
+      "artifact_identity": "7340002ddc73f3f8dbce513369c0e8cf13a6d81d42f63d669905dcccd764b5fa",
+      "candidates_evaluated": 210,
+      "carrier_field_id": "31e896985e5e021276c6c572c1aba7a520dbb3278af9113b6c98217e6e1afdaa",
+      "carrier_sha256": "d18c0116c2d60ab2d27ae607c8efae4bafcabac9ad459e6ac50c27540fa06aca",
+      "filesystem_build_used": false,
+      "gap": "io_semantic_coverage_ratio",
+      "generation": 7,
+      "invocation_output": 0.6666666666666666,
+      "local_variant_identity": "2ac5ff0d6607a9b40aaaf687ab84a8fc54409d46f67753a0365263b268a6a540",
+      "model_reasoning_used": false,
+      "next_gap": "io_safe_port_choice",
+      "promotion_performed": false,
+      "reusable_native_capabilities_after_build": [
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "seed_expressions_considered": [
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "signatures_retained": 29,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "synthesis_cost": 10,
+      "synthesis_proof_identity": "22d76bd1dcbdf5bb4409c8ef7e75440813b0de988c85147fecae692238985acd",
+      "verification_identity": "378b97b05bfc34e4a946bc8be48d4fcd414f16b05db4564bb97b00217e3cdfdd"
     }
   ],
-  "latest_completed_gap": "learning_stability_index",
-  "next_gap": "io_semantic_coverage_ratio",
+  "latest_completed_gap": "io_semantic_coverage_ratio",
+  "next_gap": "io_safe_port_choice",
   "reasoning_request": {
-    "gap": "io_semantic_coverage_ratio",
+    "gap": "io_safe_port_choice",
     "reason": "native-synthesis-not-found",
     "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
     "shared_implementation": false
   },
   "reasoning_required": true,
   "reusable_native_capabilities": [
+    "io_semantic_coverage_ratio",
     "learning_delta_score",
     "learning_novelty_ratio",
     "learning_overlap_score",
@@ -229,7 +269,7 @@
   ],
   "schema": "aurum-native-autonomous-chain-v2",
   "start_gap": "learning_delta_score",
-  "synthesis_revision": "aurum-native-synthesis-v2",
+  "synthesis_revision": "aurum-native-synthesis-v3",
   "timer_dependency": false,
   "workflow_verification": {
     "outcome": "success",
