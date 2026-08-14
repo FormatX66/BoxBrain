@@ -1,0 +1,81 @@
+name: Join the Aurum helper crew
+description: Sign up to help Aurum with testing, research, documentation, hardware, UI, or code.
+title: "[AURUM HELPER] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Aurum. No coding experience is required.
+
+        Pick what you are comfortable doing and the project automation will reply with next steps. Do not include passwords, API keys, Wi-Fi credentials, private tokens, or other secrets in this form.
+
+  - type: dropdown
+    id: lanes
+    attributes:
+      label: How would you like to help?
+      description: Pick one or more. If you are unsure, choose the easy-task option.
+      multiple: true
+      options:
+        - Try Aurum and report what happens
+        - Windows / PC testing
+        - Raspberry Pi / hardware testing
+        - Documentation and plain-English explanations
+        - Research and fact checking
+        - UI / workflow ideas
+        - Coding / debugging
+        - Review pull requests
+        - I am not sure — give me something easy
+    validations:
+      required: true
+
+  - type: dropdown
+    id: experience
+    attributes:
+      label: GitHub experience
+      description: This only helps us choose instructions that make sense for you.
+      options:
+        - Brand new to GitHub
+        - I have used issues before
+        - I have submitted pull requests before
+        - Comfortable with Git and development tools
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: What can you test or work on?
+      description: Pick everything that applies.
+      multiple: true
+      options:
+        - Windows PC
+        - Raspberry Pi
+        - iPhone / iPad
+        - Web browser
+        - Python
+        - PowerShell
+        - Flutter / Dart
+        - Documentation only
+        - Research only
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else we should know?
+      description: Optional. You can mention interests, available hardware, or what sounds fun. Do not include secrets or private credentials.
+      placeholder: "Example: I can test Windows instructions and I am new to GitHub."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I will only test computers, accounts, networks, and hardware that I own or am explicitly authorized to use.
+          required: true
+        - label: I will not post passwords, API keys, tokens, Wi-Fi credentials, private keys, or other secrets.
+          required: true
