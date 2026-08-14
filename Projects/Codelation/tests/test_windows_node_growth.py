@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "field"))
 
+from aurum_field import Field  # noqa: E402
 from windows_node_growth import (  # noqa: E402
     MORRIS_NODE_ID,
     MORRIS_NODE_NAME,
@@ -84,7 +85,18 @@ class WindowsNodeGrowthTests(unittest.TestCase):
         field = growth_field(observation, state)
         self.assertEqual(field.missing_refs(), set())
         projection = field.project()
-        self.assertIn("views", projection)
+        rebuilt = Field.absorb(projection)
+        self.assertEqual(rebuilt.identity, field.identity)
+        self.assertEqual(rebuilt.missing_refs(), set())
+        plan_facts = [
+            rebuilt.get(identity).value
+            for identity in rebuilt.identities()
+            if rebuilt.get(identity).kind == 1
+            and isinstance(rebuilt.get(identity).value, dict)
+            and rebuilt.get(identity).value.get("kind") == "slush-extent-plan"
+        ]
+        self.assertEqual(len(plan_facts), 1)
+        self.assertIs(plan_facts[0]["host_partition_change"], False)
         self.assertGreaterEqual(len(field), 8)
 
     def test_worker_advertisement_is_explicit(self):
