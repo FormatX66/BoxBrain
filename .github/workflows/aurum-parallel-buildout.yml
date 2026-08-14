@@ -5,18 +5,11 @@ on:
     branches:
       - aurum/capacity-mesh-v0
     paths:
-      - 'Projects/Codelation/field/boot_aperture.py'
-      - 'Projects/Codelation/field/boot_aperture_handshake.py'
-      - 'Projects/Codelation/field/slush_lifecycle.py'
-      - 'Projects/Codelation/field/runtime_recipe.py'
-      - 'Projects/Codelation/field/pi3_boot_shim.py'
-      - 'Projects/Codelation/field/windows_capacity_mapping.py'
-      - 'Projects/Codelation/tests/test_boot_aperture.py'
-      - 'Projects/Codelation/tests/test_boot_aperture_handshake.py'
-      - 'Projects/Codelation/tests/test_slush_lifecycle.py'
-      - 'Projects/Codelation/tests/test_runtime_recipe.py'
-      - 'Projects/Codelation/tests/test_pi3_boot_shim.py'
-      - 'Projects/Codelation/tests/test_windows_capacity_mapping.py'
+      - 'Projects/Codelation/field/**'
+      - 'Projects/Codelation/interface/**'
+      - 'Projects/Codelation/autobuild/native_gap_specs/**'
+      - 'Projects/Codelation/tests/**'
+      - 'Projects/Codelation/run_*.py'
       - '.github/workflows/aurum-parallel-buildout.yml'
   workflow_dispatch:
 
@@ -28,20 +21,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  capability-lane:
-    name: Buildout lane - ${{ matrix.module }}
+  frontier-lane:
+    name: Frontier lane - ${{ matrix.module }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
         module:
+          - Projects.Codelation.tests.test_bottleneck_mesh
+          - Projects.Codelation.tests.test_capacity_mesh
+          - Projects.Codelation.tests.test_capability_wave
+          - Projects.Codelation.tests.test_io_fabric
+          - Projects.Codelation.tests.test_io_event
+          - Projects.Codelation.tests.test_local_capability_verification
+          - Projects.Codelation.tests.test_field_native_vm
+          - Projects.Codelation.tests.test_field_native_batch
+          - Projects.Codelation.tests.test_field_native_cache
+          - Projects.Codelation.tests.test_native_program_synthesis
+          - Projects.Codelation.tests.test_self_build_federation
+          - Projects.Codelation.tests.test_self_build_resources
+          - Projects.Codelation.tests.test_slush_media
+          - Projects.Codelation.tests.test_slush_image
+          - Projects.Codelation.tests.test_windows_node_growth
           - Projects.Codelation.tests.test_boot_aperture
-          - Projects.Codelation.tests.test_boot_aperture_handshake
-          - Projects.Codelation.tests.test_slush_lifecycle
           - Projects.Codelation.tests.test_runtime_recipe
-          - Projects.Codelation.tests.test_pi3_boot_shim
-          - Projects.Codelation.tests.test_windows_capacity_mapping
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -49,14 +53,15 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Run capability lane
+      - name: Run independent frontier lane
         run: python -m unittest ${{ matrix.module }} -v
 
-  integrated-buildout:
-    name: Integrated Aurum buildout
+  convergence:
+    name: Converge all Aurum frontiers
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: capability-lane
+    timeout-minutes: 10
+    needs: frontier-lane
+    if: always()
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -64,13 +69,24 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Run integrated buildout suites
+      - name: Run converged capability and I/O verification
         run: >-
           python -m unittest
+          Projects.Codelation.tests.test_bottleneck_mesh
+          Projects.Codelation.tests.test_capacity_mesh
+          Projects.Codelation.tests.test_capability_wave
+          Projects.Codelation.tests.test_io_fabric
+          Projects.Codelation.tests.test_io_event
+          Projects.Codelation.tests.test_local_capability_verification
+          Projects.Codelation.tests.test_field_native_vm
+          Projects.Codelation.tests.test_field_native_batch
+          Projects.Codelation.tests.test_field_native_cache
+          Projects.Codelation.tests.test_native_program_synthesis
+          Projects.Codelation.tests.test_self_build_federation
+          Projects.Codelation.tests.test_self_build_resources
+          Projects.Codelation.tests.test_slush_media
+          Projects.Codelation.tests.test_slush_image
+          Projects.Codelation.tests.test_windows_node_growth
           Projects.Codelation.tests.test_boot_aperture
-          Projects.Codelation.tests.test_boot_aperture_handshake
-          Projects.Codelation.tests.test_slush_lifecycle
           Projects.Codelation.tests.test_runtime_recipe
-          Projects.Codelation.tests.test_pi3_boot_shim
-          Projects.Codelation.tests.test_windows_capacity_mapping
           -v
