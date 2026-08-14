@@ -8,7 +8,7 @@ from aurum_field import encode
 from field_native_vm import NativeExample, compile_native, execute_native
 
 
-SYNTHESIS_REVISION = "aurum-native-synthesis-v2"
+SYNTHESIS_REVISION = "aurum-native-synthesis-v3"
 
 
 @dataclass(frozen=True)
@@ -46,11 +46,23 @@ def _value_type(value: Any) -> str | None:
 
 
 def _identity_value(value: Any) -> Any:
-    """Project runtime values into Field's canonical scalar vocabulary for identity only."""
-    if isinstance(value, float):
-        return {"float_hex": value.hex()}
-    if isinstance(value, (str, int, bytes)) or value is None or isinstance(value, bool):
+    """Project runtime values into Field's canonical scalar vocabulary for identity only.
+
+    Numeric identity follows runtime equality: equal integers and floats share one exact
+    rational representation. This prevents synthesis from rejecting a valid numeric
+    program only because one path returns ``0`` while an example spells the same value
+    as ``0.0``.
+    """
+    if value is None or isinstance(value, (str, bytes)) or isinstance(value, bool):
         return value
+    if isinstance(value, int):
+        return {"number_ratio": [value, 1]}
+    if isinstance(value, float):
+        try:
+            numerator, denominator = value.as_integer_ratio()
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("non-finite numeric synthesis identity unsupported") from exc
+        return {"number_ratio": [numerator, denominator]}
     if isinstance(value, (list, tuple)):
         return [_identity_value(item) for item in value]
     if isinstance(value, (set, frozenset)):
