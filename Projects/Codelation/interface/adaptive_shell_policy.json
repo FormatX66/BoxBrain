@@ -1,0 +1,80 @@
+{
+  "schema": "aurum-adaptive-shell-policy-v0",
+  "authority": "declarative-only",
+  "human_constants": [
+    "home",
+    "back",
+    "search",
+    "settings",
+    "notifications",
+    "workspace-switcher",
+    "accessibility",
+    "session-power",
+    "recovery-safe-layout",
+    "adaptation-lock"
+  ],
+  "rules": {
+    "safe_layout_always_available": true,
+    "user_override_wins": true,
+    "all_adaptations_reversible": true,
+    "explain_evidence": true,
+    "confidence_required": true,
+    "hysteresis_required": true,
+    "resource_change_never_implies_permission": true,
+    "no_security_or_privacy_reduction_for_performance": true,
+    "local_first_user_learning": true,
+    "proof_view_before_new_actuation_class": true
+  },
+  "impact_classes": {
+    "cosmetic": {
+      "minimum_confidence": 0.55,
+      "examples": ["panel emphasis", "shortcut suggestion", "workspace suggestion"]
+    },
+    "workflow": {
+      "minimum_confidence": 0.70,
+      "examples": ["layout switch", "clipboard mode", "text correction profile", "notification profile"]
+    },
+    "resource": {
+      "minimum_confidence": 0.85,
+      "requires_preexisting_permission": true,
+      "examples": ["cpu scheduling preference", "gpu priority", "display refresh preference", "network priority", "background-work suppression"]
+    }
+  },
+  "profiles": {
+    "general": {
+      "intent": "stable predictable default",
+      "ui_emphasis": ["launcher", "workspace-switcher", "files", "communication"],
+      "resource_goal": ["balanced", "low-volatility"]
+    },
+    "gaming": {
+      "evidence": ["foreground-game", "fullscreen-rendering", "controller-activity", "sustained-frame-generation"],
+      "ui_emphasis": ["game", "performance-state", "audio", "capture"],
+      "resource_goal": ["low-latency", "high-refresh", "render-priority", "bounded-background-work"]
+    },
+    "coding": {
+      "evidence": ["editor-active", "terminal-active", "compiler-or-test-active", "source-files", "repeated-clipboard"],
+      "ui_emphasis": ["editor", "terminal", "build-test", "clipboard", "documentation"],
+      "resource_goal": ["fast-build", "responsive-editor", "persistent-workspace"],
+      "text_behavior": ["coding-aware-autocorrection", "literal-symbol-preservation", "fast-copy-paste"]
+    },
+    "research": {
+      "evidence": ["browser-dominant", "related-tabs", "search-capture-cycle", "reference-downloads"],
+      "ui_emphasis": ["browser", "search", "tabs", "references", "capture"],
+      "resource_goal": ["browser-responsiveness", "network-responsiveness", "fast-retrieval"]
+    },
+    "media-social": {
+      "evidence": ["media-editor-active", "capture-active", "media-files", "export-active", "publishing-preparation"],
+      "ui_emphasis": ["video", "audio", "lighting", "capture", "export", "publishing"],
+      "resource_goal": ["media-throughput", "preview-responsiveness", "storage-throughput"],
+      "automation": ["user-approved-export", "user-approved-publishing", "media-organization"]
+    }
+  },
+  "learning_feedback": [
+    "accepted",
+    "ignored",
+    "reverted",
+    "modified",
+    "pinned",
+    "disabled"
+  ]
+}
