@@ -12,12 +12,13 @@ sys.path.insert(0, str(FIELD_DIR))
 
 from field_native_registry_bridge import build_verified_native_registry_artifact  # noqa: E402
 from field_native_self_build import NativeGap  # noqa: E402
+from native_failure_diagnosis import diagnose_native_synthesis_failure  # noqa: E402
 from native_gap_catalog import CATALOG_REVISION, get_native_semantic_gap  # noqa: E402
 from native_program_synthesis import SYNTHESIS_REVISION, synthesize_native_expression  # noqa: E402
 
 
 STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_chain_state.json"
-STATE_SCHEMA = "aurum-native-autonomous-chain-v2"
+STATE_SCHEMA = "aurum-native-autonomous-chain-v3"
 
 
 def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 16) -> dict:
@@ -41,10 +42,12 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         )
         if not synthesis.found or synthesis.expression is None:
             blocked_reason = "native-synthesis-not-found"
+            diagnosis = diagnose_native_synthesis_failure(spec.parameters, spec.examples)
             failed_attempt = {
                 "attempted_generation": len(completed) + 1,
                 "gap": current,
                 "synthesis": asdict(synthesis),
+                "diagnosis": asdict(diagnosis),
                 "verified": False,
             }
             break
@@ -104,6 +107,14 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         blocked_reason = "generation-bound-reached"
 
     reasoning_required = blocked_reason in {"semantic-spec-missing", "native-synthesis-not-found"}
+    builder_learning = []
+    if failed_attempt is not None:
+        diagnosis = failed_attempt.get("diagnosis")
+        if isinstance(diagnosis, dict):
+            raw = diagnosis.get("builder_learning", [])
+            if isinstance(raw, (list, tuple)):
+                builder_learning = [str(item) for item in raw]
+
     return {
         "schema": STATE_SCHEMA,
         "catalog_revision": CATALOG_REVISION,
@@ -121,6 +132,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                 "gap": current,
                 "reason": blocked_reason,
                 "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
+                "builder_learning": builder_learning,
                 "shared_implementation": False,
             }
             if reasoning_required
