@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from run_native_autonomous_chain import run_chain
 
 
-FRONTIER_GAP_SCHEMA = "aurum-native-frontier-gap-v1"
+FRONTIER_GAP_SCHEMA = "aurum-native-frontier-gap-v2"
 FRONTIER_STATE_PATH = Path(__file__).resolve().parent / "autobuild" / "native_frontier_state.json"
 _NONBLOCKING_BOUNDARIES = frozenset({None, "generation-bound-reached"})
 
@@ -61,6 +61,9 @@ def run_gap(
         "external_evidence": state.get("external_evidence"),
         "failed_attempt": state.get("failed_attempt"),
         "initial_seed_capabilities": state.get("initial_seed_capabilities", []),
+        "initial_seed_expressions": {
+            name: dict(expression) for name, expression in sorted(seeds.items())
+        },
         "reusable_native_capabilities": state.get("reusable_native_capabilities", []),
         "reusable_native_expressions": state.get("reusable_native_expressions", {}),
         "reusable_local_capabilities": state.get("reusable_local_capabilities", []),
