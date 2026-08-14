@@ -4,14 +4,14 @@ from dataclasses import dataclass
 import hashlib
 import importlib
 import inspect
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from aurum_field import encode
 from builder_capability_catalog import get_builder_capability
 from native_gap_catalog import NativeSemanticGap
 
 
-LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v0"
+LOCAL_VERIFICATION_REVISION = "aurum-local-capability-verification-v1"
 
 
 @dataclass(frozen=True)
@@ -38,7 +38,12 @@ def _tokens(value: object) -> tuple[str, ...]:
     raise ValueError("verification adapter requires text/list token inputs")
 
 
-def _invoke(adapter: str, callable_obj: Any, arguments: Mapping[str, object]) -> Any:
+def _invoke(
+    adapter: str,
+    callable_obj: Any,
+    arguments: Mapping[str, object],
+    parameters: Sequence[str],
+) -> Any:
     if adapter == "semantic-port-plan-v0":
         required = _tokens(arguments["required"])
         available = _tokens(arguments["available"])
@@ -48,11 +53,11 @@ def _invoke(adapter: str, callable_obj: Any, arguments: Mapping[str, object]) ->
             available_ports=available,
             permissions=permissions,
         )
-        # A semantic single-choice contract is satisfied only when all requested
-        # semantics are covered by exactly one selected port. Otherwise fail closed.
         if getattr(plan, "missing", ()) or len(getattr(plan, "selected", ())) != 1:
             return ""
         return str(plan.selected[0])
+    if adapter == "labeled-text-projection-v0":
+        return callable_obj(arguments, order=parameters, empty_value="none", separator=";")
     raise ValueError(f"unsupported local verification adapter: {adapter}")
 
 
@@ -62,9 +67,9 @@ def verify_local_capability_for_gap(
 ) -> LocalCapabilityVerification:
     """Verify an already-present authority-free local capability against a gap.
 
-    This executes only bounded pure decision code on semantic examples. It does not
-    touch host I/O, grant authority, promote the implementation, or route work to a
-    machine. Exact implementation source is hashed so the verification is tied to the
+    This executes only bounded pure decision/view code on semantic examples. It does
+    not touch host I/O, grant authority, promote the implementation, or route work to
+    a machine. Exact implementation source is hashed so verification is tied to the
     locally observed callable variant.
     """
     descriptor = get_builder_capability(capability_name)
@@ -86,7 +91,12 @@ def verify_local_capability_for_gap(
     outputs: list[Any] = []
     passed = 0
     for example in gap.examples:
-        observed = _invoke(descriptor.verification_adapter, callable_obj, example.arguments)
+        observed = _invoke(
+            descriptor.verification_adapter,
+            callable_obj,
+            example.arguments,
+            gap.parameters,
+        )
         outputs.append(observed)
         if observed == example.expected:
             passed += 1
@@ -95,6 +105,7 @@ def verify_local_capability_for_gap(
         descriptor.verification_adapter,
         callable_obj,
         gap.invocation_arguments,
+        gap.parameters,
     )
 
     payload = {
