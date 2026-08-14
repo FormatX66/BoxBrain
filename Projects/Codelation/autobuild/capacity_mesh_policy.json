@@ -1,0 +1,106 @@
+{
+  "schema": "aurum-capacity-mesh-policy-v1",
+  "revision": "2026-08-14",
+  "principles": [
+    "local-first",
+    "evidence-first",
+    "no-quota-sharding",
+    "no-arbitrary-remote-command-execution",
+    "fan-out-only-for-independent-work",
+    "fan-in-only-from-verified-evidence",
+    "do-not-idle-when-authorized-deterministic-work-exists"
+  ],
+  "limits": {
+    "max_parallel_hosted_lanes": 8,
+    "max_speculative_paths_per_gap": 4,
+    "minimum_verifier_lanes": 1,
+    "target_slot_utilization": 0.85,
+    "maximum_duplicate_work_fraction": 0.05,
+    "maximum_queue_minutes": 5
+  },
+  "nodes": [
+    {
+      "name": "github-hosted-x64",
+      "kind": "github-actions",
+      "capabilities": ["build", "git", "network", "python", "test", "x86_64"],
+      "capacity": 8,
+      "ephemeral": true,
+      "authority": "repository"
+    },
+    {
+      "name": "github-hosted-arm64",
+      "kind": "github-actions",
+      "capabilities": ["build", "git", "network", "python", "test", "arm64"],
+      "capacity": 2,
+      "ephemeral": true,
+      "authority": "repository"
+    },
+    {
+      "name": "gpt-python",
+      "kind": "gpt-python",
+      "capabilities": ["analysis", "comparison", "python", "small-simulation", "verification"],
+      "capacity": 1,
+      "ephemeral": true,
+      "network": false,
+      "preferred_for": ["bounded-analysis", "evidence-comparison", "small-deterministic-calculation"],
+      "avoid_for": ["long-build", "persistent-daemon", "large-artifact-storage"]
+    },
+    {
+      "name": "windows-authorized-node",
+      "kind": "self-hosted",
+      "capabilities": ["physical-network", "windows", "x86_64"],
+      "capacity": 1,
+      "availability": "fresh-heartbeat-required",
+      "authority": "explicit-local-lane"
+    },
+    {
+      "name": "BBPI4",
+      "kind": "physical-node",
+      "capabilities": ["arm64", "physical-io", "physical-network"],
+      "capacity": 1,
+      "availability": "fresh-heartbeat-required",
+      "authority": "explicit-local-lane"
+    }
+  ],
+  "candidate_paths": [
+    {
+      "name": "safe-x64",
+      "posture": "safe",
+      "runner": "ubuntu-latest",
+      "suite": "core",
+      "requires": ["python", "test", "x86_64"],
+      "weight": 100
+    },
+    {
+      "name": "adventurous-x64",
+      "posture": "adventurous",
+      "runner": "ubuntu-latest",
+      "suite": "broad",
+      "requires": ["python", "test", "x86_64"],
+      "weight": 90
+    },
+    {
+      "name": "independent-verifier-x64",
+      "posture": "verify",
+      "runner": "ubuntu-latest",
+      "suite": "verification",
+      "requires": ["python", "test", "x86_64"],
+      "weight": 80
+    },
+    {
+      "name": "portability-arm64",
+      "posture": "verify",
+      "runner": "ubuntu-24.04-arm",
+      "suite": "portability",
+      "requires": ["arm64", "python", "test"],
+      "weight": 70
+    }
+  ],
+  "fan_in": {
+    "selection": "verified-evidence-score",
+    "require_safe_path": true,
+    "require_independent_verification": true,
+    "reject_unsafe_or_unauthorized": true,
+    "prefer_lower_cost_when_evidence_is_equivalent": true
+  }
+}
