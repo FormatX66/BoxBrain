@@ -1,0 +1,263 @@
+{
+  "blocked_frontiers": [
+    "adaptive_shell_live_trial_readiness",
+    "learning_novelty_ratio",
+    "learning_retention_ratio"
+  ],
+  "checkpoint_count": 20,
+  "convergence_required": true,
+  "convergence_verification": "success",
+  "expected_frontiers": [
+    "adaptive_shell_closed_loop",
+    "adaptive_shell_live_trial_readiness",
+    "interface_adaptation_proposal",
+    "interface_context_mode_confidence",
+    "interface_human_state_projection",
+    "interface_mode_selection",
+    "interface_roundtrip_observation",
+    "interface_stability_budget",
+    "interface_user_feedback_learning",
+    "io_binding_readiness",
+    "io_safe_port_choice",
+    "io_semantic_coverage_ratio",
+    "learning_delta_score",
+    "learning_novelty_ratio",
+    "learning_overlap_score",
+    "learning_retention_ratio",
+    "learning_stability_index",
+    "learning_union_size",
+    "resource_context_actuation_readiness",
+    "resource_context_proposal"
+  ],
+  "frontier_count": 20,
+  "global_barrier": false,
+  "lanes": {
+    "adaptive_shell_closed_loop": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "adaptive_shell_closed_loop",
+      "next_gap": "adaptive_shell_live_trial_readiness",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "adaptive_shell_live_trial_readiness": {
+      "blocked_output": "blocked-physical-node",
+      "blocked_reason": "external-prerequisite-blocked",
+      "global_barrier": false,
+      "latest_completed_gap": "adaptive_shell_live_trial_readiness",
+      "next_gap": "adaptive_shell_live_trial_readiness",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "blocked"
+    },
+    "interface_adaptation_proposal": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_adaptation_proposal",
+      "next_gap": "interface_user_feedback_learning",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_context_mode_confidence": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_context_mode_confidence",
+      "next_gap": "interface_mode_selection",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_human_state_projection": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_human_state_projection",
+      "next_gap": "io_binding_readiness",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_mode_selection": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_mode_selection",
+      "next_gap": "interface_stability_budget",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_roundtrip_observation": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_roundtrip_observation",
+      "next_gap": "interface_context_mode_confidence",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_stability_budget": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_stability_budget",
+      "next_gap": "interface_adaptation_proposal",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_user_feedback_learning": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_user_feedback_learning",
+      "next_gap": "resource_context_proposal",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "io_binding_readiness": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "io_binding_readiness",
+      "next_gap": "interface_roundtrip_observation",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "io_safe_port_choice": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "io_safe_port_choice",
+      "next_gap": "interface_human_state_projection",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "io_semantic_coverage_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "io_semantic_coverage_ratio",
+      "next_gap": "io_safe_port_choice",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "learning_delta_score": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "learning_delta_score",
+      "next_gap": "learning_overlap_score",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "learning_novelty_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "native-synthesis-not-found",
+      "global_barrier": false,
+      "latest_completed_gap": null,
+      "next_gap": "learning_novelty_ratio",
+      "progress_made": false,
+      "reasoning_required": true,
+      "status": "blocked"
+    },
+    "learning_overlap_score": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "learning_overlap_score",
+      "next_gap": "learning_union_size",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "learning_retention_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "native-synthesis-not-found",
+      "global_barrier": false,
+      "latest_completed_gap": null,
+      "next_gap": "learning_retention_ratio",
+      "progress_made": false,
+      "reasoning_required": true,
+      "status": "blocked"
+    },
+    "learning_stability_index": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "learning_stability_index",
+      "next_gap": "io_semantic_coverage_ratio",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "learning_union_size": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "learning_union_size",
+      "next_gap": "learning_retention_ratio",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "resource_context_actuation_readiness": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "resource_context_actuation_readiness",
+      "next_gap": "adaptive_shell_closed_loop",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "resource_context_proposal": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "resource_context_proposal",
+      "next_gap": "resource_context_actuation_readiness",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    }
+  },
+  "missing_frontier_states": [],
+  "physical_block_is_local": true,
+  "progressed_frontiers": [
+    "adaptive_shell_closed_loop",
+    "interface_adaptation_proposal",
+    "interface_context_mode_confidence",
+    "interface_human_state_projection",
+    "interface_mode_selection",
+    "interface_roundtrip_observation",
+    "interface_stability_budget",
+    "interface_user_feedback_learning",
+    "io_binding_readiness",
+    "io_safe_port_choice",
+    "io_semantic_coverage_ratio",
+    "learning_delta_score",
+    "learning_overlap_score",
+    "learning_stability_index",
+    "learning_union_size",
+    "resource_context_actuation_readiness",
+    "resource_context_proposal"
+  ],
+  "reasoning_frontiers": [
+    "learning_novelty_ratio",
+    "learning_retention_ratio"
+  ],
+  "schema": "aurum-native-frontier-convergence-v0",
+  "split_on_bottleneck": true
+}
