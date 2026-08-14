@@ -34,14 +34,41 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         program = compile_native(("before", "after"), result.expression)
         self.assertEqual(execute_native(program, {"before": "a c", "after": "a c d"}), 2)
 
-    def test_synthesizes_retention_ratio_from_examples(self):
-        examples = (
+    def test_retention_reuses_previously_verified_capabilities(self):
+        overlap_examples = (
+            NativeExample({"before": "a b", "after": "a b c"}, 2),
+            NativeExample({"before": "field slush", "after": "field aurum"}, 1),
+            NativeExample({"before": "x", "after": "y"}, 0),
+        )
+        union_examples = (
+            NativeExample({"before": "a b", "after": "a b c"}, 3),
+            NativeExample({"before": "field slush", "after": "field aurum"}, 3),
+            NativeExample({"before": "x", "after": "x"}, 1),
+        )
+        overlap = synthesize_native_expression(("before", "after"), overlap_examples, max_cost=8)
+        union = synthesize_native_expression(("before", "after"), union_examples, max_cost=8)
+        self.assertTrue(overlap.found)
+        self.assertTrue(union.found)
+
+        retention_examples = (
             NativeExample({"before": "a b", "after": "a b c"}, 2 / 3),
             NativeExample({"before": "field slush", "after": "field"}, 1 / 2),
             NativeExample({"before": "", "after": ""}, 0),
         )
-        result = synthesize_native_expression(("before", "after"), examples, max_cost=12)
+        result = synthesize_native_expression(
+            ("before", "after"),
+            retention_examples,
+            max_cost=4,
+            seed_expressions={
+                "learning_overlap_score": overlap.expression,
+                "learning_union_size": union.expression,
+            },
+        )
         self.assertTrue(result.found)
+        self.assertEqual(
+            set(result.seed_expressions_considered),
+            {"learning_overlap_score", "learning_union_size"},
+        )
         program = compile_native(("before", "after"), result.expression)
         self.assertEqual(execute_native(program, {"before": "x y", "after": "x y z"}), 2 / 3)
 
