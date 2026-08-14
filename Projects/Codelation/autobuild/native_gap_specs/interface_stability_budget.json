@@ -1,0 +1,23 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_stability_budget",
+  "parameters": ["candidate", "fixed", "pinned", "accessibility"],
+  "examples": [
+    {"arguments": {"candidate": "dock sidebar workspace wallpaper", "fixed": "dock", "pinned": "sidebar", "accessibility": ""}, "expected": "wallpaper workspace"},
+    {"arguments": {"candidate": "dock sidebar workspace", "fixed": "dock search", "pinned": "", "accessibility": "sidebar high-contrast"}, "expected": "workspace"},
+    {"arguments": {"candidate": "home back search panel", "fixed": "home back search", "pinned": "", "accessibility": ""}, "expected": "panel"},
+    {"arguments": {"candidate": "", "fixed": "home", "pinned": "", "accessibility": ""}, "expected": ""}
+  ],
+  "invocation_arguments": {"candidate": "home dock sidebar workspace wallpaper", "fixed": "home dock", "pinned": "sidebar", "accessibility": ""},
+  "next_gap": "interface_adaptation_proposal",
+  "purpose": "Return only interface regions eligible to change after removing fixed human landmarks, user-pinned regions, and accessibility-protected regions. Protected tokens need not be present in the candidate set and must never be introduced by filtering.",
+  "principles": [
+    "human landmarks are stable by default",
+    "user pins override adaptation",
+    "accessibility constraints are preserved",
+    "filtering is simulation-only and does not mutate the shell",
+    "output is canonical and order-independent"
+  ],
+  "constraints": ["pure", "deterministic", "simulation-only", "no-interface-actuation", "safe-layout-preserved", "user-override-preserved"],
+  "max_synthesis_cost": 16
+}
