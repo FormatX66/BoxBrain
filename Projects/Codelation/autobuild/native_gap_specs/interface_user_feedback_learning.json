@@ -1,0 +1,23 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_user_feedback_learning",
+  "parameters": ["accepted", "reverted", "pinned", "ignored", "disabled"],
+  "examples": [
+    {"arguments": {"accepted": "workspace", "reverted": "", "pinned": "dock", "ignored": "", "disabled": ""}, "expected": "prefer=dock workspace;avoid=none;lock=dock;neutral=none"},
+    {"arguments": {"accepted": "social-panel", "reverted": "social-panel", "pinned": "", "ignored": "music", "disabled": ""}, "expected": "prefer=none;avoid=social-panel;lock=none;neutral=music"},
+    {"arguments": {"accepted": "sidebar", "reverted": "", "pinned": "sidebar", "ignored": "", "disabled": "sidebar"}, "expected": "prefer=none;avoid=sidebar;lock=none;neutral=none"},
+    {"arguments": {"accepted": "terminal workspace", "reverted": "", "pinned": "terminal", "ignored": "tips", "disabled": ""}, "expected": "prefer=terminal workspace;avoid=none;lock=terminal;neutral=tips"}
+  ],
+  "invocation_arguments": {"accepted": "workspace terminal", "reverted": "", "pinned": "terminal", "ignored": "tips", "disabled": ""},
+  "next_gap": "resource_context_proposal",
+  "purpose": "Project bounded interaction feedback into local preference evidence. Disabled or reverted items become avoid evidence, non-disabled pins become lock evidence, accepted/pinned items not avoided become prefer evidence, and ignored items not otherwise classified remain neutral. The result is local evidence only, not a user-trait inference or automatic shell change.",
+  "principles": [
+    "explicit disable and revert outweigh inferred preference",
+    "pins are explicit stability evidence unless disabled",
+    "ignored is neutral rather than negative",
+    "preference evidence stays local and bounded to observed interface items",
+    "feedback learning does not actuate the interface"
+  ],
+  "constraints": ["pure", "deterministic", "local-learning-only", "no-interface-actuation", "no-sensitive-trait-inference", "user-override-authoritative"],
+  "max_synthesis_cost": 16
+}
