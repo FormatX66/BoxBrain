@@ -1,8 +1,28 @@
 {
-  "blocked_reason": "semantic-spec-missing",
+  "blocked_reason": "native-synthesis-not-found",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 5,
-  "failed_attempt": null,
+  "completed_generations": 6,
+  "failed_attempt": {
+    "attempted_generation": 7,
+    "gap": "io_semantic_coverage_ratio",
+    "synthesis": {
+      "candidates_evaluated": 374,
+      "cost": null,
+      "expression": null,
+      "found": false,
+      "proof_identity": "6489526195c8bb6fecec8e40329bea0a132f9d3b945d2fe070f19b2c189cfc77",
+      "seed_expressions_considered": [
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "signatures_retained": 45
+    },
+    "verified": false
+  },
   "generations": [
     {
       "artifact_identity": "0609f8869c607742e751b2cd7f5721297f021e7ce42bd560893f0fc511ee8cea",
@@ -152,13 +172,49 @@
       "synthesis_cost": 5,
       "synthesis_proof_identity": "8f7a26e34a15b095a315d89142f2959acb768953efc9349700153b3d8768e746",
       "verification_identity": "d3f926194cccb20319f0ebec3c869be4e7c5fff163fa9a52e44534d778280701"
+    },
+    {
+      "artifact_identity": "fe912cd0c8488f4bea094ecb105ba98c65502e539c562a5277fa20f1deff7e68",
+      "candidates_evaluated": 7659,
+      "carrier_field_id": "27aae0f6a0f6db88e909f4e8953e1c3df18346e8f70695ab9c120fc2b96dc8ed",
+      "carrier_sha256": "6a5c18b101223f3cdcc6f6c3727beb2c8282fcf16808726ec5327f7e6cf0abd9",
+      "filesystem_build_used": false,
+      "gap": "learning_stability_index",
+      "generation": 6,
+      "invocation_output": 0.6666666666666666,
+      "local_variant_identity": "a50dc36f7ba0a4734e49ce85fba318291003f57694faa39cac98dfe4ee3dfcad",
+      "model_reasoning_used": false,
+      "next_gap": "io_semantic_coverage_ratio",
+      "promotion_performed": false,
+      "reusable_native_capabilities_after_build": [
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "seed_expressions_considered": [
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_union_size"
+      ],
+      "signatures_retained": 1175,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "synthesis_cost": 9,
+      "synthesis_proof_identity": "137de2d41fec1a85f6cd7df7a8d9d2949ac11008596e48e14b7705087e200851",
+      "verification_identity": "3c99af8572fb1b230d2e647c96a5686866fc47abc8306a7108a9e47db3375a77"
     }
   ],
-  "latest_completed_gap": "learning_novelty_ratio",
-  "next_gap": "learning_stability_index",
+  "latest_completed_gap": "learning_stability_index",
+  "next_gap": "io_semantic_coverage_ratio",
   "reasoning_request": {
-    "gap": "learning_stability_index",
-    "reason": "semantic-spec-missing",
+    "gap": "io_semantic_coverage_ratio",
+    "reason": "native-synthesis-not-found",
     "required_output": "semantic contract plus bounded input-output examples or a bounded builder-learning proposal; do not provide a promoted implementation",
     "shared_implementation": false
   },
@@ -168,6 +224,7 @@
     "learning_novelty_ratio",
     "learning_overlap_score",
     "learning_retention_ratio",
+    "learning_stability_index",
     "learning_union_size"
   ],
   "schema": "aurum-native-autonomous-chain-v2",
