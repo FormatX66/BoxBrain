@@ -9,7 +9,7 @@ from builder_capability_catalog import find_builder_capability_candidates
 from field_native_vm import NativeExample
 
 
-DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v6"
+DIAGNOSIS_REVISION = "aurum-native-failure-diagnosis-v7"
 
 
 @dataclass(frozen=True)
@@ -100,15 +100,30 @@ def diagnose_native_synthesis_failure(parameters: Sequence[str], examples: Seque
     categories:set[str]=set(); observations:set[str]=set(); learning:set[str]=set()
 
     if target_type=="text":
-        nonempty=[str(v) for v in expected if str(v)]
-        if nonempty and any(str(v)=="" for v in expected): categories.add("conditional-empty-or-choice"); observations.add("examples require both an empty result and a non-empty text result"); learning.add("deterministic-conditional-selection")
-        if all(_labeled_projection_matches(parameters,e) for e in examples):
+        labeled = all(_labeled_projection_matches(parameters,e) for e in examples)
+        required_conditions = _required_condition_pattern(parameters,examples)
+        thresholded = _thresholded_unique_best_pattern(parameters,examples)
+        protected = _protected_set_difference_pattern(parameters,examples)
+        reversible = _reversible_delta_pattern(parameters,examples)
+        specific_pattern = labeled or required_conditions or thresholded or protected or reversible
+
+        if labeled:
             categories.add("labeled-parameter-projection"); observations.add("expected text is a stable parameter-labeled projection in declared parameter order"); learning.add("deterministic-labeled-text-projection")
             if any(any(not str(e.arguments.get(n) or "") for n in parameters) for e in examples): categories.add("explicit-empty-normalization"); observations.add("empty values are represented explicitly as 'none'"); learning.add("empty-value-normalization")
-        if _required_condition_pattern(parameters,examples): categories.add("ordered-required-condition-classification"); observations.add("one baseline success state is preserved while each single failed condition maps to its explicit blocked reason"); learning.update({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"})
-        if _thresholded_unique_best_pattern(parameters,examples): categories.add("thresholded-unique-best-selection"); observations.add("examples choose one unique highest score only above threshold and otherwise use one stable fallback"); learning.update({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"})
-        if _protected_set_difference_pattern(parameters,examples): categories.add("multi-source-protected-set-difference"); observations.add("expected tokens are exactly candidate tokens minus the union of every protected input, with canonical ordering"); learning.update({"multi-source-protected-set-difference","deterministic-token-canonicalization","constraint-preserving-filter"})
-        if _reversible_delta_pattern(parameters,examples): categories.add("reversible-set-delta-projection"); observations.add("expected text preserves evidence and canonically represents target-current additions plus current-target removals"); learning.update({"reversible-set-delta","evidence-preserving-projection","deterministic-delta-canonicalization"})
+        if required_conditions:
+            categories.add("ordered-required-condition-classification"); observations.add("one baseline success state is preserved while each single failed condition maps to its explicit blocked reason"); learning.update({"ordered-required-condition-classification","explicit-failure-reason-projection","fail-closed-condition-classification"})
+        if thresholded:
+            categories.add("thresholded-unique-best-selection"); observations.add("examples choose one unique highest score only above threshold and otherwise use one stable fallback"); learning.update({"numeric-threshold-comparison","unique-maximum-selection","deterministic-fallback-selection"})
+        if protected:
+            categories.add("multi-source-protected-set-difference"); observations.add("expected tokens are exactly candidate tokens minus the union of every protected input, with canonical ordering"); learning.update({"multi-source-protected-set-difference","deterministic-token-canonicalization","constraint-preserving-filter"})
+        if reversible:
+            categories.add("reversible-set-delta-projection"); observations.add("expected text preserves evidence and canonically represents target-current additions plus current-target removals"); learning.update({"reversible-set-delta","evidence-preserving-projection","deterministic-delta-canonicalization"})
+
+        # Generic symptoms are useful only when no stronger semantic pattern explains them.
+        nonempty=[str(v) for v in expected if str(v)]
+        if not specific_pattern and nonempty and any(str(v)=="" for v in expected):
+            categories.add("conditional-empty-or-choice"); observations.add("examples require both an empty result and a non-empty text result"); learning.add("deterministic-conditional-selection")
+
         drawn_from={n:0 for n in parameters}
         for e in examples:
             wanted=str(e.expected)
@@ -116,8 +131,8 @@ def diagnose_native_synthesis_failure(parameters: Sequence[str], examples: Seque
             for n in parameters:
                 if wanted in _tokens(e.arguments.get(n)): drawn_from[n]+=1
         for n,count in sorted(drawn_from.items()):
-            if nonempty and count==len(nonempty): categories.add("select-token-from-input"); observations.add(f"every non-empty expected result is a token drawn from input '{n}'"); learning.add("bounded-token-selection")
-        if "required" in parameters:
+            if not specific_pattern and nonempty and count==len(nonempty): categories.add("select-token-from-input"); observations.add(f"every non-empty expected result is a token drawn from input '{n}'"); learning.add("bounded-token-selection")
+        if not specific_pattern and "required" in parameters:
             required_vocab=set().union(*(_tokens(e.arguments.get("required")) for e in examples)); output_vocab=set(nonempty)
             carrier_params=[n for n in parameters if n!="required" and output_vocab and all((not str(e.expected)) or str(e.expected) in _tokens(e.arguments.get(n)) for e in examples)]
             if carrier_params and output_vocab.isdisjoint(required_vocab): categories.add("cross-vocabulary-fact-binding"); observations.add("requested semantic tokens and selected identifier tokens occupy different vocabularies"); learning.add("declarative-fact-binding")
