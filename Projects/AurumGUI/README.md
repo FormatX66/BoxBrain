@@ -1,6 +1,6 @@
 # Aurum GUI v0.01
 
-Aurum GUI is the local-first human interface for the Aurum system. It is deliberately not a conventional desktop shell yet: the primary surface is the Aurum semantic/LLM interface, with verified machine state surrounding it.
+Aurum GUI is the local-first human interface for the Aurum system. The primary surface is the Aurum semantic/LLM interface, with verified machine state surrounding it.
 
 ## Design rules
 
@@ -10,6 +10,17 @@ Aurum GUI is the local-first human interface for the Aurum system. It is deliber
 - Model output is advisory. The GUI does not claim machine actions without independent evidence.
 - The server binds to `127.0.0.1` by default. LAN exposure requires an explicit `--host 0.0.0.0` or `AURUM_GUI_HOST` setting.
 - No third-party Python web framework is required for the bootstrap GUI.
+- Familiarity comes before novelty: Aurum can begin with Aurum-native, Windows-like, macOS-like, or touch-oriented interaction patterns.
+- Adaptation is gradual and reversible. Automatic learning must accumulate evidence before rearranging navigation, and the user can lock a profile or reset learned state at any time.
+- Familiar profiles reproduce broad interaction conventions only; they are not pixel-for-pixel copies of another operating system.
+
+## Adaptive interface v0
+
+`static/adaptive.js` maintains a small local preference state and chooses a familiarity profile in `Auto learn` mode from observed platform/touch evidence. Explicit profile selection locks the presentation until the user returns to automatic mode.
+
+The first learned morph is deliberately conservative: after enough navigation use, Aurum reorders secondary lenses by demonstrated frequency while keeping `Overview` anchored. This is the initial mechanism for allowing the interface to change with the user without constantly moving controls.
+
+The bootstrap preference state currently lives in browser-local storage (`aurum.ui.adaptation.v0`). The next persistence front is to promote verified preference evidence into Aurum semantic memory so the same user profile can follow the user across local Aurum nodes and displays.
 
 ## Run
 
@@ -39,4 +50,5 @@ python3 Projects/AurumGUI/server.py
 2. Launch the interface automatically in a kiosk/fullscreen browser for local display while keeping the same HTTP surface for remote LAN access.
 3. Feed adaptive-kernel machine contracts and generated device capability state into `/api/status`.
 4. Add verified tool/event cards to the conversation instead of representing actions as plain model text.
-5. Replace fixed navigation lenses with capability-driven views generated from current Aurum state.
+5. Promote adaptive GUI preference evidence from browser-local state into Aurum semantic user memory.
+6. Let capability-driven surfaces appear, merge, resize, and disappear according to current task and learned user behavior.
