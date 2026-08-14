@@ -24,22 +24,26 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
-# Ubuntu 24.04 currently ships an older live-build. Avoid its two obsolete
-# Debian autodiscovery paths: disable the retired bookworm/updates security
-# stanza and explicitly select linux-image-amd64 rather than downloading a
-# legacy Contents-amd64.gz index to infer the kernel flavour.
+# Build against Debian Bookworm's own live-build implementation. The CI runs
+# this recipe inside a Debian Bookworm container so the live-build, bootloader,
+# debootstrap, and target distribution contracts stay aligned.
 lb config \
   --mode debian \
   --distribution bookworm \
-  --architectures amd64 \
-  --binary-images iso-hybrid \
+  --architecture amd64 \
+  --binary-image iso-hybrid \
   --system live \
   --debian-installer none \
   --archive-areas main \
   --apt-recommends false \
-  --security false \
+  --apt-source-archives false \
+  --security true \
+  --updates true \
   --linux-packages "linux-image" \
   --linux-flavours "amd64" \
+  --bootloaders "syslinux grub-efi" \
+  --uefi-secure-boot disable \
+  --checksums sha256 \
   --memtest none \
   --bootappend-live "boot=live components quiet console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
@@ -55,8 +59,6 @@ iproute2
 pciutils
 usbutils
 ca-certificates
-grub-pc-bin
-grub-efi-amd64-bin
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
