@@ -374,7 +374,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "bd72673c35c683c6ff9fca6609f3307a9f6dd3cabad2484b5f4e7f123bcf83e9"
+      "verification_identity": "4da92236ecf5102fdcb292f8a1195c6d943e141cddbf5594a48723ed11bd01e0"
     },
     {
       "authority_granted": false,
@@ -419,12 +419,12 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "12da97dde6dd753e824e4ef7875eb273987577a69ddcf87ac81b3049fe6f3bca"
+      "verification_identity": "dbeb0c71faff367554d9588c1723da21ce30ed455490aa7db2b9991f8ec9584a"
     }
   ],
   "internal_next_action": null,
   "latest_completed_gap": "interface_human_state_projection",
-  "local_verification_revision": "aurum-local-capability-verification-v1",
+  "local_verification_revision": "aurum-local-capability-verification-v2",
   "next_gap": "io_binding_readiness",
   "reasoning_request": {
     "builder_learning": [],
