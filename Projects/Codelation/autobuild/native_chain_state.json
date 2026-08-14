@@ -175,7 +175,7 @@
   "synthesis_revision": "aurum-native-synthesis-v2",
   "timer_dependency": false,
   "workflow_verification": {
-    "outcome": "failure",
-    "trusted_for_continuation": false
+    "outcome": "success",
+    "trusted_for_continuation": true
   }
 }
