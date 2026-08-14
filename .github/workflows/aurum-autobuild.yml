@@ -15,6 +15,7 @@ on:
       - 'Projects/Codelation/field/native_failure_diagnosis.py'
       - 'Projects/Codelation/field/builder_capability_catalog.py'
       - 'Projects/Codelation/field/local_capability_verification.py'
+      - 'Projects/Codelation/field/external_prerequisite_evidence.py'
       - 'Projects/Codelation/field/structured_projection.py'
       - 'Projects/Codelation/field/constraint_classification.py'
       - 'Projects/Codelation/field/score_selection.py'
@@ -25,6 +26,7 @@ on:
       - 'Projects/Codelation/field/io_fabric.py'
       - 'Projects/Codelation/field/native_gap_catalog.py'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
+      - 'Projects/Codelation/autobuild/external_evidence/**'
       - 'Projects/Codelation/tests/test_native_program_synthesis.py'
       - 'Projects/Codelation/tests/test_local_capability_verification.py'
 
@@ -95,7 +97,7 @@ jobs:
           p=Path('Projects/Codelation/autobuild/native_chain_state.json')
           if not p.is_file(): print('native_chain_state=missing'); raise SystemExit(0)
           s=json.loads(p.read_text())
-          for k in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'): print(f'{k}=',s.get(k))
+          for k in ('completed_generations','latest_completed_gap','next_gap','blocked_reason','blocked_output','external_evidence','self_debug_revision','local_verification_revision','internal_next_action','reasoning_required','workflow_verification'): print(f'{k}=',s.get(k))
           PY
       - name: Fail closed on verification failure
         if: steps.verify.outcome != 'success'
