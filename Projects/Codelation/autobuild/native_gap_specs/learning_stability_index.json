@@ -1,0 +1,21 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "learning_stability_index",
+  "parameters": ["before", "after"],
+  "examples": [
+    {"arguments": {"before": "a b", "after": "a b c"}, "expected": 1.0},
+    {"arguments": {"before": "a b", "after": "a c"}, "expected": 0.5},
+    {"arguments": {"before": "field slush aurum", "after": "field aurum"}, "expected": 0.6666666666666666},
+    {"arguments": {"before": "", "after": "x"}, "expected": 0.0}
+  ],
+  "invocation_arguments": {"before": "field slush aurum", "after": "field aurum"},
+  "next_gap": "io_semantic_coverage_ratio",
+  "purpose": "Measure how much of previously learned unique meaning remains present in the next observation, normalized by the prior observation. This is a semantic stability measure, not an implementation identity check.",
+  "principles": [
+    "stability means retained prior meaning rather than unchanged implementation",
+    "duplicate tokens do not increase stability",
+    "empty prior meaning has zero stability"
+  ],
+  "constraints": ["pure", "deterministic", "no-io", "no-host-authority", "shared-learning-not-shared-implementation"],
+  "max_synthesis_cost": 12
+}
