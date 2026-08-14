@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-CATALOG_REVISION = "aurum-builder-capability-catalog-v2"
+CATALOG_REVISION = "aurum-builder-capability-catalog-v3"
 
 
 @dataclass(frozen=True)
@@ -31,12 +31,6 @@ class BuilderCapabilityCandidate:
 
 
 def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
-    """Describe reusable local builder substrate without invoking it.
-
-    Discovery is inventory-only. A descriptor may name a bounded verification adapter,
-    but discovery itself never routes work, executes a callable, grants permission,
-    verifies an artifact, or promotes a capability.
-    """
     pure = frozenset({"pure-decision", "deterministic", "no-host-authority"})
     return (
         BuilderCapabilityDescriptor(
@@ -71,6 +65,21 @@ def default_builder_capabilities() -> tuple[BuilderCapabilityDescriptor, ...]:
             constraints=pure | frozenset({"view-only", "field-remains-authoritative"}),
             authority="none",
             verification_adapter="labeled-text-projection-v0",
+        ),
+        BuilderCapabilityDescriptor(
+            name="required-condition-classifier",
+            module="constraint_classification",
+            callable_name="classify_required_conditions",
+            provides=frozenset(
+                {
+                    "ordered-required-condition-classification",
+                    "explicit-failure-reason-projection",
+                    "fail-closed-condition-classification",
+                }
+            ),
+            constraints=pure | frozenset({"classification-only", "no-implicit-authority"}),
+            authority="none",
+            verification_adapter="required-condition-classification-v0",
         ),
     )
 
