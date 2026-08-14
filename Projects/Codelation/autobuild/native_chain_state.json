@@ -376,7 +376,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "53b543210d82ba9d2646f3a9800f6d6c0576936aa8949a83ececcde89e7d4467"
+      "verification_identity": "a38872442e29841172187abb6d3e9997718f9e7632ef8ac4a0be49b61b7fd4b9"
     },
     {
       "authority_granted": false,
@@ -421,7 +421,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "c676241193821af8bab9503503aaa31a4bfdabda2c8d4e25c44da9a92309ff50"
+      "verification_identity": "234ae3ab2fc5240c62b3aa8706fe759cb03e6217ba310c1e78cd7d07d6cf847c"
     },
     {
       "authority_granted": false,
@@ -467,7 +467,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "32a867aed5f3c47936b2202c40be95671551233baa02f52cb4d8d1b88fa060a4"
+      "verification_identity": "43cd2e08fefe1e3714c0159c65177bea28370beabb21ec93905e7df54e5b4085"
     },
     {
       "artifact_identity": "24929b7e58bf408465cd75af10ba9535fc7bc5fb65d8db85778ffa887bcfa889",
@@ -622,7 +622,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "a0b84d312a9c7e855b2844232c60fcf6015775ed5a45e784d64f0f419a2d5ec8"
+      "verification_identity": "043955c55c3cf5c2cd096c8df480b541b1109633ab02fda06d4b0ede022d8e1a"
     },
     {
       "authority_granted": false,
@@ -672,7 +672,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "15b1a3b75e291100d17f386c25e71579675c367f75bcefd7b2712e6cf9f42178"
+      "verification_identity": "362ea70a45d33d96acbb826dddbb64d0a2842a12f145539f98c7fa6217b780ad"
     },
     {
       "authority_granted": false,
@@ -723,7 +723,7 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "918e1f031ff7ef6ec80b8bfa00a6a76b26ad45f59b189b47471d2e10985c461f"
+      "verification_identity": "143453383cdb8998abbed39e759b0fd9df5525274f7f25d9c3d36623dc0c961a"
     },
     {
       "authority_granted": false,
@@ -775,12 +775,12 @@
       "source_generation_used": false,
       "state": "verified",
       "subprocess_test_used": false,
-      "verification_identity": "910abcafb0214f1464415f749a1df3a996a449c034798f127a95e3b7d68140c9"
+      "verification_identity": "c9d79035496e337a9609918e3528a5feaeee8e0b887574d8d466e16e33f1e264"
     }
   ],
   "internal_next_action": null,
   "latest_completed_gap": "interface_user_feedback_learning",
-  "local_verification_revision": "aurum-local-capability-verification-v6",
+  "local_verification_revision": "aurum-local-capability-verification-v7",
   "next_gap": "resource_context_proposal",
   "reasoning_request": {
     "builder_learning": [],
