@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "interface_human_state_projection",
+  "parameters": ["selected", "blocked", "missing"],
+  "examples": [
+    {"arguments": {"selected": "text-dialogue", "blocked": "", "missing": ""}, "expected": "selected=text-dialogue;blocked=none;missing=none"},
+    {"arguments": {"selected": "display-output", "blocked": "camera-input", "missing": "audio-observation"}, "expected": "selected=display-output;blocked=camera-input;missing=audio-observation"},
+    {"arguments": {"selected": "", "blocked": "display-output", "missing": "visual-output"}, "expected": "selected=none;blocked=display-output;missing=visual-output"}
+  ],
+  "invocation_arguments": {"selected": "text-dialogue", "blocked": "display-output", "missing": "visual-output"},
+  "next_gap": "io_binding_readiness",
+  "purpose": "Produce a compact deterministic human-readable projection of an I/O decision while preserving selected, blocked, and missing states as distinct meanings. The projection is a view only; it is not authoritative machine state.",
+  "principles": [
+    "human-readable interface is a projection of Field state",
+    "blocked and missing are different states and must remain distinguishable",
+    "empty categories are shown explicitly rather than omitted"
+  ],
+  "constraints": ["pure", "deterministic", "view-only", "no-live-io", "no-host-authority", "field-remains-authoritative"],
+  "max_synthesis_cost": 16
+}
