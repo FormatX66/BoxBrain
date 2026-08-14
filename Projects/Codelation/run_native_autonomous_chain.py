@@ -41,6 +41,22 @@ def _complete_local_candidates(diagnosis: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(names))
 
 
+def _is_external_prerequisite_block(spec: Any, invocation_output: Any) -> bool:
+    """Stop at verified fail-closed classification boundaries without inventing work.
+
+    A blocked classification is evidence that the next action is not currently
+    authorized/possible. It must not be treated as permission to advance into a
+    live or otherwise unavailable semantic gap.
+    """
+    constraints = set(getattr(spec, "constraints", ()) or ())
+    return (
+        isinstance(invocation_output, str)
+        and invocation_output.startswith("blocked-")
+        and "classification-only" in constraints
+        and "fail-closed" in constraints
+    )
+
+
 def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int = 24) -> dict:
     current = start_gap
     completed: list[dict] = []
@@ -91,6 +107,7 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
             # against the unchanged semantic contract before escalating or stopping.
             if self_debug.internal_next_action == "verify-existing-local-capability":
                 local_failures: list[dict[str, Any]] = []
+                external_prerequisite_blocked = False
                 for capability_name in _complete_local_candidates(asdict(diagnosis)):
                     try:
                         local = verify_local_capability_for_gap(spec, capability_name)
@@ -145,9 +162,16 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                             "reusable_local_capabilities_after_build": sorted(verified_local_capabilities),
                         }
                     )
-                    current = spec.next_gap
                     failed_attempt = None
-                    blocked_reason = None
+                    if _is_external_prerequisite_block(spec, local.invocation_output):
+                        # Keep current on the blocked classifier. A later event may retry
+                        # after external evidence changes, but this event does not invent
+                        # a successor implementation or treat absence as model work.
+                        blocked_reason = "external-prerequisite-blocked"
+                        external_prerequisite_blocked = True
+                    else:
+                        current = spec.next_gap
+                        blocked_reason = None
                     break
                 else:
                     blocked_reason = "local-capability-verification-failed"
@@ -160,6 +184,9 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
                         "local_verification_failures": local_failures,
                         "verified": False,
                     }
+                    break
+
+                if external_prerequisite_blocked:
                     break
 
                 # A local capability was verified and the gap advanced; continue in
@@ -272,6 +299,11 @@ def run_chain(start_gap: str = "learning_delta_score", *, max_generations: int =
         "latest_completed_gap": completed[-1]["gap"] if completed else None,
         "next_gap": current,
         "blocked_reason": blocked_reason,
+        "blocked_output": (
+            completed[-1].get("invocation_output")
+            if blocked_reason == "external-prerequisite-blocked" and completed
+            else None
+        ),
         "failed_attempt": failed_attempt,
         "reusable_native_capabilities": sorted(learned_expressions),
         "reusable_local_capabilities": sorted(verified_local_capabilities),
