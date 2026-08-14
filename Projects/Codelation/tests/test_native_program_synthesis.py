@@ -72,6 +72,18 @@ class NativeProgramSynthesisTests(unittest.TestCase):
         program = compile_native(("before", "after"), result.expression)
         self.assertEqual(execute_native(program, {"before": "x y", "after": "x y z"}), 2 / 3)
 
+    def test_numeric_identity_matches_runtime_int_float_equality(self):
+        examples = (
+            NativeExample({"left": 1, "right": 2}, 0.5),
+            NativeExample({"left": 0, "right": 0}, 0.0),
+            NativeExample({"left": 2, "right": 2}, 1.0),
+        )
+        result = synthesize_native_expression(("left", "right"), examples, max_cost=3)
+        self.assertTrue(result.found)
+        program = compile_native(("left", "right"), result.expression)
+        self.assertEqual(execute_native(program, {"left": 0, "right": 0}), 0.0)
+        self.assertEqual(execute_native(program, {"left": 3, "right": 4}), 0.75)
+
     def test_not_found_is_bounded_and_explicit(self):
         examples = (
             NativeExample({"text": "a"}, 99),
