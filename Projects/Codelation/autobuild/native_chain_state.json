@@ -13,12 +13,31 @@
       "categories": [
         "conditional-empty-or-choice",
         "cross-vocabulary-fact-binding",
+        "local-capability-candidate-covers-builder-learning",
         "select-token-from-input"
       ],
-      "diagnosis_identity": "f0ee92ae5258b5bedf9b8be1020ddb829dc5741591feef858ae6b45153575c7b",
+      "diagnosis_identity": "7b4d0dd9b6930d379e667e53df573cf649fd3093db57141c368a3937f0b7147e",
+      "local_capability_candidates": [
+        {
+          "authority": "none",
+          "callable": "plan_io",
+          "coverage": 1.0,
+          "executed": false,
+          "matched": [
+            "bounded-token-selection",
+            "declarative-fact-binding",
+            "deterministic-conditional-selection"
+          ],
+          "missing": [],
+          "module": "io_fabric",
+          "name": "io-plan",
+          "routed": false
+        }
+      ],
       "observations": [
         "every non-empty expected result is a token drawn from input 'available'",
         "examples require both an empty result and a non-empty text result",
+        "local capability candidate 'io-plan' covers all diagnosed builder-learning requirements but has not been routed or executed",
         "requested semantic tokens and selected identifier tokens occupy different vocabularies"
       ],
       "target_type": "text"
