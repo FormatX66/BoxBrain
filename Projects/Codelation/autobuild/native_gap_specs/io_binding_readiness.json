@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "io_binding_readiness",
+  "parameters": ["semantic_fit", "carrier_present", "permission_present"],
+  "examples": [
+    {"arguments": {"semantic_fit": "yes", "carrier_present": "yes", "permission_present": "yes"}, "expected": "ready"},
+    {"arguments": {"semantic_fit": "yes", "carrier_present": "no", "permission_present": "yes"}, "expected": "blocked-carrier"},
+    {"arguments": {"semantic_fit": "yes", "carrier_present": "yes", "permission_present": "no"}, "expected": "blocked-permission"},
+    {"arguments": {"semantic_fit": "no", "carrier_present": "yes", "permission_present": "yes"}, "expected": "blocked-semantic-fit"}
+  ],
+  "invocation_arguments": {"semantic_fit": "yes", "carrier_present": "yes", "permission_present": "yes"},
+  "next_gap": "interface_roundtrip_observation",
+  "purpose": "Classify whether an abstract I/O capability is ready to bind to an observed carrier. Readiness requires semantic fit, observed carrier presence, and explicit permission evidence. This capability classifies evidence only and never performs the binding itself.",
+  "principles": [
+    "carrier reachability is not semantic identity",
+    "permission evidence is independent from carrier presence",
+    "classification does not grant authority",
+    "fail closed and preserve the reason for non-readiness"
+  ],
+  "constraints": ["pure", "deterministic", "classification-only", "no-live-io", "no-host-authority", "no-implicit-permission-grant"],
+  "max_synthesis_cost": 16
+}
