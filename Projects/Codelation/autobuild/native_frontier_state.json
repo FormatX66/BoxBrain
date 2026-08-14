@@ -1,7 +1,103 @@
 {
-  "checkpoint_count": 20,
-  "converged_native_expression_count": 9,
+  "checkpoint_count": 30,
+  "converged_native_expression_count": 19,
   "converged_native_expressions": {
+    "capability_coverage_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "required",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "capability_delta_score": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "symmetric_difference",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "capability_stability_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
     "interface_context_mode_confidence": {
       "left": {
         "op": "length",
@@ -45,6 +141,49 @@
         }
       }
     },
+    "interface_feedback_stability_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
     "interface_roundtrip_observation": {
       "left": {
         "op": "length",
@@ -82,6 +221,49 @@
             "op": "split",
             "value": {
               "name": "observed",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "io_observation_stability_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
               "op": "input"
             }
           }
@@ -299,6 +481,145 @@
           }
         }
       }
+    },
+    "memory_semantic_coverage_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "required",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "memory_semantic_delta_score": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "symmetric_difference",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "resource_context_coverage_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "required",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "resource_context_delta_score": {
+      "op": "length",
+      "value": {
+        "left": {
+          "op": "split",
+          "value": {
+            "name": "after",
+            "op": "input"
+          }
+        },
+        "op": "symmetric_difference",
+        "right": {
+          "op": "split",
+          "value": {
+            "name": "before",
+            "op": "input"
+          }
+        }
+      }
+    },
+    "transport_semantic_coverage_ratio": {
+      "left": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "observed",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "op": "safe_divide",
+      "right": {
+        "op": "length",
+        "value": {
+          "op": "split",
+          "value": {
+            "name": "required",
+            "op": "input"
+          }
+        }
+      }
     }
   },
   "convergence_required": true,
@@ -306,14 +627,19 @@
   "expected_frontiers": [
     "adaptive_shell_closed_loop",
     "adaptive_shell_live_trial_readiness",
+    "capability_coverage_ratio",
+    "capability_delta_score",
+    "capability_stability_ratio",
     "interface_adaptation_proposal",
     "interface_context_mode_confidence",
+    "interface_feedback_stability_ratio",
     "interface_human_state_projection",
     "interface_mode_selection",
     "interface_roundtrip_observation",
     "interface_stability_budget",
     "interface_user_feedback_learning",
     "io_binding_readiness",
+    "io_observation_stability_ratio",
     "io_safe_port_choice",
     "io_semantic_coverage_ratio",
     "learning_delta_score",
@@ -322,11 +648,16 @@
     "learning_retention_ratio",
     "learning_stability_index",
     "learning_union_size",
+    "memory_semantic_coverage_ratio",
+    "memory_semantic_delta_score",
     "resource_context_actuation_readiness",
-    "resource_context_proposal"
+    "resource_context_coverage_ratio",
+    "resource_context_delta_score",
+    "resource_context_proposal",
+    "transport_semantic_coverage_ratio"
   ],
   "expression_conflicts": [],
-  "frontier_count": 20,
+  "frontier_count": 30,
   "global_barrier": false,
   "initial_blocked_frontiers": [
     "adaptive_shell_live_trial_readiness"
@@ -352,6 +683,36 @@
       "reasoning_required": false,
       "status": "blocked"
     },
+    "capability_coverage_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "capability_coverage_ratio",
+      "next_gap": "capability_delta_score",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "capability_delta_score": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "capability_delta_score",
+      "next_gap": "capability_stability_ratio",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "capability_stability_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "capability_stability_ratio",
+      "next_gap": "learning_delta_score",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
     "interface_adaptation_proposal": {
       "blocked_output": null,
       "blocked_reason": "generation-bound-reached",
@@ -368,6 +729,16 @@
       "global_barrier": false,
       "latest_completed_gap": "interface_context_mode_confidence",
       "next_gap": "interface_mode_selection",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "interface_feedback_stability_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "interface_feedback_stability_ratio",
+      "next_gap": "interface_user_feedback_learning",
       "progress_made": true,
       "reasoning_required": false,
       "status": "progressed"
@@ -428,6 +799,16 @@
       "global_barrier": false,
       "latest_completed_gap": "io_binding_readiness",
       "next_gap": "interface_roundtrip_observation",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "io_observation_stability_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "io_observation_stability_ratio",
+      "next_gap": "io_semantic_coverage_ratio",
       "progress_made": true,
       "reasoning_required": false,
       "status": "progressed"
@@ -512,12 +893,52 @@
       "reasoning_required": false,
       "status": "progressed"
     },
+    "memory_semantic_coverage_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "memory_semantic_coverage_ratio",
+      "next_gap": "memory_semantic_delta_score",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "memory_semantic_delta_score": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "memory_semantic_delta_score",
+      "next_gap": "capability_coverage_ratio",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
     "resource_context_actuation_readiness": {
       "blocked_output": null,
       "blocked_reason": "generation-bound-reached",
       "global_barrier": false,
       "latest_completed_gap": "resource_context_actuation_readiness",
       "next_gap": "adaptive_shell_closed_loop",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "resource_context_coverage_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "resource_context_coverage_ratio",
+      "next_gap": "resource_context_delta_score",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
+    },
+    "resource_context_delta_score": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "resource_context_delta_score",
+      "next_gap": "resource_context_proposal",
       "progress_made": true,
       "reasoning_required": false,
       "status": "progressed"
@@ -531,20 +952,35 @@
       "progress_made": true,
       "reasoning_required": false,
       "status": "progressed"
+    },
+    "transport_semantic_coverage_ratio": {
+      "blocked_output": null,
+      "blocked_reason": "generation-bound-reached",
+      "global_barrier": false,
+      "latest_completed_gap": "transport_semantic_coverage_ratio",
+      "next_gap": "io_safe_port_choice",
+      "progress_made": true,
+      "reasoning_required": false,
+      "status": "progressed"
     }
   },
   "missing_frontier_states": [],
   "physical_block_is_local": true,
   "progressed_frontiers": [
     "adaptive_shell_closed_loop",
+    "capability_coverage_ratio",
+    "capability_delta_score",
+    "capability_stability_ratio",
     "interface_adaptation_proposal",
     "interface_context_mode_confidence",
+    "interface_feedback_stability_ratio",
     "interface_human_state_projection",
     "interface_mode_selection",
     "interface_roundtrip_observation",
     "interface_stability_budget",
     "interface_user_feedback_learning",
     "io_binding_readiness",
+    "io_observation_stability_ratio",
     "io_safe_port_choice",
     "io_semantic_coverage_ratio",
     "learning_delta_score",
@@ -553,8 +989,13 @@
     "learning_retention_ratio",
     "learning_stability_index",
     "learning_union_size",
+    "memory_semantic_coverage_ratio",
+    "memory_semantic_delta_score",
     "resource_context_actuation_readiness",
-    "resource_context_proposal"
+    "resource_context_coverage_ratio",
+    "resource_context_delta_score",
+    "resource_context_proposal",
+    "transport_semantic_coverage_ratio"
   ],
   "reasoning_frontiers": [],
   "remaining_blocked_frontiers": [
