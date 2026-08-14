@@ -37,6 +37,16 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         self.assertFalse(verification.authority_granted)
         self.assertFalse(verification.routed_to_host)
 
+    def test_required_condition_classifier_satisfies_binding_readiness_without_authority(self):
+        gap = get_native_semantic_gap("io_binding_readiness")
+        self.assertIsNotNone(gap)
+        verification = verify_local_capability_for_gap(gap, "required-condition-classifier")
+        self.assertTrue(verification.verified)
+        self.assertEqual(verification.passed, verification.examples)
+        self.assertEqual(verification.invocation_output, "ready")
+        self.assertFalse(verification.authority_granted)
+        self.assertFalse(verification.routed_to_host)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
