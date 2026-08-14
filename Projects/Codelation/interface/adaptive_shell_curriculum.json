@@ -1,0 +1,82 @@
+{
+  "schema": "aurum-adaptive-shell-curriculum-v0",
+  "purpose": "Teach Aurum to derive a user-adaptive shell without hand-coding specialized layouts or resource modes.",
+  "current_prerequisite_frontier": "io_semantic_coverage_ratio",
+  "do_not_trigger_until_prerequisites_exist": true,
+  "stages": [
+    {
+      "order": 1,
+      "gap": "interface_roundtrip_observation",
+      "goal": "Measure whether an interface action is observed back through an authorized carrier with expected semantic fidelity.",
+      "new_capability_class": "observation-and-fidelity",
+      "authority": "observation-only"
+    },
+    {
+      "order": 2,
+      "gap": "interface_context_mode_confidence",
+      "goal": "Estimate confidence that bounded operational evidence matches a known activity profile without making the mode decision itself.",
+      "new_capability_class": "context-inference",
+      "authority": "classification-only"
+    },
+    {
+      "order": 3,
+      "gap": "interface_mode_selection",
+      "goal": "Choose general, gaming, coding, research, or media-social from evidence while preferring general when confidence is insufficient or ambiguous.",
+      "new_capability_class": "conditional-selection",
+      "authority": "recommendation-only",
+      "expected_builder_growth": ["comparison", "conditional-choice", "bounded-constants"]
+    },
+    {
+      "order": 4,
+      "gap": "interface_stability_budget",
+      "goal": "Decide which interface regions may change while preserving fixed human landmarks, user pins, accessibility constraints, and Safe Layout.",
+      "new_capability_class": "constraint-preserving-layout",
+      "authority": "simulation-only"
+    },
+    {
+      "order": 5,
+      "gap": "interface_adaptation_proposal",
+      "goal": "Produce a reversible proposed delta from stable shell state to context-appropriate shell state and explain the evidence behind each change.",
+      "new_capability_class": "reversible-state-delta",
+      "authority": "proposal-only"
+    },
+    {
+      "order": 6,
+      "gap": "interface_user_feedback_learning",
+      "goal": "Turn accepted, reverted, modified, pinned, ignored and disabled adaptations into local preference evidence without inferring unnecessary sensitive traits.",
+      "new_capability_class": "preference-learning",
+      "authority": "local-learning-only"
+    },
+    {
+      "order": 7,
+      "gap": "resource_context_proposal",
+      "goal": "Recommend bounded resource changes for the inferred context while treating permission, thermal limits, critical services and rollback as independent constraints.",
+      "new_capability_class": "resource-policy-recommendation",
+      "authority": "proposal-only"
+    },
+    {
+      "order": 8,
+      "gap": "resource_context_actuation_readiness",
+      "goal": "Classify whether a proposed CPU, GPU, display, network or background-work adaptation has sufficient evidence, explicit authority, safe bounds and a rollback path.",
+      "new_capability_class": "actuation-readiness",
+      "authority": "classification-only"
+    },
+    {
+      "order": 9,
+      "gap": "adaptive_shell_closed_loop",
+      "goal": "Demonstrate observe -> infer -> propose -> simulate -> verify -> apply within authorized scope -> observe result -> learn -> retain/revert with a complete Proof View record.",
+      "new_capability_class": "closed-loop-human-interface-adaptation",
+      "authority": "bounded-by-existing-grants"
+    }
+  ],
+  "promotion_gates": [
+    "human-constants-preserved",
+    "safe-layout-recoverable",
+    "user-override-preserved",
+    "adaptation-reversible",
+    "evidence-and-confidence-visible",
+    "no-implicit-permission",
+    "no-security-or-privacy-reduction",
+    "proof-view-record-complete"
+  ]
+}
