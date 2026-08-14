@@ -24,10 +24,10 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
-# Ubuntu 24.04 currently ships an older live-build that still emits the retired
-# Debian security suite path "bookworm/updates". v0.01 is a disposable live
-# image, so disable only that legacy security stanza while retaining Bookworm
-# and bookworm-updates. This avoids accepting an invalid repository definition.
+# Ubuntu 24.04 currently ships an older live-build. Avoid its two obsolete
+# Debian autodiscovery paths: disable the retired bookworm/updates security
+# stanza and explicitly select linux-image-amd64 rather than downloading a
+# legacy Contents-amd64.gz index to infer the kernel flavour.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -38,6 +38,8 @@ lb config \
   --archive-areas main \
   --apt-recommends false \
   --security false \
+  --linux-packages "linux-image" \
+  --linux-flavours "amd64" \
   --memtest none \
   --bootappend-live "boot=live components quiet console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
@@ -46,7 +48,6 @@ lb config \
 
 mkdir -p config/package-lists
 cat > config/package-lists/aurum.list.chroot <<'EOF'
-linux-image-amd64
 live-boot
 systemd-sysv
 python3
