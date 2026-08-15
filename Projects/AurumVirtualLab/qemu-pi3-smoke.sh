@@ -36,32 +36,47 @@ sudo cp "$BOOT/kernel8.img" "$WORK/kernel8.img"
 sudo cp "$BOOT/bcm2710-rpi-3-b.dtb" "$WORK/bcm2710-rpi-3-b.dtb"
 sudo cp "$BOOT/cmdline.txt" "$WORK/cmdline.txt"
 sudo chown "$USER:$USER" "$WORK/kernel8.img" "$WORK/bcm2710-rpi-3-b.dtb" "$WORK/cmdline.txt"
-CMDLINE=$(tr -d '\r\n' < "$WORK/cmdline.txt")
+ORIGINAL_CMDLINE=$(tr -d '\r\n' < "$WORK/cmdline.txt")
 
 sudo umount "$BOOT"
 sudo umount "$ROOT"
 sudo losetup -d "$LOOP"
 LOOP=""
 
-# QEMU's SD model is happiest with a power-of-two card capacity. The scratch
-# image keeps the real Aurum partition table but pads only the virtual medium.
+# QEMU's SD model requires a power-of-two virtual card size. Keep the real
+# Aurum partitions byte-for-byte and pad only unused space at the end.
 cp --sparse=always "$RAW" "$WORK/aurum-pi3-qemu.img"
 truncate -s 4G "$WORK/aurum-pi3-qemu.img"
 
-# Direct-kernel boot keeps the actual Aurum root filesystem and Raspberry Pi 3
-# device tree while avoiding any mismatch between QEMU's firmware model and a
-# particular Raspberry Pi firmware release. Physical firmware boot remains a
-# separate real-hardware gate.
+# The Raspberry Pi OS cmdline uses PARTUUID and physical-Pi console aliases.
+# For QEMU's raspi3b direct-kernel path, make those two machine contracts
+# explicit while preserving every unrelated boot argument from the real image.
+CMDLINE=""
+for arg in $ORIGINAL_CMDLINE; do
+  case "$arg" in
+    root=*|rootwait|rootdelay=*|console=*) ;;
+    *) CMDLINE="$CMDLINE $arg" ;;
+  esac
+done
+CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 aurum.qemu=1"
+printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
+
+# This follows QEMU's Raspberry Pi 3 direct-kernel model: Cortex-A53, 1 GiB,
+# four cores, SD index 0, and ttyAMA1 on the emulated serial path. It boots the
+# actual Aurum microSD root filesystem. Raspberry Pi firmware compatibility is
+# deliberately still a separate physical-hardware gate.
 set +e
 timeout 180s qemu-system-aarch64 \
   -M raspi3b \
+  -cpu cortex-a53 \
+  -m 1G \
+  -smp 4 \
   -kernel "$WORK/kernel8.img" \
   -dtb "$WORK/bcm2710-rpi-3-b.dtb" \
-  -append "$CMDLINE console=ttyAMA0,115200 aurum.qemu=1" \
-  -drive file="$WORK/aurum-pi3-qemu.img",format=raw,if=sd \
-  -display none \
-  -serial stdio \
-  -monitor none \
+  -append "$CMDLINE" \
+  -drive file="$WORK/aurum-pi3-qemu.img",format=raw,if=sd,index=0 \
+  -serial mon:stdio \
+  -nographic \
   -no-reboot \
   > "$LOG" 2>&1
 status=$?
