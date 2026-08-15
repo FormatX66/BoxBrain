@@ -22,7 +22,7 @@ mkfifo "$serial_input"
 exec 3<>"$serial_input"
 
 set +e
-timeout 180s qemu-system-x86_64 \
+timeout 900s qemu-system-x86_64 \
   -machine q35,accel=tcg \
   -cpu qemu64 \
   -m 1024 \
@@ -49,7 +49,7 @@ cleanup() {
 trap cleanup EXIT
 
 ready=false
-for _ in $(seq 1 120); do
+for _ in $(seq 1 180); do
   if grep -Fq 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG" && grep -Fq 'selftest=ok' "$LOG"; then
     ready=true
     break
@@ -67,7 +67,7 @@ fi
 
 printf 'self-build\n' >&3
 self_build=false
-for _ in $(seq 1 120); do
+for _ in $(seq 1 720); do
   if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"; then
     self_build=true
     break

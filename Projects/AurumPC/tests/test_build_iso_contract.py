@@ -25,6 +25,8 @@ class BuildIsoContractTests(unittest.TestCase):
 
         self.assertIn("printf 'self-build\\n'", smoke)
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
+        self.assertIn("timeout 900s qemu-system-x86_64", smoke)
+        self.assertIn("for _ in $(seq 1 720)", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn("Projects/AurumVirtualLab/qemu-pc-smoke.sh", workflow)
 
