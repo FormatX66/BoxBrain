@@ -1,0 +1,196 @@
+name: Aurum Virtual Hardware Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/virtual-lab-v0
+    paths:
+      - '.github/workflows/aurum-virtual-lab.yml'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumPi3/**'
+      - 'Projects/Codelation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-virtual-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-x64:
+    name: Docker runtime x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out virtual lab
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Run bounded runtime tests in x86_64 container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker info >/dev/null
+          docker run --rm --platform linux/amd64 \
+            -v "$PWD:/workspace" -w /workspace \
+            python:3.12-bookworm \
+            sh Projects/AurumVirtualLab/docker-runtime-smoke.sh amd64 \
+            | tee aurum-docker-x64.log
+      - name: Publish x86_64 runtime log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-VirtualLab-Docker-x64
+          path: aurum-docker-x64.log
+          if-no-files-found: error
+          retention-days: 7
+
+  docker-arm64:
+    name: Docker runtime ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Check out virtual lab
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Prove native ARM64 runner and container
+        shell: bash
+        run: |
+          set -euo pipefail
+          uname -m | tee aurum-arm64-runner.log
+          case "$(uname -m)" in
+            aarch64|arm64) ;;
+            *) echo 'Expected ARM64 GitHub runner.' >&2; exit 1 ;;
+          esac
+          docker info >/dev/null
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD:/workspace" -w /workspace \
+            python:3.12-bookworm \
+            sh Projects/AurumVirtualLab/docker-runtime-smoke.sh arm64 \
+            | tee aurum-docker-arm64.log
+      - name: Publish ARM64 runtime log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-VirtualLab-Docker-arm64
+          path: |
+            aurum-arm64-runner.log
+            aurum-docker-arm64.log
+          if-no-files-found: error
+          retention-days: 7
+
+  qemu-pc:
+    name: QEMU UEFI x86_64 PC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out virtual lab
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Install QEMU and UEFI firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          docker info >/dev/null
+      - name: Build PC ISO
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap \
+                xorriso isolinux syslinux-common squashfs-tools \
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+              sh Projects/AurumPC/build-iso.sh
+            '
+          test -s dist/Aurum-PC-v0.01-amd64.iso
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+      - name: Boot PC image in QEMU UEFI
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            aurum-pc-qemu.log
+      - name: Publish PC VM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-VirtualLab-QEMU-PC
+          path: aurum-pc-qemu.log
+          if-no-files-found: error
+          retention-days: 7
+
+  qemu-pi3:
+    name: QEMU Raspberry Pi 3B
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out virtual lab
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Install Pi image and QEMU tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            qemu-system-arm qemu-utils curl xz-utils util-linux fdisk e2fsprogs mount
+          qemu-system-aarch64 -machine help | grep -F 'raspi3b'
+      - name: Build Pi3 microSD image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo sh Projects/AurumPi3/build-image.sh
+          RAW=Projects/AurumPi3/.build/Aurum-Pi3-v0.01-arm64.img
+          test -s "$RAW"
+          sudo chown "$USER:$USER" "$RAW"
+      - name: Boot Pi3 image in QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-pi3-smoke.sh \
+            Projects/AurumPi3/.build/Aurum-Pi3-v0.01-arm64.img \
+            aurum-pi3-qemu.log \
+            aurum-pi3-qemu-mode.txt
+      - name: Publish Pi3 VM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-VirtualLab-QEMU-Pi3
+          path: |
+            aurum-pi3-qemu.log
+            aurum-pi3-qemu-mode.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  virtual-lab-gate:
+    name: Virtual lab release gate
+    runs-on: ubuntu-24.04
+    needs:
+      - docker-x64
+      - docker-arm64
+      - qemu-pc
+      - qemu-pi3
+    steps:
+      - name: Record converged virtual proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat <<'EOF'
+          AURUM_VIRTUAL_LAB_OK
+          docker_x64=verified
+          docker_arm64=verified
+          qemu_pc_uefi=verified
+          qemu_pi3=verified
+          physical_hardware_evidence=not_implied
+          EOF
