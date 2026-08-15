@@ -48,7 +48,7 @@ jobs:
           python3 Projects/AurumGUI/server.py --host 127.0.0.1 --port 8765 >aurum-gui.log 2>&1 &
           gui_pid=$!
           trap 'kill "$gui_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8765/api/health >/tmp/aurum-gui-health.json; then
               break
             fi
