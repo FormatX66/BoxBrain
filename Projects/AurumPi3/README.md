@@ -6,14 +6,11 @@ Aurum Pi3 v0.01 is a direct-to-microSD ARM64 image for Raspberry Pi 3-class hard
 
 Primary target: Raspberry Pi 3B / 3B+ / 3A+ using the BCM2837/BCM2837B0 family and booting from microSD.
 
-The build emits:
+The image build emits:
 
 - `Aurum-Pi3-v0.01-arm64.img.xz`
 - `Aurum-Pi3-v0.01-arm64.img.xz.sha256`
 - `Aurum-Pi3-v0.01-arm64.manifest.json`
-- `Aurum-Pi3-runtime-<version>-<revision>-arm64.tar.gz`
-- `Aurum-Pi3-runtime-<version>-<revision>-arm64.manifest.json`
-- `Aurum-Pi3-runtime-<version>-<revision>-arm64.manifest.json.sha256`
 
 The compressed image can be selected directly as a custom image in Raspberry Pi Imager. It can also be decompressed and raw-written with another imaging tool.
 
@@ -25,7 +22,7 @@ The update contract is:
 
 1. read a manifest whose SHA-256 was supplied out of band by the operator;
 2. require the exact `authorize-network` token before any HTTPS access;
-3. verify manifest schema, numeric version, `raspberry-pi-3` target, ARM64 architecture, and minimum updater version;
+3. verify manifest schema, numeric version, `raspberry-pi-3` target, ARM64 architecture, minimum updater version, source commit, and the same-commit four-target convergence proof;
 4. download/copy a complete release artifact into same-filesystem staging;
 5. verify its SHA-256 and byte count, reject unsafe archive entries, and run the candidate selftest;
 6. atomically switch `/opt/aurum/current` and restart the bounded console services from an independent systemd update service;
@@ -33,19 +30,22 @@ The update contract is:
 8. automatically switch back and restart the previous release if readiness fails;
 9. recover the previous release at boot if power was lost during activation.
 
-Build a repository release artifact and its pinned manifest with:
+Application/runtime updates are not built or published by the Pi image workflow. The virtual hardware lab must first pass Docker x86_64, Docker ARM64, QEMU x86_64 UEFI, and QEMU Pi3 machine/runtime verification for the exact same commit. Its promotion job then supplies the generated convergence proof to:
 
 ```sh
-python3 Projects/AurumPi3/build-runtime-release.py --version 0.02
+python3 Projects/AurumPi3/build-runtime-release.py \
+  --version 0.03.0 \
+  --release-id 0.03.0-COMMIT \
+  --convergence-proof aurum-convergence-proof.json
 ```
 
-CI publishes the resulting `.tar.gz`, manifest, and manifest `.sha256` together. Put all three on local storage/USB for the local-first path, or attach them to a repository release and use its HTTPS asset URLs. Aurum downloads a release artifact; it never executes a repository checkout merely because Git fetched it.
+The builder refuses a missing, incomplete, mixed-commit, or mislabeled proof. After a green gate, CI publishes the `.tar.gz`, manifest, manifest `.sha256`, and convergence proof together as one versioned GitHub Release. Put the first three on local storage/USB for the local-first path, or use their HTTPS release URLs. Aurum downloads a complete release containing the console, capability layer, updater, release-gate validator, and Codelation; it never executes a repository checkout merely because Git fetched it.
 
 From the Aurum Pi3 prompt, use the manifest hash printed in the `.manifest.json.sha256` file:
 
 ```text
-update-check /media/updates/Aurum-Pi3-runtime-0.02-REV-arm64.manifest.json MANIFEST_SHA256
-update /media/updates/Aurum-Pi3-runtime-0.02-REV-arm64.manifest.json MANIFEST_SHA256
+update-check /media/updates/Aurum-Pi3-runtime-0.03.0-REV-arm64.manifest.json MANIFEST_SHA256
+update /media/updates/Aurum-Pi3-runtime-0.03.0-REV-arm64.manifest.json MANIFEST_SHA256
 update-status
 rollback confirm
 ```
@@ -90,7 +90,7 @@ A CI image-structure verification is not a substitute for a physical Pi boot. Ph
 The Aurum console exposes a bounded semantic surface. It does not accept arbitrary shell commands.
 
 - `capabilities` inventories implemented capabilities and separately reports whether each is discovered, verified, and authorized.
-- `network`, `storage`, `usb`, `processes`, `services`, and `hardware` run read-only local probes.
+- `network`, `storage`, `usb`, `processes`, `health`, `services`, and `hardware` run read-only local probes (`health` is the bounded processes/system-health view).
 - `observe [capability]` reads the last persisted observation without probing again.
 - `rescan [capability|all]` repeats bounded probes and persists the new results.
 - `frontier` or `next-gap` selects the next unverified capability or local barrier to revisit.

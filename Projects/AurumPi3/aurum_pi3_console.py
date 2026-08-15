@@ -27,7 +27,13 @@ ROOT = Path(os.environ.get("AURUM_ROOT", "/opt/aurum/current"))
 CODELATION = ROOT / "codelation"
 CHAIN_STATE = CODELATION / "autobuild" / "native_chain_state.json"
 RELEASE = ROOT / "RELEASE.json"
-UPDATER = Path(os.environ.get("AURUM_UPDATER", "/opt/aurum/updater/aurum_updater.py"))
+PACKAGED_UPDATER = ROOT / "aurum_updater.py"
+UPDATER = Path(
+    os.environ.get(
+        "AURUM_UPDATER",
+        str(PACKAGED_UPDATER if PACKAGED_UPDATER.is_file() else "/opt/aurum/updater/aurum_updater.py"),
+    )
+)
 READINESS_FILE = os.environ.get("AURUM_READINESS_FILE")
 DEFAULT_CAPABILITY_STATE = (
     "/var/lib/aurum-pi3/capability-state.json"
@@ -110,6 +116,11 @@ CAPABILITY_DEFINITIONS: dict[str, dict[str, Any]] = {
         "kind": "probe",
         "authorization": "read-only",
     },
+    "health": {
+        "description": "Read-only alias for process, load, memory, temperature, and pressure health.",
+        "kind": "semantic",
+        "authorization": "read-only",
+    },
     "services": {
         "description": "Observe systemd service health without changing service state.",
         "kind": "probe",
@@ -168,6 +179,7 @@ CAPABILITY_DEFINITIONS: dict[str, dict[str, Any]] = {
 }
 
 PROBE_ORDER = ("hardware", "network", "storage", "usb", "processes", "services")
+PROBE_ALIASES = {"health": "processes", "system-health": "processes"}
 
 
 class LocalBarrier(RuntimeError):
@@ -763,6 +775,7 @@ def frontier(store: StateStore) -> dict[str, Any]:
 def observe(store: StateStore, name: str | None = None) -> dict[str, Any]:
     state = store.load()
     if name:
+        name = PROBE_ALIASES.get(name, name)
         entry = state.get("capabilities", {}).get(name)
         if entry is None:
             return {
@@ -784,7 +797,8 @@ def observe(store: StateStore, name: str | None = None) -> dict[str, Any]:
 
 
 def rescan(store: StateStore, name: str = "all") -> dict[str, Any]:
-    names = list(PROBE_ORDER) if name == "all" else [name]
+    normalized_name = PROBE_ALIASES.get(name, name)
+    names = list(PROBE_ORDER) if normalized_name == "all" else [normalized_name]
     results = [run_probe(item, store).as_dict() for item in names]
     return {
         "ok": all(item["ok"] for item in results),
@@ -850,7 +864,6 @@ def status(store: StateStore) -> dict[str, Any]:
         "ok": True,
         "capability": "status",
         "aurum_pi3_version": VERSION,
-        "release_id": RELEASE_ID,
         "release_id": RELEASE_ID,
         "target": TARGET,
         "substrate": "raspberry-pi-os-hardware-compatibility-layer",
@@ -1038,8 +1051,11 @@ def execute(tokens: list[str], store: StateStore) -> dict[str, Any]:
         return capability_inventory(store)
     if command in PROBES:
         return run_probe(command, store).as_dict()
-    if command in {"health", "system-health"}:
-        return run_probe("processes", store).as_dict()
+    if command in PROBE_ALIASES:
+        result = run_probe(PROBE_ALIASES[command], store).as_dict()
+        result["capability"] = command
+        result["observed_capability"] = PROBE_ALIASES[command]
+        return result
     if command == "observe":
         return observe(store, arguments[0] if arguments else None)
     if command == "rescan":

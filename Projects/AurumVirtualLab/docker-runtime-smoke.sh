@@ -15,7 +15,9 @@ python3 -m py_compile \
   Projects/AurumPC/aurum_workspace.py \
   Projects/AurumPi3/aurum_pi3_console.py \
   Projects/AurumPi3/aurum_updater.py \
-  Projects/AurumPi3/build-runtime-release.py
+  Projects/AurumPi3/aurum_release_gate.py \
+  Projects/AurumPi3/build-runtime-release.py \
+  Projects/AurumVirtualLab/convergence_gate.py
 
 python3 -m unittest discover -s Projects/AurumPC/tests -v
 python3 -m unittest discover -s Projects/AurumPi3/tests -v
@@ -29,7 +31,7 @@ cat > "$SMOKE_ROOT/RELEASE.json" <<'EOF'
   "architecture": "arm64",
   "release_id": "virtual-lab-runtime-smoke",
   "target": "raspberry-pi-3",
-  "version": "0.02"
+  "version": "0.03.0"
 }
 EOF
 

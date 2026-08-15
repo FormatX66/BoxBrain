@@ -27,13 +27,15 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
+from aurum_release_gate import GateValidationError, validate_update_manifest_gate
+
 try:
     import fcntl
 except ImportError:  # pragma: no cover - target runtime is Linux; keeps host tests portable
     fcntl = None  # type: ignore[assignment]
 
 
-UPDATER_VERSION = "1.0.0"
+UPDATER_VERSION = "1.1.0"
 MANIFEST_SCHEMA = "aurum-application-update-v1"
 TARGET = "raspberry-pi-3"
 HEX_SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -218,7 +220,8 @@ def _safe_extract(archive: Path, destination: Path) -> None:
         # Every member and resolved destination was validated above. Avoid the
         # newer tarfile filter argument so the stable updater also runs on the
         # original Pi image's Python version.
-        source.extractall(destination, members=members)
+        # Every member type and resolved destination was checked above.
+        source.extractall(destination, members=members, filter="fully_trusted")
 
 
 class SystemdController:
@@ -422,6 +425,18 @@ class AurumUpdater:
         minimum = str(manifest.get("minimum_updater_version", "1.0.0"))
         if _version_key(minimum) > _version_key(UPDATER_VERSION):
             raise UpdateError("updater-too-old", f"Update requires updater {minimum} or newer")
+        expected_scope = {
+            "application_runtime": True,
+            "boot_firmware": False,
+            "kernel": False,
+            "operating_system": False,
+        }
+        if manifest.get("scope") != expected_scope:
+            raise UpdateError("forbidden-scope", "Updater accepts application/runtime-only releases")
+        try:
+            manifest["_convergence"] = validate_update_manifest_gate(manifest)
+        except GateValidationError as exc:
+            raise UpdateError("convergence-gate-failed", str(exc)) from exc
         manifest["_source"] = source
         manifest["_sha256"] = actual
         manifest["_artifact_source"] = _resolve_artifact_source(source, artifact["url"])
@@ -450,20 +465,35 @@ class AurumUpdater:
             "update_available": update_available,
             "manifest_sha256": manifest["_sha256"],
             "artifact_sha256": manifest["artifact"]["sha256"],
+            "source_commit": manifest["source_commit"],
+            "convergence_verified": manifest["_convergence"]["status"] == "verified",
             "network_authorized": bool(authorize_network),
         }
 
     def _validate_candidate(self, candidate: Path, manifest: dict[str, Any]) -> str:
         release_file = candidate / "RELEASE.json"
         console = candidate / "aurum_pi3_console.py"
+        updater = candidate / "aurum_updater.py"
+        release_gate = candidate / "aurum_release_gate.py"
         field = candidate / "codelation" / "field"
-        if not release_file.is_file() or not console.is_file() or not field.is_dir():
-            raise UpdateError("invalid-payload", "Runtime payload is missing RELEASE.json, console, or Codelation Field")
+        if not all(path.is_file() for path in (release_file, console, updater, release_gate)) or not field.is_dir():
+            raise UpdateError(
+                "invalid-payload",
+                "Runtime payload is missing RELEASE.json, console, updater, release gate, or Codelation Field",
+            )
         release = _read_json(release_file)
         if release.get("version") != manifest["version"] or release.get("target") != self.target:
             raise UpdateError("payload-mismatch", "Runtime release metadata does not match its manifest")
         if _normalized_architecture(str(release.get("architecture", ""))) != self.architecture:
             raise UpdateError("payload-mismatch", "Runtime payload architecture does not match this machine")
+        if release.get("source_commit") != manifest["source_commit"]:
+            raise UpdateError("payload-mismatch", "Runtime payload commit does not match its manifest")
+        if (
+            release.get("application_layer_only") is not True
+            or release.get("includes_boot_firmware") is not False
+            or release.get("includes_kernel") is not False
+        ):
+            raise UpdateError("payload-mismatch", "Runtime payload is not application-layer-only")
         release_id = str(release.get("release_id", ""))
         if release_id != manifest["release_id"] or not SAFE_RELEASE.fullmatch(release_id):
             raise UpdateError("payload-mismatch", "Runtime release identity is invalid")
@@ -528,6 +558,8 @@ class AurumUpdater:
                     "previous_release": previous,
                     "manifest_sha256": manifest["_sha256"],
                     "artifact_sha256": expected,
+                    "source_commit": manifest["source_commit"],
+                    "convergence_sha256": manifest["verification"]["convergence_sha256"],
                     "version": manifest["version"],
                     "network_authorized": bool(authorize_network),
                 }

@@ -8,13 +8,20 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+import sys
 
 
 MODULE_PATH = Path(__file__).parents[1] / "aurum_updater.py"
+sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("aurum_updater", MODULE_PATH)
 assert SPEC and SPEC.loader
 aurum_updater = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(aurum_updater)
+
+from aurum_release_gate import canonical_sha256, converge_evidence, evidence_document
+
+
+SOURCE_COMMIT = "a" * 40
 
 
 class FakeController:
@@ -75,6 +82,10 @@ class AurumUpdaterTests(unittest.TestCase):
                     "release_id": release_id,
                     "target": "raspberry-pi-3",
                     "architecture": "arm64",
+                    "source_commit": SOURCE_COMMIT,
+                    "application_layer_only": True,
+                    "includes_boot_firmware": False,
+                    "includes_kernel": False,
                 }
             ),
             encoding="utf-8",
@@ -89,11 +100,15 @@ class AurumUpdaterTests(unittest.TestCase):
         target: str = "raspberry-pi-3",
         architecture: str = "arm64",
         corrupt_hash: bool = False,
+        gated: bool = True,
+        claim_physical_pi: bool = False,
     ) -> tuple[Path, str]:
         source = self.root / f"source-{release_id}"
         payload = source / "payload"
         (payload / "codelation" / "field").mkdir(parents=True)
         (payload / "aurum_pi3_console.py").write_text("print('selftest')\n", encoding="utf-8")
+        (payload / "aurum_updater.py").write_text("print('updater')\n", encoding="utf-8")
+        (payload / "aurum_release_gate.py").write_text("# release gate\n", encoding="utf-8")
         (payload / "RELEASE.json").write_text(
             json.dumps(
                 {
@@ -102,6 +117,10 @@ class AurumUpdaterTests(unittest.TestCase):
                     "release_id": release_id,
                     "target": target,
                     "architecture": architecture,
+                    "source_commit": SOURCE_COMMIT,
+                    "application_layer_only": True,
+                    "includes_boot_firmware": False,
+                    "includes_kernel": False,
                 }
             ),
             encoding="utf-8",
@@ -116,7 +135,14 @@ class AurumUpdaterTests(unittest.TestCase):
             "release_id": release_id,
             "target": target,
             "architecture": architecture,
+            "source_commit": SOURCE_COMMIT,
             "minimum_updater_version": "1.0.0",
+            "scope": {
+                "application_runtime": True,
+                "boot_firmware": False,
+                "kernel": False,
+                "operating_system": False,
+            },
             "artifact": {
                 "url": artifact.name,
                 "sha256": "0" * 64 if corrupt_hash else artifact_sha,
@@ -125,6 +151,22 @@ class AurumUpdaterTests(unittest.TestCase):
                 "root": "payload",
             },
         }
+        if gated:
+            evidence = [evidence_document(name, SOURCE_COMMIT) for name in (
+                "docker-x86_64",
+                "docker-arm64",
+                "qemu-x86_64-uefi",
+                "qemu-pi3-machine-runtime",
+            )]
+            proof = converge_evidence(evidence, SOURCE_COMMIT)
+            if claim_physical_pi:
+                proof["required_targets"]["qemu-pi3-machine-runtime"][
+                    "physical_hardware_evidence"
+                ] = "verified"
+            manifest["verification"] = {
+                "convergence": proof,
+                "convergence_sha256": canonical_sha256(proof),
+            }
         manifest_path = self.root / f"{release_id}.manifest.json"
         manifest_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
         manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
@@ -194,6 +236,26 @@ class AurumUpdaterTests(unittest.TestCase):
     def test_network_manifest_requires_explicit_authorization(self) -> None:
         with self.assertRaisesRegex(aurum_updater.UpdateError, "explicit authorization"):
             self.updater.check("https://example.invalid/manifest.json", "0" * 64)
+
+    def test_manifest_without_convergence_gate_is_rejected(self) -> None:
+        manifest, pin = self._update_files(gated=False)
+        with self.assertRaisesRegex(aurum_updater.UpdateError, "missing convergence verification"):
+            self.updater.check(str(manifest), pin)
+
+    def test_qemu_pi3_cannot_claim_physical_hardware_proof(self) -> None:
+        manifest, pin = self._update_files(claim_physical_pi=True)
+        with self.assertRaisesRegex(aurum_updater.UpdateError, "must not claim physical hardware proof"):
+            self.updater.check(str(manifest), pin)
+
+    def test_runtime_update_delivers_capabilities_and_updater_without_reflash(self) -> None:
+        manifest, pin = self._update_files()
+        self.updater.stage(str(manifest), pin)
+        self.updater.apply_pending()
+        active = (self.base / "current").resolve()
+        self.assertTrue((active / "aurum_pi3_console.py").is_file())
+        self.assertTrue((active / "aurum_updater.py").is_file())
+        self.assertTrue((active / "aurum_release_gate.py").is_file())
+        self.assertTrue((active / "codelation" / "field").is_dir())
 
 
 if __name__ == "__main__":

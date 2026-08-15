@@ -29,6 +29,8 @@ class AurumPi3ConsoleTests(unittest.TestCase):
         self.assertTrue(by_name["capabilities"]["verified"])
         self.assertTrue(by_name["capabilities"]["authorized"])
         self.assertFalse(by_name["network"]["verified"])
+        self.assertTrue(by_name["network"]["authorized"])
+        self.assertTrue(by_name["health"]["verified"])
         self.assertFalse(by_name["reboot"]["authorized"])
         self.assertEqual(by_name["update"]["kind"], "action")
         self.assertEqual(by_name["rollback"]["kind"], "action")
@@ -121,6 +123,18 @@ class AurumPi3ConsoleTests(unittest.TestCase):
         payload = json.loads(completed.stdout)
         self.assertEqual(payload["capability"], "capabilities")
         self.assertEqual(completed.stdout.count("\n"), 1)
+
+    def test_health_alias_rescans_and_observes_process_health(self) -> None:
+        with mock.patch.dict(
+            console.PROBES,
+            {"processes": lambda: ({"process_count": 2}, {"process_count": 2})},
+        ):
+            rescanned = console.rescan(self.store, "health")
+        self.assertTrue(rescanned["ok"])
+        self.assertEqual(rescanned["results"][0]["capability"], "processes")
+        observed = console.observe(self.store, "health")
+        self.assertEqual(observed["observed_capability"], "processes")
+        self.assertTrue(observed["state"]["verified"])
 
 
 if __name__ == "__main__":

@@ -8,11 +8,21 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
 import tempfile
 from pathlib import Path
+
+from aurum_release_gate import (
+    GateValidationError,
+    canonical_sha256,
+    validate_convergence_proof,
+)
+
+NUMERIC_VERSION = re.compile(r"^[0-9]+(?:\.[0-9]+){0,3}$")
+SAFE_RELEASE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 
 
 def sha256_file(path: Path) -> str:
@@ -23,10 +33,14 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def source_revision(repository: Path) -> str:
+def source_revision(repository: Path, *, short: bool = True) -> str:
     try:
+        command = ["git", "rev-parse"]
+        if short:
+            command.append("--short=12")
+        command.append("HEAD")
         result = subprocess.run(
-            ["git", "rev-parse", "--short=12", "HEAD"],
+            command,
             cwd=repository,
             check=True,
             text=True,
@@ -35,8 +49,9 @@ def source_revision(repository: Path) -> str:
         )
         value = result.stdout.strip().lower()
     except (OSError, subprocess.SubprocessError):
-        value = "local"
-    return value if value.replace("-", "").isalnum() else "local"
+        value = "local" if short else ""
+    fallback = "local" if short else ""
+    return value if value.replace("-", "").isalnum() else fallback
 
 
 def _tar_filter(info: tarfile.TarInfo) -> tarfile.TarInfo:
@@ -47,7 +62,7 @@ def _tar_filter(info: tarfile.TarInfo) -> tarfile.TarInfo:
     info.mtime = 0
     if info.isdir():
         info.mode = 0o755
-    elif info.name.endswith("aurum_pi3_console.py"):
+    elif info.name.endswith(("aurum_pi3_console.py", "aurum_updater.py")):
         info.mode = 0o755
     else:
         info.mode = 0o644
@@ -60,13 +75,28 @@ def build_release(
     version: str,
     release_id: str,
     artifact_url: str | None,
+    convergence_proof: Path,
 ) -> tuple[Path, Path, Path]:
     pi_dir = repository / "Projects" / "AurumPi3"
     codelation = repository / "Projects" / "Codelation"
-    if not (pi_dir / "aurum_pi3_console.py").is_file() or not codelation.is_dir():
+    required_runtime = (
+        "aurum_pi3_console.py",
+        "aurum_updater.py",
+        "aurum_release_gate.py",
+    )
+    if any(not (pi_dir / name).is_file() for name in required_runtime) or not codelation.is_dir():
         raise SystemExit("Aurum Pi3 console or Codelation source is missing")
-    if not release_id or not all(character.isalnum() or character in "._-" for character in release_id):
-        raise SystemExit("release-id must contain only letters, digits, dot, underscore, and hyphen")
+    if not NUMERIC_VERSION.fullmatch(version):
+        raise SystemExit("version must contain one to four numeric components")
+    if not SAFE_RELEASE.fullmatch(release_id):
+        raise SystemExit("release-id must be 1-96 safe filename characters")
+
+    source_commit = source_revision(repository, short=False)
+    try:
+        proof_value = json.loads(convergence_proof.read_text(encoding="utf-8"))
+        proof = validate_convergence_proof(proof_value, source_commit)
+    except (OSError, json.JSONDecodeError, GateValidationError) as exc:
+        raise SystemExit(f"A verified same-commit convergence proof is required: {exc}") from exc
 
     output_dir.mkdir(parents=True, exist_ok=True)
     artifact = output_dir / f"Aurum-Pi3-runtime-{release_id}-arm64.tar.gz"
@@ -77,7 +107,8 @@ def build_release(
         temporary = Path(temporary_name)
         payload = temporary / "payload"
         payload.mkdir()
-        shutil.copy2(pi_dir / "aurum_pi3_console.py", payload / "aurum_pi3_console.py")
+        for name in required_runtime:
+            shutil.copy2(pi_dir / name, payload / name)
         shutil.copytree(
             codelation,
             payload / "codelation",
@@ -92,6 +123,20 @@ def build_release(
             "application_layer_only": True,
             "includes_boot_firmware": False,
             "includes_kernel": False,
+            "source_commit": source_commit,
+            "capabilities": [
+                "capabilities",
+                "observe",
+                "rescan",
+                "network",
+                "storage",
+                "usb",
+                "processes",
+                "health",
+                "services",
+                "frontier",
+                "json",
+            ],
         }
         (payload / "RELEASE.json").write_text(
             json.dumps(release, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -108,6 +153,7 @@ def build_release(
         "release_id": release_id,
         "target": "raspberry-pi-3",
         "architecture": "arm64",
+        "source_commit": source_commit,
         "minimum_updater_version": "1.0.0",
         "artifact": {
             "url": artifact_url or artifact.name,
@@ -122,6 +168,11 @@ def build_release(
             "kernel": False,
             "operating_system": False,
         },
+        "capabilities": release["capabilities"],
+        "verification": {
+            "convergence": proof,
+            "convergence_sha256": canonical_sha256(proof),
+        },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     pin_path.write_text(f"{sha256_file(manifest_path)}  {manifest_path.name}\n", encoding="ascii")
@@ -134,13 +185,24 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", type=Path, default=repository)
     parser.add_argument("--output-dir", type=Path, default=repository / "dist")
-    parser.add_argument("--version", default="0.02")
+    parser.add_argument(
+        "--version",
+        default=(script_dir / "RUNTIME_VERSION").read_text(encoding="ascii").strip(),
+    )
     parser.add_argument("--release-id")
     parser.add_argument("--artifact-url")
+    parser.add_argument("--convergence-proof", type=Path, required=True)
     args = parser.parse_args()
     revision = source_revision(args.repository)
     release_id = args.release_id or f"{args.version}-{revision}"
-    outputs = build_release(args.repository, args.output_dir, args.version, release_id, args.artifact_url)
+    outputs = build_release(
+        args.repository,
+        args.output_dir,
+        args.version,
+        release_id,
+        args.artifact_url,
+        args.convergence_proof,
+    )
     print(json.dumps({"artifact": str(outputs[0]), "manifest": str(outputs[1]), "pin": str(outputs[2])}, indent=2))
     return 0
 
