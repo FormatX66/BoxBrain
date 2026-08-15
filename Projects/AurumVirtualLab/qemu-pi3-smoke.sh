@@ -61,9 +61,11 @@ done
 CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 aurum.qemu=1"
 printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
-# QEMU raspi3b exposes serial0 as ttyAMA1 with this device tree. Keep the QEMU
-# monitor disabled: multiplexing the monitor onto stdio makes a non-interactive
-# CI runner's stdin EOF terminate QEMU cleanly before systemd finishes booting.
+# Never bind the guest UART or monitor to CI stdin. QEMU's stdio character
+# backend treats a closed non-interactive input differently across versions and
+# can terminate a healthy guest early. Capture the emulated PL011 directly to a
+# file so the VM lifetime depends only on the guest or the bounded timeout.
+: > "$LOG"
 set +e
 timeout 180s qemu-system-aarch64 \
   -M raspi3b \
@@ -75,12 +77,13 @@ timeout 180s qemu-system-aarch64 \
   -append "$CMDLINE" \
   -drive file="$WORK/aurum-pi3-qemu.img",format=raw,if=sd,index=0 \
   -display none \
-  -serial stdio \
+  -serial "file:$LOG" \
   -monitor none \
   -no-reboot \
-  < /dev/null > "$LOG" 2>&1
+  </dev/null >/tmp/aurum-pi3-qemu-host.log 2>&1
 status=$?
 set -e
+cat /tmp/aurum-pi3-qemu-host.log || true
 cat "$LOG"
 
 if grep -F 'AURUM_PI3_READY' "$LOG" >/dev/null && grep -F 'selftest=ok' "$LOG" >/dev/null; then
