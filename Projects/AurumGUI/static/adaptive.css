@@ -1,0 +1,116 @@
+.ui-adapt-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.ui-adapt-control label,
+.ui-learning-state {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.ui-adapt-control select,
+.ui-adapt-control button {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+  border-radius: 10px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.ui-adapt-control button { cursor: pointer; }
+
+/* Familiarity profiles deliberately mimic broad interaction patterns, not exact branded chrome. */
+html[data-ui-profile="windows"] .shell {
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+html[data-ui-profile="windows"] .workspace {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+html[data-ui-profile="windows"] .rail {
+  grid-row: 2;
+  grid-column: 1;
+  min-height: 64px;
+  padding: 8px 14px;
+  border-right: 0;
+  border-top: 1px solid var(--line);
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+html[data-ui-profile="windows"] .brand-sub { display: none; }
+html[data-ui-profile="windows"] .nav { display: flex; gap: 6px; }
+html[data-ui-profile="windows"] .nav-item { text-align: center; padding: 10px 14px; }
+html[data-ui-profile="windows"] .nav-item.active { box-shadow: inset 0 -2px 0 var(--gold); }
+html[data-ui-profile="windows"] .rail-footer { margin: 0 0 0 auto; padding: 0; }
+
+html[data-ui-profile="macos"] .shell { display: block; }
+html[data-ui-profile="macos"] .workspace { padding-bottom: 112px; }
+html[data-ui-profile="macos"] .rail {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 28px));
+  height: 68px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 22px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.45);
+}
+
+html[data-ui-profile="macos"] .brand > div:last-child,
+html[data-ui-profile="macos"] .rail-footer { display: none; }
+html[data-ui-profile="macos"] .brand-mark { width: 44px; height: 44px; }
+html[data-ui-profile="macos"] .nav { display: flex; flex: 1; justify-content: center; gap: 7px; }
+html[data-ui-profile="macos"] .nav-item { text-align: center; padding: 10px 13px; }
+html[data-ui-profile="macos"] .nav-item.active {
+  box-shadow: none;
+  background: rgba(216,174,90,0.16);
+}
+
+html[data-ui-profile="touch"] .shell { display: block; }
+html[data-ui-profile="touch"] .rail {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 74px;
+  padding: 10px 14px;
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+  flex-direction: row;
+  align-items: center;
+}
+html[data-ui-profile="touch"] .nav { margin-left: auto; display: flex; gap: 7px; overflow-x: auto; }
+html[data-ui-profile="touch"] .nav-item { min-height: 48px; min-width: 86px; text-align: center; padding: 0 14px; }
+html[data-ui-profile="touch"] .rail-footer { display: none; }
+html[data-ui-profile="touch"] .workspace { padding: 18px 14px 32px; }
+html[data-ui-profile="touch"] .hero-grid { grid-template-columns: 1fr; }
+html[data-ui-profile="touch"] .core-panel { min-height: 64vh; }
+html[data-ui-profile="touch"] .composer textarea,
+html[data-ui-profile="touch"] .composer button,
+html[data-ui-profile="touch"] .icon-button { min-height: 52px; }
+html[data-ui-profile="touch"] .metric { min-height: 106px; }
+html[data-ui-profile="touch"] .state-grid { grid-template-columns: 1fr 1fr; }
+
+/* In automatic mode, learned navigation may reorder after enough evidence. Keep movement subtle. */
+html[data-ui-mode="auto"] .nav-item { transition: background 150ms ease, color 150ms ease, transform 150ms ease; }
+
+@media (max-width: 760px) {
+  .ui-adapt-control label,
+  .ui-learning-state,
+  .ui-adapt-control button { display: none; }
+  .ui-adapt-control select { max-width: 118px; }
+}
