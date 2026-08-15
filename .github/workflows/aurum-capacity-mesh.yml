@@ -6,7 +6,7 @@ on:
     types: [aurum-capacity-mesh]
   push:
     branches:
-      - aurum/capacity-mesh-v0
+      - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-capacity-mesh.yml'
       - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
@@ -33,10 +33,10 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - name: Check out Aurum branch
+      - name: Check out Aurum trunk
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: aurum/capacity-mesh-v0
+          ref: aurum/trunk-v0.01
           fetch-depth: 1
       - name: Build bounded fan-out matrix
         id: matrix
@@ -57,10 +57,10 @@ jobs:
     timeout-minutes: 10
     continue-on-error: ${{ matrix.posture == 'adventurous' }}
     steps:
-      - name: Check out Aurum branch
+      - name: Check out Aurum trunk
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: aurum/capacity-mesh-v0
+          ref: aurum/trunk-v0.01
           fetch-depth: 1
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
