@@ -300,7 +300,7 @@ jobs:
             python3 runtime-verify/payload/aurum_pi3_console.py --selftest-json \
             | tee runtime-selftest.json
           grep -q '"selftest": "ok"' runtime-selftest.json
-          python3 - "$manifest" "$GITHUB_SHA" <<'PY'
+          python3 - "dist/$manifest" "$GITHUB_SHA" <<'PY'
           import json, pathlib, sys
           data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
           assert data['schema'] == 'aurum-application-update-v1'
