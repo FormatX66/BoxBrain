@@ -105,7 +105,9 @@ jobs:
           test -s "$ROOT/opt/aurum/aurum_pi3_console.py"
           test -s "$ROOT/opt/aurum/aurum_pi3_update.py"
           test -d "$ROOT/opt/aurum/codelation/field"
-          test -d "$ROOT/var/lib/aurum-pi3/updates"
+          sudo test -d "$ROOT/var/lib/aurum-pi3/updates"
+          test "$(sudo stat -c '%a' "$ROOT/var/lib/aurum-pi3")" = 700
+          test "$(sudo stat -c '%a' "$ROOT/var/lib/aurum-pi3/updates")" = 700
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-console.service"
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-serial.service"
           grep -q '^arm_64bit=1$' "$ROOT/boot/firmware/config.txt"
