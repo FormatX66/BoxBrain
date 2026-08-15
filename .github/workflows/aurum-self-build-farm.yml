@@ -10,6 +10,8 @@ on:
       - 'codex/**'
     paths:
       - '.github/workflows/aurum-self-build-farm.yml'
+      - 'Projects/AurumGUI/**'
+      - 'Projects/AurumLLM/**'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
       - 'Projects/Codelation/autobuild/**'
       - 'Projects/Codelation/field/**'
@@ -21,6 +23,8 @@ on:
       - main
     paths:
       - '.github/workflows/aurum-self-build-farm.yml'
+      - 'Projects/AurumGUI/**'
+      - 'Projects/AurumLLM/**'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
       - 'Projects/Codelation/autobuild/**'
       - 'Projects/Codelation/field/**'

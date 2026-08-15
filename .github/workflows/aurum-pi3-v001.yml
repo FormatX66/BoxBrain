@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - aurum/pi3-v0.01
+      - 'agent/**'
     paths:
       - 'Projects/AurumPi3/**'
       - 'Projects/AurumPC/**'
