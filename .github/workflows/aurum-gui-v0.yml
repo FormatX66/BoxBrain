@@ -1,0 +1,70 @@
+name: Aurum GUI v0.01
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/gui-v0
+      - aurum/trunk-v0.01-locked-20260815
+    paths:
+      - '.github/workflows/aurum-gui-v0.yml'
+      - 'Projects/AurumGUI/**'
+      - 'Projects/AurumLLM/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-gui-v001-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out Aurum GUI branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Validate GUI sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumGUI/server.py
+          python3 -m unittest discover -s Projects/AurumGUI/tests -p 'test_*.py' -v
+          node --check Projects/AurumGUI/static/app.js
+          node --check Projects/AurumGUI/static/adaptive.js
+          node --check Projects/AurumGUI/static/interaction.js
+
+      - name: Run local interface smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export AURUM_GUI_QUIET=1
+          python3 Projects/AurumGUI/server.py --host 127.0.0.1 --port 8765 >aurum-gui.log 2>&1 &
+          gui_pid=$!
+          trap 'kill "$gui_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/api/health >/tmp/aurum-gui-health.json; then
+              break
+            fi
+            sleep 0.2
+          done
+          cat /tmp/aurum-gui-health.json
+          curl -fsS http://127.0.0.1:8765/api/status >/tmp/aurum-gui-status.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/aurum-gui-status.json', encoding='utf-8') as handle:
+              payload = json.load(handle)
+          assert payload['schema'] == 'aurum-gui-status-v0'
+          assert payload['gui_version'] == '0.01'
+          assert payload['machine']['architecture']
+          print('AURUM_GUI_STATUS_VERIFIED')
+          PY
+          curl -fsS http://127.0.0.1:8765/ | grep -F '<title>Aurum</title>'
+          curl -fsS http://127.0.0.1:8765/interaction.js | grep -F 'aurum.ui.interaction.v0'
+          curl -fsS http://127.0.0.1:8765/interaction.css | grep -F '.assist-strip'
+          grep -F 'AURUM_GUI_READY version=0.01' aurum-gui.log
+          echo 'AURUM_GUI_V001_SMOKE_VERIFIED'
