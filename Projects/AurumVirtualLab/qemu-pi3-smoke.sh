@@ -9,8 +9,13 @@ WORK=$(mktemp -d)
 ROOT="$WORK/root"
 BOOT="$ROOT/boot/firmware"
 LOOP=""
+QEMU_PID=""
 cleanup() {
   set +e
+  if [ -n "$QEMU_PID" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
+    kill "$QEMU_PID" 2>/dev/null || true
+    wait "$QEMU_PID" 2>/dev/null || true
+  fi
   mountpoint -q "$BOOT" && sudo umount "$BOOT"
   mountpoint -q "$ROOT" && sudo umount "$ROOT"
   [ -n "$LOOP" ] && sudo losetup -d "$LOOP" 2>/dev/null || true
@@ -43,17 +48,41 @@ sudo umount "$ROOT"
 sudo losetup -d "$LOOP"
 LOOP=""
 
-# QEMU's SD model requires a power-of-two virtual card size. Keep the real
-# Aurum partitions byte-for-byte and pad only unused space at the end.
+# QEMU's SD model requires a power-of-two virtual card size. Keep the shipped
+# Aurum partitions byte-for-byte and pad only the disposable virtual medium.
 cp --sparse=always "$RAW" "$WORK/aurum-pi3-qemu.img"
 truncate -s 4G "$WORK/aurum-pi3-qemu.img"
 
-# The physical Raspberry Pi image intentionally carries the Raspberry Pi OS
-# `resize` first-boot argument. The official firstboot path consumes that flag,
-# expands the real SD partition and force-reboots. QEMU's scratch SD is padded
-# only to satisfy the emulator and must not run that provisioning reboot. Drop
-# `resize` only from this synthetic VM command line; the shipped image remains
-# unchanged. Also replace physical PARTUUID/serial aliases with QEMU contracts.
+# The physical image is intentionally pristine: Raspberry Pi OS expands the SD
+# card and initializes machine identity on first hardware boot. The VM is a
+# post-provision runtime test, so initialize *only the scratch copy*. A valid
+# machine-id prevents systemd ConditionFirstBoot units from treating every CI
+# VM as a brand-new installation. Nothing below mutates the published image.
+LOOP=$(sudo losetup --find --show --partscan "$WORK/aurum-pi3-qemu.img")
+sudo udevadm settle
+for _ in $(seq 1 20); do
+  [ -b "${LOOP}p2" ] && break
+  sleep 1
+  sudo udevadm settle
+done
+test -b "${LOOP}p2"
+sudo mount "${LOOP}p2" "$ROOT"
+MACHINE_ID=$(printf '%s' 'aurum-pi3-virtual-lab-v0' | sha256sum | cut -c1-32)
+printf '%s\n' "$MACHINE_ID" | sudo tee "$ROOT/etc/machine-id" >/dev/null
+if [ -e "$ROOT/var/lib/dbus/machine-id" ] && [ ! -L "$ROOT/var/lib/dbus/machine-id" ]; then
+  printf '%s\n' "$MACHINE_ID" | sudo tee "$ROOT/var/lib/dbus/machine-id" >/dev/null
+fi
+sync
+sudo umount "$ROOT"
+sudo losetup -d "$LOOP"
+LOOP=""
+echo "AURUM_PI3_QEMU_MACHINE_ID initialized=true id=$MACHINE_ID"
+
+# The physical Raspberry Pi image also carries the Raspberry Pi OS `resize`
+# argument. Its firstboot path consumes that flag, grows the real card and
+# force-reboots. Drop it only from this synthetic VM command line; the shipped
+# image remains unchanged. Replace physical PARTUUID/serial aliases with QEMU
+# contracts while preserving every unrelated kernel argument.
 CMDLINE=""
 for arg in $ORIGINAL_CMDLINE; do
   case "$arg" in
@@ -64,11 +93,12 @@ done
 CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 aurum.qemu=1"
 printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
-# Never bind the guest UART or monitor to CI stdin. Capture the emulated PL011
-# directly to a file so the VM lifetime depends only on the guest or timeout.
+# Never bind the guest UART or monitor to CI stdin. Capture PL011 directly to a
+# file, start QEMU asynchronously, and stop as soon as Aurum proves readiness.
+# This makes the VM gate fast while retaining a hard 150-second upper bound.
 : > "$LOG"
-set +e
-timeout 180s qemu-system-aarch64 \
+: > /tmp/aurum-pi3-qemu-host.log
+qemu-system-aarch64 \
   -M raspi3b \
   -cpu cortex-a53 \
   -m 1G \
@@ -81,21 +111,38 @@ timeout 180s qemu-system-aarch64 \
   -serial "file:$LOG" \
   -monitor none \
   -no-reboot \
-  </dev/null >/tmp/aurum-pi3-qemu-host.log 2>&1
+  </dev/null >/tmp/aurum-pi3-qemu-host.log 2>&1 &
+QEMU_PID=$!
+
+verified=0
+for _ in $(seq 1 150); do
+  if grep -F 'AURUM_PI3_READY' "$LOG" >/dev/null 2>&1 && \
+     grep -F 'selftest=ok' "$LOG" >/dev/null 2>&1; then
+    verified=1
+    break
+  fi
+  if ! kill -0 "$QEMU_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+set +e
+if kill -0 "$QEMU_PID" 2>/dev/null; then
+  kill "$QEMU_PID" 2>/dev/null || true
+fi
+wait "$QEMU_PID"
 status=$?
 set -e
+QEMU_PID=""
+
 cat /tmp/aurum-pi3-qemu-host.log || true
 cat "$LOG"
 
-if grep -F 'AURUM_PI3_READY' "$LOG" >/dev/null && grep -F 'selftest=ok' "$LOG" >/dev/null; then
-  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs-post-resize' > "$MODE_FILE"
+if [ "$verified" -eq 1 ]; then
+  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs-post-provision' > "$MODE_FILE"
   echo 'AURUM_VIRTUAL_PI3_OK'
 else
   echo "Pi3 QEMU did not reach Aurum readiness; qemu_status=$status" >&2
   exit 1
-fi
-
-if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
-  echo "QEMU Pi3 exited unexpectedly with status $status" >&2
-  exit "$status"
 fi
