@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 FIELD = ROOT / "field"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 if str(FIELD) not in sys.path:
     sys.path.insert(0, str(FIELD))
 
@@ -17,6 +19,7 @@ from mesh_efficiency import (  # noqa: E402
     nodes_from_policy,
     plan_candidate_paths,
 )
+from run_capacity_mesh_lane import suite_test_modules  # noqa: E402
 
 
 DEFAULT_POLICY = ROOT / "autobuild" / "capacity_mesh_policy.json"
@@ -29,6 +32,19 @@ def load_policy(path: Path) -> dict:
     return policy
 
 
+def duplicate_test_work(paths) -> tuple[int, int]:
+    seen_by_runner: dict[str, set[str]] = {}
+    duplicate_work_items = 0
+    total_work_items = 0
+    for path in paths:
+        modules = suite_test_modules(path.suite)
+        total_work_items += len(modules)
+        seen = seen_by_runner.setdefault(path.runner, set())
+        duplicate_work_items += sum(module in seen for module in modules)
+        seen.update(modules)
+    return duplicate_work_items, total_work_items
+
+
 def policy_audit(policy: dict) -> dict:
     paths = candidate_paths_from_policy(policy)
     available = [
@@ -38,11 +54,14 @@ def policy_audit(policy: dict) -> dict:
     ]
     nodes = nodes_from_policy(policy, available=available)
     plan = plan_candidate_paths(paths, nodes)
+    duplicate_work_items, duplicate_work_total = duplicate_test_work(paths)
     limits = policy.get("limits", {})
     snapshot = assess_efficiency(
         plan,
         nodes,
         work_count=len(paths),
+        duplicate_work_items=duplicate_work_items,
+        duplicate_work_total=duplicate_work_total,
         target_slot_utilization=float(limits.get("target_slot_utilization", 0.85)),
         maximum_duplicate_work_fraction=float(
             limits.get("maximum_duplicate_work_fraction", 0.05)
@@ -60,6 +79,8 @@ def policy_audit(policy: dict) -> dict:
         "useful_parallelism": snapshot.useful_parallelism,
         "slot_utilization": snapshot.slot_utilization,
         "idle_capacity": snapshot.idle_capacity,
+        "duplicate_work_items": duplicate_work_items,
+        "duplicate_work_total": duplicate_work_total,
         "duplicate_work_fraction": snapshot.duplicate_work_fraction,
         "target_met": snapshot.target_met,
     }
