@@ -1,101 +1,17 @@
-name: Aurum Capacity Mesh
+name: Aurum Capacity Mesh (retired)
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types: [aurum-capacity-mesh]
-  push:
-    branches:
-      - aurum/capacity-mesh-v0
-    paths:
-      - '.github/workflows/aurum-capacity-mesh.yml'
-      - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
-      - 'Projects/Codelation/run_capacity_mesh_cycle.py'
-      - 'Projects/Codelation/run_capacity_mesh_lane.py'
-      - 'Projects/Codelation/field/mesh_efficiency.py'
-      - 'Projects/Codelation/field/capacity_mesh.py'
-      - 'Projects/Codelation/field/windows_node_growth.py'
-      - 'Projects/Codelation/tests/test_mesh_efficiency.py'
-      - 'Projects/Codelation/tests/test_capacity_mesh.py'
-      - 'Projects/Codelation/tests/test_windows_node_growth.py'
 
 permissions:
   contents: read
 
-concurrency:
-  group: aurum-capacity-mesh-${{ github.ref || github.run_id }}
-  cancel-in-progress: true
-
 jobs:
-  plan:
+  retired:
+    name: Retired - use aurum/trunk-v0.01
+    if: ${{ false }}
     runs-on: ubuntu-slim
-    timeout-minutes: 2
-    outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+    timeout-minutes: 1
     steps:
-      - name: Check out Aurum branch
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: aurum/capacity-mesh-v0
-          fetch-depth: 1
-      - name: Build bounded fan-out matrix
-        id: matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-          MATRIX="$(python3 Projects/Codelation/run_capacity_mesh_cycle.py --github-matrix)"
-          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
-          echo "${MATRIX}"
-
-  lane:
-    needs: plan
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
-    continue-on-error: ${{ matrix.posture == 'adventurous' }}
-    steps:
-      - name: Check out Aurum branch
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: aurum/capacity-mesh-v0
-          fetch-depth: 1
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.13'
-      - name: Run bounded mesh lane
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p mesh-results
-          python3 Projects/Codelation/run_capacity_mesh_lane.py \
-            --name '${{ matrix.name }}' \
-            --posture '${{ matrix.posture }}' \
-            --suite '${{ matrix.suite }}' \
-            --result 'mesh-results/${{ matrix.name }}.json'
-      - name: Publish lane evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: aurum-mesh-${{ matrix.name }}-${{ github.run_id }}
-          path: mesh-results/${{ matrix.name }}.json
-          if-no-files-found: warn
-          retention-days: 7
-
-  fan-in:
-    if: always()
-    needs: [plan, lane]
-    runs-on: ubuntu-slim
-    timeout-minutes: 2
-    steps:
-      - name: Report mesh boundary
-        shell: bash
-        run: |
-          echo "planner=${{ needs.plan.result }}"
-          echo "lanes=${{ needs.lane.result }}"
-          if [ '${{ needs.plan.result }}' != 'success' ]; then exit 1; fi
-          if [ '${{ needs.lane.result }}' != 'success' ]; then exit 1; fi
-          echo 'Aurum capacity mesh reached verified fan-in boundary.'
+      - name: Superseded branch guard
+        run: echo 'aurum/capacity-mesh-v0 is retired; capacity mesh execution is allowed only from aurum/trunk-v0.01.'
