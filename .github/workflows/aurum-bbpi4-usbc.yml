@@ -1,0 +1,129 @@
+name: Aurum BBPI4 USB-C Bridge
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-bbpi4-usbc.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-bbpi4-usbc-bridge
+  cancel-in-progress: false
+
+jobs:
+  probe-and-reconcile:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 18
+    steps:
+      - name: Check out integrated Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 1
+
+      - name: Probe laptop USB-C path and reconcile BBPI4
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+
+          $report = [ordered]@{
+            schema = 'aurum-bbpi4-usbc-evidence-v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            computer = $env:COMPUTERNAME
+            usb_devices = @()
+            network_adapters = @()
+            ssh_candidates = @()
+            selected_route = $null
+            selected_address = $null
+            reconciled = $false
+          }
+
+          $usb = Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.InstanceId -like 'USB*' -or
+              $_.FriendlyName -match 'RNDIS|CDC|USB.*Ethernet|Linux USB|Raspberry'
+            } |
+            Select-Object Status, Class, FriendlyName, InstanceId
+          $report.usb_devices = @($usb)
+          Write-Host '=== USB / gadget candidates ==='
+          $usb | Format-Table -AutoSize | Out-String | Write-Host
+
+          $adapters = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue |
+            Select-Object Status, Name, InterfaceDescription, InterfaceIndex, MacAddress, LinkSpeed
+          $report.network_adapters = @($adapters)
+          Write-Host '=== Network adapters ==='
+          $adapters | Format-Table -AutoSize | Out-String | Write-Host
+
+          $candidates = @(
+            [pscustomobject]@{ address='10.12.194.1'; route='usb-c' },
+            [pscustomobject]@{ address='10.42.194.1'; route='bbpi4-ap' },
+            [pscustomobject]@{ address='192.168.0.194'; route='lan' }
+          )
+
+          foreach ($candidate in $candidates) {
+            $reachable = $false
+            try {
+              $reachable = Test-NetConnection -ComputerName $candidate.address -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue
+            } catch { $reachable = $false }
+            $report.ssh_candidates += [ordered]@{
+              address = $candidate.address
+              route = $candidate.route
+              tcp22 = [bool]$reachable
+            }
+            Write-Host "AURUM_BBPI4_ROUTE route=$($candidate.route) address=$($candidate.address) tcp22=$reachable"
+            if (-not $report.selected_address -and $reachable) {
+              $report.selected_address = $candidate.address
+              $report.selected_route = $candidate.route
+            }
+          }
+
+          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 evidence\bbpi4-usbc-probe.json
+
+          if (-not $report.selected_address) {
+            Write-Host '=== Neighbor table ==='
+            Get-NetNeighbor -ErrorAction SilentlyContinue |
+              Where-Object { $_.State -ne 'Unreachable' } |
+              Sort-Object InterfaceIndex,IPAddress |
+              Format-Table -AutoSize | Out-String | Write-Host
+            throw 'BBPI4 is powered/attached but no approved SSH route is reachable yet. USB-C gadget networking may not be enumerated on this host.'
+          }
+
+          $keyPath = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw "Dedicated BoxBrain Pi SSH key is missing: $keyPath"
+          }
+
+          $ordered = @($report.selected_address) + @(
+            $candidates.address | Where-Object { $_ -ne $report.selected_address }
+          )
+
+          Write-Host "AURUM_BBPI4_SELECTED route=$($report.selected_route) address=$($report.selected_address)"
+          & .\installer\reconcile-existing-aurum-gold-seed-on-pi.ps1 \
+            -PiAddresses $ordered \
+            -PiUser 'kali' \
+            -KeyPath $keyPath 2>&1 |
+            Tee-Object -FilePath evidence\bbpi4-usbc-reconcile.txt
+          if ($LASTEXITCODE -ne 0) {
+            throw "BBPI4 reconciliation failed with exit code $LASTEXITCODE"
+          }
+
+          $report.reconciled = $true
+          $report.reconciled_at_utc = [DateTime]::UtcNow.ToString('o')
+          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 evidence\bbpi4-usbc-probe.json
+
+          Write-Host "AURUM_BBPI4_USBC_COMPLETE route=$($report.selected_route) address=$($report.selected_address) reconciled=true"
+
+      - name: Publish USB-C evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-bbpi4-usbc-${{ github.run_id }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 7
