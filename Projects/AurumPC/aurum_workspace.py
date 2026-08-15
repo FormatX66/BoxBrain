@@ -363,6 +363,17 @@ class AurumWorkspace:
 
         report("chain", "started")
 
+        # A live ISO may carry a persistent overlay from an older runtime. Keep
+        # mutable checkpoints outside the installed source tree so stale state
+        # cannot mask the checkpoint bundled by a newer image. Git workspaces
+        # retain the source-tree path because that file is the sole promotable
+        # self-build output.
+        chain_state = (
+            source / "autobuild" / "native_chain_state.json"
+            if self.repository_ready
+            else self.state_dir / "native-chain-state.json"
+        )
+
         def chain_progress(line: str) -> None:
             prefix = "AURUM_BUILD_PROGRESS "
             if not line.startswith(prefix):
@@ -379,7 +390,7 @@ class AurumWorkspace:
 
         stream_runner = self.stream_runner or (_run_streaming if self.runner is _run else self.runner)
         build = stream_runner(
-            [sys.executable, str(chain), "--resume"],
+            [sys.executable, str(chain), "--resume", "--state-path", str(chain_state)],
             cwd=source,
             timeout=900,
             progress=chain_progress,

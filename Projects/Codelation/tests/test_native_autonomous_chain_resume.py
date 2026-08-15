@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import unittest
 import sys
 from pathlib import Path
@@ -10,10 +9,45 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import run_native_autonomous_chain as chain
 
 
+def compatible_seed_state() -> dict:
+    """Return an immutable checkpoint fixture for isolated-lane tests."""
+    return {
+        "schema": chain.STATE_SCHEMA,
+        "catalog_revision": chain.CATALOG_REVISION,
+        "synthesis_revision": chain.SYNTHESIS_REVISION,
+        "self_debug_revision": chain.SELF_DEBUG_REVISION,
+        "local_verification_revision": chain.LOCAL_VERIFICATION_REVISION,
+        "_checkpoint": {
+            "schema": "aurum-native-chain-resume-v1",
+            "learned_expressions": {
+                "learning_retention_ratio": {
+                    "op": "safe_divide",
+                    "left": {
+                        "op": "length",
+                        "value": {
+                            "op": "intersection",
+                            "left": {"op": "split", "value": {"op": "input", "name": "after"}},
+                            "right": {"op": "split", "value": {"op": "input", "name": "before"}},
+                        },
+                    },
+                    "right": {
+                        "op": "length",
+                        "value": {
+                            "op": "union",
+                            "left": {"op": "split", "value": {"op": "input", "name": "after"}},
+                            "right": {"op": "split", "value": {"op": "input", "name": "before"}},
+                        },
+                    },
+                }
+            },
+            "verified_local_capabilities": ["io-plan"],
+        },
+    }
+
+
 class NativeAutonomousChainResumeTests(unittest.TestCase):
     def test_isolated_frontier_reuses_verified_capabilities_without_inheriting_generations(self) -> None:
-        seed_path = Path(__file__).resolve().parents[1] / "autobuild" / "native_chain_state.json"
-        seed_state = json.loads(seed_path.read_text(encoding="utf-8"))
+        seed_state = compatible_seed_state()
         events: list[dict] = []
 
         result = chain.run_chain(
@@ -31,7 +65,24 @@ class NativeAutonomousChainResumeTests(unittest.TestCase):
             result["initial_seed_capabilities"],
             sorted(seed_state["_checkpoint"]["learned_expressions"]),
         )
+        self.assertIn("io-plan", result["reusable_local_capabilities"])
         self.assertEqual(events[0]["status"], "seeded")
+
+    def test_incompatible_persisted_checkpoint_is_not_seeded(self) -> None:
+        seed_state = compatible_seed_state()
+        seed_state["local_verification_revision"] = "stale-persisted-revision"
+        events: list[dict] = []
+
+        result = chain.run_chain(
+            start_gap="learning_retention_ratio",
+            max_generations=1,
+            seed_state=seed_state,
+            on_progress=lambda event: events.append(dict(event)),
+        )
+
+        self.assertFalse(result["seeded_from_checkpoint"])
+        self.assertNotIn("io-plan", result["reusable_local_capabilities"])
+        self.assertNotEqual(events[0]["status"], "seeded")
 
     def test_unchanged_external_block_uses_the_generation_checkpoint(self) -> None:
         gap = "adaptive_shell_live_trial_readiness"

@@ -132,8 +132,39 @@ class AurumWorkspaceTests(unittest.TestCase):
         self.assertTrue((self.state / "self-build-progress.json").is_file())
         chain_call = next(call for call in self.runner.calls if str(chain) in call[0])
         self.assertIn("--resume", chain_call[0])
+        self.assertEqual(
+            chain_call[0][chain_call[0].index("--state-path") + 1],
+            str(self.state / "native-chain-state.json"),
+        )
         self.assertTrue(
             any(event.get("generation") == 2 and event.get("stage") == "chain" for event in progress_events)
+        )
+
+    def test_git_self_build_keeps_promotable_checkpoint_in_workspace(self) -> None:
+        (self.workspace_path / ".git").mkdir(parents=True)
+        source = self.workspace_path / "Projects" / "Codelation"
+        tests = source / "tests"
+        tests.mkdir(parents=True)
+        chain = source / "run_native_autonomous_chain.py"
+        chain.write_text("# fixture\n", encoding="utf-8")
+
+        def build_runner(arguments: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+            self.runner.calls.append((arguments, kwargs))
+            if str(chain) in arguments:
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    json.dumps({"completed_generations": 1}),
+                )
+            return subprocess.CompletedProcess(arguments, 0, "OK\n")
+
+        self.workspace.runner = build_runner
+        self.workspace.self_build()
+
+        chain_call = next(call for call in self.runner.calls if str(chain) in call[0])
+        self.assertEqual(
+            chain_call[0][chain_call[0].index("--state-path") + 1],
+            str(source / "autobuild" / "native_chain_state.json"),
         )
 
     def test_self_build_can_cancel_before_the_next_stage(self) -> None:
