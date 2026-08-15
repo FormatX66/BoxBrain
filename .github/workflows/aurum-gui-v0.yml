@@ -5,7 +5,9 @@ on:
   push:
     branches:
       - aurum/gui-v0
+      - aurum/trunk-v0.01
       - aurum/trunk-v0.01-locked-20260815
+      - 'agent/**'
     paths:
       - '.github/workflows/aurum-gui-v0.yml'
       - 'Projects/AurumGUI/**'

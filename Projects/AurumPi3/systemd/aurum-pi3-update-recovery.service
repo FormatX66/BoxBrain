@@ -1,0 +1,19 @@
+[Unit]
+Description=Recover an interrupted Aurum Pi3 application update
+DefaultDependencies=no
+After=local-fs.target
+Before=aurum-pi3-console.service aurum-pi3-serial.service multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/aurum/updater/aurum_updater.py recover
+RemainAfterExit=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadWritePaths=/opt/aurum /var/lib/aurum-updater
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

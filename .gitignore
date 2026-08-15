@@ -11,6 +11,7 @@ __pycache__/
 .venv/
 dist/
 build/
+Projects/AurumPC/.build/
 *.egg-info/
 
 # Flutter / Dart

@@ -1,0 +1,17 @@
+[Unit]
+Description=Aurum Local LLM Core
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/opt/aurum/llm/bin/llama-server -m /opt/aurum/llm/models/seed.gguf -a aurum-seed --host 127.0.0.1 --port 8080 -c 4096 -np 1 --jinja
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/aurum
+
+[Install]
+WantedBy=multi-user.target

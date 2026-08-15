@@ -1,0 +1,17 @@
+[Unit]
+Description=Activate one verified Aurum Pi3 application update
+After=local-fs.target
+
+[Service]
+Type=oneshot
+# Let the bounded console print and flush the staged/scheduled receipt before
+# this independent unit restarts that console's cgroup.
+ExecStartPre=/bin/sleep 1
+ExecStart=/usr/bin/python3 /opt/aurum/updater/aurum_updater.py apply-pending
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadWritePaths=/opt/aurum /var/lib/aurum-updater /run/aurum-pi3
+UMask=0077
+TimeoutStartSec=180
