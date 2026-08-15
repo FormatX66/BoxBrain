@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-continuous-build-policy-v0",
+  "working_trunk": "aurum/trunk-v0.01",
+  "checkpoint_branch": "aurum/trunk-v0.01-locked-20260815",
+  "principle": "continuous-progress-across-independent-fronts",
+  "rules": [
+    "keep-building-while-authorized-deterministic-work-exists",
+    "a-blocked-front-must-not-globally-stall-independent-fronts",
+    "physical-prerequisites-block-only-the-dependent-physical-front",
+    "prefer-event-driven-progress-with-a-periodic-watchdog",
+    "do-not-replay-unchanged-verified-work-for-activity",
+    "fan-out-independent-work-with-bounded-parallelism",
+    "fan-in-only-from-verified-evidence",
+    "use-hosted-compute-for-build-test-simulation-and-comparison",
+    "use-physical-nodes-for-hardware-observation-materialization-and-final-acceptance",
+    "continue-from-the-current-verified-trunk-not-from-obsolete-experimental-branches"
+  ],
+  "watchdog_minutes": 15,
+  "global_stall_allowed": false,
+  "duplicate_work_allowed": false,
+  "reversible": true
+}
