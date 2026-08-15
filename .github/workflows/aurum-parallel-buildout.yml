@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - aurum/capacity-mesh-v0
+      - 'agent/**'
     paths:
       - 'Projects/Codelation/field/boot_aperture.py'
       - 'Projects/Codelation/field/boot_aperture_handshake.py'

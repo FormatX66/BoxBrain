@@ -2,6 +2,19 @@ name: Aurum Virtual Hardware Lab
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_runtime:
+        description: Publish the gated Pi3 runtime release after all four targets converge
+        required: true
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - '.github/workflows/aurum-virtual-lab.yml'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumPi3/**'
+      - 'Projects/Codelation/**'
   push:
     branches:
       - aurum/virtual-lab-v0
@@ -25,7 +38,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Check out virtual lab
+      - name: Check out exact lab commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 1
@@ -39,11 +52,17 @@ jobs:
             python:3.12-bookworm \
             sh Projects/AurumVirtualLab/docker-runtime-smoke.sh amd64 \
             | tee aurum-docker-x64.log
-      - name: Publish x86_64 runtime log
+          python3 Projects/AurumVirtualLab/convergence_gate.py record \
+            --target docker-x86_64 \
+            --commit "$GITHUB_SHA" \
+            --output verification-evidence.json
+      - name: Publish x86_64 runtime evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Aurum-VirtualLab-Docker-x64
-          path: aurum-docker-x64.log
+          path: |
+            aurum-docker-x64.log
+            verification-evidence.json
           if-no-files-found: error
           retention-days: 7
 
@@ -52,7 +71,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
-      - name: Check out virtual lab
+      - name: Check out exact lab commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 1
@@ -71,13 +90,18 @@ jobs:
             python:3.12-bookworm \
             sh Projects/AurumVirtualLab/docker-runtime-smoke.sh arm64 \
             | tee aurum-docker-arm64.log
-      - name: Publish ARM64 runtime log
+          python3 Projects/AurumVirtualLab/convergence_gate.py record \
+            --target docker-arm64 \
+            --commit "$GITHUB_SHA" \
+            --output verification-evidence.json
+      - name: Publish ARM64 runtime evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Aurum-VirtualLab-Docker-arm64
           path: |
             aurum-arm64-runner.log
             aurum-docker-arm64.log
+            verification-evidence.json
           if-no-files-found: error
           retention-days: 7
 
@@ -86,7 +110,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - name: Check out virtual lab
+      - name: Check out exact lab commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 1
@@ -122,20 +146,26 @@ jobs:
           bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
             dist/Aurum-PC-v0.01-amd64.iso \
             aurum-pc-qemu.log
-      - name: Publish PC VM evidence
+          python3 Projects/AurumVirtualLab/convergence_gate.py record \
+            --target qemu-x86_64-uefi \
+            --commit "$GITHUB_SHA" \
+            --output verification-evidence.json
+      - name: Publish PC virtual-machine evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Aurum-VirtualLab-QEMU-PC
-          path: aurum-pc-qemu.log
+          path: |
+            aurum-pc-qemu.log
+            verification-evidence.json
           if-no-files-found: error
           retention-days: 7
 
   qemu-pi3:
-    name: QEMU Raspberry Pi 3B
+    name: QEMU Raspberry Pi 3B machine/runtime
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - name: Check out virtual lab
+      - name: Check out exact lab commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 1
@@ -155,7 +185,7 @@ jobs:
           RAW=Projects/AurumPi3/.build/Aurum-Pi3-v0.01-arm64.img
           test -s "$RAW"
           sudo chown "$USER:$USER" "$RAW"
-      - name: Boot Pi3 image in QEMU
+      - name: Boot Pi3 image and installed runtime in QEMU
         shell: bash
         run: |
           set -euo pipefail
@@ -163,18 +193,25 @@ jobs:
             Projects/AurumPi3/.build/Aurum-Pi3-v0.01-arm64.img \
             aurum-pi3-qemu.log \
             aurum-pi3-qemu-mode.txt
-      - name: Publish Pi3 VM evidence
+          grep -F 'raspi3b-direct-kernel-real-microsd-rootfs-installed-aurum-runtime' \
+            aurum-pi3-qemu-mode.txt
+          python3 Projects/AurumVirtualLab/convergence_gate.py record \
+            --target qemu-pi3-machine-runtime \
+            --commit "$GITHUB_SHA" \
+            --output verification-evidence.json
+      - name: Publish Pi3 virtual machine/runtime evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Aurum-VirtualLab-QEMU-Pi3
           path: |
             aurum-pi3-qemu.log
             aurum-pi3-qemu-mode.txt
+            verification-evidence.json
           if-no-files-found: error
           retention-days: 7
 
   virtual-lab-gate:
-    name: Virtual lab release gate
+    name: Same-commit four-target convergence gate
     runs-on: ubuntu-24.04
     needs:
       - docker-x64
@@ -182,15 +219,164 @@ jobs:
       - qemu-pc
       - qemu-pi3
     steps:
-      - name: Record converged virtual proof
+      - name: Check out exact lab commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Download all four proof artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: Aurum-VirtualLab-*
+          path: evidence
+      - name: Verify exact targets, commit, and evidence labels
         shell: bash
         run: |
           set -euo pipefail
-          cat <<'EOF'
-          AURUM_VIRTUAL_LAB_OK
-          docker_x64=verified
-          docker_arm64=verified
-          qemu_pc_uefi=verified
-          qemu_pi3=verified
-          physical_hardware_evidence=not_implied
-          EOF
+          mapfile -t proofs < <(find evidence -type f -name verification-evidence.json | sort)
+          test "${#proofs[@]}" -eq 4
+          python3 Projects/AurumVirtualLab/convergence_gate.py verify \
+            --commit "$GITHUB_SHA" \
+            --output aurum-convergence-proof.json \
+            "${proofs[@]}"
+          python3 -m json.tool aurum-convergence-proof.json
+      - name: Publish converged proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-VirtualLab-Convergence-${{ github.sha }}
+          path: aurum-convergence-proof.json
+          if-no-files-found: error
+          retention-days: 30
+
+  promote-pi3-runtime:
+    name: Publish gated Pi3 runtime update
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.publish_runtime == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs:
+      - virtual-lab-gate
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the exact converged commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+          ref: ${{ github.sha }}
+      - name: Download the converged proof
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: Aurum-VirtualLab-Convergence-${{ github.sha }}
+          path: release-input
+      - name: Build and independently verify the application/runtime update
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '\r\n' < Projects/AurumPi3/RUNTIME_VERSION)
+          [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]
+          revision=${GITHUB_SHA::12}
+          release_id="$version-$revision"
+          tag="aurum-pi3-runtime-v$release_id"
+          artifact="Aurum-Pi3-runtime-$release_id-arm64.tar.gz"
+          manifest="Aurum-Pi3-runtime-$release_id-arm64.manifest.json"
+          asset_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$artifact"
+          python3 Projects/AurumPi3/build-runtime-release.py \
+            --version "$version" \
+            --release-id "$release_id" \
+            --artifact-url "$asset_url" \
+            --convergence-proof release-input/aurum-convergence-proof.json
+          test -s "dist/$artifact"
+          test -s "dist/$manifest"
+          (cd dist && sha256sum -c "$manifest.sha256")
+          mkdir runtime-verify
+          tar -xzf "dist/$artifact" -C runtime-verify
+          python3 -m py_compile \
+            runtime-verify/payload/aurum_pi3_console.py \
+            runtime-verify/payload/aurum_updater.py \
+            runtime-verify/payload/aurum_release_gate.py
+          AURUM_ROOT="$PWD/runtime-verify/payload" \
+            python3 runtime-verify/payload/aurum_pi3_console.py --selftest-json \
+            | tee runtime-selftest.json
+          grep -q '"selftest": "ok"' runtime-selftest.json
+          python3 - "dist/$manifest" "$GITHUB_SHA" <<'PY'
+          import json, pathlib, sys
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+          assert data['schema'] == 'aurum-application-update-v1'
+          assert data['target'] == 'raspberry-pi-3'
+          assert data['architecture'] == 'arm64'
+          assert data['source_commit'] == sys.argv[2]
+          proof = data['verification']['convergence']
+          assert proof['status'] == 'verified'
+          assert proof['commit'] == sys.argv[2]
+          assert len(proof['required_targets']) == 4
+          assert proof['evidence_labels']['qemu_pi3'] == 'virtual-machine-runtime-proof'
+          assert proof['evidence_labels']['physical_hardware'] == 'not-proven-or-implied'
+          assert data['scope'] == {
+              'application_runtime': True,
+              'boot_firmware': False,
+              'kernel': False,
+              'operating_system': False,
+          }
+          PY
+          {
+            echo "version=$version"
+            echo "release_id=$release_id"
+            echo "tag=$tag"
+            echo "artifact=$artifact"
+            echo "manifest=$manifest"
+          } >> "$GITHUB_OUTPUT"
+      - name: Retain gated runtime bundle as workflow evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-Pi3-runtime-${{ steps.release.outputs.release_id }}
+          path: |
+            dist/${{ steps.release.outputs.artifact }}
+            dist/${{ steps.release.outputs.manifest }}
+            dist/${{ steps.release.outputs.manifest }}.sha256
+            release-input/aurum-convergence-proof.json
+            runtime-selftest.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Publish complete versioned release from a private draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ARTIFACT: ${{ steps.release.outputs.artifact }}
+          MANIFEST: ${{ steps.release.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release tag already exists; refusing to replace published evidence: $TAG" >&2
+            exit 1
+          fi
+          printf '%s\n' \
+            "Aurum Pi3 application/runtime $VERSION." \
+            "" \
+            "Promoted only after Docker x86_64, Docker ARM64, QEMU x86_64 UEFI, and QEMU Pi3 machine/runtime verification converged on commit $GITHUB_SHA." \
+            "" \
+            "QEMU Pi3 is virtual machine/runtime proof. It does not prove or imply physical Pi hardware verification." \
+            > release-notes.md
+          gh release create "$TAG" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Aurum Pi3 runtime $VERSION ($GITHUB_SHA)" \
+            --notes-file release-notes.md \
+            "dist/$ARTIFACT" \
+            "dist/$MANIFEST" \
+            "dist/$MANIFEST.sha256" \
+            "release-input/aurum-convergence-proof.json"
+          gh release view "$TAG" --json isDraft,assets > release-view.json
+          python3 - "$ARTIFACT" "$MANIFEST" <<'PY'
+          import json, pathlib, sys
+          value = json.loads(pathlib.Path('release-view.json').read_text(encoding='utf-8'))
+          assert value['isDraft'] is True
+          names = {asset['name'] for asset in value['assets']}
+          expected = {sys.argv[1], sys.argv[2], sys.argv[2] + '.sha256', 'aurum-convergence-proof.json'}
+          assert names == expected, (names, expected)
+          PY
+          gh release edit "$TAG" --draft=false
+          gh release view "$TAG" --json url,isDraft,tagName

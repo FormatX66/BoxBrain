@@ -16,6 +16,7 @@ case "$ROOT_PREFIX" in
 esac
 [ -d "$ROOT_PREFIX" ] || { echo "Root filesystem is unavailable: $ROOT_PREFIX" >&2; exit 2; }
 [ -f "$SCRIPT_DIR/aurum_updater.py" ] || { echo "Updater source is missing" >&2; exit 2; }
+[ -f "$SCRIPT_DIR/aurum_release_gate.py" ] || { echo "Release gate source is missing" >&2; exit 2; }
 [ -d "$SCRIPT_DIR/systemd" ] || { echo "Updater systemd units are missing" >&2; exit 2; }
 
 under_root() {
@@ -44,12 +45,15 @@ STATE=$(under_root var/lib/aurum-updater)
 mkdir -p "$UPDATER" "$RELEASES" "$STATE" "$SYSTEMD/multi-user.target.wants"
 chmod 0700 "$STATE"
 install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$UPDATER/aurum_updater.py"
+install -m 0644 "$SCRIPT_DIR/aurum_release_gate.py" "$UPDATER/aurum_release_gate.py"
 
 if [ ! -d "$BOOTSTRAP" ]; then
   TEMP_RELEASE="$RELEASES/.0.01-bootstrap.$$"
   trap 'rm -rf -- "$TEMP_RELEASE"' EXIT INT TERM
   mkdir -m 0755 "$TEMP_RELEASE"
   install -m 0755 "$BASE/aurum_pi3_console.py" "$TEMP_RELEASE/aurum_pi3_console.py"
+  install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$TEMP_RELEASE/aurum_updater.py"
+  install -m 0644 "$SCRIPT_DIR/aurum_release_gate.py" "$TEMP_RELEASE/aurum_release_gate.py"
   cp -a "$BASE/codelation" "$TEMP_RELEASE/codelation"
   find "$TEMP_RELEASE/codelation" -type f -name '*.py' -exec chmod 0644 {} +
   cat > "$TEMP_RELEASE/RELEASE.json" <<'EOF'
@@ -68,6 +72,8 @@ EOF
   mv "$TEMP_RELEASE" "$BOOTSTRAP"
   trap - EXIT INT TERM
 fi
+install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$BOOTSTRAP/aurum_updater.py"
+install -m 0644 "$SCRIPT_DIR/aurum_release_gate.py" "$BOOTSTRAP/aurum_release_gate.py"
 
 if [ -e "$BASE/current" ] && [ ! -L "$BASE/current" ]; then
   echo "$BASE/current exists and is not a symlink; refusing to replace it" >&2

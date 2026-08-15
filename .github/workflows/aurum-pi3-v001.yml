@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - aurum/pi3-v0.01
+      - 'agent/**'
     paths:
       - 'Projects/AurumPi3/**'
       - 'Projects/AurumPC/**'
@@ -35,6 +36,7 @@ jobs:
           python3 -m py_compile \
             Projects/AurumPi3/aurum_pi3_console.py \
             Projects/AurumPi3/aurum_updater.py \
+            Projects/AurumPi3/aurum_release_gate.py \
             Projects/AurumPi3/build-runtime-release.py \
             Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py
@@ -47,38 +49,12 @@ jobs:
             Projects/AurumPi3/aurum_pi3_console.py \
             Projects/AurumPi3/aurum_updater.py
 
-      - name: Build pinned application runtime release
+      - name: Enforce image-only workflow boundary
         shell: bash
         run: |
           set -euo pipefail
-          revision="${GITHUB_SHA::12}"
-          python3 Projects/AurumPi3/build-runtime-release.py \
-            --version 0.02 \
-            --release-id "0.02-$revision"
-          artifact="dist/Aurum-Pi3-runtime-0.02-$revision-arm64.tar.gz"
-          manifest="dist/Aurum-Pi3-runtime-0.02-$revision-arm64.manifest.json"
-          test -s "$artifact"
-          test -s "$manifest"
-          (cd dist && sha256sum -c "$(basename "$manifest").sha256")
-          python3 - "$manifest" <<'PY'
-          import json, pathlib, sys
-          data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
-          assert data['schema'] == 'aurum-application-update-v1'
-          assert data['target'] == 'raspberry-pi-3'
-          assert data['architecture'] == 'arm64'
-          assert data['scope'] == {
-              'application_runtime': True,
-              'boot_firmware': False,
-              'kernel': False,
-              'operating_system': False,
-          }
-          PY
-          mkdir -p runtime-verify
-          tar -xzf "$artifact" -C runtime-verify
-          AURUM_ROOT="$PWD/runtime-verify/payload" \
-            python3 runtime-verify/payload/aurum_pi3_console.py --selftest-json \
-            | tee runtime-selftest.json
-          grep -q '"selftest": "ok"' runtime-selftest.json
+          grep -q -- '--convergence-proof' Projects/AurumPi3/build-runtime-release.py
+          echo 'AURUM_PI3_IMAGE_WORKFLOW_RUNTIME_PUBLICATION=forbidden'
 
       - name: Install image tooling
         shell: bash
@@ -153,6 +129,9 @@ jobs:
               compile(path.read_text(encoding='utf-8'), str(path), 'exec')
           print('AURUM_PI3_STATIC_RUNTIME_OK')
           PY
+          test -s "$ROOT/opt/aurum/current/aurum_updater.py"
+          test -s "$ROOT/opt/aurum/current/aurum_release_gate.py"
+          test -s "$ROOT/opt/aurum/updater/aurum_release_gate.py"
           echo 'AURUM_PI3_IMAGE_STRUCTURE_OK'
           cleanup
           trap - EXIT
@@ -190,16 +169,4 @@ jobs:
             aurum-pi3-partitions.txt
           if-no-files-found: error
           retention-days: 14
-          compression-level: 0
-
-      - name: Publish pinned application runtime release
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: Aurum-Pi3-runtime-${{ github.sha }}
-          path: |
-            dist/Aurum-Pi3-runtime-*.tar.gz
-            dist/Aurum-Pi3-runtime-*.manifest.json
-            dist/Aurum-Pi3-runtime-*.manifest.json.sha256
-          if-no-files-found: error
-          retention-days: 30
           compression-level: 0

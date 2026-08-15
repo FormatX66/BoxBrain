@@ -1,0 +1,155 @@
+name: Aurum LLM Core v0.01
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/llm-core-v0
+      - 'agent/**'
+    paths:
+      - '.github/workflows/aurum-llm-core.yml'
+      - 'Projects/AurumLLM/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-llm-core-v001-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-infer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Aurum LLM branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Validate bounded LLM sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumLLM/aurum_llm.py
+          python3 -m unittest discover -s Projects/AurumLLM/tests -p 'test_*.py' -v
+          sh -n Projects/AurumLLM/build-llm.sh
+
+      - name: Install independent runtime tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates
+          docker info >/dev/null
+
+      - name: Build Aurum LLM bundle with Debian-native tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates curl cmake build-essential pkg-config
+              sh Projects/AurumLLM/build-llm.sh
+            '
+          BUNDLE=dist/Aurum-LLM-v0.01-x86_64
+          test -x "$BUNDLE/bin/llama-cli"
+          test -x "$BUNDLE/bin/llama-server"
+          test -s "$BUNDLE/models/seed.gguf"
+          (cd "$BUNDLE" && sha256sum -c SHA256SUMS)
+
+      - name: Local inference smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE=dist/Aurum-LLM-v0.01-x86_64
+          "$BUNDLE/bin/llama-server" \
+            -m "$BUNDLE/models/seed.gguf" \
+            -a aurum-seed \
+            --host 127.0.0.1 \
+            --port 8080 \
+            -c 2048 \
+            -np 1 \
+            -ngl 0 \
+            --jinja \
+            > aurum-llm-server.log 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for _ in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health > aurum-llm-health.json 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat aurum-llm-server.log
+              echo 'Aurum LLM server exited before becoming ready.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat aurum-llm-server.log
+            echo 'Aurum LLM server did not become ready.' >&2
+            exit 1
+          fi
+
+          python3 Projects/AurumLLM/aurum_llm.py \
+            --model aurum-seed \
+            --system "$(cat Projects/AurumLLM/system.txt)" \
+            --prompt 'Reply in one short sentence confirming that local Aurum inference is online.' \
+            --temperature 0 \
+            --max-tokens 64 \
+            --json \
+            > aurum-llm-smoke.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('aurum-llm-smoke.json').read_text(encoding='utf-8'))
+          choices = payload.get('choices') or []
+          assert choices, 'no inference choices returned'
+          message = choices[0].get('message') or {}
+          text = (message.get('content') or message.get('reasoning_content') or '').strip()
+          assert text, 'model returned no text'
+          print('AURUM_LLM_READY version=0.01 arch=x86_64 alias=aurum-seed')
+          print('selftest=ok')
+          print(text[:500])
+          PY
+
+          cleanup
+          trap - EXIT
+
+      - name: Record LLM metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE=dist/Aurum-LLM-v0.01-x86_64
+          "$BUNDLE/bin/llama-cli" --version || true
+          ls -lh "$BUNDLE/models/seed.gguf"
+          cat "$BUNDLE/runtime-manifest.json"
+          cat "$BUNDLE/SHA256SUMS"
+
+      - name: Publish inference-verified LLM bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-LLM-v0.01-x86_64
+          path: |
+            dist/Aurum-LLM-v0.01-x86_64/**
+            aurum-llm-health.json
+            aurum-llm-smoke.json
+            aurum-llm-server.log
+          if-no-files-found: error
+          retention-days: 14

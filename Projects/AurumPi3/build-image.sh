@@ -29,8 +29,8 @@ if [ ! -f "$SCRIPT_DIR/aurum_pi3_console.py" ]; then
   echo "Aurum Pi3 console source is missing." >&2
   exit 2
 fi
-if [ ! -f "$SCRIPT_DIR/aurum_updater.py" ] || [ ! -d "$SCRIPT_DIR/systemd" ]; then
-  echo "Aurum Pi3 updater or systemd units are missing." >&2
+if [ ! -f "$SCRIPT_DIR/aurum_updater.py" ] || [ ! -f "$SCRIPT_DIR/aurum_release_gate.py" ] || [ ! -d "$SCRIPT_DIR/systemd" ]; then
+  echo "Aurum Pi3 updater, release gate, or systemd units are missing." >&2
   exit 2
 fi
 
@@ -73,7 +73,10 @@ mount "$BOOT_PART" "$BOOT_MNT"
 BOOTSTRAP_RELEASE="$ROOT_MNT/opt/aurum/releases/0.01-bootstrap"
 mkdir -p "$BOOTSTRAP_RELEASE" "$ROOT_MNT/opt/aurum/updater"
 install -m 0755 "$SCRIPT_DIR/aurum_pi3_console.py" "$BOOTSTRAP_RELEASE/aurum_pi3_console.py"
+install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$BOOTSTRAP_RELEASE/aurum_updater.py"
+install -m 0644 "$SCRIPT_DIR/aurum_release_gate.py" "$BOOTSTRAP_RELEASE/aurum_release_gate.py"
 install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$ROOT_MNT/opt/aurum/updater/aurum_updater.py"
+install -m 0644 "$SCRIPT_DIR/aurum_release_gate.py" "$ROOT_MNT/opt/aurum/updater/aurum_release_gate.py"
 install -d -m 0700 "$ROOT_MNT/var/lib/aurum-pi3"
 install -d -m 0700 "$ROOT_MNT/var/lib/aurum-updater"
 cp -a "$REPO_ROOT/Projects/Codelation" "$BOOTSTRAP_RELEASE/codelation"
