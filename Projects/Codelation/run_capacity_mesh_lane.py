@@ -10,6 +10,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
+CORE_TEST_MODULES = (
+    "Projects.Codelation.tests.test_capacity_mesh",
+    "Projects.Codelation.tests.test_mesh_efficiency",
+    "Projects.Codelation.tests.test_event_handoff",
+    "Projects.Codelation.tests.test_local_capability_verification",
+)
+PORTABILITY_TEST_MODULES = (
+    "Projects.Codelation.tests.test_capacity_mesh",
+    "Projects.Codelation.tests.test_mesh_efficiency",
+)
+
 
 def run_command(command: list[str]) -> tuple[int, float]:
     started = time.monotonic()
@@ -29,42 +40,42 @@ def compile_python_tree() -> int:
     return 0 if failures == 0 else 1
 
 
-def suite_command(suite: str) -> list[str] | None:
+def discover_test_modules() -> tuple[str, ...]:
+    tests_root = ROOT / "tests"
+    return tuple(
+        f"Projects.Codelation.tests.{path.stem}"
+        for path in sorted(tests_root.glob("test_*.py"))
+    )
+
+
+def suite_test_modules(suite: str) -> tuple[str, ...]:
     if suite == "core":
-        return [
-            sys.executable,
-            "-m",
-            "unittest",
-            "Projects.Codelation.tests.test_capacity_mesh",
-            "Projects.Codelation.tests.test_mesh_efficiency",
-            "Projects.Codelation.tests.test_event_handoff",
-            "Projects.Codelation.tests.test_local_capability_verification",
-            "-v",
-        ]
+        return CORE_TEST_MODULES
     if suite == "broad":
-        return [
-            sys.executable,
-            "-m",
-            "unittest",
-            "discover",
-            "-s",
-            "Projects/Codelation/tests",
-            "-p",
-            "test_*.py",
-            "-v",
-        ]
+        core = frozenset(CORE_TEST_MODULES)
+        modules = tuple(
+            module for module in discover_test_modules() if module not in core
+        )
+        if not modules:
+            raise RuntimeError("broad suite has no tests independent of core")
+        return modules
     if suite == "portability":
-        return [
-            sys.executable,
-            "-m",
-            "unittest",
-            "Projects.Codelation.tests.test_capacity_mesh",
-            "Projects.Codelation.tests.test_mesh_efficiency",
-            "-v",
-        ]
+        return PORTABILITY_TEST_MODULES
+    if suite == "verification":
+        return ()
+    raise ValueError(f"unsupported suite: {suite}")
+
+
+def suite_command(suite: str) -> list[str] | None:
     if suite == "verification":
         return None
-    raise ValueError(f"unsupported suite: {suite}")
+    return [
+        sys.executable,
+        "-m",
+        "unittest",
+        *suite_test_modules(suite),
+        "-v",
+    ]
 
 
 def main() -> int:
