@@ -48,23 +48,24 @@ LOOP=""
 cp --sparse=always "$RAW" "$WORK/aurum-pi3-qemu.img"
 truncate -s 4G "$WORK/aurum-pi3-qemu.img"
 
-# The Raspberry Pi OS cmdline uses PARTUUID and physical-Pi console aliases.
-# For QEMU's raspi3b direct-kernel path, make those two machine contracts
-# explicit while preserving every unrelated boot argument from the real image.
+# The physical Raspberry Pi image intentionally carries the Raspberry Pi OS
+# `resize` first-boot argument. The official firstboot path consumes that flag,
+# expands the real SD partition and force-reboots. QEMU's scratch SD is padded
+# only to satisfy the emulator and must not run that provisioning reboot. Drop
+# `resize` only from this synthetic VM command line; the shipped image remains
+# unchanged. Also replace physical PARTUUID/serial aliases with QEMU contracts.
 CMDLINE=""
 for arg in $ORIGINAL_CMDLINE; do
   case "$arg" in
-    root=*|rootwait|rootdelay=*|console=*) ;;
+    resize|root=*|rootwait|rootdelay=*|console=*) ;;
     *) CMDLINE="$CMDLINE $arg" ;;
   esac
 done
 CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 aurum.qemu=1"
 printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
-# Never bind the guest UART or monitor to CI stdin. QEMU's stdio character
-# backend treats a closed non-interactive input differently across versions and
-# can terminate a healthy guest early. Capture the emulated PL011 directly to a
-# file so the VM lifetime depends only on the guest or the bounded timeout.
+# Never bind the guest UART or monitor to CI stdin. Capture the emulated PL011
+# directly to a file so the VM lifetime depends only on the guest or timeout.
 : > "$LOG"
 set +e
 timeout 180s qemu-system-aarch64 \
@@ -87,7 +88,7 @@ cat /tmp/aurum-pi3-qemu-host.log || true
 cat "$LOG"
 
 if grep -F 'AURUM_PI3_READY' "$LOG" >/dev/null && grep -F 'selftest=ok' "$LOG" >/dev/null; then
-  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs' > "$MODE_FILE"
+  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs-post-resize' > "$MODE_FILE"
   echo 'AURUM_VIRTUAL_PI3_OK'
 else
   echo "Pi3 QEMU did not reach Aurum readiness; qemu_status=$status" >&2
