@@ -2,16 +2,25 @@
 from __future__ import annotations
 
 import json
+import getpass
 import os
 import platform
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 
+from aurum_workspace import AurumWorkspace, WorkspaceError
+
 VERSION = "0.01"
-ROOT = Path("/opt/aurum")
+ROOT = Path(os.environ.get("AURUM_ROOT", "/opt/aurum"))
 CODELATION = ROOT / "codelation"
 STATE = CODELATION / "autobuild" / "native_chain_state.json"
+WORKSPACE = AurumWorkspace(
+    installed_root=CODELATION,
+    workspace=Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain")),
+    state_dir=Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state")),
+)
 
 
 def _read_text(path: Path, default: str = "unknown") -> str:
@@ -112,6 +121,23 @@ def explicit_power(action: str) -> None:
     subprocess.run([f"/sbin/{action}"], check=False)
 
 
+def show_result(operation) -> None:
+    try:
+        result = operation()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+    except WorkspaceError as exc:
+        print(f"AURUM_WORKSPACE_REFUSED detail={exc}", flush=True)
+
+
+def command_help() -> None:
+    print(
+        "status | hardware | field | selftest | seed | seed-status | self-build | "
+        "git-status | git-sync authorize-network | git-auth | "
+        "git-promote authorize-network confirm-push | reboot | poweroff | help",
+        flush=True,
+    )
+
+
 def main() -> int:
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     ok, detail = selftest()
@@ -122,31 +148,60 @@ def main() -> int:
         f"selftest={'ok' if ok else 'failed'} detail={detail}",
         flush=True,
     )
-    print("Commands: status hardware field selftest reboot poweroff help", flush=True)
+    command_help()
 
     while True:
         try:
-            command = input("aurum> ").strip().lower()
+            raw_command = input("aurum> ").strip()
         except EOFError:
             return 0
         except KeyboardInterrupt:
             print("", flush=True)
             continue
 
-        if command in {"", "help", "?"}:
-            print("status | hardware | field | selftest | reboot | poweroff | help", flush=True)
-        elif command == "status":
+        try:
+            tokens = shlex.split(raw_command)
+        except ValueError as exc:
+            print(f"AURUM_COMMAND_INVALID detail={exc}", flush=True)
+            continue
+        command = tokens[0].lower() if tokens else "help"
+        if command in {"help", "?"} and len(tokens) <= 1:
+            command_help()
+        elif command == "status" and len(tokens) == 1:
             show_status()
-        elif command == "hardware":
+        elif command == "hardware" and len(tokens) == 1:
             print(json.dumps(hardware(), indent=2, sort_keys=True), flush=True)
-        elif command == "field":
+        elif command == "field" and len(tokens) == 1:
             show_field()
-        elif command == "selftest":
+        elif command == "selftest" and len(tokens) == 1:
             test_ok, test_detail = selftest()
             print(f"AURUM_SELFTEST status={'ok' if test_ok else 'failed'} detail={test_detail}", flush=True)
-        elif command == "reboot":
+        elif command == "seed" and len(tokens) == 1:
+            show_result(WORKSPACE.seed)
+        elif command == "seed-status" and len(tokens) == 1:
+            show_result(WORKSPACE.seed_status)
+        elif command == "self-build" and len(tokens) == 1:
+            show_result(WORKSPACE.self_build)
+        elif command == "git-status" and len(tokens) == 1:
+            show_result(WORKSPACE.git_status)
+        elif command == "git-sync" and len(tokens) == 2:
+            show_result(lambda: WORKSPACE.git_sync(authorize_network=tokens[1].lower() == "authorize-network"))
+        elif command == "git-auth" and len(tokens) == 1:
+            token = getpass.getpass("GitHub token (kept in memory for one hour): ")
+            try:
+                show_result(lambda: WORKSPACE.git_auth(token))
+            finally:
+                token = ""
+        elif command == "git-promote" and len(tokens) == 3:
+            show_result(
+                lambda: WORKSPACE.git_promote(
+                    authorize_network=tokens[1].lower() == "authorize-network",
+                    confirm_push=tokens[2].lower() == "confirm-push",
+                )
+            )
+        elif command == "reboot" and len(tokens) == 1:
             explicit_power("reboot")
-        elif command == "poweroff":
+        elif command == "poweroff" and len(tokens) == 1:
             explicit_power("poweroff")
         else:
             print("AURUM_UNKNOWN_COMMAND", flush=True)

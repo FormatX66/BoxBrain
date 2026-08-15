@@ -6,6 +6,7 @@ on:
       - aurum/pi3-v0.01
     paths:
       - 'Projects/AurumPi3/**'
+      - 'Projects/AurumPC/**'
       - 'Projects/Codelation/**'
       - '.github/workflows/aurum-pi3-v001.yml'
   workflow_dispatch:
@@ -33,26 +34,51 @@ jobs:
           set -euo pipefail
           python3 -m py_compile \
             Projects/AurumPi3/aurum_pi3_console.py \
-            Projects/AurumPi3/aurum_pi3_update.py \
-            Projects/AurumPi3/build-update-bundle.py
+            Projects/AurumPi3/aurum_updater.py \
+            Projects/AurumPi3/build-runtime-release.py \
+            Projects/AurumPC/aurum_console.py \
+            Projects/AurumPC/aurum_workspace.py
           python3 -m unittest discover -s Projects/AurumPi3/tests -v
+          python3 -m unittest discover -s Projects/AurumPC/tests -v
           sh -n Projects/AurumPi3/build-image.sh
+          sh -n Projects/AurumPi3/bootstrap-updater-v001.sh
           grep -q 'AURUM_PI3_READY' Projects/AurumPi3/aurum_pi3_console.py
           ! grep -R -E 'shell=True|os\.system' \
             Projects/AurumPi3/aurum_pi3_console.py \
-            Projects/AurumPi3/aurum_pi3_update.py
+            Projects/AurumPi3/aurum_updater.py
 
-      - name: Build and verify capability update bundle
+      - name: Build pinned application runtime release
         shell: bash
         run: |
           set -euo pipefail
-          python3 Projects/AurumPi3/build-update-bundle.py
-          MANIFEST=dist/Aurum-Pi3-v0.01-capability-update.manifest.json
-          BUNDLE=dist/Aurum-Pi3-v0.01-capability-update.tar.gz
-          (cd dist && sha256sum -c Aurum-Pi3-v0.01-capability-update.manifest.json.sha256)
-          MANIFEST_SHA=$(sha256sum "$MANIFEST" | awk '{print $1}')
-          python3 Projects/AurumPi3/aurum_pi3_update.py inspect "$MANIFEST" "$MANIFEST_SHA"
-          test -s "$BUNDLE"
+          revision="${GITHUB_SHA::12}"
+          python3 Projects/AurumPi3/build-runtime-release.py \
+            --version 0.02 \
+            --release-id "0.02-$revision"
+          artifact="dist/Aurum-Pi3-runtime-0.02-$revision-arm64.tar.gz"
+          manifest="dist/Aurum-Pi3-runtime-0.02-$revision-arm64.manifest.json"
+          test -s "$artifact"
+          test -s "$manifest"
+          sha256sum -c "$manifest.sha256"
+          python3 - "$manifest" <<'PY'
+          import json, pathlib, sys
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+          assert data['schema'] == 'aurum-application-update-v1'
+          assert data['target'] == 'raspberry-pi-3'
+          assert data['architecture'] == 'arm64'
+          assert data['scope'] == {
+              'application_runtime': True,
+              'boot_firmware': False,
+              'kernel': False,
+              'operating_system': False,
+          }
+          PY
+          mkdir -p runtime-verify
+          tar -xzf "$artifact" -C runtime-verify
+          AURUM_ROOT="$PWD/runtime-verify/payload" \
+            python3 runtime-verify/payload/aurum_pi3_console.py --selftest-json \
+            | tee runtime-selftest.json
+          grep -q '"selftest": "ok"' runtime-selftest.json
 
       - name: Install image tooling
         shell: bash
@@ -102,30 +128,30 @@ jobs:
           test -s "$ROOT/boot/firmware/fixup.dat"
           test -s "$ROOT/boot/firmware/kernel8.img"
           test -s "$ROOT/boot/firmware/bcm2710-rpi-3-b.dtb"
-          test -s "$ROOT/opt/aurum/aurum_pi3_console.py"
-          test -s "$ROOT/opt/aurum/aurum_pi3_update.py"
-          test -d "$ROOT/opt/aurum/codelation/field"
-          sudo test -d "$ROOT/var/lib/aurum-pi3/updates"
+          test -L "$ROOT/opt/aurum/current"
+          test -s "$ROOT/opt/aurum/current/aurum_pi3_console.py"
+          test -s "$ROOT/opt/aurum/current/RELEASE.json"
+          test -d "$ROOT/opt/aurum/current/codelation/field"
+          test -x "$ROOT/opt/aurum/updater/aurum_updater.py"
           test "$(sudo stat -c '%a' "$ROOT/var/lib/aurum-pi3")" = 700
-          test "$(sudo stat -c '%a' "$ROOT/var/lib/aurum-pi3/updates")" = 700
+          test "$(sudo stat -c '%a' "$ROOT/var/lib/aurum-updater")" = 700
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-console.service"
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-serial.service"
+          test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-update-recovery.service"
+          grep -q '/opt/aurum/current/aurum_pi3_console.py' "$ROOT/etc/systemd/system/aurum-pi3-console.service"
+          grep -q 'apply-pending' "$ROOT/etc/systemd/system/aurum-pi3-update.service"
+          grep -q 'recover' "$ROOT/etc/systemd/system/aurum-pi3-update-recovery.service"
           grep -q '^arm_64bit=1$' "$ROOT/boot/firmware/config.txt"
           grep -q '^enable_uart=1$' "$ROOT/boot/firmware/config.txt"
           grep -q 'console=serial0,115200' "$ROOT/boot/firmware/cmdline.txt"
           grep -q 'aurum.pi3=1' "$ROOT/boot/firmware/cmdline.txt"
           grep -q '^aurum-pi3$' "$ROOT/etc/hostname"
-          python3 - "$ROOT/opt/aurum/aurum_pi3_console.py" <<'PY'
+          python3 - "$ROOT/opt/aurum/current/aurum_pi3_console.py" "$ROOT/opt/aurum/updater/aurum_updater.py" <<'PY'
           import pathlib, sys
-          path = pathlib.Path(sys.argv[1])
-          compile(path.read_text(encoding='utf-8'), str(path), 'exec')
+          for value in sys.argv[1:]:
+              path = pathlib.Path(value)
+              compile(path.read_text(encoding='utf-8'), str(path), 'exec')
           print('AURUM_PI3_STATIC_RUNTIME_OK')
-          PY
-          python3 - "$ROOT/opt/aurum/aurum_pi3_update.py" <<'PY'
-          import pathlib, sys
-          path = pathlib.Path(sys.argv[1])
-          compile(path.read_text(encoding='utf-8'), str(path), 'exec')
-          print('AURUM_PI3_STATIC_UPDATER_OK')
           PY
           echo 'AURUM_PI3_IMAGE_STRUCTURE_OK'
           cleanup
@@ -161,10 +187,19 @@ jobs:
             dist/Aurum-Pi3-v0.01-arm64.img.xz
             dist/Aurum-Pi3-v0.01-arm64.img.xz.sha256
             dist/Aurum-Pi3-v0.01-arm64.manifest.json
-            dist/Aurum-Pi3-v0.01-capability-update.tar.gz
-            dist/Aurum-Pi3-v0.01-capability-update.manifest.json
-            dist/Aurum-Pi3-v0.01-capability-update.manifest.json.sha256
             aurum-pi3-partitions.txt
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
+
+      - name: Publish pinned application runtime release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-Pi3-runtime-${{ github.sha }}
+          path: |
+            dist/Aurum-Pi3-runtime-*.tar.gz
+            dist/Aurum-Pi3-runtime-*.manifest.json
+            dist/Aurum-Pi3-runtime-*.manifest.json.sha256
+          if-no-files-found: error
+          retention-days: 30
           compression-level: 0

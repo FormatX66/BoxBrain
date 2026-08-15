@@ -59,6 +59,8 @@ iproute2
 pciutils
 usbutils
 ca-certificates
+git
+systemd-resolved
 EOF
 
 # Debian live-build's EFI GRUB config expects this font at boot. With
@@ -92,9 +94,21 @@ EOF
 mkdir -p config/includes.chroot/opt/aurum
 cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
+cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
+chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
+mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
 
 mkdir -p config/includes.chroot/etc/systemd/system
+mkdir -p config/includes.chroot/etc/systemd/network
+cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
+[Match]
+Name=en* eth*
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
 [Unit]
 Description=Aurum PC primary console
@@ -145,6 +159,8 @@ EOF
 mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service
+ln -s /lib/systemd/system/systemd-networkd.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+ln -s /lib/systemd/system/systemd-resolved.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/getty@tty1.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/serial-getty@ttyS0.service
 
@@ -160,7 +176,9 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /opt/aurum/aurum_console.py
+chmod 0755 /opt/aurum/aurum_workspace.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
+ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 

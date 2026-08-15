@@ -21,12 +21,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-VERSION = "0.01"
 TARGET = "raspberry-pi-3"
 STATE_SCHEMA = "aurum-pi3-capability-state-v1"
-ROOT = Path(os.environ.get("AURUM_ROOT", "/opt/aurum"))
+ROOT = Path(os.environ.get("AURUM_ROOT", "/opt/aurum/current"))
 CODELATION = ROOT / "codelation"
 CHAIN_STATE = CODELATION / "autobuild" / "native_chain_state.json"
+RELEASE = ROOT / "RELEASE.json"
+UPDATER = Path(os.environ.get("AURUM_UPDATER", "/opt/aurum/updater/aurum_updater.py"))
+READINESS_FILE = os.environ.get("AURUM_READINESS_FILE")
 DEFAULT_CAPABILITY_STATE = (
     "/var/lib/aurum-pi3/capability-state.json"
     if os.name != "nt"
@@ -35,6 +37,18 @@ DEFAULT_CAPABILITY_STATE = (
 CAPABILITY_STATE = Path(os.environ.get("AURUM_CAPABILITY_STATE", DEFAULT_CAPABILITY_STATE))
 PROC = Path(os.environ.get("AURUM_PROC_ROOT", "/proc"))
 SYS = Path(os.environ.get("AURUM_SYS_ROOT", "/sys"))
+
+
+def _release() -> dict[str, Any]:
+    try:
+        value = json.loads(RELEASE.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+VERSION = str(_release().get("version", "0.01"))
+RELEASE_ID = str(_release().get("release_id", f"{VERSION}-unversioned"))
 
 
 def _utc_now() -> str:
@@ -121,15 +135,25 @@ CAPABILITY_DEFINITIONS: dict[str, dict[str, Any]] = {
         "kind": "semantic",
         "authorization": "read-only",
     },
-    "upgrade.inspect": {
-        "description": "Verify an update manifest and package without installing it.",
+    "update-check": {
+        "description": "Verify a pinned application release without activating it.",
         "kind": "semantic",
         "authorization": "read-only-with-explicit-source",
     },
-    "upgrade.apply": {
-        "description": "Install a verified Aurum update without reflashing the card.",
+    "update": {
+        "description": "Stage and activate a verified application release without reflashing.",
         "kind": "action",
-        "authorization": "explicit-confirmation-and-manifest-sha256",
+        "authorization": "explicit-manifest-sha256-and-network-authorization",
+    },
+    "update-status": {
+        "description": "Read active, previous, pending, and update history state.",
+        "kind": "semantic",
+        "authorization": "read-only",
+    },
+    "rollback": {
+        "description": "Atomically reactivate the previous healthy application release.",
+        "kind": "action",
+        "authorization": "explicit-confirmation",
     },
     "reboot": {
         "description": "Reboot only after an explicit confirmation token.",
@@ -187,6 +211,8 @@ class StateStore:
             if not isinstance(value, dict) or value.get("schema") != STATE_SCHEMA:
                 raise ValueError("unsupported-state-schema")
             capabilities = value.setdefault("capabilities", {})
+            capabilities.pop("upgrade.inspect", None)
+            capabilities.pop("upgrade.apply", None)
             for name, initial in self._fresh()["capabilities"].items():
                 capabilities.setdefault(name, initial)
             return value
@@ -824,6 +850,8 @@ def status(store: StateStore) -> dict[str, Any]:
         "ok": True,
         "capability": "status",
         "aurum_pi3_version": VERSION,
+        "release_id": RELEASE_ID,
+        "release_id": RELEASE_ID,
         "target": TARGET,
         "substrate": "raspberry-pi-os-hardware-compatibility-layer",
         "hardware": run_probe("hardware", store).as_dict(),
@@ -891,38 +919,80 @@ def explicit_power(action: str, confirmation: str | None) -> dict[str, Any]:
     }
 
 
-def upgrade_command(arguments: list[str]) -> dict[str, Any]:
-    usage = (
-        "upgrade inspect <manifest-source> <manifest-sha256> | "
-        "upgrade apply <manifest-source> <manifest-sha256> confirm"
-    )
-    if len(arguments) < 3 or arguments[0] not in {"inspect", "apply"}:
+def _run_updater(arguments: list[str], capability: str) -> dict[str, Any]:
+    if not UPDATER.is_file():
         return {
             "ok": False,
-            "capability": "upgrade",
-            "barrier": {"scope": "upgrade", "reason": usage},
+            "capability": capability,
+            "barrier": {"scope": capability, "reason": "updater-bootstrap-required"},
+            "continuation_allowed": True,
         }
-    operation, source, expected_sha = arguments[:3]
     try:
-        from aurum_pi3_update import UpdateBarrier, apply_update, inspect_update
-
-        if operation == "inspect":
-            if len(arguments) != 3:
-                raise UpdateBarrier(usage)
-            return inspect_update(source, expected_sha)
-        if len(arguments) != 4 or arguments[3].lower() != "confirm":
-            raise UpdateBarrier("explicit-confirmation-required")
-        return apply_update(source, expected_sha, confirmed=True)
-    except Exception as exc:
+        completed = subprocess.run(
+            [sys.executable, str(UPDATER), *arguments],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=180,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
         return {
             "ok": False,
-            "capability": f"upgrade.{operation}",
+            "capability": capability,
             "barrier": {
-                "scope": f"upgrade.{operation}",
+                "scope": capability,
                 "reason": f"{type(exc).__name__}:{exc}",
             },
             "continuation_allowed": True,
         }
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        payload = {
+            "status": "error",
+            "code": "updater-output-invalid",
+            "message": completed.stdout.strip()[-1000:],
+        }
+    payload["ok"] = completed.returncode == 0 and payload.get("status") != "error"
+    payload["capability"] = capability
+    payload["continuation_allowed"] = True
+    if not payload["ok"] and "barrier" not in payload:
+        payload["barrier"] = {
+            "scope": capability,
+            "reason": f"{payload.get('code', 'updater-failed')}:{payload.get('message', '')}",
+        }
+    return payload
+
+
+def update_command(command: str, arguments: list[str]) -> dict[str, Any]:
+    if command in {"update-check", "update"}:
+        usage = f"{command} <manifest-source> <manifest-sha256> [authorize-network]"
+        if len(arguments) not in {2, 3}:
+            return {"ok": False, "capability": command, "barrier": {"scope": command, "reason": usage}}
+        authorize_network = len(arguments) == 3 and arguments[2].lower() == "authorize-network"
+        if len(arguments) == 3 and not authorize_network:
+            return {
+                "ok": False,
+                "capability": command,
+                "barrier": {"scope": command, "reason": "network-authorization-token-invalid"},
+            }
+        updater_arguments = [
+            "check" if command == "update-check" else "request",
+            "--manifest",
+            arguments[0],
+            "--manifest-sha256",
+            arguments[1].lower(),
+        ]
+        if authorize_network:
+            updater_arguments.append("--authorize-network")
+        return _run_updater(updater_arguments, command)
+    if command == "update-status" and not arguments:
+        return _run_updater(["status"], command)
+    if command == "rollback" and len(arguments) == 1 and arguments[0].lower() == "confirm":
+        return _run_updater(["request-rollback"], command)
+    usage = "update-status | rollback confirm"
+    return {"ok": False, "capability": command, "barrier": {"scope": command, "reason": usage}}
 
 
 HELP = {
@@ -943,8 +1013,10 @@ HELP = {
         "field",
         "selftest",
         "json <command>",
-        "upgrade inspect <manifest-source> <manifest-sha256>",
-        "upgrade apply <manifest-source> <manifest-sha256> confirm",
+        "update-check <manifest-source> <manifest-sha256> [authorize-network]",
+        "update <manifest-source> <manifest-sha256> [authorize-network]",
+        "update-status",
+        "rollback confirm",
         "reboot confirm",
         "poweroff confirm",
         "help",
@@ -978,8 +1050,8 @@ def execute(tokens: list[str], store: StateStore) -> dict[str, Any]:
         return show_field()
     if command == "selftest":
         return selftest()
-    if command == "upgrade":
-        return upgrade_command(arguments)
+    if command in {"update-check", "update", "update-status", "rollback"}:
+        return update_command(command, arguments)
     if command in {"reboot", "poweroff"}:
         return explicit_power(command, arguments[0].lower() if len(arguments) == 1 else None)
     return {
@@ -1003,9 +1075,55 @@ def _emit(payload: dict[str, Any], compact: bool) -> None:
     )
 
 
+def _selftest_detail(result: dict[str, Any]) -> str:
+    return ";".join(
+        f"{check.get('name')}={check.get('detail')}"
+        for check in result.get("checks", [])
+        if isinstance(check, dict)
+    )
+
+
+def _write_readiness(result: dict[str, Any], hardware_data: dict[str, Any]) -> None:
+    if not READINESS_FILE:
+        return
+    path = Path(READINESS_FILE)
+    payload = {
+        "schema": "aurum-pi3-readiness-v1",
+        "version": VERSION,
+        "release_id": RELEASE_ID,
+        "target": TARGET,
+        "architecture": hardware_data.get("architecture", "unknown"),
+        "selftest": "ok" if result.get("ok") else "failed",
+        "detail": _selftest_detail(result),
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        temporary.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments == ["--selftest-json"]:
+        result = selftest()
+        print(
+            json.dumps(
+                {
+                    "version": VERSION,
+                    "release_id": RELEASE_ID,
+                    "target": TARGET,
+                    "selftest": "ok" if result.get("ok") else "failed",
+                    "detail": _selftest_detail(result),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return 0 if result.get("ok") else 1
     compact = False
     if arguments and arguments[0] == "--json":
         compact = True
@@ -1023,15 +1141,17 @@ def main(argv: list[str] | None = None) -> int:
     startup_test = selftest()
     hardware_result = run_probe("hardware", store)
     data = hardware_result.data
+    _write_readiness(startup_test, data)
     print(
         "AURUM_PI3_READY "
-        f"version={VERSION} target={TARGET} arch={data.get('architecture', 'unknown')} "
+        f"version={VERSION} release={RELEASE_ID} target={TARGET} "
+        f"arch={data.get('architecture', 'unknown')} "
         f"kernel={data.get('kernel', 'unknown')} "
         f"selftest={'ok' if startup_test['ok'] else 'partial'}",
         flush=True,
     )
     print(
-        "Type 'help'. Semantic probes are read-only; reboot, poweroff, and update apply require confirmation.",
+        "Type 'help'. Semantic probes are read-only; network updates, rollback, reboot, and poweroff require explicit authorization.",
         flush=True,
     )
 

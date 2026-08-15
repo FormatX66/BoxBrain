@@ -29,8 +29,8 @@ if [ ! -f "$SCRIPT_DIR/aurum_pi3_console.py" ]; then
   echo "Aurum Pi3 console source is missing." >&2
   exit 2
 fi
-if [ ! -f "$SCRIPT_DIR/aurum_pi3_update.py" ]; then
-  echo "Aurum Pi3 updater source is missing." >&2
+if [ ! -f "$SCRIPT_DIR/aurum_updater.py" ] || [ ! -d "$SCRIPT_DIR/systemd" ]; then
+  echo "Aurum Pi3 updater or systemd units are missing." >&2
   exit 2
 fi
 
@@ -70,66 +70,42 @@ mount "$ROOT_PART" "$ROOT_MNT"
 mkdir -p "$BOOT_MNT"
 mount "$BOOT_PART" "$BOOT_MNT"
 
-mkdir -p "$ROOT_MNT/opt/aurum"
-install -m 0755 "$SCRIPT_DIR/aurum_pi3_console.py" "$ROOT_MNT/opt/aurum/aurum_pi3_console.py"
-install -m 0755 "$SCRIPT_DIR/aurum_pi3_update.py" "$ROOT_MNT/opt/aurum/aurum_pi3_update.py"
+BOOTSTRAP_RELEASE="$ROOT_MNT/opt/aurum/releases/0.01-bootstrap"
+mkdir -p "$BOOTSTRAP_RELEASE" "$ROOT_MNT/opt/aurum/updater"
+install -m 0755 "$SCRIPT_DIR/aurum_pi3_console.py" "$BOOTSTRAP_RELEASE/aurum_pi3_console.py"
+install -m 0755 "$SCRIPT_DIR/aurum_updater.py" "$ROOT_MNT/opt/aurum/updater/aurum_updater.py"
 install -d -m 0700 "$ROOT_MNT/var/lib/aurum-pi3"
-install -d -m 0700 "$ROOT_MNT/var/lib/aurum-pi3/updates"
-rm -rf "$ROOT_MNT/opt/aurum/codelation"
-cp -a "$REPO_ROOT/Projects/Codelation" "$ROOT_MNT/opt/aurum/codelation"
-find "$ROOT_MNT/opt/aurum/codelation" -type f -name '*.py' -exec chmod 0644 {} +
+install -d -m 0700 "$ROOT_MNT/var/lib/aurum-updater"
+cp -a "$REPO_ROOT/Projects/Codelation" "$BOOTSTRAP_RELEASE/codelation"
+find "$BOOTSTRAP_RELEASE/codelation" -type f -name '*.py' -exec chmod 0644 {} +
+cat > "$BOOTSTRAP_RELEASE/RELEASE.json" <<'EOF'
+{
+  "application_layer_only": true,
+  "architecture": "arm64",
+  "includes_boot_firmware": false,
+  "includes_kernel": false,
+  "release_id": "0.01-bootstrap",
+  "schema": "aurum-runtime-release-v1",
+  "target": "raspberry-pi-3",
+  "version": "0.01"
+}
+EOF
+ln -sfn releases/0.01-bootstrap "$ROOT_MNT/opt/aurum/current"
 
 SYSTEMD="$ROOT_MNT/etc/systemd/system"
 mkdir -p "$SYSTEMD/multi-user.target.wants"
-cat > "$SYSTEMD/aurum-pi3-console.service" <<'EOF'
-[Unit]
-Description=Aurum Pi3 primary console
-After=local-fs.target systemd-udev-trigger.service
-Conflicts=getty@tty1.service
-ConditionPathExists=/dev/tty1
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 /opt/aurum/aurum_pi3_console.py
-StandardInput=tty-force
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
-TTYVTDisallocate=yes
-Restart=always
-RestartSec=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-cat > "$SYSTEMD/aurum-pi3-serial.service" <<'EOF'
-[Unit]
-Description=Aurum Pi3 serial verification console
-After=local-fs.target systemd-udev-trigger.service
-Conflicts=serial-getty@serial0.service serial-getty@ttyAMA0.service
-ConditionPathExists=/dev/serial0
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 /opt/aurum/aurum_pi3_console.py
-StandardInput=tty-force
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/serial0
-TTYReset=yes
-TTYVHangup=yes
-Restart=always
-RestartSec=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
+for unit in \
+  aurum-pi3-console.service \
+  aurum-pi3-serial.service \
+  aurum-pi3-update.service \
+  aurum-pi3-update-recovery.service
+do
+  install -m 0644 "$SCRIPT_DIR/systemd/$unit" "$SYSTEMD/$unit"
+done
 
 ln -sfn ../aurum-pi3-console.service "$SYSTEMD/multi-user.target.wants/aurum-pi3-console.service"
 ln -sfn ../aurum-pi3-serial.service "$SYSTEMD/multi-user.target.wants/aurum-pi3-serial.service"
+ln -sfn ../aurum-pi3-update-recovery.service "$SYSTEMD/multi-user.target.wants/aurum-pi3-update-recovery.service"
 ln -sfn /dev/null "$SYSTEMD/getty@tty1.service"
 ln -sfn /dev/null "$SYSTEMD/serial-getty@serial0.service"
 ln -sfn /dev/null "$SYSTEMD/serial-getty@ttyAMA0.service"

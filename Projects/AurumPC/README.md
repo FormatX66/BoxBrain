@@ -24,6 +24,35 @@ The initial console intentionally stays small:
 - `reboot` / `poweroff` — explicit machine lifecycle actions;
 - `help` — bounded command list.
 
+The x86 seed/build-node extension adds fixed operations without adding a shell:
+
+- `seed` / `seed-status` — create and inspect the writable passive seed at `/var/lib/aurum/state/seed.bin`;
+- `self-build` — run the bounded seed/native/self-build core suites, then one deterministic native autonomous-chain event and record its checkpoint;
+- `git-status` — inspect the fixed BoxBrain workspace;
+- `git-sync authorize-network` — explicitly authorize a clone or fast-forward-only fetch of `FormatX66/BoxBrain` branch `aurum/pi3-v0.01`;
+- `git-auth` — read a GitHub token without echo and keep it only in Git's in-memory credential cache for one hour;
+- `git-promote authorize-network confirm-push` — after a successful self-build, commit and push only the allowlisted generated chain-state checkpoint.
+
+The Git surface has no arbitrary repository URL, ref, path, command, commit message, or shell argument. Sync refuses dirty workspaces, merge commits, non-BoxBrain origins, and network access without the exact authorization token. Promotion separately requires `confirm-push`, a self-build tied to the current commit, and changes restricted to `Projects/Codelation/autobuild/native_chain_state.json`.
+
+On the updated x86 image, the first sequence is:
+
+```text
+git-sync authorize-network
+seed
+self-build
+git-status
+```
+
+Pushing the verified checkpoint is optional and separately authorized:
+
+```text
+git-auth
+git-promote authorize-network confirm-push
+```
+
+The current v0.01 live ISO uses a RAM-backed writable overlay unless it was booted with Debian live persistence. Without a persistence volume, seed/workspace changes last for the current boot only. A rebuilt image contains the new commands; the already-booted original v0.01 console cannot add them to itself because it intentionally exposes no shell or Git endpoint.
+
 The Linux kernel, systemd, Debian live-boot, and existing Linux drivers are scaffolding. They are not the target architecture. Later milestones can replace pieces of this substrate only after Aurum has equivalent verified machine-native capability.
 
 ## Build

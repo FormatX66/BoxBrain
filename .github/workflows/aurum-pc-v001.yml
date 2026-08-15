@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - aurum/pc-v0.01
+      - aurum/pi3-v0.01
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
@@ -31,8 +32,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile Projects/AurumPC/aurum_console.py
+          python3 -m py_compile Projects/AurumPC/aurum_console.py Projects/AurumPC/aurum_workspace.py
           sh -n Projects/AurumPC/build-iso.sh
+          python3 -m unittest discover -s Projects/AurumPC/tests -v
+          grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
+          grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
 
       - name: Install independent VM tooling
         shell: bash

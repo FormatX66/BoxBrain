@@ -30,7 +30,9 @@ class AurumPi3ConsoleTests(unittest.TestCase):
         self.assertTrue(by_name["capabilities"]["authorized"])
         self.assertFalse(by_name["network"]["verified"])
         self.assertFalse(by_name["reboot"]["authorized"])
-        self.assertEqual(by_name["upgrade.apply"]["kind"], "action")
+        self.assertEqual(by_name["update"]["kind"], "action")
+        self.assertEqual(by_name["rollback"]["kind"], "action")
+        self.assertNotIn("upgrade.apply", by_name)
 
     def test_verified_probe_is_persisted_and_observable(self) -> None:
         with mock.patch.dict(
@@ -90,6 +92,20 @@ class AurumPi3ConsoleTests(unittest.TestCase):
         source = (PROJECT / "aurum_pi3_console.py").read_text(encoding="utf-8")
         self.assertNotIn("shell=True", source)
         self.assertNotIn("os.system", source)
+
+    def test_network_update_requires_exact_authorization_token(self) -> None:
+        result = console.execute(
+            ["update", "https://example.invalid/manifest.json", "0" * 64, "yes"],
+            self.store,
+        )
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["barrier"]["reason"], "network-authorization-token-invalid")
+
+    def test_rollback_requires_exact_confirmation(self) -> None:
+        with mock.patch.object(console, "_run_updater") as updater:
+            result = console.execute(["rollback"], self.store)
+        self.assertFalse(result["ok"])
+        updater.assert_not_called()
 
     def test_json_mode_emits_one_parseable_document(self) -> None:
         environment = {
