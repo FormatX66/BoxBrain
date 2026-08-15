@@ -84,7 +84,10 @@ export PYTHONUNBUFFERED=1
 export AURUM_ROOT=/opt/aurum/current
 export AURUM_RELEASE_ID_FROM_PATH=1
 export AURUM_READINESS_FILE=/run/aurum-pi3/virtual-lab-ready.json
-exec /usr/bin/python3 /opt/aurum/current/aurum_pi3_console.py </dev/ttyAMA1 >/dev/ttyAMA1 2>&1
+# The kernel has already bound ttyAMA1 as its active console before PID 1 runs.
+# /dev/console is created by devtmpfs early and is the stable handoff here;
+# the ttyAMA1 device node itself may not exist until userspace device handling.
+exec /usr/bin/python3 /opt/aurum/current/aurum_pi3_console.py </dev/console >/dev/console 2>&1
 EOF
 sudo chmod 0755 "$ROOT/sbin/aurum-vlab-init"
 
@@ -92,7 +95,7 @@ sync
 sudo umount "$ROOT"
 sudo losetup -d "$LOOP"
 LOOP=""
-echo 'AURUM_PI3_QEMU_SCRATCH prepared=true init=/sbin/aurum-vlab-init'
+echo 'AURUM_PI3_QEMU_SCRATCH prepared=true init=/sbin/aurum-vlab-init console=/dev/console'
 
 # Replace only physical-card provisioning/root/console arguments in the QEMU
 # command line. The scratch init gives a bounded machine/runtime test:
