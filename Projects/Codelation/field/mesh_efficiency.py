@@ -109,6 +109,7 @@ def assess_efficiency(
     *,
     work_count: int,
     duplicate_work_items: int = 0,
+    duplicate_work_total: int | None = None,
     target_slot_utilization: float = 0.85,
     maximum_duplicate_work_fraction: float = 0.05,
 ) -> MeshEfficiencySnapshot:
@@ -117,7 +118,10 @@ def assess_efficiency(
     useful_parallelism = min(max(0, work_count), total_capacity)
     denominator = useful_parallelism or 1
     utilization = min(1.0, assigned_slots / denominator)
-    duplicate_fraction = duplicate_work_items / max(1, work_count)
+    duplicate_denominator = (
+        work_count if duplicate_work_total is None else duplicate_work_total
+    )
+    duplicate_fraction = duplicate_work_items / max(1, duplicate_denominator)
     idle_capacity = max(0, total_capacity - assigned_slots)
     target_met = (
         not plan.unassigned
