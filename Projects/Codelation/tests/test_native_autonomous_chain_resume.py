@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 import sys
 from pathlib import Path
@@ -10,6 +11,24 @@ import run_native_autonomous_chain as chain
 
 
 class NativeAutonomousChainResumeTests(unittest.TestCase):
+    def test_isolated_frontier_reuses_verified_capabilities_without_inheriting_generations(self) -> None:
+        seed_path = Path(__file__).resolve().parents[1] / "autobuild" / "native_chain_state.json"
+        seed_state = json.loads(seed_path.read_text(encoding="utf-8"))
+        events: list[dict] = []
+
+        result = chain.run_chain(
+            start_gap="learning_retention_ratio",
+            max_generations=1,
+            seed_state=seed_state,
+            on_progress=lambda event: events.append(dict(event)),
+        )
+
+        self.assertTrue(result["seeded_from_checkpoint"])
+        self.assertEqual(result["resumed_from_generations"], 0)
+        self.assertEqual(result["completed_generations"], 1)
+        self.assertEqual(result["generations"][0]["gap"], "learning_retention_ratio")
+        self.assertEqual(events[0]["status"], "seeded")
+
     def test_unchanged_external_block_uses_the_generation_checkpoint(self) -> None:
         gap = "adaptive_shell_live_trial_readiness"
         spec = chain.get_native_semantic_gap(gap)

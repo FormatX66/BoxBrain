@@ -38,7 +38,7 @@ def _atomic_state_write(path: Path, state: Mapping[str, Any]) -> None:
     os.replace(temporary, path)
 
 
-def _resumable_state(state: Mapping[str, Any] | None, start_gap: str) -> bool:
+def _compatible_checkpoint_state(state: Mapping[str, Any] | None) -> bool:
     if not isinstance(state, Mapping):
         return False
     checkpoint = state.get("_checkpoint")
@@ -48,12 +48,38 @@ def _resumable_state(state: Mapping[str, Any] | None, start_gap: str) -> bool:
         and state.get("synthesis_revision") == SYNTHESIS_REVISION
         and state.get("self_debug_revision") == SELF_DEBUG_REVISION
         and state.get("local_verification_revision") == LOCAL_VERIFICATION_REVISION
-        and state.get("start_gap") == start_gap
-        and isinstance(state.get("generations"), list)
-        and isinstance(state.get("next_gap"), str)
         and isinstance(checkpoint, Mapping)
         and isinstance(checkpoint.get("learned_expressions"), Mapping)
         and isinstance(checkpoint.get("verified_local_capabilities"), list)
+    )
+
+
+def _resumable_state(state: Mapping[str, Any] | None, start_gap: str) -> bool:
+    return bool(
+        _compatible_checkpoint_state(state)
+        and state is not None
+        and state.get("start_gap") == start_gap
+        and isinstance(state.get("generations"), list)
+        and isinstance(state.get("next_gap"), str)
+    )
+
+
+def _checkpoint_capabilities(
+    state: Mapping[str, Any],
+) -> tuple[dict[str, Mapping[str, Any]], set[str]]:
+    checkpoint = state["_checkpoint"]
+    assert isinstance(checkpoint, Mapping)
+    raw_expressions = checkpoint["learned_expressions"]
+    raw_local = checkpoint["verified_local_capabilities"]
+    assert isinstance(raw_expressions, Mapping)
+    assert isinstance(raw_local, list)
+    return (
+        {
+            str(name): dict(expression)
+            for name, expression in raw_expressions.items()
+            if isinstance(expression, Mapping)
+        },
+        {str(name) for name in raw_local if str(name)},
     )
 
 
@@ -93,6 +119,7 @@ def run_chain(
     *,
     max_generations: int = 24,
     resume_state: Mapping[str, Any] | None = None,
+    seed_state: Mapping[str, Any] | None = None,
     on_progress: Callable[[Mapping[str, Any]], None] | None = None,
     on_checkpoint: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> dict:
@@ -104,6 +131,7 @@ def run_chain(
     verified_local_capabilities: set[str] = set()
     external_evidence_status: dict[str, Any] | None = None
     resumed_from_generations = 0
+    seeded_from_checkpoint = False
     started = time.monotonic()
 
     def emit(status: str, **details: Any) -> None:
@@ -120,15 +148,7 @@ def run_chain(
         assert resume_state is not None
         completed = [dict(generation) for generation in resume_state["generations"]]
         current = str(resume_state["next_gap"])
-        checkpoint = resume_state["_checkpoint"]
-        learned_expressions = {
-            str(name): dict(expression)
-            for name, expression in checkpoint["learned_expressions"].items()
-            if isinstance(expression, Mapping)
-        }
-        verified_local_capabilities = {
-            str(name) for name in checkpoint["verified_local_capabilities"] if str(name)
-        }
+        learned_expressions, verified_local_capabilities = _checkpoint_capabilities(resume_state)
         raw_external = resume_state.get("external_evidence")
         external_evidence_status = dict(raw_external) if isinstance(raw_external, Mapping) else None
         resumed_from_generations = len(completed)
@@ -162,6 +182,16 @@ def run_chain(
                         verified_local_capabilities.discard(str(local_name))
                     resumed_from_generations = len(completed)
                     emit("checkpoint-invalidated", reason="external-evidence-changed", next_gap=current)
+    elif _compatible_checkpoint_state(seed_state):
+        assert seed_state is not None
+        learned_expressions, verified_local_capabilities = _checkpoint_capabilities(seed_state)
+        seeded_from_checkpoint = True
+        emit(
+            "seeded",
+            native_capabilities=len(learned_expressions),
+            local_capabilities=len(verified_local_capabilities),
+            next_gap=current,
+        )
 
     def partial_state(reason: str = "in-progress") -> dict[str, Any]:
         return {
@@ -186,6 +216,7 @@ def run_chain(
             "timer_dependency": False,
             "generations": completed,
             "resumed_from_generations": resumed_from_generations,
+            "seeded_from_checkpoint": seeded_from_checkpoint,
             "_checkpoint": {
                 "schema": "aurum-native-chain-resume-v1",
                 "learned_expressions": learned_expressions,
@@ -519,6 +550,7 @@ def run_chain(
         "timer_dependency": False,
         "generations": completed,
         "resumed_from_generations": resumed_from_generations,
+        "seeded_from_checkpoint": seeded_from_checkpoint,
         "_checkpoint": {
             "schema": "aurum-native-chain-resume-v1",
             "learned_expressions": learned_expressions,
@@ -561,9 +593,15 @@ def main() -> int:
         default=STATE_PATH,
         help="lane-specific checkpoint/result path",
     )
+    parser.add_argument(
+        "--seed-state",
+        type=Path,
+        help="compatible checkpoint whose verified capabilities seed an isolated frontier lane",
+    )
     args = parser.parse_args()
     state_path = args.state_path.resolve()
     resume_state: Mapping[str, Any] | None = None
+    seed_state: Mapping[str, Any] | None = None
     if args.resume and state_path.is_file():
         try:
             loaded = json.loads(state_path.read_text(encoding="utf-8"))
@@ -571,6 +609,15 @@ def main() -> int:
                 resume_state = loaded
         except (OSError, json.JSONDecodeError):
             resume_state = None
+    if args.seed_state is not None:
+        seed_path = args.seed_state.resolve()
+        try:
+            loaded_seed = json.loads(seed_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            parser.error(f"seed checkpoint is unreadable: {exc}")
+        if not isinstance(loaded_seed, Mapping) or not _compatible_checkpoint_state(loaded_seed):
+            parser.error("seed checkpoint is incompatible with this native chain revision")
+        seed_state = loaded_seed
 
     def show_progress(event: Mapping[str, Any]) -> None:
         print(PROGRESS_PREFIX + json.dumps(dict(event), sort_keys=True), file=sys.stderr, flush=True)
@@ -579,6 +626,7 @@ def main() -> int:
         start_gap=args.start_gap,
         max_generations=args.max_generations,
         resume_state=resume_state,
+        seed_state=seed_state,
         on_progress=show_progress,
         on_checkpoint=lambda value: _atomic_state_write(state_path, value),
     )

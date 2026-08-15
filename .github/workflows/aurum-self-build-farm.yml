@@ -118,6 +118,7 @@ jobs:
             python3 Projects/Codelation/run_native_autonomous_chain.py \
               --start-gap "$gap" \
               --max-generations 24 \
+              --seed-state Projects/Codelation/autobuild/native_chain_state.json \
               --state-path "$output/$gap.json" \
               > "$output/$gap.stdout.json" \
               2> "$output/$gap.progress.log" &
@@ -126,8 +127,14 @@ jobs:
 
           failures=0
           for index in "${!pids[@]}"; do
-            if ! wait "${pids[$index]}"; then
-              echo "Aurum lane failed: ${lane_names[$index]}" >&2
+            if wait "${pids[$index]}"; then
+              continue
+            else
+              status=$?
+              gap="${lane_names[$index]}"
+              echo "Aurum lane failed: $gap status=$status" >&2
+              cat "$output/$gap.progress.log" >&2 || true
+              cat "$output/$gap.stdout.json" >&2 || true
               failures=$((failures + 1))
             fi
           done
