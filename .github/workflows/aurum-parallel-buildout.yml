@@ -7,6 +7,7 @@ on:
     paths:
       - 'Projects/Codelation/field/**'
       - 'Projects/Codelation/interface/**'
+      - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/tests/**'
       - 'Projects/Codelation/run_*.py'
@@ -27,6 +28,7 @@ jobs:
     timeout-minutes: 8
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix:
         module:
           - Projects.Codelation.tests.test_bottleneck_mesh
@@ -57,11 +59,11 @@ jobs:
         run: python -m unittest ${{ matrix.module }} -v
 
   convergence:
-    name: Converge all Aurum frontiers
+    name: Converge Aurum frontier evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     needs: frontier-lane
-    if: always()
+    if: ${{ needs.frontier-lane.result == 'success' }}
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -69,24 +71,10 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Run converged capability and I/O verification
-        run: >-
-          python -m unittest
-          Projects.Codelation.tests.test_bottleneck_mesh
-          Projects.Codelation.tests.test_capacity_mesh
-          Projects.Codelation.tests.test_capability_wave
-          Projects.Codelation.tests.test_io_fabric
-          Projects.Codelation.tests.test_io_event
-          Projects.Codelation.tests.test_local_capability_verification
-          Projects.Codelation.tests.test_field_native_vm
-          Projects.Codelation.tests.test_field_native_batch
-          Projects.Codelation.tests.test_field_native_cache
-          Projects.Codelation.tests.test_native_program_synthesis
-          Projects.Codelation.tests.test_self_build_federation
-          Projects.Codelation.tests.test_self_build_resources
-          Projects.Codelation.tests.test_slush_media
-          Projects.Codelation.tests.test_slush_image
-          Projects.Codelation.tests.test_windows_node_growth
-          Projects.Codelation.tests.test_boot_aperture
-          Projects.Codelation.tests.test_runtime_recipe
-          -v
+      - name: Confirm frontier fan-in
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'All frontier lanes completed successfully; accepting their independent test evidence.'
+      - name: Run non-duplicative mesh efficiency verifier
+        run: python -m unittest Projects.Codelation.tests.test_mesh_efficiency -v
