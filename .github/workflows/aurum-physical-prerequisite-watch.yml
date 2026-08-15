@@ -24,7 +24,7 @@ jobs:
       - name: Check out the live Aurum self-build branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: aurum/capacity-mesh-v0
+          ref: aurum/trunk-v0.01
           fetch-depth: 1
 
       - name: Resolve fresh BBPI4 physical-presence evidence
@@ -222,5 +222,5 @@ jobs:
             exit 0
           fi
           git commit -m 'Record fresh BBPI4 prerequisite evidence'
-          git push origin HEAD:aurum/capacity-mesh-v0
+          git push origin HEAD:aurum/trunk-v0.01
           echo 'AURUM_PREREQUISITE_PUBLISH pushed=true'
