@@ -59,7 +59,7 @@ jobs:
           manifest="dist/Aurum-Pi3-runtime-0.02-$revision-arm64.manifest.json"
           test -s "$artifact"
           test -s "$manifest"
-          sha256sum -c "$manifest.sha256"
+          (cd dist && sha256sum -c "$(basename "$manifest").sha256")
           python3 - "$manifest" <<'PY'
           import json, pathlib, sys
           data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
