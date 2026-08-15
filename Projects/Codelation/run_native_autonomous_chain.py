@@ -64,6 +64,21 @@ def _resumable_state(state: Mapping[str, Any] | None, start_gap: str) -> bool:
     )
 
 
+def _select_resume_state(
+    runtime_state: Mapping[str, Any] | None,
+    fallback_state: Mapping[str, Any] | None,
+    start_gap: str,
+) -> Mapping[str, Any] | None:
+    """Prefer compatible runtime state, then a revision-matched immutable baseline."""
+    if _resumable_state(runtime_state, start_gap):
+        return runtime_state
+    if fallback_state is None:
+        return None
+    if not _resumable_state(fallback_state, start_gap):
+        raise ValueError("fallback resume checkpoint is incompatible with this native chain revision")
+    return fallback_state
+
+
 def _checkpoint_capabilities(
     state: Mapping[str, Any],
 ) -> tuple[dict[str, Mapping[str, Any]], set[str]]:
@@ -604,21 +619,48 @@ def main() -> int:
         help="lane-specific checkpoint/result path",
     )
     parser.add_argument(
+        "--resume-fallback-state",
+        type=Path,
+        help="immutable compatible checkpoint used when persisted runtime state cannot resume",
+    )
+    parser.add_argument(
         "--seed-state",
         type=Path,
         help="compatible checkpoint whose verified capabilities seed an isolated frontier lane",
     )
     args = parser.parse_args()
     state_path = args.state_path.resolve()
-    resume_state: Mapping[str, Any] | None = None
+    runtime_resume_state: Mapping[str, Any] | None = None
+    fallback_resume_state: Mapping[str, Any] | None = None
     seed_state: Mapping[str, Any] | None = None
     if args.resume and state_path.is_file():
         try:
             loaded = json.loads(state_path.read_text(encoding="utf-8"))
             if isinstance(loaded, Mapping):
-                resume_state = loaded
+                runtime_resume_state = loaded
         except (OSError, json.JSONDecodeError):
-            resume_state = None
+            runtime_resume_state = None
+    if (
+        args.resume
+        and args.resume_fallback_state is not None
+        and not _resumable_state(runtime_resume_state, args.start_gap)
+    ):
+        fallback_path = args.resume_fallback_state.resolve()
+        try:
+            loaded_fallback = json.loads(fallback_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            parser.error(f"fallback resume checkpoint is unreadable: {exc}")
+        if not isinstance(loaded_fallback, Mapping):
+            parser.error("fallback resume checkpoint is not a JSON object")
+        fallback_resume_state = loaded_fallback
+    try:
+        resume_state = _select_resume_state(
+            runtime_resume_state,
+            fallback_resume_state,
+            args.start_gap,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.seed_state is not None:
         seed_path = args.seed_state.resolve()
         try:

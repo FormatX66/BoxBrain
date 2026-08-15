@@ -8,12 +8,15 @@ from pathlib import Path
 class SelfBuildFarmWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.workflow = (
+        workflow_path = (
             Path(__file__).resolve().parents[3]
             / ".github"
             / "workflows"
             / "aurum-self-build-farm.yml"
-        ).read_text(encoding="utf-8")
+        )
+        if not workflow_path.is_file():
+            raise unittest.SkipTest("repository workflow is not installed in the live runtime")
+        cls.workflow = workflow_path.read_text(encoding="utf-8")
 
     def test_farm_uses_both_native_linux_architectures_and_ten_workers(self) -> None:
         self.assertIn("runner: ubuntu-24.04\n            arch: x86_64", self.workflow)

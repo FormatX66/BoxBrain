@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from Projects.Codelation.autobuild import converge_self_build_farm as farm
+CODELATION_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(CODELATION_ROOT / "autobuild"))
+
+import converge_self_build_farm as farm  # noqa: E402
 
 
 class SelfBuildFarmConvergenceTests(unittest.TestCase):
