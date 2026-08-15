@@ -18,6 +18,8 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("persistence-label=AURUM_PERSIST", script)
         self.assertIn("preempt=voluntary", script)
         self.assertIn("transparent_hugepage=madvise", script)
+        self.assertIn("Projects/Codelation/autobuild/native_chain_state.json", script)
+        self.assertIn("usr/lib/aurum/native-chain-state.json", script)
 
     def test_qemu_runtime_gate_requires_on_machine_self_build(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")

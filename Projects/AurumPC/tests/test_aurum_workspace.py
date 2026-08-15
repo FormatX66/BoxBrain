@@ -45,11 +45,13 @@ class AurumWorkspaceTests(unittest.TestCase):
         self.workspace_path = self.root / "workspace" / "BoxBrain"
         self.installed = self.root / "installed"
         self.state = self.root / "state"
+        self.baseline_state = self.root / "immutable-native-chain-state.json"
         self.runner = FakeRunner(self.workspace_path)
         self.workspace = aurum_workspace.AurumWorkspace(
             installed_root=self.installed,
             workspace=self.workspace_path,
             state_dir=self.state,
+            baseline_state=self.baseline_state,
             runner=self.runner,
         )
 
@@ -103,6 +105,7 @@ class AurumWorkspaceTests(unittest.TestCase):
         tests.mkdir(parents=True)
         chain = self.installed / "run_native_autonomous_chain.py"
         chain.write_text("# fixture\n", encoding="utf-8")
+        self.baseline_state.write_text("{}\n", encoding="utf-8")
 
         progress_events: list[dict] = []
 
@@ -135,6 +138,10 @@ class AurumWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             chain_call[0][chain_call[0].index("--state-path") + 1],
             str(self.state / "native-chain-state.json"),
+        )
+        self.assertEqual(
+            chain_call[0][chain_call[0].index("--resume-fallback-state") + 1],
+            str(self.baseline_state),
         )
         self.assertTrue(
             any(event.get("generation") == 2 and event.get("stage") == "chain" for event in progress_events)

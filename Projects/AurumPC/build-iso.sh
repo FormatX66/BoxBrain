@@ -97,6 +97,10 @@ chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
+mkdir -p config/includes.chroot/usr/lib/aurum
+cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" \
+  config/includes.chroot/usr/lib/aurum/native-chain-state.json
+chmod 0644 config/includes.chroot/usr/lib/aurum/native-chain-state.json
 mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
 
 mkdir -p config/includes.chroot/etc/systemd/system

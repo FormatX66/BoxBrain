@@ -45,6 +45,19 @@ def compatible_seed_state() -> dict:
     }
 
 
+def compatible_resume_state() -> dict:
+    state = compatible_seed_state()
+    state.update(
+        {
+            "start_gap": "learning_delta_score",
+            "completed_generations": 1,
+            "next_gap": "learning_overlap_score",
+            "generations": [{"generation": 1, "gap": "learning_delta_score"}],
+        }
+    )
+    return state
+
+
 class NativeAutonomousChainResumeTests(unittest.TestCase):
     def test_isolated_frontier_reuses_verified_capabilities_without_inheriting_generations(self) -> None:
         seed_state = compatible_seed_state()
@@ -83,6 +96,26 @@ class NativeAutonomousChainResumeTests(unittest.TestCase):
         self.assertFalse(result["seeded_from_checkpoint"])
         self.assertNotIn("io-plan", result["reusable_local_capabilities"])
         self.assertNotEqual(events[0]["status"], "seeded")
+
+    def test_incompatible_runtime_checkpoint_uses_immutable_resume_fallback(self) -> None:
+        runtime_state = compatible_resume_state()
+        runtime_state["local_verification_revision"] = "stale-persisted-revision"
+        fallback_state = compatible_resume_state()
+
+        selected = chain._select_resume_state(
+            runtime_state,
+            fallback_state,
+            "learning_delta_score",
+        )
+
+        self.assertIs(selected, fallback_state)
+
+    def test_incompatible_immutable_resume_fallback_fails_closed(self) -> None:
+        fallback_state = compatible_resume_state()
+        fallback_state["schema"] = "stale-baseline-schema"
+
+        with self.assertRaisesRegex(ValueError, "fallback resume checkpoint is incompatible"):
+            chain._select_resume_state(None, fallback_state, "learning_delta_score")
 
     def test_unchanged_external_block_uses_the_generation_checkpoint(self) -> None:
         gap = "adaptive_shell_live_trial_readiness"

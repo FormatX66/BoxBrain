@@ -175,6 +175,7 @@ class AurumWorkspace:
         installed_root: Path = Path("/opt/aurum/codelation"),
         workspace: Path = Path("/var/lib/aurum/workspace/BoxBrain"),
         state_dir: Path = Path("/var/lib/aurum/state"),
+        baseline_state: Path = Path("/usr/lib/aurum/native-chain-state.json"),
         repository: str = REPOSITORY,
         branch: str = BRANCH,
         runner: Any = _run,
@@ -187,6 +188,7 @@ class AurumWorkspace:
         self.installed_root = installed_root
         self.workspace = workspace
         self.state_dir = state_dir
+        self.baseline_state = baseline_state
         self.repository = repository
         self.branch = branch
         self.runner = runner
@@ -388,9 +390,18 @@ class AurumWorkspace:
                 event["chain_elapsed_seconds"] = event.pop("elapsed_seconds")
             report("chain", str(event.pop("status", "running")), **event)
 
+        chain_arguments = [
+            sys.executable,
+            str(chain),
+            "--resume",
+            "--state-path",
+            str(chain_state),
+        ]
+        if not self.repository_ready and self.baseline_state.is_file():
+            chain_arguments.extend(["--resume-fallback-state", str(self.baseline_state)])
         stream_runner = self.stream_runner or (_run_streaming if self.runner is _run else self.runner)
         build = stream_runner(
-            [sys.executable, str(chain), "--resume", "--state-path", str(chain_state)],
+            chain_arguments,
             cwd=source,
             timeout=900,
             progress=chain_progress,
