@@ -53,8 +53,10 @@ LOOP=""
 cp --sparse=always "$RAW" "$WORK/aurum-pi3-qemu.img"
 truncate -s 4G "$WORK/aurum-pi3-qemu.img"
 
-# Prepare only the disposable QEMU copy as a post-provisioned runtime node.
-# The published microSD image remains byte-for-byte unchanged.
+# Prepare only the disposable QEMU copy. The published microSD image remains
+# byte-for-byte unchanged. This scratch init deliberately bypasses Raspberry Pi
+# OS provisioning/system services that depend on hardware QEMU does not model;
+# it still launches the installed Aurum runtime from the real image rootfs.
 LOOP=$(sudo losetup --find --show --partscan "$WORK/aurum-pi3-qemu.img")
 sudo udevadm settle
 for _ in $(seq 1 20); do
@@ -65,72 +67,48 @@ done
 test -b "${LOOP}p2"
 sudo mount "${LOOP}p2" "$ROOT"
 
-MACHINE_ID=$(printf '%s' 'aurum-pi3-virtual-lab-v0' | sha256sum | cut -c1-32)
-printf '%s\n' "$MACHINE_ID" | sudo tee "$ROOT/etc/machine-id" >/dev/null
-if [ -e "$ROOT/var/lib/dbus/machine-id" ] && [ ! -L "$ROOT/var/lib/dbus/machine-id" ]; then
-  printf '%s\n' "$MACHINE_ID" | sudo tee "$ROOT/var/lib/dbus/machine-id" >/dev/null
-fi
-
+test -x "$ROOT/usr/bin/python3"
 test -s "$ROOT/opt/aurum/current/aurum_pi3_console.py"
 test -d "$ROOT/opt/aurum/current/codelation/field"
-sudo mkdir -p "$ROOT/etc/systemd/system"
+sudo mkdir -p "$ROOT/var/lib/aurum-pi3" "$ROOT/run/aurum-pi3"
 
-# Full Raspberry Pi OS multi-user boot contains hardware services that QEMU's
-# intentionally incomplete Pi model cannot satisfy. For the VM gate, use a
-# scratch-only target that still proves the real kernel -> real SD rootfs ->
-# systemd -> installed Aurum runtime handoff. It does not copy or execute a
-# host-side Aurum program and it cannot make the published image pass falsely.
-sudo tee "$ROOT/etc/systemd/system/aurum-virtual-lab.service" >/dev/null <<'EOF'
-[Unit]
-Description=Aurum Pi3 QEMU runtime verification
-DefaultDependencies=no
-After=local-fs.target
-Requires=local-fs.target
-
-[Service]
-Type=simple
-Environment=AURUM_ROOT=/opt/aurum/current
-Environment=AURUM_RELEASE_ID_FROM_PATH=1
-Environment=AURUM_READINESS_FILE=/run/aurum-pi3/virtual-lab-ready.json
-ExecStart=/usr/bin/python3 /opt/aurum/current/aurum_pi3_console.py
-StandardInput=tty-force
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/ttyAMA1
-TTYReset=yes
-TTYVHangup=no
-Restart=no
+sudo tee "$ROOT/sbin/aurum-vlab-init" >/dev/null <<'EOF'
+#!/bin/sh
+set -eu
+mountpoint -q /proc || mount -t proc proc /proc
+mountpoint -q /sys || mount -t sysfs sysfs /sys
+mountpoint -q /run || mount -t tmpfs -o mode=755,nosuid,nodev tmpfs /run
+mkdir -p /run/aurum-pi3 /var/lib/aurum-pi3
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PYTHONUNBUFFERED=1
+export AURUM_ROOT=/opt/aurum/current
+export AURUM_RELEASE_ID_FROM_PATH=1
+export AURUM_READINESS_FILE=/run/aurum-pi3/virtual-lab-ready.json
+exec /usr/bin/python3 /opt/aurum/current/aurum_pi3_console.py </dev/ttyAMA1 >/dev/ttyAMA1 2>&1
 EOF
-
-sudo tee "$ROOT/etc/systemd/system/aurum-virtual-lab.target" >/dev/null <<'EOF'
-[Unit]
-Description=Aurum Pi3 virtual hardware verification target
-Requires=local-fs.target aurum-virtual-lab.service
-After=local-fs.target
-AllowIsolate=yes
-EOF
+sudo chmod 0755 "$ROOT/sbin/aurum-vlab-init"
 
 sync
 sudo umount "$ROOT"
 sudo losetup -d "$LOOP"
 LOOP=""
-echo "AURUM_PI3_QEMU_SCRATCH prepared=true machine_id=$MACHINE_ID target=aurum-virtual-lab.target"
+echo 'AURUM_PI3_QEMU_SCRATCH prepared=true init=/sbin/aurum-vlab-init'
 
-# The physical image intentionally carries Raspberry Pi OS's `resize` argument
-# and hardware-specific root/console aliases. Remove/replace those only in this
-# synthetic QEMU command line and boot directly to the scratch-only Aurum target.
+# Replace only physical-card provisioning/root/console arguments in the QEMU
+# command line. The scratch init gives a bounded machine/runtime test:
+# Pi3 CPU/kernel -> emulated SD -> real Aurum rootfs -> installed Python ->
+# installed Codelation/Aurum runtime. Systemd wiring is verified separately by
+# the image-structure gate and by physical-node evidence, not claimed here.
 CMDLINE=""
 for arg in $ORIGINAL_CMDLINE; do
   case "$arg" in
-    resize|root=*|rootwait|rootdelay=*|console=*|systemd.unit=*) ;;
+    resize|root=*|rootwait|rootdelay=*|console=*|systemd.unit=*|init=*) ;;
     *) CMDLINE="$CMDLINE $arg" ;;
   esac
 done
-CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 systemd.unit=aurum-virtual-lab.target aurum.qemu=1"
+CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 init=/sbin/aurum-vlab-init aurum.qemu=1"
 printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
-# Capture PL011 directly to a file; never bind guest input or the QEMU monitor
-# to CI stdin. Stop as soon as the installed Aurum runtime proves readiness.
 : > "$LOG"
 : > /tmp/aurum-pi3-qemu-host.log
 qemu-system-aarch64 \
@@ -150,7 +128,7 @@ qemu-system-aarch64 \
 QEMU_PID=$!
 
 verified=0
-for _ in $(seq 1 210); do
+for _ in $(seq 1 180); do
   if grep -F 'AURUM_PI3_READY' "$LOG" >/dev/null 2>&1 && \
      grep -F 'selftest=ok' "$LOG" >/dev/null 2>&1; then
     verified=1
@@ -175,8 +153,8 @@ cat /tmp/aurum-pi3-qemu-host.log || true
 cat "$LOG"
 
 if [ "$verified" -eq 1 ]; then
-  printf '%s\n' 'raspi3b-direct-kernel-real-microsd-rootfs-minimal-systemd-aurum-target' > "$MODE_FILE"
-  echo 'AURUM_VIRTUAL_PI3_OK'
+  printf '%s\n' 'raspi3b-direct-kernel-real-microsd-rootfs-installed-aurum-runtime' > "$MODE_FILE"
+  echo 'AURUM_VIRTUAL_PI3_OK evidence=machine-runtime physical_hardware_evidence=not-implied'
 else
   echo "Pi3 QEMU did not reach Aurum readiness; qemu_status=$status" >&2
   exit 1
