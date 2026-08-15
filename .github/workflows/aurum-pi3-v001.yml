@@ -108,6 +108,7 @@ jobs:
           set -euo pipefail
           DIST=dist
           IMAGE=Aurum-Pi3-v0.01-arm64.img.xz
+          sudo chown "$USER:$USER" "$DIST/$IMAGE" "$DIST/$IMAGE.sha256" "$DIST/Aurum-Pi3-v0.01-arm64.manifest.json"
           xz -t "$DIST/$IMAGE"
           (cd "$DIST" && sha256sum -c "$IMAGE.sha256")
           python3 - <<'PY'
