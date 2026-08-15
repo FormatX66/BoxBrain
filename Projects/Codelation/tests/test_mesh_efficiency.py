@@ -4,8 +4,10 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "field"))
 
 from capacity_mesh import AssignmentPlan, Node  # noqa: E402
@@ -17,6 +19,8 @@ from mesh_efficiency import (  # noqa: E402
     nodes_from_policy,
     plan_candidate_paths,
 )
+from run_capacity_mesh_cycle import policy_audit  # noqa: E402
+from run_capacity_mesh_lane import suite_test_modules  # noqa: E402
 
 
 POLICY = ROOT / "autobuild" / "capacity_mesh_policy.json"
@@ -83,6 +87,40 @@ class MeshEfficiencyTests(unittest.TestCase):
             maximum_duplicate_work_fraction=0.05,
         )
         self.assertFalse(snapshot.target_met)
+
+    def test_broad_suite_excludes_core_x64_modules(self):
+        core = set(suite_test_modules("core"))
+        broad = set(suite_test_modules("broad"))
+        self.assertTrue(broad)
+        self.assertTrue(core.isdisjoint(broad))
+
+    def test_policy_audit_reports_zero_duplicate_module_work(self):
+        policy = self._policy()
+        audit = policy_audit(policy)
+        self.assertEqual(audit["duplicate_work_items"], 0)
+        self.assertEqual(audit["duplicate_work_fraction"], 0.0)
+        self.assertLessEqual(
+            audit["duplicate_work_fraction"],
+            policy["limits"]["maximum_duplicate_work_fraction"],
+        )
+
+    def test_policy_audit_detects_same_runner_suite_overlap(self):
+        policy = self._policy()
+        modules_by_suite = {
+            "core": ("shared",),
+            "broad": ("shared",),
+            "verification": (),
+            "portability": ("shared",),
+        }
+        with patch(
+            "run_capacity_mesh_cycle.suite_test_modules",
+            side_effect=lambda suite: modules_by_suite[suite],
+        ):
+            audit = policy_audit(policy)
+        self.assertEqual(audit["duplicate_work_items"], 1)
+        self.assertEqual(audit["duplicate_work_total"], 3)
+        self.assertAlmostEqual(audit["duplicate_work_fraction"], 1 / 3)
+        self.assertFalse(audit["target_met"])
 
     def test_fresh_heartbeat_nodes_can_be_excluded_without_inventing_presence(self):
         policy = self._policy()
