@@ -20,7 +20,20 @@ python3 -m py_compile \
 python3 -m unittest discover -s Projects/AurumPC/tests -v
 python3 -m unittest discover -s Projects/AurumPi3/tests -v
 
-AURUM_ROOT="$PWD/Projects/AurumPi3" \
+SMOKE_ROOT=/tmp/aurum-vlab-runtime
+rm -rf "$SMOKE_ROOT"
+mkdir -p "$SMOKE_ROOT"
+ln -s /workspace/Projects/Codelation "$SMOKE_ROOT/codelation"
+cat > "$SMOKE_ROOT/RELEASE.json" <<'EOF'
+{
+  "architecture": "arm64",
+  "release_id": "virtual-lab-runtime-smoke",
+  "target": "raspberry-pi-3",
+  "version": "0.02"
+}
+EOF
+
+AURUM_ROOT="$SMOKE_ROOT" \
 AURUM_CAPABILITY_STATE="/tmp/aurum-pi3-capability-state.json" \
 python3 Projects/AurumPi3/aurum_pi3_console.py --selftest-json \
   | tee /tmp/aurum-runtime-selftest.json
