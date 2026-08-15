@@ -29,10 +29,10 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: aurum/trunk-v0.01
-          fetch-depth: 20
+          fetch-depth: 100
 
       - name: Decide whether native growth needs a watchdog dispatch
-        id: decide
+        id: native
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,7 +44,7 @@ jobs:
             --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress")] | length')"
           if [ "$active" -gt 0 ]; then
             echo 'run=false' >> "$GITHUB_OUTPUT"
-            echo 'AURUM_CONTINUOUS_DECISION active-autobuild-already-running'
+            echo 'AURUM_CONTINUOUS_NATIVE active-autobuild-already-running'
             exit 0
           fi
 
@@ -74,17 +74,13 @@ jobs:
 
           decision="$(cat /tmp/aurum-watchdog-state)"
           case "$decision" in
-            dispatch:*)
-              echo 'run=true' >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo 'run=false' >> "$GITHUB_OUTPUT"
-              ;;
+            dispatch:*) echo 'run=true' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'run=false' >> "$GITHUB_OUTPUT" ;;
           esac
-          echo "AURUM_CONTINUOUS_DECISION $decision"
+          echo "AURUM_CONTINUOUS_NATIVE $decision"
 
       - name: Dispatch native growth watchdog
-        if: steps.decide.outputs.run == 'true'
+        if: steps.native.outputs.run == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,11 +89,75 @@ jobs:
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
             -f ref="$AURUM_TRUNK"
-          echo 'AURUM_CONTINUOUS_DISPATCH ref=aurum/trunk-v0.01'
+          echo 'AURUM_CONTINUOUS_NATIVE_DISPATCH ref=aurum/trunk-v0.01'
+
+      - name: Decide whether virtual hardware convergence needs verification
+        id: lab
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='aurum-virtual-lab.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${AURUM_TRUNK}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB active-virtual-lab-already-running'
+            exit 0
+          fi
+
+          last_success="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${AURUM_TRUNK}&status=success&per_page=20" \
+            --jq '.workflow_runs[0].head_sha // empty')"
+          if [ -z "$last_success" ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB no-successful-trunk-convergence'
+            exit 0
+          fi
+
+          if ! git cat-file -e "${last_success}^{commit}" 2>/dev/null; then
+            git fetch --depth=200 origin "$AURUM_TRUNK"
+          fi
+          if ! git merge-base --is-ancestor "$last_success" HEAD 2>/dev/null; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB previous-proof-not-on-current-trunk'
+            exit 0
+          fi
+
+          relevant=(
+            '.github/workflows/aurum-virtual-lab.yml'
+            'Projects/AurumVirtualLab'
+            'Projects/AurumPC'
+            'Projects/AurumPi3'
+            'Projects/Codelation'
+          )
+          if git diff --quiet "$last_success"..HEAD -- "${relevant[@]}"; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB current-relevant-state-already-converged'
+          else
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB relevant-state-changed'
+          fi
+
+      - name: Dispatch virtual hardware convergence
+        if: steps.lab.outputs.run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          jq -nc --arg ref "$AURUM_TRUNK" \
+            '{ref:$ref,inputs:{publish_runtime:"false"}}' \
+            | gh api --method POST \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-virtual-lab.yml/dispatches" \
+                --input -
+          echo 'AURUM_CONTINUOUS_LAB_DISPATCH ref=aurum/trunk-v0.01 publish_runtime=false'
 
       - name: Report continuous-build state
         if: always()
         shell: bash
         run: |
-          echo "AURUM_CONTINUOUS_STATE trunk=$AURUM_TRUNK dispatch=${{ steps.decide.outputs.run }}"
-          echo 'Independent kernel, GUI, LLM, image, lab, mesh, and physical lanes remain event-driven and do not wait on this native lane.'
+          echo "AURUM_CONTINUOUS_STATE trunk=$AURUM_TRUNK native_dispatch=${{ steps.native.outputs.run }} lab_dispatch=${{ steps.lab.outputs.run }}"
+          echo 'Independent kernel, GUI, LLM, image, lab, mesh, farm, and physical lanes do not globally wait on one another.'
