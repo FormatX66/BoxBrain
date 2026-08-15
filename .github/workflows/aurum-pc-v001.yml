@@ -72,41 +72,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
-            code=/usr/share/OVMF/OVMF_CODE.fd
-            vars=/usr/share/OVMF/OVMF_VARS.fd
-          elif [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
-            code=/usr/share/OVMF/OVMF_CODE_4M.fd
-            vars=/usr/share/OVMF/OVMF_VARS_4M.fd
-          else
-            echo 'No matching OVMF CODE/VARS pair found.' >&2
-            exit 1
-          fi
-          cp "$vars" /tmp/AURUM_OVMF_VARS.fd
-          set +e
-          timeout 150s qemu-system-x86_64 \
-            -machine q35,accel=tcg \
-            -cpu qemu64 \
-            -m 1024 \
-            -smp 2 \
-            -drive if=pflash,format=raw,readonly=on,file="$code" \
-            -drive if=pflash,format=raw,file=/tmp/AURUM_OVMF_VARS.fd \
-            -cdrom dist/Aurum-PC-v0.01-amd64.iso \
-            -boot d \
-            -display none \
-            -serial stdio \
-            -monitor none \
-            -no-reboot \
-            > aurum-pc-qemu.log 2>&1
-          qemu_status=$?
-          set -e
-          cat aurum-pc-qemu.log
-          grep -F 'AURUM_PC_READY version=0.01 arch=x86_64' aurum-pc-qemu.log
-          grep -F 'selftest=ok' aurum-pc-qemu.log
-          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
-            echo "QEMU exited unexpectedly with status $qemu_status" >&2
-            exit "$qemu_status"
-          fi
+          bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            aurum-pc-qemu.log
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
 
       - name: Record image metadata
