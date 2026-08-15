@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - aurum/self-kernel-compiler-v0
+      - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-self-kernel-compiler.yml'
       - 'Projects/AurumKernel/**'
