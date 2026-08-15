@@ -104,8 +104,14 @@ class AurumWorkspaceTests(unittest.TestCase):
         chain = self.installed / "run_native_autonomous_chain.py"
         chain.write_text("# fixture\n", encoding="utf-8")
 
+        progress_events: list[dict] = []
+
         def build_runner(arguments: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+            self.runner.calls.append((arguments, kwargs))
             if str(chain) in arguments:
+                kwargs["progress"](
+                    'AURUM_BUILD_PROGRESS {"status":"generation-completed","generation":2,"total_generations":24}'
+                )
                 output = json.dumps(
                     {
                         "completed_generations": 2,
@@ -119,10 +125,33 @@ class AurumWorkspaceTests(unittest.TestCase):
             return subprocess.CompletedProcess(arguments, 0, output)
 
         self.workspace.runner = build_runner
-        result = self.workspace.self_build()
+        result = self.workspace.self_build(progress=progress_events.append)
         self.assertEqual(result["tests"], "passed")
         self.assertEqual(result["completed_generations"], 2)
         self.assertTrue((self.state / "last-self-build.json").is_file())
+        self.assertTrue((self.state / "self-build-progress.json").is_file())
+        chain_call = next(call for call in self.runner.calls if str(chain) in call[0])
+        self.assertIn("--resume", chain_call[0])
+        self.assertTrue(
+            any(event.get("generation") == 2 and event.get("stage") == "chain" for event in progress_events)
+        )
+
+    def test_self_build_can_cancel_before_the_next_stage(self) -> None:
+        tests = self.installed / "tests"
+        tests.mkdir(parents=True)
+        (self.installed / "run_native_autonomous_chain.py").write_text("# fixture\n", encoding="utf-8")
+        cancel = aurum_workspace.threading.Event()
+        cancel.set()
+        with self.assertRaisesRegex(aurum_workspace.WorkspaceError, "cancelled safely"):
+            self.workspace.self_build(cancel_event=cancel)
+        self.assertFalse(any("unittest" in arguments for arguments, _kwargs in self.runner.calls))
+
+    def test_duplicate_self_build_is_refused_before_replaying_work(self) -> None:
+        lock_path = self.state / "self-build.lock"
+        with aurum_workspace._exclusive_build_lock(lock_path):
+            with self.assertRaisesRegex(aurum_workspace.WorkspaceError, "already in progress"):
+                self.workspace.self_build()
+        self.assertEqual(self.runner.calls, [])
 
     def test_promotion_uses_fixed_identity_path_and_branch(self) -> None:
         (self.workspace_path / ".git").mkdir(parents=True)

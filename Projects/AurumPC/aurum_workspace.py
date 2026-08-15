@@ -8,14 +8,23 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterator
+
+try:
+    import fcntl
+except ImportError:  # Windows test host; the Aurum runtime is Linux.
+    fcntl = None
 
 
 REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
 BRANCH = "aurum/pi3-v0.01"
 ALLOWED_PROMOTION_PATHS = frozenset({"Projects/Codelation/autobuild/native_chain_state.json"})
+_FALLBACK_BUILD_LOCKS: dict[str, threading.Lock] = {}
+_FALLBACK_BUILD_LOCKS_GUARD = threading.Lock()
 
 
 class WorkspaceError(RuntimeError):
@@ -48,11 +57,115 @@ def _run(
     return result
 
 
+def _run_streaming(
+    arguments: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = 900,
+    check: bool = True,
+    progress: Callable[[str], None] | None = None,
+    cancel_event: threading.Event | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a bounded child while forwarding its stderr progress one line at a time."""
+    try:
+        process = subprocess.Popen(
+            arguments,
+            cwd=str(cwd) if cwd else None,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+        )
+    except OSError as exc:
+        raise WorkspaceError(f"Bounded operation failed to start: {exc}") from exc
+
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+
+    def collect_stdout() -> None:
+        assert process.stdout is not None
+        stdout_parts.append(process.stdout.read())
+
+    def collect_stderr() -> None:
+        assert process.stderr is not None
+        for line in process.stderr:
+            stderr_parts.append(line)
+            if progress is not None:
+                progress(line.rstrip("\r\n"))
+
+    stdout_thread = threading.Thread(target=collect_stdout, name="aurum-build-stdout", daemon=True)
+    stderr_thread = threading.Thread(target=collect_stderr, name="aurum-build-stderr", daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    deadline = time.monotonic() + timeout
+    cancelled = False
+    timed_out = False
+    while process.poll() is None:
+        if cancel_event is not None and cancel_event.is_set():
+            cancelled = True
+            process.terminate()
+            break
+        if time.monotonic() >= deadline:
+            timed_out = True
+            process.terminate()
+            break
+        time.sleep(0.1)
+    if cancelled or timed_out:
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+    returncode = process.wait()
+    stdout_thread.join(timeout=5)
+    stderr_thread.join(timeout=5)
+    stdout = "".join(stdout_parts)
+    stderr = "".join(stderr_parts)
+    if cancelled:
+        raise WorkspaceError("Self-build cancelled safely; the last generation checkpoint was preserved")
+    if timed_out:
+        raise WorkspaceError(f"Self-build exceeded its {timeout}-second bound")
+    if check and returncode != 0:
+        detail = (stderr + stdout).strip()[-2000:]
+        raise WorkspaceError(detail or f"Command exited {returncode}")
+    return subprocess.CompletedProcess(arguments, returncode, stdout, stderr)
+
+
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, path)
+
+
+@contextmanager
+def _exclusive_build_lock(path: Path) -> Iterator[None]:
+    """Prevent the physical and serial consoles from replaying one build concurrently."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if fcntl is not None:
+        with path.open("a+", encoding="utf-8") as handle:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise WorkspaceError("another Aurum self-build is already in progress") from exc
+            handle.seek(0)
+            handle.truncate()
+            handle.write(f"pid={os.getpid()} at={time.time()}\n")
+            handle.flush()
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return
+
+    key = str(path.resolve())
+    with _FALLBACK_BUILD_LOCKS_GUARD:
+        lock = _FALLBACK_BUILD_LOCKS.setdefault(key, threading.Lock())
+    if not lock.acquire(blocking=False):
+        raise WorkspaceError("another Aurum self-build is already in progress")
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 class AurumWorkspace:
@@ -65,6 +178,7 @@ class AurumWorkspace:
         repository: str = REPOSITORY,
         branch: str = BRANCH,
         runner: Any = _run,
+        stream_runner: Any | None = None,
     ):
         if repository.rstrip("/").removesuffix(".git") != REPOSITORY.removesuffix(".git"):
             raise WorkspaceError("Repository is outside the Aurum BoxBrain allowlist")
@@ -76,6 +190,7 @@ class AurumWorkspace:
         self.repository = repository
         self.branch = branch
         self.runner = runner
+        self.stream_runner = stream_runner
 
     @property
     def repository_ready(self) -> bool:
@@ -191,7 +306,21 @@ class AurumWorkspace:
         status["observations"] = results
         return status
 
-    def self_build(self) -> dict[str, Any]:
+    def self_build(
+        self,
+        *,
+        progress: Callable[[dict[str, Any]], None] | None = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        with _exclusive_build_lock(self.state_dir / "self-build.lock"):
+            return self._self_build_locked(progress=progress, cancel_event=cancel_event)
+
+    def _self_build_locked(
+        self,
+        *,
+        progress: Callable[[dict[str, Any]], None] | None = None,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
         source = self.codelation
         chain = source / "run_native_autonomous_chain.py"
         tests = source / "tests"
@@ -204,13 +333,58 @@ class AurumWorkspace:
             "test_local_capability_verification.py",
             "test_self_build*.py",
         )
-        for pattern in core_patterns:
+        started = time.monotonic()
+        progress_path = self.state_dir / "self-build-progress.json"
+
+        def report(stage: str, status: str, **details: Any) -> None:
+            payload = {
+                "schema": "aurum-x86-self-build-progress-v1",
+                "stage": stage,
+                "status": status,
+                "elapsed_seconds": round(time.monotonic() - started, 1),
+                "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                **details,
+            }
+            _atomic_json(progress_path, payload)
+            if progress is not None:
+                progress(payload)
+
+        report("tests", "started", total=len(core_patterns))
+        for index, pattern in enumerate(core_patterns, start=1):
+            if cancel_event is not None and cancel_event.is_set():
+                raise WorkspaceError("Self-build cancelled safely before the next test stage")
+            report("tests", "running", current=index, total=len(core_patterns), pattern=pattern)
             self.runner(
                 [sys.executable, "-m", "unittest", "discover", "-s", str(tests), "-p", pattern],
                 cwd=source,
                 timeout=300,
             )
-        build = self.runner([sys.executable, str(chain)], cwd=source, timeout=900)
+            report("tests", "passed", current=index, total=len(core_patterns), pattern=pattern)
+
+        report("chain", "started")
+
+        def chain_progress(line: str) -> None:
+            prefix = "AURUM_BUILD_PROGRESS "
+            if not line.startswith(prefix):
+                report("chain", "output", detail=line[-500:])
+                return
+            try:
+                event = json.loads(line[len(prefix) :])
+            except json.JSONDecodeError:
+                report("chain", "output", detail=line[-500:])
+                return
+            if "elapsed_seconds" in event:
+                event["chain_elapsed_seconds"] = event.pop("elapsed_seconds")
+            report("chain", str(event.pop("status", "running")), **event)
+
+        stream_runner = self.stream_runner or (_run_streaming if self.runner is _run else self.runner)
+        build = stream_runner(
+            [sys.executable, str(chain), "--resume"],
+            cwd=source,
+            timeout=900,
+            progress=chain_progress,
+            cancel_event=cancel_event,
+        )
         try:
             state = json.loads(build.stdout)
         except json.JSONDecodeError as exc:
@@ -236,7 +410,17 @@ class AurumWorkspace:
             ),
         }
         _atomic_json(self.state_dir / "last-self-build.json", checkpoint)
+        report("complete", "passed", completed_generations=state.get("completed_generations"))
         return checkpoint
+
+    def self_build_status(self) -> dict[str, Any]:
+        progress_path = self.state_dir / "self-build-progress.json"
+        if not progress_path.is_file():
+            return {"status": "never-started"}
+        try:
+            return json.loads(progress_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise WorkspaceError(f"Self-build progress state is unreadable: {exc}") from exc
 
     def git_promote(self, *, authorize_network: bool, confirm_push: bool) -> dict[str, Any]:
         if not authorize_network or not confirm_push:

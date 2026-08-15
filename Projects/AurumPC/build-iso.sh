@@ -45,7 +45,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components quiet console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components quiet persistence persistence-label=AURUM_PERSIST preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
@@ -119,6 +119,12 @@ ConditionPathExists=/dev/tty1
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
+Environment=PYTHONUNBUFFERED=1
+Environment=MALLOC_ARENA_MAX=2
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+OOMScoreAdjust=-100
 StandardInput=tty-force
 StandardOutput=tty
 StandardError=tty
@@ -143,6 +149,12 @@ ConditionPathExists=/dev/ttyS0
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
+Environment=PYTHONUNBUFFERED=1
+Environment=MALLOC_ARENA_MAX=2
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+OOMScoreAdjust=-100
 StandardInput=tty-force
 StandardOutput=tty
 StandardError=tty
