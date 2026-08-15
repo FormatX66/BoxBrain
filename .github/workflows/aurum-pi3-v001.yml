@@ -1,0 +1,137 @@
+name: Aurum Pi3 v0.01 Image
+
+on:
+  push:
+    branches:
+      - aurum/pi3-v0.01
+    paths:
+      - 'Projects/AurumPi3/**'
+      - 'Projects/Codelation/**'
+      - '.github/workflows/aurum-pi3-v001.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: aurum-pi3-v001-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Aurum Pi3 branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+
+      - name: Validate bounded Pi runtime sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumPi3/aurum_pi3_console.py
+          sh -n Projects/AurumPi3/build-image.sh
+          grep -q 'AURUM_PI3_READY' Projects/AurumPi3/aurum_pi3_console.py
+
+      - name: Install image tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            curl xz-utils util-linux fdisk e2fsprogs mount
+
+      - name: Build Aurum Pi3 microSD image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo sh Projects/AurumPi3/build-image.sh
+
+      - name: Verify raw Pi image structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW=Projects/AurumPi3/.build/Aurum-Pi3-v0.01-arm64.img
+          ROOT=Projects/AurumPi3/.verify-root
+          test -s "$RAW"
+          sudo sfdisk -d "$RAW" | tee aurum-pi3-partitions.txt
+          LOOP=$(sudo losetup --find --show --partscan "$RAW")
+          cleanup() {
+            set +e
+            mountpoint -q "$ROOT/boot/firmware" && sudo umount "$ROOT/boot/firmware"
+            mountpoint -q "$ROOT" && sudo umount "$ROOT"
+            sudo losetup -d "$LOOP" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          sudo udevadm settle
+          for _ in $(seq 1 20); do
+            [ -b "${LOOP}p1" ] && [ -b "${LOOP}p2" ] && break
+            sleep 1
+            sudo udevadm settle
+          done
+          test -b "${LOOP}p1"
+          test -b "${LOOP}p2"
+          sudo e2fsck -fn "${LOOP}p2"
+          mkdir -p "$ROOT"
+          sudo mount -o ro "${LOOP}p2" "$ROOT"
+          sudo mkdir -p "$ROOT/boot/firmware"
+          sudo mount -o ro "${LOOP}p1" "$ROOT/boot/firmware"
+
+          test -s "$ROOT/boot/firmware/start.elf"
+          test -s "$ROOT/boot/firmware/fixup.dat"
+          test -s "$ROOT/boot/firmware/kernel8.img"
+          test -s "$ROOT/boot/firmware/bcm2710-rpi-3-b.dtb"
+          test -s "$ROOT/opt/aurum/aurum_pi3_console.py"
+          test -d "$ROOT/opt/aurum/codelation/field"
+          test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-console.service"
+          test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-serial.service"
+          grep -q '^arm_64bit=1$' "$ROOT/boot/firmware/config.txt"
+          grep -q '^enable_uart=1$' "$ROOT/boot/firmware/config.txt"
+          grep -q 'console=serial0,115200' "$ROOT/boot/firmware/cmdline.txt"
+          grep -q 'aurum.pi3=1' "$ROOT/boot/firmware/cmdline.txt"
+          grep -q '^aurum-pi3$' "$ROOT/etc/hostname"
+          python3 - "$ROOT/opt/aurum/aurum_pi3_console.py" <<'PY'
+          import pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          compile(path.read_text(encoding='utf-8'), str(path), 'exec')
+          print('AURUM_PI3_STATIC_RUNTIME_OK')
+          PY
+          echo 'AURUM_PI3_IMAGE_STRUCTURE_OK'
+          cleanup
+          trap - EXIT
+
+      - name: Verify compressed microSD artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIST=dist
+          IMAGE=Aurum-Pi3-v0.01-arm64.img.xz
+          xz -t "$DIST/$IMAGE"
+          (cd "$DIST" && sha256sum -c "$IMAGE.sha256")
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('dist/Aurum-Pi3-v0.01-arm64.manifest.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          data['verification']['partition_structure'] = True
+          data['verification']['filesystem_check'] = True
+          data['verification']['aurum_payload'] = True
+          path.write_text(json.dumps(data, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print('AURUM_PI3_COMPRESSED_ARTIFACT_OK')
+          PY
+          ls -lh "$DIST/$IMAGE" "$DIST/$IMAGE.sha256" "$DIST/Aurum-Pi3-v0.01-arm64.manifest.json"
+
+      - name: Publish microSD-ready Pi3 image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-Pi3-v0.01-arm64
+          path: |
+            dist/Aurum-Pi3-v0.01-arm64.img.xz
+            dist/Aurum-Pi3-v0.01-arm64.img.xz.sha256
+            dist/Aurum-Pi3-v0.01-arm64.manifest.json
+            aurum-pi3-partitions.txt
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
