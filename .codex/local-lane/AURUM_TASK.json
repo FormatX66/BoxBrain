@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "request_id": "aurum-verify-20260814T143200Z",
+  "request_id": "aurum-usbc-verify-20260815T192500Z",
   "action": "verify",
   "target": "BBPI4",
   "address": "192.168.0.194",
-  "requested_at": "2026-08-14T14:32:00Z"
+  "requested_at": "2026-08-15T19:25:00Z"
 }
