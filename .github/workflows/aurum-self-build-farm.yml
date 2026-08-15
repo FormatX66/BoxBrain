@@ -96,7 +96,7 @@ jobs:
           pattern="${patterns[$AURUM_SHARD]}"
           python3 -m unittest discover -s Projects/Codelation/tests -p "$pattern" -v
 
-      - name: Run four autonomous chain lanes in parallel
+      - name: Run assigned autonomous chain lanes in parallel
         shell: bash
         run: |
           set -euo pipefail
@@ -145,6 +145,7 @@ jobs:
             exit 1
           fi
 
+          export AURUM_EXPECTED_LANES="${#lane_names[@]}"
           python3 - <<'PY'
           import json
           import os
@@ -152,8 +153,9 @@ jobs:
 
           root = Path('farm-lanes') / os.environ['AURUM_ARCH']
           states = sorted(path for path in root.glob('*.json') if not path.name.endswith('.stdout.json'))
-          if len(states) != 4:
-              raise SystemExit(f'expected four state files in shard, found {len(states)}')
+          expected = int(os.environ['AURUM_EXPECTED_LANES'])
+          if len(states) != expected:
+              raise SystemExit(f'expected {expected} state files in shard, found {len(states)}')
           for path in states:
               state = json.loads(path.read_text(encoding='utf-8'))
               if state.get('completed_generations', 0) < 1:
@@ -232,7 +234,7 @@ jobs:
           retention-days: 14
 
   converge:
-    name: Converge 40 architecture lanes
+    name: Converge all architecture lanes
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     needs:
@@ -271,13 +273,21 @@ jobs:
             | tee farm-output/convergence.log
           python3 - <<'PY'
           import json
+          import sys
           from pathlib import Path
+
+          sys.path.insert(0, 'Projects/Codelation/field')
+          from native_gap_catalog import native_semantic_gap_names
 
           manifest = json.loads(
               Path('farm-output/aurum-self-build-farm-manifest.json').read_text(encoding='utf-8')
           )
           authoritative = json.loads(Path('authoritative-input/state.json').read_text(encoding='utf-8'))
-          if manifest.get('lane_count') != 40:
+          expected_gap_count = len(native_semantic_gap_names())
+          expected_lane_count = expected_gap_count * len(manifest.get('architectures', []))
+          if manifest.get('gap_count') != expected_gap_count:
+              raise SystemExit(f'unexpected gap count: {manifest.get("gap_count")}')
+          if manifest.get('lane_count') != expected_lane_count:
               raise SystemExit(f'unexpected lane count: {manifest.get("lane_count")}')
           if manifest.get('cross_architecture_determinism') != 'verified':
               raise SystemExit('cross-architecture determinism is not verified')
