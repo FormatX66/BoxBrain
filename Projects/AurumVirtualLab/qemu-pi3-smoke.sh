@@ -95,7 +95,10 @@ printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
 # Never bind the guest UART or monitor to CI stdin. Capture PL011 directly to a
 # file, start QEMU asynchronously, and stop as soon as Aurum proves readiness.
-# This makes the VM gate fast while retaining a hard 150-second upper bound.
+# Guest-initiated reboot is intentionally allowed: Raspberry Pi provisioning
+# and recovery units may request a reboot, and a real board would continue with
+# the same SD card. The lab therefore observes across reboots instead of making
+# a healthy reboot look like a VM failure.
 : > "$LOG"
 : > /tmp/aurum-pi3-qemu-host.log
 qemu-system-aarch64 \
@@ -110,7 +113,6 @@ qemu-system-aarch64 \
   -display none \
   -serial "file:$LOG" \
   -monitor none \
-  -no-reboot \
   </dev/null >/tmp/aurum-pi3-qemu-host.log 2>&1 &
 QEMU_PID=$!
 
@@ -140,7 +142,7 @@ cat /tmp/aurum-pi3-qemu-host.log || true
 cat "$LOG"
 
 if [ "$verified" -eq 1 ]; then
-  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs-post-provision' > "$MODE_FILE"
+  printf '%s\n' 'raspi3b-direct-kernel-with-real-microsd-rootfs-post-provision-reboot-aware' > "$MODE_FILE"
   echo 'AURUM_VIRTUAL_PI3_OK'
 else
   echo "Pi3 QEMU did not reach Aurum readiness; qemu_status=$status" >&2
