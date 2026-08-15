@@ -1,3 +1,7 @@
 # Linux-deployed edge-agent files must remain LF in Git archives built on Windows.
 edge/kali-pi-agent/** text eol=lf
 edge/kali-pi-agent/onboarding/windows-link.ps1 text eol=crlf
+
+# Pi images are assembled on Linux; keep runtime, tests, docs, and workflow LF-stable.
+Projects/AurumPi3/** text eol=lf
+.github/workflows/aurum-pi3-v001.yml text eol=lf

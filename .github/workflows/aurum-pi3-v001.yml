@@ -31,9 +31,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile Projects/AurumPi3/aurum_pi3_console.py
+          python3 -m py_compile \
+            Projects/AurumPi3/aurum_pi3_console.py \
+            Projects/AurumPi3/aurum_pi3_update.py \
+            Projects/AurumPi3/build-update-bundle.py
+          python3 -m unittest discover -s Projects/AurumPi3/tests -v
           sh -n Projects/AurumPi3/build-image.sh
           grep -q 'AURUM_PI3_READY' Projects/AurumPi3/aurum_pi3_console.py
+          ! grep -R -E 'shell=True|os\.system' \
+            Projects/AurumPi3/aurum_pi3_console.py \
+            Projects/AurumPi3/aurum_pi3_update.py
+
+      - name: Build and verify capability update bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumPi3/build-update-bundle.py
+          MANIFEST=dist/Aurum-Pi3-v0.01-capability-update.manifest.json
+          BUNDLE=dist/Aurum-Pi3-v0.01-capability-update.tar.gz
+          (cd dist && sha256sum -c Aurum-Pi3-v0.01-capability-update.manifest.json.sha256)
+          MANIFEST_SHA=$(sha256sum "$MANIFEST" | awk '{print $1}')
+          python3 Projects/AurumPi3/aurum_pi3_update.py inspect "$MANIFEST" "$MANIFEST_SHA"
+          test -s "$BUNDLE"
 
       - name: Install image tooling
         shell: bash
@@ -84,7 +103,9 @@ jobs:
           test -s "$ROOT/boot/firmware/kernel8.img"
           test -s "$ROOT/boot/firmware/bcm2710-rpi-3-b.dtb"
           test -s "$ROOT/opt/aurum/aurum_pi3_console.py"
+          test -s "$ROOT/opt/aurum/aurum_pi3_update.py"
           test -d "$ROOT/opt/aurum/codelation/field"
+          test -d "$ROOT/var/lib/aurum-pi3/updates"
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-console.service"
           test -L "$ROOT/etc/systemd/system/multi-user.target.wants/aurum-pi3-serial.service"
           grep -q '^arm_64bit=1$' "$ROOT/boot/firmware/config.txt"
@@ -97,6 +118,12 @@ jobs:
           path = pathlib.Path(sys.argv[1])
           compile(path.read_text(encoding='utf-8'), str(path), 'exec')
           print('AURUM_PI3_STATIC_RUNTIME_OK')
+          PY
+          python3 - "$ROOT/opt/aurum/aurum_pi3_update.py" <<'PY'
+          import pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          compile(path.read_text(encoding='utf-8'), str(path), 'exec')
+          print('AURUM_PI3_STATIC_UPDATER_OK')
           PY
           echo 'AURUM_PI3_IMAGE_STRUCTURE_OK'
           cleanup
@@ -132,6 +159,9 @@ jobs:
             dist/Aurum-Pi3-v0.01-arm64.img.xz
             dist/Aurum-Pi3-v0.01-arm64.img.xz.sha256
             dist/Aurum-Pi3-v0.01-arm64.manifest.json
+            dist/Aurum-Pi3-v0.01-capability-update.tar.gz
+            dist/Aurum-Pi3-v0.01-capability-update.manifest.json
+            dist/Aurum-Pi3-v0.01-capability-update.manifest.json.sha256
             aurum-pi3-partitions.txt
           if-no-files-found: error
           retention-days: 14

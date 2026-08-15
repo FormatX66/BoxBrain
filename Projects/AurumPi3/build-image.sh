@@ -29,6 +29,10 @@ if [ ! -f "$SCRIPT_DIR/aurum_pi3_console.py" ]; then
   echo "Aurum Pi3 console source is missing." >&2
   exit 2
 fi
+if [ ! -f "$SCRIPT_DIR/aurum_pi3_update.py" ]; then
+  echo "Aurum Pi3 updater source is missing." >&2
+  exit 2
+fi
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
@@ -68,6 +72,9 @@ mount "$BOOT_PART" "$BOOT_MNT"
 
 mkdir -p "$ROOT_MNT/opt/aurum"
 install -m 0755 "$SCRIPT_DIR/aurum_pi3_console.py" "$ROOT_MNT/opt/aurum/aurum_pi3_console.py"
+install -m 0755 "$SCRIPT_DIR/aurum_pi3_update.py" "$ROOT_MNT/opt/aurum/aurum_pi3_update.py"
+install -d -m 0700 "$ROOT_MNT/var/lib/aurum-pi3"
+install -d -m 0700 "$ROOT_MNT/var/lib/aurum-pi3/updates"
 rm -rf "$ROOT_MNT/opt/aurum/codelation"
 cp -a "$REPO_ROOT/Projects/Codelation" "$ROOT_MNT/opt/aurum/codelation"
 find "$ROOT_MNT/opt/aurum/codelation" -type f -name '*.py' -exec chmod 0644 {} +
