@@ -74,6 +74,21 @@ fi
 mkdir -p config/includes.binary/boot/grub/fonts
 cp "$GRUB_FONT" config/includes.binary/boot/grub/fonts/unicode.pf2
 
+# The image has only one intended UEFI boot target. Avoid the graphical/menu
+# path entirely in the verification image and transfer control directly to the
+# live kernel. live-build expands these placeholders after discovering the
+# actual kernel/initrd names, so this stays version-independent.
+mkdir -p config/bootloaders/grub-pc
+cat > config/bootloaders/grub-pc/grub.cfg <<'EOF'
+set default=0
+set timeout=0
+
+menuentry "Aurum PC v0.01" {
+    linux @KERNEL_LIVE@ @APPEND_LIVE@
+    initrd @INITRD_LIVE@
+}
+EOF
+
 mkdir -p config/includes.chroot/opt/aurum
 cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
