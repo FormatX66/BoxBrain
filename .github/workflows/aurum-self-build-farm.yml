@@ -19,7 +19,6 @@ on:
   pull_request:
     branches:
       - main
-      - aurum/pi3-v0.01
     paths:
       - '.github/workflows/aurum-self-build-farm.yml'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
