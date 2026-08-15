@@ -264,6 +264,8 @@ class AurumWorkspace:
             return {"status": "nothing-to-promote", "head": current_head}
         if staged.returncode != 1:
             raise WorkspaceError(staged.stdout.strip() or "Could not inspect the staged self-build checkpoint")
+        self._git("config", "user.name", "Aurum x86 self-build")
+        self._git("config", "user.email", "aurum-x86@localhost")
         self._git("commit", "-m", "Record Aurum x86 self-build checkpoint")
         self._git("push", "origin", f"HEAD:refs/heads/{self.branch}")
         new_head = self._git("rev-parse", "HEAD").stdout.strip()

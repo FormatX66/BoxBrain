@@ -124,6 +124,34 @@ class AurumWorkspaceTests(unittest.TestCase):
         self.assertEqual(result["completed_generations"], 2)
         self.assertTrue((self.state / "last-self-build.json").is_file())
 
+    def test_promotion_uses_fixed_identity_path_and_branch(self) -> None:
+        (self.workspace_path / ".git").mkdir(parents=True)
+        self.state.mkdir(parents=True)
+        (self.state / "last-self-build.json").write_text(
+            json.dumps({"source_commit": "a" * 40}), encoding="utf-8"
+        )
+        calls: list[list[str]] = []
+
+        def promotion_runner(arguments: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+            calls.append(arguments)
+            if arguments[:3] == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(arguments, 0, "a" * 40 + "\n")
+            if arguments[:3] == ["git", "status", "--porcelain=v1"]:
+                path = "Projects/Codelation/autobuild/native_chain_state.json"
+                return subprocess.CompletedProcess(arguments, 0, f" M {path}\n")
+            if arguments[:4] == ["git", "diff", "--cached", "--quiet"]:
+                return subprocess.CompletedProcess(arguments, 1, "")
+            return subprocess.CompletedProcess(arguments, 0, "")
+
+        self.workspace.runner = promotion_runner
+        result = self.workspace.git_promote(authorize_network=True, confirm_push=True)
+        self.assertEqual(result["status"], "pushed")
+        self.assertIn(["git", "config", "user.name", "Aurum x86 self-build"], calls)
+        self.assertIn(["git", "config", "user.email", "aurum-x86@localhost"], calls)
+        self.assertIn(
+            ["git", "push", "origin", f"HEAD:refs/heads/{aurum_workspace.BRANCH}"], calls
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
