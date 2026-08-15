@@ -147,6 +147,22 @@ For explicit version 2+ review and one-version-at-a-time self-revision, see
 [Aurum iterative self-revision](SELF_REVISION.md). That path is operator-started,
 records keep/revise evidence, and does not add an automatic model loop.
 
+## Distributed native self-build farm
+
+The `Aurum Distributed Self-Build Farm` GitHub Actions workflow expands the
+bounded native chain across GitHub-hosted x86_64 and ARM64 runners. Ten runner
+jobs each use their four CPUs for four isolated semantic-gap lanes, producing
+40 independently checkpointed lanes across the 20-gap catalog. Core self-build
+tests are sharded across the same workers while a separate authoritative lane
+resumes the durable chain checkpoint.
+
+The convergence job requires every gap on both architectures, rejects schema or
+revision mismatches, and byte-compares canonical state before it publishes a
+farm manifest. Parallel frontier evidence is therefore useful without treating
+independent states as an automatically mergeable authoritative mind. The
+authoritative checkpoint remains a single resumable chain and repository writes
+remain outside the farm workflow.
+
 ## Development path
 
 - Seed 0: passive transition learning and prediction.

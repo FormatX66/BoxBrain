@@ -8,6 +8,8 @@ import platform
 import shlex
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 from aurum_workspace import AurumWorkspace, WorkspaceError
@@ -21,6 +23,101 @@ WORKSPACE = AurumWorkspace(
     workspace=Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain")),
     state_dir=Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state")),
 )
+
+
+class SelfBuildController:
+    """Keep the console responsive while one bounded self-build runs."""
+
+    def __init__(self, workspace: AurumWorkspace) -> None:
+        self.workspace = workspace
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._cancel = threading.Event()
+        self._done = threading.Event()
+        self._started = 0.0
+        self._latest: dict = {"status": "idle"}
+
+    def _progress(self, payload: dict) -> None:
+        with self._lock:
+            self._latest = dict(payload)
+        fields = [
+            f"stage={payload.get('stage')}",
+            f"status={payload.get('status')}",
+            f"elapsed={payload.get('elapsed_seconds')}s",
+        ]
+        if payload.get("generation") is not None:
+            fields.append(f"generation={payload['generation']}/{payload.get('total_generations', '?')}")
+        if payload.get("gap"):
+            fields.append(f"gap={payload['gap']}")
+        if payload.get("upper_bound_eta_seconds") is not None:
+            fields.append(f"upper_bound_eta={payload['upper_bound_eta_seconds']}s")
+        print("AURUM_SELF_BUILD_PROGRESS " + " ".join(fields), flush=True)
+
+    def _heartbeat(self) -> None:
+        while not self._done.wait(15):
+            with self._lock:
+                latest = dict(self._latest)
+                elapsed = round(time.monotonic() - self._started, 1)
+            fields = [
+                "status=running",
+                f"elapsed={elapsed}s",
+                f"stage={latest.get('stage', 'starting')}",
+            ]
+            if latest.get("generation") is not None:
+                fields.append(f"generation={latest['generation']}/{latest.get('total_generations', '?')}")
+            if latest.get("upper_bound_eta_seconds") is not None:
+                fields.append(f"upper_bound_eta={latest['upper_bound_eta_seconds']}s")
+            print("AURUM_SELF_BUILD_HEARTBEAT " + " ".join(fields), flush=True)
+
+    def _run(self) -> None:
+        heartbeat = threading.Thread(target=self._heartbeat, name="aurum-self-build-heartbeat", daemon=True)
+        heartbeat.start()
+        try:
+            result = self.workspace.self_build(progress=self._progress, cancel_event=self._cancel)
+            with self._lock:
+                self._latest = {"status": "passed", "result": result}
+            print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+            print("AURUM_SELF_BUILD_FINISHED status=passed", flush=True)
+        except WorkspaceError as exc:
+            status = "cancelled" if self._cancel.is_set() else "failed"
+            with self._lock:
+                self._latest = {"status": status, "detail": str(exc)}
+            print(f"AURUM_SELF_BUILD_FINISHED status={status} detail={exc}", flush=True)
+        finally:
+            self._done.set()
+
+    def start(self) -> dict:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return {"status": "already-running", **self.status(locked=True)}
+            self._cancel = threading.Event()
+            self._done = threading.Event()
+            self._started = time.monotonic()
+            self._latest = {"status": "starting", "stage": "startup"}
+            self._thread = threading.Thread(target=self._run, name="aurum-self-build", daemon=True)
+            self._thread.start()
+            return {"status": "started", "background": True, "commands": ["self-build-status", "self-build-cancel"]}
+
+    def status(self, *, locked: bool = False) -> dict:
+        def snapshot() -> dict:
+            running = self._thread is not None and self._thread.is_alive()
+            elapsed = round(time.monotonic() - self._started, 1) if self._started else 0.0
+            return {"running": running, "elapsed_seconds": elapsed, "latest": dict(self._latest)}
+
+        if locked:
+            return snapshot()
+        with self._lock:
+            return snapshot()
+
+    def cancel(self) -> dict:
+        with self._lock:
+            if self._thread is None or not self._thread.is_alive():
+                return {"status": "not-running"}
+            self._cancel.set()
+            return {"status": "cancellation-requested", "checkpoint_preserved": True}
+
+
+BUILDS = SelfBuildController(WORKSPACE)
 
 
 def _read_text(path: Path, default: str = "unknown") -> str:
@@ -132,6 +229,7 @@ def show_result(operation) -> None:
 def command_help() -> None:
     print(
         "status | hardware | field | selftest | seed | seed-status | self-build | "
+        "self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
         "git-promote authorize-network confirm-push | reboot | poweroff | help",
         flush=True,
@@ -181,7 +279,11 @@ def main() -> int:
         elif command == "seed-status" and len(tokens) == 1:
             show_result(WORKSPACE.seed_status)
         elif command == "self-build" and len(tokens) == 1:
-            show_result(WORKSPACE.self_build)
+            print(json.dumps(BUILDS.start(), indent=2, sort_keys=True), flush=True)
+        elif command == "self-build-status" and len(tokens) == 1:
+            print(json.dumps(BUILDS.status(), indent=2, sort_keys=True), flush=True)
+        elif command == "self-build-cancel" and len(tokens) == 1:
+            print(json.dumps(BUILDS.cancel(), indent=2, sort_keys=True), flush=True)
         elif command == "git-status" and len(tokens) == 1:
             show_result(WORKSPACE.git_status)
         elif command == "git-sync" and len(tokens) == 2:

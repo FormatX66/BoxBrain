@@ -1,6 +1,320 @@
 {
+  "_checkpoint": {
+    "learned_expressions": {
+      "interface_context_mode_confidence": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "interface_roundtrip_observation": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "io_semantic_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_novelty_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "symmetric_difference",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_overlap_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_retention_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_stability_index": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_union_size": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "schema": "aurum-native-chain-resume-v1",
+    "verified_local_capabilities": [
+      "bounded-preference-evidence",
+      "categorical-token-policy",
+      "io-plan",
+      "labeled-text-projection",
+      "protected-token-filter",
+      "required-condition-classifier",
+      "reversible-state-delta-projection",
+      "thresholded-unique-best-selector"
+    ]
+  },
   "blocked_output": "blocked-physical-node",
   "blocked_reason": "external-prerequisite-blocked",
+  "cache_hit": true,
   "catalog_revision": "aurum-native-gap-catalog-v1",
   "completed_generations": 20,
   "external_evidence": {
@@ -971,6 +1285,7 @@
   "next_gap": "adaptive_shell_live_trial_readiness",
   "reasoning_request": null,
   "reasoning_required": false,
+  "resumed_from_generations": 20,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
@@ -996,9 +1311,5 @@
   "self_debug_revision": "aurum-native-self-debug-v0",
   "start_gap": "learning_delta_score",
   "synthesis_revision": "aurum-native-synthesis-v3",
-  "timer_dependency": false,
-  "workflow_verification": {
-    "outcome": "success",
-    "trusted_for_continuation": true
-  }
+  "timer_dependency": false
 }
