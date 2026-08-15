@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-ui-profile="aurum" data-ui-mode="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b12">
+  <title>Aurum</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/adaptive.css">
+  <link rel="stylesheet" href="/interaction.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand" aria-label="Aurum">
+        <div class="brand-mark">A</div>
+        <div>
+          <div class="brand-name">AURUM</div>
+          <div class="brand-sub">living system</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Aurum views">
+        <button class="nav-item active" data-lens="overview">Overview</button>
+        <button class="nav-item" data-lens="kernel">Kernel</button>
+        <button class="nav-item" data-lens="devices">Devices</button>
+        <button class="nav-item" data-lens="memory">Memory</button>
+        <button class="nav-item" data-lens="builds">Builds</button>
+      </nav>
+
+      <div class="rail-footer">
+        <div class="status-line"><span id="system-dot" class="dot pending"></span><span id="system-state">connecting</span></div>
+        <div class="muted" id="host-label">local machine</div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">Aurum semantic interface</div>
+          <h1 id="view-title">Overview</h1>
+        </div>
+        <div class="topbar-state">
+          <span class="pill" id="arch-pill">arch —</span>
+          <span class="pill" id="kernel-pill">kernel —</span>
+          <div class="ui-adapt-control" aria-label="Adaptive interface controls">
+            <label for="ui-profile">Interface</label>
+            <select id="ui-profile" aria-label="Interface familiarity profile">
+              <option value="auto">Auto learn</option>
+              <option value="aurum">Aurum</option>
+              <option value="windows">Windows-like</option>
+              <option value="macos">macOS-like</option>
+              <option value="touch">Touch</option>
+            </select>
+            <span class="ui-learning-state" id="ui-learning-state">learning · Aurum</span>
+            <button id="ui-reset" type="button">Reset learned</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero-grid">
+        <article class="core-panel glass">
+          <div class="panel-heading">
+            <div>
+              <div class="eyebrow">Core interface</div>
+              <h2>Talk to Aurum</h2>
+            </div>
+            <div class="status-chip pending" id="llm-chip">LLM probing</div>
+          </div>
+
+          <div class="conversation" id="conversation" aria-live="polite">
+            <div class="message aurum">
+              <div class="message-label">Aurum</div>
+              <div class="message-body">Interface online. I’ll show verified machine state here and use the local reasoning core when it is available.</div>
+            </div>
+          </div>
+
+          <form class="composer" id="composer">
+            <textarea id="prompt" rows="1" placeholder="Ask Aurum anything…" autocomplete="off"></textarea>
+            <button id="send" type="submit" aria-label="Send to Aurum">Send</button>
+          </form>
+          <div class="composer-note">Local-first. Machine actions require verified tool evidence.</div>
+        </article>
+
+        <aside class="telemetry glass">
+          <div class="panel-heading compact">
+            <div>
+              <div class="eyebrow">Live substrate</div>
+              <h2>Machine</h2>
+            </div>
+            <button class="icon-button" id="refresh" aria-label="Refresh status">↻</button>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric"><span>CPU</span><strong id="cpu-value">—</strong></div>
+            <div class="metric"><span>Memory</span><strong id="memory-value">—</strong></div>
+            <div class="metric"><span>PCI</span><strong id="pci-value">—</strong></div>
+            <div class="metric"><span>USB</span><strong id="usb-value">—</strong></div>
+          </div>
+
+          <div class="detail-list">
+            <div class="detail-row"><span>Machine</span><strong id="machine-value">—</strong></div>
+            <div class="detail-row"><span>Vendor</span><strong id="vendor-value">—</strong></div>
+            <div class="detail-row"><span>Network</span><strong id="network-value">—</strong></div>
+            <div class="detail-row"><span>Storage</span><strong id="storage-value">—</strong></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="state-grid">
+        <article class="state-card glass">
+          <div class="eyebrow">Codelation</div>
+          <div class="state-value" id="frontier-value">—</div>
+          <div class="muted">next frontier</div>
+        </article>
+        <article class="state-card glass">
+          <div class="eyebrow">Native field</div>
+          <div class="state-value" id="native-value">—</div>
+          <div class="muted">reusable native capabilities</div>
+        </article>
+        <article class="state-card glass">
+          <div class="eyebrow">Trust</div>
+          <div class="state-value" id="trust-value">—</div>
+          <div class="muted">continuation verification</div>
+        </article>
+        <article class="state-card glass">
+          <div class="eyebrow">Reasoning core</div>
+          <div class="state-value" id="model-value">aurum-seed</div>
+          <div class="muted" id="model-detail">local model status</div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js" defer></script>
+  <script src="/adaptive.js" defer></script>
+  <script src="/interaction.js" defer></script>
+</body>
+</html>

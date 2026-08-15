@@ -6,6 +6,7 @@ on:
     branches:
       - aurum/pc-v0.01
       - aurum/pi3-v0.01
+      - 'agent/**'
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
