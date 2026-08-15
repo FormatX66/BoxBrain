@@ -30,6 +30,18 @@ class WorkflowGateContractTests(unittest.TestCase):
         self.assertIn("gh release create", promotion_text)
         self.assertIn("gh release edit \"$TAG\" --draft=false", promotion_text)
 
+    def test_runtime_promotion_requires_explicit_dispatch(self) -> None:
+        workflow = (REPOSITORY / ".github/workflows/aurum-virtual-lab.yml").read_text(
+            encoding="utf-8"
+        )
+        promotion = workflow.index("  promote-pi3-runtime:")
+        promotion_condition = workflow[promotion:].split("      runs-on:", 1)[0]
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && inputs.publish_runtime == true",
+            promotion_condition,
+        )
+        self.assertNotIn("github.event_name == 'push'", promotion_condition)
+
 
 if __name__ == "__main__":
     unittest.main()
