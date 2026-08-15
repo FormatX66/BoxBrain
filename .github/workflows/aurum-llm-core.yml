@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - aurum/llm-core-v0
+      - aurum/trunk-v0.01
       - 'agent/**'
     paths:
       - '.github/workflows/aurum-llm-core.yml'
