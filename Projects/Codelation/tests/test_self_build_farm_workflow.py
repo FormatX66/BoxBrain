@@ -25,6 +25,7 @@ class SelfBuildFarmWorkflowTests(unittest.TestCase):
         self.assertIn("Converge 40 architecture lanes", self.workflow)
         self.assertIn("converge_self_build_farm.py", self.workflow)
         self.assertIn("lane_count') != 40", self.workflow)
+        self.assertIn("github.head_ref || github.ref_name", self.workflow)
         self.assertRegex(self.workflow, r"permissions:\s+contents: read")
         self.assertNotRegex(self.workflow, r"permissions:\s+contents: write")
 

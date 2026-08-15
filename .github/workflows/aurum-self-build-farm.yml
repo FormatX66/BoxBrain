@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: aurum-self-build-farm-${{ github.workflow }}-${{ github.ref }}
+  group: aurum-self-build-farm-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
