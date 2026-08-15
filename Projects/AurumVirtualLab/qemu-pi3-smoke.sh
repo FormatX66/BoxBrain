@@ -61,10 +61,9 @@ done
 CMDLINE="${CMDLINE# } root=/dev/mmcblk0p2 rootwait rootdelay=1 rw console=ttyAMA1,115200 aurum.qemu=1"
 printf 'AURUM_PI3_QEMU_CMDLINE %s\n' "$CMDLINE"
 
-# This follows QEMU's Raspberry Pi 3 direct-kernel model: Cortex-A53, 1 GiB,
-# four cores, SD index 0, and ttyAMA1 on the emulated serial path. It boots the
-# actual Aurum microSD root filesystem. Raspberry Pi firmware compatibility is
-# deliberately still a separate physical-hardware gate.
+# QEMU raspi3b exposes serial0 as ttyAMA1 with this device tree. Keep the QEMU
+# monitor disabled: multiplexing the monitor onto stdio makes a non-interactive
+# CI runner's stdin EOF terminate QEMU cleanly before systemd finishes booting.
 set +e
 timeout 180s qemu-system-aarch64 \
   -M raspi3b \
@@ -75,10 +74,11 @@ timeout 180s qemu-system-aarch64 \
   -dtb "$WORK/bcm2710-rpi-3-b.dtb" \
   -append "$CMDLINE" \
   -drive file="$WORK/aurum-pi3-qemu.img",format=raw,if=sd,index=0 \
-  -serial mon:stdio \
-  -nographic \
+  -display none \
+  -serial stdio \
+  -monitor none \
   -no-reboot \
-  > "$LOG" 2>&1
+  < /dev/null > "$LOG" 2>&1
 status=$?
 set -e
 cat "$LOG"
