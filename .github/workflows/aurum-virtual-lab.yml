@@ -250,8 +250,7 @@ jobs:
   promote-pi3-runtime:
     name: Publish gated Pi3 runtime update
     if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.publish_runtime == true)
+      github.event_name == 'workflow_dispatch' && inputs.publish_runtime == true
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs:
