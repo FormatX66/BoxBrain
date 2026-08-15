@@ -1,0 +1,24 @@
+[Unit]
+Description=Aurum Pi3 serial verification console
+After=local-fs.target systemd-udev-trigger.service aurum-pi3-update-recovery.service
+Requires=aurum-pi3-update-recovery.service
+Conflicts=serial-getty@serial0.service serial-getty@ttyAMA0.service
+ConditionPathExists=/dev/serial0
+
+[Service]
+Type=simple
+Environment=AURUM_ROOT=/opt/aurum/current
+Environment=AURUM_RELEASE_ID_FROM_PATH=1
+Environment=AURUM_READINESS_FILE=/run/aurum-pi3/serial-ready.json
+ExecStart=/usr/bin/python3 /opt/aurum/current/aurum_pi3_console.py
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/serial0
+TTYReset=yes
+TTYVHangup=yes
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

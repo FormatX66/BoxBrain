@@ -1,0 +1,323 @@
+name: Aurum Distributed Self-Build Farm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+      - 'aurum/**'
+      - 'codex/**'
+    paths:
+      - '.github/workflows/aurum-self-build-farm.yml'
+      - 'Projects/AurumGUI/**'
+      - 'Projects/AurumLLM/**'
+      - 'Projects/Codelation/run_native_autonomous_chain.py'
+      - 'Projects/Codelation/autobuild/**'
+      - 'Projects/Codelation/field/**'
+      - 'Projects/Codelation/tests/test_native*.py'
+      - 'Projects/Codelation/tests/test_local_capability_verification.py'
+      - 'Projects/Codelation/tests/test_self_build_farm_convergence.py'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/aurum-self-build-farm.yml'
+      - 'Projects/AurumGUI/**'
+      - 'Projects/AurumLLM/**'
+      - 'Projects/Codelation/run_native_autonomous_chain.py'
+      - 'Projects/Codelation/autobuild/**'
+      - 'Projects/Codelation/field/**'
+      - 'Projects/Codelation/tests/test_native*.py'
+      - 'Projects/Codelation/tests/test_local_capability_verification.py'
+      - 'Projects/Codelation/tests/test_self_build_farm_convergence.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-self-build-farm-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  lane:
+    name: ${{ matrix.platform.arch }} shard ${{ matrix.shard }}
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        platform:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+        shard: [0, 1, 2, 3, 4]
+    env:
+      AURUM_ARCH: ${{ matrix.platform.arch }}
+      AURUM_SHARD: ${{ matrix.shard }}
+      AURUM_SHARDS: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify native runner architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import platform
+
+          expected = os.environ['AURUM_ARCH']
+          actual = platform.machine()
+          if actual != expected:
+              raise SystemExit(f'runner architecture mismatch: expected={expected} actual={actual}')
+          print(f'AURUM_FARM_RUNNER_OK arch={actual}')
+          PY
+
+      - name: Run core self-build test shard
+        shell: bash
+        run: |
+          set -euo pipefail
+          patterns=(
+            'test_seed.py'
+            'test_native*.py'
+            'test_field_native*.py'
+            'test_local_capability_verification.py'
+            'test_self_build*.py'
+          )
+          pattern="${patterns[$AURUM_SHARD]}"
+          python3 -m unittest discover -s Projects/Codelation/tests -p "$pattern" -v
+
+      - name: Run assigned autonomous chain lanes in parallel
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="farm-lanes/$AURUM_ARCH"
+          mkdir -p "$output"
+          mapfile -t gaps < <(
+            PYTHONPATH=Projects/Codelation/field python3 - <<'PY'
+          from native_gap_catalog import native_semantic_gap_names
+
+          print('\n'.join(native_semantic_gap_names()))
+          PY
+          )
+
+          pids=()
+          lane_names=()
+          for index in "${!gaps[@]}"; do
+            if (( index % AURUM_SHARDS != AURUM_SHARD )); then
+              continue
+            fi
+            gap="${gaps[$index]}"
+            lane_names+=("$gap")
+            python3 Projects/Codelation/run_native_autonomous_chain.py \
+              --start-gap "$gap" \
+              --max-generations 24 \
+              --seed-state Projects/Codelation/autobuild/native_chain_state.json \
+              --state-path "$output/$gap.json" \
+              > "$output/$gap.stdout.json" \
+              2> "$output/$gap.progress.log" &
+            pids+=("$!")
+          done
+
+          failures=0
+          for index in "${!pids[@]}"; do
+            if wait "${pids[$index]}"; then
+              continue
+            else
+              status=$?
+              gap="${lane_names[$index]}"
+              echo "Aurum lane failed: $gap status=$status" >&2
+              cat "$output/$gap.progress.log" >&2 || true
+              cat "$output/$gap.stdout.json" >&2 || true
+              failures=$((failures + 1))
+            fi
+          done
+          if (( failures > 0 )); then
+            exit 1
+          fi
+
+          export AURUM_EXPECTED_LANES="${#lane_names[@]}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('farm-lanes') / os.environ['AURUM_ARCH']
+          states = sorted(path for path in root.glob('*.json') if not path.name.endswith('.stdout.json'))
+          expected = int(os.environ['AURUM_EXPECTED_LANES'])
+          if len(states) != expected:
+              raise SystemExit(f'expected {expected} state files in shard, found {len(states)}')
+          for path in states:
+              state = json.loads(path.read_text(encoding='utf-8'))
+              if state.get('completed_generations', 0) < 1:
+                  raise SystemExit(f'lane completed no generations: {path}')
+              if state.get('reasoning_required'):
+                  raise SystemExit(f'lane reached an unhandled reasoning boundary: {path}')
+              print(
+                  'AURUM_FARM_LANE_OK '
+                  f'arch={os.environ["AURUM_ARCH"]} '
+                  f'start_gap={state["start_gap"]} '
+                  f'completed={state["completed_generations"]} '
+                  f'next_gap={state.get("next_gap")}'
+              )
+          PY
+
+      - name: Publish lane evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aurum-self-build-lane-${{ matrix.platform.arch }}-${{ matrix.shard }}
+          path: farm-lanes
+          if-no-files-found: error
+          retention-days: 14
+
+  authoritative-chain:
+    name: Authoritative resumable chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Resume the durable chain checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p authoritative
+          cp Projects/Codelation/autobuild/native_chain_state.json authoritative/state.json
+          python3 Projects/Codelation/run_native_autonomous_chain.py \
+            --resume \
+            --state-path authoritative/state.json \
+            > authoritative/stdout.json \
+            2> authoritative/progress.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          state = json.loads(Path('authoritative/state.json').read_text(encoding='utf-8'))
+          if state.get('completed_generations', 0) < 1:
+              raise SystemExit('authoritative chain completed no generations')
+          print(
+              'AURUM_AUTHORITATIVE_CHAIN_OK '
+              f'completed={state["completed_generations"]} '
+              f'resumed={state.get("resumed_from_generations", 0)} '
+              f'next_gap={state.get("next_gap")}'
+          )
+          PY
+
+      - name: Verify resume contracts
+        run: >-
+          python3 -m unittest discover
+          -s Projects/Codelation/tests
+          -p 'test_native_autonomous_chain_resume.py'
+          -v
+
+      - name: Publish authoritative checkpoint evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aurum-authoritative-chain
+          path: authoritative
+          if-no-files-found: error
+          retention-days: 14
+
+  converge:
+    name: Converge all architecture lanes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    needs:
+      - lane
+      - authoritative-chain
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Download all farm lanes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: aurum-self-build-lane-*
+          path: farm-input
+          merge-multiple: true
+
+      - name: Download authoritative checkpoint
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: aurum-authoritative-chain
+          path: authoritative-input
+
+      - name: Fail closed on missing or divergent lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p farm-output
+          python3 Projects/Codelation/autobuild/converge_self_build_farm.py \
+            --input-root farm-input \
+            --output farm-output/aurum-self-build-farm-manifest.json \
+            | tee farm-output/convergence.log
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, 'Projects/Codelation/field')
+          from native_gap_catalog import native_semantic_gap_names
+
+          manifest = json.loads(
+              Path('farm-output/aurum-self-build-farm-manifest.json').read_text(encoding='utf-8')
+          )
+          authoritative = json.loads(Path('authoritative-input/state.json').read_text(encoding='utf-8'))
+          expected_gap_count = len(native_semantic_gap_names())
+          expected_lane_count = expected_gap_count * len(manifest.get('architectures', []))
+          if manifest.get('gap_count') != expected_gap_count:
+              raise SystemExit(f'unexpected gap count: {manifest.get("gap_count")}')
+          if manifest.get('lane_count') != expected_lane_count:
+              raise SystemExit(f'unexpected lane count: {manifest.get("lane_count")}')
+          if manifest.get('cross_architecture_determinism') != 'verified':
+              raise SystemExit('cross-architecture determinism is not verified')
+          if authoritative.get('completed_generations', 0) < 1:
+              raise SystemExit('authoritative checkpoint is empty')
+          print(
+              'AURUM_SELF_BUILD_FARM_OK '
+              f'lanes={manifest["lane_count"]} '
+              f'gaps={manifest["gap_count"]} '
+              f'authoritative_completed={authoritative["completed_generations"]}'
+          )
+          PY
+
+      - name: Verify farm and native-chain contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover \
+            -s Projects/Codelation/tests \
+            -p 'test_self_build_farm_convergence.py' \
+            -v
+          python3 -m unittest discover \
+            -s Projects/Codelation/tests \
+            -p 'test_native*.py' \
+            -v
+
+      - name: Publish converged farm evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aurum-self-build-farm-converged
+          path: farm-output
+          if-no-files-found: error
+          retention-days: 30

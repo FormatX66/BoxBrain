@@ -1,0 +1,128 @@
+name: Aurum PC v0.01 Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/pc-v0.01
+      - aurum/pi3-v0.01
+      - 'agent/**'
+    paths:
+      - '.github/workflows/aurum-pc-v001.yml'
+      - 'Projects/AurumPC/**'
+      - 'Projects/Codelation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pc-v001-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out Aurum PC branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Validate bounded runtime sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumPC/aurum_console.py Projects/AurumPC/aurum_workspace.py
+          sh -n Projects/AurumPC/build-iso.sh
+          python3 -m unittest discover -s Projects/AurumPC/tests -v
+          grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
+          grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
+
+      - name: Install independent VM tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          docker info >/dev/null
+
+      - name: Build Aurum PC live ISO with Debian-native tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap \
+                xorriso isolinux syslinux-common squashfs-tools \
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+              lb --version
+              sh Projects/AurumPC/build-iso.sh
+            '
+          test -s dist/Aurum-PC-v0.01-amd64.iso
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+
+      - name: UEFI boot smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            code=/usr/share/OVMF/OVMF_CODE.fd
+            vars=/usr/share/OVMF/OVMF_VARS.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            code=/usr/share/OVMF/OVMF_CODE_4M.fd
+            vars=/usr/share/OVMF/OVMF_VARS_4M.fd
+          else
+            echo 'No matching OVMF CODE/VARS pair found.' >&2
+            exit 1
+          fi
+          cp "$vars" /tmp/AURUM_OVMF_VARS.fd
+          set +e
+          timeout 150s qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -cpu qemu64 \
+            -m 1024 \
+            -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$code" \
+            -drive if=pflash,format=raw,file=/tmp/AURUM_OVMF_VARS.fd \
+            -cdrom dist/Aurum-PC-v0.01-amd64.iso \
+            -boot d \
+            -display none \
+            -serial stdio \
+            -monitor none \
+            -no-reboot \
+            > aurum-pc-qemu.log 2>&1
+          qemu_status=$?
+          set -e
+          cat aurum-pc-qemu.log
+          grep -F 'AURUM_PC_READY version=0.01 arch=x86_64' aurum-pc-qemu.log
+          grep -F 'selftest=ok' aurum-pc-qemu.log
+          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
+            echo "QEMU exited unexpectedly with status $qemu_status" >&2
+            exit "$qemu_status"
+          fi
+          echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+
+      - name: Record image metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lh dist/Aurum-PC-v0.01-amd64.iso
+          cat dist/Aurum-PC-v0.01-amd64.iso.sha256
+
+      - name: Publish boot-verified ISO
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-PC-v0.01-amd64
+          path: |
+            dist/Aurum-PC-v0.01-amd64.iso
+            dist/Aurum-PC-v0.01-amd64.iso.sha256
+            aurum-pc-qemu.log
+          if-no-files-found: error
+          retention-days: 14
