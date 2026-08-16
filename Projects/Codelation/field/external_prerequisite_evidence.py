@@ -962,6 +962,11 @@ def apply_adaptive_shell_gui_preference_live_trial_evidence(
         return ExternalEvidenceApplication(spec, False, "gui-preference-trial-node-binding-invalid")
 
     candidate = evidence.get("candidate")
+    gui_schema = (
+        _bounded_text(candidate.get("gui_schema"), 32)
+        if isinstance(candidate, Mapping)
+        else ""
+    )
     module_sha256 = (
         _hex_digest(candidate.get("module_sha256"))
         if isinstance(candidate, Mapping)
@@ -971,7 +976,7 @@ def apply_adaptive_shell_gui_preference_live_trial_evidence(
         not isinstance(candidate, Mapping)
         or candidate.get("module") != "/opt/boxbrain/codelation/seed/aurum_gui.py"
         or not module_sha256
-        or candidate.get("gui_schema") != "aurum.gui.v2"
+        or gui_schema not in GUI_LIVE_TRIAL_COMPATIBLE_SCHEMAS
         or candidate.get("preference_schema") != "aurum.gui.preferences.v1"
         or candidate.get("tests_passed") is not True
     ):
@@ -987,7 +992,7 @@ def apply_adaptive_shell_gui_preference_live_trial_evidence(
         or runtime.get("address") != "127.0.0.1"
         or runtime.get("port") != 8765
         or runtime.get("listener_loopback_only") is not True
-        or runtime.get("status_schema") != "aurum.gui.v2"
+        or runtime.get("status_schema") != gui_schema
         or not status_sha256
     ):
         return ExternalEvidenceApplication(spec, False, "gui-preference-trial-runtime-invalid")
@@ -1109,7 +1114,7 @@ def apply_adaptive_shell_gui_preference_live_trial_evidence(
         "expires_at": expires_at,
         "module_sha256": module_sha256,
         "status_sha256": status_sha256,
-        "gui_schema": "aurum.gui.v2",
+        "gui_schema": gui_schema,
         "preference_schema": "aurum.gui.preferences.v1",
         "baseline_revision": baseline_revision,
         "restored_revision": rollback_revision,

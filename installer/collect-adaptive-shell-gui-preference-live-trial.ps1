@@ -115,8 +115,10 @@ $headers = @{
     'X-Aurum-CSRF' = $csrf
 }
 $baseline = Invoke-RestMethod -Uri "$baseUrl/api/status" -TimeoutSec 5
+$compatibleGuiSchemas = @('aurum.gui.v1', 'aurum.gui.v2', 'aurum.gui.v3')
+$guiSchema = [string]$baseline.schema
 if (
-    [string]$baseline.schema -ne 'aurum.gui.v2' -or
+    $compatibleGuiSchemas -notcontains $guiSchema -or
     [string]$baseline.preferences.schema -ne 'aurum.gui.preferences.v1'
 ) {
     throw "The Aurum GUI preference baseline was invalid."
@@ -223,7 +225,7 @@ $restoredHash = Get-SemanticStateHash -SafeLayout ([bool]$restored.preferences.s
 if (
     [string]$deployment.schema -ne 'aurum-bbpi4-console-evidence-v1' -or
     [string]$deployment.node_id -ne [string]$node.node_id -or
-    $start -notmatch '^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$' -or
+    $start -notmatch '(?m)^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$' -or
     $moduleHash -ne $expectedModuleHash -or
     $serviceState -ne 'active' -or
     $enabledState -eq 'enabled' -or
@@ -248,7 +250,7 @@ $evidence = [ordered]@{
     candidate = [ordered]@{
         module = "/opt/boxbrain/codelation/seed/aurum_gui.py"
         module_sha256 = $moduleHash
-        gui_schema = "aurum.gui.v2"
+        gui_schema = $guiSchema
         preference_schema = "aurum.gui.preferences.v1"
         tests_passed = $true
     }
@@ -259,7 +261,7 @@ $evidence = [ordered]@{
         address = "127.0.0.1"
         port = 8765
         listener_loopback_only = $true
-        status_schema = "aurum.gui.v2"
+        status_schema = $guiSchema
         status_sha256 = $statusHash
     }
     trial = [ordered]@{

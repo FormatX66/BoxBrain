@@ -160,6 +160,31 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertFalse(verified.authority_granted)
         self.assertFalse(verified.routed_to_host)
 
+        upgraded_schema = copy.deepcopy(evidence)
+        upgraded_schema["candidate"]["gui_schema"] = "aurum.gui.v3"
+        upgraded_schema["runtime"]["status_schema"] = "aurum.gui.v3"
+        upgraded = apply_adaptive_shell_gui_preference_live_trial_evidence(
+            spec,
+            upgraded_schema,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertTrue(upgraded.applied)
+        self.assertEqual(upgraded.evidence["gui_schema"], "aurum.gui.v3")
+
+        unknown_schema = copy.deepcopy(evidence)
+        unknown_schema["candidate"]["gui_schema"] = "aurum.gui.v4"
+        unknown_schema["runtime"]["status_schema"] = "aurum.gui.v4"
+        rejected_schema = apply_adaptive_shell_gui_preference_live_trial_evidence(
+            spec,
+            unknown_schema,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertFalse(rejected_schema.applied)
+        self.assertEqual(
+            rejected_schema.reason,
+            "gui-preference-trial-candidate-invalid",
+        )
+
         unsafe = copy.deepcopy(evidence)
         unsafe["trial"]["rollback"]["state_sha256"] = "f" * 64
         rejected = apply_adaptive_shell_gui_preference_live_trial_evidence(
