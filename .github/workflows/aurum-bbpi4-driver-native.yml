@@ -1,0 +1,176 @@
+name: Aurum BBPI4 Native Driver Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-bbpi4-driver-native.yml'
+      - 'Projects/Codelation/driver_synthesis.py'
+      - 'Projects/Codelation/driver_transition_synthesis.py'
+      - 'Projects/Codelation/driver_program_synthesis.py'
+      - 'Projects/Codelation/driver_lowering_plan.py'
+      - 'Projects/Codelation/driver_virtual_executor.py'
+      - 'Projects/Codelation/driver_emulator_parity.py'
+      - 'Projects/Codelation/driver_evidence/**'
+      - 'Projects/Codelation/tests/test_driver_synthesis.py'
+      - 'Projects/Codelation/tests/test_driver_transition_synthesis.py'
+      - 'Projects/Codelation/tests/test_driver_program_synthesis.py'
+      - 'Projects/Codelation/tests/test_driver_lowering_plan.py'
+      - 'Projects/Codelation/tests/test_driver_virtual_executor.py'
+      - 'Projects/Codelation/tests/test_driver_emulator_parity.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-bbpi4-native-driver
+  cancel-in-progress: false
+
+jobs:
+  native-arm-driver-validation:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 18
+    steps:
+      - name: Check out Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 1
+
+      - name: Discover and verify BBPI4
+        id: bbpi4
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedFingerprint = 'SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY'
+          $keyPath = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw "Dedicated BoxBrain Pi SSH key is missing: $keyPath"
+          }
+
+          $candidates = @('10.12.194.1','10.42.194.1','192.168.0.194')
+          $address = $null
+          foreach ($candidate in $candidates) {
+            $reachable = Test-NetConnection -ComputerName $candidate -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue
+            Write-Host "AURUM_PI4_DRIVER_ROUTE address=$candidate tcp22=$reachable"
+            if (-not $address -and $reachable) { $address = $candidate }
+          }
+          if (-not $address) { throw 'No approved BBPI4 SSH route is reachable.' }
+
+          $scan = & ssh-keyscan.exe -T 4 -t ed25519 $address 2>$null
+          $hostKey = @($scan | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -First 1)
+          if ($hostKey.Count -eq 0) { throw 'BBPI4 did not publish an ED25519 host key.' }
+          $tmpKey = Join-Path $env:RUNNER_TEMP 'bbpi4-driver-hostkey.txt'
+          [IO.File]::WriteAllLines($tmpKey, @([string]$hostKey[0]), [Text.Encoding]::ASCII)
+          $fingerprintText = (& ssh-keygen.exe -lf $tmpKey -E sha256) -join ' '
+          $match = [regex]::Match($fingerprintText, 'SHA256:[A-Za-z0-9+/=]+')
+          if (-not $match.Success -or $match.Value -ne $expectedFingerprint) {
+            throw "BBPI4 host-key fingerprint mismatch: $($match.Value)"
+          }
+
+          $sshDir = Join-Path $HOME '.ssh'
+          New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
+          $knownHosts = Join-Path $sshDir 'known_hosts'
+          if (Test-Path -LiteralPath $knownHosts) {
+            & ssh-keygen.exe -R $address -f $knownHosts | Out-Null
+          }
+          [IO.File]::AppendAllLines($knownHosts, @([string]$hostKey[0]), [Text.Encoding]::ASCII)
+
+          "address=$address" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "key_path=$keyPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "AURUM_PI4_DRIVER_TARGET address=$address host_key=verified"
+
+      - name: Stage bounded driver synthesis payload
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'aurum-pi4-driver-stage'
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Projects\Codelation\tests') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Projects\Codelation\driver_evidence') | Out-Null
+
+          $files = @(
+            'driver_synthesis.py',
+            'driver_transition_synthesis.py',
+            'driver_program_synthesis.py',
+            'driver_lowering_plan.py',
+            'driver_virtual_executor.py',
+            'driver_emulator_parity.py'
+          )
+          foreach ($file in $files) {
+            Copy-Item -LiteralPath (Join-Path 'Projects\Codelation' $file) -Destination (Join-Path $stage 'Projects\Codelation')
+          }
+          Copy-Item -LiteralPath 'Projects\Codelation\driver_evidence\*' -Destination (Join-Path $stage 'Projects\Codelation\driver_evidence')
+
+          $tests = @(
+            'test_driver_synthesis.py',
+            'test_driver_transition_synthesis.py',
+            'test_driver_program_synthesis.py',
+            'test_driver_lowering_plan.py',
+            'test_driver_virtual_executor.py',
+            'test_driver_emulator_parity.py'
+          )
+          foreach ($test in $tests) {
+            Copy-Item -LiteralPath (Join-Path 'Projects\Codelation\tests' $test) -Destination (Join-Path $stage 'Projects\Codelation\tests')
+          }
+
+          $archive = Join-Path $env:RUNNER_TEMP 'aurum-pi4-driver-stage.tar.gz'
+          Remove-Item -Force $archive -ErrorAction SilentlyContinue
+          & tar.exe -czf $archive -C $stage .
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $archive)) { throw 'Failed to build bounded driver test payload.' }
+          Write-Host "AURUM_PI4_DRIVER_PAYLOAD bytes=$((Get-Item $archive).Length)"
+
+      - name: Run driver synthesis tests natively on Raspberry Pi 4
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          $address = '${{ steps.bbpi4.outputs.address }}'
+          $keyPath = '${{ steps.bbpi4.outputs.key_path }}'
+          $remoteRoot = "/tmp/aurum-pi4-driver-${{ github.run_id }}"
+          $archive = Join-Path $env:RUNNER_TEMP 'aurum-pi4-driver-stage.tar.gz'
+          $sshBase = @('-i',$keyPath,'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=6')
+          $target = "kali@$address"
+
+          try {
+            & ssh.exe @sshBase $target "rm -rf '$remoteRoot' && mkdir -p '$remoteRoot'"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create bounded BBPI4 test directory.' }
+            & scp.exe -i $keyPath -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes $archive "${target}:$remoteRoot/payload.tar.gz"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not copy bounded driver test payload to BBPI4.' }
+
+            $remoteCommand = @'
+set -eu
+cd '__REMOTE_ROOT__'
+tar -xzf payload.tar.gz
+arch="$(uname -m)"
+model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+echo "AURUM_PI4_NATIVE arch=$arch model=$model"
+case "$model" in
+  *"Raspberry Pi 4"*) ;;
+  *) echo "Expected Raspberry Pi 4 hardware, got: $model" >&2; exit 41 ;;
+esac
+python3 --version
+python3 -m py_compile Projects/Codelation/driver_synthesis.py Projects/Codelation/driver_transition_synthesis.py Projects/Codelation/driver_program_synthesis.py Projects/Codelation/driver_lowering_plan.py Projects/Codelation/driver_virtual_executor.py Projects/Codelation/driver_emulator_parity.py
+python3 -m unittest Projects.Codelation.tests.test_driver_synthesis Projects.Codelation.tests.test_driver_transition_synthesis Projects.Codelation.tests.test_driver_program_synthesis Projects.Codelation.tests.test_driver_lowering_plan Projects.Codelation.tests.test_driver_virtual_executor Projects.Codelation.tests.test_driver_emulator_parity -v
+echo "AURUM_PI4_DRIVER_SYNTHESIS native_arm=true compile=passed tests=passed physical_device_writes=false"
+'@
+            $remoteCommand = $remoteCommand.Replace('__REMOTE_ROOT__',$remoteRoot)
+            $output = & ssh.exe @sshBase $target $remoteCommand 2>&1
+            $status = $LASTEXITCODE
+            $output | Tee-Object -FilePath 'evidence\bbpi4-native-driver-test.txt' | Write-Host
+            if ($status -ne 0) { throw "BBPI4 native driver validation failed with status $status" }
+          }
+          finally {
+            & ssh.exe @sshBase $target "rm -rf '$remoteRoot'" 2>$null | Out-Null
+          }
+
+      - name: Publish BBPI4 native driver evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-bbpi4-native-driver-${{ github.run_id }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 7
