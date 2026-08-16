@@ -9,9 +9,11 @@ on:
       - '.github/workflows/aurum-driver-synthesis.yml'
       - 'Projects/Codelation/driver_synthesis.py'
       - 'Projects/Codelation/driver_transition_synthesis.py'
+      - 'Projects/Codelation/driver_program_synthesis.py'
       - 'Projects/Codelation/driver_evidence/**'
       - 'Projects/Codelation/tests/test_driver_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_transition_synthesis.py'
+      - 'Projects/Codelation/tests/test_driver_program_synthesis.py'
 
 permissions:
   contents: read
@@ -41,11 +43,13 @@ jobs:
           python3 -m unittest
           Projects.Codelation.tests.test_driver_synthesis
           Projects.Codelation.tests.test_driver_transition_synthesis
+          Projects.Codelation.tests.test_driver_program_synthesis
           -v
 
       - name: Report safety boundary
         run: |
-          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay'
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay,abstract-program-synthesis,abstract-program-replay'
           echo 'AURUM_DRIVER_SYNTHESIS trace_proof=consistency-only synthetic_or_emulated_not_physical=true'
           echo 'AURUM_DRIVER_SYNTHESIS transition_sources=independent-datasheet-plus-emulator provenance_preserved=true'
+          echo 'AURUM_DRIVER_SYNTHESIS program_mode=abstract-non-actuating hardware_lowering=false branch_guessing=false'
           echo 'AURUM_DRIVER_SYNTHESIS physical_writes=false firmware_changes=false destructive_probe=false'
