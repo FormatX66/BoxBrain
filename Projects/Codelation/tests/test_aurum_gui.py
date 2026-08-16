@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import http.client
 import json
 import shutil
@@ -343,6 +344,18 @@ class AurumGuiTests(unittest.TestCase):
         )
         self.assertEqual(status, 400)
 
+    def test_occupied_port_preserves_the_bind_error(self) -> None:
+        with self.assertRaises(OSError) as raised:
+            aurum_gui_context.create_server(
+                "127.0.0.1",
+                self.port,
+                self.root,
+                reasoner=self.reasoner,
+            )
+        self.assertEqual(raised.exception.errno, errno.EADDRINUSE)
+
+        status, _, _ = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
 
 if __name__ == "__main__":
     unittest.main()

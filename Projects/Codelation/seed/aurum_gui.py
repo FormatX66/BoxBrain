@@ -648,16 +648,18 @@ class AurumGuiServer(ThreadingHTTPServer):
         model: str,
         reasoner: Reasoner,
     ) -> None:
+        # BaseServer.__init__ closes the server when bind fails, so the
+        # cleanup state must exist before the listening socket is created.
+        self.key_bootstrap_lock = threading.Lock()
+        self._key_bootstrap_value: str | None = None
+        self._key_bootstrap_generation = 0
+        self._key_bootstrap_expires_at = 0.0
         super().__init__(server_address, AurumGuiHandler)
         self.aurum_root = root.expanduser().resolve()
         self.aurum_model = model
         self.aurum_reasoner = reasoner
         self.csrf_token = secrets.token_urlsafe(32)
         self.preference_lock = threading.Lock()
-        self.key_bootstrap_lock = threading.Lock()
-        self._key_bootstrap_value: str | None = None
-        self._key_bootstrap_generation = 0
-        self._key_bootstrap_expires_at = 0.0
 
     def stage_key_bootstrap(self, api_key: str) -> None:
         with self.key_bootstrap_lock:
