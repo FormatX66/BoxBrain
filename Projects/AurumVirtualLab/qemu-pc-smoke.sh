@@ -15,90 +15,155 @@ else
   exit 1
 fi
 
-cp "$vars" /tmp/AURUM_VLAB_OVMF_VARS.fd
-serial_dir=$(mktemp -d /tmp/aurum-vlab-serial.XXXXXX)
-serial_input="$serial_dir/input"
+work_dir=$(mktemp -d /tmp/aurum-vlab-pc.XXXXXX)
+ovmf_vars="$work_dir/OVMF_VARS.fd"
+installed_disk="$work_dir/aurum-installed.raw"
+serial_input="$work_dir/input"
+cp "$vars" "$ovmf_vars"
+truncate -s 10G "$installed_disk"
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
-
-set +e
-timeout 900s qemu-system-x86_64 \
-  -machine q35,accel=tcg \
-  -cpu qemu64 \
-  -m 1024 \
-  -smp 2 \
-  -drive if=pflash,format=raw,readonly=on,file="$code" \
-  -drive if=pflash,format=raw,file=/tmp/AURUM_VLAB_OVMF_VARS.fd \
-  -cdrom "$ISO" \
-  -boot d \
-  -display none \
-  -serial stdio \
-  -monitor none \
-  -no-reboot \
-  <&3 > "$LOG" 2>&1 &
-qemu_pid=$!
-set -e
+: > "$LOG"
+qemu_pid=
 
 cleanup() {
-  if kill -0 "$qemu_pid" 2>/dev/null; then
+  if [ -n "${qemu_pid:-}" ] && kill -0 "$qemu_pid" 2>/dev/null; then
     kill "$qemu_pid" 2>/dev/null || true
     wait "$qemu_pid" 2>/dev/null || true
   fi
   exec 3>&-
+  rm -rf "$work_dir"
 }
 trap cleanup EXIT
 
-ready=false
-for _ in $(seq 1 180); do
-  if grep -Fq 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG" && grep -Fq 'selftest=ok' "$LOG"; then
-    ready=true
-    break
+start_live_qemu() {
+  timeout 900s qemu-system-x86_64 \
+    -machine q35,accel=tcg \
+    -cpu qemu64 \
+    -m 1024 \
+    -smp 2 \
+    -drive if=pflash,format=raw,readonly=on,file="$code" \
+    -drive if=pflash,format=raw,file="$ovmf_vars" \
+    -drive file="$installed_disk",format=raw,if=virtio \
+    -cdrom "$ISO" \
+    -boot order=d \
+    -display none \
+    -serial stdio \
+    -monitor none \
+    -no-reboot \
+    <&3 >> "$LOG" 2>&1 &
+  qemu_pid=$!
+}
+
+start_installed_qemu() {
+  printf '\n===== AURUM INSTALLED DISK BOOT =====\n' >> "$LOG"
+  timeout 900s qemu-system-x86_64 \
+    -machine q35,accel=tcg \
+    -cpu qemu64 \
+    -m 1024 \
+    -smp 2 \
+    -drive if=pflash,format=raw,readonly=on,file="$code" \
+    -drive if=pflash,format=raw,file="$ovmf_vars" \
+    -drive file="$installed_disk",format=raw,if=virtio \
+    -boot order=c \
+    -display none \
+    -serial stdio \
+    -monitor none \
+    -no-reboot \
+    <&3 >> "$LOG" 2>&1 &
+  qemu_pid=$!
+}
+
+wait_for_marker() {
+  marker=$1
+  attempts=$2
+  for _ in $(seq 1 "$attempts"); do
+    if grep -Fq "$marker" "$LOG"; then
+      return 0
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+finish_qemu() {
+  set +e
+  wait "$qemu_pid"
+  status=$?
+  set -e
+  qemu_pid=
+  if [ "$status" -ne 0 ]; then
+    cat "$LOG"
+    echo "QEMU PC exited unexpectedly with status $status" >&2
+    exit "$status"
   fi
-  if ! kill -0 "$qemu_pid" 2>/dev/null; then
-    break
-  fi
-  sleep 1
-done
-if [ "$ready" != true ]; then
+}
+
+start_live_qemu
+if ! wait_for_marker 'AURUM_PC_READY version=0.01 arch=x86_64' 180 || \
+   ! grep -Fq 'mode=live' "$LOG" || \
+   ! grep -Fq 'selftest=ok' "$LOG"; then
   cat "$LOG"
-  echo 'Aurum PC did not reach its UEFI runtime-ready marker.' >&2
+  echo 'Aurum PC did not reach its UEFI live-runtime marker.' >&2
   exit 1
 fi
 
-printf 'self-build\n' >&3
-self_build=false
-for _ in $(seq 1 720); do
-  if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"; then
-    self_build=true
-    break
-  fi
-  if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=failed' "$LOG"; then
-    break
-  fi
-  if ! kill -0 "$qemu_pid" 2>/dev/null; then
-    break
-  fi
-  sleep 1
-done
-if [ "$self_build" != true ]; then
+printf 'install\n' >&3
+if ! wait_for_marker 'AURUM_INSTALL_PLAN status=ready' 60; then
   cat "$LOG"
-  echo 'Aurum PC on-machine self-build did not pass.' >&2
+  echo 'Aurum PC did not expose a guided install plan.' >&2
+  exit 1
+fi
+confirmation=$(
+  sed -n 's/^AURUM_INSTALL_TARGET .*confirm=\(ERASE-[A-F0-9]\{8\}\).*$/\1/p' "$LOG" |
+    tail -n 1
+)
+if [ -z "$confirmation" ]; then
+  cat "$LOG"
+  echo 'Aurum PC install plan did not provide a bounded confirmation code.' >&2
+  exit 1
+fi
+printf 'install confirm %s\n' "$confirmation" >&3
+if ! wait_for_marker 'AURUM_INSTALL_FINISHED status=passed' 600; then
+  cat "$LOG"
+  echo 'Aurum PC guided installation did not pass.' >&2
   exit 1
 fi
 
 printf 'poweroff\n' >&3
-set +e
-wait "$qemu_pid"
-status=$?
-set -e
+finish_qemu
+
+start_installed_qemu
+if ! wait_for_marker 'mode=installed' 180 || \
+   ! grep -Fq 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG" || \
+   ! grep -Fq 'selftest=ok' "$LOG"; then
+  cat "$LOG"
+  echo 'The installed Aurum disk did not reach its UEFI runtime-ready marker.' >&2
+  exit 1
+fi
+
+printf 'self-build\n' >&3
+if ! wait_for_marker 'AURUM_SELF_BUILD_FINISHED status=passed' 720; then
+  cat "$LOG"
+  echo 'Aurum PC installed-runtime self-build did not pass.' >&2
+  exit 1
+fi
+
+printf 'poweroff\n' >&3
+finish_qemu
+
 trap - EXIT
 exec 3>&-
 cat "$LOG"
 grep -F 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG"
-grep -F 'selftest=ok' "$LOG"
+grep -F 'mode=live' "$LOG"
+grep -F 'AURUM_INSTALL_PLAN status=ready' "$LOG"
+grep -F 'AURUM_INSTALL_FINISHED status=passed' "$LOG"
+grep -F 'mode=installed' "$LOG"
 grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"
-if [ "$status" -ne 0 ]; then
-  echo "QEMU PC exited unexpectedly with status $status" >&2
-  exit "$status"
-fi
 echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
+echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
+rm -rf "$work_dir"

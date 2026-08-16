@@ -61,6 +61,12 @@ usbutils
 ca-certificates
 git
 systemd-resolved
+parted
+rsync
+dosfstools
+e2fsprogs
+util-linux
+grub-efi-amd64-bin
 EOF
 
 # Debian live-build's EFI GRUB config expects this font at boot. With
@@ -96,6 +102,8 @@ cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
+cp "$SCRIPT_DIR/aurum_installer.py" config/includes.chroot/opt/aurum/aurum_installer.py
+chmod 0755 config/includes.chroot/opt/aurum/aurum_installer.py
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
 mkdir -p config/includes.chroot/usr/lib/aurum
 cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" \

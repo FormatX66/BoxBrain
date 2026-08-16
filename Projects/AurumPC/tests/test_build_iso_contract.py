@@ -28,9 +28,24 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("printf 'self-build\\n'", smoke)
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
-        self.assertIn("for _ in $(seq 1 720)", smoke)
+        self.assertIn("wait_for_marker 'AURUM_SELF_BUILD_FINISHED status=passed' 720", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn("Projects/AurumVirtualLab/qemu-pc-smoke.sh", workflow)
+
+    def test_live_image_contains_only_the_guarded_installer_path(self) -> None:
+        script = BUILD_SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("--debian-installer none", script)
+        self.assertIn("aurum_installer.py", script)
+        for package in ("parted", "rsync", "dosfstools", "e2fsprogs", "grub-efi-amd64-bin"):
+            self.assertIn(package, script)
+
+    def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:
+        smoke = QEMU_SMOKE.read_text(encoding="utf-8")
+
+        self.assertIn("AURUM_INSTALL_PLAN status=ready", smoke)
+        self.assertIn("AURUM_INSTALL_FINISHED status=passed", smoke)
+        self.assertIn("mode=installed", smoke)
 
 
 if __name__ == "__main__":

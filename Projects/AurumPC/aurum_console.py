@@ -12,6 +12,7 @@ import threading
 import time
 from pathlib import Path
 
+from aurum_installer import AurumInstaller, InstallError
 from aurum_workspace import AurumWorkspace, WorkspaceError
 
 VERSION = "0.01"
@@ -118,6 +119,7 @@ class SelfBuildController:
 
 
 BUILDS = SelfBuildController(WORKSPACE)
+INSTALLER = AurumInstaller()
 
 
 def _read_text(path: Path, default: str = "unknown") -> str:
@@ -192,6 +194,7 @@ def show_status() -> None:
     state = _chain_state()
     payload = {
         "aurum_pc_version": VERSION,
+        "runtime_mode": "installed" if Path("/etc/aurum-installed.json").is_file() else "live",
         "substrate": "linux-hardware-compatibility-layer",
         "hardware": hardware(),
         "aurum": {
@@ -226,12 +229,58 @@ def show_result(operation) -> None:
         print(f"AURUM_WORKSPACE_REFUSED detail={exc}", flush=True)
 
 
+def show_install_plan() -> None:
+    try:
+        plan = INSTALLER.plan()
+    except InstallError as exc:
+        print(f"AURUM_INSTALL_PLAN status=refused detail={exc}", flush=True)
+        return
+    print(json.dumps(plan, indent=2, sort_keys=True), flush=True)
+    targets = plan.get("targets") or []
+    print(
+        f"AURUM_INSTALL_PLAN status={'ready' if plan.get('available') else 'unavailable'} "
+        f"targets={len(targets)} reason={plan.get('reason')}",
+        flush=True,
+    )
+    for target in targets:
+        print(
+            "AURUM_INSTALL_TARGET "
+            f"device={target['device']} size_gib={target['size_gib']} "
+            f"model={json.dumps(target['model'])} confirm={target['confirmation_code']}",
+            flush=True,
+        )
+
+
+def run_install(confirmation_code: str) -> None:
+    if BUILDS.status()["running"]:
+        print("AURUM_INSTALL_FINISHED status=refused detail=self-build-is-running", flush=True)
+        return
+
+    def progress(event: dict) -> None:
+        fields = [f"phase={event.get('phase')}"]
+        if event.get("device"):
+            fields.append(f"device={event['device']}")
+        print("AURUM_INSTALL_PROGRESS " + " ".join(fields), flush=True)
+
+    try:
+        result = INSTALLER.install(confirmation_code, progress=progress)
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(
+            f"AURUM_INSTALL_FINISHED status=passed device={result['device']} "
+            "next=poweroff-remove-usb-start-pc",
+            flush=True,
+        )
+    except InstallError as exc:
+        print(f"AURUM_INSTALL_FINISHED status=refused detail={exc}", flush=True)
+
+
 def command_help() -> None:
     print(
         "status | hardware | field | selftest | seed | seed-status | self-build | "
         "self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
-        "git-promote authorize-network confirm-push | reboot | poweroff | help",
+        "git-promote authorize-network confirm-push | install | "
+        "install confirm ERASE-CODE | reboot | poweroff | help",
         flush=True,
     )
 
@@ -243,6 +292,7 @@ def main() -> int:
     print(
         "AURUM_PC_READY "
         f"version={VERSION} arch={hw['architecture']} kernel={hw['kernel']} "
+        f"mode={'installed' if Path('/etc/aurum-installed.json').is_file() else 'live'} "
         f"selftest={'ok' if ok else 'failed'} detail={detail}",
         flush=True,
     )
@@ -301,6 +351,10 @@ def main() -> int:
                     confirm_push=tokens[2].lower() == "confirm-push",
                 )
             )
+        elif command == "install" and len(tokens) == 1:
+            show_install_plan()
+        elif command == "install" and len(tokens) == 3 and tokens[1].lower() == "confirm":
+            run_install(tokens[2])
         elif command == "reboot" and len(tokens) == 1:
             explicit_power("reboot")
         elif command == "poweroff" and len(tokens) == 1:
