@@ -3,11 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 2,
-  "validated_generation": 2,
-  "trial_generation": 3,
-  "next_generation": 3,
-  "trial_capability": "reference-aligned sleep-aware GPIO LED write callback selection while preserving learned readback semantics",
+  "active_generation": 3,
+  "validated_generation": 3,
+  "next_generation": 4,
+  "validated_capability": "reference-aligned sleep-aware GPIO LED write callback selection while preserving learned readback semantics",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -57,15 +56,22 @@
       "gpiod_set_value_cansleep is used on sleeping GPIOs",
       "brightness_get reads the GPIO logical state"
     ],
-    "exact_live_api_validation": "compile against the running BBPI4 kernel headers before any bind"
+    "exact_live_api_validation": "compiled against the running BBPI4 kernel headers before bind"
   },
   "last_verified_evidence": {
-    "workflow": "Aurum BBPI4 Single Driver Trial",
-    "run_id": 31973744759,
+    "workflow": "Aurum BBPI4 Driver Build Channel",
+    "run_id": 31978711839,
+    "artifact_id": 9271764438,
     "kernel": "6.12.34+rpt-rpi-v8",
+    "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
     "leds": ["ACT", "PWR"],
+    "generation": 3,
+    "compile": "passed",
     "behavior_parity": "passed",
-    "rollback": "passed"
+    "candidate_bind": "passed",
+    "rollback": "passed",
+    "physical_led_writes": true,
+    "raw_mmio": false
   }
 }
