@@ -1,0 +1,126 @@
+{
+  "schema": "aurum.driver.transition-evidence-bundle.v0",
+  "device": "TI TL16C550D / 16550-compatible UART",
+  "scope": "offline-public-document-and-emulator-transition-evidence",
+  "physical_hardware_observation": false,
+  "sources": {
+    "ti:TL16C550D:SLLS597E": {
+      "description": "Texas Instruments TL16C550D datasheet Rev. E",
+      "url": "https://www.ti.com/lit/gpn/TL16C550D"
+    },
+    "qemu:hw/char/serial.c:v7.2.9": {
+      "description": "QEMU 16550-compatible serial device model v7.2.9",
+      "url": "https://gitlab.com/qemu-project/qemu/-/blob/v7.2.9/hw/char/serial.c"
+    }
+  },
+  "claims": [
+    {
+      "key": "reset.line_status_defaults",
+      "before": {"state": "unknown"},
+      "action": {"kind": "reset"},
+      "after": {"lsr.data_ready": false, "lsr.thre": true, "lsr.temt": true},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "reset.line_status_defaults",
+      "before": {"state": "unknown"},
+      "action": {"kind": "reset"},
+      "after": {"lsr.data_ready": false, "lsr.thre": true, "lsr.temt": true},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    },
+    {
+      "key": "rx.data_ready_assert_on_receive",
+      "before": {"lsr.data_ready": false, "rx.remaining_bytes": 0},
+      "action": {"kind": "receive-character"},
+      "after": {"lsr.data_ready": true, "rx.remaining_bytes": 1},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "rx.data_ready_assert_on_receive",
+      "before": {"lsr.data_ready": false, "rx.remaining_bytes": 0},
+      "action": {"kind": "receive-character"},
+      "after": {"lsr.data_ready": true, "rx.remaining_bytes": 1},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    },
+    {
+      "key": "rx.data_ready_clear_on_drain",
+      "before": {"lsr.data_ready": true, "rx.remaining_bytes": 1},
+      "action": {"kind": "read-receiver-buffer"},
+      "after": {"lsr.data_ready": false, "rx.remaining_bytes": 0},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "rx.data_ready_clear_on_drain",
+      "before": {"lsr.data_ready": true, "rx.remaining_bytes": 1},
+      "action": {"kind": "read-receiver-buffer"},
+      "after": {"lsr.data_ready": false, "rx.remaining_bytes": 0},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    },
+    {
+      "key": "tx.thre_clear_on_write",
+      "before": {"lsr.thre": true, "tx.pending_bytes": 0},
+      "action": {"kind": "write-transmit-holding"},
+      "after": {"lsr.thre": false, "tx.pending_bytes": 1},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "tx.thre_clear_on_write",
+      "before": {"lsr.thre": true, "tx.pending_bytes": 0},
+      "action": {"kind": "write-transmit-holding"},
+      "after": {"lsr.thre": false, "tx.pending_bytes": 1},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    },
+    {
+      "key": "tx.thre_set_on_transfer",
+      "before": {"lsr.thre": false, "tx.pending_bytes": 1},
+      "action": {"kind": "transfer-thr-to-shift"},
+      "after": {"lsr.thre": true, "tx.pending_bytes": 0},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "tx.thre_set_on_transfer",
+      "before": {"lsr.thre": false, "tx.pending_bytes": 1},
+      "action": {"kind": "transfer-thr-to-shift"},
+      "after": {"lsr.thre": true, "tx.pending_bytes": 0},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    },
+    {
+      "key": "dlab.select_divisor_latches",
+      "before": {"lcr.dlab": false, "offset0.role": "receiver-or-transmit", "offset1.role": "interrupt-enable"},
+      "action": {"kind": "set-dlab", "value": true},
+      "after": {"lcr.dlab": true, "offset0.role": "divisor-latch-lsb", "offset1.role": "divisor-latch-msb"},
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "dlab.select_divisor_latches",
+      "before": {"lcr.dlab": false, "offset0.role": "receiver-or-transmit", "offset1.role": "interrupt-enable"},
+      "action": {"kind": "set-dlab", "value": true},
+      "after": {"lcr.dlab": true, "offset0.role": "divisor-latch-lsb", "offset1.role": "divisor-latch-msb"},
+      "source_kind": "emulator",
+      "source_id": "qemu:hw/char/serial.c:v7.2.9",
+      "confidence": 0.95
+    }
+  ]
+}

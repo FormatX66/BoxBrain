@@ -1,0 +1,58 @@
+{
+  "schema": "aurum.driver.state-transition-trace.v0",
+  "device": "TI TL16C550D / 16550-compatible UART",
+  "origin": "reference-derived-synthetic",
+  "actuating": false,
+  "physical_hardware_observation": false,
+  "model_identity": null,
+  "events": [
+    {
+      "scenario": "reset",
+      "step": 0,
+      "transition_key": "reset.line_status_defaults",
+      "before": {"state": "unknown"},
+      "action": {"kind": "reset"},
+      "after": {"lsr.data_ready": false, "lsr.thre": true, "lsr.temt": true}
+    },
+    {
+      "scenario": "receive-one-byte",
+      "step": 0,
+      "transition_key": "rx.data_ready_assert_on_receive",
+      "before": {"lsr.data_ready": false, "rx.remaining_bytes": 0},
+      "action": {"kind": "receive-character"},
+      "after": {"lsr.data_ready": true, "rx.remaining_bytes": 1}
+    },
+    {
+      "scenario": "receive-one-byte",
+      "step": 1,
+      "transition_key": "rx.data_ready_clear_on_drain",
+      "before": {"lsr.data_ready": true, "rx.remaining_bytes": 1},
+      "action": {"kind": "read-receiver-buffer"},
+      "after": {"lsr.data_ready": false, "rx.remaining_bytes": 0}
+    },
+    {
+      "scenario": "transmit-one-byte",
+      "step": 0,
+      "transition_key": "tx.thre_clear_on_write",
+      "before": {"lsr.thre": true, "tx.pending_bytes": 0},
+      "action": {"kind": "write-transmit-holding"},
+      "after": {"lsr.thre": false, "tx.pending_bytes": 1}
+    },
+    {
+      "scenario": "transmit-one-byte",
+      "step": 1,
+      "transition_key": "tx.thre_set_on_transfer",
+      "before": {"lsr.thre": false, "tx.pending_bytes": 1},
+      "action": {"kind": "transfer-thr-to-shift"},
+      "after": {"lsr.thre": true, "tx.pending_bytes": 0}
+    },
+    {
+      "scenario": "divisor-bank-select",
+      "step": 0,
+      "transition_key": "dlab.select_divisor_latches",
+      "before": {"lcr.dlab": false, "offset0.role": "receiver-or-transmit", "offset1.role": "interrupt-enable"},
+      "action": {"kind": "set-dlab", "value": true},
+      "after": {"lcr.dlab": true, "offset0.role": "divisor-latch-lsb", "offset1.role": "divisor-latch-msb"}
+    }
+  ]
+}
