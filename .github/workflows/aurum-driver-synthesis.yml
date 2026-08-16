@@ -42,5 +42,6 @@ jobs:
 
       - name: Report safety boundary
         run: |
-          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle'
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay'
+          echo 'AURUM_DRIVER_SYNTHESIS trace_proof=consistency-only synthetic_or_emulated_not_physical=true'
           echo 'AURUM_DRIVER_SYNTHESIS physical_writes=false firmware_changes=false destructive_probe=false'
