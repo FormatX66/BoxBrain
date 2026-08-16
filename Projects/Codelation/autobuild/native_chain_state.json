@@ -312,10 +312,10 @@
       "thresholded-unique-best-selector"
     ]
   },
-  "blocked_output": "blocked-gui-request-path-uses-context-session",
+  "blocked_output": "blocked-same-commit-virtual-lab-verified",
   "blocked_reason": "external-prerequisite-blocked",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 33,
+  "completed_generations": 34,
   "external_evidence": {
     "applied": true,
     "evidence": {
@@ -2122,7 +2122,7 @@
       "filesystem_build_used": false,
       "gap": "adaptive_shell_gui_context_surface_integration",
       "generation": 33,
-      "invocation_output": "blocked-gui-request-path-uses-context-session",
+      "invocation_output": "gui-context-surface-ready",
       "local_callable": "classify_required_conditions",
       "local_capability": "required-condition-classifier",
       "local_implementation_sha256": "af368b07e6c60f82b96739f6535c934c14571d8ac78be4f58095b7577d091782",
@@ -2133,7 +2133,7 @@
       "native_signatures_retained": 13,
       "native_synthesis_found": false,
       "native_synthesis_proof_identity": "1d568741a0b9bde17dae4bfc4129aa69e8873e0d0bc7601e4327514cfe8c705f",
-      "next_gap": "adaptive_shell_gui_context_surface_integration",
+      "next_gap": "adaptive_shell_gui_context_virtual_convergence",
       "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
       "preflight_self_debug": {
         "counterexamples": 0,
@@ -2169,6 +2169,60 @@
       "state": "verified",
       "subprocess_test_used": false,
       "verification_identity": "28221c6a1c77c15c7e0aa550f6014cba243686b0e793416237367c06e52f9254"
+    },
+    {
+      "authority_granted": false,
+      "external_evidence": null,
+      "filesystem_build_used": false,
+      "gap": "adaptive_shell_gui_context_virtual_convergence",
+      "generation": 34,
+      "invocation_output": "blocked-same-commit-virtual-lab-verified",
+      "local_callable": "classify_required_conditions",
+      "local_capability": "required-condition-classifier",
+      "local_implementation_sha256": "af368b07e6c60f82b96739f6535c934c14571d8ac78be4f58095b7577d091782",
+      "local_module": "constraint_classification",
+      "local_verification_adapter": "required-condition-classification-v0",
+      "model_reasoning_used": false,
+      "native_candidates_evaluated": 44,
+      "native_signatures_retained": 11,
+      "native_synthesis_found": false,
+      "native_synthesis_proof_identity": "913be3391b6a3d6a9fade9b70e94a4b476bbb3f4a1063bbbc2de0878126b3dfb",
+      "next_gap": "adaptive_shell_gui_context_virtual_convergence",
+      "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
+      "preflight_self_debug": {
+        "counterexamples": 0,
+        "issues": 0,
+        "report_identity": "4620c44f4cc75753c3429ca48e6fe01b55608e6cdf0f250db579e9a8bf2d4764",
+        "status": "clean"
+      },
+      "promotion_performed": false,
+      "representation": "verified-local-capability-reuse",
+      "reusable_local_capabilities_after_build": [
+        "bounded-preference-evidence",
+        "categorical-token-policy",
+        "io-plan",
+        "labeled-text-projection",
+        "protected-token-filter",
+        "required-condition-classifier",
+        "reversible-state-delta-projection",
+        "thresholded-unique-best-selector"
+      ],
+      "reusable_native_capabilities_after_build": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size"
+      ],
+      "routed_to_host": false,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "verification_identity": "926a7692cbfff4f2a4d1f0ddad5d13ecda91c6f348f278ceded4928896e32824"
     }
   ],
   "initial_seed_capabilities": [
@@ -2183,9 +2237,9 @@
     "learning_union_size"
   ],
   "internal_next_action": null,
-  "latest_completed_gap": "adaptive_shell_gui_context_surface_integration",
+  "latest_completed_gap": "adaptive_shell_gui_context_virtual_convergence",
   "local_verification_revision": "aurum-local-capability-verification-v7",
-  "next_gap": "adaptive_shell_gui_context_surface_integration",
+  "next_gap": "adaptive_shell_gui_context_virtual_convergence",
   "reasoning_request": null,
   "reasoning_required": false,
   "resumed_from_generations": 32,
