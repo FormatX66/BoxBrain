@@ -102,6 +102,32 @@ See
 [`edge/kali-pi-agent/README.md`](../edge/kali-pi-agent/README.md#optional-live-pi-screen)
 for the transport boundary, prerequisites, stop command, and removal notes.
 
+## Aurum GUI on BBPI4
+
+Install the dependency-free Aurum GUI over the approved direct USB route and
+create the current-user desktop shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\setup-aurum-gui.ps1
+```
+
+Open it directly with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\open-aurum-gui.ps1
+```
+
+The GUI server runs on Pi loopback only as a transient unit and is reached
+through a Windows-loopback SSH forward with the dedicated key and strict
+host-key checking. It does not install packages or enable a boot service. Stop
+the runtime without removing the reviewed files or Aurum mind:
+
+```powershell
+ssh -i $HOME\.ssh\boxbrain_pi_ed25519 `
+  -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes `
+  kali@10.12.194.1 sudo -n /usr/local/bin/aurum-gui-stop
+```
+
 ## Git-to-local Codex bridge
 
 The current-user Windows watcher can safely reconcile the Git queue with the

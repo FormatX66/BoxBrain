@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_iteration_observation",
+  "parameters": ["fresh_capability_snapshot", "node_identity_verified", "console_identity_verified", "gui_runtime_present", "display_path_present", "gui_port_available", "no_user_content_captured", "no_host_authority"],
+  "examples": [
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "bounded-iteration-observation-complete"},
+    {"arguments": {"fresh_capability_snapshot": "no", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-fresh-capability-snapshot"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "no", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-node-identity-verified"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "no", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-console-identity-verified"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "no", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-gui-runtime"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "no", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-display-path"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "no", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-gui-port-available"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "no", "no_host_authority": "yes"}, "expected": "blocked-no-user-content-captured"},
+    {"arguments": {"fresh_capability_snapshot": "yes", "node_identity_verified": "yes", "console_identity_verified": "yes", "gui_runtime_present": "yes", "display_path_present": "yes", "gui_port_available": "yes", "no_user_content_captured": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"fresh_capability_snapshot": "no", "node_identity_verified": "no", "console_identity_verified": "no", "gui_runtime_present": "no", "display_path_present": "no", "gui_port_available": "no", "no_user_content_captured": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_live_trial",
+  "purpose": "Classify a fresh, dialogue-free observation of the BBPI4 runtime and private display path needed for an Aurum GUI candidate. Observation does not install, launch, or grant authority to the candidate.",
+  "principles": ["runtime capability is observed before deployment", "the exact BBPI4 identity and USB route remain bound", "the existing private display path is reused", "no prompt, response, credential, or user content is observed", "an available port is evidence rather than permission"],
+  "constraints": ["pure", "deterministic", "classification-only", "read-only-observation", "no-dialogue-content", "no-live-actuation", "no-package-installation", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}

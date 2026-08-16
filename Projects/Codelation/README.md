@@ -170,6 +170,30 @@ a visible interactive SSH window:
 .\installer\open-aurum-console-on-pi.ps1
 ```
 
+## Aurum GUI on BBPI4
+
+The first bounded GUI reuses the existing Pi desktop and dialogue supervisor
+without installing packages or enabling a boot service. Collect a fresh
+dialogue-free capability snapshot, deploy the reviewed module, open the private
+loopback tunnel, and record the live proof with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-capability.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+powershell -ExecutionPolicy Bypass -File .\installer\setup-aurum-gui.ps1
+powershell -ExecutionPolicy Bypass -File .\installer\open-aurum-gui.ps1
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-live-trial.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+```
+
+The Pi server listens only on `127.0.0.1:8765` and Windows reaches it through
+the dedicated key, strict host-key checking, and a Windows-loopback SSH
+forward. Safe Layout, Proof View, and the human landmarks remain visible. An
+OpenAI API key stays in the open page/request memory and is never written by
+the GUI; the supervisor continues to expose no shell or host-control actions.
+
 ## BBPI4 access-point route
 
 An authorized Windows computer that has previously joined BBPI4's own Wi-Fi AP

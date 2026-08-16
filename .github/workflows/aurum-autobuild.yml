@@ -13,6 +13,7 @@ on:
       - 'Projects/Codelation/field/**'
       - 'Projects/Codelation/interface/**'
       - 'Projects/Codelation/seed/aurum_console.py'
+      - 'Projects/Codelation/seed/aurum_gui.py'
       - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
       - 'Projects/Codelation/autobuild/continuous_build_policy.json'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
@@ -24,12 +25,15 @@ on:
       - 'Projects/Codelation/tests/test_adaptive_shell_live_trial_collector.py'
       - 'Projects/Codelation/tests/test_adaptive_shell_iteration_observation_collector.py'
       - 'Projects/Codelation/tests/test_aurum_console.py'
+      - 'Projects/Codelation/tests/test_aurum_gui.py'
+      - 'Projects/Codelation/tests/test_adaptive_shell_gui_deployment.py'
       - 'Projects/Codelation/tests/test_aurum_dialogue.py'
       - 'Projects/Codelation/tests/test_aurum_live.py'
       - 'Projects/Codelation/tests/test_local_lane_contract.py'
       - 'installer/aurum-console.sh'
       - 'installer/open-aurum-console-on-pi.ps1'
       - 'installer/reconcile-existing-aurum-gold-seed-on-pi.ps1'
+      - 'installer/*aurum-gui*'
 
 permissions:
   contents: write
@@ -75,6 +79,8 @@ jobs:
           Projects.Codelation.tests.test_adaptive_shell_live_trial_collector
           Projects.Codelation.tests.test_adaptive_shell_iteration_observation_collector
           Projects.Codelation.tests.test_aurum_console
+          Projects.Codelation.tests.test_aurum_gui
+          Projects.Codelation.tests.test_adaptive_shell_gui_deployment
           Projects.Codelation.tests.test_aurum_dialogue
           Projects.Codelation.tests.test_aurum_live
           Projects.Codelation.tests.test_local_lane_contract

@@ -1,0 +1,53 @@
+{
+    "schema":  "aurum-adaptive-shell-iteration-observation-evidence-v1",
+    "kind":  "adaptive-shell-iteration-observation",
+    "source":  "aurum-bbpi4-gui-capability-snapshot",
+    "verified":  true,
+    "node_id":  "cff5511ddbb6bf14",
+    "route":  "10.12.194.1",
+    "ssh_host_key_fingerprint":  "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
+    "observed_at":  1786846834,
+    "expires_at":  1786848034,
+    "console":  {
+                    "identity":  "BBPI4/Aurum",
+                    "mind_version":  2,
+                    "mind_sha256":  "dc21566201c50dfdb77c84aa3efd5c951cac4d35805703736f5e86403b447baa",
+                    "dialogue_only":  true,
+                    "host_actuation":  false,
+                    "api_key_persisted":  false
+                },
+    "capabilities":  {
+                         "python3":  "/usr/bin/python3",
+                         "python_version":  "Python 3.13.12",
+                         "python_supported":  true,
+                         "browser":  "/usr/bin/chromium",
+                         "virtual_display":  "/usr/bin/Xvfb",
+                         "websocket_bridge":  "/usr/bin/websockify",
+                         "gui_port_available":  true,
+                         "package_install_required":  false
+                     },
+    "display":  {
+                    "screen_path_installed":  true,
+                    "virtual_display_active":  true,
+                    "desktop_active":  true,
+                    "private_transport":  "strict-ssh-loopback-forward"
+                },
+    "observation":  {
+                        "read_only":  true,
+                        "dialogue_generated":  false,
+                        "user_content_captured":  false
+                    },
+    "capability_snapshot_sha256":  "b8e949427841c310b195fba84742cbc3e9a7259b1c9f722f92a485684f74751f",
+    "permission":  {
+                       "present":  true,
+                       "scope":  "adaptive-shell-gui-candidate",
+                       "authorization_reference":  "codex-user-keep-working-to-gui-20260815"
+                   },
+    "proof_view":  {
+                       "present":  true,
+                       "capability_snapshot_sha256":  "b8e949427841c310b195fba84742cbc3e9a7259b1c9f722f92a485684f74751f",
+                       "user_content_captured":  false
+                   },
+    "authority_granted":  false,
+    "persistent_change_authorized":  false
+}

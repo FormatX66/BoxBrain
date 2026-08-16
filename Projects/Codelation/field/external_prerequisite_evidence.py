@@ -22,6 +22,12 @@ TRIAL_EVIDENCE_SOURCE = "aurum-ephemeral-shell-state-trial"
 ITERATION_OBSERVATION_EVIDENCE_SCHEMA = "aurum-adaptive-shell-iteration-observation-readiness-evidence-v1"
 ITERATION_OBSERVATION_EVIDENCE_KIND = "adaptive-shell-iteration-observation-readiness"
 ITERATION_OBSERVATION_EVIDENCE_SOURCE = "aurum-bbpi4-console-status-proof"
+GUI_CAPABILITY_EVIDENCE_SCHEMA = "aurum-adaptive-shell-iteration-observation-evidence-v1"
+GUI_CAPABILITY_EVIDENCE_KIND = "adaptive-shell-iteration-observation"
+GUI_CAPABILITY_EVIDENCE_SOURCE = "aurum-bbpi4-gui-capability-snapshot"
+GUI_LIVE_TRIAL_EVIDENCE_SCHEMA = "aurum-adaptive-shell-gui-live-trial-evidence-v1"
+GUI_LIVE_TRIAL_EVIDENCE_KIND = "adaptive-shell-gui-live-trial"
+GUI_LIVE_TRIAL_EVIDENCE_SOURCE = "aurum-bbpi4-loopback-gui-proof"
 CONSOLE_DEPLOYMENT_EVIDENCE_SCHEMA = "aurum-bbpi4-console-evidence-v1"
 WINDOWS_CONTROLLER_NODE_IDS = frozenset({"825e5a7b7d4a7aed", "85404f41d5507372"})
 EXTERNAL_EVIDENCE_DIR = Path(__file__).resolve().parents[1] / "autobuild" / "external_evidence"
@@ -29,12 +35,16 @@ EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "bbpi4_presence.json"
 READINESS_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_live_trial_readiness.json"
 TRIAL_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_live_trial.json"
 ITERATION_OBSERVATION_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_iteration_observation_readiness.json"
+GUI_CAPABILITY_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_iteration_observation.json"
+GUI_LIVE_TRIAL_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_gui_live_trial.json"
 CONSOLE_DEPLOYMENT_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "bbpi4_aurum_console.json"
 EVIDENCE_BOUND_GAPS = frozenset(
     {
         "adaptive_shell_live_trial_readiness",
         "adaptive_shell_live_trial",
         "adaptive_shell_iteration_observation_readiness",
+        "adaptive_shell_iteration_observation",
+        "adaptive_shell_gui_live_trial",
     }
 )
 MAX_EVIDENCE_BYTES = 16384
@@ -45,6 +55,22 @@ USB_SSH_ROUTE = "10.12.194.1"
 PERMISSION_SCOPE = "bounded-adaptive-shell-live-trial"
 ROLLBACK_METHOD = "neutral-hid-release-and-ephemeral-state"
 ITERATION_OBSERVATION_PERMISSION_SCOPE = "adaptive-shell-iteration-observation"
+GUI_CAPABILITY_PERMISSION_SCOPE = "adaptive-shell-gui-candidate"
+GUI_LIVE_TRIAL_PERMISSION_SCOPE = "adaptive-shell-gui-live-trial"
+GUI_HUMAN_CONSTANTS = frozenset(
+    {
+        "home",
+        "back",
+        "search",
+        "settings",
+        "notifications",
+        "workspace-switcher",
+        "accessibility",
+        "session-power",
+        "recovery-safe-layout",
+        "adaptation-lock",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -560,6 +586,326 @@ def apply_adaptive_shell_iteration_observation_readiness_evidence(
     )
 
 
+def apply_adaptive_shell_iteration_observation_evidence(
+    spec: NativeSemanticGap,
+    evidence: Mapping[str, Any] | None,
+    *,
+    now: int | None = None,
+) -> ExternalEvidenceApplication:
+    """Apply a read-only BBPI4 GUI capability snapshot to one iteration."""
+    if spec.name != "adaptive_shell_iteration_observation":
+        return ExternalEvidenceApplication(spec, False, "gap-not-gui-capability-bound")
+    if not isinstance(evidence, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-evidence-missing")
+    if evidence.get("schema") != GUI_CAPABILITY_EVIDENCE_SCHEMA:
+        return ExternalEvidenceApplication(spec, False, "gui-capability-schema-invalid")
+    if evidence.get("kind") != GUI_CAPABILITY_EVIDENCE_KIND:
+        return ExternalEvidenceApplication(spec, False, "gui-capability-kind-invalid")
+    if evidence.get("source") != GUI_CAPABILITY_EVIDENCE_SOURCE:
+        return ExternalEvidenceApplication(spec, False, "gui-capability-source-invalid")
+    if evidence.get("verified") is not True:
+        return ExternalEvidenceApplication(spec, False, "gui-capability-not-verified")
+
+    window, reason = _evidence_window(evidence, now=now)
+    if window is None:
+        return ExternalEvidenceApplication(spec, False, f"gui-capability-{reason}")
+    observed_at, expires_at = window
+    node_id = _bounded_text(evidence.get("node_id"), 64)
+    route = _bounded_text(evidence.get("route"), 64)
+    host_key = _bounded_text(evidence.get("ssh_host_key_fingerprint"), 96)
+    if (
+        not node_id
+        or node_id in WINDOWS_CONTROLLER_NODE_IDS
+        or route != USB_SSH_ROUTE
+        or not re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", host_key)
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-node-binding-invalid")
+
+    console = evidence.get("console")
+    if not isinstance(console, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-console-invalid")
+    try:
+        mind_version = int(console.get("mind_version"))
+    except (TypeError, ValueError):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-console-invalid")
+    mind_sha256 = _hex_digest(console.get("mind_sha256"))
+    if (
+        console.get("identity") != "BBPI4/Aurum"
+        or mind_version < 1
+        or not mind_sha256
+        or console.get("dialogue_only") is not True
+        or console.get("host_actuation") is not False
+        or console.get("api_key_persisted") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-console-invalid")
+
+    capabilities = evidence.get("capabilities")
+    required_commands = {
+        "python3": "/usr/bin/python3",
+        "browser": "/usr/bin/chromium",
+        "virtual_display": "/usr/bin/Xvfb",
+        "websocket_bridge": "/usr/bin/websockify",
+    }
+    if not isinstance(capabilities, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-runtime-capabilities-invalid")
+    for name, expected_path in required_commands.items():
+        if capabilities.get(name) != expected_path:
+            return ExternalEvidenceApplication(spec, False, "gui-runtime-capabilities-invalid")
+    if (
+        capabilities.get("python_supported") is not True
+        or capabilities.get("gui_port_available") is not True
+        or capabilities.get("package_install_required") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-runtime-capabilities-invalid")
+
+    display = evidence.get("display")
+    if (
+        not isinstance(display, Mapping)
+        or display.get("screen_path_installed") is not True
+        or display.get("virtual_display_active") is not True
+        or display.get("desktop_active") is not True
+        or display.get("private_transport") != "strict-ssh-loopback-forward"
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-display-path-invalid")
+
+    observation = evidence.get("observation")
+    if (
+        not isinstance(observation, Mapping)
+        or observation.get("read_only") is not True
+        or observation.get("dialogue_generated") is not False
+        or observation.get("user_content_captured") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-observation-content-boundary-invalid")
+
+    permission = evidence.get("permission")
+    authorization_reference = (
+        _bounded_text(permission.get("authorization_reference"), 128)
+        if isinstance(permission, Mapping)
+        else ""
+    )
+    if (
+        not isinstance(permission, Mapping)
+        or permission.get("present") is not True
+        or permission.get("scope") != GUI_CAPABILITY_PERMISSION_SCOPE
+        or not authorization_reference
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-permission-invalid")
+    proof_view = evidence.get("proof_view")
+    capability_sha256 = _hex_digest(evidence.get("capability_snapshot_sha256"))
+    if (
+        not capability_sha256
+        or not isinstance(proof_view, Mapping)
+        or proof_view.get("present") is not True
+        or _hex_digest(proof_view.get("capability_snapshot_sha256")) != capability_sha256
+        or proof_view.get("user_content_captured") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-proof-view-invalid")
+    if (
+        evidence.get("authority_granted") is not False
+        or evidence.get("persistent_change_authorized") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-capability-authority-invalid")
+
+    invocation = {name: "yes" for name in spec.parameters}
+    applied_spec = replace(spec, invocation_arguments=invocation)
+    trace = {
+        "schema": GUI_CAPABILITY_EVIDENCE_SCHEMA,
+        "kind": GUI_CAPABILITY_EVIDENCE_KIND,
+        "source": GUI_CAPABILITY_EVIDENCE_SOURCE,
+        "node_id": node_id,
+        "route": route,
+        "ssh_host_key_fingerprint": host_key,
+        "observed_at": observed_at,
+        "expires_at": expires_at,
+        "mind_version": mind_version,
+        "mind_sha256": mind_sha256,
+        "capability_snapshot_sha256": capability_sha256,
+        "gui_runtime_present": True,
+        "display_path_present": True,
+        "gui_port_available": True,
+        "permission_scope": GUI_CAPABILITY_PERMISSION_SCOPE,
+        "authorization_reference": authorization_reference,
+        "user_content_captured": False,
+        "authority_granted": False,
+    }
+    return ExternalEvidenceApplication(
+        applied_spec,
+        True,
+        "fresh-bbpi4-gui-capability-observation",
+        trace,
+    )
+
+
+def apply_adaptive_shell_gui_live_trial_evidence(
+    spec: NativeSemanticGap,
+    evidence: Mapping[str, Any] | None,
+    *,
+    now: int | None = None,
+) -> ExternalEvidenceApplication:
+    """Apply proof of a transient loopback Aurum GUI running on BBPI4."""
+    if spec.name != "adaptive_shell_gui_live_trial":
+        return ExternalEvidenceApplication(spec, False, "gap-not-gui-live-trial-bound")
+    if not isinstance(evidence, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-evidence-missing")
+    if evidence.get("schema") != GUI_LIVE_TRIAL_EVIDENCE_SCHEMA:
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-schema-invalid")
+    if evidence.get("kind") != GUI_LIVE_TRIAL_EVIDENCE_KIND:
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-kind-invalid")
+    if evidence.get("source") != GUI_LIVE_TRIAL_EVIDENCE_SOURCE:
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-source-invalid")
+    if evidence.get("verified") is not True:
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-not-verified")
+
+    window, reason = _evidence_window(evidence, now=now)
+    if window is None:
+        return ExternalEvidenceApplication(spec, False, f"gui-live-trial-{reason}")
+    observed_at, expires_at = window
+    node_id = _bounded_text(evidence.get("node_id"), 64)
+    route = _bounded_text(evidence.get("route"), 64)
+    host_key = _bounded_text(evidence.get("ssh_host_key_fingerprint"), 96)
+    if (
+        not node_id
+        or node_id in WINDOWS_CONTROLLER_NODE_IDS
+        or route != USB_SSH_ROUTE
+        or not re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", host_key)
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-node-binding-invalid")
+
+    candidate = evidence.get("candidate")
+    module_sha256 = (
+        _hex_digest(candidate.get("module_sha256"))
+        if isinstance(candidate, Mapping)
+        else ""
+    )
+    if (
+        not isinstance(candidate, Mapping)
+        or candidate.get("module") != "/opt/boxbrain/codelation/seed/aurum_gui.py"
+        or not module_sha256
+        or candidate.get("gui_schema") != "aurum.gui.v1"
+        or candidate.get("tests_passed") is not True
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-candidate-invalid")
+
+    runtime = evidence.get("runtime")
+    page_sha256 = _hex_digest(runtime.get("page_sha256")) if isinstance(runtime, Mapping) else ""
+    status_sha256 = _hex_digest(runtime.get("status_sha256")) if isinstance(runtime, Mapping) else ""
+    if (
+        not isinstance(runtime, Mapping)
+        or runtime.get("service_active") is not True
+        or runtime.get("service_enabled") is not False
+        or runtime.get("transient") is not True
+        or runtime.get("address") != "127.0.0.1"
+        or runtime.get("port") != 8765
+        or runtime.get("listener_loopback_only") is not True
+        or runtime.get("http_status") != 200
+        or not str(runtime.get("content_type", "")).startswith("text/html")
+        or not page_sha256
+        or not status_sha256
+        or runtime.get("status_schema") != "aurum.gui.v1"
+        or runtime.get("console_identity") != "BBPI4/Aurum"
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-runtime-invalid")
+
+    transport = evidence.get("transport")
+    if (
+        not isinstance(transport, Mapping)
+        or transport.get("strict_host_key_checking") is not True
+        or transport.get("dedicated_identity") is not True
+        or transport.get("usb_route") != USB_SSH_ROUTE
+        or transport.get("windows_endpoint_loopback") is not True
+        or transport.get("pi_endpoint_loopback") is not True
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-transport-invalid")
+
+    interface = evidence.get("interface")
+    raw_constants = interface.get("human_constants") if isinstance(interface, Mapping) else None
+    if (
+        not isinstance(interface, Mapping)
+        or not isinstance(raw_constants, list)
+        or frozenset(str(item) for item in raw_constants) != GUI_HUMAN_CONSTANTS
+        or interface.get("safe_layout_available") is not True
+        or interface.get("proof_view_present") is not True
+        or interface.get("dialogue_only") is not True
+        or interface.get("host_actuation") is not False
+        or interface.get("api_key_persisted") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-interface-invalid")
+
+    safety = evidence.get("safety")
+    if (
+        not isinstance(safety, Mapping)
+        or safety.get("packages_installed") is not False
+        or safety.get("persistent_service_enabled") is not False
+        or safety.get("raw_disk_changed") is not False
+        or safety.get("firmware_changed") is not False
+        or safety.get("bootloader_changed") is not False
+        or safety.get("security_reduced") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-safety-invalid")
+
+    permission = evidence.get("permission")
+    authorization_reference = (
+        _bounded_text(permission.get("authorization_reference"), 128)
+        if isinstance(permission, Mapping)
+        else ""
+    )
+    if (
+        not isinstance(permission, Mapping)
+        or permission.get("present") is not True
+        or permission.get("scope") != GUI_LIVE_TRIAL_PERMISSION_SCOPE
+        or not authorization_reference
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-permission-invalid")
+    proof_view = evidence.get("proof_view")
+    if (
+        not isinstance(proof_view, Mapping)
+        or proof_view.get("present") is not True
+        or _hex_digest(proof_view.get("page_sha256")) != page_sha256
+        or _hex_digest(proof_view.get("status_sha256")) != status_sha256
+        or proof_view.get("user_content_captured") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-proof-view-invalid")
+    if (
+        evidence.get("authority_granted") is not False
+        or evidence.get("persistent_service_enabled") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-live-trial-authority-invalid")
+
+    invocation = {name: "yes" for name in spec.parameters}
+    applied_spec = replace(spec, invocation_arguments=invocation)
+    trace = {
+        "schema": GUI_LIVE_TRIAL_EVIDENCE_SCHEMA,
+        "kind": GUI_LIVE_TRIAL_EVIDENCE_KIND,
+        "source": GUI_LIVE_TRIAL_EVIDENCE_SOURCE,
+        "node_id": node_id,
+        "route": route,
+        "ssh_host_key_fingerprint": host_key,
+        "observed_at": observed_at,
+        "expires_at": expires_at,
+        "module_sha256": module_sha256,
+        "page_sha256": page_sha256,
+        "status_sha256": status_sha256,
+        "gui_schema": "aurum.gui.v1",
+        "console_identity": "BBPI4/Aurum",
+        "loopback_only": True,
+        "safe_layout_available": True,
+        "proof_view_present": True,
+        "dialogue_only": True,
+        "api_key_persisted": False,
+        "permission_scope": GUI_LIVE_TRIAL_PERMISSION_SCOPE,
+        "authorization_reference": authorization_reference,
+        "user_content_captured": False,
+        "authority_granted": False,
+        "persistent_service_enabled": False,
+    }
+    return ExternalEvidenceApplication(
+        applied_spec,
+        True,
+        "bounded-bbpi4-aurum-gui-live-trial",
+        trace,
+    )
+
+
 def apply_external_prerequisite_evidence_from_file(
     spec: NativeSemanticGap,
     *,
@@ -567,9 +913,21 @@ def apply_external_prerequisite_evidence_from_file(
     readiness_path: Path = READINESS_EVIDENCE_PATH,
     trial_path: Path = TRIAL_EVIDENCE_PATH,
     iteration_observation_path: Path = ITERATION_OBSERVATION_EVIDENCE_PATH,
+    gui_capability_path: Path = GUI_CAPABILITY_EVIDENCE_PATH,
+    gui_live_trial_path: Path = GUI_LIVE_TRIAL_EVIDENCE_PATH,
     console_deployment_path: Path = CONSOLE_DEPLOYMENT_EVIDENCE_PATH,
     now: int | None = None,
 ) -> ExternalEvidenceApplication:
+    if spec.name == "adaptive_shell_gui_live_trial":
+        raw, reason = _read_evidence(gui_live_trial_path)
+        if raw is None:
+            return ExternalEvidenceApplication(spec, False, f"gui-live-trial-{reason}")
+        return apply_adaptive_shell_gui_live_trial_evidence(spec, raw, now=now)
+    if spec.name == "adaptive_shell_iteration_observation":
+        raw, reason = _read_evidence(gui_capability_path)
+        if raw is None:
+            return ExternalEvidenceApplication(spec, False, f"gui-capability-{reason}")
+        return apply_adaptive_shell_iteration_observation_evidence(spec, raw, now=now)
     if spec.name == "adaptive_shell_iteration_observation_readiness":
         raw, reason = _read_evidence(iteration_observation_path)
         if raw is None:
@@ -642,6 +1000,17 @@ __all__ = [
     "PERMISSION_SCOPE",
     "CONSOLE_DEPLOYMENT_EVIDENCE_PATH",
     "CONSOLE_DEPLOYMENT_EVIDENCE_SCHEMA",
+    "GUI_CAPABILITY_EVIDENCE_KIND",
+    "GUI_CAPABILITY_EVIDENCE_PATH",
+    "GUI_CAPABILITY_EVIDENCE_SCHEMA",
+    "GUI_CAPABILITY_EVIDENCE_SOURCE",
+    "GUI_CAPABILITY_PERMISSION_SCOPE",
+    "GUI_HUMAN_CONSTANTS",
+    "GUI_LIVE_TRIAL_EVIDENCE_KIND",
+    "GUI_LIVE_TRIAL_EVIDENCE_PATH",
+    "GUI_LIVE_TRIAL_EVIDENCE_SCHEMA",
+    "GUI_LIVE_TRIAL_EVIDENCE_SOURCE",
+    "GUI_LIVE_TRIAL_PERMISSION_SCOPE",
     "ITERATION_OBSERVATION_EVIDENCE_KIND",
     "ITERATION_OBSERVATION_EVIDENCE_PATH",
     "ITERATION_OBSERVATION_EVIDENCE_SCHEMA",
@@ -660,6 +1029,8 @@ __all__ = [
     "apply_adaptive_shell_live_trial_evidence",
     "apply_adaptive_shell_live_trial_readiness_evidence",
     "apply_adaptive_shell_iteration_observation_readiness_evidence",
+    "apply_adaptive_shell_iteration_observation_evidence",
+    "apply_adaptive_shell_gui_live_trial_evidence",
     "apply_external_prerequisite_evidence",
     "apply_external_prerequisite_evidence_from_file",
 ]

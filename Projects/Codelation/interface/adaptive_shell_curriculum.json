@@ -81,6 +81,20 @@
       "goal": "Verify a fresh BBPI4 Aurum-console status observation and a new observation-scoped permission without collecting dialogue content or granting host authority.",
       "new_capability_class": "dialogue-free-console-observation-readiness",
       "authority": "observation-only"
+    },
+    {
+      "order": 12,
+      "gap": "adaptive_shell_iteration_observation",
+      "goal": "Observe the BBPI4 GUI runtime, private display path, and available loopback port without installing packages, collecting dialogue, or granting candidate authority.",
+      "new_capability_class": "dialogue-free-gui-capability-observation",
+      "authority": "observation-only"
+    },
+    {
+      "order": 13,
+      "gap": "adaptive_shell_gui_live_trial",
+      "goal": "Render a transient Pi-loopback Aurum GUI through strict SSH with all human constants, Safe Layout, Proof View, and the dialogue-only supervisor boundary intact.",
+      "new_capability_class": "bounded-human-interface-projection",
+      "authority": "dialogue-only"
     }
   ],
   "promotion_gates": [
