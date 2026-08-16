@@ -20,9 +20,11 @@ from aurum_dialogue import DEFAULT_MODEL, Reasoner, ask, call_openai_reasoner, s
 
 CONSOLE_SCHEMA = "aurum.console.v1"
 DEFAULT_ROOT = Path("/opt/boxbrain/codelation")
-PLAIN_PROMPT = "Åurum> "
+PLAIN_PROMPT = "Aurum> "
 YELLOW = "\x1b[33m"
-TEAL = "\x1b[38;2;0;150;160m"
+TEAL_TRUECOLOR = "\x1b[38;2;0;150;160m"
+TEAL_256 = "\x1b[38;5;30m"
+CYAN = "\x1b[36m"
 RESET = "\x1b[0m"
 HELP = """Commands:
   /status  Show the bounded Aurum mind status.
@@ -56,10 +58,28 @@ def _write(stream: TextIO, text: str = "") -> None:
     stream.flush()
 
 
-def _console_prompt(stream: TextIO) -> str:
+def _console_prompt(stream: TextIO, environment: Mapping[str, str]) -> str:
     if not getattr(stream, "isatty", lambda: False)():
         return PLAIN_PROMPT
-    return f"{YELLOW}Å{RESET}{TEAL}u{RESET}rum> "
+    term = environment.get("TERM", "").strip().casefold()
+    if not term or term == "dumb" or "NO_COLOR" in environment:
+        return PLAIN_PROMPT
+    encoding = getattr(stream, "encoding", None)
+    if not encoding:
+        return PLAIN_PROMPT
+    try:
+        "Å".encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return PLAIN_PROMPT
+
+    color_term = environment.get("COLORTERM", "").strip().casefold()
+    if color_term in {"truecolor", "24bit"}:
+        teal = TEAL_TRUECOLOR
+    elif "256color" in term:
+        teal = TEAL_256
+    else:
+        teal = CYAN
+    return f"{YELLOW}Å{RESET}{teal}u{RESET}rum> "
 
 
 def _read_key(
@@ -96,7 +116,7 @@ def run_console(
 
     api_key: str | None = None
     while True:
-        output_stream.write(_console_prompt(output_stream))
+        output_stream.write(_console_prompt(output_stream, environment))
         output_stream.flush()
         line = input_stream.readline()
         if line == "":

@@ -10,9 +10,11 @@ sys.path.insert(0, str(ROOT / "seed"))
 
 from aurum_console import (  # noqa: E402
     CONSOLE_SCHEMA,
+    CYAN,
     PLAIN_PROMPT,
     RESET,
-    TEAL,
+    TEAL_256,
+    TEAL_TRUECOLOR,
     YELLOW,
     _console_prompt,
     console_status,
@@ -54,15 +56,46 @@ class AurumConsoleTests(unittest.TestCase):
             self.assertIn("Aurum console closed.", output.getvalue())
             self.assertEqual(CONSOLE_SCHEMA, console_status(root, "test-model")["schema"])
 
-    def test_prompt_colors_only_ringed_a_and_u_on_a_terminal(self):
+    def test_prompt_requires_terminal_color_and_unicode_capabilities(self):
         class TerminalBuffer(io.StringIO):
+            def __init__(self, encoding="utf-8"):
+                super().__init__()
+                self._encoding = encoding
+
             def isatty(self):
                 return True
 
-        self.assertEqual(PLAIN_PROMPT, _console_prompt(io.StringIO()))
+            @property
+            def encoding(self):
+                return self._encoding
+
+        self.assertEqual(PLAIN_PROMPT, _console_prompt(io.StringIO(), {}))
+        self.assertEqual(PLAIN_PROMPT, _console_prompt(TerminalBuffer(), {"TERM": "dumb"}))
         self.assertEqual(
-            f"{YELLOW}Å{RESET}{TEAL}u{RESET}rum> ",
-            _console_prompt(TerminalBuffer()),
+            PLAIN_PROMPT,
+            _console_prompt(TerminalBuffer("ascii"), {"TERM": "xterm-256color"}),
+        )
+        self.assertEqual(
+            PLAIN_PROMPT,
+            _console_prompt(
+                TerminalBuffer(),
+                {"TERM": "xterm-256color", "NO_COLOR": "1"},
+            ),
+        )
+        self.assertEqual(
+            f"{YELLOW}Å{RESET}{TEAL_TRUECOLOR}u{RESET}rum> ",
+            _console_prompt(
+                TerminalBuffer(),
+                {"TERM": "xterm-256color", "COLORTERM": "truecolor"},
+            ),
+        )
+        self.assertEqual(
+            f"{YELLOW}Å{RESET}{TEAL_256}u{RESET}rum> ",
+            _console_prompt(TerminalBuffer(), {"TERM": "xterm-256color"}),
+        )
+        self.assertEqual(
+            f"{YELLOW}Å{RESET}{CYAN}u{RESET}rum> ",
+            _console_prompt(TerminalBuffer(), {"TERM": "xterm"}),
         )
 
     def test_dialogue_key_stays_in_memory_and_evidence_is_bounded(self):
