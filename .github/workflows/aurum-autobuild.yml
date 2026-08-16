@@ -86,6 +86,89 @@ jobs:
           Projects.Codelation.tests.test_local_lane_contract
           -v
 
+      - name: Bind successful same-commit virtual convergence proof
+        id: virtual_proof
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          spec='Projects/Codelation/autobuild/native_gap_specs/adaptive_shell_gui_context_virtual_convergence.json'
+          state='Projects/Codelation/autobuild/native_chain_state.json'
+          echo 'applied=false' >> "$GITHUB_OUTPUT"
+
+          next_gap="$(python3 - "$state" <<'PY'
+          import json, pathlib, sys
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+          print(data.get('next_gap') or '')
+          PY
+          )"
+          if [ "$next_gap" != 'adaptive_shell_gui_context_virtual_convergence' ]; then
+            echo "AURUM_VIRTUAL_PROOF skipped-next-gap=$next_gap"
+            exit 0
+          fi
+
+          source_commit="$(git rev-parse HEAD)"
+          runs="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-virtual-lab.yml/runs?branch=${AURUM_TRUNK}&status=success&per_page=50")"
+          run_id="$(printf '%s' "$runs" | jq -r --arg sha "$source_commit" \
+            '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")][0].id // empty')"
+          if [ -z "$run_id" ]; then
+            echo "AURUM_VIRTUAL_PROOF pending source_commit=$source_commit"
+            exit 0
+          fi
+
+          artifact="Aurum-VirtualLab-Convergence-${source_commit}"
+          artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100")"
+          artifact_id="$(printf '%s' "$artifacts" | jq -r --arg name "$artifact" \
+            '[.artifacts[] | select(.name == $name and .expired == false)][0].id // empty')"
+          if [ -z "$artifact_id" ]; then
+            echo "AURUM_VIRTUAL_PROOF run-without-convergence-artifact run_id=$run_id source_commit=$source_commit" >&2
+            exit 1
+          fi
+
+          python3 - "$spec" "$source_commit" "$run_id" "$artifact" "$artifact_id" <<'PY'
+          import json, pathlib, sys
+          spec_path = pathlib.Path(sys.argv[1])
+          source_commit, run_id, artifact, artifact_id = sys.argv[2:]
+          data = json.loads(spec_path.read_text(encoding='utf-8'))
+          if data.get('name') != 'adaptive_shell_gui_context_virtual_convergence':
+              raise SystemExit('virtual convergence spec identity mismatch')
+          invocation = data.get('invocation_arguments')
+          if not isinstance(invocation, dict):
+              raise SystemExit('virtual convergence invocation missing')
+          required = {
+              'surface_integration_verified': 'yes',
+              'physical_hardware_not_claimed': 'yes',
+              'no_credential_persistence': 'yes',
+              'no_host_authority': 'yes',
+          }
+          for key, expected in required.items():
+              if invocation.get(key) != expected:
+                  raise SystemExit(f'virtual convergence prerequisite not satisfied: {key}')
+          invocation['same_commit_virtual_lab_verified'] = 'yes'
+          spec_path.write_text(json.dumps(data, indent=2, sort_keys=False) + '\n', encoding='utf-8')
+          proof = {
+              'schema': 'aurum.same-commit.virtual-lab-proof.v1',
+              'verified': True,
+              'source_commit': source_commit,
+              'workflow': 'aurum-virtual-lab.yml',
+              'workflow_run_id': int(run_id),
+              'proof_artifact': artifact,
+              'proof_artifact_id': int(artifact_id),
+              'physical_hardware': 'not-proven-or-implied',
+              'credential_content_captured': False,
+              'authority_granted': False,
+          }
+          pathlib.Path('/tmp/aurum-virtual-convergence-proof.json').write_text(
+              json.dumps(proof, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          echo 'applied=true' >> "$GITHUB_OUTPUT"
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "AURUM_VIRTUAL_PROOF applied source_commit=$source_commit run_id=$run_id"
+
       - name: Resume bounded native growth
         shell: bash
         run: |
@@ -95,6 +178,41 @@ jobs:
             --max-generations 64 \
             --state-path Projects/Codelation/autobuild/native_chain_state.json \
             | tee /tmp/aurum-native-chain.json
+
+      - name: Restore transient convergence override and retain provenance
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec='Projects/Codelation/autobuild/native_gap_specs/adaptive_shell_gui_context_virtual_convergence.json'
+          git checkout -- "$spec"
+          if [ ! -s /tmp/aurum-virtual-convergence-proof.json ]; then
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          state_path = Path('Projects/Codelation/autobuild/native_chain_state.json')
+          proof_path = Path('/tmp/aurum-virtual-convergence-proof.json')
+          if not state_path.is_file():
+              raise SystemExit('native state missing after virtual proof application')
+          state = json.loads(state_path.read_text(encoding='utf-8'))
+          proof = json.loads(proof_path.read_text(encoding='utf-8'))
+          matched = False
+          for generation in reversed(state.get('generations') or []):
+              if generation.get('gap') != 'adaptive_shell_gui_context_virtual_convergence':
+                  continue
+              if generation.get('invocation_output') != 'gui-context-virtual-convergence-ready':
+                  continue
+              generation['external_evidence'] = proof
+              matched = True
+              break
+          if not matched:
+              raise SystemExit('verified virtual proof did not produce a ready convergence generation')
+          state['virtual_convergence_evidence'] = proof
+          state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
 
       - name: Read verified growth state
         id: state
@@ -157,4 +275,5 @@ jobs:
         shell: bash
         run: |
           echo "AURUM_AUTOBUILD_STATE changed=${{ steps.checkpoint.outputs.changed }} blocked=${{ steps.state.outputs.blocked_reason }} reasoning=${{ steps.state.outputs.reasoning_required }}"
+          echo "AURUM_VIRTUAL_PROOF_STATE applied=${{ steps.virtual_proof.outputs.applied }} source_commit=${{ steps.virtual_proof.outputs.source_commit }} run_id=${{ steps.virtual_proof.outputs.run_id }}"
           echo 'A dependent physical or reasoning boundary stops only this lane; independent Aurum build lanes continue.'
