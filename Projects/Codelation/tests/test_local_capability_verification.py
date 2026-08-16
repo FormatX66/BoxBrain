@@ -4,6 +4,7 @@ import sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];FIELD=ROOT/"field";sys.path.insert(0,str(ROOT));sys.path.insert(0,str(FIELD))
 from external_prerequisite_evidence import (
+    apply_adaptive_shell_iteration_observation_readiness_evidence,
     apply_adaptive_shell_live_trial_evidence,
     apply_adaptive_shell_live_trial_readiness_evidence,
     apply_external_prerequisite_evidence,
@@ -13,6 +14,27 @@ from native_gap_catalog import get_native_semantic_gap
 from run_native_autonomous_chain import _is_external_prerequisite_block
 
 class LocalCapabilityVerificationTests(unittest.TestCase):
+    def _console_deployment_evidence(self):
+        return {
+            "schema":"aurum-bbpi4-console-evidence-v1","verified":True,
+            "node_id":"bbpi4feed1234567","route":"10.12.194.1",
+            "ssh_host_key_fingerprint":"SHA256:0SyJhmydZNm5NQsr1lBCf6nqTDiSQRlVzKBtlrvYTGQ",
+            "console":{"command":"/usr/local/bin/aurum","command_sha256":"a"*64,"module":"/opt/boxbrain/codelation/seed/aurum_console.py","module_sha256":"b"*64,"dialogue_supervisor_sha256":"c"*64,"dialogue_only":True,"host_actuation":False,"api_key_persisted":False},
+        }
+    def _iteration_observation_evidence(self):
+        return {
+            "schema":"aurum-adaptive-shell-iteration-observation-readiness-evidence-v1",
+            "kind":"adaptive-shell-iteration-observation-readiness",
+            "source":"aurum-bbpi4-console-status-proof","verified":True,
+            "node_id":"bbpi4feed1234567","route":"10.12.194.1",
+            "ssh_host_key_fingerprint":"SHA256:0SyJhmydZNm5NQsr1lBCf6nqTDiSQRlVzKBtlrvYTGQ",
+            "observed_at":1000,"expires_at":1300,
+            "console":{"status_verified":True,"command":"/usr/local/bin/aurum","command_sha256":"a"*64,"module":"/opt/boxbrain/codelation/seed/aurum_console.py","module_sha256":"b"*64,"dialogue_supervisor_sha256":"c"*64,"identity":"BBPI4/Aurum","mind_version":2,"mind_sha256":"d"*64,"dialogue_only":True,"host_actuation":False,"api_key_persisted":False},
+            "observation":{"type":"console-status-and-capability-snapshot","read_only":True,"dialogue_generated":False,"user_content_captured":False},
+            "permission":{"present":True,"scope":"adaptive-shell-iteration-observation","authorization_reference":"operator-next-iteration"},
+            "proof_view":{"present":True,"mind_sha256":"d"*64,"user_content_captured":False},
+            "authority_granted":False,"persistent_change_authorized":False,
+        }
     def _readiness_evidence(self):
         return {
             "schema":"aurum-adaptive-shell-live-trial-readiness-evidence-v1",
@@ -140,5 +162,16 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         invocation=dict(gap.invocation_arguments);invocation["new_permission_required"]="no"
         blocked=verify_local_capability_for_gap(replace(gap,invocation_arguments=invocation),"required-condition-classifier")
         self.assertTrue(blocked.verified);self.assertEqual(blocked.invocation_output,"blocked-new-permission-required")
+    def test_iteration_observation_readiness_uses_fresh_dialogue_free_console_proof(self):
+        gap=get_native_semantic_gap("adaptive_shell_iteration_observation_readiness");self.assertIsNotNone(gap)
+        initial=verify_local_capability_for_gap(gap,"required-condition-classifier")
+        self.assertTrue(initial.verified);self.assertEqual(initial.invocation_output,"blocked-console-observation-fresh")
+        applied=apply_adaptive_shell_iteration_observation_readiness_evidence(gap,self._iteration_observation_evidence(),self._console_deployment_evidence(),now=1010)
+        self.assertTrue(applied.applied);self.assertFalse(applied.evidence["authority_granted"]);self.assertFalse(applied.evidence["user_content_captured"])
+        verified=verify_local_capability_for_gap(applied.spec,"required-condition-classifier")
+        self.assertTrue(verified.verified);self.assertEqual(verified.invocation_output,"ready-for-bounded-iteration-observation")
+        unsafe=self._iteration_observation_evidence();unsafe["observation"]["user_content_captured"]=True
+        rejected=apply_adaptive_shell_iteration_observation_readiness_evidence(gap,unsafe,self._console_deployment_evidence(),now=1010)
+        self.assertFalse(rejected.applied);self.assertEqual(rejected.reason,"iteration-observation-content-boundary-invalid")
 
 if __name__=="__main__":unittest.main(verbosity=2)

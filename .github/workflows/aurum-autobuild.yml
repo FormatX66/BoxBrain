@@ -22,6 +22,7 @@ on:
       - 'Projects/Codelation/tests/test_local_capability_verification.py'
       - 'Projects/Codelation/tests/test_bounded_adaptive_shell_live_trial.py'
       - 'Projects/Codelation/tests/test_adaptive_shell_live_trial_collector.py'
+      - 'Projects/Codelation/tests/test_adaptive_shell_iteration_observation_collector.py'
       - 'Projects/Codelation/tests/test_aurum_console.py'
       - 'Projects/Codelation/tests/test_aurum_dialogue.py'
       - 'Projects/Codelation/tests/test_aurum_live.py'
@@ -72,6 +73,7 @@ jobs:
           Projects.Codelation.tests.test_bottleneck_mesh
           Projects.Codelation.tests.test_bounded_adaptive_shell_live_trial
           Projects.Codelation.tests.test_adaptive_shell_live_trial_collector
+          Projects.Codelation.tests.test_adaptive_shell_iteration_observation_collector
           Projects.Codelation.tests.test_aurum_console
           Projects.Codelation.tests.test_aurum_dialogue
           Projects.Codelation.tests.test_aurum_live

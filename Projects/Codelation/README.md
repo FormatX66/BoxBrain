@@ -122,6 +122,18 @@ trial and advances only to `adaptive_shell_iteration_observation_readiness`.
 That boundary requires a new observation and a new explicit permission scope;
 expired carrier evidence and authority from an earlier trial are never reused.
 
+Collect the next iteration's dialogue-free console observation with:
+
+```powershell
+.\installer\collect-adaptive-shell-iteration-observation.ps1 `
+  -AuthorizationReference '<new bounded observation authorization reference>'
+```
+
+The collector uses strict USB SSH to read only the BBPI4 node identity, Aurum
+console readiness, dialogue-mind status, and installed file hashes. It records
+no prompt or response content, sends no dialogue request, persists no API key,
+and grants no host authority.
+
 The repository-root entry point performs that direct reconciliation without a
 Git/Codelation queue gate:
 

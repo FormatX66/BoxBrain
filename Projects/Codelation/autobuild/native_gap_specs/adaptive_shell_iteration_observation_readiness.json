@@ -1,0 +1,21 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_iteration_observation_readiness",
+  "parameters": ["prior_iteration_closed", "console_observation_fresh", "node_identity_verified", "permission_present", "no_user_content_captured", "proof_view_present", "no_host_authority"],
+  "examples": [
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "ready-for-bounded-iteration-observation"},
+    {"arguments": {"prior_iteration_closed": "no", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "blocked-prior-iteration-closed"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "no", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "blocked-console-observation-fresh"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "no", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "blocked-node-identity-verified"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "no", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "blocked-permission"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "no", "proof_view_present": "yes", "no_host_authority": "yes"}, "expected": "blocked-no-user-content-captured"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "no", "no_host_authority": "yes"}, "expected": "blocked-proof-view"},
+    {"arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "yes", "node_identity_verified": "yes", "permission_present": "yes", "no_user_content_captured": "yes", "proof_view_present": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"prior_iteration_closed": "yes", "console_observation_fresh": "no", "node_identity_verified": "no", "permission_present": "no", "no_user_content_captured": "yes", "proof_view_present": "no", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_iteration_observation",
+  "purpose": "Classify whether a new adaptive-shell iteration may begin with a fresh BBPI4 Aurum-console status observation. This is a read-only observation boundary and does not reuse dialogue content, prior permission, or host authority.",
+  "principles": ["the prior iteration is closed before new observation", "console status is fresh and bound to the verified BBPI4 identity", "permission is new and observation-scoped", "no prompt or response content is captured", "proof remains reviewable without granting host authority"],
+  "constraints": ["pure", "deterministic", "classification-only", "observation-only", "no-dialogue-content", "no-live-actuation", "no-host-authority", "no-evidence-reuse", "no-implicit-permission", "fail-closed"],
+  "max_synthesis_cost": 16
+}
