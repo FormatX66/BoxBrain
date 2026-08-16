@@ -1850,7 +1850,7 @@
     "shared_implementation": false
   },
   "reasoning_required": true,
-  "resumed_from_generations": 25,
+  "resumed_from_generations": 27,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
