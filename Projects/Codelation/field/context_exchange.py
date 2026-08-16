@@ -9,6 +9,7 @@ import re
 CONTEXT_STATE_SCHEMA = "aurum.context.exchange.v1"
 ZERO_CHAIN_SHA256 = "0" * 64
 MAX_CONTEXT_ID_CHARS = 64
+MAX_SERIALIZED_STATE_CHARS = 1024
 _CONTEXT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -109,7 +110,7 @@ def serialize_context_state(state: ContextState) -> str:
 def parse_context_state(raw: str) -> ContextState:
     if not isinstance(raw, str) or not raw:
         raise ValueError("context state is empty")
-    if len(raw) > 1024:
+    if len(raw) > MAX_SERIALIZED_STATE_CHARS:
         raise ValueError("context state exceeded its bound")
     try:
         value = json.loads(raw)
@@ -172,6 +173,7 @@ def advance_context_state(
 
 __all__ = [
     "CONTEXT_STATE_SCHEMA",
+    "MAX_SERIALIZED_STATE_CHARS",
     "ContextState",
     "advance_context_state",
     "parse_context_state",
