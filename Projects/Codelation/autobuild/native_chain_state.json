@@ -2187,7 +2187,7 @@
       "native_signatures_retained": 11,
       "native_synthesis_found": false,
       "native_synthesis_proof_identity": "913be3391b6a3d6a9fade9b70e94a4b476bbb3f4a1063bbbc2de0878126b3dfb",
-      "next_gap": "adaptive_shell_gui_context_virtual_convergence",
+      "next_gap": "resource_context_coverage_ratio",
       "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
       "preflight_self_debug": {
         "counterexamples": 0,
@@ -2242,7 +2242,7 @@
   "next_gap": "adaptive_shell_gui_context_virtual_convergence",
   "reasoning_request": null,
   "reasoning_required": false,
-  "resumed_from_generations": 32,
+  "resumed_from_generations": 33,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
