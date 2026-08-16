@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/aurum-driver-synthesis.yml'
       - 'Projects/Codelation/driver_synthesis.py'
+      - 'Projects/Codelation/driver_evidence/**'
       - 'Projects/Codelation/tests/test_driver_synthesis.py'
 
 permissions:
@@ -41,5 +42,5 @@ jobs:
 
       - name: Report safety boundary
         run: |
-          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest'
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle'
           echo 'AURUM_DRIVER_SYNTHESIS physical_writes=false firmware_changes=false destructive_probe=false'
