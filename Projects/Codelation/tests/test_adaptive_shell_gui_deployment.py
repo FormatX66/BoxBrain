@@ -14,6 +14,7 @@ sys.path.insert(0, str(FIELD))
 
 from external_prerequisite_evidence import (
     apply_adaptive_shell_gui_live_trial_evidence,
+    apply_adaptive_shell_gui_preference_live_trial_evidence,
     apply_adaptive_shell_iteration_observation_evidence,
 )
 from local_capability_verification import verify_local_capability_for_gap
@@ -98,6 +99,54 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertFalse(rejected.applied)
         self.assertEqual(rejected.reason, "gui-live-trial-safety-invalid")
 
+    def test_preference_trial_is_revision_guarded_and_restores_baseline(self) -> None:
+        spec = get_native_semantic_gap("adaptive_shell_gui_preference_live_trial")
+        self.assertIsNotNone(spec)
+        evidence = json.loads(
+            (EVIDENCE / "adaptive_shell_gui_preference_live_trial.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        applied = apply_adaptive_shell_gui_preference_live_trial_evidence(
+            spec,
+            evidence,
+            now=int(evidence["observed_at"]) + 1,
+        )
+
+        self.assertTrue(applied.applied)
+        self.assertEqual(applied.reason, "bounded-bbpi4-gui-preference-live-trial")
+        self.assertTrue(applied.evidence["revision_guard_verified"])
+        self.assertTrue(applied.evidence["apply_verified"])
+        self.assertTrue(applied.evidence["rollback_verified"])
+        self.assertEqual(
+            applied.evidence["baseline_state_sha256"],
+            applied.evidence["restored_state_sha256"],
+        )
+        self.assertFalse(applied.evidence["user_content_captured"])
+        self.assertFalse(applied.evidence["authority_granted"])
+        verified = verify_local_capability_for_gap(
+            applied.spec,
+            "required-condition-classifier",
+        )
+        self.assertTrue(verified.verified)
+        self.assertEqual(
+            verified.invocation_output,
+            "aurum-gui-preference-live-trial-passed",
+        )
+        self.assertFalse(verified.authority_granted)
+        self.assertFalse(verified.routed_to_host)
+
+        unsafe = copy.deepcopy(evidence)
+        unsafe["trial"]["rollback"]["state_sha256"] = "f" * 64
+        rejected = apply_adaptive_shell_gui_preference_live_trial_evidence(
+            spec,
+            unsafe,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertFalse(rejected.applied)
+        self.assertEqual(rejected.reason, "gui-preference-trial-proof-invalid")
+
     def test_deployment_and_launch_are_strict_transient_and_package_free(self) -> None:
         setup = (ROOT / "installer" / "setup-aurum-gui.ps1").read_text(encoding="utf-8")
         launch = (ROOT / "installer" / "open-aurum-gui.ps1").read_text(encoding="utf-8")
@@ -125,8 +174,11 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         trial = (ROOT / "installer" / "collect-adaptive-shell-gui-live-trial.ps1").read_text(
             encoding="utf-8"
         )
+        preference_trial = (
+            ROOT / "installer" / "collect-adaptive-shell-gui-preference-live-trial.ps1"
+        ).read_text(encoding="utf-8")
 
-        for text in (capability, trial):
+        for text in (capability, trial, preference_trial):
             self.assertIn("StrictHostKeyChecking=yes", text)
             self.assertIn("UserKnownHostsFile=", text)
             self.assertIn("AuthorizationReference", text)
@@ -135,6 +187,8 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
             self.assertNotIn("aurum_dialogue.py --root /opt/boxbrain/codelation session", text)
         self.assertIn("listener_loopback_only = $true", trial)
         self.assertIn("persistent_service_enabled = $false", trial)
+        self.assertIn("stale_revision_rejected = $true", preference_trial)
+        self.assertIn("rollback_verified=true", preference_trial)
 
 
 if __name__ == "__main__":

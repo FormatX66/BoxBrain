@@ -87,6 +87,10 @@ class AurumGuiTests(unittest.TestCase):
         payload = json.loads(body)
         self.assertEqual(payload["console"]["identity"], "BBPI4/Aurum")
         self.assertTrue(payload["interface"]["safe_layout_available"])
+        self.assertTrue(payload["interface"]["adaptation_lock_available"])
+        self.assertEqual(payload["preferences"]["revision"], 0)
+        self.assertFalse(payload["preferences"]["safe_layout"])
+        self.assertFalse(payload["preferences"]["adaptation_locked"])
         self.assertTrue(payload["proof_view"]["present"])
         self.assertFalse(payload["proof_view"]["user_content_returned"])
         self.assertTrue(payload["authority"]["dialogue_only"])
@@ -131,6 +135,59 @@ class AurumGuiTests(unittest.TestCase):
         )
         self.assertNotIn("test-secret-key", written)
         self.assertNotIn("private prompt text", written)
+
+    def test_preferences_are_revisioned_reversible_and_content_free(self) -> None:
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": f"http://127.0.0.1:{self.port}",
+            "X-Aurum-CSRF": self.server.csrf_token,
+        }
+        apply_body = json.dumps(
+            {
+                "expected_revision": 0,
+                "safe_layout": True,
+                "adaptation_locked": True,
+            }
+        ).encode("utf-8")
+        applied_status, _, applied_body = self.request(
+            "POST", "/api/preferences", body=apply_body, headers=headers
+        )
+
+        self.assertEqual(applied_status, 200)
+        applied = json.loads(applied_body)
+        self.assertEqual(applied["preferences"]["revision"], 1)
+        self.assertTrue(applied["preferences"]["safe_layout"])
+        self.assertTrue(applied["preferences"]["adaptation_locked"])
+        self.assertFalse(applied["user_content_captured"])
+        self.assertFalse(applied["host_actuation"])
+        self.assertTrue(applied["rollback_available"])
+
+        stale_status, _, _ = self.request(
+            "POST", "/api/preferences", body=apply_body, headers=headers
+        )
+        self.assertEqual(stale_status, 409)
+
+        rollback_body = json.dumps(
+            {
+                "expected_revision": 1,
+                "safe_layout": False,
+                "adaptation_locked": False,
+            }
+        ).encode("utf-8")
+        rollback_status, _, response_body = self.request(
+            "POST", "/api/preferences", body=rollback_body, headers=headers
+        )
+        self.assertEqual(rollback_status, 200)
+        restored = json.loads(response_body)["preferences"]
+        self.assertEqual(restored["revision"], 2)
+        self.assertFalse(restored["safe_layout"])
+        self.assertFalse(restored["adaptation_locked"])
+
+        status, _, body = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
+        proof = json.loads(body)
+        self.assertEqual(proof["proof_view"]["preference_evidence_count"], 2)
+        self.assertFalse(proof["proof_view"]["user_content_returned"])
 
     def test_non_loopback_bind_and_host_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "loopback"):

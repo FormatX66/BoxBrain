@@ -95,6 +95,20 @@
       "goal": "Render a transient Pi-loopback Aurum GUI through strict SSH with all human constants, Safe Layout, Proof View, and the dialogue-only supervisor boundary intact.",
       "new_capability_class": "bounded-human-interface-projection",
       "authority": "dialogue-only"
+    },
+    {
+      "order": 14,
+      "gap": "adaptive_shell_gui_iteration_planning",
+      "goal": "Plan the first reversible GUI preference trial only after the bounded GUI projection is freshly verified and remains outside host authority.",
+      "new_capability_class": "gui-preference-iteration-planning",
+      "authority": "planning-only"
+    },
+    {
+      "order": 15,
+      "gap": "adaptive_shell_gui_preference_live_trial",
+      "goal": "Apply and restore one revisioned Safe Layout preference while rejecting stale writes and retaining content-free proof of the rollback.",
+      "new_capability_class": "revisioned-reversible-gui-preference",
+      "authority": "interface-preference-only"
     }
   ],
   "promotion_gates": [

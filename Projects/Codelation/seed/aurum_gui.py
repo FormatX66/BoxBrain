@@ -10,10 +10,13 @@ never written by this module.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import secrets
+import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,7 +27,9 @@ from aurum_console import CONSOLE_SCHEMA, DEFAULT_ROOT, console_status
 from aurum_dialogue import DEFAULT_MODEL, Reasoner, ask, call_openai_reasoner
 
 
-GUI_SCHEMA = "aurum.gui.v1"
+GUI_SCHEMA = "aurum.gui.v2"
+PREFERENCES_SCHEMA = "aurum.gui.preferences.v1"
+PREFERENCE_EVIDENCE_SCHEMA = "aurum.gui.preference.evidence.v1"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 MAX_REQUEST_BYTES = 16_384
@@ -45,6 +50,122 @@ HUMAN_CONSTANTS = (
     "recovery-safe-layout",
     "adaptation-lock",
 )
+
+
+class PreferenceConflict(ValueError):
+    """Raised when a browser tries to replace a stale preference revision."""
+
+
+def _preferences_path(root: Path) -> Path:
+    base = root.expanduser().resolve()
+    path = (base / "state" / "interface" / "gui_preferences.json").resolve()
+    if base not in path.parents:
+        raise ValueError("preference path escaped Aurum root")
+    return path
+
+
+def _preference_evidence_dir(root: Path) -> Path:
+    base = root.expanduser().resolve()
+    path = (base / "verification" / "interface").resolve()
+    if base not in path.parents:
+        raise ValueError("preference evidence path escaped Aurum root")
+    return path
+
+
+def default_preferences() -> dict[str, Any]:
+    return {
+        "schema": PREFERENCES_SCHEMA,
+        "revision": 0,
+        "safe_layout": False,
+        "adaptation_locked": False,
+    }
+
+
+def _validate_preferences(value: object) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {
+        "schema",
+        "revision",
+        "safe_layout",
+        "adaptation_locked",
+    }:
+        raise ValueError("GUI preferences do not match the bounded schema")
+    if value.get("schema") != PREFERENCES_SCHEMA:
+        raise ValueError("GUI preference schema mismatch")
+    revision = value.get("revision")
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+        raise ValueError("GUI preference revision is invalid")
+    if not isinstance(value.get("safe_layout"), bool):
+        raise ValueError("Safe Layout preference is invalid")
+    if not isinstance(value.get("adaptation_locked"), bool):
+        raise ValueError("adaptation lock preference is invalid")
+    return dict(value)
+
+
+def load_preferences(root: Path) -> dict[str, Any]:
+    path = _preferences_path(root)
+    if not path.exists():
+        return default_preferences()
+    if path.stat().st_size > 4096:
+        raise ValueError("GUI preference file exceeded its bound")
+    return _validate_preferences(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _atomic_private_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    try:
+        temporary.write_text(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        temporary.chmod(0o600)
+        temporary.replace(path)
+        path.chmod(0o600)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def save_preferences(
+    root: Path,
+    *,
+    expected_revision: int,
+    safe_layout: bool,
+    adaptation_locked: bool,
+) -> tuple[dict[str, Any], Path]:
+    current = load_preferences(root)
+    if expected_revision != current["revision"]:
+        raise PreferenceConflict("GUI preference revision changed; refresh and retry")
+    updated = {
+        "schema": PREFERENCES_SCHEMA,
+        "revision": current["revision"] + 1,
+        "safe_layout": safe_layout,
+        "adaptation_locked": adaptation_locked,
+    }
+    _validate_preferences(updated)
+    _atomic_private_json(_preferences_path(root), updated)
+
+    evidence = {
+        "schema": PREFERENCE_EVIDENCE_SCHEMA,
+        "observed_at": int(time.time()),
+        "before": current,
+        "after": updated,
+        "user_initiated": True,
+        "user_content_captured": False,
+        "dialogue_generated": False,
+        "host_actuation": False,
+        "rollback_available": True,
+    }
+    evidence_hash = hashlib.sha256(
+        json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    evidence_path = _preference_evidence_dir(root) / (
+        f"AURUM_GUI_PREFERENCE_{updated['revision']:08d}_{evidence_hash[:12]}.json"
+    )
+    _atomic_private_json(evidence_path, evidence)
+    return updated, evidence_path
 
 PAGE = r"""<!doctype html>
 <html lang="en">
@@ -249,6 +370,10 @@ PAGE = r"""<!doctype html>
     .boundary { display: flex; align-items: center; gap: 8px; margin: 9px 0; font-size: 12px; color: var(--good); }
     .boundary::before { content: "✓"; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: rgba(121,220,167,.10); }
     .proof-button { width: 100%; padding: 10px; border: 1px solid var(--line-bright); border-radius: 12px; color: var(--gold-soft); background: rgba(245,196,81,.06); cursor: pointer; }
+    .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 8px; }
+    .state-control { padding: 9px 8px; border: 1px solid rgba(255,255,255,.10); border-radius: 11px; color: var(--muted); background: rgba(0,0,0,.14); cursor: pointer; font-size: 11px; }
+    .state-control.active { color: var(--good); border-color: rgba(121,220,167,.34); background: rgba(121,220,167,.08); }
+    .state-control:disabled { opacity: .48; cursor: wait; }
     .hidden { display: none !important; }
     .safe-banner { margin: 28px 0 0; padding: 14px 16px; border: 1px solid rgba(121,220,167,.22); border-radius: 15px; color: var(--good); background: rgba(121,220,167,.06); }
     @media (max-width: 980px) {
@@ -331,7 +456,12 @@ PAGE = r"""<!doctype html>
       <h2>Adaptation</h2>
       <div class="metric"><span>Mode</span><span id="mode">General</span></div>
       <div class="metric"><span>Lock</span><span id="lock">User controlled</span></div>
+      <div class="metric"><span>Revision</span><span id="revision">0</span></div>
       <div class="metric"><span>Evidence</span><span id="evidenceCount">0 records</span></div>
+      <div class="control-grid">
+        <button id="safeControl" class="state-control" type="button">Safe Layout</button>
+        <button id="lockControl" class="state-control" type="button">Adaptation Lock</button>
+      </div>
       <button id="refreshProof" class="proof-button" type="button">Refresh proof</button>
     </div>
   </aside>
@@ -342,7 +472,7 @@ PAGE = r"""<!doctype html>
   const prompt = document.getElementById('prompt');
   const apiKey = document.getElementById('apiKey');
   const send = document.getElementById('send');
-  let safeLayout = false;
+  let preferences = {revision: 0, safe_layout: false, adaptation_locked: false};
 
   function addMessage(kind, text) {
     const node = document.createElement('div');
@@ -361,9 +491,48 @@ PAGE = r"""<!doctype html>
       document.getElementById('identity').textContent = data.console.identity;
       document.getElementById('mind').textContent = `v${data.console.mind_version}`;
       document.getElementById('model').textContent = data.console.model;
-      document.getElementById('evidenceCount').textContent = `${data.proof_view.dialogue_evidence_count} records`;
+      const proofCount = data.proof_view.dialogue_evidence_count + data.proof_view.preference_evidence_count;
+      document.getElementById('evidenceCount').textContent = `${proofCount} records`;
+      preferences = data.preferences;
+      renderPreferences();
     } catch (_) {
       document.getElementById('online').textContent = 'Pi unavailable';
+    }
+  }
+
+  function renderPreferences() {
+    const safe = preferences.safe_layout;
+    const locked = preferences.adaptation_locked;
+    document.getElementById('safeBanner').classList.toggle('hidden', !safe);
+    document.getElementById('mode').textContent = safe ? 'Safe / General' : 'General';
+    document.getElementById('lock').textContent = locked ? 'Adaptation locked' : 'User controlled';
+    document.getElementById('revision').textContent = String(preferences.revision);
+    document.getElementById('safeControl').classList.toggle('active', safe);
+    document.getElementById('lockControl').classList.toggle('active', locked);
+  }
+
+  async function updatePreferences(next) {
+    const controls = [document.getElementById('safeControl'), document.getElementById('lockControl')];
+    controls.forEach((control) => control.disabled = true);
+    try {
+      const response = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-Aurum-CSRF': csrf},
+        body: JSON.stringify({
+          expected_revision: preferences.revision,
+          safe_layout: next.safe_layout,
+          adaptation_locked: next.adaptation_locked
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Preference update unavailable');
+      preferences = data.preferences;
+      renderPreferences();
+    } catch (error) {
+      addMessage('error', error.message || 'Preference update unavailable');
+      await refreshStatus();
+    } finally {
+      controls.forEach((control) => control.disabled = false);
     }
   }
 
@@ -406,10 +575,7 @@ PAGE = r"""<!doctype html>
       button.classList.add('active');
       const action = button.dataset.action;
       if (action === 'safe') {
-        safeLayout = true;
-        document.getElementById('safeBanner').classList.remove('hidden');
-        document.getElementById('mode').textContent = 'Safe / General';
-        document.getElementById('lock').textContent = 'Adaptation paused';
+        updatePreferences({...preferences, safe_layout: !preferences.safe_layout});
       } else if (action === 'home') {
         window.scrollTo({top: 0, behavior: 'smooth'});
         prompt.focus();
@@ -424,6 +590,12 @@ PAGE = r"""<!doctype html>
   });
 
   document.getElementById('refreshProof').addEventListener('click', refreshStatus);
+  document.getElementById('safeControl').addEventListener('click', () => {
+    updatePreferences({...preferences, safe_layout: !preferences.safe_layout});
+  });
+  document.getElementById('lockControl').addEventListener('click', () => {
+    updatePreferences({...preferences, adaptation_locked: !preferences.adaptation_locked});
+  });
   prompt.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -455,6 +627,7 @@ class AurumGuiServer(ThreadingHTTPServer):
         self.aurum_model = model
         self.aurum_reasoner = reasoner
         self.csrf_token = secrets.token_urlsafe(32)
+        self.preference_lock = threading.Lock()
 
 
 class AurumGuiHandler(BaseHTTPRequestHandler):
@@ -518,6 +691,8 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
 
     def _status_payload(self) -> dict[str, Any]:
         current = console_status(self.server.aurum_root, self.server.aurum_model)
+        with self.server.preference_lock:
+            preferences = load_preferences(self.server.aurum_root)
         evidence_dir = self.server.aurum_root / "verification" / "dialogue"
         try:
             evidence_count = sum(
@@ -527,12 +702,24 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
             )
         except FileNotFoundError:
             evidence_count = 0
+        preference_evidence_dir = _preference_evidence_dir(self.server.aurum_root)
+        try:
+            preference_count = sum(
+                1
+                for path in preference_evidence_dir.iterdir()
+                if path.is_file()
+                and path.name.startswith("AURUM_GUI_PREFERENCE_")
+                and path.suffix == ".json"
+            )
+        except FileNotFoundError:
+            preference_count = 0
         return {
             "schema": GUI_SCHEMA,
             "console_schema": CONSOLE_SCHEMA,
             "console": current,
+            "preferences": preferences,
             "interface": {
-                "mode": "general",
+                "mode": "safe" if preferences["safe_layout"] else "general",
                 "human_constants": list(HUMAN_CONSTANTS),
                 "safe_layout_available": True,
                 "adaptation_lock_available": True,
@@ -540,6 +727,7 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
             "proof_view": {
                 "present": True,
                 "dialogue_evidence_count": evidence_count,
+                "preference_evidence_count": preference_count,
                 "user_content_returned": False,
             },
             "transport": {
@@ -589,7 +777,8 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
         ):
             self._error(HTTPStatus.FORBIDDEN, "request proof invalid")
             return
-        if urlsplit(self.path).path != "/api/ask":
+        request_path = urlsplit(self.path).path
+        if request_path not in {"/api/ask", "/api/preferences"}:
             self._error(HTTPStatus.NOT_FOUND, "not found")
             return
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
@@ -607,6 +796,55 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             self._error(HTTPStatus.BAD_REQUEST, "invalid JSON")
+            return
+        if request_path == "/api/preferences":
+            if not isinstance(payload, dict) or set(payload) != {
+                "expected_revision",
+                "safe_layout",
+                "adaptation_locked",
+            }:
+                self._error(HTTPStatus.BAD_REQUEST, "preference fields invalid")
+                return
+            expected_revision = payload.get("expected_revision")
+            safe_layout = payload.get("safe_layout")
+            adaptation_locked = payload.get("adaptation_locked")
+            if (
+                not isinstance(expected_revision, int)
+                or isinstance(expected_revision, bool)
+                or expected_revision < 0
+                or not isinstance(safe_layout, bool)
+                or not isinstance(adaptation_locked, bool)
+            ):
+                self._error(HTTPStatus.BAD_REQUEST, "preference values invalid")
+                return
+            try:
+                with self.server.preference_lock:
+                    preferences, evidence = save_preferences(
+                        self.server.aurum_root,
+                        expected_revision=expected_revision,
+                        safe_layout=safe_layout,
+                        adaptation_locked=adaptation_locked,
+                    )
+            except PreferenceConflict as exc:
+                self._error(HTTPStatus.CONFLICT, str(exc))
+                return
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                self._error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    f"preference update unavailable: {type(exc).__name__}",
+                )
+                return
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "schema": GUI_SCHEMA,
+                    "preferences": preferences,
+                    "evidence": evidence.name,
+                    "user_content_captured": False,
+                    "host_actuation": False,
+                    "rollback_available": True,
+                },
+            )
             return
         if not isinstance(payload, dict) or not set(payload).issubset({"prompt", "api_key", "model"}):
             self._error(HTTPStatus.BAD_REQUEST, "request fields invalid")
@@ -683,6 +921,7 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.status:
         payload = console_status(args.root, args.model)
+        preferences = load_preferences(args.root)
         payload.update(
             {
                 "gui_schema": GUI_SCHEMA,
@@ -690,6 +929,8 @@ def main() -> int:
                 "port": args.port,
                 "loopback_only": args.host in {"127.0.0.1", "::1"},
                 "safe_layout_available": True,
+                "adaptation_lock_available": True,
+                "preferences": preferences,
                 "proof_view_present": True,
             }
         )

@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_iteration_planning",
+  "parameters": ["prior_gui_trial_verified", "proof_view_retained", "runtime_transient", "new_permission_required", "preference_scope_reversible", "persistent_authority_absent"],
+  "examples": [
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"}, "expected": "next-gui-preference-trial-gated"},
+    {"arguments": {"prior_gui_trial_verified": "no", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-prior-gui-trial-verified"},
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "no", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-proof-view-retained"},
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "no", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-runtime-transient"},
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "no", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-new-permission-required"},
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "no", "persistent_authority_absent": "yes"}, "expected": "blocked-preference-scope-reversible"},
+    {"arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "no"}, "expected": "blocked-persistent-authority-absent"}
+  ],
+  "invocation_arguments": {"prior_gui_trial_verified": "yes", "proof_view_retained": "yes", "runtime_transient": "yes", "new_permission_required": "yes", "preference_scope_reversible": "yes", "persistent_authority_absent": "yes"},
+  "next_gap": "adaptive_shell_gui_preference_live_trial",
+  "purpose": "Close the first verified Aurum GUI trial and classify a new iteration limited to revisioned, reversible user preference state. The planning result grants no dialogue, host, resource, or service authority.",
+  "principles": ["the first GUI trial remains reviewable", "the runtime remains transient", "the next scope is only Safe Layout and adaptation-lock preference state", "each preference trial requires a fresh explicit permission reference", "successful planning creates no persistent host authority"],
+  "constraints": ["pure", "deterministic", "classification-only", "planning-only", "no-live-io", "no-dialogue-content", "no-host-authority", "no-resource-authority", "no-service-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}

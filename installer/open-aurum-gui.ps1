@@ -118,7 +118,7 @@ if ($startTunnel) {
 $url = "http://127.0.0.1:$localPort/"
 $status = Invoke-RestMethod -Uri "${url}api/status" -TimeoutSec 5
 if (
-    $status.schema -ne "aurum.gui.v1" -or
+    $status.schema -ne "aurum.gui.v2" -or
     $status.console.identity -ne "BBPI4/Aurum" -or
     $status.transport.loopback_only -ne $true -or
     $status.authority.host_actuation -ne $false

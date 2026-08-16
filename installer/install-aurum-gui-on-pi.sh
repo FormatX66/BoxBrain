@@ -38,6 +38,11 @@ PYTHONPATH=/opt/boxbrain/codelation/seed /usr/bin/python3 "$module" \
     --port 8765 \
     --status >/dev/null
 
+# A running transient process retains the old module in memory. Stop only this
+# exact transient GUI unit before atomically replacing the reviewed files.
+systemctl stop aurum-gui.service >/dev/null 2>&1 || true
+systemctl reset-failed aurum-gui.service >/dev/null 2>&1 || true
+
 destination=/opt/boxbrain/codelation/seed/aurum_gui.py
 rollback=/opt/boxbrain/codelation/rollback/gui
 if [ -f "$destination" ]; then

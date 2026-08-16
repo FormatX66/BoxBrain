@@ -194,6 +194,20 @@ forward. Safe Layout, Proof View, and the human landmarks remain visible. An
 OpenAI API key stays in the open page/request memory and is never written by
 the GUI; the supervisor continues to expose no shell or host-control actions.
 
+GUI preferences use a small revisioned state file on the Pi. Safe Layout and
+Adaptation Lock require the caller's current revision, reject stale updates,
+and write content-free proof records for each accepted change. The bounded
+preference trial applies one Safe Layout change and restores the exact baseline:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-preference-live-trial.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+```
+
+This trial never sends dialogue text, stores an API key, installs packages,
+enables a boot service, or grants Aurum host-control authority.
+
 ## BBPI4 access-point route
 
 An authorized Windows computer that has previously joined BBPI4's own Wi-Fi AP

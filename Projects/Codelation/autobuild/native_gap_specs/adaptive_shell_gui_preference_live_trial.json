@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_preference_live_trial",
+  "parameters": ["planning_verified", "candidate_verified", "revision_guard_verified", "apply_verified", "rollback_verified", "proof_view_present", "no_user_content_captured", "no_host_authority"],
+  "examples": [
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "aurum-gui-preference-live-trial-passed"},
+    {"arguments": {"planning_verified": "no", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-planning-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "no", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-candidate-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "no", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-revision-guard-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "no", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-apply-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "no", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-rollback-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "no", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-proof-view"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "no", "no_host_authority": "yes"}, "expected": "blocked-no-user-content-captured"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "revision_guard_verified": "yes", "apply_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_user_content_captured": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"planning_verified": "no", "candidate_verified": "no", "revision_guard_verified": "no", "apply_verified": "no", "rollback_verified": "no", "proof_view_present": "no", "no_user_content_captured": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_preference_iteration_planning",
+  "purpose": "Classify one bounded live trial of revisioned Safe Layout and adaptation-lock preferences. The trial must apply one boolean change, reject stale revisions, restore the baseline values, and retain content-free Proof View evidence.",
+  "principles": ["user preference writes are limited to a strict local schema", "optimistic revision guards prevent stale replacement", "the applied preference is immediately observable", "rollback restores the exact semantic baseline", "preference evidence contains no prompt, response, credential, or inferred trait"],
+  "constraints": ["pure", "deterministic", "classification-only", "local-preference-only", "reversible", "revision-guarded", "no-dialogue-content", "no-api-key-persistence", "no-host-authority", "no-service-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}

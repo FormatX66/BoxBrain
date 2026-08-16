@@ -28,6 +28,9 @@ GUI_CAPABILITY_EVIDENCE_SOURCE = "aurum-bbpi4-gui-capability-snapshot"
 GUI_LIVE_TRIAL_EVIDENCE_SCHEMA = "aurum-adaptive-shell-gui-live-trial-evidence-v1"
 GUI_LIVE_TRIAL_EVIDENCE_KIND = "adaptive-shell-gui-live-trial"
 GUI_LIVE_TRIAL_EVIDENCE_SOURCE = "aurum-bbpi4-loopback-gui-proof"
+GUI_PREFERENCE_TRIAL_EVIDENCE_SCHEMA = "aurum-adaptive-shell-gui-preference-live-trial-evidence-v1"
+GUI_PREFERENCE_TRIAL_EVIDENCE_KIND = "adaptive-shell-gui-preference-live-trial"
+GUI_PREFERENCE_TRIAL_EVIDENCE_SOURCE = "aurum-bbpi4-reversible-gui-preference-proof"
 CONSOLE_DEPLOYMENT_EVIDENCE_SCHEMA = "aurum-bbpi4-console-evidence-v1"
 WINDOWS_CONTROLLER_NODE_IDS = frozenset({"825e5a7b7d4a7aed", "85404f41d5507372"})
 EXTERNAL_EVIDENCE_DIR = Path(__file__).resolve().parents[1] / "autobuild" / "external_evidence"
@@ -37,6 +40,7 @@ TRIAL_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_live_trial.json"
 ITERATION_OBSERVATION_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_iteration_observation_readiness.json"
 GUI_CAPABILITY_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_iteration_observation.json"
 GUI_LIVE_TRIAL_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_gui_live_trial.json"
+GUI_PREFERENCE_TRIAL_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "adaptive_shell_gui_preference_live_trial.json"
 CONSOLE_DEPLOYMENT_EVIDENCE_PATH = EXTERNAL_EVIDENCE_DIR / "bbpi4_aurum_console.json"
 EVIDENCE_BOUND_GAPS = frozenset(
     {
@@ -45,6 +49,7 @@ EVIDENCE_BOUND_GAPS = frozenset(
         "adaptive_shell_iteration_observation_readiness",
         "adaptive_shell_iteration_observation",
         "adaptive_shell_gui_live_trial",
+        "adaptive_shell_gui_preference_live_trial",
     }
 )
 MAX_EVIDENCE_BYTES = 16384
@@ -57,6 +62,7 @@ ROLLBACK_METHOD = "neutral-hid-release-and-ephemeral-state"
 ITERATION_OBSERVATION_PERMISSION_SCOPE = "adaptive-shell-iteration-observation"
 GUI_CAPABILITY_PERMISSION_SCOPE = "adaptive-shell-gui-candidate"
 GUI_LIVE_TRIAL_PERMISSION_SCOPE = "adaptive-shell-gui-live-trial"
+GUI_PREFERENCE_TRIAL_PERMISSION_SCOPE = "adaptive-shell-gui-preference-live-trial"
 GUI_HUMAN_CONSTANTS = frozenset(
     {
         "home",
@@ -906,6 +912,214 @@ def apply_adaptive_shell_gui_live_trial_evidence(
     )
 
 
+def apply_adaptive_shell_gui_preference_live_trial_evidence(
+    spec: NativeSemanticGap,
+    evidence: Mapping[str, Any] | None,
+    *,
+    now: int | None = None,
+) -> ExternalEvidenceApplication:
+    """Apply a reversible, revision-guarded GUI preference trial proof."""
+    if spec.name != "adaptive_shell_gui_preference_live_trial":
+        return ExternalEvidenceApplication(spec, False, "gap-not-gui-preference-trial-bound")
+    if not isinstance(evidence, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-evidence-missing")
+    if evidence.get("schema") != GUI_PREFERENCE_TRIAL_EVIDENCE_SCHEMA:
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-schema-invalid")
+    if evidence.get("kind") != GUI_PREFERENCE_TRIAL_EVIDENCE_KIND:
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-kind-invalid")
+    if evidence.get("source") != GUI_PREFERENCE_TRIAL_EVIDENCE_SOURCE:
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-source-invalid")
+    if evidence.get("verified") is not True:
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-not-verified")
+
+    window, reason = _evidence_window(evidence, now=now)
+    if window is None:
+        return ExternalEvidenceApplication(spec, False, f"gui-preference-trial-{reason}")
+    observed_at, expires_at = window
+    node_id = _bounded_text(evidence.get("node_id"), 64)
+    route = _bounded_text(evidence.get("route"), 64)
+    host_key = _bounded_text(evidence.get("ssh_host_key_fingerprint"), 96)
+    if (
+        not node_id
+        or node_id in WINDOWS_CONTROLLER_NODE_IDS
+        or route != USB_SSH_ROUTE
+        or not re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", host_key)
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-node-binding-invalid")
+
+    candidate = evidence.get("candidate")
+    module_sha256 = (
+        _hex_digest(candidate.get("module_sha256"))
+        if isinstance(candidate, Mapping)
+        else ""
+    )
+    if (
+        not isinstance(candidate, Mapping)
+        or candidate.get("module") != "/opt/boxbrain/codelation/seed/aurum_gui.py"
+        or not module_sha256
+        or candidate.get("gui_schema") != "aurum.gui.v2"
+        or candidate.get("preference_schema") != "aurum.gui.preferences.v1"
+        or candidate.get("tests_passed") is not True
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-candidate-invalid")
+
+    runtime = evidence.get("runtime")
+    status_sha256 = _hex_digest(runtime.get("status_sha256")) if isinstance(runtime, Mapping) else ""
+    if (
+        not isinstance(runtime, Mapping)
+        or runtime.get("service_active") is not True
+        or runtime.get("service_enabled") is not False
+        or runtime.get("transient") is not True
+        or runtime.get("address") != "127.0.0.1"
+        or runtime.get("port") != 8765
+        or runtime.get("listener_loopback_only") is not True
+        or runtime.get("status_schema") != "aurum.gui.v2"
+        or not status_sha256
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-runtime-invalid")
+
+    trial = evidence.get("trial")
+    if not isinstance(trial, Mapping):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-proof-invalid")
+    baseline = trial.get("baseline")
+    proposal = trial.get("proposal")
+    application = trial.get("application")
+    rollback = trial.get("rollback")
+    if not all(isinstance(item, Mapping) for item in (baseline, proposal, application, rollback)):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-proof-invalid")
+    try:
+        baseline_revision = int(baseline.get("revision"))
+        application_revision = int(application.get("revision"))
+        rollback_revision = int(rollback.get("revision"))
+    except (TypeError, ValueError):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-revision-invalid")
+    baseline_sha256 = _hex_digest(baseline.get("state_sha256"))
+    restored_sha256 = _hex_digest(rollback.get("state_sha256"))
+    if (
+        not isinstance(baseline.get("safe_layout"), bool)
+        or not isinstance(baseline.get("adaptation_locked"), bool)
+        or baseline_revision < 0
+        or not baseline_sha256
+        or proposal.get("field") != "safe_layout"
+        or proposal.get("from") is not baseline.get("safe_layout")
+        or not isinstance(proposal.get("to"), bool)
+        or proposal.get("to") is baseline.get("safe_layout")
+        or trial.get("stale_revision_rejected") is not True
+        or application.get("verified") is not True
+        or application_revision != baseline_revision + 1
+        or application.get("safe_layout") is not proposal.get("to")
+        or application.get("adaptation_locked") is not baseline.get("adaptation_locked")
+        or rollback.get("verified") is not True
+        or rollback_revision != baseline_revision + 2
+        or rollback.get("safe_layout") is not baseline.get("safe_layout")
+        or rollback.get("adaptation_locked") is not baseline.get("adaptation_locked")
+        or restored_sha256 != baseline_sha256
+        or trial.get("revision_monotonic") is not True
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-proof-invalid")
+
+    interface = evidence.get("interface")
+    raw_constants = interface.get("human_constants") if isinstance(interface, Mapping) else None
+    if (
+        not isinstance(interface, Mapping)
+        or not isinstance(raw_constants, list)
+        or frozenset(str(item) for item in raw_constants) != GUI_HUMAN_CONSTANTS
+        or interface.get("safe_layout_available") is not True
+        or interface.get("adaptation_lock_available") is not True
+        or interface.get("proof_view_present") is not True
+        or interface.get("preference_path")
+        != "/opt/boxbrain/codelation/state/interface/gui_preferences.json"
+        or interface.get("user_content_captured") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-interface-invalid")
+
+    transport = evidence.get("transport")
+    if (
+        not isinstance(transport, Mapping)
+        or transport.get("strict_host_key_checking") is not True
+        or transport.get("dedicated_identity") is not True
+        or transport.get("usb_route") != USB_SSH_ROUTE
+        or transport.get("windows_endpoint_loopback") is not True
+        or transport.get("pi_endpoint_loopback") is not True
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-transport-invalid")
+    safety = evidence.get("safety")
+    if (
+        not isinstance(safety, Mapping)
+        or safety.get("packages_installed") is not False
+        or safety.get("persistent_service_enabled") is not False
+        or safety.get("dialogue_generated") is not False
+        or safety.get("api_key_persisted") is not False
+        or safety.get("raw_disk_changed") is not False
+        or safety.get("firmware_changed") is not False
+        or safety.get("bootloader_changed") is not False
+        or safety.get("host_actuation") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-safety-invalid")
+
+    permission = evidence.get("permission")
+    authorization_reference = (
+        _bounded_text(permission.get("authorization_reference"), 128)
+        if isinstance(permission, Mapping)
+        else ""
+    )
+    if (
+        not isinstance(permission, Mapping)
+        or permission.get("present") is not True
+        or permission.get("scope") != GUI_PREFERENCE_TRIAL_PERMISSION_SCOPE
+        or not authorization_reference
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-permission-invalid")
+    proof_view = evidence.get("proof_view")
+    if (
+        not isinstance(proof_view, Mapping)
+        or proof_view.get("present") is not True
+        or _hex_digest(proof_view.get("baseline_state_sha256")) != baseline_sha256
+        or _hex_digest(proof_view.get("restored_state_sha256")) != restored_sha256
+        or proof_view.get("user_content_captured") is not False
+    ):
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-proof-view-invalid")
+    if evidence.get("authority_granted") is not False:
+        return ExternalEvidenceApplication(spec, False, "gui-preference-trial-authority-invalid")
+
+    invocation = {name: "yes" for name in spec.parameters}
+    applied_spec = replace(spec, invocation_arguments=invocation)
+    trace = {
+        "schema": GUI_PREFERENCE_TRIAL_EVIDENCE_SCHEMA,
+        "kind": GUI_PREFERENCE_TRIAL_EVIDENCE_KIND,
+        "source": GUI_PREFERENCE_TRIAL_EVIDENCE_SOURCE,
+        "node_id": node_id,
+        "route": route,
+        "ssh_host_key_fingerprint": host_key,
+        "observed_at": observed_at,
+        "expires_at": expires_at,
+        "module_sha256": module_sha256,
+        "status_sha256": status_sha256,
+        "gui_schema": "aurum.gui.v2",
+        "preference_schema": "aurum.gui.preferences.v1",
+        "baseline_revision": baseline_revision,
+        "restored_revision": rollback_revision,
+        "baseline_state_sha256": baseline_sha256,
+        "restored_state_sha256": restored_sha256,
+        "revision_guard_verified": True,
+        "apply_verified": True,
+        "rollback_verified": True,
+        "safe_layout_available": True,
+        "adaptation_lock_available": True,
+        "proof_view_present": True,
+        "permission_scope": GUI_PREFERENCE_TRIAL_PERMISSION_SCOPE,
+        "authorization_reference": authorization_reference,
+        "user_content_captured": False,
+        "authority_granted": False,
+    }
+    return ExternalEvidenceApplication(
+        applied_spec,
+        True,
+        "bounded-bbpi4-gui-preference-live-trial",
+        trace,
+    )
+
+
 def apply_external_prerequisite_evidence_from_file(
     spec: NativeSemanticGap,
     *,
@@ -915,9 +1129,19 @@ def apply_external_prerequisite_evidence_from_file(
     iteration_observation_path: Path = ITERATION_OBSERVATION_EVIDENCE_PATH,
     gui_capability_path: Path = GUI_CAPABILITY_EVIDENCE_PATH,
     gui_live_trial_path: Path = GUI_LIVE_TRIAL_EVIDENCE_PATH,
+    gui_preference_trial_path: Path = GUI_PREFERENCE_TRIAL_EVIDENCE_PATH,
     console_deployment_path: Path = CONSOLE_DEPLOYMENT_EVIDENCE_PATH,
     now: int | None = None,
 ) -> ExternalEvidenceApplication:
+    if spec.name == "adaptive_shell_gui_preference_live_trial":
+        raw, reason = _read_evidence(gui_preference_trial_path)
+        if raw is None:
+            return ExternalEvidenceApplication(spec, False, f"gui-preference-trial-{reason}")
+        return apply_adaptive_shell_gui_preference_live_trial_evidence(
+            spec,
+            raw,
+            now=now,
+        )
     if spec.name == "adaptive_shell_gui_live_trial":
         raw, reason = _read_evidence(gui_live_trial_path)
         if raw is None:
@@ -1011,6 +1235,11 @@ __all__ = [
     "GUI_LIVE_TRIAL_EVIDENCE_SCHEMA",
     "GUI_LIVE_TRIAL_EVIDENCE_SOURCE",
     "GUI_LIVE_TRIAL_PERMISSION_SCOPE",
+    "GUI_PREFERENCE_TRIAL_EVIDENCE_KIND",
+    "GUI_PREFERENCE_TRIAL_EVIDENCE_PATH",
+    "GUI_PREFERENCE_TRIAL_EVIDENCE_SCHEMA",
+    "GUI_PREFERENCE_TRIAL_EVIDENCE_SOURCE",
+    "GUI_PREFERENCE_TRIAL_PERMISSION_SCOPE",
     "ITERATION_OBSERVATION_EVIDENCE_KIND",
     "ITERATION_OBSERVATION_EVIDENCE_PATH",
     "ITERATION_OBSERVATION_EVIDENCE_SCHEMA",
@@ -1031,6 +1260,7 @@ __all__ = [
     "apply_adaptive_shell_iteration_observation_readiness_evidence",
     "apply_adaptive_shell_iteration_observation_evidence",
     "apply_adaptive_shell_gui_live_trial_evidence",
+    "apply_adaptive_shell_gui_preference_live_trial_evidence",
     "apply_external_prerequisite_evidence",
     "apply_external_prerequisite_evidence_from_file",
 ]

@@ -119,8 +119,18 @@ powershell -ExecutionPolicy Bypass -File .\installer\open-aurum-gui.ps1
 
 The GUI server runs on Pi loopback only as a transient unit and is reached
 through a Windows-loopback SSH forward with the dedicated key and strict
-host-key checking. It does not install packages or enable a boot service. Stop
-the runtime without removing the reviewed files or Aurum mind:
+host-key checking. Safe Layout and Adaptation Lock are revisioned, reject stale
+updates, and retain only content-free preference evidence. Validate an apply
+and exact rollback with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-preference-live-trial.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+```
+
+The GUI does not install packages or enable a boot service. Stop the runtime
+without removing the reviewed files or Aurum mind:
 
 ```powershell
 ssh -i $HOME\.ssh\boxbrain_pi_ed25519 `
