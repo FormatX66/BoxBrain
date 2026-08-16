@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
-from context_exchange import advance_context_state, parse_context_state
+FIELD_DIR = Path(__file__).resolve().parents[1] / "field"
+if str(FIELD_DIR) not in sys.path:
+    sys.path.insert(0, str(FIELD_DIR))
+
+from context_exchange import advance_context_state, parse_context_state  # noqa: E402
 
 MAX_PRIOR_TURNS = 6
 MAX_TURN_CHARS = 12_000
@@ -69,6 +75,10 @@ class BoundedContextSession:
     @property
     def semantic_context_lost(self) -> bool:
         return self._semantic_context_lost
+
+    @property
+    def sequence(self) -> int:
+        return self._sequence
 
     @property
     def retained_turns(self) -> tuple[SemanticTurn, ...]:
