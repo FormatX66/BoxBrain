@@ -23,6 +23,9 @@ $scp = (Get-Command scp.exe -CommandType Application -ErrorAction Stop).Source
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $sources = @(
     (Join-Path $repositoryRoot "Projects\Codelation\seed\aurum_gui.py"),
+    (Join-Path $repositoryRoot "Projects\Codelation\seed\aurum_gui_context.py"),
+    (Join-Path $repositoryRoot "Projects\Codelation\seed\aurum_context.py"),
+    (Join-Path $repositoryRoot "Projects\Codelation\field\context_exchange.py"),
     (Join-Path $PSScriptRoot "aurum-gui.sh"),
     (Join-Path $PSScriptRoot "install-aurum-gui-on-pi.sh"),
     (Join-Path $PSScriptRoot "start-aurum-gui-on-pi.sh"),
@@ -79,14 +82,19 @@ try {
         throw "The Aurum GUI installer failed. No package installation was attempted."
     }
 
-    $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sources[0]).Hash.ToLowerInvariant()
-    $remoteHash = (& $ssh @options $target "sha256sum /opt/boxbrain/codelation/seed/aurum_gui.py | awk '{print `$1}'").Trim()
-    if ($LASTEXITCODE -ne 0 -or $remoteHash -ne $localHash) {
-        throw "The installed Aurum GUI module hash did not match the reviewed candidate."
+    $localHash = $null
+    foreach ($moduleSource in @($sources | Where-Object { [IO.Path]::GetExtension($_) -eq ".py" })) {
+        $moduleName = Split-Path -Leaf $moduleSource
+        $moduleHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $moduleSource).Hash.ToLowerInvariant()
+        $remoteHash = (& $ssh @options $target "sha256sum '/opt/boxbrain/codelation/seed/$moduleName' | awk '{print `$1}'").Trim()
+        if ($LASTEXITCODE -ne 0 -or $remoteHash -ne $moduleHash) {
+            throw "The installed Aurum GUI runtime hash did not match the reviewed candidate: $moduleName"
+        }
+        if ($moduleName -eq "aurum_gui.py") { $localHash = $moduleHash }
     }
 }
 finally {
-    & $ssh @options $target "rm -f -- '$remoteRoot/aurum_gui.py' '$remoteRoot/aurum-gui.sh' '$remoteRoot/install-aurum-gui-on-pi.sh' '$remoteRoot/start-aurum-gui-on-pi.sh' '$remoteRoot/stop-aurum-gui-on-pi.sh'; rmdir -- '$remoteRoot' 2>/dev/null || true" 2>$null
+    & $ssh @options $target "rm -f -- '$remoteRoot/aurum_gui.py' '$remoteRoot/aurum_gui_context.py' '$remoteRoot/aurum_context.py' '$remoteRoot/context_exchange.py' '$remoteRoot/aurum-gui.sh' '$remoteRoot/install-aurum-gui-on-pi.sh' '$remoteRoot/start-aurum-gui-on-pi.sh' '$remoteRoot/stop-aurum-gui-on-pi.sh'; rmdir -- '$remoteRoot' 2>/dev/null || true" 2>$null
     $resolvedStage = [IO.Path]::GetFullPath($localStage)
     if ($resolvedStage.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
         Remove-Item -LiteralPath $resolvedStage -Recurse -Force -ErrorAction SilentlyContinue

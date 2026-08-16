@@ -90,6 +90,28 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertFalse(verified.authority_granted)
         self.assertFalse(verified.routed_to_host)
 
+        forward_compatible = copy.deepcopy(evidence)
+        forward_compatible["candidate"]["gui_schema"] = "aurum.gui.v3"
+        forward_compatible["runtime"]["status_schema"] = "aurum.gui.v3"
+        upgraded = apply_adaptive_shell_gui_live_trial_evidence(
+            spec,
+            forward_compatible,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertTrue(upgraded.applied)
+        self.assertEqual(upgraded.evidence["gui_schema"], "aurum.gui.v3")
+
+        unknown_schema = copy.deepcopy(evidence)
+        unknown_schema["candidate"]["gui_schema"] = "aurum.gui.v4"
+        unknown_schema["runtime"]["status_schema"] = "aurum.gui.v4"
+        rejected_schema = apply_adaptive_shell_gui_live_trial_evidence(
+            spec,
+            unknown_schema,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertFalse(rejected_schema.applied)
+        self.assertEqual(rejected_schema.reason, "gui-live-trial-candidate-invalid")
+
         unsafe = copy.deepcopy(evidence)
         unsafe["safety"]["persistent_service_enabled"] = True
         rejected = apply_adaptive_shell_gui_live_trial_evidence(
@@ -212,9 +234,19 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertNotIn("Write-Output $apiKey", launch)
         self.assertIn('Replace("`r`n", "`n")', setup)
         self.assertIn("aurum-gui-transfer-", setup)
+        for module in (
+            "aurum_gui.py",
+            "aurum_gui_context.py",
+            "aurum_context.py",
+            "context_exchange.py",
+        ):
+            self.assertIn(module, setup)
+            self.assertIn(module, install)
         self.assertIn("systemd-run", start)
         self.assertIn("--collect", start)
         self.assertIn("--property=Restart=no", start)
+        self.assertIn("probe.bind((host, port))", start)
+        self.assertIn("errno.EADDRINUSE", start)
         self.assertNotIn("systemctl enable", start)
         self.assertNotIn("apt install", start + install)
         self.assertNotIn("apt-get", start + install)

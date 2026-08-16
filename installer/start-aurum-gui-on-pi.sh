@@ -48,6 +48,30 @@ gui_home=$(getent passwd "$gui_user" | cut -d: -f6)
 runtime_directory="/run/user/$gui_uid"
 install -d -o "$gui_user" -g "$gui_gid" -m 0700 "$runtime_directory"
 
+# A recently stopped server can leave the loopback socket unavailable briefly
+# even after its listener disappears. Probe the exact fail-closed bind before
+# creating the transient unit so a restart cannot race the kernel socket hold.
+python3 - "$gui_address" "$gui_port" <<'PY'
+import errno
+import socket
+import sys
+import time
+
+host, port = sys.argv[1], int(sys.argv[2])
+deadline = time.monotonic() + 45
+while True:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.bind((host, port))
+        break
+    except OSError as error:
+        if error.errno != errno.EADDRINUSE or time.monotonic() >= deadline:
+            raise
+        time.sleep(0.25)
+    finally:
+        probe.close()
+PY
+
 systemd-run \
     --unit="$gui_unit" \
     --collect \

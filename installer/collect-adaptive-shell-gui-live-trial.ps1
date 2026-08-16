@@ -64,6 +64,8 @@ $moduleHash = (Invoke-GuiTrial -Command "sha256sum /opt/boxbrain/codelation/seed
 $selfStatus = (Invoke-GuiTrial -Command '/usr/local/bin/aurum-gui --host 127.0.0.1 --port 8765 --status').Output | ConvertFrom-Json
 $apiStatusText = (Invoke-GuiTrial -Command "curl --fail --silent --show-error --max-time 4 -H 'Host: 127.0.0.1:8765' http://127.0.0.1:8765/api/status").Output
 $apiStatus = $apiStatusText | ConvertFrom-Json
+$guiSchema = [string]$apiStatus.schema
+$compatibleGuiSchemas = @('aurum.gui.v1', 'aurum.gui.v2', 'aurum.gui.v3')
 $pageHash = (Invoke-GuiTrial -Command "curl --fail --silent --show-error --max-time 4 -H 'Host: 127.0.0.1:8765' http://127.0.0.1:8765/ | sha256sum | awk '{print `$1}'").Output
 $statusHash = (Invoke-GuiTrial -Command "curl --fail --silent --show-error --max-time 4 -H 'Host: 127.0.0.1:8765' http://127.0.0.1:8765/api/status | sha256sum | awk '{print `$1}'").Output
 $headers = (Invoke-GuiTrial -Command "curl --fail --silent --show-error --max-time 4 -D - -o /dev/null -H 'Host: 127.0.0.1:8765' http://127.0.0.1:8765/").Output
@@ -74,10 +76,10 @@ $listener = (Invoke-GuiTrial -Command "ss -ltnH 'sport = :8765'").Output
 if (
     [string]$deployment.schema -ne 'aurum-bbpi4-console-evidence-v1' -or
     [string]$deployment.node_id -ne [string]$node.node_id -or
-    $start -notmatch '^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$' -or
+    $start -notmatch '(?m)^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$' -or
     $moduleHash -ne $expectedModuleHash -or
-    [string]$selfStatus.gui_schema -ne 'aurum.gui.v1' -or
-    [string]$apiStatus.schema -ne 'aurum.gui.v1' -or
+    $compatibleGuiSchemas -notcontains $guiSchema -or
+    [string]$selfStatus.gui_schema -ne $guiSchema -or
     [string]$apiStatus.console.identity -ne 'BBPI4/Aurum' -or
     $apiStatus.authority.host_actuation -ne $false -or
     $apiStatus.authority.api_key_persisted -ne $false -or
@@ -109,7 +111,7 @@ $evidence = [ordered]@{
     candidate = [ordered]@{
         module = "/opt/boxbrain/codelation/seed/aurum_gui.py"
         module_sha256 = $moduleHash
-        gui_schema = "aurum.gui.v1"
+        gui_schema = $guiSchema
         tests_passed = $true
     }
     runtime = [ordered]@{
@@ -123,7 +125,7 @@ $evidence = [ordered]@{
         content_type = "text/html; charset=utf-8"
         page_sha256 = $pageHash
         status_sha256 = $statusHash
-        status_schema = "aurum.gui.v1"
+        status_schema = $guiSchema
         console_identity = "BBPI4/Aurum"
         mind_version = [int]$apiStatus.console.mind_version
         mind_sha256 = [string]$apiStatus.console.mind_sha256
