@@ -15,6 +15,6 @@
   "next_gap": "adaptive_shell_gui_context_surface_integration",
   "purpose": "Wire the verified bounded semantic context session into the actual GUI request path. This gate does not pass merely because a context session exists: the GUI must route repeated requests through a per-surface context identity, use prior bounded turns on later reasoning calls, and explicitly surface semantic continuity loss after restart instead of silently pretending memory survived.",
   "principles": ["capability existence is distinct from surface integration", "each GUI exchange context is explicitly scoped", "prior semantic turns affect subsequent reasoning only within the same context", "restart continuity loss is visible", "credentials remain call-local", "no host authority is introduced"],
-  "constraints": ["deterministic-gate", "gui-surface", "bounded-context", "context-isolated", "restart-loss-visible", "no-credential-persistence", "no-host-authority", "fail-closed"],
-  "max_synthesis_cost": 16
+  "constraints": ["classification-only", "deterministic-gate", "gui-surface", "bounded-context", "context-isolated", "restart-loss-visible", "no-credential-persistence", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 4
 }
