@@ -163,6 +163,22 @@ jobs:
             exit 0
           fi
 
+          state_path='Projects/Codelation/autobuild/native_chain_state.json'
+          current_sha="$(git rev-parse HEAD)"
+          next_gap=''
+          blocked_output=''
+          if [ -f "$state_path" ]; then
+            next_gap="$(jq -r '.next_gap // ""' "$state_path")"
+            blocked_output="$(jq -r '.blocked_output // ""' "$state_path")"
+          fi
+          if { [ "$next_gap" = 'adaptive_shell_gui_context_virtual_convergence' ] || \
+               [ "$blocked_output" = 'blocked-same-commit-virtual-lab-verified' ]; } && \
+             [ "$last_success" != "$current_sha" ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_LAB native-state-requires-same-commit-proof'
+            exit 0
+          fi
+
           relevant=(
             '.github/workflows/aurum-virtual-lab.yml'
             'Projects/AurumVirtualLab'
@@ -170,13 +186,14 @@ jobs:
             'Projects/AurumPi3'
             'Projects/Codelation'
             '.github/workflows/aurum-autobuild.yml'
+            ':(exclude)Projects/Codelation/autobuild/native_chain_state.json'
           )
           if git diff --quiet "$last_success"..HEAD -- "${relevant[@]}"; then
             echo 'run=false' >> "$GITHUB_OUTPUT"
-            echo 'AURUM_CONTINUOUS_LAB current-relevant-state-already-converged'
+            echo 'AURUM_CONTINUOUS_LAB current-runtime-relevant-state-already-converged'
           else
             echo 'run=true' >> "$GITHUB_OUTPUT"
-            echo 'AURUM_CONTINUOUS_LAB relevant-state-changed'
+            echo 'AURUM_CONTINUOUS_LAB runtime-relevant-state-changed'
           fi
 
       - name: Dispatch virtual hardware convergence
