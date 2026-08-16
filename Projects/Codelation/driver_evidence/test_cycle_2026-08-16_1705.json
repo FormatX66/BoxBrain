@@ -1,0 +1,15 @@
+{
+  "kind": "aurum_driver_synthesis_retest_request",
+  "requested_at": "2026-08-16T17:05:00-04:00",
+  "target": "aurum/trunk-v0.01",
+  "scope": [
+    "driver synthesis unit contracts",
+    "TL16C550D evidence reconciliation",
+    "abstract program synthesis and replay",
+    "virtual logical register execution",
+    "QEMU UART differential parity"
+  ],
+  "physical_hardware": false,
+  "actuation": false,
+  "purpose": "Continue driver capability validation while physical x86 test PC is being prepared."
+}
