@@ -8,6 +8,6 @@ if [ "$root" != "/opt/boxbrain/codelation" ]; then
 fi
 
 exec /usr/bin/python3 \
-    /opt/boxbrain/codelation/seed/aurum_gui.py \
+    /opt/boxbrain/codelation/seed/aurum_gui_context.py \
     --root "$root" \
     "$@"
