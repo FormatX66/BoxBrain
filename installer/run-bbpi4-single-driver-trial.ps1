@@ -50,6 +50,7 @@ $candidates = @(
 )
 
 $selected = $null
+$selectedHostLine = $null
 foreach ($candidate in $candidates) {
     $reachable = $false
     try {
@@ -59,42 +60,47 @@ foreach ($candidate in $candidates) {
         $reachable = $false
     }
     Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) tcp22=$reachable"
-    if ($null -eq $selected -and $reachable) {
-        $selected = $candidate
-    }
-}
-if ($null -eq $selected) {
-    throw 'No approved BBPI4 SSH route is reachable.'
-}
+    if (-not $reachable) { continue }
 
-$scan = Invoke-NativeCaptured -FilePath $keyscan -Arguments @('-T','4','-t','ed25519',$selected.Address)
-$hostLines = @($scan.Output | Where-Object {
-    -not [string]::IsNullOrWhiteSpace([string]$_) -and -not ([string]$_).StartsWith('#')
-})
-if ($scan.ExitCode -ne 0 -or $hostLines.Count -eq 0) {
-    throw 'BBPI4 did not publish an ED25519 SSH host key.'
-}
-
-$tempKey = Join-Path $env:TEMP ('bbpi4-single-driver-hostkey-' + [Guid]::NewGuid().ToString('N'))
-try {
-    [IO.File]::WriteAllLines($tempKey, @([string]$hostLines[0]), [Text.Encoding]::ASCII)
-    $fingerprint = Invoke-NativeCaptured -FilePath $keygen -Arguments @('-lf',$tempKey,'-E','sha256')
-    $match = [regex]::Match(($fingerprint.Output -join ' '), 'SHA256:[A-Za-z0-9+/=]+')
-    if (-not $match.Success -or $match.Value -ne $ExpectedHostKeyFingerprint) {
-        throw "BBPI4 SSH host-key fingerprint mismatch. Observed=$($match.Value)"
+    $scan = Invoke-NativeCaptured -FilePath $keyscan -Arguments @('-T','4','-t','ed25519',$candidate.Address)
+    $hostLines = @($scan.Output | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_) -and -not ([string]$_).StartsWith('#')
+    })
+    if ($scan.ExitCode -ne 0 -or $hostLines.Count -eq 0) {
+        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) host_key=missing"
+        continue
     }
 
-    $sshDirectory = Join-Path $HOME '.ssh'
-    New-Item -ItemType Directory -Force -Path $sshDirectory | Out-Null
-    $knownHosts = Join-Path $sshDirectory 'known_hosts'
-    if (Test-Path -LiteralPath $knownHosts -PathType Leaf) {
-        Invoke-NativeCaptured -FilePath $keygen -Arguments @('-R',$selected.Address,'-f',$knownHosts) | Out-Null
+    $tempKey = Join-Path $env:TEMP ('bbpi4-single-driver-hostkey-' + [Guid]::NewGuid().ToString('N'))
+    try {
+        [IO.File]::WriteAllLines($tempKey, @([string]$hostLines[0]), [Text.Encoding]::ASCII)
+        $fingerprint = Invoke-NativeCaptured -FilePath $keygen -Arguments @('-lf',$tempKey,'-E','sha256')
+        $match = [regex]::Match(($fingerprint.Output -join ' '), 'SHA256:[A-Za-z0-9+/=]+')
+        $verified = $match.Success -and $match.Value -eq $ExpectedHostKeyFingerprint
+        $observed = if ($match.Success) { $match.Value } else { 'unreadable' }
+        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) fingerprint=$observed verified=$verified"
+        if ($null -eq $selected -and $verified) {
+            $selected = $candidate
+            $selectedHostLine = [string]$hostLines[0]
+        }
     }
-    [IO.File]::AppendAllLines($knownHosts, @([string]$hostLines[0]), [Text.Encoding]::ASCII)
+    finally {
+        Remove-Item -LiteralPath $tempKey -Force -ErrorAction SilentlyContinue
+    }
 }
-finally {
-    Remove-Item -LiteralPath $tempKey -Force -ErrorAction SilentlyContinue
+
+if ($null -eq $selected -or [string]::IsNullOrWhiteSpace($selectedHostLine)) {
+    throw 'No reachable route presented the approved BBPI4 ED25519 host key.'
 }
+
+$sshDirectory = Join-Path $HOME '.ssh'
+New-Item -ItemType Directory -Force -Path $sshDirectory | Out-Null
+$knownHosts = Join-Path $sshDirectory 'known_hosts'
+if (Test-Path -LiteralPath $knownHosts -PathType Leaf) {
+    Invoke-NativeCaptured -FilePath $keygen -Arguments @('-R',$selected.Address,'-f',$knownHosts) | Out-Null
+}
+[IO.File]::AppendAllLines($knownHosts, @($selectedHostLine), [Text.Encoding]::ASCII)
+Write-Host "AURUM_PI4_DRIVER_ROUTE_SELECTED route=$($selected.Route) address=$($selected.Address) host_key=verified"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $generator = Join-Path $repoRoot 'Projects\Codelation\pi4_driver_synthesizer.py'
