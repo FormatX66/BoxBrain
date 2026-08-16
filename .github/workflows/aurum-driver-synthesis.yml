@@ -12,12 +12,15 @@ on:
       - 'Projects/Codelation/driver_program_synthesis.py'
       - 'Projects/Codelation/driver_lowering_plan.py'
       - 'Projects/Codelation/driver_virtual_executor.py'
+      - 'Projects/Codelation/driver_qemu_uart_probe.py'
+      - 'Projects/Codelation/driver_emulator_parity.py'
       - 'Projects/Codelation/driver_evidence/**'
       - 'Projects/Codelation/tests/test_driver_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_transition_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_program_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_lowering_plan.py'
       - 'Projects/Codelation/tests/test_driver_virtual_executor.py'
+      - 'Projects/Codelation/tests/test_driver_emulator_parity.py'
 
 permissions:
   contents: read
@@ -29,7 +32,7 @@ concurrency:
 jobs:
   reconcile-and-synthesize:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check out Aurum trunk
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -42,7 +45,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Verify non-actuating driver synthesis contracts
+      - name: Verify driver synthesis contracts
         run: >-
           python3 -m unittest
           Projects.Codelation.tests.test_driver_synthesis
@@ -50,12 +53,26 @@ jobs:
           Projects.Codelation.tests.test_driver_program_synthesis
           Projects.Codelation.tests.test_driver_lowering_plan
           Projects.Codelation.tests.test_driver_virtual_executor
+          Projects.Codelation.tests.test_driver_emulator_parity
           -v
+
+      - name: Install QEMU emulator oracle
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-system-x86
+
+      - name: Run live QEMU UART differential proof
+        run: |
+          python3 Projects/Codelation/driver_qemu_uart_probe.py --output /tmp/aurum-qemu-uart-probe.json
+          python3 Projects/Codelation/driver_emulator_parity.py \
+            --probe /tmp/aurum-qemu-uart-probe.json \
+            --output /tmp/aurum-qemu-uart-parity.json
+          cat /tmp/aurum-qemu-uart-parity.json
 
       - name: Report safety boundary
         run: |
-          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay,abstract-program-synthesis,abstract-program-replay,verified-selector-bindings,non-executable-lowering-plan,virtual-logical-register-execution'
-          echo 'AURUM_DRIVER_SYNTHESIS trace_proof=consistency-only synthetic_or_emulated_not_physical=true'
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay,abstract-program-synthesis,abstract-program-replay,verified-selector-bindings,non-executable-lowering-plan,virtual-logical-register-execution,live-qemu-uart-differential-parity'
+          echo 'AURUM_DRIVER_SYNTHESIS proof=live-emulator-plus-static-independent-sources physical_hardware_proof=false'
           echo 'AURUM_DRIVER_SYNTHESIS transition_sources=independent-datasheet-plus-emulator provenance_preserved=true'
-          echo 'AURUM_DRIVER_SYNTHESIS program_mode=abstract-non-actuating lowering_mode=non-executable-plan execution_mode=in-memory-logical-registers-only branch_guessing=false'
-          echo 'AURUM_DRIVER_SYNTHESIS raw_addresses=false executable_hooks=false os_device_io=false physical_writes=false firmware_changes=false destructive_probe=false'
+          echo 'AURUM_DRIVER_SYNTHESIS program_mode=abstract-non-actuating lowering_mode=non-executable-plan execution_mode=in-memory-plus-qemu-emulator-only branch_guessing=false'
+          echo 'AURUM_DRIVER_SYNTHESIS raw_addresses_in_synthesized_plan=false executable_hooks=false host_device_io=false physical_writes=false firmware_changes=false destructive_probe=false'
