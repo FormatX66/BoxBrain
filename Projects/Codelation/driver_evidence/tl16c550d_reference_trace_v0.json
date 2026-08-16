@@ -1,0 +1,30 @@
+{
+  "schema": "aurum.driver.behavior-trace.v0",
+  "origin": "reference-derived-synthetic",
+  "actuating": false,
+  "physical_hardware_observation": false,
+  "model_identity": null,
+  "purpose": "Non-actuating consistency replay derived from the same public TI datasheet and Linux reference-driver evidence bundle. This is not independent physical proof and must not promote uncertain claims.",
+  "events": [
+    {
+      "step": 0,
+      "claim_key": "fifo.depth_bytes",
+      "observed_value": 16
+    },
+    {
+      "step": 1,
+      "claim_key": "divisor_latch.width_bits",
+      "observed_value": 16
+    },
+    {
+      "step": 2,
+      "claim_key": "line_status.data_ready.meaning",
+      "observed_value": "receive-data-available"
+    },
+    {
+      "step": 3,
+      "claim_key": "line_status.thre.meaning",
+      "observed_value": "transmit-holding-register-empty"
+    }
+  ]
+}
