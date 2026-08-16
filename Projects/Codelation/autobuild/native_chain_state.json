@@ -2134,7 +2134,7 @@
   "next_gap": "adaptive_shell_gui_semantic_context_integration",
   "reasoning_request": null,
   "reasoning_required": false,
-  "resumed_from_generations": 29,
+  "resumed_from_generations": 31,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
