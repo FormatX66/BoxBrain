@@ -1,0 +1,22 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_key_bootstrap_live_trial",
+  "parameters": ["planning_verified", "candidate_verified", "stage_verified", "single_consume_verified", "expiry_verified", "no_credential_evidence", "no_user_content_captured", "no_host_authority"],
+  "examples": [
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "aurum-gui-key-bootstrap-live-trial-passed"},
+    {"arguments": {"planning_verified": "no", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-planning-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "no", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-candidate-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "no", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-stage-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "no", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-single-consume-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "no", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-expiry-verified"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "no", "no_user_content_captured": "yes", "no_host_authority": "yes"}, "expected": "blocked-no-credential-evidence"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "no", "no_host_authority": "yes"}, "expected": "blocked-no-user-content-captured"},
+    {"arguments": {"planning_verified": "yes", "candidate_verified": "yes", "stage_verified": "yes", "single_consume_verified": "yes", "expiry_verified": "yes", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"planning_verified": "no", "candidate_verified": "no", "stage_verified": "no", "single_consume_verified": "no", "expiry_verified": "no", "no_credential_evidence": "yes", "no_user_content_captured": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_dialogue_readiness",
+  "purpose": "Classify a bounded BBPI4 trial of the one-time key bootstrap using a synthetic noncredential. The trial must prove staging, exactly one consumption, expiry behavior, and an unchanged persistence surface without observing a real API key or sending dialogue.",
+  "principles": ["real credential material is outside evidence", "the trial token is explicitly synthetic and noncredential", "the staged value is consumed once or expires", "the persistence surface remains unchanged", "no dialogue or host action is performed"],
+  "constraints": ["pure", "deterministic", "classification-only", "memory-only", "single-consume", "expiring", "no-credential-content", "no-dialogue-content", "no-api-key-persistence", "no-host-authority", "no-service-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}

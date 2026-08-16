@@ -109,6 +109,20 @@
       "goal": "Apply and restore one revisioned Safe Layout preference while rejecting stale writes and retaining content-free proof of the rollback.",
       "new_capability_class": "revisioned-reversible-gui-preference",
       "authority": "interface-preference-only"
+    },
+    {
+      "order": 16,
+      "gap": "adaptive_shell_gui_preference_iteration_planning",
+      "goal": "Plan a one-time, expiring Windows-to-page key bootstrap only after the reversible GUI preference trial, with credential material forbidden from evidence.",
+      "new_capability_class": "memory-only-key-bootstrap-planning",
+      "authority": "planning-only"
+    },
+    {
+      "order": 17,
+      "gap": "adaptive_shell_gui_key_bootstrap_live_trial",
+      "goal": "Verify one-time consumption and expiry with a synthetic noncredential while keeping the Pi persistence surface unchanged and sending no dialogue.",
+      "new_capability_class": "one-time-expiring-page-bootstrap",
+      "authority": "dialogue-readiness-only"
     }
   ],
   "promotion_gates": [

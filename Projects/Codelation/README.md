@@ -208,6 +208,26 @@ powershell -ExecutionPolicy Bypass -File `
 This trial never sends dialogue text, stores an API key, installs packages,
 enables a boot service, or grants Aurum host-control authority.
 
+The Windows launcher can load `OPENAI_API_KEY` from the current process or an
+ignored `.env.local` file. It stages the value through the existing loopback
+SSH tunnel for at most 60 seconds; the open page consumes it exactly once and
+the Pi immediately forgets it. The key never enters a URL, log, Aurum state,
+evidence record, or Git file. A custom confirmed env-file path can be supplied:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\open-aurum-gui.ps1 `
+  -OpenAiEnvFile <confirmed-local-env-file>
+```
+
+The content-free physical trial uses only synthetic noncredentials and sends
+no dialogue:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-key-bootstrap-live-trial.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+```
+
 ## BBPI4 access-point route
 
 An authorized Windows computer that has previously joined BBPI4's own Wi-Fi AP

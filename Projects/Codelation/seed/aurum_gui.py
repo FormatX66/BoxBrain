@@ -3,8 +3,9 @@
 
 The browser surface is deliberately dependency-free and inherits the same
 bounded dialogue supervisor as ``aurum_console``.  It has no shell, tools, or
-host-actuation endpoint.  An API key is accepted only in a request body and is
-never written by this module.
+host-actuation endpoint.  An API key may be staged through the loopback tunnel
+for one page to consume, or accepted in a dialogue request body.  It is never
+written by this module.
 """
 
 from __future__ import annotations
@@ -27,13 +28,15 @@ from aurum_console import CONSOLE_SCHEMA, DEFAULT_ROOT, console_status
 from aurum_dialogue import DEFAULT_MODEL, Reasoner, ask, call_openai_reasoner
 
 
-GUI_SCHEMA = "aurum.gui.v2"
+GUI_SCHEMA = "aurum.gui.v3"
 PREFERENCES_SCHEMA = "aurum.gui.preferences.v1"
 PREFERENCE_EVIDENCE_SCHEMA = "aurum.gui.preference.evidence.v1"
+KEY_BOOTSTRAP_SCHEMA = "aurum.gui.key-bootstrap.v1"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 MAX_REQUEST_BYTES = 16_384
 MAX_API_KEY_CHARS = 512
+KEY_BOOTSTRAP_TTL_SECONDS = 60
 MAX_MODEL_CHARS = 128
 MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]", "::1"})
@@ -432,7 +435,7 @@ PAGE = r"""<!doctype html>
         <input id="apiKey" class="key-field" type="password" maxlength="512" autocomplete="off" spellcheck="false" aria-label="OpenAI API key" placeholder="OpenAI API key · memory only">
         <button id="send" class="send" type="submit">Send to Aurum</button>
       </div>
-      <p class="privacy">The key stays only in this open page and request memory. Aurum receives no shell or host-control capability.</p>
+      <p class="privacy"><span id="keyState">Key not loaded.</span> The key stays only in this open page and request memory. Aurum receives no shell or host-control capability.</p>
     </form>
   </main>
 
@@ -536,6 +539,27 @@ PAGE = r"""<!doctype html>
     }
   }
 
+  async function consumeKeyBootstrap() {
+    if (apiKey.value) return;
+    try {
+      const response = await fetch('/api/key-bootstrap', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-Aurum-CSRF': csrf},
+        body: JSON.stringify({action: 'consume'})
+      });
+      const data = await response.json();
+      if (!response.ok || !data.available) return;
+      if (typeof data.api_key !== 'string' || !data.api_key.startsWith('sk-')) return;
+      apiKey.value = data.api_key;
+      data.api_key = '';
+      apiKey.placeholder = 'OpenAI API key · loaded in page memory';
+      document.getElementById('keyState').textContent = 'Key loaded in page memory.';
+      addMessage('aurum', 'OpenAI access is loaded for this page. No dialogue request has been sent.');
+    } catch (_) {
+      // Keep the GUI available and continue bounded polling on transient errors.
+    }
+  }
+
   document.getElementById('composer').addEventListener('submit', async (event) => {
     event.preventDefault();
     const text = prompt.value.trim();
@@ -603,6 +627,8 @@ PAGE = r"""<!doctype html>
     }
   });
   refreshStatus();
+  consumeKeyBootstrap();
+  setInterval(consumeKeyBootstrap, 1500);
 </script>
 </body>
 </html>
@@ -628,6 +654,58 @@ class AurumGuiServer(ThreadingHTTPServer):
         self.aurum_reasoner = reasoner
         self.csrf_token = secrets.token_urlsafe(32)
         self.preference_lock = threading.Lock()
+        self.key_bootstrap_lock = threading.Lock()
+        self._key_bootstrap_value: str | None = None
+        self._key_bootstrap_generation = 0
+        self._key_bootstrap_expires_at = 0.0
+
+    def stage_key_bootstrap(self, api_key: str) -> None:
+        with self.key_bootstrap_lock:
+            self._key_bootstrap_generation += 1
+            generation = self._key_bootstrap_generation
+            self._key_bootstrap_value = api_key
+            self._key_bootstrap_expires_at = time.monotonic() + KEY_BOOTSTRAP_TTL_SECONDS
+        timer = threading.Timer(
+            KEY_BOOTSTRAP_TTL_SECONDS,
+            self._expire_key_bootstrap,
+            args=(generation,),
+        )
+        timer.daemon = True
+        timer.start()
+
+    def _expire_key_bootstrap(self, generation: int) -> None:
+        with self.key_bootstrap_lock:
+            if generation == self._key_bootstrap_generation:
+                self._key_bootstrap_value = None
+                self._key_bootstrap_expires_at = 0.0
+
+    def consume_key_bootstrap(self) -> str | None:
+        with self.key_bootstrap_lock:
+            if (
+                self._key_bootstrap_value is None
+                or time.monotonic() >= self._key_bootstrap_expires_at
+            ):
+                self._key_bootstrap_value = None
+                self._key_bootstrap_expires_at = 0.0
+                return None
+            api_key = self._key_bootstrap_value
+            self._key_bootstrap_value = None
+            self._key_bootstrap_expires_at = 0.0
+            return api_key
+
+    def key_bootstrap_pending(self) -> bool:
+        with self.key_bootstrap_lock:
+            if time.monotonic() >= self._key_bootstrap_expires_at:
+                self._key_bootstrap_value = None
+                self._key_bootstrap_expires_at = 0.0
+            return self._key_bootstrap_value is not None
+
+    def server_close(self) -> None:
+        with self.key_bootstrap_lock:
+            self._key_bootstrap_generation += 1
+            self._key_bootstrap_value = None
+            self._key_bootstrap_expires_at = 0.0
+        super().server_close()
 
 
 class AurumGuiHandler(BaseHTTPRequestHandler):
@@ -734,6 +812,13 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
                 "loopback_only": True,
                 "ssh_tunnel_required": True,
             },
+            "key_bootstrap": {
+                "schema": KEY_BOOTSTRAP_SCHEMA,
+                "memory_only": True,
+                "pending": self.server.key_bootstrap_pending(),
+                "ttl_seconds": KEY_BOOTSTRAP_TTL_SECONDS,
+                "api_key_returned": False,
+            },
             "authority": {
                 "dialogue_only": True,
                 "host_actuation": False,
@@ -778,7 +863,7 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.FORBIDDEN, "request proof invalid")
             return
         request_path = urlsplit(self.path).path
-        if request_path not in {"/api/ask", "/api/preferences"}:
+        if request_path not in {"/api/ask", "/api/preferences", "/api/key-bootstrap"}:
             self._error(HTTPStatus.NOT_FOUND, "not found")
             return
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
@@ -796,6 +881,51 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             self._error(HTTPStatus.BAD_REQUEST, "invalid JSON")
+            return
+        if request_path == "/api/key-bootstrap":
+            if not isinstance(payload, dict):
+                self._error(HTTPStatus.BAD_REQUEST, "key bootstrap fields invalid")
+                return
+            action = payload.get("action")
+            if action == "stage" and set(payload) == {"action", "api_key"}:
+                api_key = payload.get("api_key")
+                if (
+                    not isinstance(api_key, str)
+                    or not api_key.startswith("sk-")
+                    or not 20 <= len(api_key) <= MAX_API_KEY_CHARS
+                    or any(character.isspace() for character in api_key)
+                ):
+                    self._error(HTTPStatus.BAD_REQUEST, "key bootstrap value invalid")
+                    return
+                self.server.stage_key_bootstrap(api_key)
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "schema": KEY_BOOTSTRAP_SCHEMA,
+                        "staged": True,
+                        "memory_only": True,
+                        "expires_in_seconds": KEY_BOOTSTRAP_TTL_SECONDS,
+                        "api_key_persisted": False,
+                        "user_content_captured": False,
+                        "host_actuation": False,
+                    },
+                )
+                return
+            if action == "consume" and set(payload) == {"action"}:
+                api_key = self.server.consume_key_bootstrap()
+                response: dict[str, Any] = {
+                    "schema": KEY_BOOTSTRAP_SCHEMA,
+                    "available": api_key is not None,
+                    "memory_only": True,
+                    "api_key_persisted": False,
+                    "user_content_captured": False,
+                    "host_actuation": False,
+                }
+                if api_key is not None:
+                    response["api_key"] = api_key
+                self._json(HTTPStatus.OK, response)
+                return
+            self._error(HTTPStatus.BAD_REQUEST, "key bootstrap action invalid")
             return
         if request_path == "/api/preferences":
             if not isinstance(payload, dict) or set(payload) != {
@@ -932,6 +1062,8 @@ def main() -> int:
                 "adaptation_lock_available": True,
                 "preferences": preferences,
                 "proof_view_present": True,
+                "key_bootstrap_schema": KEY_BOOTSTRAP_SCHEMA,
+                "key_bootstrap_memory_only": True,
             }
         )
         print(json.dumps(payload, sort_keys=True))

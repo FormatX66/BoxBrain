@@ -13,6 +13,7 @@ FIELD = CODELATION / "field"
 sys.path.insert(0, str(FIELD))
 
 from external_prerequisite_evidence import (
+    apply_adaptive_shell_gui_key_bootstrap_live_trial_evidence,
     apply_adaptive_shell_gui_live_trial_evidence,
     apply_adaptive_shell_gui_preference_live_trial_evidence,
     apply_adaptive_shell_iteration_observation_evidence,
@@ -147,6 +148,51 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertFalse(rejected.applied)
         self.assertEqual(rejected.reason, "gui-preference-trial-proof-invalid")
 
+    def test_key_bootstrap_trial_is_one_time_expiring_and_content_free(self) -> None:
+        spec = get_native_semantic_gap("adaptive_shell_gui_key_bootstrap_live_trial")
+        self.assertIsNotNone(spec)
+        evidence = json.loads(
+            (EVIDENCE / "adaptive_shell_gui_key_bootstrap_live_trial.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        applied = apply_adaptive_shell_gui_key_bootstrap_live_trial_evidence(
+            spec,
+            evidence,
+            now=int(evidence["observed_at"]) + 1,
+        )
+
+        self.assertTrue(applied.applied)
+        self.assertEqual(applied.reason, "bounded-bbpi4-gui-key-bootstrap-live-trial")
+        self.assertTrue(applied.evidence["single_consume_verified"])
+        self.assertTrue(applied.evidence["expiry_verified"])
+        self.assertTrue(applied.evidence["synthetic_noncredential"])
+        self.assertFalse(applied.evidence["actual_api_key_observed"])
+        self.assertFalse(applied.evidence["credential_content_captured"])
+        self.assertFalse(applied.evidence["authority_granted"])
+        verified = verify_local_capability_for_gap(
+            applied.spec,
+            "required-condition-classifier",
+        )
+        self.assertTrue(verified.verified)
+        self.assertEqual(
+            verified.invocation_output,
+            "aurum-gui-key-bootstrap-live-trial-passed",
+        )
+        self.assertFalse(verified.authority_granted)
+        self.assertFalse(verified.routed_to_host)
+
+        unsafe = copy.deepcopy(evidence)
+        unsafe["trial"]["persistence_surface_after_sha256"] = "f" * 64
+        rejected = apply_adaptive_shell_gui_key_bootstrap_live_trial_evidence(
+            spec,
+            unsafe,
+            now=int(evidence["observed_at"]) + 1,
+        )
+        self.assertFalse(rejected.applied)
+        self.assertEqual(rejected.reason, "gui-key-bootstrap-trial-proof-invalid")
+
     def test_deployment_and_launch_are_strict_transient_and_package_free(self) -> None:
         setup = (ROOT / "installer" / "setup-aurum-gui.ps1").read_text(encoding="utf-8")
         launch = (ROOT / "installer" / "open-aurum-gui.ps1").read_text(encoding="utf-8")
@@ -160,6 +206,12 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
             self.assertIn("boxbrain_pi_ed25519", text)
         self.assertIn("127.0.0.1:8765", launch)
         self.assertIn("-WindowStyle Hidden", launch)
+        self.assertIn("Get-OptionalOpenAiApiKey", launch)
+        self.assertIn("api/key-bootstrap", launch)
+        self.assertIn("api_key_loaded=", launch)
+        self.assertNotIn("Write-Output $apiKey", launch)
+        self.assertIn('Replace("`r`n", "`n")', setup)
+        self.assertIn("aurum-gui-transfer-", setup)
         self.assertIn("systemd-run", start)
         self.assertIn("--collect", start)
         self.assertIn("--property=Restart=no", start)
@@ -177,8 +229,11 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         preference_trial = (
             ROOT / "installer" / "collect-adaptive-shell-gui-preference-live-trial.ps1"
         ).read_text(encoding="utf-8")
+        key_bootstrap_trial = (
+            ROOT / "installer" / "collect-adaptive-shell-gui-key-bootstrap-live-trial.ps1"
+        ).read_text(encoding="utf-8")
 
-        for text in (capability, trial, preference_trial):
+        for text in (capability, trial, preference_trial, key_bootstrap_trial):
             self.assertIn("StrictHostKeyChecking=yes", text)
             self.assertIn("UserKnownHostsFile=", text)
             self.assertIn("AuthorizationReference", text)
@@ -189,6 +244,8 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertIn("persistent_service_enabled = $false", trial)
         self.assertIn("stale_revision_rejected = $true", preference_trial)
         self.assertIn("rollback_verified=true", preference_trial)
+        self.assertIn("single_consume=true", key_bootstrap_trial)
+        self.assertIn("credential_content_captured=false", key_bootstrap_trial)
 
 
 if __name__ == "__main__":

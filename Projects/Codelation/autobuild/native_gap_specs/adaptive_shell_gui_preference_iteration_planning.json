@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_preference_iteration_planning",
+  "parameters": ["prior_preference_trial_verified", "memory_only_bootstrap", "one_time_consume", "fresh_permission_required", "credential_evidence_forbidden", "persistent_authority_absent"],
+  "examples": [
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"}, "expected": "next-gui-key-bootstrap-trial-gated"},
+    {"arguments": {"prior_preference_trial_verified": "no", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-prior-preference-trial-verified"},
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "no", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-memory-only-bootstrap"},
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "no", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-one-time-consume"},
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "no", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-fresh-permission-required"},
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "no", "persistent_authority_absent": "yes"}, "expected": "blocked-credential-evidence-forbidden"},
+    {"arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "no"}, "expected": "blocked-persistent-authority-absent"}
+  ],
+  "invocation_arguments": {"prior_preference_trial_verified": "yes", "memory_only_bootstrap": "yes", "one_time_consume": "yes", "fresh_permission_required": "yes", "credential_evidence_forbidden": "yes", "persistent_authority_absent": "yes"},
+  "next_gap": "adaptive_shell_gui_key_bootstrap_live_trial",
+  "purpose": "Plan a one-time Windows-to-page API-key bootstrap after the reversible GUI preference trial. The key may exist only in bounded process and page memory, must expire unconsumed, and must never enter state, logs, evidence, URLs, or authority.",
+  "principles": ["the prior preference trial remains reviewable", "the bootstrap is one-time and expiring", "only the loopback SSH tunnel carries the staged value", "evidence contains no credential material", "successful planning creates no persistent host authority"],
+  "constraints": ["pure", "deterministic", "classification-only", "planning-only", "no-live-io", "no-credential-content", "no-dialogue-content", "no-host-authority", "no-service-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}

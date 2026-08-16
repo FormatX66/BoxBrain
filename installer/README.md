@@ -117,6 +117,13 @@ Open it directly with:
 powershell -ExecutionPolicy Bypass -File .\installer\open-aurum-gui.ps1
 ```
 
+When `OPENAI_API_KEY` exists in the current process or the repository's ignored
+`.env.local`, the launcher stages it for at most 60 seconds through the private
+tunnel. The page consumes it exactly once into its own memory; the Pi retains
+no staged copy. Use `-OpenAiEnvFile <confirmed-local-env-file>` to select a
+different local file. No key is written to Pi state, logs, evidence, URLs, or
+tracked files.
+
 The GUI server runs on Pi loopback only as a transient unit and is reached
 through a Windows-loopback SSH forward with the dedicated key and strict
 host-key checking. Safe Layout and Adaptation Lock are revisioned, reject stale
@@ -126,6 +133,15 @@ and exact rollback with:
 ```powershell
 powershell -ExecutionPolicy Bypass -File `
   .\installer\collect-adaptive-shell-gui-preference-live-trial.ps1 `
+  -AuthorizationReference <fresh-authorization-reference>
+```
+
+Verify the memory-only bootstrap without observing a real credential or
+sending dialogue:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File `
+  .\installer\collect-adaptive-shell-gui-key-bootstrap-live-trial.ps1 `
   -AuthorizationReference <fresh-authorization-reference>
 ```
 

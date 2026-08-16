@@ -34,6 +34,27 @@ foreach ($source in $sources) {
     }
 }
 
+$temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$localStage = [IO.Path]::GetFullPath((
+    Join-Path $temporaryRoot "aurum-gui-transfer-$([Guid]::NewGuid().ToString('N'))"
+))
+if (-not $localStage.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "The local Aurum GUI staging path escaped the Windows temporary directory."
+}
+New-Item -ItemType Directory -Path $localStage | Out-Null
+$transferSources = @()
+foreach ($source in $sources) {
+    $destination = Join-Path $localStage (Split-Path -Leaf $source)
+    if ([IO.Path]::GetExtension($source) -eq ".sh") {
+        $content = [IO.File]::ReadAllText($source).Replace("`r`n", "`n")
+        [IO.File]::WriteAllText($destination, $content, [Text.UTF8Encoding]::new($false))
+    }
+    else {
+        Copy-Item -LiteralPath $source -Destination $destination
+    }
+    $transferSources += $destination
+}
+
 $target = "$PiUser@$PiAddress"
 $remoteRoot = "/tmp/aurum-gui-$([Guid]::NewGuid().ToString('N'))"
 $options = @(
@@ -49,7 +70,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Could not create the bounded Aurum GUI staging directory."
     }
-    & $scp @options @sources "${target}:$remoteRoot/"
+    & $scp @options @transferSources "${target}:$remoteRoot/"
     if ($LASTEXITCODE -ne 0) {
         throw "Could not transfer the Aurum GUI candidate."
     }
@@ -66,6 +87,10 @@ try {
 }
 finally {
     & $ssh @options $target "rm -f -- '$remoteRoot/aurum_gui.py' '$remoteRoot/aurum-gui.sh' '$remoteRoot/install-aurum-gui-on-pi.sh' '$remoteRoot/start-aurum-gui-on-pi.sh' '$remoteRoot/stop-aurum-gui-on-pi.sh'; rmdir -- '$remoteRoot' 2>/dev/null || true" 2>$null
+    $resolvedStage = [IO.Path]::GetFullPath($localStage)
+    if ($resolvedStage.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $resolvedStage -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 if (-not $SkipShortcut) {

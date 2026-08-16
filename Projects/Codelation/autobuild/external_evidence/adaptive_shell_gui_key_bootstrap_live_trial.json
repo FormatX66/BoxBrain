@@ -1,0 +1,84 @@
+{
+    "schema":  "aurum-adaptive-shell-gui-key-bootstrap-live-trial-evidence-v1",
+    "kind":  "adaptive-shell-gui-key-bootstrap-live-trial",
+    "source":  "aurum-windows-pi-one-time-key-bootstrap-proof",
+    "verified":  true,
+    "node_id":  "cff5511ddbb6bf14",
+    "route":  "10.12.194.1",
+    "ssh_host_key_fingerprint":  "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
+    "observed_at":  1786850512,
+    "expires_at":  1786851712,
+    "candidate":  {
+                      "module":  "/opt/boxbrain/codelation/seed/aurum_gui.py",
+                      "module_sha256":  "d1615885b9c136dc6cab086bb534e71ab97ad32c4fa1eb9d897b96d3b6a49da6",
+                      "gui_schema":  "aurum.gui.v3",
+                      "key_bootstrap_schema":  "aurum.gui.key-bootstrap.v1",
+                      "tests_passed":  true
+                  },
+    "runtime":  {
+                    "service_active":  true,
+                    "service_enabled":  false,
+                    "transient":  true,
+                    "address":  "127.0.0.1",
+                    "port":  8765,
+                    "listener_loopback_only":  true,
+                    "status_schema":  "aurum.gui.v3",
+                    "status_sha256":  "62b0585ab9ee360ea2e3172aba94adceef4e6904d32d2f8a7d58af56dea25fbf"
+                },
+    "trial":  {
+                  "stage_verified":  true,
+                  "single_consume_verified":  true,
+                  "second_consume_empty":  true,
+                  "expiry_verified":  true,
+                  "expired_consume_empty":  true,
+                  "pending_before":  false,
+                  "pending_after":  false,
+                  "ttl_seconds":  60,
+                  "expiry_wait_seconds":  62,
+                  "synthetic_noncredential":  true,
+                  "actual_api_key_observed":  false,
+                  "persistence_surface_before_sha256":  "528e27b34b3e7bbd5278777387b01db12f2f9409d7300e37f31807e13573887b",
+                  "persistence_surface_after_sha256":  "528e27b34b3e7bbd5278777387b01db12f2f9409d7300e37f31807e13573887b"
+              },
+    "interface":  {
+                      "page_memory_assignment_present":  true,
+                      "bounded_poll_present":  true,
+                      "proof_view_present":  true,
+                      "user_content_captured":  false,
+                      "credential_content_captured":  false
+                  },
+    "transport":  {
+                      "strict_host_key_checking":  true,
+                      "dedicated_identity":  true,
+                      "usb_route":  "10.12.194.1",
+                      "windows_endpoint_loopback":  true,
+                      "pi_endpoint_loopback":  true,
+                      "csrf_verified":  true,
+                      "origin_verified":  true
+                  },
+    "safety":  {
+                   "packages_installed":  false,
+                   "persistent_service_enabled":  false,
+                   "dialogue_generated":  false,
+                   "api_key_persisted":  false,
+                   "api_key_logged":  false,
+                   "api_key_in_url":  false,
+                   "raw_disk_changed":  false,
+                   "firmware_changed":  false,
+                   "bootloader_changed":  false,
+                   "host_actuation":  false
+               },
+    "permission":  {
+                       "present":  true,
+                       "scope":  "adaptive-shell-gui-key-bootstrap-live-trial",
+                       "authorization_reference":  "codex-user-overnight-key-bootstrap-20260816"
+                   },
+    "proof_view":  {
+                       "present":  true,
+                       "status_sha256":  "62b0585ab9ee360ea2e3172aba94adceef4e6904d32d2f8a7d58af56dea25fbf",
+                       "persistence_surface_sha256":  "528e27b34b3e7bbd5278777387b01db12f2f9409d7300e37f31807e13573887b",
+                       "user_content_captured":  false,
+                       "credential_content_captured":  false
+                   },
+    "authority_granted":  false
+}

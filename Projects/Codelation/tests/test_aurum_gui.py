@@ -76,6 +76,8 @@ class AurumGuiTests(unittest.TestCase):
             self.assertIn(label, page)
         self.assertIn("Proof View", page)
         self.assertIn("API key · memory only", page)
+        self.assertIn("consumeKeyBootstrap", page)
+        self.assertIn("No dialogue request has been sent", page)
         self.assertIn("default-src 'none'", headers["content-security-policy"])
         self.assertEqual(headers["x-frame-options"], "DENY")
         self.assertEqual(headers["cache-control"], "no-store, max-age=0")
@@ -96,6 +98,68 @@ class AurumGuiTests(unittest.TestCase):
         self.assertTrue(payload["authority"]["dialogue_only"])
         self.assertFalse(payload["authority"]["host_actuation"])
         self.assertFalse(payload["authority"]["api_key_persisted"])
+        self.assertEqual(payload["key_bootstrap"]["schema"], "aurum.gui.key-bootstrap.v1")
+        self.assertTrue(payload["key_bootstrap"]["memory_only"])
+        self.assertFalse(payload["key_bootstrap"]["pending"])
+        self.assertFalse(payload["key_bootstrap"]["api_key_returned"])
+
+    def test_key_bootstrap_is_memory_only_consumed_once_and_content_free(self) -> None:
+        secret = "sk-test-one-time-bootstrap-secret"
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": f"http://127.0.0.1:{self.port}",
+            "X-Aurum-CSRF": self.server.csrf_token,
+        }
+        stage_body = json.dumps({"action": "stage", "api_key": secret}).encode("utf-8")
+
+        rejected, _, _ = self.request(
+            "POST",
+            "/api/key-bootstrap",
+            body=stage_body,
+            headers={"Content-Type": "application/json", "Origin": headers["Origin"]},
+        )
+        self.assertEqual(rejected, 403)
+
+        staged_status, _, staged_body = self.request(
+            "POST", "/api/key-bootstrap", body=stage_body, headers=headers
+        )
+        self.assertEqual(staged_status, 200)
+        staged = json.loads(staged_body)
+        self.assertTrue(staged["staged"])
+        self.assertTrue(staged["memory_only"])
+        self.assertFalse(staged["api_key_persisted"])
+        self.assertNotIn("api_key", staged)
+
+        status, _, status_body = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
+        status_payload = json.loads(status_body)
+        self.assertTrue(status_payload["key_bootstrap"]["pending"])
+        self.assertNotIn(secret, status_body.decode("utf-8"))
+
+        consume_body = json.dumps({"action": "consume"}).encode("utf-8")
+        consumed_status, _, consumed_body = self.request(
+            "POST", "/api/key-bootstrap", body=consume_body, headers=headers
+        )
+        self.assertEqual(consumed_status, 200)
+        consumed = json.loads(consumed_body)
+        self.assertTrue(consumed["available"])
+        self.assertEqual(consumed["api_key"], secret)
+        self.assertFalse(consumed["api_key_persisted"])
+
+        empty_status, _, empty_body = self.request(
+            "POST", "/api/key-bootstrap", body=consume_body, headers=headers
+        )
+        self.assertEqual(empty_status, 200)
+        empty = json.loads(empty_body)
+        self.assertFalse(empty["available"])
+        self.assertNotIn("api_key", empty)
+
+        written = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in self.root.rglob("*")
+            if path.is_file()
+        )
+        self.assertNotIn(secret, written)
 
     def test_dialogue_request_requires_origin_and_csrf_and_never_persists_key(self) -> None:
         body = json.dumps(
