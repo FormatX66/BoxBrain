@@ -1,0 +1,58 @@
+{
+  "schema": "aurum-pi4-driver-frontier-v1",
+  "target": "gpio-leds",
+  "device_class": "noncritical-indicator",
+  "physical_target": "Raspberry Pi 4 Model B",
+  "validated_generation": 2,
+  "next_generation": 3,
+  "working_driver": "leds-gpio",
+  "candidate_driver": "aurum-gpio-leds",
+  "control_mode": "git-build-channel-autonomous",
+  "operator_approval": {
+    "required_per_iteration": false,
+    "reason": "User authorized continued autonomous iteration while bounded safety and rollback gates remain satisfied."
+  },
+  "required_gates": [
+    "approved-bbpi4-strict-ssh-trust",
+    "exact-raspberry-pi-4-model-check",
+    "persistent-working-driver-backup-before-unbind",
+    "exact-running-kernel-headers",
+    "candidate-compiles-before-any-live-swap",
+    "one-driver-at-a-time",
+    "behavior-compared-against-working-driver",
+    "automatic-restore-on-failure",
+    "working-driver-rebound-before-success",
+    "evidence-published"
+  ],
+  "allowed_without_new_human_approval": [
+    "inspect-read-only-device-and-driver-state",
+    "capture-working-driver-behavior",
+    "synthesize-and-compile-candidate-code",
+    "load-and-unload-bounded-noncritical-candidate-module",
+    "temporarily-unbind-and-rebind-the-approved-noncritical-target",
+    "exercise-bounded-led-behavior",
+    "revise-candidate-from-compile-or-parity-evidence",
+    "rerun-the-same-approved-driver-lane",
+    "advance-to-the-next-generation-of-the-same-approved-driver-after-all-gates-pass"
+  ],
+  "human_approval_still_required_for": [
+    "network-driver-replacement",
+    "storage-driver-replacement",
+    "usb-host-controller-replacement",
+    "boot-critical-driver-replacement",
+    "power-clock-voltage-thermal-reset-control",
+    "firmware-flash-eeprom-nvram-otp-fuse-writes",
+    "persistent-kernel-driver-install-or-boot-time-replacement",
+    "raw-mmio-or-pio-write-paths-not-already-bounded-by-kernel-subsystems",
+    "moving-to-a-new-device-class-with-materially-higher-recovery-risk"
+  ],
+  "last_verified_evidence": {
+    "workflow": "Aurum BBPI4 Single Driver Trial",
+    "run_id": 31973744759,
+    "kernel": "6.12.34+rpt-rpi-v8",
+    "device": "leds",
+    "leds": ["ACT", "PWR"],
+    "behavior_parity": "passed",
+    "rollback": "passed"
+  }
+}
