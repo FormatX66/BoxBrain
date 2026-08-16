@@ -14,6 +14,7 @@ CODELATION = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CODELATION / "seed"))
 
 import aurum_gui
+import aurum_gui_context
 
 
 class AurumGuiTests(unittest.TestCase):
@@ -25,27 +26,36 @@ class AurumGuiTests(unittest.TestCase):
             CODELATION / "mind" / "bootstrap_mind.json",
             self.root / "mind" / "bootstrap_mind.json",
         )
+        self.reasoner_calls: list[list[dict]] = []
 
         def reasoner(messages: list[dict], model: str, api_key: str) -> tuple[str, str]:
+            self.reasoner_calls.append(messages)
             self.assertEqual(api_key, "test-secret-key")
             self.assertTrue(messages)
             self.assertEqual(model, "gpt-5-mini")
             return "Bounded GUI reply.", "test-request-id"
 
-        self.server = aurum_gui.create_server(
+        self.reasoner = reasoner
+        self._start_server()
+
+    def _start_server(self) -> None:
+        self.server = aurum_gui_context.create_server(
             "127.0.0.1",
             0,
             self.root,
-            reasoner=reasoner,
+            reasoner=self.reasoner,
         )
         self.port = int(self.server.server_address[1])
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-    def tearDown(self) -> None:
+    def _stop_server(self) -> None:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+
+    def tearDown(self) -> None:
+        self._stop_server()
         self.temporary.cleanup()
 
     def request(
@@ -102,6 +112,9 @@ class AurumGuiTests(unittest.TestCase):
         self.assertTrue(payload["key_bootstrap"]["memory_only"])
         self.assertFalse(payload["key_bootstrap"]["pending"])
         self.assertFalse(payload["key_bootstrap"]["api_key_returned"])
+        self.assertTrue(payload["context"]["bounded_prior_turns"])
+        self.assertFalse(payload["context"]["raw_context_persisted"])
+        self.assertFalse(payload["context"]["semantic_context_lost"])
 
     def test_key_bootstrap_is_memory_only_consumed_once_and_content_free(self) -> None:
         secret = "sk-test-one-time-bootstrap-secret"
@@ -190,6 +203,8 @@ class AurumGuiTests(unittest.TestCase):
         self.assertEqual(accepted, 200)
         payload = json.loads(response_body)
         self.assertEqual(payload["response"], "Bounded GUI reply.")
+        self.assertEqual(payload["context_sequence"], 1)
+        self.assertTrue(payload["context_continuity"])
         self.assertFalse(payload["host_actuation"])
         self.assertFalse(payload["api_key_persisted"])
         written = "\n".join(
@@ -199,6 +214,70 @@ class AurumGuiTests(unittest.TestCase):
         )
         self.assertNotIn("test-secret-key", written)
         self.assertNotIn("private prompt text", written)
+
+    def test_gui_context_reaches_next_reasoning_call_and_restart_loss_is_visible(self) -> None:
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": f"http://127.0.0.1:{self.port}",
+            "X-Aurum-CSRF": self.server.csrf_token,
+        }
+        first_prompt = "context first private prompt"
+        second_prompt = "context second private prompt"
+        first_body = json.dumps(
+            {"prompt": first_prompt, "api_key": "test-secret-key"}
+        ).encode("utf-8")
+        second_body = json.dumps(
+            {"prompt": second_prompt, "api_key": "test-secret-key"}
+        ).encode("utf-8")
+
+        first_status, _, first_response = self.request(
+            "POST", "/api/ask", body=first_body, headers=headers
+        )
+        second_status, _, second_response = self.request(
+            "POST", "/api/ask", body=second_body, headers=headers
+        )
+        self.assertEqual(first_status, 200)
+        self.assertEqual(second_status, 200)
+        self.assertEqual(json.loads(first_response)["context_sequence"], 1)
+        self.assertEqual(json.loads(second_response)["context_sequence"], 2)
+        second_messages = json.dumps(self.reasoner_calls[-1])
+        self.assertIn(first_prompt, second_messages)
+        self.assertIn("Bounded GUI reply.", second_messages)
+        self.assertIn(second_prompt, second_messages)
+
+        written = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in self.root.rglob("*")
+            if path.is_file()
+        )
+        self.assertNotIn(first_prompt, written)
+        self.assertNotIn(second_prompt, written)
+        self.assertNotIn("test-secret-key", written)
+
+        self._stop_server()
+        self._start_server()
+        status, _, status_body = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
+        self.assertTrue(json.loads(status_body)["context"]["semantic_context_lost"])
+
+        restart_headers = {
+            "Content-Type": "application/json",
+            "Origin": f"http://127.0.0.1:{self.port}",
+            "X-Aurum-CSRF": self.server.csrf_token,
+        }
+        conflict, _, conflict_body = self.request(
+            "POST", "/api/ask", body=second_body, headers=restart_headers
+        )
+        self.assertEqual(conflict, 409)
+        conflict_payload = json.loads(conflict_body)
+        self.assertTrue(conflict_payload["retry_starts_new_context"])
+        self.assertEqual(conflict_payload["lost_sequence"], 2)
+
+        retry, _, retry_body = self.request(
+            "POST", "/api/ask", body=second_body, headers=restart_headers
+        )
+        self.assertEqual(retry, 200)
+        self.assertEqual(json.loads(retry_body)["context_sequence"], 1)
 
     def test_preferences_are_revisioned_reversible_and_content_free(self) -> None:
         headers = {
@@ -255,7 +334,7 @@ class AurumGuiTests(unittest.TestCase):
 
     def test_non_loopback_bind_and_host_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "loopback"):
-            aurum_gui.create_server("0.0.0.0", 8765, self.root)
+            aurum_gui_context.create_server("0.0.0.0", 8765, self.root)
 
         status, _, _ = self.request(
             "GET",
