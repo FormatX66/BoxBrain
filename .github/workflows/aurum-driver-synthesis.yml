@@ -64,7 +64,7 @@ jobs:
       - name: Run live QEMU UART differential proof
         run: |
           python3 Projects/Codelation/driver_qemu_uart_probe.py --output /tmp/aurum-qemu-uart-probe.json
-          python3 Projects/Codelation/driver_emulator_parity.py \
+          python3 -m Projects.Codelation.driver_emulator_parity \
             --probe /tmp/aurum-qemu-uart-probe.json \
             --output /tmp/aurum-qemu-uart-parity.json
           cat /tmp/aurum-qemu-uart-parity.json
