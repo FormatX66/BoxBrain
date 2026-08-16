@@ -1712,7 +1712,7 @@
     "shared_implementation": false
   },
   "reasoning_required": true,
-  "resumed_from_generations": 23,
+  "resumed_from_generations": 25,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
