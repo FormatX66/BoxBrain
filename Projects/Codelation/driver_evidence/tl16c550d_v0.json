@@ -1,0 +1,75 @@
+{
+  "schema": "aurum.driver.evidence-bundle.v0",
+  "device": "TI TL16C550D / 16550-compatible UART",
+  "scope": "offline-public-document-and-reference-driver-evidence",
+  "physical_hardware_observation": false,
+  "sources": {
+    "ti:TL16C550D:SLLS597E": "Texas Instruments TL16C550D datasheet Rev. E",
+    "linux:drivers/tty/serial/8250/8250_port.c": "Linux 8250/16550 base port reference driver"
+  },
+  "claims": [
+    {
+      "key": "fifo.depth_bytes",
+      "value": 16,
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "fifo.depth_bytes",
+      "value": 16,
+      "source_kind": "reference_driver",
+      "source_id": "linux:drivers/tty/serial/8250/8250_port.c",
+      "confidence": 0.95
+    },
+    {
+      "key": "divisor_latch.width_bits",
+      "value": 16,
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "divisor_latch.width_bits",
+      "value": 16,
+      "source_kind": "reference_driver",
+      "source_id": "linux:drivers/tty/serial/8250/8250_port.c",
+      "confidence": 0.95
+    },
+    {
+      "key": "line_status.data_ready.meaning",
+      "value": "receive-data-available",
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "line_status.data_ready.meaning",
+      "value": "receive-data-available",
+      "source_kind": "reference_driver",
+      "source_id": "linux:drivers/tty/serial/8250/8250_port.c",
+      "confidence": 0.9
+    },
+    {
+      "key": "line_status.thre.meaning",
+      "value": "transmit-holding-register-empty",
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    },
+    {
+      "key": "line_status.thre.meaning",
+      "value": "transmit-holding-register-empty",
+      "source_kind": "reference_driver",
+      "source_id": "linux:drivers/tty/serial/8250/8250_port.c",
+      "confidence": 0.9
+    },
+    {
+      "key": "line_control.dlab.meaning",
+      "value": "divisor-latch-access",
+      "source_kind": "datasheet",
+      "source_id": "ti:TL16C550D:SLLS597E",
+      "confidence": 1.0
+    }
+  ]
+}
