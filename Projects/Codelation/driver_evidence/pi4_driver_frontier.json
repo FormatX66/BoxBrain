@@ -3,6 +3,7 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
+  "active_generation": 2,
   "validated_generation": 2,
   "next_generation": 3,
   "working_driver": "leds-gpio",
