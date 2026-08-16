@@ -11,10 +11,10 @@
     {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "no", "no_host_authority": "yes"}, "expected": "blocked-no-credential-persistence"},
     {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
   ],
-  "invocation_arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "no", "surface_context_id_scoped": "no", "restart_loss_surfaced": "no", "no_credential_persistence": "yes", "no_host_authority": "yes"},
-  "next_gap": "adaptive_shell_gui_context_surface_integration",
-  "purpose": "Wire the verified bounded semantic context session into the actual GUI request path. This gate does not pass merely because a context session exists: the GUI must route repeated requests through a per-surface context identity, use prior bounded turns on later reasoning calls, and explicitly surface semantic continuity loss after restart instead of silently pretending memory survived.",
-  "principles": ["capability existence is distinct from surface integration", "each GUI exchange context is explicitly scoped", "prior semantic turns affect subsequent reasoning only within the same context", "restart continuity loss is visible", "credentials remain call-local", "no host authority is introduced"],
+  "invocation_arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_context_virtual_convergence",
+  "purpose": "Verify the context-aware GUI request surface after repository tests proved repeated /api/ask requests use the bounded context session, prior turns reach the next reasoning call, the server instance carries an explicit context identity, persisted markers contain no raw dialogue or credential content, and restart loss is surfaced as a conflict before a clean new context can begin.",
+  "principles": ["capability existence is distinct from surface integration", "the GUI server surface has an explicit context identity", "prior semantic turns affect subsequent reasoning within that surface", "restart continuity loss is visible and fail-closed", "credentials remain call-local", "no host authority is introduced"],
   "constraints": ["classification-only", "deterministic-gate", "gui-surface", "bounded-context", "context-isolated", "restart-loss-visible", "no-credential-persistence", "no-host-authority", "fail-closed"],
   "max_synthesis_cost": 4
 }
