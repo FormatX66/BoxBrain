@@ -19,5 +19,5 @@
   "purpose": "Classify the machine capability beneath the human label dialogue. The required capability is a bounded, ordered, bidirectional state exchange in which each input is correlated to an output, relevant prior state is retained across sequential exchanges and restart, independent exchanges remain isolated, failures are observable, credentials are not persisted, and no host authority is gained.",
   "principles": ["human naming is not part of the capability", "input and output are state transitions", "ordering and correlation are explicit", "relevant context persists across sequential exchanges", "independent contexts do not bleed into one another", "restart cannot silently destroy or reorder retained context", "failure is represented as state rather than guessed success", "credentials and host authority remain outside the exchange model"],
   "constraints": ["pure", "deterministic", "classification-only", "bounded-input", "ordered-state", "context-isolated", "restart-safe", "no-credential-persistence", "no-host-authority", "fail-closed"],
-  "max_synthesis_cost": 18
+  "max_synthesis_cost": 16
 }
