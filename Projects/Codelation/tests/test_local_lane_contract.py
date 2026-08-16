@@ -48,7 +48,7 @@ class LocalLaneContractTests(unittest.TestCase):
         self.assertIn("MaxProfileAttempts = 6", text)
         self.assertIn('ApAddress = "10.42.194.1"', text)
         self.assertIn(
-            "SHA256:hFesq9DxC+gOdl8rT6a4RDptEsNp6yn2FhwYv/lXC1o", text
+            "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY", text
         )
         self.assertIn("StrictHostKeyChecking=yes", text)
         self.assertIn("-PiAddresses @($ApAddress)", text)
