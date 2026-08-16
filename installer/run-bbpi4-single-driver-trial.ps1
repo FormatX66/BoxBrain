@@ -37,20 +37,30 @@ if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
 
 $ssh = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop).Source
 $scp = (Get-Command scp.exe -CommandType Application -ErrorAction Stop).Source
-$keyscan = (Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction Stop).Source
 $keygen = (Get-Command ssh-keygen.exe -CommandType Application -ErrorAction Stop).Source
+$knownHosts = Join-Path (Join-Path $HOME '.ssh') 'known_hosts'
+if (-not (Test-Path -LiteralPath $knownHosts -PathType Leaf)) {
+    throw "Approved SSH known_hosts store is missing: $knownHosts"
+}
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $logPath = Join-Path $OutputDirectory 'bbpi4-single-driver-trial.txt'
 
 $candidates = @(
-    [pscustomobject]@{ Address = '10.12.194.1'; Route = 'usb-c' },
     [pscustomobject]@{ Address = '10.42.194.1'; Route = 'bbpi4-ap' },
+    [pscustomobject]@{ Address = '10.12.194.1'; Route = 'usb-c' },
     [pscustomobject]@{ Address = '192.168.0.194'; Route = 'lan' }
 )
 
 $selected = $null
-$selectedHostLine = $null
+$sshBaseCommon = @(
+    '-i',$KeyPath,
+    '-o','BatchMode=yes',
+    '-o','IdentitiesOnly=yes',
+    '-o','StrictHostKeyChecking=yes',
+    '-o','ConnectTimeout=6'
+)
+
 foreach ($candidate in $candidates) {
     $reachable = $false
     try {
@@ -62,45 +72,54 @@ foreach ($candidate in $candidates) {
     Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) tcp22=$reachable"
     if (-not $reachable) { continue }
 
-    $scan = Invoke-NativeCaptured -FilePath $keyscan -Arguments @('-T','4','-t','ed25519',$candidate.Address)
-    $hostLines = @($scan.Output | Where-Object {
-        -not [string]::IsNullOrWhiteSpace([string]$_) -and -not ([string]$_).StartsWith('#')
+    $known = Invoke-NativeCaptured -FilePath $keygen -Arguments @('-F',$candidate.Address,'-f',$knownHosts)
+    $knownKeyLines = @($known.Output | Where-Object {
+        $text = [string]$_
+        -not [string]::IsNullOrWhiteSpace($text) -and -not $text.StartsWith('#') -and $text -match '\s(ssh-ed25519|ecdsa-sha2-|ssh-rsa)\s'
     })
-    if ($scan.ExitCode -ne 0 -or $hostLines.Count -eq 0) {
-        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) host_key=missing"
+    if ($knownKeyLines.Count -eq 0) {
+        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) trust=not_in_known_hosts"
         continue
     }
 
-    $tempKey = Join-Path $env:TEMP ('bbpi4-single-driver-hostkey-' + [Guid]::NewGuid().ToString('N'))
-    try {
-        [IO.File]::WriteAllLines($tempKey, @([string]$hostLines[0]), [Text.Encoding]::ASCII)
-        $fingerprint = Invoke-NativeCaptured -FilePath $keygen -Arguments @('-lf',$tempKey,'-E','sha256')
-        $match = [regex]::Match(($fingerprint.Output -join ' '), 'SHA256:[A-Za-z0-9+/=]+')
-        $verified = $match.Success -and $match.Value -eq $ExpectedHostKeyFingerprint
-        $observed = if ($match.Success) { $match.Value } else { 'unreadable' }
-        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) fingerprint=$observed verified=$verified"
-        if ($null -eq $selected -and $verified) {
-            $selected = $candidate
-            $selectedHostLine = [string]$hostLines[0]
+    $fingerprintVerified = $false
+    foreach ($knownKeyLine in $knownKeyLines) {
+        $tempKey = Join-Path $env:TEMP ('bbpi4-known-host-' + [Guid]::NewGuid().ToString('N'))
+        try {
+            [IO.File]::WriteAllLines($tempKey, @([string]$knownKeyLine), [Text.Encoding]::ASCII)
+            $fingerprint = Invoke-NativeCaptured -FilePath $keygen -Arguments @('-lf',$tempKey,'-E','sha256')
+            $match = [regex]::Match(($fingerprint.Output -join ' '), 'SHA256:[A-Za-z0-9+/=]+')
+            if ($match.Success -and $match.Value -eq $ExpectedHostKeyFingerprint) {
+                $fingerprintVerified = $true
+                break
+            }
+        }
+        finally {
+            Remove-Item -LiteralPath $tempKey -Force -ErrorAction SilentlyContinue
         }
     }
-    finally {
-        Remove-Item -LiteralPath $tempKey -Force -ErrorAction SilentlyContinue
+    if (-not $fingerprintVerified) {
+        Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) trust=fingerprint_mismatch"
+        continue
+    }
+
+    $identity = Invoke-NativeCaptured -FilePath $ssh -Arguments ($sshBaseCommon + @(
+        "$PiUser@$($candidate.Address)",
+        "tr -d '\000' </proc/device-tree/model 2>/dev/null || true"
+    ))
+    $model = ($identity.Output -join ' ').Trim()
+    $isPi4 = $identity.ExitCode -eq 0 -and $model -match 'Raspberry Pi 4'
+    Write-Host "AURUM_PI4_DRIVER_ROUTE route=$($candidate.Route) address=$($candidate.Address) trust=verified model_pi4=$isPi4"
+    if ($isPi4) {
+        $selected = $candidate
+        break
     }
 }
 
-if ($null -eq $selected -or [string]::IsNullOrWhiteSpace($selectedHostLine)) {
-    throw 'No reachable route presented the approved BBPI4 ED25519 host key.'
+if ($null -eq $selected) {
+    throw 'No approved strict-SSH route verified as the Raspberry Pi 4.'
 }
-
-$sshDirectory = Join-Path $HOME '.ssh'
-New-Item -ItemType Directory -Force -Path $sshDirectory | Out-Null
-$knownHosts = Join-Path $sshDirectory 'known_hosts'
-if (Test-Path -LiteralPath $knownHosts -PathType Leaf) {
-    Invoke-NativeCaptured -FilePath $keygen -Arguments @('-R',$selected.Address,'-f',$knownHosts) | Out-Null
-}
-[IO.File]::AppendAllLines($knownHosts, @($selectedHostLine), [Text.Encoding]::ASCII)
-Write-Host "AURUM_PI4_DRIVER_ROUTE_SELECTED route=$($selected.Route) address=$($selected.Address) host_key=verified"
+Write-Host "AURUM_PI4_DRIVER_ROUTE_SELECTED route=$($selected.Route) address=$($selected.Address) trust=verified"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $generator = Join-Path $repoRoot 'Projects\Codelation\pi4_driver_synthesizer.py'
@@ -110,13 +129,7 @@ if (-not (Test-Path -LiteralPath $trial -PathType Leaf)) { throw "Missing trial 
 
 $target = "$PiUser@$($selected.Address)"
 $remoteRoot = "/tmp/aurum-pi4-single-driver-$RunTag"
-$sshBase = @(
-    '-i',$KeyPath,
-    '-o','BatchMode=yes',
-    '-o','IdentitiesOnly=yes',
-    '-o','StrictHostKeyChecking=yes',
-    '-o','ConnectTimeout=6'
-)
+$sshBase = $sshBaseCommon
 
 try {
     $mkdir = Invoke-NativeCaptured -FilePath $ssh -Arguments ($sshBase + @($target,"rm -rf '$remoteRoot' && mkdir -p '$remoteRoot'"))
