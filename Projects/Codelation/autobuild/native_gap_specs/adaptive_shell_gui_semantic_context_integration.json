@@ -1,0 +1,21 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_semantic_context_integration",
+  "parameters": ["ledger_ready", "bounded_prior_turns_available", "prior_turns_supplied_to_reasoner", "sequence_guarded", "restart_loss_detectable", "no_credential_persistence", "no_host_authority"],
+  "examples": [
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "semantic-context-exchange-ready"},
+    {"arguments": {"ledger_ready": "no", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-ledger-ready"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "no", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-bounded-prior-turns-available"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "no", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-prior-turns-supplied-to-reasoner"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "no", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-sequence-guarded"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "no", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-restart-loss-detectable"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "no", "no_host_authority": "yes"}, "expected": "blocked-no-credential-persistence"},
+    {"arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "no", "prior_turns_supplied_to_reasoner": "no", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_semantic_context_integration",
+  "purpose": "Integrate bounded semantic prior-turn state into the GUI reasoning path. The integrity ledger is already available, but this gate must not pass until prior exchanges are actually available to the next reasoning call under explicit bounds. Restart may discard raw semantic state, but that loss must be detected and surfaced rather than silently pretending continuity. Credentials remain memory-only and no host authority is added.",
+  "principles": ["semantic continuity requires prior state to influence the next interpretation", "a hash-only ledger proves order but is not semantic memory", "prior turns must be bounded", "restart loss is explicit rather than hidden", "independent contexts remain isolated", "credentials are not part of context", "no host authority is introduced"],
+  "constraints": ["deterministic-gate", "classification-only", "bounded-context", "context-isolated", "restart-loss-detectable", "no-credential-persistence", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}
