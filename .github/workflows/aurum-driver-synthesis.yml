@@ -1,0 +1,45 @@
+name: Aurum Driver Synthesis Safety Lane
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-driver-synthesis.yml'
+      - 'Projects/Codelation/driver_synthesis.py'
+      - 'Projects/Codelation/tests/test_driver_synthesis.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-driver-synthesis-safety
+  cancel-in-progress: false
+
+jobs:
+  reconcile-and-synthesize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify non-actuating driver synthesis contracts
+        run: >-
+          python3 -m unittest
+          Projects.Codelation.tests.test_driver_synthesis
+          -v
+
+      - name: Report safety boundary
+        run: |
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest'
+          echo 'AURUM_DRIVER_SYNTHESIS physical_writes=false firmware_changes=false destructive_probe=false'
