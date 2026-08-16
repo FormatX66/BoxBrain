@@ -1,0 +1,21 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_context_state_exchange",
+  "parameters": ["state_serializable", "sequence_monotonic", "context_isolated", "input_output_correlated", "integrity_chain_verified", "raw_content_absent", "no_host_authority"],
+  "examples": [
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "context-state-exchange-ledger-ready"},
+    {"arguments": {"state_serializable": "no", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "blocked-state-serializable"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "no", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "blocked-sequence-monotonic"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "no", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "blocked-context-isolated"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "no", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "blocked-input-output-correlated"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "no", "raw_content_absent": "yes", "no_host_authority": "yes"}, "expected": "blocked-integrity-chain-verified"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "no", "no_host_authority": "yes"}, "expected": "blocked-raw-content-absent"},
+    {"arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"state_serializable": "yes", "sequence_monotonic": "yes", "context_isolated": "yes", "input_output_correlated": "yes", "integrity_chain_verified": "yes", "raw_content_absent": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_semantic_context_integration",
+  "purpose": "Verify the machine-state foundation for repeated exchange without relying on the human label dialogue. A content-free serialized envelope correlates input and output digests, enforces monotonic sequence and context isolation, links each transition by integrity hash, and can be reloaded after restart so replay, mixing, or corruption is detected without persisting raw user content or gaining host authority.",
+  "principles": ["human naming is not part of the capability", "state transitions are ordered and correlated", "context identity is explicit", "serialized state survives process boundaries", "integrity links expose corruption or replay", "raw prompt and response content are outside the ledger", "credentials and host authority remain outside the exchange model"],
+  "constraints": ["pure", "deterministic", "classification-only", "content-free-state", "ordered-state", "context-isolated", "restart-detectable", "no-credential-persistence", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}
