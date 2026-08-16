@@ -130,8 +130,10 @@ if sudo -n test -e "$console_command"; then
   console_command_backup="$ROLLBACK_ROOT/aurum-command-$STAMP"
   sudo -n cp -a "$console_command" "$console_command_backup"
 fi
-sudo -n install -o root -g root -m 755 \
-  "$TRANSFER_ROOT/installer/aurum-console.sh" "$console_command"
+console_source="$TRANSFER_ROOT/installer/aurum-console.sh"
+console_normalized="$TRANSFER_ROOT/aurum-console.lf.sh"
+tr -d '\015' < "$console_source" > "$console_normalized"
+sudo -n install -o root -g root -m 755 "$console_normalized" "$console_command"
 
 cd "$INSTALL"
 if [ ! -f state/aurum-live.json ]; then
