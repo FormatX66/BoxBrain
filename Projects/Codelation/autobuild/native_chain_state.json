@@ -365,14 +365,14 @@
       "thresholded-unique-best-selector"
     ]
   },
-  "blocked_output": "blocked-console-observation-fresh",
+  "blocked_output": "blocked-fresh-capability-snapshot",
   "blocked_reason": "external-prerequisite-blocked",
   "catalog_revision": "aurum-native-gap-catalog-v1",
-  "completed_generations": 43,
+  "completed_generations": 44,
   "external_evidence": {
     "applied": false,
     "evidence": null,
-    "reason": "iteration-observation-evidence-expired"
+    "reason": "gui-capability-evidence-expired"
   },
   "failed_attempt": null,
   "generations": [
@@ -2779,11 +2779,33 @@
     },
     {
       "authority_granted": false,
-      "external_evidence": null,
+      "external_evidence": {
+        "authority_granted": false,
+        "authorization_reference": "codex-user-ok-go-ahead-20260816",
+        "console_command_sha256": "68a4c1bed678998f48322aca27d1fe3415d68f23b013a422252935803934638e",
+        "console_module_sha256": "22db7ff995e718cfcc49f80c033dccdba764ddd9e2e22f07c2ed296f67b9734b",
+        "console_observation_fresh": true,
+        "dialogue_generated": false,
+        "dialogue_supervisor_sha256": "a6eebf5fbe54fc9be81ad7cde4e1e5895867fefb55653eab4a5237f5ebd5553d",
+        "expires_at": 1786901212,
+        "kind": "adaptive-shell-iteration-observation-readiness",
+        "mind_sha256": "dc21566201c50dfdb77c84aa3efd5c951cac4d35805703736f5e86403b447baa",
+        "mind_version": 2,
+        "node_id": "cff5511ddbb6bf14",
+        "observed_at": 1786900312,
+        "permission_scope": "adaptive-shell-iteration-observation",
+        "persistent_change_authorized": false,
+        "proof_view_present": true,
+        "route": "10.12.194.1",
+        "schema": "aurum-adaptive-shell-iteration-observation-readiness-evidence-v1",
+        "source": "aurum-bbpi4-console-status-proof",
+        "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
+        "user_content_captured": false
+      },
       "filesystem_build_used": false,
       "gap": "adaptive_shell_iteration_observation_readiness",
       "generation": 43,
-      "invocation_output": "blocked-console-observation-fresh",
+      "invocation_output": "ready-for-bounded-iteration-observation",
       "local_callable": "classify_required_conditions",
       "local_capability": "required-condition-classifier",
       "local_implementation_sha256": "af368b07e6c60f82b96739f6535c934c14571d8ac78be4f58095b7577d091782",
@@ -2832,6 +2854,62 @@
       "state": "verified",
       "subprocess_test_used": false,
       "verification_identity": "12a4efa3cefaac9d87792ffaf2514ebed4030b3fb4dfe5d75c9a673df4cd140d"
+    },
+    {
+      "authority_granted": false,
+      "external_evidence": null,
+      "filesystem_build_used": false,
+      "gap": "adaptive_shell_iteration_observation",
+      "generation": 44,
+      "invocation_output": "blocked-fresh-capability-snapshot",
+      "local_callable": "classify_required_conditions",
+      "local_capability": "required-condition-classifier",
+      "local_implementation_sha256": "af368b07e6c60f82b96739f6535c934c14571d8ac78be4f58095b7577d091782",
+      "local_module": "constraint_classification",
+      "local_verification_adapter": "required-condition-classification-v0",
+      "model_reasoning_used": false,
+      "native_candidates_evaluated": 93472,
+      "native_signatures_retained": 10000,
+      "native_synthesis_found": false,
+      "native_synthesis_proof_identity": "b6f42d2e57eb8f3b08630e805a93eb5bccd71568c130edf7ce23127d3be8a02d",
+      "next_gap": "adaptive_shell_gui_live_trial",
+      "post_failure_self_debug_identity": "a98278e6d537ad92268ac6fdc01a76a05887858293615a0338711487d232291b",
+      "preflight_self_debug": {
+        "counterexamples": 0,
+        "issues": 0,
+        "report_identity": "4620c44f4cc75753c3429ca48e6fe01b55608e6cdf0f250db579e9a8bf2d4764",
+        "status": "clean"
+      },
+      "promotion_performed": false,
+      "representation": "verified-local-capability-reuse",
+      "reusable_local_capabilities_after_build": [
+        "bounded-preference-evidence",
+        "categorical-token-policy",
+        "io-plan",
+        "labeled-text-projection",
+        "protected-token-filter",
+        "required-condition-classifier",
+        "reversible-state-delta-projection",
+        "thresholded-unique-best-selector"
+      ],
+      "reusable_native_capabilities_after_build": [
+        "interface_context_mode_confidence",
+        "interface_roundtrip_observation",
+        "io_semantic_coverage_ratio",
+        "learning_delta_score",
+        "learning_novelty_ratio",
+        "learning_overlap_score",
+        "learning_retention_ratio",
+        "learning_stability_index",
+        "learning_union_size",
+        "resource_context_coverage_ratio",
+        "resource_context_delta_score"
+      ],
+      "routed_to_host": false,
+      "source_generation_used": false,
+      "state": "verified",
+      "subprocess_test_used": false,
+      "verification_identity": "fa8324f6ba06804645ce9a3edb3a43803fecf476037fda16b37a0d82157e88f6"
     }
   ],
   "initial_seed_capabilities": [
@@ -2848,12 +2926,12 @@
     "resource_context_delta_score"
   ],
   "internal_next_action": null,
-  "latest_completed_gap": "adaptive_shell_iteration_observation_readiness",
+  "latest_completed_gap": "adaptive_shell_iteration_observation",
   "local_verification_revision": "aurum-local-capability-verification-v7",
-  "next_gap": "adaptive_shell_iteration_observation_readiness",
+  "next_gap": "adaptive_shell_iteration_observation",
   "reasoning_request": null,
   "reasoning_required": false,
-  "resumed_from_generations": 39,
+  "resumed_from_generations": 42,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
