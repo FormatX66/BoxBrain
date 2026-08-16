@@ -8,7 +8,16 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "seed"))
 
-from aurum_console import CONSOLE_SCHEMA, console_status, run_console  # noqa: E402
+from aurum_console import (  # noqa: E402
+    CONSOLE_SCHEMA,
+    PLAIN_PROMPT,
+    RESET,
+    TEAL,
+    YELLOW,
+    _console_prompt,
+    console_status,
+    run_console,
+)
 
 
 BOOTSTRAP = ROOT / "mind" / "bootstrap_mind.json"
@@ -44,6 +53,17 @@ class AurumConsoleTests(unittest.TestCase):
             self.assertIn('"host_actuation": false', output.getvalue())
             self.assertIn("Aurum console closed.", output.getvalue())
             self.assertEqual(CONSOLE_SCHEMA, console_status(root, "test-model")["schema"])
+
+    def test_prompt_colors_only_ringed_a_and_u_on_a_terminal(self):
+        class TerminalBuffer(io.StringIO):
+            def isatty(self):
+                return True
+
+        self.assertEqual(PLAIN_PROMPT, _console_prompt(io.StringIO()))
+        self.assertEqual(
+            f"{YELLOW}Å{RESET}{TEAL}u{RESET}rum> ",
+            _console_prompt(TerminalBuffer()),
+        )
 
     def test_dialogue_key_stays_in_memory_and_evidence_is_bounded(self):
         with tempfile.TemporaryDirectory() as directory:

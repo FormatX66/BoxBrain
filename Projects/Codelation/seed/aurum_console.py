@@ -20,6 +20,10 @@ from aurum_dialogue import DEFAULT_MODEL, Reasoner, ask, call_openai_reasoner, s
 
 CONSOLE_SCHEMA = "aurum.console.v1"
 DEFAULT_ROOT = Path("/opt/boxbrain/codelation")
+PLAIN_PROMPT = "Åurum> "
+YELLOW = "\x1b[33m"
+TEAL = "\x1b[38;2;0;150;160m"
+RESET = "\x1b[0m"
 HELP = """Commands:
   /status  Show the bounded Aurum mind status.
   /help    Show this help.
@@ -50,6 +54,12 @@ def console_status(root: Path, model: str) -> dict[str, object]:
 def _write(stream: TextIO, text: str = "") -> None:
     stream.write(text + "\n")
     stream.flush()
+
+
+def _console_prompt(stream: TextIO) -> str:
+    if not getattr(stream, "isatty", lambda: False)():
+        return PLAIN_PROMPT
+    return f"{YELLOW}Å{RESET}{TEAL}u{RESET}rum> "
 
 
 def _read_key(
@@ -86,7 +96,7 @@ def run_console(
 
     api_key: str | None = None
     while True:
-        output_stream.write("aurum> ")
+        output_stream.write(_console_prompt(output_stream))
         output_stream.flush()
         line = input_stream.readline()
         if line == "":
