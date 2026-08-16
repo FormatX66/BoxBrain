@@ -1,4 +1,6 @@
+import json
 import unittest
+from pathlib import Path
 
 from Projects.Codelation.driver_synthesis import (
     CANDIDATE_SCHEMA,
@@ -6,6 +8,9 @@ from Projects.Codelation.driver_synthesis import (
     reconcile_evidence,
     synthesize_candidate_interface,
 )
+
+
+EVIDENCE = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_v0.json"
 
 
 class DriverSynthesisTests(unittest.TestCase):
@@ -94,6 +99,29 @@ class DriverSynthesisTests(unittest.TestCase):
             synthesize_candidate_interface(first)["candidate_identity"],
             synthesize_candidate_interface(second)["candidate_identity"],
         )
+
+    def test_real_public_uart_bundle_reconstructs_correlated_behavior(self):
+        payload = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+        self.assertFalse(payload["physical_hardware_observation"])
+        claims = [EvidenceClaim(**claim) for claim in payload["claims"]]
+        model = reconcile_evidence(claims)
+        self.assertEqual(16, model["claims"]["fifo.depth_bytes"]["value"])
+        self.assertEqual(16, model["claims"]["divisor_latch.width_bits"]["value"])
+        self.assertEqual(
+            "receive-data-available",
+            model["claims"]["line_status.data_ready.meaning"]["value"],
+        )
+        self.assertEqual(
+            "transmit-holding-register-empty",
+            model["claims"]["line_status.thre.meaning"]["value"],
+        )
+        self.assertEqual("uncertain", model["claims"]["line_control.dlab.meaning"]["state"])
+        candidate = synthesize_candidate_interface(model)
+        self.assertIn(
+            "linux:drivers/tty/serial/8250/8250_port.c",
+            candidate["reference_driver_teachers"],
+        )
+        self.assertFalse(candidate["promotion_gates"]["physical_write_authorized"])
 
 
 if __name__ == "__main__":
