@@ -8,15 +8,15 @@
   "architecture": "aarch64",
   "route": "10.12.194.1",
   "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-  "observed_at": 1786844658,
+  "observed_at": 1786900295,
   "console": {
     "command": "/usr/local/bin/aurum",
     "command_sha256": "68a4c1bed678998f48322aca27d1fe3415d68f23b013a422252935803934638e",
     "module": "/opt/boxbrain/codelation/seed/aurum_console.py",
-    "module_sha256": "d3f92c8e519c1c17cfcb1de6d44b3d57c900cf17f251a331a0c2f4ccdc36ae74",
+    "module_sha256": "22db7ff995e718cfcc49f80c033dccdba764ddd9e2e22f07c2ed296f67b9734b",
     "dialogue_supervisor_sha256": "a6eebf5fbe54fc9be81ad7cde4e1e5895867fefb55653eab4a5237f5ebd5553d",
     "identity": "BBPI4/Aurum",
-    "mind_version": 1,
+    "mind_version": 2,
     "dialogue_only": true,
     "host_actuation": false,
     "api_key_persisted": false,
@@ -32,7 +32,7 @@
   },
   "rollback": {
     "present": true,
-    "path": "/opt/boxbrain/rollback/codelation-20260816T013737Z-1036647"
+    "path": "/opt/boxbrain/rollback/codelation-20260816T141844Z-1600338"
   },
   "authority_granted": false,
   "persistent_service_added": false,
