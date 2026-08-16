@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import replace
 import sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];FIELD=ROOT/"field";sys.path.insert(0,str(ROOT));sys.path.insert(0,str(FIELD))
@@ -131,5 +132,13 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         unsafe=self._trial_evidence();unsafe["safety"]["persistent_interface_changed"]=True
         rejected=apply_adaptive_shell_live_trial_evidence(gap,unsafe,now=1010)
         self.assertFalse(rejected.applied);self.assertEqual(rejected.reason,"trial-safety-boundary-invalid")
+    def test_next_iteration_planning_requires_fresh_observation_and_permission(self):
+        gap=get_native_semantic_gap("adaptive_shell_next_iteration_planning");self.assertIsNotNone(gap)
+        verified=verify_local_capability_for_gap(gap,"required-condition-classifier")
+        self.assertTrue(verified.verified);self.assertEqual(verified.invocation_output,"next-iteration-observation-gated")
+        self.assertFalse(verified.authority_granted);self.assertFalse(verified.routed_to_host)
+        invocation=dict(gap.invocation_arguments);invocation["new_permission_required"]="no"
+        blocked=verify_local_capability_for_gap(replace(gap,invocation_arguments=invocation),"required-condition-classifier")
+        self.assertTrue(blocked.verified);self.assertEqual(blocked.invocation_output,"blocked-new-permission-required")
 
 if __name__=="__main__":unittest.main(verbosity=2)

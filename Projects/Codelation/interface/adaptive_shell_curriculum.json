@@ -67,6 +67,13 @@
       "goal": "Demonstrate observe -> infer -> propose -> simulate -> verify -> apply within authorized scope -> observe result -> learn -> retain/revert with a complete Proof View record.",
       "new_capability_class": "closed-loop-human-interface-adaptation",
       "authority": "bounded-by-existing-grants"
+    },
+    {
+      "order": 10,
+      "gap": "adaptive_shell_next_iteration_planning",
+      "goal": "Close a verified bounded trial at its restored baseline and require new observation evidence plus a new explicit permission scope before another live iteration.",
+      "new_capability_class": "bounded-iteration-planning",
+      "authority": "planning-only"
     }
   ],
   "promotion_gates": [

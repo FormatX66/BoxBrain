@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_next_iteration_planning",
+  "parameters": ["prior_trial_verified", "rollback_restored", "proof_view_retained", "new_observation_required", "new_permission_required", "persistent_authority_absent"],
+  "examples": [
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "yes"}, "expected": "next-iteration-observation-gated"},
+    {"arguments": {"prior_trial_verified": "no", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-prior-trial-verified"},
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "no", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-rollback-restored"},
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "no", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-proof-view-retained"},
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "no", "new_permission_required": "yes", "persistent_authority_absent": "yes"}, "expected": "blocked-new-observation-required"},
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "no", "persistent_authority_absent": "yes"}, "expected": "blocked-new-permission-required"},
+    {"arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "no"}, "expected": "blocked-persistent-authority-absent"}
+  ],
+  "invocation_arguments": {"prior_trial_verified": "yes", "rollback_restored": "yes", "proof_view_retained": "yes", "new_observation_required": "yes", "new_permission_required": "yes", "persistent_authority_absent": "yes"},
+  "next_gap": "adaptive_shell_iteration_observation_readiness",
+  "purpose": "Close one verified adaptive-shell trial and classify the safe boundary for planning another iteration. A new iteration must begin with new observation evidence and a new bounded permission scope; prior carrier proof or authority is never reused.",
+  "principles": ["a verified rollback closes the prior trial before planning continues", "the prior Proof View record remains available for review", "each iteration requires new observation evidence", "each live iteration requires a new explicit permission scope", "successful classification does not create persistent authority"],
+  "constraints": ["pure", "deterministic", "classification-only", "planning-only", "no-live-io", "no-host-authority", "no-evidence-reuse", "no-implicit-permission", "fail-closed"],
+  "max_synthesis_cost": 16
+}

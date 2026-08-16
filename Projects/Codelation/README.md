@@ -117,6 +117,11 @@ digest, removes the workspace, and records bounded proof in
 chain consumes that proof as classification evidence; neither the collector nor
 the runner grants host authority or changes a persistent interface.
 
+After a verified rollback, `adaptive_shell_next_iteration_planning` closes the
+trial and advances only to `adaptive_shell_iteration_observation_readiness`.
+That boundary requires a new observation and a new explicit permission scope;
+expired carrier evidence and authority from an earlier trial are never reused.
+
 The repository-root entry point performs that direct reconciliation without a
 Git/Codelation queue gate:
 
