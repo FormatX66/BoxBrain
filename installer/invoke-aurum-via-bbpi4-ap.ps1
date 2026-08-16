@@ -6,7 +6,7 @@ param(
     [string]$ApAddress = "10.42.194.1",
     [string]$PiUser = "kali",
     [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519"),
-    [string]$ExpectedHostKeyFingerprint = "SHA256:hFesq9DxC+gOdl8rT6a4RDptEsNp6yn2FhwYv/lXC1o",
+    [string]$ExpectedHostKeyFingerprint = "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
     [ValidateRange(5, 120)]
     [int]$ConnectTimeoutSeconds = 30,
     [ValidateRange(1, 8)]
