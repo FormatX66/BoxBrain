@@ -10,6 +10,7 @@ ALLOWED_TARGETS = {
     "gpio-leds": {
         "compatible": "gpio-leds",
         "candidate_driver": "aurum-gpio-leds",
+        "working_driver_aliases": {"gpio-leds", "leds-gpio"},
         "safety_class": "noncritical-indicator",
     }
 }
@@ -27,8 +28,9 @@ def synthesize(evidence: dict, out_dir: Path) -> dict:
     compatible = str(evidence.get("compatible", ""))
     if compatible != policy["compatible"]:
         raise ValueError(f"compatible mismatch: {compatible!r}")
-    if evidence.get("working_driver") != target:
-        raise ValueError("working driver evidence does not match target")
+    working_driver = str(evidence.get("working_driver", ""))
+    if working_driver not in policy["working_driver_aliases"]:
+        raise ValueError(f"unexpected working driver: {working_driver!r}")
     device = str(evidence.get("device", "")).strip()
     kernel = str(evidence.get("kernel", "")).strip()
     model = str(evidence.get("model", "")).strip()
@@ -56,6 +58,7 @@ def synthesize(evidence: dict, out_dir: Path) -> dict:
         "observed_device": device,
         "observed_kernel": kernel,
         "observed_model": model,
+        "observed_working_driver": working_driver,
         "safety_class": policy["safety_class"],
         "generation": 1,
         "capability": "platform-device ownership/probe only",
