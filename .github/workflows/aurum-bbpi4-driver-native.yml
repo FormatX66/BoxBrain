@@ -1,4 +1,4 @@
-name: Aurum BBPI4 Single Driver Trial
+name: Aurum BBPI4 Driver Build Channel
 
 on:
   workflow_dispatch:
@@ -7,7 +7,9 @@ on:
       - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-bbpi4-driver-native.yml'
+      - 'installer/run-bbpi4-driver-frontier.ps1'
       - 'installer/run-bbpi4-single-driver-trial.ps1'
+      - 'Projects/Codelation/driver_evidence/pi4_driver_frontier.json'
       - 'Projects/Codelation/pi4_driver_synthesizer.py'
       - 'Projects/Codelation/run_pi4_single_driver_trial.sh'
 
@@ -15,11 +17,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: aurum-bbpi4-single-driver
+  group: aurum-bbpi4-driver-build-channel
   cancel-in-progress: false
 
 jobs:
-  gpio-leds-generation-1:
+  git-controlled-driver-frontier:
     runs-on:
       - self-hosted
       - Windows
@@ -32,23 +34,16 @@ jobs:
           ref: aurum/trunk-v0.01
           fetch-depth: 1
 
-      - name: Normalize Pi shell script to LF
+      - name: Execute Git-controlled Pi4 driver frontier
         shell: powershell
         run: |
-          $path = 'Projects\Codelation\run_pi4_single_driver_trial.sh'
-          $text = [IO.File]::ReadAllText($path).Replace("`r`n", "`n").Replace("`r", "`n")
-          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+          .\installer\run-bbpi4-driver-frontier.ps1 -OutputDirectory evidence -RunTag '${{ github.run_id }}'
 
-      - name: Back up, synthesize, bind, and restore one Pi4 driver
-        shell: powershell
-        run: |
-          .\installer\run-bbpi4-single-driver-trial.ps1 -OutputDirectory evidence -RunTag '${{ github.run_id }}'
-
-      - name: Publish trial log
+      - name: Publish driver build-channel evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: aurum-bbpi4-single-driver-${{ github.run_id }}
+          name: aurum-bbpi4-driver-frontier-${{ github.run_id }}
           path: evidence/**
           if-no-files-found: warn
           retention-days: 7
