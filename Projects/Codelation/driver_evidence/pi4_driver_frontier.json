@@ -5,7 +5,9 @@
   "physical_target": "Raspberry Pi 4 Model B",
   "active_generation": 2,
   "validated_generation": 2,
+  "trial_generation": 3,
   "next_generation": 3,
+  "trial_capability": "reference-aligned sleep-aware GPIO LED write callback selection while preserving learned readback semantics",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -47,6 +49,16 @@
     "raw-mmio-or-pio-write-paths-not-already-bounded-by-kernel-subsystems",
     "moving-to-a-new-device-class-with-materially-higher-recovery-risk"
   ],
+  "generation_3_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "gpiod_cansleep determines direct versus blocking brightness callback",
+      "gpiod_set_value is used on non-sleeping GPIOs",
+      "gpiod_set_value_cansleep is used on sleeping GPIOs",
+      "brightness_get reads the GPIO logical state"
+    ],
+    "exact_live_api_validation": "compile against the running BBPI4 kernel headers before any bind"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Single Driver Trial",
     "run_id": 31973744759,
