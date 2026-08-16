@@ -298,9 +298,23 @@ printf '%s\n' \
 '@
 
     $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($remote -replace "`r", "")))
-    $remoteCommand = 'python3 -c ''import base64;open("/tmp/aurum-reconcile.sh","wb").write(base64.b64decode("{0}"))'' && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh ''{1}'' ''{2}''; rc=$?; rm -f /tmp/aurum-reconcile.sh; exit $rc' -f $payload, $transfer, $PiUser
-    & $ssh.Source @options $target $remoteCommand
-    if ($LASTEXITCODE -ne 0) {
+    $remoteCommand = 'printf %s {0} | base64 -d > /tmp/aurum-reconcile.sh && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh ''{1}'' ''{2}''; rc=$?; rm -f /tmp/aurum-reconcile.sh; exit $rc' -f $payload, $transfer, $PiUser
+    $previousErrorActionPreference = $ErrorActionPreference
+    $remoteOutput = @()
+    $remoteExitCode = 1
+    try {
+        # Windows PowerShell promotes native stderr to error records. The remote
+        # validation intentionally writes unittest progress to stderr, so collect
+        # both streams and decide success from ssh's exit code instead.
+        $ErrorActionPreference = "Continue"
+        $remoteOutput = @(& $ssh.Source @options $target $remoteCommand 2>&1)
+        $remoteExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $remoteOutput | Write-Output
+    if ($remoteExitCode -ne 0) {
         throw "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
     }
 }
