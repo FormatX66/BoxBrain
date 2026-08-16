@@ -1,10 +1,13 @@
+import hashlib
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "seed"))
+ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT / "seed"))
+sys.path.insert(0, str(ROOT / "field"))
 from aurum_dialogue import (  # noqa: E402
     IDENTITY,
     ask,
@@ -16,6 +19,7 @@ from aurum_dialogue import (  # noqa: E402
     status,
     validate_mind,
 )
+from context_exchange import advance_context_state, parse_context_state  # noqa: E402
 
 
 BOOTSTRAP = Path(__file__).parents[1] / "mind" / "bootstrap_mind.json"
@@ -58,6 +62,57 @@ class AurumDialogueTests(unittest.TestCase):
             payload = json.loads(evidence.read_text(encoding="utf-8"))
             self.assertEqual(response, payload["response"])
             self.assertNotIn("not-persisted", evidence.read_text(encoding="utf-8"))
+
+    def test_context_exchange_retains_order_without_raw_content(self):
+        prompt_one = "first private prompt"
+        response_one = "first private response"
+        first = advance_context_state(
+            None,
+            context_id="gui-session-a",
+            sequence=1,
+            input_sha256=hashlib.sha256(prompt_one.encode("utf-8")).hexdigest(),
+            output_sha256=hashlib.sha256(response_one.encode("utf-8")).hexdigest(),
+        )
+        first_state = parse_context_state(first)
+        self.assertEqual(first_state.sequence, 1)
+
+        prompt_two = "second private prompt"
+        response_two = "second private response"
+        second = advance_context_state(
+            first,
+            context_id="gui-session-a",
+            sequence=2,
+            input_sha256=hashlib.sha256(prompt_two.encode("utf-8")).hexdigest(),
+            output_sha256=hashlib.sha256(response_two.encode("utf-8")).hexdigest(),
+        )
+        restored = parse_context_state(second)
+        self.assertEqual(restored.sequence, 2)
+        self.assertEqual(restored.previous_chain_sha256, first_state.chain_sha256)
+        for secret in (prompt_one, response_one, prompt_two, response_two):
+            self.assertNotIn(secret, first)
+            self.assertNotIn(secret, second)
+
+        with self.assertRaisesRegex(ValueError, "monotonic"):
+            advance_context_state(
+                second,
+                context_id="gui-session-a",
+                sequence=2,
+                input_sha256="a" * 64,
+                output_sha256="b" * 64,
+            )
+        with self.assertRaisesRegex(ValueError, "isolation"):
+            advance_context_state(
+                second,
+                context_id="gui-session-b",
+                sequence=3,
+                input_sha256="a" * 64,
+                output_sha256="b" * 64,
+            )
+
+        tampered = json.loads(second)
+        tampered["chain_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "integrity"):
+            parse_context_state(json.dumps(tampered, sort_keys=True, separators=(",", ":")))
 
     def test_self_build_replaces_only_declarative_mind_and_keeps_rollback(self):
         with tempfile.TemporaryDirectory() as directory:
