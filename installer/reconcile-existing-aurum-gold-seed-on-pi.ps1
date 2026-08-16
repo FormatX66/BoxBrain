@@ -90,13 +90,18 @@ cd "$STAGED"
 # Only the Aurum overlay contract is authoritative for this operation.
 python3 -m unittest discover -s tests -p 'test_aurum_live.py' -v
 python3 -m unittest discover -s tests -p 'test_aurum_dialogue.py' -v
+python3 -m unittest discover -s tests -p 'test_aurum_console.py' -v
 aurum_overlay_tests=passed
+aurum_console_tests=passed
 
 # The broader Codelation suite remains useful evidence, but it is no longer
 # allowed to veto an already-running operator-approved Aurum gold seed.
 codelation_diagnostic_status=passed
 codelation_diagnostic_detail=all-current-tests-passed
-if ! python3 -m unittest discover -s tests -v > "$TRANSFER_ROOT/codelation-tests.log" 2>&1; then
+diagnostic_timeout_seconds=360
+if ! timeout --signal=TERM --kill-after=5s "${diagnostic_timeout_seconds}s" \
+  python3 -m unittest discover -s tests -v \
+  > "$TRANSFER_ROOT/codelation-tests.log" 2>&1; then
   codelation_diagnostic_status=failed-nonblocking
   codelation_diagnostic_detail="$(tail -n 8 "$TRANSFER_ROOT/codelation-tests.log" | tr '\r\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g')"
 fi
@@ -112,12 +117,21 @@ sudo -n install -d -o "$PI_USER" -g "$PI_USER" -m 700 \
   "$INSTALL" "$INSTALL/seed" "$INSTALL/mind" "$INSTALL/state" \
   "$INSTALL/state/mind" "$INSTALL/verification" "$INSTALL/verification/dialogue"
 
-for relative in seed/aurum_live.py seed/aurum_dialogue.py seed/codelation_seed.py mind/bootstrap_mind.json; do
+for relative in seed/aurum_live.py seed/aurum_dialogue.py seed/aurum_console.py seed/codelation_seed.py mind/bootstrap_mind.json; do
   source_path="$STAGED/$relative"
   target_path="$INSTALL/$relative"
   [ -f "$source_path" ] || { echo "missing_staged_file=$relative" >&2; exit 31; }
   sudo -n install -o "$PI_USER" -g "$PI_USER" -m 600 "$source_path" "$target_path"
 done
+
+console_command=/usr/local/bin/aurum
+console_command_backup=none
+if sudo -n test -e "$console_command"; then
+  console_command_backup="$ROLLBACK_ROOT/aurum-command-$STAMP"
+  sudo -n cp -a "$console_command" "$console_command_backup"
+fi
+sudo -n install -o root -g root -m 755 \
+  "$TRANSFER_ROOT/installer/aurum-console.sh" "$console_command"
 
 cd "$INSTALL"
 if [ ! -f state/aurum-live.json ]; then
@@ -135,6 +149,9 @@ before="$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)"
 peer="$(python3 seed/aurum_live.py peer-self-test --graph state/aurum-live.json)"
 after="$(python3 seed/aurum_live.py verify --graph state/aurum-live.json)"
 mind="$(python3 seed/aurum_dialogue.py --root "$INSTALL" status)"
+console="$("$console_command" --status)"
+console_smoke="$(printf '/status\n/quit\n' | "$console_command" --no-key-prompt | tr '\r\n' '||')"
+console_command_sha256="$(sha256sum "$console_command" | awk '{print $1}')"
 
 seed_path="$INSTALL/seed.bin"
 if [ -f "$seed_path" ]; then
@@ -221,10 +238,18 @@ architecture=$arch
 aurum_overlay_tests=$aurum_overlay_tests
 codelation_diagnostic_status=$codelation_diagnostic_status
 codelation_diagnostic_detail=$codelation_diagnostic_detail
+codelation_diagnostic_timeout_seconds=$diagnostic_timeout_seconds
 before=$before
 peer=$peer
 after=$after
 mind=$mind
+AURUM_CONSOLE_READY
+aurum_console_tests=$aurum_console_tests
+aurum_console_command=$console_command
+aurum_console_command_sha256=$console_command_sha256
+aurum_console_command_backup=$console_command_backup
+aurum_console_status=$console
+aurum_console_smoke=$console_smoke
 AURUM_GOLD_SEED_PRESERVED
 seed_status=$seed_status
 seed_sha256=$seed_sha256
@@ -257,6 +282,8 @@ chmod 600 verification/AURUM_LIVE_VERIFY.txt
 [ "$root_cron_changed" -eq 0 ]
 printf '%s\n' \
   "$before" "$peer" "$after" "$mind" \
+  "$console" \
+  "aurum_console_tests=$aurum_console_tests" \
   "AURUM_GOLD_SEED_PRESERVED" \
   "aurum_overlay_tests=$aurum_overlay_tests" \
   "codelation_diagnostic_status=$codelation_diagnostic_status" \
@@ -289,6 +316,8 @@ $required = @(
     "aurum_overlay_tests=passed",
     "AURUM_LIVE_VERIFIED",
     "AURUM_PEER_SELF_TEST_OK",
+    "AURUM_CONSOLE_READY",
+    "aurum_console_tests=passed",
     "AURUM_GOLD_SEED_PRESERVED",
     "new_unapproved_systemd_units=0",
     "unapproved_user_cron_changes=0",

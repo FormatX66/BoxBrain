@@ -129,6 +129,35 @@ Git/Codelation queue gate:
 .\Aurum.ps1
 ```
 
+## On-Pi Aurum console
+
+The reconciled BBPI4 installation provides a dialogue-only `aurum` command:
+
+```bash
+aurum
+```
+
+The console exposes `/status`, `/help`, and `/quit`, plus bounded dialogue
+through the existing Aurum mind supervisor. It has no shell or host-actuation
+actions. When `OPENAI_API_KEY` is not already present in the process, the
+console asks for it with hidden input and retains it only in memory for that
+session; the key is never written into dialogue evidence or Pi configuration.
+
+From the authorized Windows host, open it through the pinned USB route with:
+
+```powershell
+ssh -t -i "$HOME\.ssh\boxbrain_pi_ed25519" `
+  -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes `
+  kali@10.12.194.1 aurum
+```
+
+Or use the USB-first launcher, which verifies the remote console before opening
+a visible interactive SSH window:
+
+```powershell
+.\installer\open-aurum-console-on-pi.ps1
+```
+
 ## BBPI4 access-point route
 
 An authorized Windows computer that has previously joined BBPI4's own Wi-Fi AP

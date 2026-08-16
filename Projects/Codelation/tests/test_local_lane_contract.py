@@ -9,6 +9,7 @@ AP_HELPER = ROOT / "installer" / "invoke-aurum-via-bbpi4-ap.ps1"
 WATCHER = ROOT / "installer" / "aurum-local-lane" / "watch-aurum-local-lane.ps1"
 DEPLOYER = ROOT / "installer" / "deploy-aurum-live-to-pi.ps1"
 RECONCILER = ROOT / "installer" / "reconcile-existing-aurum-gold-seed-on-pi.ps1"
+CONSOLE_LAUNCHER = ROOT / "installer" / "open-aurum-console-on-pi.ps1"
 
 
 class LocalLaneContractTests(unittest.TestCase):
@@ -57,8 +58,22 @@ class LocalLaneContractTests(unittest.TestCase):
         text = RECONCILER.read_text(encoding="utf-8")
         self.assertIn("test_aurum_live.py", text)
         self.assertIn("test_aurum_dialogue.py", text)
+        self.assertIn("test_aurum_console.py", text)
+        self.assertIn("seed/aurum_console.py", text)
+        self.assertIn("aurum-console.sh", text)
+        self.assertIn("AURUM_CONSOLE_READY", text)
+        self.assertIn("diagnostic_timeout_seconds=360", text)
         self.assertIn("codelation_diagnostic_status=failed-nonblocking", text)
         self.assertNotIn("codelation_tests=passed", text)
+
+    def test_aurum_console_launcher_is_strict_and_usb_first(self):
+        text = CONSOLE_LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn('@("10.12.194.1", "10.42.194.1", "192.168.0.194")', text)
+        self.assertIn("StrictHostKeyChecking=yes", text)
+        self.assertIn("UserKnownHostsFile=", text)
+        self.assertIn("/usr/local/bin/aurum --status", text)
+        self.assertIn('@("-tt")', text)
+        self.assertIn('"aurum"', text)
 
     def test_watcher_does_not_force_the_lan_only_route(self):
         text = WATCHER.read_text(encoding="utf-8")
