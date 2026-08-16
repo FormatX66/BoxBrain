@@ -15,6 +15,7 @@ from Projects.Codelation.driver_synthesis import (
 
 EVIDENCE = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_v0.json"
 TRACE = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_reference_trace_v0.json"
+REGISTER_BINDINGS = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_register_bindings_v0.json"
 
 
 class DriverSynthesisTests(unittest.TestCase):
@@ -128,6 +129,25 @@ class DriverSynthesisTests(unittest.TestCase):
             "linux:drivers/tty/serial/8250/8250_port.c",
             candidate["reference_driver_teachers"],
         )
+        self.assertFalse(candidate["promotion_gates"]["physical_write_authorized"])
+
+    def test_public_uart_register_bindings_are_independently_verified(self):
+        payload = json.loads(REGISTER_BINDINGS.read_text(encoding="utf-8"))
+        self.assertFalse(payload["physical_hardware_observation"])
+        model = reconcile_evidence([EvidenceClaim(**claim) for claim in payload["claims"]])
+        self.assertEqual(11, len(model["claims"]))
+        self.assertTrue(all(entry["state"] == "verified" for entry in model["claims"].values()))
+        self.assertEqual({"offset": 0, "dlab": 0}, model["claims"]["selector.receiver_buffer"]["value"])
+        self.assertEqual({"offset": 3, "dlab": "any"}, model["claims"]["selector.line_control"]["value"])
+        self.assertEqual({"offset": 5, "dlab": "any"}, model["claims"]["selector.line_status"]["value"])
+        self.assertEqual({"offset": 0, "dlab": 1}, model["claims"]["selector.divisor_latch_lsb"]["value"])
+        self.assertEqual(128, model["claims"]["mask.line_control.dlab"]["value"])
+        self.assertEqual(1, model["claims"]["mask.line_status.data_ready"]["value"])
+        self.assertEqual(32, model["claims"]["mask.line_status.thre"]["value"])
+        self.assertEqual(64, model["claims"]["mask.line_status.temt"]["value"])
+        candidate = synthesize_candidate_interface(model)
+        self.assertEqual(11, len(candidate["resolved_claims"]))
+        self.assertIn("linux:include/uapi/linux/serial_reg.h", candidate["reference_driver_teachers"])
         self.assertFalse(candidate["promotion_gates"]["physical_write_authorized"])
 
     def test_reference_derived_trace_passes_complete_verified_claim_replay(self):
