@@ -1,0 +1,19 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_context_virtual_convergence",
+  "parameters": ["surface_integration_verified", "same_commit_virtual_lab_verified", "physical_hardware_not_claimed", "no_credential_persistence", "no_host_authority"],
+  "examples": [
+    {"arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "yes", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "gui-context-virtual-convergence-ready"},
+    {"arguments": {"surface_integration_verified": "no", "same_commit_virtual_lab_verified": "yes", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-surface-integration-verified"},
+    {"arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "no", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-same-commit-virtual-lab-verified"},
+    {"arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "yes", "physical_hardware_not_claimed": "no", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-physical-hardware-not-claimed"},
+    {"arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "yes", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "no", "no_host_authority": "yes"}, "expected": "blocked-no-credential-persistence"},
+    {"arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "yes", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"surface_integration_verified": "yes", "same_commit_virtual_lab_verified": "no", "physical_hardware_not_claimed": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_context_virtual_convergence",
+  "purpose": "Require the context-aware GUI surface to converge in Aurum's established same-commit virtual hardware lab before its verified state advances beyond local integration. Virtual convergence is evidence for the image/runtime path only and must not be represented as physical BBPI4 proof.",
+  "principles": ["local integration and virtual convergence are separate evidence domains", "promotion evidence binds to the exact source commit", "virtual Pi evidence never implies physical hardware proof", "credential material remains outside persistent evidence", "no host authority is introduced"],
+  "constraints": ["classification-only", "virtual-convergence-gate", "same-commit-evidence", "physical-proof-not-implied", "no-credential-persistence", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 4
+}
