@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "seed"))
 sys.path.insert(0, str(ROOT / "field"))
+from aurum_context import BoundedContextSession, MAX_PRIOR_TURNS  # noqa: E402
 from aurum_dialogue import (  # noqa: E402
     IDENTITY,
     ask,
@@ -113,6 +114,72 @@ class AurumDialogueTests(unittest.TestCase):
         tampered["chain_sha256"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "integrity"):
             parse_context_state(json.dumps(tampered, sort_keys=True, separators=(",", ":")))
+
+    def test_bounded_context_supplies_prior_turns_and_detects_restart_loss(self):
+        calls = []
+
+        def fake_reasoner(messages, model, api_key):
+            calls.append(messages)
+            self.assertEqual(model, "test-model")
+            self.assertEqual(api_key, "memory-only-key")
+            return f"response-{len(calls)}", f"request-{len(calls)}"
+
+        session = BoundedContextSession(
+            context_id="gui-context-a",
+            system_message="bounded system instruction",
+        )
+        first_response, first_marker = session.exchange(
+            prompt="first semantic input",
+            model="test-model",
+            api_key="memory-only-key",
+            reasoner=fake_reasoner,
+        )
+        self.assertEqual(first_response, "response-1")
+        second_response, second_marker = session.exchange(
+            prompt="second semantic input",
+            model="test-model",
+            api_key="memory-only-key",
+            reasoner=fake_reasoner,
+        )
+        self.assertEqual(second_response, "response-2")
+        second_call = json.dumps(calls[1])
+        self.assertIn("first semantic input", second_call)
+        self.assertIn("response-1", second_call)
+        self.assertIn("second semantic input", second_call)
+        self.assertNotIn("memory-only-key", json.dumps(session.__dict__))
+        self.assertNotIn("first semantic input", first_marker)
+        self.assertNotIn("response-1", first_marker)
+        self.assertNotIn("second semantic input", second_marker)
+        self.assertNotIn("response-2", second_marker)
+
+        for index in range(MAX_PRIOR_TURNS + 3):
+            session.exchange(
+                prompt=f"bounded-{index}",
+                model="test-model",
+                api_key="memory-only-key",
+                reasoner=fake_reasoner,
+            )
+        self.assertLessEqual(len(session.retained_turns), MAX_PRIOR_TURNS)
+
+        restarted = BoundedContextSession.from_restart_marker(
+            context_id="gui-context-a",
+            system_message="bounded system instruction",
+            marker=session.integrity_marker(),
+        )
+        self.assertTrue(restarted.semantic_context_lost)
+        with self.assertRaisesRegex(ValueError, "unavailable after restart"):
+            restarted.exchange(
+                prompt="must not pretend continuity",
+                model="test-model",
+                api_key="memory-only-key",
+                reasoner=fake_reasoner,
+            )
+        with self.assertRaisesRegex(ValueError, "isolation"):
+            BoundedContextSession.from_restart_marker(
+                context_id="gui-context-b",
+                system_message="bounded system instruction",
+                marker=session.integrity_marker(),
+            )
 
     def test_self_build_replaces_only_declarative_mind_and_keeps_rollback(self):
         with tempfile.TemporaryDirectory() as directory:
