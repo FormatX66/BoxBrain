@@ -15,7 +15,7 @@
   "invocation_arguments": {"ledger_ready": "yes", "bounded_prior_turns_available": "yes", "prior_turns_supplied_to_reasoner": "yes", "sequence_guarded": "yes", "restart_loss_detectable": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"},
   "next_gap": "adaptive_shell_gui_context_surface_integration",
   "purpose": "Verify the bounded semantic context capability beneath repeated GUI exchange. The session retains a bounded number of raw prior turns only in process memory, supplies those prior turns to subsequent reasoning calls, advances the content-free integrity ledger for sequence and context correlation, never stores the API key, and fails closed after restart when the integrity marker proves prior exchanges existed but raw semantic state is no longer available.",
-  "principles": ["semantic continuity requires prior state to influence the next interpretation", "prior turns are explicitly bounded", "the integrity marker stores no raw user content", "restart loss is explicit rather than hidden", "independent contexts remain isolated", "credentials are not retained on context state", "no host authority is introduced"],
+  "principles": ["semantic continuity requires prior state to influence the next interpretation", "prior turns are explicitly bounded", "the integrity marker stores no raw user content", "restart loss is explicit rather than hidden", "independent contexts remain isolated", "credentials are not retained on context state", "no host authority is introduced", "reuse a verified deterministic classifier before spending broad native-search capacity"],
   "constraints": ["verified-session-capability", "bounded-context", "context-isolated", "restart-loss-detectable", "no-credential-persistence", "no-host-authority", "fail-closed"],
-  "max_synthesis_cost": 16
+  "max_synthesis_cost": 4
 }
