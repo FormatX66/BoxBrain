@@ -55,6 +55,20 @@ class DriverSynthesisTests(unittest.TestCase):
         self.assertIsNone(entry["value"])
         self.assertEqual("x", entry["candidate_value"])
 
+    def test_invalid_or_unbounded_evidence_is_rejected(self):
+        with self.assertRaises(ValueError):
+            reconcile_evidence([
+                EvidenceClaim("register.x", 1, "unknown-source", "mystery", 1.0),
+            ])
+        with self.assertRaises(ValueError):
+            reconcile_evidence([
+                EvidenceClaim("register.x", 1, "datasheet", "manual", 1.01),
+            ])
+        with self.assertRaises(ValueError):
+            reconcile_evidence([
+                EvidenceClaim("", 1, "datasheet", "manual", 1.0),
+            ])
+
     def test_candidate_is_non_actuating_and_excludes_uncertain_claims(self):
         model = reconcile_evidence([
             EvidenceClaim("register.status", 16, "datasheet", "manual", 0.95),
