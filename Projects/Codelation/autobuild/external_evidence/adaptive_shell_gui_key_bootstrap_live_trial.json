@@ -6,8 +6,8 @@
   "node_id": "cff5511ddbb6bf14",
   "route": "10.12.194.1",
   "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-  "observed_at": 1786902657,
-  "expires_at": 1786903857,
+  "observed_at": 1786903855,
+  "expires_at": 1786905055,
   "candidate": {
     "module": "/opt/boxbrain/codelation/seed/aurum_gui.py",
     "module_sha256": "c39ffa6e03c1060c0bd2656c6b623e94ff26d35573be37e1e73b61e2d08948f0",
@@ -23,7 +23,7 @@
     "port": 8765,
     "listener_loopback_only": true,
     "status_schema": "aurum.gui.v3",
-    "status_sha256": "3077b00fd3a56b215326ef78a37d6c1497d66603d4e4f838928bacef2509d33a"
+    "status_sha256": "a8f6dfce1142ee9d5b19a440d2c56cb44f37b5883223ea35e87f28daf97bd548"
   },
   "trial": {
     "stage_verified": true,
@@ -37,8 +37,8 @@
     "expiry_wait_seconds": 62,
     "synthetic_noncredential": true,
     "actual_api_key_observed": false,
-    "persistence_surface_before_sha256": "a97a553f6865cad791a23022c16ed9f9c65370bc6fed0a761fcb237eab425dee",
-    "persistence_surface_after_sha256": "a97a553f6865cad791a23022c16ed9f9c65370bc6fed0a761fcb237eab425dee"
+    "persistence_surface_before_sha256": "b5ec696c55dcecbd4078404f3803a2a806e85c3eaa7fd25561daa1be6fc7dfdf",
+    "persistence_surface_after_sha256": "b5ec696c55dcecbd4078404f3803a2a806e85c3eaa7fd25561daa1be6fc7dfdf"
   },
   "interface": {
     "page_memory_assignment_present": true,
@@ -75,8 +75,8 @@
   },
   "proof_view": {
     "present": true,
-    "status_sha256": "3077b00fd3a56b215326ef78a37d6c1497d66603d4e4f838928bacef2509d33a",
-    "persistence_surface_sha256": "a97a553f6865cad791a23022c16ed9f9c65370bc6fed0a761fcb237eab425dee",
+    "status_sha256": "a8f6dfce1142ee9d5b19a440d2c56cb44f37b5883223ea35e87f28daf97bd548",
+    "persistence_surface_sha256": "b5ec696c55dcecbd4078404f3803a2a806e85c3eaa7fd25561daa1be6fc7dfdf",
     "user_content_captured": false,
     "credential_content_captured": false
   },

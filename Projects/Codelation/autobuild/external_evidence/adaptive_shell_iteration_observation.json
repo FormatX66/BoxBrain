@@ -6,8 +6,8 @@
   "node_id": "cff5511ddbb6bf14",
   "route": "10.12.194.1",
   "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-  "observed_at": 1786901121,
-  "expires_at": 1786902321,
+  "observed_at": 1786903737,
+  "expires_at": 1786904937,
   "console": {
     "identity": "BBPI4/Aurum",
     "mind_version": 2,

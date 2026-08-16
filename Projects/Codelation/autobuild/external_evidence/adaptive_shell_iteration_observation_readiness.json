@@ -6,8 +6,8 @@
   "node_id": "cff5511ddbb6bf14",
   "route": "10.12.194.1",
   "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-  "observed_at": 1786900312,
-  "expires_at": 1786901212,
+  "observed_at": 1786903693,
+  "expires_at": 1786904593,
   "console": {
     "status_verified": true,
     "command": "/usr/local/bin/aurum",
@@ -31,7 +31,7 @@
   "permission": {
     "present": true,
     "scope": "adaptive-shell-iteration-observation",
-    "authorization_reference": "codex-user-ok-go-ahead-20260816"
+    "authorization_reference": "codex-user-minimize-asks-go-more-20260816"
   },
   "proof_view": {
     "present": true,

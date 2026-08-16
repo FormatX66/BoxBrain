@@ -6,17 +6,17 @@
     "verified": true
   },
   "authority_granted": false,
-  "expires_at": 1786899663,
+  "expires_at": 1786904531,
   "kind": "adaptive-shell-bounded-live-trial",
   "node_id": "cff5511ddbb6bf14",
-  "observed_at": 1786898791,
+  "observed_at": 1786903661,
   "proof_view": {
     "baseline_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
     "candidate_sha256": "b7a04e458413709786bf0d485d09879db1ed06fb538e8e73f3fc4b4548fc07bc",
     "present": true,
-    "readiness_evidence_sha256": "9874c1f76f4c49440376eef127915cdcce9d399eee1c68887fa34aadc2d8a77f",
+    "readiness_evidence_sha256": "47e5a57935c9d563adad3bce63d0685537820563b31ec66875cb3ede7ec676d4",
     "restored_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
-    "trial_identity": "ebbf46d2cd4133751a6ab6b14c2f50bbbf95c8394a9b97de262ae10d0eee3071"
+    "trial_identity": "132417a4992550244113f859dc24ee3eadd3d7a865cee6fd4aee99ff148f41a4"
   },
   "proposal": {
     "delta": "add=terminal;remove=none;evidence=coding-confidence-high",
@@ -27,7 +27,7 @@
     ],
     "verified": true
   },
-  "readiness_evidence_sha256": "9874c1f76f4c49440376eef127915cdcce9d399eee1c68887fa34aadc2d8a77f",
+  "readiness_evidence_sha256": "47e5a57935c9d563adad3bce63d0685537820563b31ec66875cb3ede7ec676d4",
   "rollback": {
     "baseline_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
     "restored_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
@@ -44,6 +44,6 @@
   },
   "schema": "aurum-adaptive-shell-live-trial-evidence-v1",
   "source": "aurum-ephemeral-shell-state-trial",
-  "trial_identity": "ebbf46d2cd4133751a6ab6b14c2f50bbbf95c8394a9b97de262ae10d0eee3071",
+  "trial_identity": "132417a4992550244113f859dc24ee3eadd3d7a865cee6fd4aee99ff148f41a4",
   "verified": true
 }

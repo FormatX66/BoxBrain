@@ -1,11 +1,11 @@
 {
   "carrier": "https-outbound",
-  "expires_at": 1786899663,
+  "expires_at": 1786904531,
   "kind": "bbpi4-physical-presence",
-  "last_seen": 1786898763,
+  "last_seen": 1786903631,
   "name": "kali-raspberrypi",
   "node_id": "cff5511ddbb6bf14",
-  "observed_at": 1786898763,
+  "observed_at": 1786903631,
   "schema": "aurum-external-prerequisite-evidence-v0",
   "source": "aurum-public-controller-fresh-node",
   "verified": true
