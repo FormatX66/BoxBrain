@@ -48,28 +48,65 @@ jobs:
             exit 0
           fi
 
+          state_path='Projects/Codelation/autobuild/native_chain_state.json'
+          if [ ! -f "$state_path" ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_NATIVE dispatch:state-missing'
+            exit 0
+          fi
+
+          blocked="$(jq -r '.blocked_reason // ""' "$state_path")"
+          next_gap="$(jq -r '.next_gap // ""' "$state_path")"
+          blocked_output="$(jq -r '.blocked_output // ""' "$state_path")"
+
+          if [ "$blocked" != 'external-prerequisite-blocked' ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_CONTINUOUS_NATIVE dispatch:not-external-prerequisite-block'
+            exit 0
+          fi
+
+          if [ "$next_gap" = 'adaptive_shell_gui_context_virtual_convergence' ] || \
+             [ "$blocked_output" = 'blocked-same-commit-virtual-lab-verified' ]; then
+            source_commit="$(git rev-parse HEAD)"
+            runs="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-virtual-lab.yml/runs?branch=${AURUM_TRUNK}&status=success&per_page=50")"
+            run_id="$(printf '%s' "$runs" | jq -r --arg sha "$source_commit" \
+              '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")][0].id // empty')"
+            if [ -z "$run_id" ]; then
+              echo 'run=false' >> "$GITHUB_OUTPUT"
+              echo "AURUM_CONTINUOUS_NATIVE stable:virtual-convergence-proof-pending source_commit=$source_commit"
+              exit 0
+            fi
+            artifact="Aurum-VirtualLab-Convergence-${source_commit}"
+            artifact_id="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+              --jq ".artifacts[] | select(.name == \"${artifact}\" and .expired == false) | .id" \
+              | head -n1)"
+            if [ -z "$artifact_id" ]; then
+              echo 'run=false' >> "$GITHUB_OUTPUT"
+              echo "AURUM_CONTINUOUS_NATIVE stable:virtual-convergence-artifact-pending run_id=$run_id"
+              exit 0
+            fi
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo "AURUM_CONTINUOUS_NATIVE dispatch:virtual-convergence-proof-ready source_commit=$source_commit run_id=$run_id artifact_id=$artifact_id"
+            exit 0
+          fi
+
           python3 - <<'PY' > /tmp/aurum-watchdog-state
           import json
           import time
           from pathlib import Path
 
           state_path = Path('Projects/Codelation/autobuild/native_chain_state.json')
-          if not state_path.is_file():
-              print('dispatch:state-missing')
-              raise SystemExit(0)
           state = json.loads(state_path.read_text(encoding='utf-8'))
-          blocked = state.get('blocked_reason')
           evidence = state.get('external_evidence') or {}
           evidence_payload = evidence.get('evidence') if isinstance(evidence, dict) else None
-          if blocked != 'external-prerequisite-blocked':
-              print('dispatch:not-physical-block')
-              raise SystemExit(0)
           if isinstance(evidence_payload, dict):
               expires_at = int(evidence_payload.get('expires_at') or 0)
               if evidence.get('applied') and expires_at >= int(time.time()):
-                  print('dispatch:fresh-physical-evidence')
+                  print('dispatch:fresh-external-evidence')
                   raise SystemExit(0)
-          print('stable:physical-evidence-pending')
+          print('stable:external-evidence-pending')
           PY
 
           decision="$(cat /tmp/aurum-watchdog-state)"
@@ -132,6 +169,7 @@ jobs:
             'Projects/AurumPC'
             'Projects/AurumPi3'
             'Projects/Codelation'
+            '.github/workflows/aurum-autobuild.yml'
           )
           if git diff --quiet "$last_success"..HEAD -- "${relevant[@]}"; then
             echo 'run=false' >> "$GITHUB_OUTPUT"
