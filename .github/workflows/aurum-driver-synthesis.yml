@@ -11,11 +11,13 @@ on:
       - 'Projects/Codelation/driver_transition_synthesis.py'
       - 'Projects/Codelation/driver_program_synthesis.py'
       - 'Projects/Codelation/driver_lowering_plan.py'
+      - 'Projects/Codelation/driver_virtual_executor.py'
       - 'Projects/Codelation/driver_evidence/**'
       - 'Projects/Codelation/tests/test_driver_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_transition_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_program_synthesis.py'
       - 'Projects/Codelation/tests/test_driver_lowering_plan.py'
+      - 'Projects/Codelation/tests/test_driver_virtual_executor.py'
 
 permissions:
   contents: read
@@ -47,12 +49,13 @@ jobs:
           Projects.Codelation.tests.test_driver_transition_synthesis
           Projects.Codelation.tests.test_driver_program_synthesis
           Projects.Codelation.tests.test_driver_lowering_plan
+          Projects.Codelation.tests.test_driver_virtual_executor
           -v
 
       - name: Report safety boundary
         run: |
-          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay,abstract-program-synthesis,abstract-program-replay,verified-selector-bindings,non-executable-lowering-plan'
+          echo 'AURUM_DRIVER_SYNTHESIS verified=evidence-reconciliation,candidate-manifest,public-evidence-bundle,bounded-behavior-replay,transition-reconciliation,ordered-transition-replay,abstract-program-synthesis,abstract-program-replay,verified-selector-bindings,non-executable-lowering-plan,virtual-logical-register-execution'
           echo 'AURUM_DRIVER_SYNTHESIS trace_proof=consistency-only synthetic_or_emulated_not_physical=true'
           echo 'AURUM_DRIVER_SYNTHESIS transition_sources=independent-datasheet-plus-emulator provenance_preserved=true'
-          echo 'AURUM_DRIVER_SYNTHESIS program_mode=abstract-non-actuating lowering_mode=non-executable-plan branch_guessing=false'
-          echo 'AURUM_DRIVER_SYNTHESIS raw_addresses=false executable_hooks=false physical_writes=false firmware_changes=false destructive_probe=false'
+          echo 'AURUM_DRIVER_SYNTHESIS program_mode=abstract-non-actuating lowering_mode=non-executable-plan execution_mode=in-memory-logical-registers-only branch_guessing=false'
+          echo 'AURUM_DRIVER_SYNTHESIS raw_addresses=false executable_hooks=false os_device_io=false physical_writes=false firmware_changes=false destructive_probe=false'
