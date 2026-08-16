@@ -3,14 +3,18 @@ import unittest
 from pathlib import Path
 
 from Projects.Codelation.driver_synthesis import (
+    BEHAVIOR_TRACE_SCHEMA,
     CANDIDATE_SCHEMA,
+    TRACE_VERIFICATION_SCHEMA,
     EvidenceClaim,
     reconcile_evidence,
     synthesize_candidate_interface,
+    verify_behavior_trace,
 )
 
 
 EVIDENCE = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_v0.json"
+TRACE = Path(__file__).parents[1] / "driver_evidence" / "tl16c550d_reference_trace_v0.json"
 
 
 class DriverSynthesisTests(unittest.TestCase):
@@ -84,6 +88,7 @@ class DriverSynthesisTests(unittest.TestCase):
         self.assertEqual(CANDIDATE_SCHEMA, candidate["schema"])
         self.assertEqual("non-actuating", candidate["mode"])
         self.assertEqual({"register.status": 16}, candidate["resolved_claims"])
+        self.assertIn("replay-non-actuating-behavior-trace", candidate["required_validation"])
         self.assertFalse(candidate["promotion_gates"]["physical_write_authorized"])
         self.assertFalse(candidate["promotion_gates"]["firmware_change_authorized"])
         self.assertTrue(candidate["promotion_gates"]["recovery_path_required_before_physical_actuation"])
@@ -100,11 +105,13 @@ class DriverSynthesisTests(unittest.TestCase):
             synthesize_candidate_interface(second)["candidate_identity"],
         )
 
-    def test_real_public_uart_bundle_reconstructs_correlated_behavior(self):
+    def _public_uart_model(self):
         payload = json.loads(EVIDENCE.read_text(encoding="utf-8"))
         self.assertFalse(payload["physical_hardware_observation"])
-        claims = [EvidenceClaim(**claim) for claim in payload["claims"]]
-        model = reconcile_evidence(claims)
+        return reconcile_evidence([EvidenceClaim(**claim) for claim in payload["claims"]])
+
+    def test_real_public_uart_bundle_reconstructs_correlated_behavior(self):
+        model = self._public_uart_model()
         self.assertEqual(16, model["claims"]["fifo.depth_bytes"]["value"])
         self.assertEqual(16, model["claims"]["divisor_latch.width_bits"]["value"])
         self.assertEqual(
@@ -122,6 +129,53 @@ class DriverSynthesisTests(unittest.TestCase):
             candidate["reference_driver_teachers"],
         )
         self.assertFalse(candidate["promotion_gates"]["physical_write_authorized"])
+
+    def test_reference_derived_trace_passes_complete_verified_claim_replay(self):
+        model = self._public_uart_model()
+        trace = json.loads(TRACE.read_text(encoding="utf-8"))
+        self.assertEqual(BEHAVIOR_TRACE_SCHEMA, trace["schema"])
+        self.assertFalse(trace["physical_hardware_observation"])
+        verification = verify_behavior_trace(model, trace)
+        self.assertEqual(TRACE_VERIFICATION_SCHEMA, verification["schema"])
+        self.assertEqual("passed", verification["status"])
+        self.assertEqual(1.0, verification["verified_claim_coverage"])
+        self.assertFalse(verification["physical_hardware_proof"])
+        self.assertFalse(verification["safety"]["hardware_access_performed"])
+        self.assertFalse(verification["safety"]["model_claims_promoted"])
+        self.assertEqual("uncertain", model["claims"]["line_control.dlab.meaning"]["state"])
+
+    def test_counterfactual_trace_mismatch_fails_closed(self):
+        model = self._public_uart_model()
+        trace = json.loads(TRACE.read_text(encoding="utf-8"))
+        trace["events"][0]["observed_value"] = 64
+        verification = verify_behavior_trace(model, trace)
+        self.assertEqual("failed", verification["status"])
+        self.assertEqual(1, verification["counts"]["mismatched"])
+        self.assertIn("fifo.depth_bytes", verification["missing_verified_claims"])
+
+    def test_uncertain_claim_in_trace_cannot_be_upgraded_by_replay(self):
+        model = self._public_uart_model()
+        trace = json.loads(TRACE.read_text(encoding="utf-8"))
+        trace["events"].append({
+            "step": 4,
+            "claim_key": "line_control.dlab.meaning",
+            "observed_value": "divisor-latch-access",
+        })
+        verification = verify_behavior_trace(model, trace)
+        self.assertEqual("incomplete", verification["status"])
+        self.assertEqual(1, verification["counts"]["uncertain"])
+        self.assertEqual("uncertain", model["claims"]["line_control.dlab.meaning"]["state"])
+
+    def test_trace_order_and_actuation_boundaries_are_enforced(self):
+        model = self._public_uart_model()
+        trace = json.loads(TRACE.read_text(encoding="utf-8"))
+        trace["events"][1]["step"] = 0
+        with self.assertRaises(ValueError):
+            verify_behavior_trace(model, trace)
+        trace = json.loads(TRACE.read_text(encoding="utf-8"))
+        trace["actuating"] = True
+        with self.assertRaises(ValueError):
+            verify_behavior_trace(model, trace)
 
 
 if __name__ == "__main__":
