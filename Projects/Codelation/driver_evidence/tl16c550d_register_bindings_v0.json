@@ -1,0 +1,34 @@
+{
+  "schema": "aurum.driver.evidence-bundle.v0",
+  "device": "TI TL16C550D / 16550-compatible UART",
+  "scope": "offline-public-register-selector-and-bit-binding-evidence",
+  "physical_hardware_observation": false,
+  "sources": {
+    "ti:TL16C550D:SLLS597E:tables1-3": "Texas Instruments TL16C550D datasheet Rev. E, register selection and accessible-register tables",
+    "linux:include/uapi/linux/serial_reg.h": "Linux 8250/16450/16550 UART register definitions"
+  },
+  "claims": [
+    {"key": "selector.receiver_buffer", "value": {"offset": 0, "dlab": 0}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.receiver_buffer", "value": {"offset": 0, "dlab": 0}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.transmit_holding", "value": {"offset": 0, "dlab": 0}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.transmit_holding", "value": {"offset": 0, "dlab": 0}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.interrupt_enable", "value": {"offset": 1, "dlab": 0}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.interrupt_enable", "value": {"offset": 1, "dlab": 0}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.line_control", "value": {"offset": 3, "dlab": "any"}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.line_control", "value": {"offset": 3, "dlab": "any"}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.line_status", "value": {"offset": 5, "dlab": "any"}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.line_status", "value": {"offset": 5, "dlab": "any"}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.divisor_latch_lsb", "value": {"offset": 0, "dlab": 1}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.divisor_latch_lsb", "value": {"offset": 0, "dlab": 1}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "selector.divisor_latch_msb", "value": {"offset": 1, "dlab": 1}, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "selector.divisor_latch_msb", "value": {"offset": 1, "dlab": 1}, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "mask.line_control.dlab", "value": 128, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "mask.line_control.dlab", "value": 128, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "mask.line_status.data_ready", "value": 1, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "mask.line_status.data_ready", "value": 1, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "mask.line_status.thre", "value": 32, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "mask.line_status.thre", "value": 32, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0},
+    {"key": "mask.line_status.temt", "value": 64, "source_kind": "datasheet", "source_id": "ti:TL16C550D:SLLS597E:tables1-3", "confidence": 1.0},
+    {"key": "mask.line_status.temt", "value": 64, "source_kind": "reference_driver", "source_id": "linux:include/uapi/linux/serial_reg.h", "confidence": 1.0}
+  ]
+}
