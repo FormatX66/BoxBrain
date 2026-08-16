@@ -101,37 +101,6 @@ if [[ -L "$DRIVER_DIR/module" ]]; then
   fi
 fi
 
-python3 - "$BACKUP_DIR/evidence.json" <<PY
-import json, sys
-path=sys.argv[1]
-obj={
-  "target":"gpio-leds",
-  "compatible":${COMPATIBLE@Q},
-  "working_driver":${WORKING_DRIVER@Q},
-  "device":${DEVICE@Q},
-  "kernel":${KERNEL@Q},
-  "model":${MODEL@Q},
-  "arch":${ARCH@Q},
-  "backup_dir":${BACKUP_DIR@Q},
-}
-open(path,"w",encoding="utf-8").write(json.dumps(obj,indent=2,sort_keys=True)+"\n")
-PY
-
-TRIAL_ROOT="$(mktemp -d /tmp/aurum-pi4-driver.XXXXXX)"
-CANDIDATE_DIR="$TRIAL_ROOT/candidate"
-mkdir -p "$CANDIDATE_DIR"
-cp "$BACKUP_DIR/evidence.json" "$TRIAL_ROOT/evidence.json"
-
-python3 "$GENERATOR" --evidence "$TRIAL_ROOT/evidence.json" --out "$CANDIDATE_DIR" --generation "$GENERATION" | tee "$BACKUP_DIR/synthesis-output.json"
-make -C "$BUILD_DIR" M="$CANDIDATE_DIR" modules 2>&1 | tee "$BACKUP_DIR/build.log"
-KO="$CANDIDATE_DIR/aurum_gpio_leds.ko"
-[[ -s "$KO" ]] || fail "candidate_module_not_built" 52
-sha256sum "$KO" | tee "$BACKUP_DIR/candidate-module.sha256"
-modinfo "$KO" >"$BACKUP_DIR/candidate-modinfo.txt"
-cp "$CANDIDATE_DIR/candidate-manifest.json" "$BACKUP_DIR/"
-cp "$CANDIDATE_DIR/aurum_gpio_leds.c" "$BACKUP_DIR/"
-cp "$KO" "$BACKUP_DIR/"
-
 restore_led_state() {
   [[ -f "$BACKUP_DIR/led-state.tsv" ]] || return 0
   while IFS=$'\t' read -r name brightness active_trigger original_device; do
@@ -147,6 +116,74 @@ restore_led_state() {
     fi
   done <"$BACKUP_DIR/led-state.tsv"
 }
+
+is_target_led() {
+  local led="$1"
+  local led_device
+  led_device="$(readlink -f "$led/device" 2>/dev/null || true)"
+  [[ "$led_device" == *"/$DEVICE" || "$led_device" == *"/$DEVICE/"* ]]
+}
+
+# Fail-safe begins before any behavioral observation changes trigger/brightness.
+trap restore_led_state EXIT
+
+if [[ "$GENERATION" == "2" ]]; then
+  : >"$BACKUP_DIR/original-behavior.tsv"
+  baseline_count=0
+  for led in /sys/class/leds/*; do
+    [[ -e "$led" ]] || continue
+    is_target_led "$led" || continue
+    name="$(basename "$led")"
+    max="$(cat "$led/max_brightness" 2>/dev/null || echo 0)"
+    [[ "$max" =~ ^[0-9]+$ && "$max" -ge 1 ]] || fail "working_led_invalid_max_brightness:$name" 52
+    if [[ -w "$led/trigger" ]]; then
+      printf '%s' none | sudo tee "$led/trigger" >/dev/null
+    fi
+    printf '%s' 0 | sudo tee "$led/brightness" >/dev/null
+    zero="$(cat "$led/brightness")"
+    printf '%s' 1 | sudo tee "$led/brightness" >/dev/null
+    one="$(cat "$led/brightness")"
+    printf '%s' 0 | sudo tee "$led/brightness" >/dev/null
+    zero2="$(cat "$led/brightness")"
+    printf '%s\t%s\t%s\t%s\n' "$name" "$zero" "$one" "$zero2" | tee -a "$BACKUP_DIR/original-behavior.tsv"
+    baseline_count=$((baseline_count + 1))
+  done
+  [[ "$baseline_count" -gt 0 ]] || fail "working_driver_no_target_led_class_devices" 53
+  printf '%s\n' "$baseline_count" >"$BACKUP_DIR/original-behavior-led-count.txt"
+  restore_led_state
+fi
+
+python3 - "$BACKUP_DIR/evidence.json" <<PY
+import json, sys
+path=sys.argv[1]
+obj={
+  "target":"gpio-leds",
+  "compatible":${COMPATIBLE@Q},
+  "working_driver":${WORKING_DRIVER@Q},
+  "device":${DEVICE@Q},
+  "kernel":${KERNEL@Q},
+  "model":${MODEL@Q},
+  "arch":${ARCH@Q},
+  "backup_dir":${BACKUP_DIR@Q},
+  "behavior_baseline":${BACKUP_DIR@Q} + "/original-behavior.tsv",
+}
+open(path,"w",encoding="utf-8").write(json.dumps(obj,indent=2,sort_keys=True)+"\n")
+PY
+
+TRIAL_ROOT="$(mktemp -d /tmp/aurum-pi4-driver.XXXXXX)"
+CANDIDATE_DIR="$TRIAL_ROOT/candidate"
+mkdir -p "$CANDIDATE_DIR"
+cp "$BACKUP_DIR/evidence.json" "$TRIAL_ROOT/evidence.json"
+
+python3 "$GENERATOR" --evidence "$TRIAL_ROOT/evidence.json" --out "$CANDIDATE_DIR" --generation "$GENERATION" | tee "$BACKUP_DIR/synthesis-output.json"
+make -C "$BUILD_DIR" M="$CANDIDATE_DIR" modules 2>&1 | tee "$BACKUP_DIR/build.log"
+KO="$CANDIDATE_DIR/aurum_gpio_leds.ko"
+[[ -s "$KO" ]] || fail "candidate_module_not_built" 54
+sha256sum "$KO" | tee "$BACKUP_DIR/candidate-module.sha256"
+modinfo "$KO" >"$BACKUP_DIR/candidate-modinfo.txt"
+cp "$CANDIDATE_DIR/candidate-manifest.json" "$BACKUP_DIR/"
+cp "$CANDIDATE_DIR/aurum_gpio_leds.c" "$BACKUP_DIR/"
+cp "$KO" "$BACKUP_DIR/"
 
 restore_original() {
   set +e
@@ -169,30 +206,28 @@ trap restore_original EXIT
 
 sudo insmod "$KO"
 lsmod | grep '^aurum_gpio_leds' | tee "$BACKUP_DIR/candidate-loaded.txt"
-[[ -d /sys/bus/platform/drivers/aurum-gpio-leds ]] || fail "candidate_driver_registration_missing" 53
+[[ -d /sys/bus/platform/drivers/aurum-gpio-leds ]] || fail "candidate_driver_registration_missing" 55
 
 printf '%s' "$DEVICE" | sudo tee "$DRIVER_DIR/unbind" >/dev/null
-[[ ! -L "$DRIVER_DIR/$DEVICE" ]] || fail "working_driver_unbind_failed" 54
+[[ ! -L "$DRIVER_DIR/$DEVICE" ]] || fail "working_driver_unbind_failed" 56
 
 printf '%s' "$DEVICE" | sudo tee /sys/bus/platform/drivers/aurum-gpio-leds/bind >/dev/null
 BOUND_DRIVER="$(basename "$(readlink -f "/sys/bus/platform/devices/$DEVICE/driver" 2>/dev/null || true)")"
 printf '%s\n' "$BOUND_DRIVER" | tee "$BACKUP_DIR/candidate-bound-driver.txt"
-[[ "$BOUND_DRIVER" == "aurum-gpio-leds" ]] || fail "candidate_bind_failed:$BOUND_DRIVER" 55
+[[ "$BOUND_DRIVER" == "aurum-gpio-leds" ]] || fail "candidate_bind_failed:$BOUND_DRIVER" 57
 
 dmesg | tail -n 100 >"$BACKUP_DIR/dmesg-after-candidate-bind.txt" 2>/dev/null || true
 
 if [[ "$GENERATION" == "2" ]]; then
-  : >"$BACKUP_DIR/behavior-test.txt"
+  : >"$BACKUP_DIR/candidate-behavior.tsv"
   tested=0
-  for led in /sys/class/leds/*; do
-    [[ -e "$led" ]] || continue
-    led_device="$(readlink -f "$led/device" 2>/dev/null || true)"
-    if [[ "$led_device" != *"/$DEVICE" && "$led_device" != *"/$DEVICE/"* ]]; then
-      continue
-    fi
-    name="$(basename "$led")"
+  while IFS=$'\t' read -r expected_name expected_zero expected_one expected_zero2; do
+    [[ -n "$expected_name" ]] || continue
+    led="/sys/class/leds/$expected_name"
+    [[ -e "$led" ]] || fail "candidate_missing_led:$expected_name" 58
+    is_target_led "$led" || fail "candidate_led_wrong_device:$expected_name" 59
     max="$(cat "$led/max_brightness" 2>/dev/null || echo 0)"
-    [[ "$max" =~ ^[0-9]+$ && "$max" -ge 1 ]] || fail "candidate_led_invalid_max_brightness:$name" 56
+    [[ "$max" =~ ^[0-9]+$ && "$max" -ge 1 ]] || fail "candidate_led_invalid_max_brightness:$expected_name" 60
     if [[ -w "$led/trigger" ]]; then
       printf '%s' none | sudo tee "$led/trigger" >/dev/null
     fi
@@ -202,12 +237,16 @@ if [[ "$GENERATION" == "2" ]]; then
     one="$(cat "$led/brightness")"
     printf '%s' 0 | sudo tee "$led/brightness" >/dev/null
     zero2="$(cat "$led/brightness")"
-    printf '%s\tzero=%s\tone=%s\tzero2=%s\n' "$name" "$zero" "$one" "$zero2" | tee -a "$BACKUP_DIR/behavior-test.txt"
-    [[ "$zero" == "0" && "$one" == "1" && "$zero2" == "0" ]] || fail "candidate_led_roundtrip_failed:$name" 57
+    printf '%s\t%s\t%s\t%s\n' "$expected_name" "$zero" "$one" "$zero2" | tee -a "$BACKUP_DIR/candidate-behavior.tsv"
+    if [[ "$zero" != "$expected_zero" || "$one" != "$expected_one" || "$zero2" != "$expected_zero2" ]]; then
+      echo "AURUM_PI4_DRIVER_PARITY led=$expected_name expected=$expected_zero,$expected_one,$expected_zero2 actual=$zero,$one,$zero2" >&2
+      fail "candidate_behavior_differs_from_working_driver:$expected_name" 61
+    fi
     tested=$((tested + 1))
-  done
-  [[ "$tested" -gt 0 ]] || fail "candidate_created_no_target_led_class_devices" 58
-  printf '%s\n' "$tested" >"$BACKUP_DIR/behavior-led-count.txt"
+  done <"$BACKUP_DIR/original-behavior.tsv"
+  expected_count="$(cat "$BACKUP_DIR/original-behavior-led-count.txt")"
+  [[ "$tested" -eq "$expected_count" ]] || fail "candidate_led_count_mismatch:$tested:$expected_count" 62
+  printf '%s\n' "$tested" >"$BACKUP_DIR/candidate-behavior-led-count.txt"
 fi
 
 printf '%s' "$DEVICE" | sudo tee /sys/bus/platform/drivers/aurum-gpio-leds/unbind >/dev/null
@@ -216,7 +255,7 @@ printf '%s' "$DEVICE" | sudo tee "$DRIVER_DIR/bind" >/dev/null
 restore_led_state
 RESTORED_DRIVER="$(basename "$(readlink -f "/sys/bus/platform/devices/$DEVICE/driver" 2>/dev/null || true)")"
 printf '%s\n' "$RESTORED_DRIVER" | tee "$BACKUP_DIR/restored-driver.txt"
-[[ "$RESTORED_DRIVER" == "$WORKING_DRIVER" ]] || fail "rollback_rebind_failed:$RESTORED_DRIVER" 59
+[[ "$RESTORED_DRIVER" == "$WORKING_DRIVER" ]] || fail "rollback_rebind_failed:$RESTORED_DRIVER" 63
 
 trap - EXIT
 rm -rf "$TRIAL_ROOT"
@@ -224,7 +263,7 @@ rm -rf "$TRIAL_ROOT"
 echo "AURUM_PI4_DRIVER_BACKUP path=$BACKUP_DIR working_driver=$WORKING_DRIVER device=$DEVICE"
 echo "AURUM_PI4_DRIVER_SYNTHESIS target=$TARGET generation=$GENERATION exact_kernel=$KERNEL compile=passed"
 if [[ "$GENERATION" == "2" ]]; then
-  echo "AURUM_PI4_DRIVER_BEHAVIOR on_off_roundtrip=passed physical_led_writes=true raw_mmio=false"
+  echo "AURUM_PI4_DRIVER_BEHAVIOR parity_with_working_driver=passed led_count=$tested physical_led_writes=true raw_mmio=false"
 fi
 echo "AURUM_PI4_DRIVER_SWAP candidate=aurum-gpio-leds bind=passed rollback=passed"
 echo "AURUM_PI4_DRIVER_TRIAL status=passed"
