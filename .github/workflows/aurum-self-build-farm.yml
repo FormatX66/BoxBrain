@@ -40,9 +40,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  clock:
+    name: Freeze farm evidence time
+    runs-on: ubuntu-24.04
+    outputs:
+      evidence_now: ${{ steps.clock.outputs.evidence_now }}
+    steps:
+      - name: Record one freshness timestamp
+        id: clock
+        shell: bash
+        run: echo "evidence_now=$(date +%s)" >> "$GITHUB_OUTPUT"
+
   lane:
     name: ${{ matrix.platform.arch }} shard ${{ matrix.shard }}
     runs-on: ${{ matrix.platform.runner }}
+    needs: clock
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -58,6 +70,7 @@ jobs:
       AURUM_ARCH: ${{ matrix.platform.arch }}
       AURUM_SHARD: ${{ matrix.shard }}
       AURUM_SHARDS: 5
+      AURUM_EVIDENCE_NOW: ${{ needs.clock.outputs.evidence_now }}
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -121,6 +134,7 @@ jobs:
             python3 Projects/Codelation/run_native_autonomous_chain.py \
               --start-gap "$gap" \
               --max-generations 24 \
+              --evidence-now "$AURUM_EVIDENCE_NOW" \
               --seed-state Projects/Codelation/autobuild/native_chain_state.json \
               --state-path "$output/$gap.json" \
               > "$output/$gap.stdout.json" \
@@ -182,7 +196,10 @@ jobs:
   authoritative-chain:
     name: Authoritative resumable chain
     runs-on: ubuntu-24.04
+    needs: clock
     timeout-minutes: 8
+    env:
+      AURUM_EVIDENCE_NOW: ${{ needs.clock.outputs.evidence_now }}
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -200,6 +217,7 @@ jobs:
           cp Projects/Codelation/autobuild/native_chain_state.json authoritative/state.json
           python3 Projects/Codelation/run_native_autonomous_chain.py \
             --resume \
+            --evidence-now "$AURUM_EVIDENCE_NOW" \
             --state-path authoritative/state.json \
             > authoritative/stdout.json \
             2> authoritative/progress.log

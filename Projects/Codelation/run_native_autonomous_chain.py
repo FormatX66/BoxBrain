@@ -142,6 +142,7 @@ def run_chain(
     start_gap: str = "learning_delta_score",
     *,
     max_generations: int = 24,
+    evidence_now: int | None = None,
     seed_expressions: Mapping[str, Mapping[str, Any]] | None = None,
     resume_state: Mapping[str, Any] | None = None,
     seed_state: Mapping[str, Any] | None = None,
@@ -183,7 +184,10 @@ def run_chain(
         if resume_state.get("blocked_reason") == "external-prerequisite-blocked":
             current_spec = get_native_semantic_gap(current)
             if current_spec is not None:
-                current_evidence = apply_external_prerequisite_evidence_from_file(current_spec)
+                current_evidence = apply_external_prerequisite_evidence_from_file(
+                    current_spec,
+                    now=evidence_now,
+                )
                 current_status = {
                     "applied": current_evidence.applied,
                     "reason": current_evidence.reason,
@@ -274,7 +278,10 @@ def run_chain(
             blocked_reason = "semantic-spec-missing"
             break
 
-        evidence_application = apply_external_prerequisite_evidence_from_file(spec)
+        evidence_application = apply_external_prerequisite_evidence_from_file(
+            spec,
+            now=evidence_now,
+        )
         spec = evidence_application.spec
         if spec.name in EVIDENCE_BOUND_GAPS:
             external_evidence_status = {
@@ -616,6 +623,11 @@ def main() -> int:
         help="bounded generation limit for this lane (1-256)",
     )
     parser.add_argument(
+        "--evidence-now",
+        type=int,
+        help="fixed Unix timestamp for consistent external-evidence freshness checks",
+    )
+    parser.add_argument(
         "--state-path",
         type=Path,
         default=STATE_PATH,
@@ -680,6 +692,7 @@ def main() -> int:
     state = run_chain(
         start_gap=args.start_gap,
         max_generations=args.max_generations,
+        evidence_now=args.evidence_now,
         resume_state=resume_state,
         seed_state=seed_state,
         on_progress=show_progress,

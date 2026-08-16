@@ -24,6 +24,12 @@ class SelfBuildFarmWorkflowTests(unittest.TestCase):
         self.assertIn("max-parallel: 10", self.workflow)
         self.assertIn("shard: [0, 1, 2, 3, 4]", self.workflow)
 
+    def test_farm_freezes_one_freshness_time_for_all_chain_jobs(self) -> None:
+        self.assertIn("Freeze farm evidence time", self.workflow)
+        self.assertIn("evidence_now: ${{ steps.clock.outputs.evidence_now }}", self.workflow)
+        self.assertIn("AURUM_EVIDENCE_NOW: ${{ needs.clock.outputs.evidence_now }}", self.workflow)
+        self.assertEqual(self.workflow.count('--evidence-now "$AURUM_EVIDENCE_NOW"'), 2)
+
     def test_farm_converges_all_lanes_without_repository_write_permission(self) -> None:
         self.assertIn("Converge all architecture lanes", self.workflow)
         self.assertIn("converge_self_build_farm.py", self.workflow)

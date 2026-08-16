@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 import sys
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -59,6 +60,25 @@ def compatible_resume_state() -> dict:
 
 
 class NativeAutonomousChainResumeTests(unittest.TestCase):
+    def test_fixed_evidence_time_is_forwarded_to_every_freshness_check(self) -> None:
+        fixed_now = 1_700_000_000
+        real_apply = chain.apply_external_prerequisite_evidence_from_file
+
+        with mock.patch.object(
+            chain,
+            "apply_external_prerequisite_evidence_from_file",
+            wraps=real_apply,
+        ) as apply_evidence:
+            chain.run_chain(
+                start_gap="learning_retention_ratio",
+                max_generations=1,
+                evidence_now=fixed_now,
+            )
+
+        self.assertGreaterEqual(apply_evidence.call_count, 1)
+        for call in apply_evidence.call_args_list:
+            self.assertEqual(call.kwargs.get("now"), fixed_now)
+
     def test_isolated_frontier_reuses_verified_capabilities_without_inheriting_generations(self) -> None:
         seed_state = compatible_seed_state()
         events: list[dict] = []
