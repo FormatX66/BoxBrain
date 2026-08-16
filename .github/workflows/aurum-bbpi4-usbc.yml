@@ -104,10 +104,12 @@ jobs:
           )
 
           Write-Host "AURUM_BBPI4_SELECTED route=$($report.selected_route) address=$($report.selected_address)"
-          & .\installer\reconcile-existing-aurum-gold-seed-on-pi.ps1 \
-            -PiAddresses $ordered \
-            -PiUser 'kali' \
-            -KeyPath $keyPath 2>&1 |
+          $reconcileArguments = @{
+            PiAddresses = $ordered
+            PiUser = 'kali'
+            KeyPath = $keyPath
+          }
+          & .\installer\reconcile-existing-aurum-gold-seed-on-pi.ps1 @reconcileArguments 2>&1 |
             Tee-Object -FilePath evidence\bbpi4-usbc-reconcile.txt
           if ($LASTEXITCODE -ne 0) {
             throw "BBPI4 reconciliation failed with exit code $LASTEXITCODE"
