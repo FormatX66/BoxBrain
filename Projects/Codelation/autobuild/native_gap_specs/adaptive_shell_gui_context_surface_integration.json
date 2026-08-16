@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_gui_context_surface_integration",
+  "parameters": ["context_session_verified", "gui_request_path_uses_context_session", "surface_context_id_scoped", "restart_loss_surfaced", "no_credential_persistence", "no_host_authority"],
+  "examples": [
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "gui-context-surface-ready"},
+    {"arguments": {"context_session_verified": "no", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-context-session-verified"},
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "no", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-gui-request-path-uses-context-session"},
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "no", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-surface-context-id-scoped"},
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "no", "no_credential_persistence": "yes", "no_host_authority": "yes"}, "expected": "blocked-restart-loss-surfaced"},
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "no", "no_host_authority": "yes"}, "expected": "blocked-no-credential-persistence"},
+    {"arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "yes", "surface_context_id_scoped": "yes", "restart_loss_surfaced": "yes", "no_credential_persistence": "yes", "no_host_authority": "no"}, "expected": "blocked-no-host-authority"}
+  ],
+  "invocation_arguments": {"context_session_verified": "yes", "gui_request_path_uses_context_session": "no", "surface_context_id_scoped": "no", "restart_loss_surfaced": "no", "no_credential_persistence": "yes", "no_host_authority": "yes"},
+  "next_gap": "adaptive_shell_gui_context_surface_integration",
+  "purpose": "Wire the verified bounded semantic context session into the actual GUI request path. This gate does not pass merely because a context session exists: the GUI must route repeated requests through a per-surface context identity, use prior bounded turns on later reasoning calls, and explicitly surface semantic continuity loss after restart instead of silently pretending memory survived.",
+  "principles": ["capability existence is distinct from surface integration", "each GUI exchange context is explicitly scoped", "prior semantic turns affect subsequent reasoning only within the same context", "restart continuity loss is visible", "credentials remain call-local", "no host authority is introduced"],
+  "constraints": ["deterministic-gate", "gui-surface", "bounded-context", "context-isolated", "restart-loss-visible", "no-credential-persistence", "no-host-authority", "fail-closed"],
+  "max_synthesis_cost": 16
+}
