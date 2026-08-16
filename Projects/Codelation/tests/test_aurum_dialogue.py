@@ -146,7 +146,7 @@ class AurumDialogueTests(unittest.TestCase):
         self.assertIn("first semantic input", second_call)
         self.assertIn("response-1", second_call)
         self.assertIn("second semantic input", second_call)
-        self.assertNotIn("memory-only-key", json.dumps(session.__dict__))
+        self.assertNotIn("memory-only-key", repr(session.__dict__))
         self.assertNotIn("first semantic input", first_marker)
         self.assertNotIn("response-1", first_marker)
         self.assertNotIn("second semantic input", second_marker)
