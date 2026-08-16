@@ -6,14 +6,14 @@
   "node_id": "cff5511ddbb6bf14",
   "route": "10.12.194.1",
   "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-  "observed_at": 1786840409,
-  "expires_at": 1786841298,
+  "observed_at": 1786898791,
+  "expires_at": 1786899663,
   "display": {
     "verified": true,
     "http_status": 200,
     "content_type": "multipart/x-mixed-replace; boundary=boundarydonotcross",
     "sample_bytes": 4096,
-    "sample_sha256": "c0600794615d679abf1aa453e40b5a7fe1115ac0585c282de9984d469ce3ddb0"
+    "sample_sha256": "134a8fc3474fc6137ba518640d5450bf59f74feabdb2cb83c4e5dafa9839f010"
   },
   "input": {
     "verified": true,
@@ -25,7 +25,7 @@
   "permission": {
     "present": true,
     "scope": "bounded-adaptive-shell-live-trial",
-    "authorization_reference": "codex-user-explicit-so-do-20260815"
+    "authorization_reference": "codex-user-ok-go-20260816"
   },
   "rollback": {
     "verified": true,
@@ -33,7 +33,7 @@
   },
   "proof_view": {
     "present": true,
-    "display_sample_sha256": "c0600794615d679abf1aa453e40b5a7fe1115ac0585c282de9984d469ce3ddb0",
+    "display_sample_sha256": "134a8fc3474fc6137ba518640d5450bf59f74feabdb2cb83c4e5dafa9839f010",
     "retained_user_content": false
   },
   "authority_granted": false,
