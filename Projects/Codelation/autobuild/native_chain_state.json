@@ -1979,7 +1979,7 @@
     "shared_implementation": false
   },
   "reasoning_required": true,
-  "resumed_from_generations": 27,
+  "resumed_from_generations": 29,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
