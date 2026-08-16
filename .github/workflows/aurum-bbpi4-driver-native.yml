@@ -32,6 +32,13 @@ jobs:
           ref: aurum/trunk-v0.01
           fetch-depth: 1
 
+      - name: Normalize Pi shell script to LF
+        shell: powershell
+        run: |
+          $path = 'Projects\Codelation\run_pi4_single_driver_trial.sh'
+          $text = [IO.File]::ReadAllText($path).Replace("`r`n", "`n").Replace("`r", "`n")
+          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+
       - name: Back up, synthesize, bind, and restore one Pi4 driver
         shell: powershell
         run: |
