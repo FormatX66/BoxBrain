@@ -13,7 +13,10 @@ from typing import Any, Callable, Mapping
 FIELD_DIR = Path(__file__).resolve().parent / "field"
 sys.path.insert(0, str(FIELD_DIR))
 
-from external_prerequisite_evidence import apply_external_prerequisite_evidence_from_file  # noqa: E402
+from external_prerequisite_evidence import (  # noqa: E402
+    EVIDENCE_BOUND_GAPS,
+    apply_external_prerequisite_evidence_from_file,
+)
 from field_native_registry_bridge import build_verified_native_registry_artifact  # noqa: E402
 from field_native_self_build import NativeGap  # noqa: E402
 from local_capability_verification import (  # noqa: E402
@@ -273,7 +276,7 @@ def run_chain(
 
         evidence_application = apply_external_prerequisite_evidence_from_file(spec)
         spec = evidence_application.spec
-        if spec.name == "adaptive_shell_live_trial_readiness":
+        if spec.name in EVIDENCE_BOUND_GAPS:
             external_evidence_status = {
                 "applied": evidence_application.applied,
                 "reason": evidence_application.reason,

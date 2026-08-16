@@ -1,0 +1,49 @@
+{
+  "application": {
+    "candidate_sha256": "b7a04e458413709786bf0d485d09879db1ed06fb538e8e73f3fc4b4548fc07bc",
+    "persistent": false,
+    "scope": "ephemeral-trial-workspace",
+    "verified": true
+  },
+  "authority_granted": false,
+  "expires_at": 1786841298,
+  "kind": "adaptive-shell-bounded-live-trial",
+  "node_id": "cff5511ddbb6bf14",
+  "observed_at": 1786840415,
+  "proof_view": {
+    "baseline_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
+    "candidate_sha256": "b7a04e458413709786bf0d485d09879db1ed06fb538e8e73f3fc4b4548fc07bc",
+    "present": true,
+    "readiness_evidence_sha256": "a8d9a1822eaffcf3203ccd2f15c6ecb6b2558c66b6ed5e701381288f217f7e30",
+    "restored_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
+    "trial_identity": "605815d744db5c1dd321fb0e3755ed08102ac2afe239636eb577f4d27ddcc1ea"
+  },
+  "proposal": {
+    "delta": "add=terminal;remove=none;evidence=coding-confidence-high",
+    "protected": [
+      "safe-layout",
+      "user-pins",
+      "accessibility"
+    ],
+    "verified": true
+  },
+  "readiness_evidence_sha256": "a8d9a1822eaffcf3203ccd2f15c6ecb6b2558c66b6ed5e701381288f217f7e30",
+  "rollback": {
+    "baseline_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
+    "restored_sha256": "15b3469cdb0ec2f68f114890f2a684ae8f9aadc4ffdb0ef00762235c51bb6196",
+    "verified": true,
+    "workspace_cleaned": true
+  },
+  "route": "10.12.194.1",
+  "safety": {
+    "bootloader_changed": false,
+    "firmware_changed": false,
+    "persistent_interface_changed": false,
+    "raw_disk_changed": false,
+    "service_state_changed": false
+  },
+  "schema": "aurum-adaptive-shell-live-trial-evidence-v1",
+  "source": "aurum-ephemeral-shell-state-trial",
+  "trial_identity": "605815d744db5c1dd321fb0e3755ed08102ac2afe239636eb577f4d27ddcc1ea",
+  "verified": true
+}

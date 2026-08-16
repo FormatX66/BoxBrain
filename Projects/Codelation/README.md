@@ -87,6 +87,36 @@ with the live graph, heartbeat, mind, gold-seed hash/status, runtime health,
 focused Aurum test status, non-blocking Codelation diagnostic status, existing
 persistence inventory, rollback path, and transfer-cleanup evidence.
 
+## Bounded adaptive-shell live trial
+
+After fresh BBPI4 physical-presence evidence exists, an authorized Windows host
+can collect the independent display, input, permission, rollback, and Proof View
+evidence required by `adaptive_shell_live_trial_readiness`:
+
+```powershell
+.\installer\collect-adaptive-shell-live-trial-readiness.ps1 `
+  -AuthorizationReference '<bounded operator authorization reference>'
+```
+
+The collector accepts only the pinned USB SSH route `10.12.194.1`, requires the
+dedicated key and strict host-key checking, matches the SSH node identity to the
+fresh controller evidence, hashes a 4 KiB MJPEG sample without retaining screen
+content, and sends only a neutral HID `release` between zero-state checks. It
+does not type, click, move the pointer, or authorize a persistent change.
+
+Run the first trial from the repository root with:
+
+```powershell
+python Projects\Codelation\run_bounded_adaptive_shell_live_trial.py
+```
+
+The runner applies `add=terminal;remove=none` only to a temporary shell-state
+workspace, verifies protected Safe Layout landmarks, restores the exact baseline
+digest, removes the workspace, and records bounded proof in
+`autobuild/external_evidence/adaptive_shell_live_trial.json`. The autonomous
+chain consumes that proof as classification evidence; neither the collector nor
+the runner grants host authority or changes a persistent interface.
+
 The repository-root entry point performs that direct reconciliation without a
 Git/Codelation queue gate:
 

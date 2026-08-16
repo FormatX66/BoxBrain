@@ -2,12 +2,51 @@ from __future__ import annotations
 import sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];FIELD=ROOT/"field";sys.path.insert(0,str(ROOT));sys.path.insert(0,str(FIELD))
-from external_prerequisite_evidence import apply_external_prerequisite_evidence
+from external_prerequisite_evidence import (
+    apply_adaptive_shell_live_trial_evidence,
+    apply_adaptive_shell_live_trial_readiness_evidence,
+    apply_external_prerequisite_evidence,
+)
 from local_capability_verification import verify_local_capability_for_gap
 from native_gap_catalog import get_native_semantic_gap
 from run_native_autonomous_chain import _is_external_prerequisite_block
 
 class LocalCapabilityVerificationTests(unittest.TestCase):
+    def _readiness_evidence(self):
+        return {
+            "schema":"aurum-adaptive-shell-live-trial-readiness-evidence-v1",
+            "kind":"adaptive-shell-live-trial-readiness",
+            "source":"aurum-windows-usb-kvm-bounded-proof",
+            "verified":True,
+            "node_id":"bbpi4feed1234567",
+            "route":"10.12.194.1",
+            "ssh_host_key_fingerprint":"SHA256:0SyJhmydZNm5NQsr1lBCf6nqTDiSQRlVzKBtlrvYTGQ",
+            "observed_at":1000,
+            "expires_at":1300,
+            "display":{"verified":True,"http_status":200,"content_type":"multipart/x-mixed-replace; boundary=frame","sample_bytes":4096,"sample_sha256":"a"*64},
+            "input":{"verified":True,"action":"release","acknowledged":True,"before_neutral":True,"after_neutral":True},
+            "permission":{"present":True,"scope":"bounded-adaptive-shell-live-trial","authorization_reference":"operator-test"},
+            "rollback":{"verified":True,"method":"neutral-hid-release-and-ephemeral-state"},
+            "proof_view":{"present":True,"display_sample_sha256":"a"*64},
+        }
+    def _trial_evidence(self):
+        return {
+            "schema":"aurum-adaptive-shell-live-trial-evidence-v1",
+            "kind":"adaptive-shell-bounded-live-trial",
+            "source":"aurum-ephemeral-shell-state-trial",
+            "verified":True,
+            "node_id":"bbpi4feed1234567",
+            "route":"10.12.194.1",
+            "observed_at":1000,
+            "expires_at":1300,
+            "readiness_evidence_sha256":"b"*64,
+            "trial_identity":"c"*64,
+            "proposal":{"verified":True,"delta":"add=terminal;remove=none;evidence=coding-confidence-high"},
+            "application":{"verified":True,"scope":"ephemeral-trial-workspace","persistent":False,"candidate_sha256":"d"*64},
+            "rollback":{"verified":True,"baseline_sha256":"e"*64,"restored_sha256":"e"*64},
+            "proof_view":{"present":True,"trial_identity":"c"*64},
+            "safety":{"raw_disk_changed":False,"firmware_changed":False,"bootloader_changed":False,"service_state_changed":False,"persistent_interface_changed":False},
+        }
     def _v(self,gap_name,capability):
         gap=get_native_semantic_gap(gap_name);self.assertIsNotNone(gap);v=verify_local_capability_for_gap(gap,capability);self.assertTrue(v.verified);self.assertEqual(v.passed,v.examples);self.assertFalse(v.authority_granted);self.assertFalse(v.routed_to_host);return v
     def test_io_plan(self):self.assertEqual(self._v("io_safe_port_choice","io-plan").invocation_output,"display-output")
@@ -66,5 +105,31 @@ class LocalCapabilityVerificationTests(unittest.TestCase):
         controller=dict(base);controller["node_id"]="85404f41d5507372"
         rejected=apply_external_prerequisite_evidence(gap,controller,now=1010)
         self.assertFalse(rejected.applied);self.assertEqual(rejected.reason,"physical-node-identity-invalid")
+    def test_fresh_neutral_carrier_and_permission_evidence_completes_readiness(self):
+        gap=get_native_semantic_gap("adaptive_shell_live_trial_readiness");self.assertIsNotNone(gap)
+        physical=apply_external_prerequisite_evidence(gap,{"schema":"aurum-external-prerequisite-evidence-v0","kind":"bbpi4-physical-presence","source":"aurum-public-controller-fresh-node","verified":True,"node_id":"bbpi4feed1234567","name":"BBPI4","carrier":"https-outbound","last_seen":990,"observed_at":1000,"expires_at":1300},now=1010)
+        applied=apply_adaptive_shell_live_trial_readiness_evidence(physical.spec,self._readiness_evidence(),expected_node_id="bbpi4feed1234567",now=1010)
+        self.assertTrue(applied.applied);self.assertFalse(applied.evidence["authority_granted"]);self.assertFalse(applied.evidence["persistent_change_authorized"])
+        verified=verify_local_capability_for_gap(applied.spec,"required-condition-classifier")
+        self.assertTrue(verified.verified);self.assertEqual(verified.invocation_output,"ready-for-bounded-live-trial")
+    def test_readiness_rejects_non_neutral_input_or_wrong_node(self):
+        gap=get_native_semantic_gap("adaptive_shell_live_trial_readiness");self.assertIsNotNone(gap)
+        invocation=dict(gap.invocation_arguments);invocation["physical_node_present"]="yes"
+        from dataclasses import replace
+        physical=replace(gap,invocation_arguments=invocation)
+        unsafe=self._readiness_evidence();unsafe["input"]["action"]="key"
+        rejected=apply_adaptive_shell_live_trial_readiness_evidence(physical,unsafe,expected_node_id="bbpi4feed1234567",now=1010)
+        self.assertFalse(rejected.applied);self.assertEqual(rejected.reason,"input-proof-not-neutral")
+        wrong=apply_adaptive_shell_live_trial_readiness_evidence(physical,self._readiness_evidence(),expected_node_id="different",now=1010)
+        self.assertFalse(wrong.applied);self.assertEqual(wrong.reason,"readiness-node-identity-mismatch")
+    def test_bounded_live_trial_evidence_is_classified_without_persistent_authority(self):
+        gap=get_native_semantic_gap("adaptive_shell_live_trial");self.assertIsNotNone(gap)
+        applied=apply_adaptive_shell_live_trial_evidence(gap,self._trial_evidence(),now=1010)
+        self.assertTrue(applied.applied);self.assertFalse(applied.evidence["authority_granted"]);self.assertFalse(applied.evidence["persistent_change"])
+        verified=verify_local_capability_for_gap(applied.spec,"required-condition-classifier")
+        self.assertTrue(verified.verified);self.assertEqual(verified.invocation_output,"bounded-live-trial-passed")
+        unsafe=self._trial_evidence();unsafe["safety"]["persistent_interface_changed"]=True
+        rejected=apply_adaptive_shell_live_trial_evidence(gap,unsafe,now=1010)
+        self.assertFalse(rejected.applied);self.assertEqual(rejected.reason,"trial-safety-boundary-invalid")
 
 if __name__=="__main__":unittest.main(verbosity=2)

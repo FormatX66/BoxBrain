@@ -19,6 +19,8 @@ on:
       - 'Projects/Codelation/tests/test_native*.py'
       - 'Projects/Codelation/tests/test_field_native*.py'
       - 'Projects/Codelation/tests/test_local_capability_verification.py'
+      - 'Projects/Codelation/tests/test_bounded_adaptive_shell_live_trial.py'
+      - 'Projects/Codelation/tests/test_adaptive_shell_live_trial_collector.py'
 
 permissions:
   contents: write
@@ -60,6 +62,8 @@ jobs:
           Projects.Codelation.tests.test_local_capability_verification
           Projects.Codelation.tests.test_field_native_vm
           Projects.Codelation.tests.test_bottleneck_mesh
+          Projects.Codelation.tests.test_bounded_adaptive_shell_live_trial
+          Projects.Codelation.tests.test_adaptive_shell_live_trial_collector
           -v
 
       - name: Resume bounded native growth

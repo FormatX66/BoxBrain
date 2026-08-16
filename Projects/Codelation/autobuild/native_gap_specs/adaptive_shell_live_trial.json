@@ -1,0 +1,20 @@
+{
+  "schema": "aurum-native-semantic-gap-v0",
+  "name": "adaptive_shell_live_trial",
+  "parameters": ["readiness_verified", "ephemeral_scope_verified", "proposal_verified", "rollback_verified", "proof_view_present", "no_persistent_change"],
+  "examples": [
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "yes", "proposal_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_persistent_change": "yes"}, "expected": "bounded-live-trial-passed"},
+    {"arguments": {"readiness_verified": "no", "ephemeral_scope_verified": "yes", "proposal_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_persistent_change": "yes"}, "expected": "blocked-readiness-verified"},
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "no", "proposal_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_persistent_change": "yes"}, "expected": "blocked-ephemeral-scope-verified"},
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "yes", "proposal_verified": "no", "rollback_verified": "yes", "proof_view_present": "yes", "no_persistent_change": "yes"}, "expected": "blocked-proposal-verified"},
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "yes", "proposal_verified": "yes", "rollback_verified": "no", "proof_view_present": "yes", "no_persistent_change": "yes"}, "expected": "blocked-rollback-verified"},
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "yes", "proposal_verified": "yes", "rollback_verified": "yes", "proof_view_present": "no", "no_persistent_change": "yes"}, "expected": "blocked-proof-view"},
+    {"arguments": {"readiness_verified": "yes", "ephemeral_scope_verified": "yes", "proposal_verified": "yes", "rollback_verified": "yes", "proof_view_present": "yes", "no_persistent_change": "no"}, "expected": "blocked-no-persistent-change"}
+  ],
+  "invocation_arguments": {"readiness_verified": "no", "ephemeral_scope_verified": "no", "proposal_verified": "no", "rollback_verified": "no", "proof_view_present": "no", "no_persistent_change": "no"},
+  "next_gap": "adaptive_shell_next_iteration_planning",
+  "purpose": "Classify the proof from one carrier-backed adaptive-shell trial performed only in an ephemeral state workspace. This gap does not actuate a persistent interface or grant host authority.",
+  "principles": ["live carriers are observed before trial execution", "the proposed delta is bounded and deterministic", "application occurs only in an ephemeral workspace", "rollback restores the exact baseline digest", "proof remains visible without retaining user content"],
+  "constraints": ["pure", "deterministic", "classification-only", "no-live-io", "no-host-authority", "no-persistent-interface-change", "fail-closed"],
+  "max_synthesis_cost": 16
+}
