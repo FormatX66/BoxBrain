@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Aurum PC first-boot entry point.
-
-The physical primary console automatically learns the exact machine, brings
-up an available network, refreshes the allowlisted Aurum source when possible,
-runs bounded diagnostics, seeds local state, and starts the resumable
-self-build. Serial and virtual verification consoles stay non-autonomous so
-they cannot race the physical tty or the deterministic VM test harness.
-"""
+"""Aurum PC first-boot entry point with exact-machine evidence and autonomous assessment."""
 from __future__ import annotations
 
 import json
@@ -16,13 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import aurum_console
-from aurum_hardware import (
-    DEFAULT_PLAN,
-    DEFAULT_PROFILE,
-    capture_hardware_evidence,
-    collect_hardware_profile,
-)
-from aurum_network import ensure_online
+from aurum_hardware import DEFAULT_PLAN, DEFAULT_PROFILE, capture_hardware_evidence, collect_hardware_profile
+from aurum_network import ensure_online, wireless_interfaces
+from aurum_wifi_diag import diagnose as diagnose_wifi
 from aurum_workspace import WorkspaceError
 
 STATE_DIR = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
@@ -40,22 +29,13 @@ def _primary_console() -> bool:
     return os.environ.get("AURUM_PRIMARY_CONSOLE", "0") == "1"
 
 
-def _virtual_machine(profile: dict[str, Any]) -> bool:
-    firmware = profile.get("firmware") or {}
-    identity = " ".join(
-        str(firmware.get(field) or "")
-        for field in ("sys_vendor", "product_name", "product_version", "board_vendor", "board_name", "bios_vendor")
-    ).lower()
-    markers = ("qemu", "kvm", "bochs", "vmware", "virtualbox", "hyper-v", "microsoft corporation virtual machine")
-    return any(marker in identity for marker in markers)
+def _autonomous_first_boot_enabled() -> bool:
+    return _primary_console() and os.environ.get("AURUM_DISABLE_AUTONOMOUS_FIRST_BOOT", "0") != "1"
 
 
 def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
-    if not _primary_console():
-        print("AURUM_FIRST_BOOT status=delegated-to-primary-console", flush=True)
-        return
-    if _virtual_machine(profile):
-        print("AURUM_FIRST_BOOT status=verification-environment-autonomy-deferred", flush=True)
+    if not _autonomous_first_boot_enabled():
+        print("AURUM_FIRST_BOOT status=delegated-or-disabled", flush=True)
         return
 
     assessment: dict[str, Any] = {
@@ -75,6 +55,11 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         },
     }
 
+    if not wireless_interfaces():
+        wifi_diag = diagnose_wifi()
+        assessment["wifi_diagnostic"] = wifi_diag
+        print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
+
     print("AURUM_FIRST_BOOT stage=network status=starting", flush=True)
     try:
         network = ensure_online(interactive=True)
@@ -87,9 +72,6 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         flush=True,
     )
 
-    # Refresh only the fixed public BoxBrain branch and only after networking
-    # is proven. Failure is non-fatal: the ISO's bundled Codelation source is
-    # the known-good recovery/bootstrap copy and can self-build offline.
     if network.get("online"):
         try:
             assessment["git_sync"] = aurum_console.WORKSPACE.git_sync(authorize_network=True)
@@ -105,10 +87,6 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
 
     test_ok, test_detail = aurum_console.selftest()
     assessment["selftest"] = {"ok": test_ok, "detail": test_detail}
-
-    # The self-build is local-first and resumable. Start it even when Wi-Fi
-    # cannot be established; later synchronization can refresh source without
-    # making first boot depend on Internet availability.
     assessment["self_build"] = aurum_console.BUILDS.start()
     assessment["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _write_assessment(assessment)
@@ -134,7 +112,7 @@ def main() -> int:
             f"drivers={len(plan['required_existing_drivers'])} unresolved={len(plan['unresolved_devices'])}",
             flush=True,
         )
-    except Exception as exc:  # evidence collection must never prevent recovery-console boot
+    except Exception as exc:
         print(
             "AURUM_HARDWARE_PROFILE "
             f"status=degraded detail={json.dumps(type(exc).__name__ + ':' + str(exc))}",
@@ -144,8 +122,7 @@ def main() -> int:
     if profile and plan:
         _first_boot(profile, plan)
 
-    # Preserve the bounded Aurum operator surface. Linux remains the temporary
-    # hardware substrate; no general-purpose shell is exposed.
+    # Force the bounded console hardware command to use the detailed read-only profile.
     aurum_console.hardware = collect_hardware_profile
     return aurum_console.main()
 
