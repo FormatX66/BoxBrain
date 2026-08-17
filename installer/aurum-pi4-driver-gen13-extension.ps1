@@ -42,7 +42,7 @@ if ($trialGeneration -ge 13) {
             New = @'
     if generation >= 13:
         post_register_policy_setup = '''        dev_info(dev,
-                 "AURUM_GEN13_CORE_POLICY default_trigger=%s retain_shutdown=%d suspend_resume=%d panic=%d\n",
+                 "AURUM_GEN13_CORE_POLICY default_trigger=%s retain_shutdown=%d suspend_resume=%d panic=%d\\n",
                  led->cdev.default_trigger ? led->cdev.default_trigger : "none",
                  !!(led->cdev.flags & LED_RETAIN_AT_SHUTDOWN),
                  !!(led->cdev.flags & LED_CORE_SUSPENDRESUME),
