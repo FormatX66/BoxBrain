@@ -26,7 +26,9 @@ cd "$BUILD_ROOT"
 
 # Build against Debian Bookworm's own live-build implementation. The CI runs
 # this recipe inside a Debian Bookworm container so the live-build, bootloader,
-# debootstrap, and target distribution contracts stay aligned.
+# debootstrap, and target distribution contracts stay aligned. non-free-firmware
+# is enabled only so the removable Aurum seed can observe and operate common
+# Wi-Fi hardware without requiring a wired bootstrap connection.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -34,7 +36,7 @@ lb config \
   --binary-image iso-hybrid \
   --system live \
   --debian-installer none \
-  --archive-areas main \
+  --archive-areas "main non-free-firmware" \
   --apt-recommends false \
   --apt-source-archives false \
   --security true \
@@ -61,6 +63,15 @@ usbutils
 ca-certificates
 git
 systemd-resolved
+wpasupplicant
+iw
+rfkill
+wireless-regdb
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-misc-nonfree
 parted
 rsync
 dosfstools
@@ -105,6 +116,8 @@ cp "$SCRIPT_DIR/aurum_bootstrap.py" config/includes.chroot/opt/aurum/aurum_boots
 chmod 0755 config/includes.chroot/opt/aurum/aurum_bootstrap.py
 cp "$SCRIPT_DIR/aurum_hardware.py" config/includes.chroot/opt/aurum/aurum_hardware.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_hardware.py
+cp "$SCRIPT_DIR/aurum_network.py" config/includes.chroot/opt/aurum/aurum_network.py
+chmod 0755 config/includes.chroot/opt/aurum/aurum_network.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
 cp "$SCRIPT_DIR/aurum_installer.py" config/includes.chroot/opt/aurum/aurum_installer.py
@@ -126,10 +139,18 @@ Name=en* eth*
 DHCP=yes
 IPv6AcceptRA=yes
 EOF
+cat > config/includes.chroot/etc/systemd/network/25-aurum-wireless.network <<'EOF'
+[Match]
+Name=wl*
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
 [Unit]
 Description=Aurum PC primary console
-After=local-fs.target systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service systemd-networkd.service systemd-resolved.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
 
@@ -138,6 +159,7 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
+Environment=AURUM_PRIMARY_CONSOLE=1
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -159,7 +181,7 @@ EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-serial.service <<'EOF'
 [Unit]
 Description=Aurum PC serial verification console
-After=local-fs.target systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service systemd-networkd.service systemd-resolved.service
 Conflicts=serial-getty@ttyS0.service
 ConditionPathExists=/dev/ttyS0
 
@@ -168,6 +190,7 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
+Environment=AURUM_PRIMARY_CONSOLE=0
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -207,6 +230,7 @@ set -eu
 chmod 0755 /opt/aurum/aurum_console.py
 chmod 0755 /opt/aurum/aurum_bootstrap.py
 chmod 0755 /opt/aurum/aurum_hardware.py
+chmod 0755 /opt/aurum/aurum_network.py
 chmod 0755 /opt/aurum/aurum_workspace.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
