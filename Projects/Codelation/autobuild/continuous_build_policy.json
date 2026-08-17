@@ -1,22 +1,46 @@
 {
-  "schema": "aurum-continuous-build-policy-v0",
+  "schema": "aurum-continuous-build-policy-v1",
   "working_trunk": "aurum/trunk-v0.01",
   "checkpoint_branch": "aurum/trunk-v0.01-locked-20260815",
-  "principle": "continuous-progress-across-independent-fronts",
+  "principle": "continuous-progress-across-independent-and-exploratory-fronts",
   "rules": [
     "keep-building-while-authorized-deterministic-work-exists",
     "a-blocked-front-must-not-globally-stall-independent-fronts",
     "physical-prerequisites-block-only-the-dependent-physical-front",
+    "physical-hold-is-a-fork-point-not-a-global-stop",
+    "preserve-held-physical-checkpoint-while-independent-capability-branches-advance",
+    "maintain-durable-safe-adventurous-and-stress-exploration-branches",
     "prefer-event-driven-progress-with-a-periodic-watchdog",
-    "do-not-replay-unchanged-verified-work-for-activity",
+    "retest-unchanged-verified-work-for-regression-stress-flake-and-differential-detection",
     "fan-out-independent-work-with-bounded-parallelism",
     "fan-in-only-from-verified-evidence",
-    "use-hosted-compute-for-build-test-simulation-and-comparison",
+    "experimental-virtual-results-must-never-be-promoted-as-physical-proof",
+    "promote-only-independently-verified-improvements-back-to-trunk",
+    "use-hosted-compute-for-build-test-simulation-stress-and-comparison",
     "use-physical-nodes-for-hardware-observation-materialization-and-final-acceptance",
-    "continue-from-the-current-verified-trunk-not-from-obsolete-experimental-branches"
+    "reconcile-exploration-branches-forward-from-current-verified-trunk-when-fast-forward-safe",
+    "preserve-divergent-experimental-branches-until-they-are-verified-rejected-or-converged"
   ],
   "watchdog_minutes": 15,
   "global_stall_allowed": false,
-  "duplicate_work_allowed": false,
+  "duplicate_work_allowed": true,
+  "duplicate_work_scope": [
+    "regression-retest",
+    "stress-retest",
+    "flake-detection",
+    "differential-verification"
+  ],
+  "physical_hold_behavior": "fork-and-continue",
+  "exploration_branches": {
+    "safe": "aurum/explore-safe-v0.01",
+    "adventurous": "aurum/explore-adventurous-v0.01",
+    "stress": "aurum/stress-v0.01"
+  },
+  "branch_reconciliation": {
+    "fast_forward_from_trunk_when_possible": true,
+    "force_reset_divergent_branch": false,
+    "automatic_experimental_merge_to_trunk": false,
+    "physical_proof_required_for_physical_acceptance": true
+  },
   "reversible": true
 }
