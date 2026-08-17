@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Aurum PC first-boot entry point.
 
-The primary console automatically learns the exact machine, brings up an
-available network, refreshes the allowlisted Aurum source when possible, runs
-its bounded diagnostics, seeds its local state, and starts the resumable
-self-build.  The serial verification console remains non-interactive so it
-cannot race the physical tty for Wi-Fi credentials or duplicate a build.
+The physical primary console automatically learns the exact machine, brings
+up an available network, refreshes the allowlisted Aurum source when possible,
+runs bounded diagnostics, seeds local state, and starts the resumable
+self-build. Serial and virtual verification consoles stay non-autonomous so
+they cannot race the physical tty or the deterministic VM test harness.
 """
 from __future__ import annotations
 
@@ -40,9 +40,22 @@ def _primary_console() -> bool:
     return os.environ.get("AURUM_PRIMARY_CONSOLE", "0") == "1"
 
 
+def _virtual_machine(profile: dict[str, Any]) -> bool:
+    firmware = profile.get("firmware") or {}
+    identity = " ".join(
+        str(firmware.get(field) or "")
+        for field in ("sys_vendor", "product_name", "product_version", "board_vendor", "board_name", "bios_vendor")
+    ).lower()
+    markers = ("qemu", "kvm", "bochs", "vmware", "virtualbox", "hyper-v", "microsoft corporation virtual machine")
+    return any(marker in identity for marker in markers)
+
+
 def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
     if not _primary_console():
         print("AURUM_FIRST_BOOT status=delegated-to-primary-console", flush=True)
+        return
+    if _virtual_machine(profile):
+        print("AURUM_FIRST_BOOT status=verification-environment-autonomy-deferred", flush=True)
         return
 
     assessment: dict[str, Any] = {
@@ -75,7 +88,7 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
     )
 
     # Refresh only the fixed public BoxBrain branch and only after networking
-    # is proven.  Failure is non-fatal: the ISO's bundled Codelation source is
+    # is proven. Failure is non-fatal: the ISO's bundled Codelation source is
     # the known-good recovery/bootstrap copy and can self-build offline.
     if network.get("online"):
         try:
@@ -93,8 +106,8 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
     test_ok, test_detail = aurum_console.selftest()
     assessment["selftest"] = {"ok": test_ok, "detail": test_detail}
 
-    # The self-build is local-first and resumable.  Start it even when Wi-Fi
-    # cannot be established; a later git-sync can update the workspace without
+    # The self-build is local-first and resumable. Start it even when Wi-Fi
+    # cannot be established; later synchronization can refresh source without
     # making first boot depend on Internet availability.
     assessment["self_build"] = aurum_console.BUILDS.start()
     assessment["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
