@@ -117,7 +117,7 @@ jobs:
           cat dist/Aurum-PC-v0.01-amd64.iso.sha256
 
       - name: Publish boot-verified ISO
-        uses: actions/upload-artifact@ea165f8d65b5e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Aurum-PC-v0.01-amd64
           path: |
