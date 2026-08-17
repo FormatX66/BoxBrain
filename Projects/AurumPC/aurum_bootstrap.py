@@ -11,7 +11,9 @@ from typing import Any
 import aurum_console
 from aurum_hardware import DEFAULT_PLAN, DEFAULT_PROFILE, capture_hardware_evidence, collect_hardware_profile
 from aurum_network import ensure_online, wireless_interfaces
+from aurum_time import synchronize_clock
 from aurum_wifi_diag import diagnose as diagnose_wifi
+from aurum_wifi_recovery import recover_existing_wifi_driver
 from aurum_workspace import WorkspaceError
 
 STATE_DIR = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
@@ -39,7 +41,7 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         return
 
     assessment: dict[str, Any] = {
-        "schema": "aurum-x86-first-boot-assessment-v1",
+        "schema": "aurum-x86-first-boot-assessment-v2",
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "hardware_profile": str(DEFAULT_PROFILE),
         "kernel_driver_plan": str(DEFAULT_PLAN),
@@ -55,11 +57,6 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         },
     }
 
-    if not wireless_interfaces():
-        wifi_diag = diagnose_wifi()
-        assessment["wifi_diagnostic"] = wifi_diag
-        print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
-
     print("AURUM_FIRST_BOOT stage=network status=starting", flush=True)
     try:
         network = ensure_online(interactive=True)
@@ -72,12 +69,25 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         flush=True,
     )
 
+    # Basic DNS/TCP probing does not depend on TLS.  Once networking is alive,
+    # correct a potentially stale firmware/RTC clock before HTTPS Git traffic.
     if network.get("online"):
+        try:
+            clock = synchronize_clock()
+        except Exception as exc:
+            clock = {"status": "failed", "synchronized": False, "detail": f"{type(exc).__name__}:{exc}"}
+        assessment["clock"] = clock
+        print(
+            "AURUM_FIRST_BOOT "
+            f"stage=clock status={clock.get('status')} synchronized={str(bool(clock.get('synchronized'))).lower()}",
+            flush=True,
+        )
         try:
             assessment["git_sync"] = aurum_console.WORKSPACE.git_sync(authorize_network=True)
         except WorkspaceError as exc:
             assessment["git_sync"] = {"status": "degraded", "detail": str(exc)}
     else:
+        assessment["clock"] = {"status": "offline-not-required-for-local-build", "synchronized": False}
         assessment["git_sync"] = {"status": "offline-bundled-source"}
 
     try:
@@ -87,6 +97,9 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
 
     test_ok, test_detail = aurum_console.selftest()
     assessment["selftest"] = {"ok": test_ok, "detail": test_detail}
+
+    # Local-first, resumable build is deliberately independent of Internet.
+    # A missing Wi-Fi driver, DHCP, DNS, NTP, or GitHub must not stop it.
     assessment["self_build"] = aurum_console.BUILDS.start()
     assessment["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _write_assessment(assessment)
@@ -119,10 +132,28 @@ def main() -> int:
             flush=True,
         )
 
+    # Diagnose missing Wi-Fi on every console, including the deterministic VM
+    # serial console.  On the physical primary console first try only existing
+    # kernel modules resolved from an unbound wireless modalias; never unload or
+    # replace a bound driver here.
+    if profile and not wireless_interfaces():
+        recovery: dict[str, Any] = {"status": "diagnostic-only"}
+        if _autonomous_first_boot_enabled():
+            try:
+                recovery = recover_existing_wifi_driver()
+            except Exception as exc:
+                recovery = {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+            print("AURUM_WIFI_RECOVERY " + json.dumps(recovery, sort_keys=True), flush=True)
+        if not wireless_interfaces():
+            wifi_diag = diagnose_wifi()
+            print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
+
     if profile and plan:
         _first_boot(profile, plan)
 
-    # Force the bounded console hardware command to use the detailed read-only profile.
+    # Force the bounded console hardware command to use the detailed read-only
+    # provider.  The boot image is stateless during physical discovery so an
+    # older root-overlay cannot replace this provider.
     aurum_console.hardware = collect_hardware_profile
     return aurum_console.main()
 
