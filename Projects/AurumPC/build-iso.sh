@@ -101,6 +101,10 @@ EOF
 mkdir -p config/includes.chroot/opt/aurum
 cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
+cp "$SCRIPT_DIR/aurum_bootstrap.py" config/includes.chroot/opt/aurum/aurum_bootstrap.py
+chmod 0755 config/includes.chroot/opt/aurum/aurum_bootstrap.py
+cp "$SCRIPT_DIR/aurum_hardware.py" config/includes.chroot/opt/aurum/aurum_hardware.py
+chmod 0755 config/includes.chroot/opt/aurum/aurum_hardware.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
 cp "$SCRIPT_DIR/aurum_installer.py" config/includes.chroot/opt/aurum/aurum_installer.py
@@ -131,7 +135,7 @@ ConditionPathExists=/dev/tty1
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
 Nice=5
@@ -161,7 +165,7 @@ ConditionPathExists=/dev/ttyS0
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
 Nice=5
@@ -201,6 +205,8 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /opt/aurum/aurum_console.py
+chmod 0755 /opt/aurum/aurum_bootstrap.py
+chmod 0755 /opt/aurum/aurum_hardware.py
 chmod 0755 /opt/aurum/aurum_workspace.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
