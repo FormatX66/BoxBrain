@@ -9,8 +9,10 @@ on:
       - '.github/workflows/aurum-bbpi4-driver-native.yml'
       - 'installer/run-bbpi4-driver-frontier.ps1'
       - 'installer/run-bbpi4-driver-frontier-extended.ps1'
+      - 'installer/run-bbpi4-driver-frontier-gen13.ps1'
       - 'installer/aurum-pi4-driver-gen11-extension.ps1'
       - 'installer/aurum-pi4-driver-gen12-extension.ps1'
+      - 'installer/aurum-pi4-driver-gen13-extension.ps1'
       - 'installer/run-bbpi4-single-driver-trial.ps1'
       - 'Projects/Codelation/driver_evidence/pi4_driver_frontier.json'
       - 'Projects/Codelation/pi4_driver_synthesizer.py'
@@ -40,7 +42,7 @@ jobs:
       - name: Execute Git-controlled Pi4 driver frontier
         shell: powershell
         run: |
-          .\installer\run-bbpi4-driver-frontier-extended.ps1 -OutputDirectory evidence -RunTag '${{ github.run_id }}'
+          .\installer\run-bbpi4-driver-frontier-gen13.ps1 -OutputDirectory evidence -RunTag '${{ github.run_id }}'
 
       - name: Publish driver build-channel evidence
         if: always()
