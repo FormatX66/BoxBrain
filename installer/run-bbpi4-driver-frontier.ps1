@@ -49,7 +49,7 @@ if ($trialGeneration -ne $generation) {
         throw "Trial generation $trialGeneration must be exactly the next unvalidated generation after $validated."
     }
 }
-if ($trialGeneration -lt 1 -or $trialGeneration -gt 3) {
+if ($trialGeneration -lt 1 -or $trialGeneration -gt 4) {
     throw "Trial generation $trialGeneration is unsupported by the bounded Pi4 build channel."
 }
 
@@ -77,19 +77,28 @@ if ($controlled -eq $normalized -and $normalized -notmatch [regex]::Escape($repl
     throw 'Could not bind the Pi4 trial script to the requested generation in the Git frontier.'
 }
 
-if ($trialGeneration -eq 3) {
+if ($trialGeneration -eq 3 -or $trialGeneration -eq 4) {
     $generationGate = '[[ "$GENERATION" == "1" || "$GENERATION" == "2" ]]'
-    $generationGate3 = '[[ "$GENERATION" == "1" || "$GENERATION" == "2" || "$GENERATION" == "3" ]]'
-    if (-not $controlled.Contains($generationGate)) {
-        throw 'Could not extend the bounded Pi4 trial generation gate for generation 3.'
+    $generationGateExpanded = if ($trialGeneration -eq 3) {
+        '[[ "$GENERATION" == "1" || "$GENERATION" == "2" || "$GENERATION" == "3" ]]'
+    } else {
+        '[[ "$GENERATION" == "1" || "$GENERATION" == "2" || "$GENERATION" == "3" || "$GENERATION" == "4" ]]'
     }
-    $controlled = $controlled.Replace($generationGate, $generationGate3)
+    if (-not $controlled.Contains($generationGate)) {
+        throw "Could not extend the bounded Pi4 trial generation gate for generation $trialGeneration."
+    }
+    $controlled = $controlled.Replace($generationGate, $generationGateExpanded)
 
     $parityGate = 'if [[ "$GENERATION" == "2" ]]; then'
-    if (-not $controlled.Contains($parityGate)) {
-        throw 'Could not extend the Pi4 behavior-parity gate for generation 3.'
+    $parityGateExpanded = if ($trialGeneration -eq 3) {
+        'if [[ "$GENERATION" == "2" || "$GENERATION" == "3" ]]; then'
+    } else {
+        'if [[ "$GENERATION" == "2" || "$GENERATION" == "3" || "$GENERATION" == "4" ]]; then'
     }
-    $controlled = $controlled.Replace($parityGate, 'if [[ "$GENERATION" == "2" || "$GENERATION" == "3" ]]; then')
+    if (-not $controlled.Contains($parityGate)) {
+        throw "Could not extend the Pi4 behavior-parity gate for generation $trialGeneration."
+    }
+    $controlled = $controlled.Replace($parityGate, $parityGateExpanded)
 }
 
 try {
