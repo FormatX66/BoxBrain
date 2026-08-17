@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - aurum/trunk-v0.01
+      - 'aurum/explore-*'
+      - 'aurum/stress-*'
       - 'agent/**'
     paths:
       - 'Projects/Codelation/field/**'
