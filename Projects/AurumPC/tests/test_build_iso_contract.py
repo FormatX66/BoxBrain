@@ -11,15 +11,20 @@ PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
 
 
 class BuildIsoContractTests(unittest.TestCase):
-    def test_boot_requests_only_the_aurum_persistence_volume(self) -> None:
+    def test_live_boot_ignores_stale_persistence_and_has_git_trust_bootstrap(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
 
-        self.assertIn(" persistence ", script)
-        self.assertIn("persistence-label=AURUM_PERSIST", script)
+        self.assertNotIn(" persistence ", script)
+        self.assertNotIn("persistence-label=AURUM_PERSIST", script)
         self.assertIn("preempt=voluntary", script)
         self.assertIn("transparent_hugepage=madvise", script)
         self.assertIn("Projects/Codelation/autobuild/native_chain_state.json", script)
         self.assertIn("usr/lib/aurum/native-chain-state.json", script)
+        self.assertIn("systemd-timesyncd", script)
+        self.assertIn("SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt", script)
+        self.assertIn("GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt", script)
+        self.assertIn("git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt", script)
+        self.assertIn('BRANCH = "aurum/trunk-v0.01"', script)
 
     def test_qemu_runtime_gate_requires_on_machine_self_build(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
