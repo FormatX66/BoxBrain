@@ -5,6 +5,7 @@
   "physical_target": "Raspberry Pi 4 Model B",
   "active_generation": 5,
   "validated_generation": 5,
+  "trial_generation": 6,
   "next_generation": 6,
   "validated_capability": "reference-aligned firmware LED policy flags with default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
@@ -79,6 +80,15 @@
       "all policy detection stays inside the Linux LED/GPIO subsystems without raw MMIO or firmware writes"
     ],
     "exact_live_api_validation": "compiled and MODPOSTed against the running BBPI4 kernel headers, physically bound to gpio-leds with ACT/PWR behavior parity, then restored leds-gpio"
+  },
+  "generation_6_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "after LED class registration, gpiod_set_consumer_name aligns GPIO consumer identity with the final LED class device name",
+      "consumer identity alignment changes GPIO ownership metadata only and does not add raw MMIO, firmware, network, storage, power, reset, or persistent boot-time behavior",
+      "the generation retains the already-validated GPIO write, readback, default-state, and firmware-policy behavior"
+    ],
+    "validation_plan": "compile and MODPOST against the exact running BBPI4 kernel, physically bind the candidate so the consumer-identity path executes, preserve ACT/PWR behavior parity, then restore leds-gpio"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
