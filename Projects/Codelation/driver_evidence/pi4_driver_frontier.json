@@ -3,11 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 3,
-  "validated_generation": 3,
-  "trial_generation": 4,
-  "next_generation": 4,
-  "validated_capability": "reference-aligned sleep-aware GPIO LED write callback selection while preserving learned readback semantics",
+  "active_generation": 4,
+  "validated_generation": 4,
+  "next_generation": 5,
+  "validated_capability": "reference-aligned firmware default-state initialization with sleep-aware GPIO LED writes and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -69,21 +68,22 @@
       "missing, off, or unrecognized default-state initializes logical state off",
       "the Pi4 ACT and PWR LED nodes resolve to default-state off on the referenced downstream board description"
     ],
-    "trial_requirement": "compile against the exact running BBPI4 kernel, bind on the physical Pi4, pass ACT/PWR behavior parity, and restore leds-gpio"
+    "exact_live_api_validation": "compiled and MODPOSTed against the running BBPI4 kernel headers, then physically bound with working-driver behavior parity and rollback"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 31978711839,
-    "artifact_id": 9271764438,
+    "run_id": 31981594395,
+    "artifact_id": 9272495647,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
     "leds": ["ACT", "PWR"],
-    "generation": 3,
+    "generation": 4,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
     "rollback": "passed",
+    "default_state_aware": true,
     "physical_led_writes": true,
     "raw_mmio": false
   }
