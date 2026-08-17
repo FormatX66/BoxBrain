@@ -45,7 +45,7 @@ $trialGeneration = $generation
 if ($frontier.PSObject.Properties.Name -contains 'trial_generation') {
     $trialGeneration = [int]$frontier.trial_generation
 }
-elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 9) {
+elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 10) {
     # The Git frontier explicitly permits autonomous iteration on the same bounded
     # noncritical target. Automatically exercise the next supported generation;
     # promotion still remains evidence-gated and is never done by this runner.
@@ -56,7 +56,7 @@ if ($trialGeneration -ne $generation) {
         throw "Trial generation $trialGeneration must be exactly the next unvalidated generation after $validated."
     }
 }
-if ($trialGeneration -lt 1 -or $trialGeneration -gt 9) {
+if ($trialGeneration -lt 1 -or $trialGeneration -gt 10) {
     throw "Trial generation $trialGeneration is unsupported by the bounded Pi4 build channel."
 }
 
@@ -139,12 +139,82 @@ if ($trialGeneration -ge 9) {
     }
 }
 
+if ($trialGeneration -ge 10) {
+    $generation10Patches = @(
+        [pscustomobject]@{
+            Old = 'elif generation in {3, 4, 5, 6, 7, 8, 9}:'
+            New = 'elif generation in {3, 4, 5, 6, 7, 8, 9, 10}:'
+        },
+        [pscustomobject]@{
+            Old = @'
+        set_functions = '''static void aurum_led_set(struct led_classdev *cdev, enum led_brightness value)
+{
+    struct aurum_led *led = container_of(cdev, struct aurum_led, cdev);
+    gpiod_set_value(led->gpiod, value == LED_OFF ? 0 : 1);
+}
+
+static int aurum_led_set_blocking(struct led_classdev *cdev, enum led_brightness value)
+{
+    struct aurum_led *led = container_of(cdev, struct aurum_led, cdev);
+    gpiod_set_value_cansleep(led->gpiod, value == LED_OFF ? 0 : 1);
+    return 0;
+}
+'''
+'@
+            New = @'
+        set_functions = '''static void aurum_led_set(struct led_classdev *cdev, enum led_brightness value)
+{
+    struct aurum_led *led = container_of(cdev, struct aurum_led, cdev);
+    int level = value == LED_OFF ? 0 : 1;
+
+    if (led->can_sleep)
+        gpiod_set_value_cansleep(led->gpiod, level);
+    else
+        gpiod_set_value(led->gpiod, level);
+}
+
+static int aurum_led_set_blocking(struct led_classdev *cdev, enum led_brightness value)
+{
+    aurum_led_set(cdev, value);
+    return 0;
+}
+'''
+'@
+        },
+        [pscustomobject]@{
+            Old = '            9: "reference-aligned counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",'
+            New = '            9: "reference-aligned counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",' + "`n" + '            10: "reference-aligned unified LED setter dispatch, counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",'
+        },
+        [pscustomobject]@{
+            Old = 'if generation not in {1, 2, 3, 4, 5, 6, 7, 8, 9}:'
+            New = 'if generation not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}:'
+        },
+        [pscustomobject]@{
+            Old = '        9: "reference-aligned counted flexible-array metadata plus topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",'
+            New = '        9: "reference-aligned counted flexible-array metadata plus topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",' + "`n" + '        10: "reference-aligned unified LED setter dispatch plus counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",'
+        },
+        [pscustomobject]@{
+            Old = '        "counted_flexible_array_metadata": generation >= 9,'
+            New = '        "counted_flexible_array_metadata": generation >= 9,' + "`n" + '        "unified_led_setter_dispatch": generation >= 10,'
+        }
+    )
+    foreach ($patch in $generation10Patches) {
+        if (-not $controlledGenerator.Contains($patch.Old)) {
+            throw "Could not apply bounded generation-10 synthesizer patch: $($patch.Old)"
+        }
+        $controlledGenerator = $controlledGenerator.Replace($patch.Old, $patch.New)
+    }
+}
+
 try {
     [IO.File]::WriteAllText($trialPath, $controlledTrial, [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($generatorPath, $controlledGenerator, [Text.UTF8Encoding]::new($false))
     Write-Host "AURUM_PI4_DRIVER_FRONTIER target=$($frontier.target) class=$($frontier.device_class) active_generation=$generation validated_generation=$validated trial_generation=$trialGeneration next_generation=$next approval_per_iteration=false"
     if ($trialGeneration -ge 9) {
         Write-Host "AURUM_PI4_DRIVER_GEN9 reference=counted-flexible-array-metadata source=raspberrypi-linux-rpi-6.12.y bounded=true"
+    }
+    if ($trialGeneration -ge 10) {
+        Write-Host "AURUM_PI4_DRIVER_GEN10 reference=unified-led-setter-dispatch source=raspberrypi-linux-rpi-6.12.y bounded=true"
     }
     & $runnerPath -OutputDirectory $OutputDirectory -RunTag $RunTag
     if ($LASTEXITCODE -ne 0) {
