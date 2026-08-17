@@ -38,13 +38,16 @@ jobs:
           python3 -m unittest discover -s Projects/AurumPC/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
+          grep -q 'Projects/Codelation' Projects/AurumPC/build-iso.sh
+          grep -q 'aurum-self-build-farm.yml' Projects/AurumPC/build-iso.sh
+          grep -q 'PYTHONPATH=/var/lib/aurum/workspace/BoxBrain:/opt/aurum' Projects/AurumPC/build-iso.sh
 
       - name: Install independent VM tooling
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf expect e2fsprogs
           docker info >/dev/null
 
       - name: Build Aurum PC live ISO with Debian-native tooling
@@ -68,7 +71,19 @@ jobs:
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
 
-      - name: UEFI boot smoke test
+      - name: Prepare PC-01 persistence and read-only observation targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          truncate -s 3G /tmp/aurum-persist.img
+          mkfs.ext4 -q -F -L AURUM_PERSIST /tmp/aurum-persist.img
+          mkdir -p /tmp/aurum-persist-mnt
+          sudo mount -o loop /tmp/aurum-persist.img /tmp/aurum-persist-mnt
+          printf '%s\n' '/ union' | sudo tee /tmp/aurum-persist-mnt/persistence.conf >/dev/null
+          sudo umount /tmp/aurum-persist-mnt
+          truncate -s 64M /tmp/aurum-nvme.img
+
+      - name: UEFI PC-01 runtime and persistence smoke test
         shell: bash
         run: |
           set -euo pipefail
@@ -83,31 +98,123 @@ jobs:
             exit 1
           fi
           cp "$vars" /tmp/AURUM_OVMF_VARS.fd
-          set +e
-          timeout 150s qemu-system-x86_64 \
+          export AURUM_OVMF_CODE="$code"
+
+          cat > /tmp/aurum-first.exp <<'EOF'
+          log_user 1
+          log_file -noappend aurum-pc-qemu.log
+          set timeout 900
+          spawn qemu-system-x86_64 \
             -machine q35,accel=tcg \
             -cpu qemu64 \
-            -m 1024 \
+            -m 2048 \
             -smp 2 \
-            -drive if=pflash,format=raw,readonly=on,file="$code" \
+            -drive if=pflash,format=raw,readonly=on,file=$env(AURUM_OVMF_CODE) \
             -drive if=pflash,format=raw,file=/tmp/AURUM_OVMF_VARS.fd \
             -cdrom dist/Aurum-PC-v0.01-amd64.iso \
+            -drive file=/tmp/aurum-persist.img,format=raw,if=virtio \
+            -drive file=/tmp/aurum-nvme.img,format=raw,if=none,id=nvme0,readonly=on \
+            -device nvme,drive=nvme0,serial=AURUMTESTNVME \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
             -boot d \
             -display none \
             -serial stdio \
             -monitor none \
-            -no-reboot \
-            > aurum-pc-qemu.log 2>&1
-          qemu_status=$?
-          set -e
-          cat aurum-pc-qemu.log
+            -no-reboot
+          expect "AURUM_PC_READY version=0.01 arch=x86_64"
+          expect "selftest=ok"
+          expect "aurum> "
+          send "hardware\r"
+          expect "nvme0n1"
+          expect "aurum> "
+          send "network-status\r"
+          expect "\"status\": \"ready\""
+          expect "aurum> "
+          send "git-status\r"
+          expect "\"status\": \"not-initialized\""
+          expect "aurum> "
+          send "git-sync authorize-network\r"
+          expect "\"branch\": \"aurum/pi3-v0.01\""
+          expect "\"status\": \"ready\""
+          expect "aurum> "
+          send "self-build\r"
+          expect "\"status\": \"started\""
+          expect "AURUM_SELF_BUILD_FINISHED status=passed"
+          expect "aurum> "
+          send "git-status\r"
+          expect "\"status\": \"ready\""
+          expect "aurum> "
+          send "poweroff\r"
+          expect "AURUM_PC_POWEROFF requested=true"
+          expect eof
+          catch wait result
+          set exit_status [lindex $result 3]
+          if {$exit_status != 0} {
+            exit $exit_status
+          }
+          EOF
+          expect /tmp/aurum-first.exp
+
           grep -F 'AURUM_PC_READY version=0.01 arch=x86_64' aurum-pc-qemu.log
           grep -F 'selftest=ok' aurum-pc-qemu.log
-          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
-            echo "QEMU exited unexpectedly with status $qemu_status" >&2
-            exit "$qemu_status"
+          grep -F 'nvme0n1' aurum-pc-qemu.log
+          grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' aurum-pc-qemu.log
+          if grep -F 'ModuleNotFoundError: No module named '\''Projects'\''' aurum-pc-qemu.log; then
+            echo 'Installed self-build regressed to flattened Projects layout.' >&2
+            exit 1
           fi
-          echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+          if grep -F '/opt/.github/workflows/aurum-self-build-farm.yml' aurum-pc-qemu.log; then
+            echo 'Installed self-build regressed to incorrect repository root.' >&2
+            exit 1
+          fi
+
+          # Boot the same live image against the same persistence volume a second
+          # time. A ready Git workspace proves the first boot's /var/lib/aurum
+          # state survived a clean guest poweroff and the overlay was recovered.
+          cp "$vars" /tmp/AURUM_OVMF_VARS_SECOND.fd
+          cat > /tmp/aurum-second.exp <<'EOF'
+          log_user 1
+          log_file -noappend aurum-pc-qemu-second.log
+          set timeout 240
+          spawn qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -cpu qemu64 \
+            -m 1536 \
+            -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file=$env(AURUM_OVMF_CODE) \
+            -drive if=pflash,format=raw,file=/tmp/AURUM_OVMF_VARS_SECOND.fd \
+            -cdrom dist/Aurum-PC-v0.01-amd64.iso \
+            -drive file=/tmp/aurum-persist.img,format=raw,if=virtio \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
+            -boot d \
+            -display none \
+            -serial stdio \
+            -monitor none \
+            -no-reboot
+          expect "AURUM_PC_READY version=0.01 arch=x86_64"
+          expect "aurum> "
+          send "git-status\r"
+          expect "\"status\": \"ready\""
+          expect "\"branch\": \"aurum/pi3-v0.01\""
+          expect "aurum> "
+          send "network-status\r"
+          expect "\"status\": \"ready\""
+          expect "aurum> "
+          send "poweroff\r"
+          expect "AURUM_PC_POWEROFF requested=true"
+          expect eof
+          catch wait result
+          set exit_status [lindex $result 3]
+          if {$exit_status != 0} {
+            exit $exit_status
+          }
+          EOF
+          expect /tmp/aurum-second.exp
+          grep -F 'AURUM_PC_POWEROFF requested=true' aurum-pc-qemu-second.log
+          echo 'AURUM_PC_V001_UEFI_PC01_RUNTIME_VERIFIED'
+          echo 'AURUM_PC_V001_PERSISTENCE_VERIFIED'
 
       - name: Record image metadata
         shell: bash
@@ -124,5 +231,6 @@ jobs:
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
             aurum-pc-qemu.log
+            aurum-pc-qemu-second.log
           if-no-files-found: error
           retention-days: 14
