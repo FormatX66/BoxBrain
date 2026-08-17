@@ -3,10 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 15,
-  "validated_generation": 15,
-  "next_generation": 16,
-  "validated_capability": "post-trial rollback state equivalence proof over the physically validated LED-class driver, including original driver rebound, candidate module unload, target sysfs topology, max-brightness, default-trigger restoration, and retained working-driver behavior parity",
+  "active_generation": 16,
+  "validated_generation": 16,
+  "next_generation": 17,
+  "validated_capability": "fault-free physical driver lifecycle proof across candidate load, bind, bounded LED exercise, unload, rollback, and restored working-driver state, with a ring-buffer-safe dmesg delta and zero new kernel fault signatures",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -194,11 +194,24 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound as aurum-gpio-leds, retained ACT/PWR max-brightness, default-trigger, and brightness behavior parity, restored leds-gpio, verified aurum_gpio_leds was unloaded, and verified restored ACT/PWR sysfs topology and class-policy parity",
     "candidate_source_sha256": "a9c7d896325e7ee5e71ba52f79aa64b33c2bd5fce4ef9fe149540ccd88ea6837"
   },
+  "generation_16_reference": {
+    "source": "verified BBPI4 working-driver observation plus a ring-buffer-safe before/after kernel log overlap window over the bounded physical candidate lifecycle",
+    "semantics": [
+      "capture the complete kernel log before candidate insertion and again after the candidate has been unloaded and the known-good leds-gpio driver restored",
+      "derive the trial-only log delta by matching the surviving suffix of the pre-trial ring buffer to the prefix of the post-trial ring buffer, so ring-buffer turnover cannot create an empty false-pass window",
+      "fail closed when the before/after logs cannot establish a valid overlap window",
+      "scan only the proven trial delta for kernel BUG, WARNING, Oops, panic, sanitizer, protection-fault, use-after-free, refcount, atomic-scheduling, and invalid-sleep signatures",
+      "the verified physical generation-16 trial produced 10 new dmesg lines with zero fault signatures while retaining compile, LED-class behavior, bind, rollback, module-unload, topology, max-brightness, and trigger parity",
+      "this generation adds diagnostic proof only; it introduces no new physical I/O path, raw MMIO, firmware write, networking, storage, power-controller, reset, or persistent boot-time replacement"
+    ],
+    "exact_live_api_validation": "compiled and MODPOSTed against Linux 6.12.34+rpt-rpi-v8 on Raspberry Pi 4 Model B Rev 1.5, physically bound as aurum-gpio-leds, matched ACT/PWR behavior, max-brightness and default-trigger policy, restored leds-gpio and unloaded the candidate, verified rollback topology, then proved a ring-buffer-safe 10-line trial dmesg delta contained zero kernel fault signatures",
+    "candidate_source_sha256": "ce9456e8770a60519523b28baf9aa94cd2588e75cceb0b9820c09a5feef6fc47"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 32024365560,
-    "artifact_id": 9286521511,
-    "artifact_zip_sha256": "57b56b5bb0bed8490d96ed7552cbf03cac48b6c11534360a1975385d234a1cc2",
+    "run_id": 32042664747,
+    "artifact_id": 9292247582,
+    "artifact_zip_sha256": "12de98cbbf81a537ac088d39f009609b607d31e831629f66b82a4fd6cbfced34",
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -206,7 +219,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 15,
+    "generation": 16,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -233,6 +246,10 @@
     "rollback_target_sysfs_topology_parity": true,
     "rollback_max_brightness_parity": true,
     "rollback_default_trigger_parity": true,
+    "kernel_fault_free_lifecycle": true,
+    "ring_buffer_overlap_verified": true,
+    "dmesg_delta_lines": 10,
+    "new_kernel_fault_signatures": 0,
     "default_trigger_parity": {
       "ACT": "mmc0",
       "PWR": "default-on"
