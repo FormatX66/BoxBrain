@@ -6,6 +6,7 @@
   "active_generation": 6,
   "validated_generation": 6,
   "next_generation": 7,
+  "trial_generation": 7,
   "validated_capability": "reference-aligned GPIO consumer identity with firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
@@ -88,6 +89,17 @@
       "the generation retains the already-validated GPIO write, readback, default-state, and firmware-policy behavior"
     ],
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound so the consumer-identity path executed for the registered LED devices, preserved ACT/PWR behavior parity, then restored leds-gpio"
+  },
+  "generation_7_plan": {
+    "status": "trial-queued",
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "after LED class registration, select the LED class device default pinctrl state with devm_pinctrl_get_select_default",
+      "treat missing pinctrl state (-ENODEV) as a valid no-op, matching the reference gpio-leds driver",
+      "keep GPIO consumer identity alignment and all previously validated behavior",
+      "stay inside the Linux LED, GPIO, and pinctrl subsystems without raw MMIO, firmware writes, networking, storage, power, reset, or persistent boot-time replacement"
+    ],
+    "promotion_rule": "do not advance validated_generation until exact-kernel compilation, physical candidate bind, ACT/PWR behavior parity, and leds-gpio restoration all pass"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
