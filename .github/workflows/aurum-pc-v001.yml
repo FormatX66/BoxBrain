@@ -11,6 +11,7 @@ on:
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
+      - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
 
 permissions:
@@ -39,7 +40,11 @@ jobs:
             Projects/AurumPC/aurum_workspace.py \
             Projects/AurumPC/aurum_installer.py
           sh -n Projects/AurumPC/build-iso.sh
+          bash -n Projects/AurumVirtualLab/qemu-pc-smoke.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
+          grep -q 'network-status' Projects/AurumPC/aurum_console.py
+          grep -q 'network-repair' Projects/AurumPC/aurum_console.py
+          grep -q 'storage-status' Projects/AurumPC/aurum_console.py
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
           grep -q 'install confirm ERASE-CODE' Projects/AurumPC/aurum_console.py
