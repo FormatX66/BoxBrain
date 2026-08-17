@@ -117,12 +117,17 @@ class AurumInstaller:
         self.install_work = install_work
 
     def _invoke(self, arguments: Sequence[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
-        result = self.runner(
-            list(arguments),
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = self.runner(
+                list(arguments),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError as exc:
+            raise InstallError(
+                f"{Path(arguments[0]).name} is unavailable: {exc.strerror or type(exc).__name__}"
+            ) from exc
         if check and result.returncode != 0:
             detail = _clean_text(result.stderr or result.stdout or "command failed", maximum=300)
             raise InstallError(f"{Path(arguments[0]).name} failed: {detail}")
@@ -152,7 +157,7 @@ class AurumInstaller:
         device = str(record.get("path") or record.get("name") or "")
         transport = str(record.get("tran") or "").lower()
         size = int(record.get("size") or 0)
-        kernel_name = str(record.get("kname") or Path(device).name)
+        kernel_name = Path(str(record.get("kname") or device)).name
         if record.get("type") != "disk" or not SAFE_DEVICE.fullmatch(device):
             return False
         if size < MINIMUM_TARGET_BYTES or _truthy(record.get("ro")):
@@ -174,7 +179,7 @@ class AurumInstaller:
             if not self._eligible(record):
                 continue
             device = str(record.get("path") or record.get("name"))
-            kernel_name = str(record.get("kname") or Path(device).name)
+            kernel_name = Path(str(record.get("kname") or device)).name
             size_bytes = int(record.get("size") or 0)
             serial = _clean_text(record.get("serial")) or "serial-unavailable"
             partitions: list[Mapping[str, Any]] = []

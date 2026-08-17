@@ -67,6 +67,7 @@ dosfstools
 e2fsprogs
 util-linux
 grub-efi-amd64-bin
+grub2-common
 EOF
 
 # Debian live-build's EFI GRUB config expects this font at boot. With

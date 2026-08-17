@@ -21,7 +21,7 @@ def inventory() -> dict:
         "blockdevices": [
             {
                 "name": "/dev/nvme0n1",
-                "kname": "nvme0n1",
+                "kname": "/dev/nvme0n1",
                 "path": "/dev/nvme0n1",
                 "type": "disk",
                 "size": 512_000_000_000,
@@ -144,6 +144,7 @@ class AurumInstallerTests(unittest.TestCase):
         self.assertEqual(len(plan["targets"]), 1)
         target = plan["targets"][0]
         self.assertEqual(target["device"], "/dev/nvme0n1")
+        self.assertEqual(target["kernel_name"], "nvme0n1")
         self.assertEqual(target["model"], "Internal NVMe")
         self.assertRegex(target["confirmation_code"], r"^ERASE-[A-F0-9]{8}$")
         self.assertEqual(
@@ -178,6 +179,14 @@ class AurumInstallerTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "installed", "device": "/dev/nvme0n1"})
         self.assertEqual(installer.selected.device, "/dev/nvme0n1")
+
+    def test_missing_fixed_tool_is_reported_without_an_unhandled_traceback(self) -> None:
+        def missing_runner(arguments: list[str], **_kwargs):
+            raise FileNotFoundError(2, "No such file or directory", arguments[0])
+
+        installer = installer_module.AurumInstaller(runner=missing_runner)
+        with self.assertRaisesRegex(installer_module.InstallError, "lsblk is unavailable"):
+            installer.discover_targets()
 
 
 if __name__ == "__main__":

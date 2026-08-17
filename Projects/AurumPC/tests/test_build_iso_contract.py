@@ -28,7 +28,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("printf 'self-build\\n'", smoke)
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
-        self.assertIn("wait_for_marker 'AURUM_SELF_BUILD_FINISHED status=passed' 720", smoke)
+        self.assertIn("wait_for_self_build 720", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn("Projects/AurumVirtualLab/qemu-pc-smoke.sh", workflow)
 
@@ -37,7 +37,14 @@ class BuildIsoContractTests(unittest.TestCase):
 
         self.assertIn("--debian-installer none", script)
         self.assertIn("aurum_installer.py", script)
-        for package in ("parted", "rsync", "dosfstools", "e2fsprogs", "grub-efi-amd64-bin"):
+        for package in (
+            "parted",
+            "rsync",
+            "dosfstools",
+            "e2fsprogs",
+            "grub-efi-amd64-bin",
+            "grub2-common",
+        ):
             self.assertIn(package, script)
 
     def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:

@@ -89,6 +89,40 @@ wait_for_marker() {
   return 1
 }
 
+wait_for_install() {
+  attempts=$1
+  for _ in $(seq 1 "$attempts"); do
+    if grep -Fq 'AURUM_INSTALL_FINISHED status=passed' "$LOG"; then
+      return 0
+    fi
+    if grep -Fq 'AURUM_INSTALL_FINISHED status=refused' "$LOG"; then
+      return 1
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_self_build() {
+  attempts=$1
+  for _ in $(seq 1 "$attempts"); do
+    if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"; then
+      return 0
+    fi
+    if grep -Eq 'AURUM_SELF_BUILD_FINISHED status=(failed|cancelled)' "$LOG"; then
+      return 1
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 finish_qemu() {
   set +e
   wait "$qemu_pid"
@@ -127,7 +161,7 @@ if [ -z "$confirmation" ]; then
   exit 1
 fi
 printf 'install confirm %s\n' "$confirmation" >&3
-if ! wait_for_marker 'AURUM_INSTALL_FINISHED status=passed' 600; then
+if ! wait_for_install 600; then
   cat "$LOG"
   echo 'Aurum PC guided installation did not pass.' >&2
   exit 1
@@ -146,7 +180,7 @@ if ! wait_for_marker 'mode=installed' 180 || \
 fi
 
 printf 'self-build\n' >&3
-if ! wait_for_marker 'AURUM_SELF_BUILD_FINISHED status=passed' 720; then
+if ! wait_for_self_build 720; then
   cat "$LOG"
   echo 'Aurum PC installed-runtime self-build did not pass.' >&2
   exit 1
