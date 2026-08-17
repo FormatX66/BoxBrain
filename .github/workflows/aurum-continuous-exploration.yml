@@ -1,0 +1,169 @@
+name: Aurum Continuous Exploration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-continuous-exploration.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: aurum-continuous-exploration-controller
+  cancel-in-progress: false
+
+env:
+  AURUM_TRUNK: aurum/trunk-v0.01
+  FRONTIER_TESTS: >-
+    Projects.Codelation.tests.test_bottleneck_mesh
+    Projects.Codelation.tests.test_capacity_mesh
+    Projects.Codelation.tests.test_capability_wave
+    Projects.Codelation.tests.test_io_fabric
+    Projects.Codelation.tests.test_io_event
+    Projects.Codelation.tests.test_local_capability_verification
+    Projects.Codelation.tests.test_field_native_vm
+    Projects.Codelation.tests.test_field_native_batch
+    Projects.Codelation.tests.test_field_native_cache
+    Projects.Codelation.tests.test_native_program_synthesis
+    Projects.Codelation.tests.test_self_build_federation
+    Projects.Codelation.tests.test_self_build_resources
+    Projects.Codelation.tests.test_slush_media
+    Projects.Codelation.tests.test_slush_image
+    Projects.Codelation.tests.test_windows_node_growth
+    Projects.Codelation.tests.test_boot_aperture
+    Projects.Codelation.tests.test_runtime_recipe
+
+jobs:
+  exploration-lane:
+    name: ${{ matrix.lane }} - ${{ matrix.branch }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - lane: safe
+            branch: aurum/explore-safe-v0.01
+            repeats: 2
+          - lane: adventurous
+            branch: aurum/explore-adventurous-v0.01
+            repeats: 2
+          - lane: stress
+            branch: aurum/stress-v0.01
+            repeats: 4
+    steps:
+      - name: Check out exploration branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ matrix.branch }}
+          fetch-depth: 100
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Reconcile forward from verified trunk when fast-forward safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$AURUM_TRUNK" "${{ matrix.branch }}"
+          current="$(git rev-parse HEAD)"
+          trunk="$(git rev-parse "origin/$AURUM_TRUNK")"
+          if git merge-base --is-ancestor "$current" "$trunk"; then
+            git merge --ff-only "$trunk"
+            if [ "$(git rev-parse HEAD)" != "$current" ]; then
+              git push origin "HEAD:${{ matrix.branch }}"
+              echo "AURUM_EXPLORATION_RECONCILE lane=${{ matrix.lane }} result=fast-forwarded"
+            else
+              echo "AURUM_EXPLORATION_RECONCILE lane=${{ matrix.lane }} result=already-current"
+            fi
+          elif git merge-base --is-ancestor "$trunk" "$current"; then
+            echo "AURUM_EXPLORATION_RECONCILE lane=${{ matrix.lane }} result=branch-ahead-preserved"
+          else
+            echo "AURUM_EXPLORATION_RECONCILE lane=${{ matrix.lane }} result=divergent-preserved"
+          fi
+
+      - name: Compile current branch surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q Projects/Codelation Projects/AurumPC
+
+      - name: Repeated frontier verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          seeds=(0 1 7 31 127 1021)
+          for ((pass=0; pass<${{ matrix.repeats }}; pass++)); do
+            seed="${seeds[$pass]}"
+            echo "AURUM_EXPLORATION_RETEST lane=${{ matrix.lane }} pass=$((pass+1)) seed=$seed"
+            PYTHONHASHSEED="$seed" PYTHONFAULTHANDLER=1 \
+              python -m unittest $FRONTIER_TESTS -v
+            PYTHONHASHSEED="$seed" PYTHONFAULTHANDLER=1 \
+              python -m unittest discover -s Projects/AurumPC/tests -p 'test_*.py' -v
+          done
+
+      - name: Exercise adventurous native growth in disposable state
+        if: matrix.lane == 'adventurous'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp Projects/Codelation/autobuild/native_chain_state.json /tmp/aurum-adventurous-state.json
+          python Projects/Codelation/run_native_autonomous_chain.py \
+            --resume \
+            --max-generations 96 \
+            --state-path /tmp/aurum-adventurous-state.json \
+            | tee /tmp/aurum-adventurous-chain.json
+          echo 'AURUM_EXPLORATION_ADVENTUROUS disposable=true physical_proof=false'
+
+      - name: Verify held physical boundary was not promoted by exploration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path('Projects/Codelation/autobuild/continuous_build_policy.json').read_text())
+          reconciliation = policy['branch_reconciliation']
+          assert policy['global_stall_allowed'] is False
+          assert policy['physical_hold_behavior'] == 'fork-and-continue'
+          assert reconciliation['automatic_experimental_merge_to_trunk'] is False
+          assert reconciliation['physical_proof_required_for_physical_acceptance'] is True
+          print('AURUM_EXPLORATION_BOUNDARY preserved=true')
+          PY
+
+  virtual-stress-watchdog:
+    name: Re-dispatch virtual hardware stress lane
+    runs-on: ubuntu-24.04
+    needs: exploration-lane
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Keep virtual hardware retesting when idle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch='aurum/stress-v0.01'
+          workflow='aurum-virtual-lab.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${branch}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EXPLORATION_VIRTUAL_STRESS result=already-running active=$active"
+            exit 0
+          fi
+          jq -nc --arg ref "$branch" \
+            '{ref:$ref,inputs:{publish_runtime:"false"}}' \
+            | gh api --method POST \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+                --input -
+          echo "AURUM_EXPLORATION_VIRTUAL_STRESS result=dispatched branch=$branch physical_proof=false"
