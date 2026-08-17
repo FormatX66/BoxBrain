@@ -3,11 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 7,
-  "validated_generation": 7,
-  "next_generation": 8,
-  "trial_generation": 8,
-  "validated_capability": "reference-aligned LED default pinctrl selection with GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 8,
+  "validated_generation": 8,
+  "next_generation": 9,
+  "validated_capability": "reference-aligned topology-sized overflow-safe LED allocation with LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -109,12 +108,13 @@
       "struct_size provides kernel overflow-checked size construction while keeping the same one-target, LED/GPIO-only behavior",
       "the change adds no raw MMIO, firmware write, networking, storage, power, reset, or persistent boot-time behavior"
     ],
-    "exact_live_api_validation": "pending exact-kernel compile, physical bind, ACT/PWR behavior parity, and working-driver restore"
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound with topology-sized allocation active, preserved ACT/PWR behavior parity, then restored leds-gpio",
+    "candidate_source_sha256": "01b58633d8b40f1ec253cae88c0d1ae7ae56992dac569b463f433d345df90bb6"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 31990925418,
-    "artifact_id": 9275299260,
+    "run_id": 31994229219,
+    "artifact_id": 9276307034,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -122,7 +122,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 7,
+    "generation": 8,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -134,6 +134,7 @@
     "retain_shutdown_policy_aware": true,
     "gpio_consumer_identity_aligned": true,
     "pinctrl_default_aligned": true,
+    "topology_sized_overflow_safe_allocation": true,
     "physical_led_writes": true,
     "raw_mmio": false
   }
