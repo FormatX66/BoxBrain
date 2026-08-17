@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import json
 import getpass
+import json
 import os
 import platform
 import shlex
@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from aurum_installer import AurumInstaller, InstallError
 from aurum_workspace import AurumWorkspace, WorkspaceError
@@ -137,6 +138,174 @@ def _chain_state() -> dict:
         return {}
 
 
+def _bounded_command(arguments: list[str], *, timeout: int = 5) -> dict[str, Any]:
+    """Run one fixed diagnostic/recovery primitive and keep its output bounded."""
+    try:
+        result = subprocess.run(
+            arguments,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"ok": False, "detail": f"{type(exc).__name__}:{exc}"}
+    output = result.stdout.strip()
+    return {
+        "ok": result.returncode == 0,
+        "returncode": result.returncode,
+        "output": output[-3000:],
+    }
+
+
+def _wired_interfaces() -> list[str]:
+    try:
+        names = sorted(path.name for path in Path("/sys/class/net").iterdir())
+    except OSError:
+        return []
+    return [name for name in names if name != "lo" and (name.startswith("en") or name.startswith("eth"))]
+
+
+def _interface_addresses(name: str) -> list[dict[str, Any]]:
+    result = _bounded_command(["ip", "-j", "address", "show", "dev", name], timeout=3)
+    if not result.get("ok"):
+        return []
+    try:
+        payload = json.loads(result.get("output") or "[]")
+    except json.JSONDecodeError:
+        return []
+    addresses: list[dict[str, Any]] = []
+    for item in payload:
+        for address in item.get("addr_info") or []:
+            local = address.get("local")
+            if local:
+                addresses.append(
+                    {
+                        "family": address.get("family"),
+                        "local": local,
+                        "prefixlen": address.get("prefixlen"),
+                        "scope": address.get("scope"),
+                    }
+                )
+    return addresses
+
+
+def _default_routes() -> list[dict[str, Any]]:
+    result = _bounded_command(["ip", "-j", "route", "show", "default"], timeout=3)
+    if not result.get("ok"):
+        return []
+    try:
+        routes = json.loads(result.get("output") or "[]")
+    except json.JSONDecodeError:
+        return []
+    return routes if isinstance(routes, list) else []
+
+
+def network_status(*, resolve_dns: bool = True) -> dict[str, Any]:
+    interfaces = []
+    for name in _wired_interfaces():
+        base = Path("/sys/class/net") / name
+        interfaces.append(
+            {
+                "name": name,
+                "carrier": _read_text(base / "carrier", "unknown"),
+                "operstate": _read_text(base / "operstate", "unknown"),
+                "mac": _read_text(base / "address", "unknown"),
+                "addresses": _interface_addresses(name),
+            }
+        )
+
+    routes = _default_routes()
+    networkd = _bounded_command(["systemctl", "is-active", "systemd-networkd.service"], timeout=3)
+    resolved = _bounded_command(["systemctl", "is-active", "systemd-resolved.service"], timeout=3)
+    resolver = _bounded_command(["resolvectl", "dns"], timeout=3)
+    dns_lookup = (
+        _bounded_command(["getent", "ahostsv4", "github.com"], timeout=3)
+        if resolve_dns
+        else {"ok": None, "detail": "not-probed"}
+    )
+    try:
+        resolv_conf = os.readlink("/etc/resolv.conf") if Path("/etc/resolv.conf").is_symlink() else "regular-file"
+    except OSError as exc:
+        resolv_conf = f"unreadable:{exc}"
+
+    carrier = any(item["carrier"] == "1" for item in interfaces)
+    addressed = any(item["addresses"] for item in interfaces)
+    routed = bool(routes)
+    dns_ok = bool(dns_lookup.get("ok")) if resolve_dns else None
+    if carrier and addressed and routed:
+        status = "dns-failed" if dns_ok is False else "ready"
+    elif carrier and addressed:
+        status = "no-default-route"
+    elif carrier:
+        status = "link-no-address"
+    elif interfaces:
+        status = "no-carrier"
+    else:
+        status = "no-wired-interface"
+
+    return {
+        "status": status,
+        "interfaces": interfaces,
+        "default_routes": routes,
+        "services": {
+            "systemd-networkd": networkd,
+            "systemd-resolved": resolved,
+        },
+        "resolver": {
+            "resolv_conf": resolv_conf,
+            "dns_servers": resolver,
+            "github_lookup": dns_lookup,
+        },
+    }
+
+
+def network_repair() -> dict[str, Any]:
+    """Bounded recovery for the temporary Linux compatibility substrate."""
+    if os.geteuid() != 0:
+        return {"status": "refused", "detail": "network-repair-requires-root"}
+
+    actions: list[dict[str, Any]] = []
+    for service in ("systemd-networkd.service", "systemd-resolved.service"):
+        result = _bounded_command(["systemctl", "restart", service], timeout=10)
+        actions.append({"action": f"restart:{service}", **result})
+
+    resolver_target = "/run/systemd/resolve/stub-resolv.conf"
+    try:
+        current = os.readlink("/etc/resolv.conf") if Path("/etc/resolv.conf").is_symlink() else None
+        if current != resolver_target:
+            Path("/etc/resolv.conf").unlink(missing_ok=True)
+            os.symlink(resolver_target, "/etc/resolv.conf")
+        actions.append({"action": "resolver-link", "ok": True, "target": resolver_target})
+    except OSError as exc:
+        actions.append({"action": "resolver-link", "ok": False, "detail": f"{type(exc).__name__}:{exc}"})
+
+    actions.append({"action": "networkctl-reload", **_bounded_command(["networkctl", "reload"], timeout=5)})
+    for name in _wired_interfaces():
+        actions.append(
+            {"action": f"link-up:{name}", **_bounded_command(["ip", "link", "set", "dev", name, "up"], timeout=5)}
+        )
+        actions.append(
+            {"action": f"reconfigure:{name}", **_bounded_command(["networkctl", "reconfigure", name], timeout=8)}
+        )
+        actions.append(
+            {"action": f"renew:{name}", **_bounded_command(["networkctl", "renew", name], timeout=8)}
+        )
+
+    deadline = time.monotonic() + 15
+    snapshot = network_status(resolve_dns=False)
+    while time.monotonic() < deadline and snapshot["status"] != "ready":
+        time.sleep(1)
+        snapshot = network_status(resolve_dns=False)
+    final = network_status(resolve_dns=True)
+    return {
+        "status": "ready" if final["status"] == "ready" else "incomplete",
+        "actions": actions,
+        "network": final,
+    }
+
+
 def hardware() -> dict:
     memory_kib = "unknown"
     try:
@@ -197,6 +366,7 @@ def show_status() -> None:
         "runtime_mode": "installed" if Path("/etc/aurum-installed.json").is_file() else "live",
         "substrate": "linux-hardware-compatibility-layer",
         "hardware": hardware(),
+        "network": network_status(resolve_dns=False),
         "aurum": {
             "completed_generations": state.get("completed_generations"),
             "latest_completed_gap": state.get("latest_completed_gap"),
@@ -227,6 +397,19 @@ def show_result(operation) -> None:
         print(json.dumps(result, indent=2, sort_keys=True), flush=True)
     except WorkspaceError as exc:
         print(f"AURUM_WORKSPACE_REFUSED detail={exc}", flush=True)
+
+
+def show_network_status() -> None:
+    result = network_status()
+    print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+    names = ",".join(item["name"] for item in result["interfaces"]) or "none"
+    print(f"AURUM_NETWORK status={result['status']} interfaces={names}", flush=True)
+
+
+def show_network_repair() -> None:
+    result = network_repair()
+    print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+    print(f"AURUM_NETWORK_REPAIR status={result['status']}", flush=True)
 
 
 def show_install_plan() -> None:
@@ -276,7 +459,7 @@ def run_install(confirmation_code: str) -> None:
 
 def command_help() -> None:
     print(
-        "status | hardware | field | selftest | seed | seed-status | self-build | "
+        "status | hardware | network-status | network-repair | field | selftest | seed | seed-status | self-build | "
         "self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
         "git-promote authorize-network confirm-push | install | "
@@ -289,6 +472,7 @@ def main() -> int:
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     ok, detail = selftest()
     hw = hardware()
+    boot_network = network_status(resolve_dns=False)
     print(
         "AURUM_PC_READY "
         f"version={VERSION} arch={hw['architecture']} kernel={hw['kernel']} "
@@ -296,6 +480,7 @@ def main() -> int:
         f"selftest={'ok' if ok else 'failed'} detail={detail}",
         flush=True,
     )
+    print(f"AURUM_NETWORK_BOOT status={boot_network['status']}", flush=True)
     command_help()
 
     while True:
@@ -319,6 +504,10 @@ def main() -> int:
             show_status()
         elif command == "hardware" and len(tokens) == 1:
             print(json.dumps(hardware(), indent=2, sort_keys=True), flush=True)
+        elif command == "network-status" and len(tokens) == 1:
+            show_network_status()
+        elif command == "network-repair" and len(tokens) == 1:
+            show_network_repair()
         elif command == "field" and len(tokens) == 1:
             show_field()
         elif command == "selftest" and len(tokens) == 1:

@@ -13,7 +13,11 @@ A build is accepted only when all of the following are true:
 5. no arbitrary command shell is exposed by the Aurum console;
 6. the live image offers only a device-bound, whole-disk UEFI installer path;
 7. the QEMU gate installs to a blank virtual disk and boots that installed disk without the ISO;
-8. the image can report hardware, current Aurum chain state, Field capabilities, and perform explicit reboot/poweroff.
+8. the image can report hardware, current Aurum chain state, Field capabilities, and perform explicit reboot/poweroff;
+9. a read-only NVMe device is visible but never selected or modified;
+10. wired DHCP, a default route, and DNS work through the Debian compatibility layer;
+11. the installed runtime completes `self-build` from `/opt/aurum/codelation` before any Git checkout exists; and
+12. seed/build state survives an installed-disk reboot before the fixed Git workspace is initialized.
 
 ## Runtime surface
 
@@ -21,6 +25,8 @@ The initial console intentionally stays small:
 
 - `status` — Aurum and machine state;
 - `hardware` — CPU/kernel/DMI/memory/block/network inventory;
+- `network-status` — bounded carrier, address, route, service, resolver, and GitHub DNS diagnostics;
+- `network-repair` — bounded restart/reconfigure/renew recovery for wired DHCP and DNS;
 - `field` — currently reusable native/local capabilities;
 - `selftest` — deterministic Codelation capability verification;
 - `reboot` / `poweroff` — explicit machine lifecycle actions;
@@ -35,7 +41,7 @@ The x86 seed/build-node extension adds fixed operations without adding a shell:
 - `install` — list only unmounted, non-USB internal installation targets and show their current contents;
 - `install confirm ERASE-XXXXXXXX` — erase and install to the one disk bound to that freshly generated code;
 - `git-status` — inspect the fixed BoxBrain workspace;
-- `git-sync authorize-network` — explicitly authorize a clone or fast-forward-only fetch of `FormatX66/BoxBrain` branch `aurum/pi3-v0.01`;
+- `git-sync authorize-network` — explicitly authorize a clone or fast-forward-only fetch of `FormatX66/BoxBrain` branch `aurum/trunk-v0.01`;
 - `git-auth` — read a GitHub token without echo and keep it only in Git's in-memory credential cache for one hour;
 - `git-promote authorize-network confirm-push` — after a successful self-build, commit and push only the allowlisted generated chain-state checkpoint.
 
@@ -46,9 +52,10 @@ Self-builds emit per-suite and per-generation progress plus a 15-second heartbea
 On the updated x86 image, the first sequence is:
 
 ```text
-git-sync authorize-network
-seed
+network-status
+git-status
 self-build
+git-sync authorize-network
 git-status
 ```
 
@@ -87,7 +94,7 @@ and runtime files; flushes the disk; and tells the user to power off and remove
 the USB. This is deliberately a whole-disk install, not a partition editor or
 dual-boot workflow.
 
-The current v0.01 live ISO uses a RAM-backed writable overlay unless it finds a Debian live persistence volume. The boot configuration requests a uniquely labelled `AURUM_PERSIST` volume so it cannot consume an unrelated live persistence disk. Prepare that volume as ext4 with filesystem label `AURUM_PERSIST` and place a root-level `persistence.conf` containing `/ union` on it. Without that volume, seed/workspace changes last for the current boot only. A rebuilt image contains the new commands; the already-booted original v0.01 console cannot add them to itself because it intentionally exposes no shell or Git endpoint.
+The current v0.01 live ISO always uses a fresh RAM-backed writable overlay. It intentionally ignores older `AURUM_PERSIST` overlays because they can mask the runtime packaged by a newly flashed ISO. Live-session seed/workspace changes therefore last only for that boot. After a confirmed installation to an internal disk, `/var/lib/aurum/state` and `/var/lib/aurum/workspace` live on the installed ext4 root and persist across reboot. A rebuilt image contains the new commands; the already-booted original v0.01 console cannot add them to itself because it intentionally exposes no shell or Git endpoint.
 
 The Linux kernel, systemd, Debian live-boot, and existing Linux drivers are scaffolding. They are not the target architecture. Later milestones can replace pieces of this substrate only after Aurum has equivalent verified machine-native capability.
 

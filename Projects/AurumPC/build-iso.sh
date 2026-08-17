@@ -48,7 +48,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components quiet preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components quiet preempt=voluntary transparent_hugepage=madvise modprobe.blacklist=nouveau nouveau.modeset=0 console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
@@ -106,9 +106,6 @@ mkdir -p config/includes.chroot/opt/aurum
 cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
-# The physical PC follows the integration trunk. Keep this override in the
-# image recipe until the shared workspace source constant is retired.
-sed -i 's|^BRANCH = .*|BRANCH = "aurum/trunk-v0.01"|' config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
 cp "$SCRIPT_DIR/aurum_installer.py" config/includes.chroot/opt/aurum/aurum_installer.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_installer.py

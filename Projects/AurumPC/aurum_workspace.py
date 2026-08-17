@@ -21,7 +21,7 @@ except ImportError:  # Windows test host; the Aurum runtime is Linux.
 
 
 REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
-BRANCH = "aurum/pi3-v0.01"
+BRANCH = "aurum/trunk-v0.01"
 ALLOWED_PROMOTION_PATHS = frozenset({"Projects/Codelation/autobuild/native_chain_state.json"})
 _FALLBACK_BUILD_LOCKS: dict[str, threading.Lock] = {}
 _FALLBACK_BUILD_LOCKS_GUARD = threading.Lock()

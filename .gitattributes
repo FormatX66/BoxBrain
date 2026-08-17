@@ -6,3 +6,4 @@ edge/kali-pi-agent/onboarding/windows-link.ps1 text eol=crlf
 Projects/AurumPi3/** text eol=lf
 .github/workflows/aurum-pi3-v001.yml text eol=lf
 Projects/AurumPC/*.sh text eol=lf
+Projects/AurumVirtualLab/*.sh text eol=lf

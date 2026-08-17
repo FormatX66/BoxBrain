@@ -47,5 +47,52 @@ class SelfBuildControllerTests(unittest.TestCase):
         self.assertEqual(controller.status()["latest"]["status"], "cancelled")
 
 
+class NetworkStatusTests(unittest.TestCase):
+    @patch.object(aurum_console, "_wired_interfaces", return_value=["enp4s0"])
+    @patch.object(aurum_console, "_interface_addresses", return_value=[{"family": "inet", "local": "192.0.2.10"}])
+    @patch.object(aurum_console, "_default_routes", return_value=[{"dst": "default", "dev": "enp4s0"}])
+    @patch.object(aurum_console, "_read_text")
+    @patch.object(aurum_console, "_bounded_command")
+    def test_pc01_enp4s0_reports_ready_only_with_working_dns(
+        self,
+        bounded_command,
+        read_text,
+        _default_routes,
+        _interface_addresses,
+        _wired_interfaces,
+    ) -> None:
+        read_text.side_effect = lambda path, default="unknown": "1" if path.name == "carrier" else "up"
+        bounded_command.return_value = {"ok": True, "returncode": 0, "output": "ready"}
+
+        result = aurum_console.network_status()
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["interfaces"][0]["name"], "enp4s0")
+        self.assertTrue(result["resolver"]["github_lookup"]["ok"])
+
+    @patch.object(aurum_console, "_wired_interfaces", return_value=["enp4s0"])
+    @patch.object(aurum_console, "_interface_addresses", return_value=[{"family": "inet", "local": "192.0.2.10"}])
+    @patch.object(aurum_console, "_default_routes", return_value=[{"dst": "default", "dev": "enp4s0"}])
+    @patch.object(aurum_console, "_read_text", return_value="1")
+    @patch.object(aurum_console, "_bounded_command")
+    def test_dns_failure_is_not_reported_as_network_ready(
+        self,
+        bounded_command,
+        _read_text,
+        _default_routes,
+        _interface_addresses,
+        _wired_interfaces,
+    ) -> None:
+        bounded_command.side_effect = lambda arguments, **_kwargs: {
+            "ok": arguments[:2] != ["getent", "ahostsv4"],
+            "returncode": 0 if arguments[:2] != ["getent", "ahostsv4"] else 2,
+            "output": "",
+        }
+
+        result = aurum_console.network_status()
+
+        self.assertEqual(result["status"], "dns-failed")
+
+
 if __name__ == "__main__":
     unittest.main()
