@@ -1,0 +1,53 @@
+{
+  "schema": "aurum-pi4-driver-generation-evidence-v1",
+  "generation": 17,
+  "target": "gpio-leds",
+  "device_class": "noncritical-indicator",
+  "physical_target": "Raspberry Pi 4 Model B Rev 1.5",
+  "kernel": "6.12.34+rpt-rpi-v8",
+  "working_driver": "leds-gpio",
+  "candidate_driver": "aurum-gpio-leds",
+  "candidate_source_sha256": "fdf7c3a734ad6fc1db5373dde4b28f795eae572da5e71980f86db4bd3ff8d5ac",
+  "workflow": {
+    "name": "Aurum BBPI4 Driver Build Channel",
+    "run_id": 32043031026,
+    "artifact_id": 9292298282,
+    "artifact_digest": "sha256:1d28ae35edc2c4360d9b66df6c88c6782b8bacf9e70414e621c4033636698e40",
+    "conclusion": "success"
+  },
+  "verified": {
+    "compile": true,
+    "candidate_bind": true,
+    "behavior_parity": true,
+    "physical_default_trigger_parity": true,
+    "physical_max_brightness_parity": true,
+    "first_cycle_rollback": true,
+    "first_cycle_candidate_module_unloaded": true,
+    "first_cycle_kernel_fault_signatures": 0,
+    "first_cycle_dmesg_delta_lines": 10,
+    "ring_buffer_overlap_verified": true,
+    "second_cycle_candidate_bind": true,
+    "second_cycle_led_class_parity": true,
+    "second_cycle_rollback": true,
+    "second_cycle_candidate_module_unloaded": true,
+    "second_cycle_kernel_fault_signatures": 0,
+    "second_cycle_dmesg_delta_lines": 10,
+    "cycles_without_reboot": 2,
+    "raw_mmio": false,
+    "firmware_changes": false,
+    "network_changes": false,
+    "storage_changes": false,
+    "persistent_boot_time_replacement": false
+  },
+  "led_policy_parity": {
+    "ACT": {
+      "max_brightness": 1,
+      "default_trigger": "mmc0"
+    },
+    "PWR": {
+      "max_brightness": 1,
+      "default_trigger": "default-on"
+    }
+  },
+  "capability": "repeatable two-cycle physical driver lifecycle proof with second-cycle LED-class policy parity, unload, rollback, and kernel-health closure without reboot"
+}
