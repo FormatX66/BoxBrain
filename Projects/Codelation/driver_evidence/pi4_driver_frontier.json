@@ -3,10 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 11,
-  "validated_generation": 11,
-  "next_generation": 12,
-  "validated_capability": "reference-aligned GPIO direction-flag handling with unified LED setter dispatch, counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 12,
+  "validated_generation": 12,
+  "next_generation": 13,
+  "validated_capability": "reference-aligned shutdown LED policy with GPIO direction-flag handling, unified LED setter dispatch, counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -145,10 +145,21 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel with the Raspberry Pi direction-control flags available, physically bound as aurum-gpio-leds, preserved ACT/PWR brightness behavior parity, then restored leds-gpio; the trial did not inject synthetic direction-control flags solely to force those latent branches",
     "candidate_source_sha256": "0645cd032d7b6d04797ecbc9375cce85e8a9098af4a6cc96093960b35133d550"
   },
+  "generation_12_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "the reference gpio-leds platform driver defines a shutdown callback that iterates its registered LED array",
+      "LEDs without LED_RETAIN_AT_SHUTDOWN are driven off through the same already-validated unified LED setter during shutdown",
+      "LEDs carrying LED_RETAIN_AT_SHUTDOWN are left untouched by the shutdown callback",
+      "the generated Aurum platform driver registers the same bounded shutdown-policy shape without adding raw MMIO, firmware writes, networking, storage, power-controller, reset, or persistent boot-time replacement"
+    ],
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound as aurum-gpio-leds with the shutdown callback registered, preserved ACT/PWR brightness behavior parity, then restored leds-gpio; an actual system shutdown was intentionally not forced solely to exercise the callback",
+    "candidate_source_sha256": "1eed4280d4f5c56028e12d00e102aeb16ee96f49c78c7e89862f3c12c33759a4"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 32006953570,
-    "artifact_id": 9280351093,
+    "run_id": 32009861549,
+    "artifact_id": 9281363053,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -156,7 +167,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 11,
+    "generation": 12,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -173,6 +184,8 @@
     "unified_led_setter_dispatch": true,
     "gpio_direction_flag_aware": true,
     "direction_flag_transitions_injected": false,
+    "shutdown_led_policy_aware": true,
+    "live_shutdown_exercised": false,
     "physical_led_writes": true,
     "raw_mmio": false
   }
