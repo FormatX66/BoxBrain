@@ -49,7 +49,7 @@ if ($trialGeneration -ne $generation) {
         throw "Trial generation $trialGeneration must be exactly the next unvalidated generation after $validated."
     }
 }
-if ($trialGeneration -lt 1 -or $trialGeneration -gt 6) {
+if ($trialGeneration -lt 1 -or $trialGeneration -gt 7) {
     throw "Trial generation $trialGeneration is unsupported by the bounded Pi4 build channel."
 }
 
