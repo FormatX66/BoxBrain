@@ -8,7 +8,9 @@ if (-not (Test-Path -LiteralPath $gen11Extension -PathType Leaf)) {
 . $gen11Extension
 
 if ($trialGeneration -ge 12) {
-    $shutdownFunction = 'static void aurum_shutdown(struct platform_device *pdev)\n{\n    struct aurum_leds *priv = platform_get_drvdata(pdev);\n    int i;\n\n    if (!priv)\n        return;\n\n    for (i = 0; i < priv->count; i++) {\n        struct aurum_led *led = &priv->leds[i];\n\n        if (!(led->cdev.flags & LED_RETAIN_AT_SHUTDOWN))\n            aurum_led_set(&led->cdev, LED_OFF);\n    }\n}\n\n'
+    # This text is inserted into a Python f-string that generates C, so literal C
+    # braces must be doubled for Python while newlines remain escaped in-string.
+    $shutdownFunction = 'static void aurum_shutdown(struct platform_device *pdev)\n{{\n    struct aurum_leds *priv = platform_get_drvdata(pdev);\n    int i;\n\n    if (!priv)\n        return;\n\n    for (i = 0; i < priv->count; i++) {{\n        struct aurum_led *led = &priv->leds[i];\n\n        if (!(led->cdev.flags & LED_RETAIN_AT_SHUTDOWN))\n            aurum_led_set(&led->cdev, LED_OFF);\n    }}\n}}\n\n'
 
     $generation12Patches = @(
         [pscustomobject]@{
