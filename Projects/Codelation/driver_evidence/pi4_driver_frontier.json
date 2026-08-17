@@ -3,11 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 5,
-  "validated_generation": 5,
-  "trial_generation": 6,
-  "next_generation": 6,
-  "validated_capability": "reference-aligned firmware LED policy flags with default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 6,
+  "validated_generation": 6,
+  "next_generation": 7,
+  "validated_capability": "reference-aligned GPIO consumer identity with firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -88,17 +87,17 @@
       "consumer identity alignment changes GPIO ownership metadata only and does not add raw MMIO, firmware, network, storage, power, reset, or persistent boot-time behavior",
       "the generation retains the already-validated GPIO write, readback, default-state, and firmware-policy behavior"
     ],
-    "validation_plan": "compile and MODPOST against the exact running BBPI4 kernel, physically bind the candidate so the consumer-identity path executes, preserve ACT/PWR behavior parity, then restore leds-gpio"
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound so the consumer-identity path executed for the registered LED devices, preserved ACT/PWR behavior parity, then restored leds-gpio"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 31984743593,
-    "artifact_id": 9273409939,
+    "run_id": 31987624590,
+    "artifact_id": 9274251843,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
     "leds": ["ACT", "PWR"],
-    "generation": 5,
+    "generation": 6,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -108,6 +107,7 @@
     "suspend_resume_policy_aware": true,
     "panic_indicator_policy_aware": true,
     "retain_shutdown_policy_aware": true,
+    "gpio_consumer_identity_aligned": true,
     "physical_led_writes": true,
     "raw_mmio": false
   }
