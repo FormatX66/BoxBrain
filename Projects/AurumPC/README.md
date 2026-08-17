@@ -35,7 +35,7 @@ The x86 seed/build-node extension adds fixed operations without adding a shell:
 - `install` — list only unmounted, non-USB internal installation targets and show their current contents;
 - `install confirm ERASE-XXXXXXXX` — erase and install to the one disk bound to that freshly generated code;
 - `git-status` — inspect the fixed BoxBrain workspace;
-- `git-sync authorize-network` — explicitly authorize a clone or fast-forward-only fetch of `FormatX66/BoxBrain` branch `aurum/pi3-v0.01`;
+- `git-sync authorize-network` — explicitly authorize a clone or fast-forward-only fetch of `FormatX66/BoxBrain` branch `aurum/trunk-v0.01`;
 - `git-auth` — read a GitHub token without echo and keep it only in Git's in-memory credential cache for one hour;
 - `git-promote authorize-network confirm-push` — after a successful self-build, commit and push only the allowlisted generated chain-state checkpoint.
 
