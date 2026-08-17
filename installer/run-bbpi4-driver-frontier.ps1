@@ -112,7 +112,7 @@ if ($trialGeneration -ge 9) {
         },
         [pscustomobject]@{
             Old = '            8: "reference-aligned topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",'
-            New = "            8: \"reference-aligned topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics\",`n            9: \"reference-aligned counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics\","
+            New = '            8: "reference-aligned topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",' + "`n" + '            9: "reference-aligned counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and learned Pi readback semantics",'
         },
         [pscustomobject]@{
             Old = '    struct aurum_led leds[];'
@@ -124,11 +124,11 @@ if ($trialGeneration -ge 9) {
         },
         [pscustomobject]@{
             Old = '        8: "reference-aligned topology-sized overflow-safe LED allocation plus LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",'
-            New = "        8: \"reference-aligned topology-sized overflow-safe LED allocation plus LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback\",`n        9: \"reference-aligned counted flexible-array metadata plus topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback\","
+            New = '        8: "reference-aligned topology-sized overflow-safe LED allocation plus LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",' + "`n" + '        9: "reference-aligned counted flexible-array metadata plus topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",'
         },
         [pscustomobject]@{
             Old = '        "topology_sized_overflow_safe_allocation": generation >= 8,'
-            New = "        \"topology_sized_overflow_safe_allocation\": generation >= 8,`n        \"counted_flexible_array_metadata\": generation >= 9,"
+            New = '        "topology_sized_overflow_safe_allocation": generation >= 8,' + "`n" + '        "counted_flexible_array_metadata": generation >= 9,'
         }
     )
     foreach ($patch in $patches) {
