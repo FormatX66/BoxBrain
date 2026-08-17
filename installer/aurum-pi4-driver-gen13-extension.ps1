@@ -71,35 +71,47 @@ if ($trialGeneration -ge 13) {
         $controlledGenerator = $controlledGenerator.Replace($patch.Old, $patch.New)
     }
 
-    $trialMarker = 'dmesg | tail -n 100 >"$BACKUP_DIR/dmesg-after-candidate-bind.txt" 2>/dev/null || true'
-    $triggerParityBlock = @'
-
-if [[ "$GENERATION" == "13" ]]; then
-  : >"$BACKUP_DIR/candidate-trigger-parity.tsv"
-  trigger_checked=0
-  while IFS=$'\t' read -r expected_name original_brightness expected_trigger original_device; do
-    [[ -n "$expected_name" ]] || continue
-    [[ "$original_device" == "$TARGET_DEVICE_PATH" ]] || continue
-    led="/sys/class/leds/$expected_name"
-    [[ -e "$led" ]] || fail "candidate_trigger_led_missing:$expected_name" 65
-    trigger_line="$(cat "$led/trigger" 2>/dev/null || true)"
-    actual_trigger="$(printf '%s' "$trigger_line" | sed -n 's/.*\[\([^]]*\)\].*/\1/p')"
-    echo "AURUM_PI4_LED_TRIGGER_PARITY name=$expected_name expected=${expected_trigger:-none} actual=${actual_trigger:-none}"
-    printf '%s\t%s\t%s\n' "$expected_name" "$expected_trigger" "$actual_trigger" >>"$BACKUP_DIR/candidate-trigger-parity.tsv"
-    [[ "$actual_trigger" == "$expected_trigger" ]] || fail "candidate_default_trigger_differs_from_working_driver:$expected_name:$expected_trigger:$actual_trigger" 66
-    trigger_checked=$((trigger_checked + 1))
-  done <"$BACKUP_DIR/led-state.tsv"
-  expected_trigger_count="$(cat "$BACKUP_DIR/original-behavior-led-count.txt")"
-  [[ "$trigger_checked" -eq "$expected_trigger_count" ]] || fail "candidate_trigger_count_mismatch:$trigger_checked:$expected_trigger_count" 67
-  core_policy_lines="$(grep -c 'AURUM_GEN13_CORE_POLICY' "$BACKUP_DIR/dmesg-after-candidate-bind.txt" || true)"
-  [[ "$core_policy_lines" -ge "$expected_trigger_count" ]] || fail "candidate_led_core_policy_log_count_mismatch:$core_policy_lines:$expected_trigger_count" 68
-  echo "AURUM_PI4_DRIVER_TRIGGER_PARITY status=passed led_count=$trigger_checked led_core_policy_paths=$core_policy_lines"
-fi
+    $triggerMarker = @'
+    max="$(cat "$led/max_brightness" 2>/dev/null || echo 0)"
+    [[ "$max" =~ ^[0-9]+$ && "$max" -ge 1 ]] || fail "candidate_led_invalid_max_brightness:$expected_name" 61
+    if [[ -w "$led/trigger" ]]; then
 '@
-    if (-not $controlledTrial.Contains($trialMarker)) {
-        throw 'Could not locate generation-13 physical trigger-parity insertion point.'
+    $triggerReplacement = @'
+    max="$(cat "$led/max_brightness" 2>/dev/null || echo 0)"
+    [[ "$max" =~ ^[0-9]+$ && "$max" -ge 1 ]] || fail "candidate_led_invalid_max_brightness:$expected_name" 61
+    if [[ "$GENERATION" == "13" ]]; then
+      expected_trigger="$(awk -F '\t' -v n="$expected_name" '$1 == n { print $3; exit }' "$BACKUP_DIR/led-state.tsv")"
+      trigger_line="$(cat "$led/trigger" 2>/dev/null || true)"
+      actual_trigger="$(printf '%s' "$trigger_line" | sed -n 's/.*\[\([^]]*\)\].*/\1/p')"
+      echo "AURUM_PI4_LED_TRIGGER_PARITY name=$expected_name expected=${expected_trigger:-none} actual=${actual_trigger:-none}"
+      [[ "$actual_trigger" == "$expected_trigger" ]] || fail "candidate_default_trigger_differs_from_working_driver:$expected_name:$expected_trigger:$actual_trigger" 66
+    fi
+    if [[ -w "$led/trigger" ]]; then
+'@
+    if (-not $controlledTrial.Contains($triggerMarker)) {
+        throw 'Could not locate the proven Pi4 behavior loop for generation-13 trigger parity.'
     }
-    $controlledTrial = $controlledTrial.Replace($trialMarker, $trialMarker + $triggerParityBlock)
+    $controlledTrial = $controlledTrial.Replace($triggerMarker, $triggerReplacement)
+
+    $policyMarker = @'
+  expected_count="$(cat "$BACKUP_DIR/original-behavior-led-count.txt")"
+  [[ "$tested" -eq "$expected_count" ]] || fail "candidate_led_count_mismatch:$tested:$expected_count" 63
+  printf '%s\n' "$tested" >"$BACKUP_DIR/candidate-behavior-led-count.txt"
+'@
+    $policyReplacement = @'
+  expected_count="$(cat "$BACKUP_DIR/original-behavior-led-count.txt")"
+  [[ "$tested" -eq "$expected_count" ]] || fail "candidate_led_count_mismatch:$tested:$expected_count" 63
+  if [[ "$GENERATION" == "13" ]]; then
+    core_policy_lines="$(grep -c 'AURUM_GEN13_CORE_POLICY' "$BACKUP_DIR/dmesg-after-candidate-bind.txt" || true)"
+    [[ "$core_policy_lines" -ge "$expected_count" ]] || fail "candidate_led_core_policy_log_count_mismatch:$core_policy_lines:$expected_count" 67
+    echo "AURUM_PI4_DRIVER_TRIGGER_PARITY status=passed led_count=$tested led_core_policy_paths=$core_policy_lines"
+  fi
+  printf '%s\n' "$tested" >"$BACKUP_DIR/candidate-behavior-led-count.txt"
+'@
+    if (-not $controlledTrial.Contains($policyMarker)) {
+        throw 'Could not locate generation-13 policy evidence insertion point.'
+    }
+    $controlledTrial = $controlledTrial.Replace($policyMarker, $policyReplacement)
 
     Write-Host "AURUM_PI4_DRIVER_GEN13 reference=led-core-fwnode-policy-delegation source=raspberrypi-linux-rpi-6.12.y bounded=true physical_default_trigger_parity=true"
 }
