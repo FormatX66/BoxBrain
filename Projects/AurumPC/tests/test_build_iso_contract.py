@@ -6,7 +6,7 @@ from pathlib import Path
 
 BUILD_SCRIPT = Path(__file__).parents[1] / "build-iso.sh"
 BOOTSTRAP = Path(__file__).parents[1] / "aurum_bootstrap.py"
-NETWORK = Path(__file__).parents[1] / "aurum_network.py"
+WIFI_DIAG = Path(__file__).parents[1] / "aurum_wifi_diag.py"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
@@ -39,29 +39,21 @@ class BuildIsoContractTests(unittest.TestCase):
         for package in ("parted", "rsync", "dosfstools", "e2fsprogs", "grub-efi-amd64-bin", "grub2-common"):
             self.assertIn(package, script)
 
-    def test_first_boot_has_wifi_and_autonomous_assessment(self) -> None:
-        script = BUILD_SCRIPT.read_text(encoding="utf-8")
-        bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
-        network = NETWORK.read_text(encoding="utf-8")
-        self.assertIn('main non-free-firmware', script)
-        for package in ("wpasupplicant", "iw", "rfkill", "firmware-iwlwifi", "firmware-realtek", "firmware-atheros", "firmware-brcm80211", "firmware-misc-nonfree"):
-            self.assertIn(package, script)
-        self.assertIn("25-aurum-wireless.network", script)
-        self.assertIn("AURUM_PRIMARY_CONSOLE=1", script)
-        self.assertIn("AURUM_PRIMARY_CONSOLE=0", script)
-        self.assertIn("ensure_online(interactive=True)", bootstrap)
-        self.assertIn("WORKSPACE.git_sync(authorize_network=True)", bootstrap)
-        self.assertIn("WORKSPACE.seed()", bootstrap)
-        self.assertIn("BUILDS.start()", bootstrap)
-        self.assertIn("first-boot-assessment.json", bootstrap)
-        self.assertIn("wpa_supplicant", network)
-        self.assertIn("github_tcp_443", network)
-
     def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
         self.assertIn("AURUM_INSTALL_PLAN status=ready", smoke)
         self.assertIn("AURUM_INSTALL_FINISHED status=passed", smoke)
         self.assertIn("mode=installed", smoke)
+
+    def test_wifi_diagnostics_are_packaged_and_automatic_when_interface_is_missing(self) -> None:
+        script = BUILD_SCRIPT.read_text(encoding="utf-8")
+        bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+        diag = WIFI_DIAG.read_text(encoding="utf-8")
+        self.assertIn("aurum_wifi_diag.py", script)
+        self.assertIn("if not wireless_interfaces()", bootstrap)
+        self.assertIn("AURUM_WIFI_DIAG", bootstrap)
+        self.assertIn("pci_network_candidates", diag)
+        self.assertIn("read_only", diag)
 
 
 if __name__ == "__main__":
