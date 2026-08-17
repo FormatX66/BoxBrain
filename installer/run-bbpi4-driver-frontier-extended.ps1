@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $basePath = Join-Path $PSScriptRoot 'run-bbpi4-driver-frontier.ps1'
-$extensionPath = Join-Path $PSScriptRoot 'aurum-pi4-driver-gen11-extension.ps1'
+$extensionPath = Join-Path $PSScriptRoot 'aurum-pi4-driver-gen12-extension.ps1'
 if (-not (Test-Path -LiteralPath $basePath -PathType Leaf)) {
     throw "Missing base Aurum Pi4 driver frontier runner: $basePath"
 }
@@ -22,16 +22,16 @@ $patched = $original
 $newline = if ($original.Contains("`r`n")) { "`r`n" } else { "`n" }
 
 $limitOld = 'elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 10) {'
-$limitNew = 'elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 11) {'
+$limitNew = 'elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 12) {'
 if (-not $patched.Contains($limitOld)) {
-    throw 'Could not extend the Aurum Pi4 autonomous next-generation limit to generation 11.'
+    throw 'Could not extend the Aurum Pi4 autonomous next-generation limit to generation 12.'
 }
 $patched = $patched.Replace($limitOld, $limitNew)
 
 $guardOld = 'if ($trialGeneration -lt 1 -or $trialGeneration -gt 10) {'
-$guardNew = 'if ($trialGeneration -lt 1 -or $trialGeneration -gt 11) {'
+$guardNew = 'if ($trialGeneration -lt 1 -or $trialGeneration -gt 12) {'
 if (-not $patched.Contains($guardOld)) {
-    throw 'Could not extend the Aurum Pi4 supported-generation guard to generation 11.'
+    throw 'Could not extend the Aurum Pi4 supported-generation guard to generation 12.'
 }
 $patched = $patched.Replace($guardOld, $guardNew)
 
