@@ -3,10 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 13,
-  "validated_generation": 13,
-  "next_generation": 14,
-  "validated_capability": "reference-aligned LED-core firmware policy delegation with physical default-trigger parity, shutdown LED policy, GPIO direction-flag handling, unified LED setter dispatch, counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 14,
+  "validated_generation": 14,
+  "next_generation": 15,
+  "validated_capability": "physical LED-class max-brightness and default-trigger parity closure over the reference-aligned LED-core firmware policy path, shutdown LED policy, GPIO direction handling, topology-safe allocation, pinctrl, identity, default-state initialization, sleep-aware GPIO writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -169,10 +169,22 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound as aurum-gpio-leds, reproduced ACT trigger mmc0 and PWR trigger default-on, preserved ACT/PWR brightness behavior parity, then restored leds-gpio",
     "candidate_source_sha256": "51ced6868a6930e300d203a0cf3ccf63754be53dca1fdbdc6d4d68fef3a9fbe1"
   },
+  "generation_14_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c and drivers/leds/led-class.c",
+    "semantics": [
+      "the Linux LED class registration path can populate max-brightness from the child firmware node while gpio-leds is a binary GPIO-backed LED class device",
+      "the generation-14 physical parity gate requires every candidate LED to expose exactly the same max_brightness value as the working driver before bounded brightness exercise",
+      "generation 14 retains the generation-13 physical default-trigger parity gate, so observable LED-class policy no longer regresses when the frontier advances",
+      "on the verified Raspberry Pi 4 target both ACT and PWR matched max_brightness=1, retained their reference triggers, and matched the working driver's brightness behavior",
+      "this generation strengthens physical semantic equivalence evidence without adding a new physical I/O path, raw MMIO, firmware write, networking, storage, power-controller, reset, or persistent boot-time replacement"
+    ],
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound as aurum-gpio-leds, matched ACT/PWR max_brightness exactly, reproduced ACT trigger mmc0 and PWR trigger default-on, preserved ACT/PWR brightness behavior parity, then restored leds-gpio",
+    "candidate_source_sha256": "4f8d8fe3e87eaec8e96bdf10c4c6cdd8e2cc66297e3f6a9d45927f66a7e40d7a"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 32015119946,
-    "artifact_id": 9283208087,
+    "run_id": 32019630557,
+    "artifact_id": 9284834674,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -180,7 +192,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 13,
+    "generation": 14,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -201,11 +213,15 @@
     "live_shutdown_exercised": false,
     "led_core_fwnode_policy_delegated": true,
     "physical_default_trigger_parity": true,
+    "physical_max_brightness_parity": true,
     "default_trigger_parity": {
       "ACT": "mmc0",
       "PWR": "default-on"
     },
-    "led_core_policy_paths_observed": 4,
+    "max_brightness_parity": {
+      "ACT": 1,
+      "PWR": 1
+    },
     "physical_led_writes": true,
     "raw_mmio": false
   }
