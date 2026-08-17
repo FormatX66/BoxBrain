@@ -5,6 +5,7 @@
   "physical_target": "Raspberry Pi 4 Model B",
   "active_generation": 3,
   "validated_generation": 3,
+  "trial_generation": 4,
   "next_generation": 4,
   "validated_capability": "reference-aligned sleep-aware GPIO LED write callback selection while preserving learned readback semantics",
   "working_driver": "leds-gpio",
@@ -57,6 +58,18 @@
       "brightness_get reads the GPIO logical state"
     ],
     "exact_live_api_validation": "compiled against the running BBPI4 kernel headers before bind"
+  },
+  "generation_4_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c and drivers/leds/led-core.c",
+    "board_source": "raspberrypi/linux rpi-6.12.y arch/arm/boot/dts/broadcom/bcm2711-rpi-4-b.dts",
+    "semantics": [
+      "led_init_default_state_get reads firmware default-state semantics",
+      "default-state keep preserves the current GPIO logical state",
+      "default-state on initializes logical state on",
+      "missing, off, or unrecognized default-state initializes logical state off",
+      "the Pi4 ACT and PWR LED nodes resolve to default-state off on the referenced downstream board description"
+    ],
+    "trial_requirement": "compile against the exact running BBPI4 kernel, bind on the physical Pi4, pass ACT/PWR behavior parity, and restore leds-gpio"
   },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
