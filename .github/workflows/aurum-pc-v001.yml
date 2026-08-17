@@ -11,6 +11,7 @@ on:
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
+      - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
 
 permissions:
@@ -23,7 +24,7 @@ concurrency:
 jobs:
   build-and-boot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - name: Check out Aurum PC branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -38,11 +39,14 @@ jobs:
             Projects/AurumPC/aurum_bootstrap.py \
             Projects/AurumPC/aurum_hardware.py \
             Projects/AurumPC/aurum_network.py \
+            Projects/AurumPC/aurum_time.py \
             Projects/AurumPC/aurum_wifi_diag.py \
+            Projects/AurumPC/aurum_wifi_recovery.py \
             Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py \
             Projects/AurumPC/aurum_installer.py
           sh -n Projects/AurumPC/build-iso.sh
+          bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
@@ -50,13 +54,15 @@ jobs:
           grep -q 'internal_disk_writes.*False' Projects/AurumPC/aurum_hardware.py
           grep -q 'preserve_current_removable_boot.*True' Projects/AurumPC/aurum_hardware.py
           grep -q 'AURUM_WIFI_DIAG' Projects/AurumPC/aurum_bootstrap.py
+          grep -q 'recover_existing_wifi_driver' Projects/AurumPC/aurum_bootstrap.py
+          grep -q 'synchronize_clock' Projects/AurumPC/aurum_bootstrap.py
 
       - name: Install independent VM tooling
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
           docker info >/dev/null
 
       - name: Build Aurum PC live ISO with Debian-native tooling
@@ -80,7 +86,7 @@ jobs:
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
 
-      - name: UEFI boot smoke test
+      - name: Generic UEFI boot and install smoke test
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +96,19 @@ jobs:
           grep -q 'AURUM_HARDWARE_PROFILE status=ready' aurum-pc-qemu.log
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
 
+      - name: HP physical-topology twin preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' aurum-hp-physical-twin.log
+          echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
+
       - name: Record image metadata
         shell: bash
         run: |
@@ -98,12 +117,14 @@ jobs:
           cat dist/Aurum-PC-v0.01-amd64.iso.sha256
 
       - name: Publish boot-verified ISO
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b5e75b540449e92b4886f43607fa02 # v4
         with:
           name: Aurum-PC-v0.01-amd64
           path: |
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
             aurum-pc-qemu.log
+            aurum-hp-physical-twin.log
+            Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error
           retention-days: 14
