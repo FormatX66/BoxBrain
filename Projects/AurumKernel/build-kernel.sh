@@ -116,10 +116,92 @@ cp "$(command -v busybox)" "$INITROOT/bin/busybox"
 ln -s busybox "$INITROOT/bin/sh"
 cat > "$INITROOT/init" <<'EOF'
 #!/bin/sh
-/bin/busybox mount -t proc proc /proc 2>/dev/null || true
-/bin/busybox mount -t sysfs sysfs /sys 2>/dev/null || true
+BB=/bin/busybox
+$BB mount -t proc proc /proc 2>/dev/null || true
+$BB mount -t sysfs sysfs /sys 2>/dev/null || true
+$BB mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+
 echo 'AURUM_KERNEL_READY version=0.01 arch=x86_64'
 echo 'selftest=ok'
+
+profile=/aurum-machine-profile.txt
+{
+  echo 'AURUM_MACHINE_PROFILE schema=v1'
+  echo "AURUM_KERNEL release=$($BB uname -r) arch=$($BB uname -m)"
+  if [ -d /sys/firmware/efi ]; then firmware=uefi; else firmware=legacy-bios; fi
+  echo "AURUM_FIRMWARE mode=$firmware"
+
+  for field in sys_vendor product_name product_version board_vendor board_name board_version bios_vendor bios_version; do
+    path="/sys/class/dmi/id/$field"
+    if [ -r "$path" ]; then
+      value=$($BB cat "$path" 2>/dev/null | $BB tr '\n\r' '  ')
+      echo "AURUM_DMI field=$field value=$value"
+    fi
+  done
+
+  vendor=$($BB grep -m1 '^vendor_id' /proc/cpuinfo 2>/dev/null | $BB cut -d: -f2- | $BB sed 's/^ *//' || true)
+  model=$($BB grep -m1 '^model name' /proc/cpuinfo 2>/dev/null | $BB cut -d: -f2- | $BB sed 's/^ *//' || true)
+  echo "AURUM_CPU vendor=$vendor model=$model"
+
+  for dev in /sys/bus/pci/devices/*; do
+    [ -e "$dev" ] || continue
+    bdf=$($BB basename "$dev")
+    v=$($BB cat "$dev/vendor" 2>/dev/null || echo unknown)
+    d=$($BB cat "$dev/device" 2>/dev/null || echo unknown)
+    c=$($BB cat "$dev/class" 2>/dev/null || echo unknown)
+    m=$($BB cat "$dev/modalias" 2>/dev/null || echo none)
+    link=$($BB readlink -f "$dev/driver" 2>/dev/null || true)
+    if [ -n "$link" ]; then driver=$($BB basename "$link"); else driver=none; fi
+    echo "AURUM_PCI bdf=$bdf vendor=$v device=$d class=$c driver=$driver modalias=$m"
+  done
+
+  for dev in /sys/bus/usb/devices/*; do
+    [ -r "$dev/idVendor" ] || continue
+    name=$($BB basename "$dev")
+    v=$($BB cat "$dev/idVendor" 2>/dev/null || echo unknown)
+    p=$($BB cat "$dev/idProduct" 2>/dev/null || echo unknown)
+    link=$($BB readlink -f "$dev/driver" 2>/dev/null || true)
+    if [ -n "$link" ]; then driver=$($BB basename "$link"); else driver=none; fi
+    echo "AURUM_USB node=$name vendor=$v product=$p driver=$driver"
+  done
+
+  for dev in /sys/class/block/*; do
+    [ -e "$dev" ] || continue
+    name=$($BB basename "$dev")
+    removable=$($BB cat "$dev/removable" 2>/dev/null || echo unknown)
+    sectors=$($BB cat "$dev/size" 2>/dev/null || echo unknown)
+    model=$($BB cat "$dev/device/model" 2>/dev/null | $BB tr '\n\r' '  ' || true)
+    echo "AURUM_BLOCK name=$name removable=$removable sectors=$sectors model=$model"
+  done
+
+  for dev in /sys/class/net/*; do
+    [ -e "$dev" ] || continue
+    name=$($BB basename "$dev")
+    link=$($BB readlink -f "$dev/device/driver" 2>/dev/null || true)
+    if [ -n "$link" ]; then driver=$($BB basename "$link"); else driver=none; fi
+    echo "AURUM_NET name=$name driver=$driver"
+  done
+
+  for dev in /sys/class/drm/card*; do
+    [ -e "$dev" ] || continue
+    name=$($BB basename "$dev")
+    link=$($BB readlink -f "$dev/device/driver" 2>/dev/null || true)
+    if [ -n "$link" ]; then driver=$($BB basename "$link"); else driver=none; fi
+    echo "AURUM_DISPLAY node=$name driver=$driver"
+  done
+
+  for dev in /sys/class/input/input*; do
+    [ -e "$dev" ] || continue
+    name=$($BB cat "$dev/name" 2>/dev/null | $BB tr '\n\r' '  ' || true)
+    node=$($BB basename "$dev")
+    echo "AURUM_INPUT node=$node name=$name"
+  done
+
+  echo 'AURUM_MACHINE_PROFILE_COMPLETE'
+} | $BB tee "$profile"
+
+echo "AURUM_PROFILE_READY path=$profile"
+echo "At the # prompt: cat $profile"
 exec /bin/sh
 EOF
 chmod 0755 "$INITROOT/init"
