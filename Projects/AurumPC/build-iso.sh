@@ -45,7 +45,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components quiet persistence persistence-label=AURUM_PERSIST preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components quiet persistence persistence-label=AURUM_PERSIST preempt=voluntary transparent_hugepage=madvise modprobe.blacklist=nouveau nouveau.modeset=0 console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
