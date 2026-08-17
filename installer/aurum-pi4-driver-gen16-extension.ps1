@@ -41,9 +41,7 @@ if ($trialGeneration -ge 16) {
     $insmodAnchor = 'sudo insmod "$KO"'
     $baselineInsertion = @'
 if [[ "$GENERATION" -ge 16 ]]; then
-  DMESG_BASELINE_LINES="$(sudo dmesg 2>/dev/null | wc -l | tr -d ' ')"
-  [[ "$DMESG_BASELINE_LINES" =~ ^[0-9]+$ ]] || fail "dmesg_baseline_unavailable" 76
-  printf '%s\n' "$DMESG_BASELINE_LINES" >"$BACKUP_DIR/dmesg-baseline-lines.txt"
+  sudo dmesg >"$BACKUP_DIR/dmesg-before-trial.txt" 2>/dev/null || fail "dmesg_baseline_unavailable" 76
 fi
 '@
     $baselineInsertion = $baselineInsertion.Replace("`r`n", "`n").Replace("`r", "`n")
@@ -55,15 +53,45 @@ fi
     $rollbackHealthAnchor = '  echo "AURUM_PI4_DRIVER_ROLLBACK_PARITY status=passed led_count=$rollback_checked original_driver=$RESTORED_DRIVER candidate_module_unloaded=true sysfs_topology=true max_brightness=true default_trigger=true"'
     $rollbackHealthInsertion = @'
   if [[ "$GENERATION" -ge 16 ]]; then
-    dmesg_total="$(sudo dmesg 2>/dev/null | wc -l | tr -d ' ')"
-    [[ "$dmesg_total" =~ ^[0-9]+$ ]] || fail "dmesg_post_trial_unavailable" 77
-    dmesg_start=$((DMESG_BASELINE_LINES + 1))
-    sudo dmesg 2>/dev/null | tail -n +"$dmesg_start" >"$BACKUP_DIR/dmesg-trial-delta.txt"
+    sudo dmesg >"$BACKUP_DIR/dmesg-after-trial.txt" 2>/dev/null || fail "dmesg_post_trial_unavailable" 77
+    if ! delta_lines="$(python3 - "$BACKUP_DIR/dmesg-before-trial.txt" "$BACKUP_DIR/dmesg-after-trial.txt" "$BACKUP_DIR/dmesg-trial-delta.txt" <<'PY'
+from pathlib import Path
+import sys
+
+before_path, after_path, delta_path = map(Path, sys.argv[1:4])
+before = before_path.read_text(encoding="utf-8", errors="replace").splitlines()
+after = after_path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+if not before:
+    overlap = 0
+else:
+    overlap = None
+    first = after[0] if after else None
+    if first is not None:
+        for index, line in enumerate(before):
+            if line != first:
+                continue
+            candidate = before[index:]
+            if len(candidate) <= len(after) and candidate == after[: len(candidate)]:
+                overlap = len(candidate)
+                break
+    if overlap is None and after == before:
+        overlap = len(before)
+    if overlap is None:
+        raise SystemExit(79)
+
+delta = after[overlap:]
+delta_path.write_text("\n".join(delta) + ("\n" if delta else ""), encoding="utf-8")
+print(len(delta))
+PY
+)"; then
+      fail "dmesg_trial_window_unresolved" 79
+    fi
+    [[ "$delta_lines" =~ ^[0-9]+$ ]] || fail "dmesg_delta_count_invalid:$delta_lines" 80
     fault_pattern='BUG:|WARNING:|Oops:|kernel panic|Call Trace:|KASAN:|UBSAN:|general protection fault|use-after-free|refcount_t: underflow|scheduling while atomic|sleeping function called from invalid context'
     fault_count="$(grep -Eic "$fault_pattern" "$BACKUP_DIR/dmesg-trial-delta.txt" || true)"
-    [[ "$fault_count" -eq 0 ]] || fail "kernel_fault_signature_after_candidate_lifecycle:$fault_count" 78
-    delta_lines=$((dmesg_total - DMESG_BASELINE_LINES))
-    echo "AURUM_PI4_DRIVER_KERNEL_HEALTH status=passed new_fault_signatures=0 dmesg_delta_lines=$delta_lines"
+    [[ "$fault_count" -eq 0 ]] || fail "kernel_fault_signature_after_candidate_lifecycle:$fault_count" 81
+    echo "AURUM_PI4_DRIVER_KERNEL_HEALTH status=passed new_fault_signatures=0 dmesg_delta_lines=$delta_lines ring_buffer_overlap=verified"
   fi
 '@
     $rollbackHealthInsertion = $rollbackHealthInsertion.Replace("`r`n", "`n").Replace("`r", "`n")
@@ -72,5 +100,5 @@ fi
     }
     $controlledTrial = $controlledTrial.Replace($rollbackHealthAnchor, $rollbackHealthAnchor + "`n" + $rollbackHealthInsertion)
 
-    Write-Host "AURUM_PI4_DRIVER_GEN16 reference=kernel-fault-free-driver-lifecycle source=bounded-dmesg-delta bounded=true rollback_inherited=true fault_signatures_required_zero=true"
+    Write-Host "AURUM_PI4_DRIVER_GEN16 reference=kernel-fault-free-driver-lifecycle source=ring-safe-dmesg-overlap bounded=true rollback_inherited=true fault_signatures_required_zero=true"
 }
