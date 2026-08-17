@@ -55,8 +55,8 @@ if ($trialGeneration -ge 13) {
 '@
         },
         [pscustomobject]@{
-            Old = '        }\n{pinctrl_setup}{identity_setup}        used++;'
-            New = '        }\n{post_register_policy_setup}{pinctrl_setup}{identity_setup}        used++;'
+            Old = '        }}\n{pinctrl_setup}{identity_setup}        used++;'
+            New = '        }}\n{post_register_policy_setup}{pinctrl_setup}{identity_setup}        used++;'
         },
         [pscustomobject]@{
             Old = '        "shutdown_led_policy_aware": generation >= 12,'
