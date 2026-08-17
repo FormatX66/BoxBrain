@@ -19,6 +19,10 @@ if [ ! -d "$REPO_ROOT/Projects/Codelation" ]; then
   echo "Projects/Codelation is missing." >&2
   exit 2
 fi
+if [ ! -f "$REPO_ROOT/.github/workflows/aurum-self-build-farm.yml" ]; then
+  echo ".github/workflows/aurum-self-build-farm.yml is missing." >&2
+  exit 2
+fi
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
@@ -96,7 +100,20 @@ cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console
 chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
 cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
 chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
-cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
+
+# Preserve the repository-relative Projects/Codelation layout in the live image.
+# Several self-build tests intentionally resolve repository assets by walking up
+# from Projects/Codelation; flattening Codelation directly under /opt/aurum made
+# those tests resolve /opt/.github and also removed the importable Projects
+# namespace. Keep a compatibility symlink for the console's installed_root while
+# the canonical source lives at /opt/aurum/Projects/Codelation.
+mkdir -p config/includes.chroot/opt/aurum/Projects
+cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/Projects/Codelation
+ln -s Projects/Codelation config/includes.chroot/opt/aurum/codelation
+mkdir -p config/includes.chroot/opt/aurum/.github/workflows
+cp "$REPO_ROOT/.github/workflows/aurum-self-build-farm.yml" \
+  config/includes.chroot/opt/aurum/.github/workflows/aurum-self-build-farm.yml
+
 mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
 
 mkdir -p config/includes.chroot/etc/systemd/system
@@ -120,6 +137,7 @@ ConditionPathExists=/dev/tty1
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/var/lib/aurum/workspace/BoxBrain:/opt/aurum
 Environment=MALLOC_ARENA_MAX=2
 Nice=5
 IOSchedulingClass=best-effort
@@ -150,6 +168,7 @@ ConditionPathExists=/dev/ttyS0
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/var/lib/aurum/workspace/BoxBrain:/opt/aurum
 Environment=MALLOC_ARENA_MAX=2
 Nice=5
 IOSchedulingClass=best-effort
@@ -189,7 +208,7 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 set -eu
 chmod 0755 /opt/aurum/aurum_console.py
 chmod 0755 /opt/aurum/aurum_workspace.py
-find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
+find /opt/aurum/Projects/Codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
