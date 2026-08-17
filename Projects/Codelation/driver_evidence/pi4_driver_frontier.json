@@ -5,6 +5,7 @@
   "physical_target": "Raspberry Pi 4 Model B",
   "active_generation": 4,
   "validated_generation": 4,
+  "trial_generation": 5,
   "next_generation": 5,
   "validated_capability": "reference-aligned firmware default-state initialization with sleep-aware GPIO LED writes and reference-compatible readback",
   "working_driver": "leds-gpio",
@@ -65,15 +66,25 @@
       "led_init_default_state_get reads firmware default-state semantics",
       "default-state keep preserves the current GPIO logical state",
       "default-state on initializes logical state on",
-      "missing, off, or unrecognized default-state initializes logical state off",
-      "the Pi4 ACT and PWR LED nodes resolve to default-state off on the referenced downstream board description"
+      "missing, off, or unrecognized default-state initializes logical state off"
     ],
     "exact_live_api_validation": "compiled and MODPOSTed against the running BBPI4 kernel headers, then physically bound with working-driver behavior parity and rollback"
   },
+  "generation_5_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c and drivers/leds/led-class.c",
+    "semantics": [
+      "absence of retain-state-suspended enables LED_CORE_SUSPENDRESUME",
+      "panic-indicator enables LED_PANIC_INDICATOR",
+      "retain-state-shutdown enables LED_RETAIN_AT_SHUTDOWN",
+      "linux,default-trigger is carried into the LED class device firmware policy",
+      "all policy detection stays inside the Linux LED/GPIO subsystems without raw MMIO or firmware writes"
+    ],
+    "validation_plan": "compile and MODPOST against the exact running BBPI4 kernel headers, bind only the gpio-leds device, preserve Gen4 brightness parity, inspect generated policy evidence, then restore leds-gpio before promotion"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 31981594395,
-    "artifact_id": 9272495647,
+    "run_id": 31981672767,
+    "artifact_id": 9272519338,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
