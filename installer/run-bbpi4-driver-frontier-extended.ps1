@@ -18,7 +18,8 @@ if (-not (Test-Path -LiteralPath $extensionPath -PathType Leaf)) {
 }
 
 $original = [IO.File]::ReadAllText($basePath)
-$patched = $original.Replace("`r`n", "`n").Replace("`r", "`n")
+$patched = $original
+$newline = if ($original.Contains("`r`n")) { "`r`n" } else { "`n" }
 
 $limitOld = 'elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 10) {'
 $limitNew = 'elseif ($generation -eq $validated -and $next -eq ($validated + 1) -and $next -le 11) {'
@@ -34,8 +35,8 @@ if (-not $patched.Contains($guardOld)) {
 }
 $patched = $patched.Replace($guardOld, $guardNew)
 
-$marker = "try {`n    [IO.File]::WriteAllText(`$trialPath, `$controlledTrial, [Text.UTF8Encoding]::new(`$false))"
-$injected = ". '$extensionPath'`n`n" + $marker
+$marker = 'try {' + $newline + '    [IO.File]::WriteAllText($trialPath, $controlledTrial, [Text.UTF8Encoding]::new($false))'
+$injected = ". '$extensionPath'" + $newline + $newline + $marker
 if (-not $patched.Contains($marker)) {
     throw 'Could not locate the Aurum Pi4 generator-extension insertion point.'
 }
