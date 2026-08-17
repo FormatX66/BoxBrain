@@ -24,6 +24,11 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
+# Physical discovery is intentionally stateless at the root filesystem layer.
+# A raw reflash can leave an old persistence partition at the end of a USB
+# device; automatically mounting it as a root overlay can mix old /opt/aurum
+# code with a new ISO. Do not request live persistence until Aurum explicitly
+# provisions a versioned state-only volume.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -42,7 +47,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components quiet persistence persistence-label=AURUM_PERSIST preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components quiet preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
@@ -51,8 +56,10 @@ mkdir -p config/package-lists
 cat > config/package-lists/aurum.list.chroot <<'EOF'
 live-boot
 systemd-sysv
+systemd-timesyncd
 python3
 iproute2
+kmod
 pciutils
 usbutils
 ca-certificates
@@ -96,7 +103,7 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py aurum_wifi_diag.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py aurum_time.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
@@ -109,7 +116,7 @@ mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/l
 mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/systemd/network
 cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
 [Match]
-Name=en* eth*
+Name=en* eth* usb*
 
 [Network]
 DHCP=yes
@@ -199,6 +206,7 @@ cat > config/includes.chroot/etc/motd <<'EOF'
 Aurum PC v0.01
 Linux is present only as the temporary hardware compatibility substrate.
 The exposed operator surface is the bounded Aurum console; no arbitrary shell is offered.
+Physical discovery boots statelessly so stale USB persistence cannot replace the bundled runtime.
 EOF
 
 mkdir -p config/hooks/live
