@@ -3,10 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 10,
-  "validated_generation": 10,
-  "next_generation": 11,
-  "validated_capability": "reference-aligned unified LED setter dispatch with counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 11,
+  "validated_generation": 11,
+  "next_generation": 12,
+  "validated_capability": "reference-aligned GPIO direction-flag handling with unified LED setter dispatch, counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -133,10 +133,22 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound with the unified setter implementation, preserved ACT/PWR behavior parity, then restored leds-gpio",
     "candidate_source_sha256": "54a4f79864be3d03d6dcdd9d8bbf3d622f859cdcf8fb2fbd68041f74224570f4"
   },
+  "generation_11_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c and include/linux/leds.h",
+    "semantics": [
+      "the Raspberry Pi LED class defines SET_GPIO_INPUT and SET_GPIO_OUTPUT control flags for GPIO-backed LEDs",
+      "the reference gpio-leds setter honors SET_GPIO_INPUT by changing the descriptor to input and clearing the one-shot control flag",
+      "the reference gpio-leds setter honors SET_GPIO_OUTPUT by changing the descriptor to output at the requested logical level and clearing the one-shot control flag",
+      "when neither direction-control flag is active, the candidate retains the already-validated sleep-aware GPIO value-write path",
+      "the change remains within the Linux LED/GPIO subsystem and adds no raw MMIO, firmware write, networking, storage, power, reset, or persistent boot-time replacement"
+    ],
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel with the Raspberry Pi direction-control flags available, physically bound as aurum-gpio-leds, preserved ACT/PWR brightness behavior parity, then restored leds-gpio; the trial did not inject synthetic direction-control flags solely to force those latent branches",
+    "candidate_source_sha256": "0645cd032d7b6d04797ecbc9375cce85e8a9098af4a6cc96093960b35133d550"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 32001379672,
-    "artifact_id": 9278511247,
+    "run_id": 32006953570,
+    "artifact_id": 9280351093,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -144,7 +156,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 10,
+    "generation": 11,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -159,6 +171,8 @@
     "topology_sized_overflow_safe_allocation": true,
     "counted_flexible_array_metadata": true,
     "unified_led_setter_dispatch": true,
+    "gpio_direction_flag_aware": true,
+    "direction_flag_transitions_injected": false,
     "physical_led_writes": true,
     "raw_mmio": false
   }
