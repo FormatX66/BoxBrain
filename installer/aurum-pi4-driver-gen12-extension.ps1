@@ -49,8 +49,8 @@ static void aurum_shutdown(struct platform_device *pdev)
             New = $shutdownFunction + 'static const struct of_device_id aurum_of_match[] = {'
         },
         [pscustomobject]@{
-            Old = 'static struct platform_driver aurum_driver = {\n    .probe = aurum_probe,\n    .driver = {'
-            New = 'static struct platform_driver aurum_driver = {\n    .probe = aurum_probe,\n    .shutdown = aurum_shutdown,\n    .driver = {'
+            Old = '    .probe = aurum_probe,'
+            New = '    .probe = aurum_probe,' + "`n" + '    .shutdown = aurum_shutdown,'
         },
         [pscustomobject]@{
             Old = '        "gpio_direction_flag_aware": generation >= 11,'
