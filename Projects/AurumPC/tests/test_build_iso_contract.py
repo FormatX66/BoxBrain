@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 BUILD_SCRIPT = Path(__file__).parents[1] / "build-iso.sh"
+BOOTSTRAP = Path(__file__).parents[1] / "aurum_bootstrap.py"
+NETWORK = Path(__file__).parents[1] / "aurum_network.py"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
@@ -13,7 +15,6 @@ PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
 class BuildIsoContractTests(unittest.TestCase):
     def test_boot_requests_only_the_aurum_persistence_volume(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
-
         self.assertIn(" persistence ", script)
         self.assertIn("persistence-label=AURUM_PERSIST", script)
         self.assertIn("preempt=voluntary", script)
@@ -24,7 +25,6 @@ class BuildIsoContractTests(unittest.TestCase):
     def test_qemu_runtime_gate_requires_on_machine_self_build(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
         workflow = PC_WORKFLOW.read_text(encoding="utf-8")
-
         self.assertIn("printf 'self-build\\n'", smoke)
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
@@ -34,22 +34,31 @@ class BuildIsoContractTests(unittest.TestCase):
 
     def test_live_image_contains_only_the_guarded_installer_path(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
-
         self.assertIn("--debian-installer none", script)
         self.assertIn("aurum_installer.py", script)
-        for package in (
-            "parted",
-            "rsync",
-            "dosfstools",
-            "e2fsprogs",
-            "grub-efi-amd64-bin",
-            "grub2-common",
-        ):
+        for package in ("parted", "rsync", "dosfstools", "e2fsprogs", "grub-efi-amd64-bin", "grub2-common"):
             self.assertIn(package, script)
+
+    def test_first_boot_has_wifi_and_autonomous_assessment(self) -> None:
+        script = BUILD_SCRIPT.read_text(encoding="utf-8")
+        bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+        network = NETWORK.read_text(encoding="utf-8")
+        self.assertIn('main non-free-firmware', script)
+        for package in ("wpasupplicant", "iw", "rfkill", "firmware-iwlwifi", "firmware-realtek", "firmware-atheros", "firmware-brcm80211", "firmware-misc-nonfree"):
+            self.assertIn(package, script)
+        self.assertIn("25-aurum-wireless.network", script)
+        self.assertIn("AURUM_PRIMARY_CONSOLE=1", script)
+        self.assertIn("AURUM_PRIMARY_CONSOLE=0", script)
+        self.assertIn("ensure_online(interactive=True)", bootstrap)
+        self.assertIn("WORKSPACE.git_sync(authorize_network=True)", bootstrap)
+        self.assertIn("WORKSPACE.seed()", bootstrap)
+        self.assertIn("BUILDS.start()", bootstrap)
+        self.assertIn("first-boot-assessment.json", bootstrap)
+        self.assertIn("wpa_supplicant", network)
+        self.assertIn("github_tcp_443", network)
 
     def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
-
         self.assertIn("AURUM_INSTALL_PLAN status=ready", smoke)
         self.assertIn("AURUM_INSTALL_FINISHED status=passed", smoke)
         self.assertIn("mode=installed", smoke)
