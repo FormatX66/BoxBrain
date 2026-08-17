@@ -27,6 +27,9 @@ cd "$BUILD_ROOT"
 # Build against Debian Bookworm's own live-build implementation. The CI runs
 # this recipe inside a Debian Bookworm container so the live-build, bootloader,
 # debootstrap, and target distribution contracts stay aligned.
+#
+# IMPORTANT: the live root is intentionally non-persistent. A stale AURUM_PERSIST
+# overlay can otherwise mask the newly packaged /opt/aurum runtime after a reflash.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -45,7 +48,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components quiet persistence persistence-label=AURUM_PERSIST preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components quiet preempt=voluntary transparent_hugepage=madvise modprobe.blacklist=nouveau nouveau.modeset=0 console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
@@ -54,6 +57,7 @@ mkdir -p config/package-lists
 cat > config/package-lists/aurum.list.chroot <<'EOF'
 live-boot
 systemd-sysv
+systemd-timesyncd
 python3
 iproute2
 pciutils
@@ -125,7 +129,8 @@ EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
 [Unit]
 Description=Aurum PC primary console
-After=local-fs.target systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service systemd-timesyncd.service
+Wants=systemd-timesyncd.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
 
@@ -134,6 +139,8 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
+Environment=SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+Environment=GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -155,7 +162,8 @@ EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-serial.service <<'EOF'
 [Unit]
 Description=Aurum PC serial verification console
-After=local-fs.target systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service systemd-timesyncd.service
+Wants=systemd-timesyncd.service
 Conflicts=serial-getty@ttyS0.service
 ConditionPathExists=/dev/ttyS0
 
@@ -164,6 +172,8 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_console.py
 Environment=PYTHONUNBUFFERED=1
 Environment=MALLOC_ARENA_MAX=2
+Environment=SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+Environment=GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -182,10 +192,12 @@ WantedBy=multi-user.target
 EOF
 
 mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
+mkdir -p config/includes.chroot/etc/systemd/system/sysinit.target.wants
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service
 ln -s /lib/systemd/system/systemd-networkd.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 ln -s /lib/systemd/system/systemd-resolved.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-resolved.service
+ln -s /lib/systemd/system/systemd-timesyncd.service config/includes.chroot/etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/getty@tty1.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/serial-getty@ttyS0.service
 
@@ -204,6 +216,10 @@ chmod 0755 /opt/aurum/aurum_console.py
 chmod 0755 /opt/aurum/aurum_workspace.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+update-ca-certificates
+# Make Git's trust root explicit so the bounded console does not depend on
+# libcurl guessing a CA path in a minimal live image.
+git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 
