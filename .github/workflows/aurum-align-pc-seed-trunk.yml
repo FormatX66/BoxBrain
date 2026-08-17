@@ -1,0 +1,66 @@
+name: Align Aurum PC Seed Trunk
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-align-pc-seed-trunk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-align-pc-seed-trunk
+  cancel-in-progress: false
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 0
+
+      - name: Align x86 seed Git workspace with continuous trunk
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workspace = Path('Projects/AurumPC/aurum_workspace.py')
+          text = workspace.read_text(encoding='utf-8')
+          old = 'BRANCH = "aurum/pi3-v0.01"'
+          new = 'BRANCH = "aurum/trunk-v0.01"'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('Expected Aurum PC branch assignment was not found')
+              text = text.replace(old, new, 1)
+              workspace.write_text(text, encoding='utf-8')
+
+          readme = Path('Projects/AurumPC/README.md')
+          text = readme.read_text(encoding='utf-8')
+          text = text.replace('branch `aurum/pi3-v0.01`', 'branch `aurum/trunk-v0.01`')
+          readme.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify bounded workspace tests
+        run: python3 -m unittest discover -s Projects/AurumPC/tests -p 'test_aurum_workspace.py'
+
+      - name: Commit alignment when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'AURUM_PC_BRANCH already-aligned'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Projects/AurumPC/aurum_workspace.py Projects/AurumPC/README.md
+          git commit -m 'Align Aurum PC seed workspace with continuous trunk'
+          git push origin HEAD:aurum/trunk-v0.01
