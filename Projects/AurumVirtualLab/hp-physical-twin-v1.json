@@ -1,0 +1,54 @@
+{
+  "schema": "aurum-hp-physical-twin-v1",
+  "source": "observed physical Aurum boot evidence",
+  "confidence": "partial-exact-topology",
+  "observed": {
+    "manufacturer": "HP",
+    "architecture": "x86_64",
+    "firmware_mode": "uefi",
+    "memory_kib": 7788496,
+    "seed_kernel": "6.1.0-52-amd64",
+    "internal_storage": {
+      "type": "nvme",
+      "device_shape": "nvme0n1 with four observed partitions"
+    },
+    "removable_storage": {
+      "usb_boot": true,
+      "additional_scsi_style_block_devices_observed": true
+    },
+    "ethernet": {
+      "interface": "enp4s0",
+      "mac": "04:0e:3c:54:54:49",
+      "carrier": 0,
+      "operstate": "down"
+    },
+    "wifi": {
+      "interface_visible": false,
+      "controller_identity": "unresolved-until-detailed-physical-profile"
+    },
+    "display": "working text console",
+    "keyboard_input": "working",
+    "rtc_observation": "physical self-build evidence timestamp was months behind current date"
+  },
+  "virtualization": {
+    "machine": "q35",
+    "uefi": "OVMF",
+    "memory_mib": 7680,
+    "vcpus": 4,
+    "internal_disk": "NVMe, four GPT partitions, read-only during live preflight",
+    "boot_media": "USB mass-storage presentation of hybrid Aurum ISO",
+    "secondary_usb_disk": true,
+    "ethernet": "e1000e with observed MAC and forced link-down state",
+    "wifi": "intentionally absent to reproduce missing-wl-interface diagnostic path",
+    "rtc": "skewed backward to reproduce physical clock-risk class"
+  },
+  "known_unknowns": [
+    "exact HP product/board name",
+    "exact CPU model and core topology",
+    "exact GPU PCI identity",
+    "exact Wi-Fi PCI/USB vendor-device ID",
+    "exact NVMe vendor-model-capacity",
+    "exact internal firmware/BIOS revision"
+  ],
+  "promotion_rule": "replace virtual approximations with exact physical identities as soon as the detailed Aurum machine profile captures them"
+}
