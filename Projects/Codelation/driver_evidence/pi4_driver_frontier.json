@@ -3,10 +3,10 @@
   "target": "gpio-leds",
   "device_class": "noncritical-indicator",
   "physical_target": "Raspberry Pi 4 Model B",
-  "active_generation": 9,
-  "validated_generation": 9,
-  "next_generation": 10,
-  "validated_capability": "reference-aligned counted flexible-array metadata with topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
+  "active_generation": 10,
+  "validated_generation": 10,
+  "next_generation": 11,
+  "validated_capability": "reference-aligned unified LED setter dispatch with counted flexible-array metadata, topology-sized overflow-safe LED allocation, LED default pinctrl selection, GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
   "control_mode": "git-build-channel-autonomous",
@@ -122,10 +122,21 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound with counted flexible-array metadata present, preserved ACT/PWR behavior parity, then restored leds-gpio",
     "candidate_source_sha256": "d8d212e132eef152ac8fccb1b974347bb98e9ef5f7ed10797f355399d43bf95c"
   },
+  "generation_10_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "the reference gpio-leds driver routes both direct and blocking brightness callbacks through one GPIO setter implementation",
+      "the candidate now uses one unified setter that chooses gpiod_set_value or gpiod_set_value_cansleep from the already-observed can_sleep property",
+      "the blocking LED callback delegates to the same unified setter instead of maintaining a second independent hardware-write implementation",
+      "the change reduces duplicated driver I/O logic while preserving the bounded LED-only behavior and adds no raw MMIO, firmware write, networking, storage, power, reset, or persistent boot-time behavior"
+    ],
+    "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound with the unified setter implementation, preserved ACT/PWR behavior parity, then restored leds-gpio",
+    "candidate_source_sha256": "54a4f79864be3d03d6dcdd9d8bbf3d622f859cdcf8fb2fbd68041f74224570f4"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
-    "run_id": 31997261737,
-    "artifact_id": 9277222297,
+    "run_id": 32001379672,
+    "artifact_id": 9278511247,
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
@@ -133,7 +144,7 @@
       "ACT",
       "PWR"
     ],
-    "generation": 9,
+    "generation": 10,
     "compile": "passed",
     "behavior_parity": "passed",
     "candidate_bind": "passed",
@@ -147,6 +158,7 @@
     "pinctrl_default_aligned": true,
     "topology_sized_overflow_safe_allocation": true,
     "counted_flexible_array_metadata": true,
+    "unified_led_setter_dispatch": true,
     "physical_led_writes": true,
     "raw_mmio": false
   }
