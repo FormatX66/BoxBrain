@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,10 @@ MODULE_PATH = Path(__file__).parents[1] / "aurum_installer.py"
 SPEC = importlib.util.spec_from_file_location("aurum_installer", MODULE_PATH)
 assert SPEC and SPEC.loader
 installer_module = importlib.util.module_from_spec(SPEC)
+# Python 3.12 dataclasses resolve annotations through sys.modules while the
+# class decorators execute.  Register the deliberately direct-loaded test
+# module before exec_module so this harness matches normal import semantics.
+sys.modules[SPEC.name] = installer_module
 SPEC.loader.exec_module(installer_module)
 
 
@@ -138,7 +143,6 @@ class AurumInstallerTests(unittest.TestCase):
 
     def test_plan_offers_only_unmounted_non_usb_internal_disks(self) -> None:
         plan = self.make_installer().plan()
-
         self.assertTrue(plan["available"])
         self.assertEqual(plan["mode"], "guided-whole-disk-uefi")
         self.assertEqual(len(plan["targets"]), 1)
@@ -147,10 +151,7 @@ class AurumInstallerTests(unittest.TestCase):
         self.assertEqual(target["kernel_name"], "nvme0n1")
         self.assertEqual(target["model"], "Internal NVMe")
         self.assertRegex(target["confirmation_code"], r"^ERASE-[A-F0-9]{8}$")
-        self.assertEqual(
-            target["confirm_command"],
-            f"install confirm {target['confirmation_code']}",
-        )
+        self.assertEqual(target["confirm_command"], f"install confirm {target['confirmation_code']}")
         self.assertEqual(target["existing_partitions"][0]["label"], "Windows")
 
     def test_plan_refuses_installed_or_legacy_boot_runtime(self) -> None:
@@ -158,7 +159,6 @@ class AurumInstallerTests(unittest.TestCase):
         plan = self.make_installer().plan()
         self.assertFalse(plan["available"])
         self.assertEqual(plan["reason"], "installer-runs-only-from-aurum-live-media")
-
         self.live.mkdir(parents=True)
         self.efi.rmdir()
         plan = self.make_installer().plan()
@@ -174,16 +174,13 @@ class AurumInstallerTests(unittest.TestCase):
     def test_current_device_specific_confirmation_selects_only_that_disk(self) -> None:
         installer = self.make_installer(RecordingInstaller)
         code = installer.plan()["targets"][0]["confirmation_code"]
-
         result = installer.install(code)
-
         self.assertEqual(result, {"status": "installed", "device": "/dev/nvme0n1"})
         self.assertEqual(installer.selected.device, "/dev/nvme0n1")
 
     def test_missing_fixed_tool_is_reported_without_an_unhandled_traceback(self) -> None:
         def missing_runner(arguments: list[str], **_kwargs):
             raise FileNotFoundError(2, "No such file or directory", arguments[0])
-
         installer = installer_module.AurumInstaller(runner=missing_runner)
         with self.assertRaisesRegex(installer_module.InstallError, "lsblk is unavailable"):
             installer.discover_targets()
