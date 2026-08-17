@@ -6,6 +6,7 @@
   "active_generation": 7,
   "validated_generation": 7,
   "next_generation": 8,
+  "trial_generation": 8,
   "validated_capability": "reference-aligned LED default pinctrl selection with GPIO consumer identity, firmware LED policy flags, default-state initialization, sleep-aware GPIO LED writes, and reference-compatible readback",
   "working_driver": "leds-gpio",
   "candidate_driver": "aurum-gpio-leds",
@@ -100,6 +101,16 @@
     "exact_live_api_validation": "compiled and MODPOSTed against the exact running BBPI4 kernel, physically bound so probe completed through the pinctrl path, preserved ACT/PWR behavior parity, then restored leds-gpio",
     "candidate_source_sha256": "b09b85d1f3eb75cb238ee5406bf135473cba3034703f27ea23f0044b65a52332"
   },
+  "generation_8_reference": {
+    "source": "raspberrypi/linux rpi-6.12.y drivers/leds/leds-gpio.c",
+    "semantics": [
+      "the reference gpio-leds driver sizes private storage from the discovered LED child count using struct_size",
+      "the candidate uses one device-managed topology-sized allocation with a flexible LED array instead of a separately allocated LED pointer array",
+      "struct_size provides kernel overflow-checked size construction while keeping the same one-target, LED/GPIO-only behavior",
+      "the change adds no raw MMIO, firmware write, networking, storage, power, reset, or persistent boot-time behavior"
+    ],
+    "exact_live_api_validation": "pending exact-kernel compile, physical bind, ACT/PWR behavior parity, and working-driver restore"
+  },
   "last_verified_evidence": {
     "workflow": "Aurum BBPI4 Driver Build Channel",
     "run_id": 31990925418,
@@ -107,7 +118,10 @@
     "kernel": "6.12.34+rpt-rpi-v8",
     "model": "Raspberry Pi 4 Model B Rev 1.5",
     "device": "leds",
-    "leds": ["ACT", "PWR"],
+    "leds": [
+      "ACT",
+      "PWR"
+    ],
     "generation": 7,
     "compile": "passed",
     "behavior_parity": "passed",
