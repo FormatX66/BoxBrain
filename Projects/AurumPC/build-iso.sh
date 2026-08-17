@@ -24,11 +24,6 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
-# Build against Debian Bookworm's own live-build implementation. The CI runs
-# this recipe inside a Debian Bookworm container so the live-build, bootloader,
-# debootstrap, and target distribution contracts stay aligned. non-free-firmware
-# is enabled only so the removable Aurum seed can observe and operate common
-# Wi-Fi hardware without requiring a wired bootstrap connection.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -81,11 +76,6 @@ grub-efi-amd64-bin
 grub2-common
 EOF
 
-# Debian live-build's EFI GRUB config expects this font at boot. With
-# apt-recommends disabled it was not being copied into the ISO, leaving OVMF
-# at GRUB with: /boot/grub/fonts/unicode.pf2 not found. Put the build host's
-# canonical GRUB font into the binary filesystem explicitly and fail closed if
-# the toolchain does not provide it.
 GRUB_FONT=/usr/share/grub/unicode.pf2
 if [ ! -s "$GRUB_FONT" ]; then
   echo "Required GRUB font is missing: $GRUB_FONT" >&2
@@ -94,10 +84,6 @@ fi
 mkdir -p config/includes.binary/boot/grub/fonts
 cp "$GRUB_FONT" config/includes.binary/boot/grub/fonts/unicode.pf2
 
-# The image has only one intended UEFI boot target. Avoid the graphical/menu
-# path entirely in the verification image and transfer control directly to the
-# live kernel. live-build expands these placeholders after discovering the
-# actual kernel/initrd names, so this stays version-independent.
 mkdir -p config/bootloaders/grub-pc
 cat > config/bootloaders/grub-pc/grub.cfg <<'EOF'
 set default=0
@@ -110,27 +96,17 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-cp "$SCRIPT_DIR/aurum_console.py" config/includes.chroot/opt/aurum/aurum_console.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_console.py
-cp "$SCRIPT_DIR/aurum_bootstrap.py" config/includes.chroot/opt/aurum/aurum_bootstrap.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_bootstrap.py
-cp "$SCRIPT_DIR/aurum_hardware.py" config/includes.chroot/opt/aurum/aurum_hardware.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_hardware.py
-cp "$SCRIPT_DIR/aurum_network.py" config/includes.chroot/opt/aurum/aurum_network.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_network.py
-cp "$SCRIPT_DIR/aurum_workspace.py" config/includes.chroot/opt/aurum/aurum_workspace.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_workspace.py
-cp "$SCRIPT_DIR/aurum_installer.py" config/includes.chroot/opt/aurum/aurum_installer.py
-chmod 0755 config/includes.chroot/opt/aurum/aurum_installer.py
+for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py aurum_wifi_diag.py aurum_workspace.py aurum_installer.py; do
+  cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
+  chmod 0755 "config/includes.chroot/opt/aurum/$f"
+done
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
 mkdir -p config/includes.chroot/usr/lib/aurum
-cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" \
-  config/includes.chroot/usr/lib/aurum/native-chain-state.json
+cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" config/includes.chroot/usr/lib/aurum/native-chain-state.json
 chmod 0644 config/includes.chroot/usr/lib/aurum/native-chain-state.json
 mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
 
-mkdir -p config/includes.chroot/etc/systemd/system
-mkdir -p config/includes.chroot/etc/systemd/network
+mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/systemd/network
 cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
 [Match]
 Name=en* eth*
@@ -147,10 +123,11 @@ Name=wl*
 DHCP=yes
 IPv6AcceptRA=yes
 EOF
+
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
 [Unit]
 Description=Aurum PC primary console
-After=local-fs.target systemd-udev-trigger.service systemd-networkd.service systemd-resolved.service
+After=local-fs.target systemd-udev-trigger.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
 
@@ -158,8 +135,8 @@ ConditionPathExists=/dev/tty1
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
-Environment=MALLOC_ARENA_MAX=2
 Environment=AURUM_PRIMARY_CONSOLE=1
+Environment=MALLOC_ARENA_MAX=2
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -181,7 +158,7 @@ EOF
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-serial.service <<'EOF'
 [Unit]
 Description=Aurum PC serial verification console
-After=local-fs.target systemd-udev-trigger.service systemd-networkd.service systemd-resolved.service
+After=local-fs.target systemd-udev-trigger.service
 Conflicts=serial-getty@ttyS0.service
 ConditionPathExists=/dev/ttyS0
 
@@ -189,8 +166,9 @@ ConditionPathExists=/dev/ttyS0
 Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
-Environment=MALLOC_ARENA_MAX=2
 Environment=AURUM_PRIMARY_CONSOLE=0
+Environment=AURUM_DISABLE_AUTONOMOUS_FIRST_BOOT=1
+Environment=MALLOC_ARENA_MAX=2
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -227,11 +205,7 @@ mkdir -p config/hooks/live
 cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
-chmod 0755 /opt/aurum/aurum_console.py
-chmod 0755 /opt/aurum/aurum_bootstrap.py
-chmod 0755 /opt/aurum/aurum_hardware.py
-chmod 0755 /opt/aurum/aurum_network.py
-chmod 0755 /opt/aurum/aurum_workspace.py
+chmod 0755 /opt/aurum/*.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
@@ -245,8 +219,6 @@ if [ -z "${ISO:-}" ] || [ ! -f "$ISO" ]; then
   exit 1
 fi
 cp "$ISO" "$DIST/$IMAGE_NAME"
-# Write a repository-relative checksum entry so the host-side CI can verify
-# the ISO after the Debian build container exits.
 (
   cd "$REPO_ROOT"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
