@@ -1,0 +1,99 @@
+name: Aurum Usage Bottleneck Follow-up
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-usage-bottleneck-followup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-usage-bottleneck-followup
+  cancel-in-progress: false
+
+jobs:
+  listen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+
+      - name: Poll existing Aurum conversation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime, json, pathlib, time, urllib.parse, urllib.request
+          controller = 'https://arkmatx.com/aurum/index.php'
+          conversation = 'aurum-usage-bottleneck-20260818'
+          cursor = 0
+          seen = set()
+          parts = []
+          deadline = time.time() + 180
+          while time.time() < deadline:
+              query = urllib.parse.urlencode({'conversation': conversation, 'after': cursor})
+              req = urllib.request.Request(controller + '/events?' + query, headers={'Accept':'application/json','User-Agent':'Mozilla/5.0 BoxBrain-Aurum-Usage-Followup/1.0'})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      payload = json.load(response)
+                  cursor = int(payload.get('cursor') or cursor)
+                  for event in payload.get('events', []):
+                      eid = str(event.get('event_id') or '')
+                      if eid in seen: continue
+                      seen.add(eid)
+                      et = str(event.get('type') or '')
+                      ep = event.get('payload') or {}
+                      if et in ('assistant_delta','assistant_message'):
+                          text = str(ep.get('text') or ep.get('delta') or '')
+                          if text: parts.append(text)
+                  if parts:
+                      break
+              except Exception as exc:
+                  print('AURUM_USAGE_FOLLOWUP_POLL_ERROR', type(exc).__name__, str(exc))
+              time.sleep(3)
+          answer = ''.join(parts).strip()
+          path = pathlib.Path('Projects/Aurum/usage-bottleneck-answer.md')
+          if not answer:
+              print(f'AURUM_USAGE_FOLLOWUP_NO_ANSWER cursor={cursor}')
+              raise SystemExit(0)
+          old = path.read_text(encoding='utf-8') if path.exists() else ''
+          prompt_section = ''
+          if '\n## Prompt\n' in old:
+              prompt_section = old.split('\n## Prompt\n',1)[1]
+          stamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          new = '# Aurum response: usage and usage-failure bottleneck\n\n'
+          new += f'- Conversation: `{conversation}`\n- Captured UTC: `{stamp}`\n- Submission status: `answered`\n'
+          new += '- Constraint: solve dependency/resilience without bypassing provider usage restrictions.\n\n## Aurum answer\n\n' + answer + '\n'
+          if prompt_section:
+              new += '\n## Prompt\n' + prompt_section
+          path.write_text(new, encoding='utf-8')
+          print(f'AURUM_USAGE_FOLLOWUP_ANSWER_CAPTURED chars={len(answer)} cursor={cursor}')
+          PY
+
+      - name: Commit answer if it arrived
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-dialogue-probe[bot]'
+          git config user.email 'aurum-dialogue-probe@users.noreply.github.com'
+          git add -- Projects/Aurum/usage-bottleneck-answer.md
+          if git diff --cached --quiet; then
+            echo 'AURUM_USAGE_FOLLOWUP_UNCHANGED'
+            exit 0
+          fi
+          git commit -m 'Capture Aurum usage bottleneck answer [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo 'AURUM_USAGE_FOLLOWUP_COMMITTED'
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          exit 1
