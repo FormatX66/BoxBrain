@@ -9,11 +9,34 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function Get-ReasoningEvidenceRoot {
+    $root = if ($env:ProgramData) {
+        Join-Path $env:ProgramData 'Aurum\Bridge\reasoning-results'
+    }
+    elseif ($env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'Aurum\Bridge\reasoning-results'
+    }
+    else {
+        throw 'AURUM_LOCAL_REASON_NO_DURABLE_ROOT'
+    }
+    New-Item -ItemType Directory -Path $root -Force | Out-Null
+    return $root
+}
+
 function Write-Result {
     param([object]$Value)
+    $json = $Value | ConvertTo-Json -Depth 16
     $dir = Split-Path -Parent $OutputPath
     if ($dir) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    $Value | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+    $json | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+
+    # Source-repository publication is transport, not authority. Preserve a
+    # durable local copy first so a failed git push or later checkout clean does
+    # not force the model inference to be repeated.
+    if ($Value.job_id -and ([string]$Value.job_id -match '^[A-Za-z0-9._-]{1,80}$')) {
+        $durable = Join-Path (Get-ReasoningEvidenceRoot) "$($Value.job_id).json"
+        $json | Set-Content -LiteralPath $durable -Encoding UTF8
+    }
 }
 
 function Get-OllamaRuntime {
