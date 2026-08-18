@@ -1,0 +1,89 @@
+name: Isolate Windows Codelation Test Failure
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codelation-windows-isolate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  isolate:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run each Codelation test module independently
+        id: isolate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $results = @()
+          $files = @(Get-ChildItem 'Projects\Codelation\tests\test_*.py' | Sort-Object Name)
+          foreach ($file in $files) {
+            $stdout = Join-Path $env:RUNNER_TEMP ($file.BaseName + '-stdout.log')
+            $stderr = Join-Path $env:RUNNER_TEMP ($file.BaseName + '-stderr.log')
+            $p = Start-Process -FilePath python.exe `
+              -ArgumentList @('-m','unittest','discover','-s','Projects/Codelation/tests','-p',$file.Name,'-v') `
+              -WorkingDirectory $env:GITHUB_WORKSPACE `
+              -NoNewWindow -Wait -PassThru `
+              -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $tail = @()
+            if (Test-Path $stdout) { $tail += @(Get-Content $stdout) }
+            if (Test-Path $stderr) { $tail += @(Get-Content $stderr) }
+            $tail = @($tail | Select-Object -Last 40)
+            $results += [pscustomobject]@{
+              file = $file.Name
+              exit_code = [int]$p.ExitCode
+              tail = $tail
+            }
+            Write-Host "AURUM_WINDOWS_MODULE file=$($file.Name) exit=$($p.ExitCode)"
+            if ($p.ExitCode -ne 0) { $tail | ForEach-Object { Write-Host $_ } }
+          }
+          $path = Join-Path $env:RUNNER_TEMP 'codelation-windows-modules.json'
+          $results | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $path -Encoding UTF8
+          $failed = @($results | Where-Object { $_.exit_code -ne 0 })
+          "failed_count=$($failed.Count)" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish module isolation receipt
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'codelation-windows-modules.json'
+          $modules = if (Test-Path $source) { @(Get-Content $source -Raw | ConvertFrom-Json) } else { @() }
+          $failed = @($modules | Where-Object { [int]$_.exit_code -ne 0 })
+          $receipt = [ordered]@{
+            schema_version = 1
+            workflow = 'codelation-windows-isolate'
+            run_id = '${{ github.run_id }}'
+            tested_commit = '${{ github.sha }}'
+            failed_count = $failed.Count
+            failed_modules = $failed
+            all_modules = @($modules | ForEach-Object { [ordered]@{file=$_.file;exit_code=[int]$_.exit_code} })
+            runtime_mutated = $false
+            recorded_at_utc = [DateTimeOffset]::UtcNow.ToString('o')
+          }
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          New-Item -ItemType Directory -Path '.github\receipts' -Force | Out-Null
+          $path = '.github\receipts\codelation-windows-isolate.json'
+          $receipt | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding UTF8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add $path
+          if (git diff --cached --quiet) { exit 0 }
+          git commit -m 'Record isolated Windows Codelation failures [skip ci]'
+          for ($i=1; $i -le 4; $i++) {
+            git pull --rebase origin main
+            if ($LASTEXITCODE -eq 0) {
+              git push origin HEAD:main
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+            }
+            Start-Sleep -Seconds $i
+          }
+          throw 'Could not publish Windows module isolation receipt.'
