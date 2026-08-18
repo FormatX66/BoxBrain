@@ -46,6 +46,7 @@ jobs:
           if ($json.decision -ne 'existing-approval-missing') { throw 'Missing approval was not classified correctly.' }
           if ($json.authorization_mutated) { throw 'Missing approval must never be silently created.' }
           Write-Host 'AURUM_LOCAL_LANE_REPAIR missing-approval=bounded'
+          exit 0
 
       - name: Prove Codelation-only drift refreshes only after local tests
         shell: powershell
@@ -129,6 +130,7 @@ jobs:
           if ($json.decision -ne 'review-required') { throw 'Deployer drift was not blocked.' }
           if ($json.authorization_mutated) { throw 'Deployer drift must never auto-refresh authorization.' }
           Write-Host 'AURUM_LOCAL_LANE_REPAIR deployer-drift=blocked'
+          exit 0
 
       - name: Record validation receipt
         if: always()
