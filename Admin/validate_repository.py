@@ -10,6 +10,8 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECTS = (
+    "Aurum",
+    "AurumBridge",
     "BrainConnect",
     "WebsiteBuilder",
     "Arkmatx",
@@ -18,6 +20,7 @@ PROJECTS = (
     "Automation",
     "Security",
     "Research",
+    "Codelation",
 )
 AGENTS = (
     "Architect",
@@ -89,7 +92,10 @@ IGNORED_DIRECTORY_NAMES = frozenset(
         "venv",
     }
 )
-IGNORED_FILE_NAMES = frozenset({"AGENTS.md"})
+# Operational GitHub templates are discovered by GitHub rather than by the
+# documentation graph, so requiring an artificial inbound documentation link
+# creates a false repository-integrity failure.
+IGNORED_FILE_NAMES = frozenset({"AGENTS.md", "pull_request_template.md"})
 
 
 def repository_markdown_files(root: Path = ROOT) -> list[Path]:
@@ -123,7 +129,8 @@ def main() -> int:
     session_directories = sorted(
         path
         for path in (ROOT / "SessionHandoffs").iterdir()
-        if path.is_dir() and SESSION_DIRECTORY_PATTERN.fullmatch(path.name)
+        if path.is_dir()
+        and SESSION_DIRECTORY_PATTERN.fullmatch(path.name)
     )
     if not session_directories:
         errors.append("No session handoff directories found")
