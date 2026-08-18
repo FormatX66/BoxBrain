@@ -53,6 +53,12 @@ class SolveReport:
     pruned_by_rule: tuple[tuple[str, int], ...]
     convergence: tuple[tuple[str, int], ...]
 
+    @property
+    def terminal_classes(self) -> int:
+        if self.convergence:
+            return self.convergence[-1][1]
+        return self.valid_states
+
     def as_dict(self) -> dict[str, object]:
         return {
             "raw_states": self.raw_states,
@@ -63,14 +69,15 @@ class SolveReport:
                 {"stage": stage, "equivalence_classes": classes}
                 for stage, classes in self.convergence
             ],
+            "terminal_classes": self.terminal_classes,
         }
 
 
 class FiniteStateSolver:
     """Enumerate bounded variables, prune invalid states, then collapse equivalent paths.
 
-    The important property is not brute force for its own sake.  Early machine states can
-    differ while later states no longer depend on those differences.  Each convergence
+    The important property is not brute force for its own sake. Early machine states can
+    differ while later states no longer depend on those differences. Each convergence
     stage therefore describes which distinctions still matter at that point in execution.
     """
 
@@ -127,7 +134,7 @@ class FiniteStateSolver:
             state = dict(zip(names, values, strict=True))
             for constraint in self.constraints:
                 if not constraint.predicate(state):
-                    # Count the first decisive rule.  This keeps pruning totals exact even
+                    # Count the first decisive rule. This keeps pruning totals exact even
                     # when one impossible state violates more than one constraint.
                     pruned[constraint.name] += 1
                     break
@@ -154,4 +161,58 @@ class FiniteStateSolver:
             pruned_states=self.raw_state_count - valid_count,
             pruned_by_rule=tuple(sorted(pruned.items())),
             convergence=tuple(convergence),
+        )
+
+
+@dataclass(frozen=True)
+class FabricReport:
+    subsystem_reports: tuple[tuple[str, SolveReport], ...]
+    naive_cross_product_states: int
+    factorized_raw_cases: int
+    factorized_valid_cases: int
+    terminal_contract_classes: int
+
+    @property
+    def all_subsystems_converged(self) -> bool:
+        return all(report.terminal_classes == 1 for _, report in self.subsystem_reports)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "subsystems": {
+                name: report.as_dict() for name, report in self.subsystem_reports
+            },
+            "naive_cross_product_states": self.naive_cross_product_states,
+            "factorized_raw_cases": self.factorized_raw_cases,
+            "factorized_valid_cases": self.factorized_valid_cases,
+            "terminal_contract_classes": self.terminal_contract_classes,
+            "all_subsystems_converged": self.all_subsystems_converged,
+        }
+
+
+class ConvergenceFabric:
+    """Compose subsystem contracts after convergence instead of multiplying internals.
+
+    If boot has already converged to one `payload-verified` contract, kernel testing should
+    consume that one contract, not every historical boot permutation. The same rule is
+    applied at every subsystem boundary. The report keeps the naive product only as a
+    comparison so Aurum can quantify how much state explosion it avoided.
+    """
+
+    def __init__(self, subsystems: Mapping[str, FiniteStateSolver]) -> None:
+        if not subsystems:
+            raise ValueError("at least one subsystem is required")
+        if any(not name for name in subsystems):
+            raise ValueError("subsystem names must not be empty")
+        self.subsystems = dict(subsystems)
+
+    def solve(self) -> FabricReport:
+        reports = tuple(
+            (name, solver.solve()) for name, solver in sorted(self.subsystems.items())
+        )
+        return FabricReport(
+            subsystem_reports=reports,
+            naive_cross_product_states=prod(report.raw_states for _, report in reports),
+            factorized_raw_cases=sum(report.raw_states for _, report in reports),
+            factorized_valid_cases=sum(report.valid_states for _, report in reports),
+            terminal_contract_classes=prod(report.terminal_classes for _, report in reports),
         )
