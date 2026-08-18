@@ -170,11 +170,17 @@ if ($drift.Count -gt 0) {
     try {
         $ErrorActionPreference = 'Continue'
         Push-Location $repo
-        try { & $pythonPath @pythonArgs; $testCode = $LASTEXITCODE }
+        try {
+            $testOutput = @(& $pythonPath @pythonArgs 2>&1)
+            $testCode = $LASTEXITCODE
+        }
         finally { Pop-Location }
     }
     finally { $ErrorActionPreference = $old }
-    if ($testCode -ne 0) { throw "Codelation tests did not pass; approval was not changed." }
+    if ($testCode -ne 0) {
+        $tail = (($testOutput | Select-Object -Last 20 | ForEach-Object { [string]$_ }) -join '; ')
+        throw "Codelation tests did not pass; approval was not changed. $tail"
+    }
     $testsPassed = $true
 
     # This is the only automatic authorization mutation allowed here: update the
