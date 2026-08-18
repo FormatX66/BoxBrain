@@ -93,6 +93,13 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("--add-section .initrd", builder)
         self.assertIn("live-media-path=/live", builder)
 
+        # Direct image construction must not depend on udev creating loopXpN
+        # partition device nodes. CI/recovery environments may have no udevd.
+        self.assertNotIn("--partscan", builder)
+        self.assertIn("parted -sm", builder)
+        self.assertIn("--offset", builder)
+        self.assertIn("--sizelimit", builder)
+
         self.assertIn("usb-storage,drive=seed,bootindex=1", smoke)
         self.assertNotIn("-cdrom", smoke)
         self.assertIn("AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK", smoke)
