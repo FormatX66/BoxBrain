@@ -4,6 +4,15 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [aurum-frontier-continue]
+  pull_request:
+    paths:
+      - '.github/workflows/aurum-frontier.yml'
+      - 'Projects/Codelation/run_native_frontier.py'
+      - 'Projects/Codelation/run_native_autonomous_chain.py'
+      - 'Projects/Codelation/field/**'
+      - 'Projects/Codelation/autobuild/native_gap_specs/**'
+      - 'Projects/Codelation/autobuild/external_evidence/**'
+      - 'Projects/Codelation/tests/test_native_frontier.py'
   push:
     branches:
       - agent/aurum-frontier-no-generations
@@ -84,6 +93,7 @@ jobs:
           PY
 
       - name: Commit verified frontier state
+        if: github.event_name != 'pull_request'
         id: checkpoint
         shell: bash
         run: |
@@ -97,7 +107,7 @@ jobs:
           fi
           git commit -m 'Advance Aurum capability frontier [skip ci]'
           for attempt in 1 2 3 4 5; do
-            branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            branch="${GITHUB_REF_NAME}"
             git fetch origin "$branch"
             if git rebase "origin/$branch" && git push origin "HEAD:$branch"; then
               echo 'changed=true' >> "$GITHUB_OUTPUT"
@@ -111,6 +121,7 @@ jobs:
 
       - name: Continue immediately while frontier can move
         if: >-
+          github.event_name != 'pull_request' &&
           steps.state.outputs.frontier_nonempty == 'true' &&
           steps.state.outputs.blocked_reason == 'none' &&
           steps.checkpoint.outputs.changed == 'true'
@@ -119,7 +130,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          branch="${GITHUB_REF_NAME}"
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-frontier.yml/dispatches" \
             -f ref="$branch"
