@@ -43,6 +43,7 @@ jobs:
         run: >-
           python3 -m unittest
           Projects.Codelation.tests.test_adaptive_shell_gui_deployment
+          Projects.Codelation.tests.test_external_evidence_recovery_contract
           -v
 
   refresh:
