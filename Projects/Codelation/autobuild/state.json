@@ -1,5 +1,5 @@
 {
-  "cycle": 559,
+  "cycle": 560,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -32,36 +32,14 @@
     "verified_at": 1786621820
   },
   "last_controller_ack": {
-    "ok": true,
-    "time": 1787070319
+    "error": "HTTPError",
+    "ok": false,
+    "time": 1787072031
   },
   "last_controller_status": {
-    "capabilities": [
-      "uaf_receive",
-      "uaf_store",
-      "uaf_emit",
-      "human_projection",
-      "content_addressed_state",
-      "node_enroll",
-      "node_heartbeat",
-      "prompt_ingest",
-      "conversation_stream",
-      "node_directory",
-      "work_lease",
-      "work_result",
-      "work_status"
-    ],
-    "events": {
-      "merged": 605,
-      "nodes": 5,
-      "outbox": 605,
-      "rejected": 0,
-      "work": 7
-    },
-    "node": "Aurum-Arkmatx",
-    "ok": true,
-    "status": "active-edge-web-node",
-    "time": 1787070319
+    "error": "HTTPError",
+    "ok": false,
+    "time": 1787072030
   },
   "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
   "observations": {
@@ -103,6 +81,7 @@
     }
   },
   "schema": 1,
+  "semantic_fingerprint": "eeef706b0265b69fa4d31b4ba89588177140af7cc858e6d6e65bcd78425f3be1",
   "targets": {
     "Aurum-Morris": {
       "carriers": [
@@ -146,5 +125,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787070319
+  "updated_at": 1787072031
 }
