@@ -1,0 +1,142 @@
+name: Aurum External Evidence Recovery
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [aurum-external-evidence-recover]
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-external-evidence-recovery.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-external-evidence-recovery-v1
+  cancel-in-progress: false
+
+env:
+  AURUM_TRUNK: aurum/trunk-v0.01
+  AURUM_AUTHORIZATION_REFERENCE: codex-user-minimize-asks-go-more-20260816
+
+jobs:
+  validate:
+    name: Verify bounded recovery contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out current Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify GUI evidence safety contracts
+        shell: bash
+        run: >-
+          python3 -m unittest
+          Projects.Codelation.tests.test_adaptive_shell_gui_deployment
+          -v
+
+  refresh:
+    name: Refresh bounded BBPI4 GUI evidence
+    needs: validate
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - name: Check out current Aurum trunk
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 50
+
+      - name: Collect fresh loopback-only GUI evidence
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $key = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
+          $knownHosts = Join-Path $HOME '.ssh\known_hosts'
+          if (-not (Test-Path -LiteralPath $key -PathType Leaf)) {
+            throw "The dedicated BBPI4 SSH key is unavailable to the authorized Windows runner."
+          }
+          if (-not (Test-Path -LiteralPath $knownHosts -PathType Leaf)) {
+            throw "The pinned SSH known-hosts file is unavailable to the authorized Windows runner."
+          }
+
+          $collector = Join-Path $env:GITHUB_WORKSPACE 'installer\collect-adaptive-shell-gui-live-trial.ps1'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
+            -PiAddress '10.12.194.1' `
+            -KeyPath $key `
+            -KnownHostsPath $knownHosts `
+            -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
+            -TimeToLiveSeconds 1200
+          if ($LASTEXITCODE -ne 0) {
+            throw "The bounded GUI evidence collector failed with exit code $LASTEXITCODE."
+          }
+
+          $path = Join-Path $env:GITHUB_WORKSPACE 'Projects\Codelation\autobuild\external_evidence\adaptive_shell_gui_live_trial.json'
+          $evidence = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -ErrorAction Stop
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+          if (
+            [string]$evidence.schema -ne 'aurum-adaptive-shell-gui-live-trial-evidence-v1' -or
+            [string]$evidence.kind -ne 'adaptive-shell-gui-live-trial' -or
+            $evidence.verified -ne $true -or
+            [string]$evidence.node_id -ne 'cff5511ddbb6bf14' -or
+            [string]$evidence.route -ne '10.12.194.1' -or
+            $evidence.authority_granted -ne $false -or
+            $evidence.persistent_service_enabled -ne $false -or
+            [int64]$evidence.observed_at -gt $now -or
+            [int64]$evidence.observed_at -lt ($now - 180) -or
+            [int64]$evidence.expires_at -le $now
+          ) {
+            throw 'Fresh GUI evidence failed its identity, freshness, or authority contract.'
+          }
+          foreach ($name in @('packages_installed','persistent_service_enabled','raw_disk_changed','firmware_changed','bootloader_changed','security_reduced')) {
+            if ($evidence.safety.$name -ne $false) {
+              throw "Fresh GUI evidence crossed the bounded safety contract: $name"
+            }
+          }
+          Write-Host "AURUM_EXTERNAL_EVIDENCE_VERIFIED node_id=$($evidence.node_id) expires_at=$($evidence.expires_at) authority=false"
+
+      - name: Publish only fresh evidence to Aurum trunk
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = 'Projects/Codelation/autobuild/external_evidence/adaptive_shell_gui_live_trial.json'
+          git config user.name 'aurum-evidence-recovery[bot]'
+          git config user.email 'aurum-evidence-recovery@users.noreply.github.com'
+          git add -- $evidence
+          $staged = @(git diff --cached --name-only)
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the bounded evidence change.' }
+          if ($staged.Count -eq 0) {
+            Write-Host 'AURUM_EXTERNAL_EVIDENCE unchanged=true'
+            exit 0
+          }
+          if ($staged.Count -ne 1 -or [string]$staged[0] -ne $evidence) {
+            throw "Recovery attempted to stage files outside the bounded evidence path: $($staged -join ', ')"
+          }
+          git commit -m 'Refresh bounded Aurum GUI live-trial evidence'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not checkpoint fresh bounded evidence.' }
+
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            git fetch origin $env:AURUM_TRUNK
+            if ($LASTEXITCODE -ne 0) { throw 'Could not refresh Aurum trunk before evidence publication.' }
+            git rebase "origin/$env:AURUM_TRUNK"
+            if ($LASTEXITCODE -eq 0) {
+              git push origin "HEAD:$env:AURUM_TRUNK"
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host 'AURUM_EXTERNAL_EVIDENCE published=true autobuild_trigger=push'
+                exit 0
+              }
+            }
+            git rebase --abort 2>$null
+            Start-Sleep -Seconds $attempt
+          }
+          throw 'Fresh bounded evidence could not be published without overwriting concurrent Aurum work.'
