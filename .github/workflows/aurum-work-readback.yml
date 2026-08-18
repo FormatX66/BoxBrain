@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Read bounded AP observation evidence from queued work
+      - name: Read bounded AP observation evidence without leasing work
         shell: bash
         run: |
           set -euo pipefail
@@ -25,51 +25,41 @@ jobs:
           import urllib.request
 
           controller = "https://arkmatx.com/aurum/index.php"
-          nodes = (
-              ("morris", "825e5a7b7d4a7aed"),
-              ("bruce", "85404f41d5507372"),
+          work_items = (
+              ("morris", "bbpi4-ap-probe-morris-v1"),
+              ("bruce", "bbpi4-ap-probe-bruce-v1"),
+              ("bbpi4-bootstrap", "bbpi4-bootstrap-v1"),
           )
           headers = {
               "Accept": "application/json",
-              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Readback/1.0",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Readback/2.0",
           }
 
-          for label, node_id in nodes:
-              query = urllib.parse.urlencode(
-                  {
-                      "node_id": node_id,
-                      "capabilities": "connectivity-observation",
-                  }
-              )
+          for label, work_id in work_items:
+              query = urllib.parse.urlencode({"id": work_id})
               request = urllib.request.Request(
-                  controller + "/work/lease?" + query,
+                  controller + "/work/status?" + query,
                   headers=headers,
               )
-              with urllib.request.urlopen(request, timeout=20) as response:
-                  payload = json.load(response)
-              work = payload.get("work")
-              if not work:
-                  print(f"AURUM_CONNECTIVITY_READBACK label={label} work=none")
-                  continue
-              last = work.get("last_result") or {}
-              detail = last.get("detail") or {}
-              addresses = work.get("payload", {}).get("addresses") or []
-              ports = work.get("payload", {}).get("ports") or []
-              print(
-                  "AURUM_CONNECTIVITY_READBACK "
-                  f"label={label} "
-                  f"work_id={work.get('work_id')} "
-                  f"attempts={int(work.get('attempts') or 0)} "
-                  f"addresses={','.join(map(str, addresses)) or 'none'} "
-                  f"ports={','.join(map(str, ports)) or 'default'} "
-                  f"prior_result={last.get('status') or 'none'} "
-                  f"reason={detail.get('reason') or 'none'}"
-              )
-              for observation in detail.get("open") or []:
+              try:
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      status = json.load(response)
+              except Exception as exc:
                   print(
-                      "AURUM_CONNECTIVITY_OPEN "
-                      f"label={label} "
-                      f"address={observation.get('address')} "
-                      f"port={observation.get('port')}"
+                      "AURUM_WORK_READBACK "
+                      f"label={label} work_id={work_id} read_error={type(exc).__name__}"
                   )
+                  continue
+
+              print(
+                  "AURUM_WORK_READBACK "
+                  f"label={label} "
+                  f"work_id={status.get('work_id') or work_id} "
+                  f"capability={status.get('capability') or 'unknown'} "
+                  f"status={status.get('status') or 'unknown'} "
+                  f"attempts={int(status.get('attempts') or 0)} "
+                  f"last_result={status.get('last_result_status') or 'none'} "
+                  f"ap_ssh_open={bool(status.get('ap_ssh_open'))} "
+                  "probe_mode=read-only"
+              )
           PY
