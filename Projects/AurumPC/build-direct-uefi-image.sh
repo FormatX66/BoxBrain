@@ -3,6 +3,10 @@ set -eu
 
 BINARY_DIR=${1:?usage: build-direct-uefi-image.sh LIVE_BUILD_BINARY OUTPUT_IMAGE}
 OUTPUT_IMAGE=${2:?usage: build-direct-uefi-image.sh LIVE_BUILD_BINARY OUTPUT_IMAGE}
+OUTPUT_DIR=$(dirname "$OUTPUT_IMAGE")
+OUTPUT_NAME=$(basename "$OUTPUT_IMAGE")
+OUTPUT_PARENT=$(dirname "$OUTPUT_DIR")
+OUTPUT_DIR_NAME=$(basename "$OUTPUT_DIR")
 
 for tool in parted mkfs.vfat mkfs.ext4 mmd mcopy objcopy truncate sha256sum dd du find head wc tr cp mkdir rm; do
   command -v "$tool" >/dev/null 2>&1 || {
@@ -47,7 +51,7 @@ UKI="$WORK_DIR/BOOTX64.EFI"
 ESP_IMAGE="$WORK_DIR/esp.img"
 DATA_IMAGE="$WORK_DIR/data.img"
 DATA_ROOT="$WORK_DIR/data-root"
-mkdir -p "$DATA_ROOT" "$(dirname "$OUTPUT_IMAGE")"
+mkdir -p "$DATA_ROOT" "$OUTPUT_DIR"
 
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -116,5 +120,11 @@ parted -s "$OUTPUT_IMAGE" mkpart AURUM_LIVE ext4 "${DATA_START_MIB}MiB" "${DATA_
 dd if="$ESP_IMAGE" of="$OUTPUT_IMAGE" bs=1M seek=1 conv=notrunc status=none
 dd if="$DATA_IMAGE" of="$OUTPUT_IMAGE" bs=1M seek="$DATA_START_MIB" conv=notrunc status=none
 
-sha256sum "$OUTPUT_IMAGE" > "$OUTPUT_IMAGE.sha256"
+# Record a checksum path relative to the output directory's parent. This keeps
+# the checksum portable across the privileged build container and the host
+# workspace that verifies and publishes the artifact.
+(
+  cd "$OUTPUT_PARENT"
+  sha256sum "$OUTPUT_DIR_NAME/$OUTPUT_NAME" > "$OUTPUT_DIR_NAME/$OUTPUT_NAME.sha256"
+)
 ls -lh "$OUTPUT_IMAGE" "$OUTPUT_IMAGE.sha256"
