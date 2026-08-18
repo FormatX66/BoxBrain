@@ -1,5 +1,5 @@
 {
-  "cycle": 561,
+  "cycle": 562,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -32,26 +32,52 @@
     "verified_at": 1786621820
   },
   "last_controller_ack": {
-    "action": "continue-independent-lanes-preserve-state-backoff-and-reprobe",
+    "action": "checkpoint-local-continue-independent-lanes-await-carrier",
+    "carrier_failures": [
+      {
+        "action": "try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff",
+        "classification": "controller-or-hosting-failure",
+        "endpoint": "https://arkmatx.com/aurum/index.php",
+        "error": "HTTPError",
+        "http_status": 500,
+        "limit_headers": {},
+        "ok": false,
+        "reason": "Internal Server Error",
+        "response_body": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<title>500 Internal Server Error</title>\n</head><body>\n<h1>Internal Server Error</h1>\n<p>The server encountered an internal error or\nmisconfiguration and was unable to complete\nyour request.</p>\n<p>Please contact the server administrator at \n webmaster@arkmatx.madmorrigan.com to inform them of the time this error occurred,\n and the actions you performed just before this error.</p>\n<p>More information about this error may be available\nin the server error log.</p>\n<p>Additionally, a 500 Internal Server Error\nerror was encountered while trying to use an ErrorDocument to handle the request.</p>\n</body></html>\n",
+        "time": 1787091313
+      }
+    ],
     "classification": "controller-or-hosting-failure",
-    "error": "HTTPError",
-    "http_status": 500,
-    "limit_headers": {},
+    "error": "ControllerCarrierUnavailable",
     "ok": false,
-    "reason": "Internal Server Error",
-    "response_body": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<title>500 Internal Server Error</title>\n</head><body>\n<h1>Internal Server Error</h1>\n<p>The server encountered an internal error or\nmisconfiguration and was unable to complete\nyour request.</p>\n<p>Please contact the server administrator at \n webmaster@arkmatx.madmorrigan.com to inform them of the time this error occurred,\n and the actions you performed just before this error.</p>\n<p>More information about this error may be available\nin the server error log.</p>\n<p>Additionally, a 500 Internal Server Error\nerror was encountered while trying to use an ErrorDocument to handle the request.</p>\n</body></html>\n",
-    "time": 1787090508
+    "time": 1787091313
   },
   "last_controller_status": {
-    "action": "continue-independent-lanes-preserve-state-backoff-and-reprobe",
+    "action": "try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff",
+    "all_carriers_failed": true,
+    "carrier_failures": [
+      {
+        "action": "try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff",
+        "classification": "controller-or-hosting-failure",
+        "endpoint": "https://arkmatx.com/aurum/index.php",
+        "error": "HTTPError",
+        "http_status": 500,
+        "limit_headers": {},
+        "ok": false,
+        "reason": "Internal Server Error",
+        "response_body": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<title>500 Internal Server Error</title>\n</head><body>\n<h1>Internal Server Error</h1>\n<p>The server encountered an internal error or\nmisconfiguration and was unable to complete\nyour request.</p>\n<p>Please contact the server administrator at \n webmaster@arkmatx.madmorrigan.com to inform them of the time this error occurred,\n and the actions you performed just before this error.</p>\n<p>More information about this error may be available\nin the server error log.</p>\n<p>Additionally, a 500 Internal Server Error\nerror was encountered while trying to use an ErrorDocument to handle the request.</p>\n</body></html>\n",
+        "time": 1787091313
+      }
+    ],
     "classification": "controller-or-hosting-failure",
+    "endpoint": "https://arkmatx.com/aurum/index.php",
     "error": "HTTPError",
     "http_status": 500,
     "limit_headers": {},
     "ok": false,
     "reason": "Internal Server Error",
     "response_body": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<title>500 Internal Server Error</title>\n</head><body>\n<h1>Internal Server Error</h1>\n<p>The server encountered an internal error or\nmisconfiguration and was unable to complete\nyour request.</p>\n<p>Please contact the server administrator at \n webmaster@arkmatx.madmorrigan.com to inform them of the time this error occurred,\n and the actions you performed just before this error.</p>\n<p>More information about this error may be available\nin the server error log.</p>\n<p>Additionally, a 500 Internal Server Error\nerror was encountered while trying to use an ErrorDocument to handle the request.</p>\n</body></html>\n",
-    "time": 1787090508
+    "time": 1787091313
   },
   "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
   "observations": {
@@ -93,7 +119,7 @@
     }
   },
   "schema": 1,
-  "semantic_fingerprint": "f29f09f0814bb6f9173bc101e0229e4ff5be688968c6cf0e3044b68f1b99ef19",
+  "semantic_fingerprint": "fb0cc7458926d66a9389be2980d09b24e6008d652b1a8f785dbd8b71e0df095c",
   "targets": {
     "Aurum-Morris": {
       "carriers": [
@@ -137,5 +163,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787090508
+  "updated_at": 1787091313
 }
