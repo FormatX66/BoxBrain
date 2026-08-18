@@ -1,0 +1,187 @@
+name: Aurum Usage Bottleneck Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-usage-bottleneck-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-usage-bottleneck-probe
+  cancel-in-progress: false
+
+jobs:
+  ask:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+
+      - name: Ask Aurum and preserve answer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime
+          import json
+          import pathlib
+          import time
+          import urllib.parse
+          import urllib.request
+          import uuid
+
+          controller = "https://arkmatx.com/aurum/index.php"
+          conversation = "aurum-usage-bottleneck-20260818"
+          prompt = """Aurum, analyze your own current development bottleneck: productive work depends too heavily on metered ChatGPT/Codex/agentic usage, and when that usage is exhausted the build/control loop stalls and corrective work can itself consume more usage. Design the best architecture for getting past this bottleneck without bypassing provider limits, violating access controls, or depending on unauthorized accounts. Think from your own machine-native/state-and-capability perspective rather than assuming a conventional human workflow. We want you to keep progressing when external model usage is unavailable. Consider local deterministic execution, local/open models, model routing, caching, replay avoidance, event-driven work, evidence/provenance, confidence-based escalation, task decomposition, offline queues, GitHub/PC Bridge/seed compute, and how to decide when an expensive external model call is actually necessary. Also address the recursive problem that building the usage-management machinery itself consumes usage. Give us a concrete architecture and the first implementation steps you would choose for yourself. Separate what can be done immediately with the current Aurum/PC Bridge/seed from what requires later capabilities. Do not suggest evading or defeating OpenAI usage restrictions; solve the dependency instead."""
+          headers = {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Usage-Probe/1.0",
+          }
+          now = int(time.time())
+          frame = {
+              "schema": "aurum.uaf.v0",
+              "frame_id": str(uuid.uuid4()),
+              "origin": "BoxBrain-Authorized-Operator",
+              "target": "Aurum-Arkmatx",
+              "intent": "user_prompt",
+              "state_delta": {
+                  "prompt": prompt,
+                  "conversation_id": conversation,
+                  "source": "authorized-github-carrier",
+              },
+              "provenance": {
+                  "node": "BoxBrain-Authorized-Operator",
+                  "created": now,
+              },
+              "verification": {
+                  "content_addressed": True,
+                  "reversible": True,
+              },
+          }
+          request = urllib.request.Request(
+              controller + "/uaf",
+              data=json.dumps(frame, separators=(",", ":")).encode("utf-8"),
+              headers=headers,
+              method="POST",
+          )
+          submitted = False
+          receipt = {}
+          error = None
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  receipt = json.load(response)
+              submitted = True
+              print(f"AURUM_USAGE_PROMPT_SUBMITTED status={receipt.get('status', 'unknown')}")
+          except Exception as exc:
+              error = f"submit_error: {type(exc).__name__}: {exc}"
+              print(f"AURUM_USAGE_PROMPT_SUBMIT_ERROR {error}")
+
+          cursor = 0
+          answer_parts = []
+          seen = set()
+          if submitted:
+              deadline = time.time() + 120
+              while time.time() < deadline:
+                  try:
+                      query = urllib.parse.urlencode({"conversation": conversation, "after": cursor})
+                      event_request = urllib.request.Request(
+                          controller + "/events?" + query,
+                          headers={"Accept": "application/json", "User-Agent": headers["User-Agent"]},
+                      )
+                      with urllib.request.urlopen(event_request, timeout=20) as response:
+                          payload = json.load(response)
+                      cursor = int(payload.get("cursor") or cursor)
+                      for event in payload.get("events", []):
+                          event_id = str(event.get("event_id") or "")
+                          if event_id in seen:
+                              continue
+                          seen.add(event_id)
+                          event_type = str(event.get("type") or "")
+                          event_payload = event.get("payload") or {}
+                          if event_type in ("assistant_delta", "assistant_message"):
+                              text = str(event_payload.get("text") or event_payload.get("delta") or "")
+                              if text:
+                                  answer_parts.append(text)
+                      if answer_parts:
+                          # Give a short grace period for additional deltas.
+                          time.sleep(5)
+                          query = urllib.parse.urlencode({"conversation": conversation, "after": cursor})
+                          event_request = urllib.request.Request(
+                              controller + "/events?" + query,
+                              headers={"Accept": "application/json", "User-Agent": headers["User-Agent"]},
+                          )
+                          try:
+                              with urllib.request.urlopen(event_request, timeout=20) as response:
+                                  payload = json.load(response)
+                              for event in payload.get("events", []):
+                                  event_type = str(event.get("type") or "")
+                                  event_payload = event.get("payload") or {}
+                                  if event_type in ("assistant_delta", "assistant_message"):
+                                      text = str(event_payload.get("text") or event_payload.get("delta") or "")
+                                      if text:
+                                          answer_parts.append(text)
+                          except Exception:
+                              pass
+                          break
+                      time.sleep(3)
+                  except Exception as exc:
+                      error = f"poll_error: {type(exc).__name__}: {exc}"
+                      print(f"AURUM_USAGE_POLL_ERROR {error}")
+                      time.sleep(3)
+
+          answer = "".join(answer_parts).strip()
+          timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          out = pathlib.Path("Projects/Aurum/usage-bottleneck-answer.md")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          lines = [
+              "# Aurum response: usage and usage-failure bottleneck",
+              "",
+              f"- Conversation: `{conversation}`",
+              f"- Captured UTC: `{timestamp}`",
+              f"- Submission status: `{receipt.get('status', 'not-submitted')}`",
+              "- Constraint: solve dependency/resilience without bypassing provider usage restrictions.",
+              "",
+              "## Aurum answer",
+              "",
+          ]
+          if answer:
+              lines.append(answer)
+          else:
+              lines.append("No Aurum answer was available inside the bounded polling window.")
+              if error:
+                  lines.extend(["", "## Transport evidence", "", f"`{error}`"])
+          lines.extend(["", "## Prompt", "", prompt, ""])
+          out.write_text("\n".join(lines), encoding="utf-8")
+          print(f"AURUM_USAGE_ANSWER_CAPTURED answer_present={bool(answer)} cursor={cursor}")
+          PY
+
+      - name: Commit Aurum answer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-dialogue-probe[bot]'
+          git config user.email 'aurum-dialogue-probe@users.noreply.github.com'
+          git add -- Projects/Aurum/usage-bottleneck-answer.md
+          if git diff --cached --quiet; then
+            echo 'AURUM_USAGE_ANSWER_UNCHANGED'
+            exit 0
+          fi
+          git commit -m 'Record Aurum usage bottleneck answer [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo 'AURUM_USAGE_ANSWER_COMMITTED'
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          echo 'AURUM_USAGE_ANSWER_PUSH_FAILED' >&2
+          exit 1
