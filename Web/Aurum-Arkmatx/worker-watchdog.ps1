@@ -4,6 +4,7 @@ $ConfigPath=Join-Path $Root 'node.json'
 $WorkerPath=Join-Path $Root 'worker.ps1'
 $LogPath=Join-Path $Root 'watchdog.log'
 $DefaultController='https://arkmatx.com/aurum/index.php'
+$LocalLaneTask='BoxBrain Aurum Local Lane'
 
 New-Item -ItemType Directory -Path $Root -Force | Out-Null
 
@@ -21,6 +22,18 @@ function Ensure-Worker {
   if($existing.Count -eq 0){
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$WorkerPath)
     Log 'worker-restarted'
+  }
+}
+
+function Ensure-ExistingLocalLane {
+  # Starting an already-installed scheduled task does not create or broaden local
+  # approval. If the task is absent, leave it absent; installation/reapproval is
+  # handled by the separately bounded repair path.
+  $task=Get-ScheduledTask -TaskName $LocalLaneTask -ErrorAction SilentlyContinue
+  if($null -eq $task){return}
+  if($task.State -ne 'Running'){
+    Start-ScheduledTask -TaskName $LocalLaneTask
+    Log "local-lane-restarted state=$($task.State)"
   }
 }
 
@@ -46,6 +59,7 @@ function Send-Heartbeat {
 
 while($true){
   try{Ensure-Worker}catch{Log "worker-check-error $($_.Exception.Message)"}
+  try{Ensure-ExistingLocalLane}catch{Log "local-lane-check-error $($_.Exception.Message)"}
   try{Send-Heartbeat}catch{Log "heartbeat-error $($_.Exception.Message)"}
   Start-Sleep -Seconds 60
 }
