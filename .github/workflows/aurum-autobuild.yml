@@ -38,6 +38,9 @@ jobs:
 
       - name: Run bounded Aurum cycle
         shell: bash
+        env:
+          AURUM_CONTROLLER_PRIMARY: ${{ vars.AURUM_CONTROLLER_PRIMARY }}
+          AURUM_CONTROLLER_FALLBACKS: ${{ vars.AURUM_CONTROLLER_FALLBACKS }}
         run: |
           set -euo pipefail
           python3 Projects/Codelation/autobuild_cycle.py
