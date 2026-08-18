@@ -35,6 +35,13 @@ jobs:
           Set-StrictMode -Version Latest
 
           $root = $env:GITHUB_WORKSPACE
+          # SYSTEM owns the elevated process, while the checkout can remain owned
+          # by the interactive account. Scope Git trust to this process/workspace.
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+          Set-Location -LiteralPath $root
+
           $jobsDir = Join-Path $root 'Projects/AurumBridge/reasoning-jobs'
           $resultsDir = Join-Path $root 'Projects/AurumBridge/reasoning-results'
           $executor = Join-Path $root 'Projects/AurumBridge/AurumLocalReasoner.ps1'
