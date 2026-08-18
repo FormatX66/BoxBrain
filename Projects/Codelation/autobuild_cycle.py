@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -13,7 +14,8 @@ ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / 'autobuild'
 STATE = STATE_DIR / 'state.json'
 EVENTS = STATE_DIR / 'events.jsonl'
-CONTROLLER = 'https://arkmatx.com/aurum/index.php'
+DEFAULT_CONTROLLER = 'https://arkmatx.com/aurum/index.php'
+CONTROLLER = os.environ.get('AURUM_CONTROLLER_PRIMARY') or DEFAULT_CONTROLLER
 ERROR_BODY_LIMIT = 4096
 LIMIT_HEADERS = (
     'Retry-After',
@@ -61,6 +63,14 @@ DEFAULT = {
 }
 
 
+def _controller_urls():
+    raw = os.environ.get('AURUM_CONTROLLER_FALLBACKS') or ''
+    extras = []
+    for line in raw.splitlines():
+        extras.extend(part.strip() for part in line.split(',') if part.strip())
+    return tuple(dict.fromkeys([CONTROLLER] + extras))
+
+
 def load_state():
     if not STATE.exists():
         return json.loads(json.dumps(DEFAULT))
@@ -92,19 +102,21 @@ def event(kind, payload):
         )
 
 
-def controller_status():
+def controller_status(endpoint=None):
+    endpoint = endpoint or CONTROLLER
     request = urllib.request.Request(
-        CONTROLLER,
-        headers={'Cache-Control': 'no-cache', 'User-Agent': 'Aurum-Autobuild/2'},
+        endpoint,
+        headers={'Cache-Control': 'no-cache', 'User-Agent': 'Aurum-Autobuild/3'},
     )
     with urllib.request.urlopen(request, timeout=10) as response:
         return json.load(response)
 
 
-def controller_emit(cycle, next_intent, targets):
+def controller_emit(cycle, next_intent, targets, endpoint=None, frame_id=None):
+    endpoint = endpoint or CONTROLLER
     frame = {
         'schema': 'aurum.uaf.v0',
-        'frame_id': uuid.uuid4().hex,
+        'frame_id': frame_id or uuid.uuid4().hex,
         'origin': 'Aurum-GitHub-Autobuild',
         'target': 'Aurum-Arkmatx',
         'intent': 'build_checkpoint',
@@ -122,10 +134,10 @@ def controller_emit(cycle, next_intent, targets):
     }
     body = json.dumps(frame, separators=(',', ':')).encode()
     request = urllib.request.Request(
-        CONTROLLER,
+        endpoint,
         data=body,
         method='POST',
-        headers={'Content-Type': 'application/json', 'User-Agent': 'Aurum-Autobuild/2'},
+        headers={'Content-Type': 'application/json', 'User-Agent': 'Aurum-Autobuild/3'},
     )
     with urllib.request.urlopen(request, timeout=10) as response:
         return json.load(response)
@@ -178,11 +190,13 @@ def _failure_action(classification):
         'billing-or-quota-limit',
         'usage-or-quota-limit',
     }:
-        return 'continue-independent-lanes-preserve-state-respect-retry-after'
+        return 'try-alternate-carrier-then-continue-independent-lanes-preserve-state-respect-retry-after'
     if classification == 'controller-or-hosting-failure':
-        return 'continue-independent-lanes-preserve-state-backoff-and-reprobe'
+        return 'try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff'
     if classification == 'authorization-or-policy':
-        return 'continue-independent-lanes-preserve-state-use-alternate-carrier'
+        return 'try-alternate-authorized-carrier-then-continue-independent-lanes-preserve-state'
+    if classification == 'transport-or-dns-failure':
+        return 'try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff'
     return 'continue-safe-independent-lanes-preserve-state'
 
 
@@ -202,12 +216,13 @@ def describe_exception(exc, observed_at):
             'time': observed_at,
         }
     if isinstance(exc, urllib.error.URLError):
+        classification = 'transport-or-dns-failure'
         return {
             'ok': False,
             'error': type(exc).__name__,
             'reason': str(exc.reason),
-            'classification': 'transport-or-dns-failure',
-            'action': 'continue-independent-lanes-preserve-state-backoff-and-reprobe',
+            'classification': classification,
+            'action': _failure_action(classification),
             'time': observed_at,
         }
     return {
@@ -218,6 +233,51 @@ def describe_exception(exc, observed_at):
         'action': 'continue-safe-independent-lanes-preserve-state',
         'time': observed_at,
     }
+
+
+def probe_controller():
+    failures = []
+    for endpoint in _controller_urls():
+        try:
+            return controller_status(endpoint), endpoint, failures
+        except Exception as exc:
+            failure = describe_exception(exc, int(time.time()))
+            failure['endpoint'] = endpoint
+            failures.append(failure)
+    return None, None, failures
+
+
+def _ordered_emit_endpoints(preferred_endpoint=None):
+    urls = list(_controller_urls())
+    if preferred_endpoint and preferred_endpoint in urls:
+        urls.remove(preferred_endpoint)
+        urls.insert(0, preferred_endpoint)
+    elif preferred_endpoint:
+        urls.insert(0, preferred_endpoint)
+    return tuple(dict.fromkeys(urls))
+
+
+def emit_with_failover(cycle, next_intent, targets, preferred_endpoint=None):
+    failures = []
+    frame_id = uuid.uuid4().hex
+    for endpoint in _ordered_emit_endpoints(preferred_endpoint):
+        try:
+            return (
+                controller_emit(
+                    cycle,
+                    next_intent,
+                    targets,
+                    endpoint=endpoint,
+                    frame_id=frame_id,
+                ),
+                endpoint,
+                failures,
+            )
+        except Exception as exc:
+            failure = describe_exception(exc, int(time.time()))
+            failure['endpoint'] = endpoint
+            failures.append(failure)
+    return None, None, failures
 
 
 def choose_next(state):
@@ -254,8 +314,9 @@ def _controller_semantics(status):
 def semantic_projection(state):
     """Return only state that can change the actual capability/frontier.
 
-    Heartbeat timestamps, controller event counters, run counters, diagnostic
-    response bodies, limit headers and observation times are evidence, not progress.
+    Heartbeat timestamps, controller event counters, carrier selection, failed
+    carrier diagnostics, response bodies, limit headers and observation times are
+    evidence, not progress.
     """
     return {
         'controller': _controller_semantics(state.get('last_controller_status')),
@@ -274,9 +335,6 @@ def semantic_fingerprint(state):
 
 
 def _stored_fingerprint(state):
-    # Migration-safe: older states did not persist a fingerprint. Derive one from
-    # the existing semantic fields so deployment of this fix does not itself
-    # manufacture a fake state advance.
     return state.get('semantic_fingerprint') or semantic_fingerprint(state)
 
 
@@ -285,8 +343,8 @@ def main():
     previous_fingerprint = _stored_fingerprint(state)
 
     observed_at = int(time.time())
-    try:
-        controller = controller_status()
+    controller, controller_endpoint, carrier_failures = probe_controller()
+    if controller is not None:
         capabilities = sorted(controller.get('capabilities') or [])
         observed_controller = {
             'ok': True,
@@ -294,16 +352,29 @@ def main():
             'status': controller.get('status'),
             'events': controller.get('events'),
             'capabilities': capabilities,
+            'endpoint': controller_endpoint,
+            'carrier_failures': carrier_failures,
             'time': observed_at,
         }
         if 'node_enroll' in capabilities and 'node_heartbeat' in capabilities:
             state['targets']['BBPI4']['outbound_enrollment_ready'] = True
             state['targets']['Aurum-Morris']['outbound_enrollment_ready'] = True
-    except Exception as exc:
-        observed_controller = describe_exception(exc, observed_at)
+    else:
+        if carrier_failures:
+            observed_controller = dict(carrier_failures[-1])
+            observed_controller['carrier_failures'] = carrier_failures
+            observed_controller['all_carriers_failed'] = True
+        else:
+            observed_controller = {
+                'ok': False,
+                'error': 'NoControllerCarrier',
+                'classification': 'unavailable-external-prerequisite',
+                'action': 'continue-independent-lanes-preserve-state',
+                'carrier_failures': [],
+                'all_carriers_failed': True,
+                'time': observed_at,
+            }
 
-    # Use the fresh observation to choose the frontier, but do not persist its
-    # volatile counters/timestamp until we know the semantic state changed.
     state['last_controller_status'] = observed_controller
     state['next'] = choose_next(state)
     current_fingerprint = semantic_fingerprint(state)
@@ -312,7 +383,7 @@ def main():
         print(
             json.dumps(
                 {
-                    'schema': 'aurum-autobuild-cycle-result-v2',
+                    'schema': 'aurum-autobuild-cycle-result-v3',
                     'advanced': False,
                     'reason': 'no-new-semantic-state',
                     'next': state['next'],
@@ -328,14 +399,41 @@ def main():
     state['cycle'] = int(state.get('cycle', 0)) + 1
     event('controller-semantic-change', _controller_semantics(observed_controller))
 
-    try:
-        ack = controller_emit(state['cycle'], state['next'], state['targets'])
+    if observed_controller.get('ok'):
+        ack, ack_endpoint, ack_failures = emit_with_failover(
+            state['cycle'],
+            state['next'],
+            state['targets'],
+            preferred_endpoint=controller_endpoint,
+        )
+        if ack is not None:
+            state['last_controller_ack'] = {
+                'ok': ack.get('status') == 'merged',
+                'endpoint': ack_endpoint,
+                'carrier_failures': ack_failures,
+                'time': int(time.time()),
+            }
+        elif ack_failures:
+            state['last_controller_ack'] = dict(ack_failures[-1])
+            state['last_controller_ack']['carrier_failures'] = ack_failures
+            state['last_controller_ack']['all_carriers_failed'] = True
+        else:
+            state['last_controller_ack'] = {
+                'ok': False,
+                'error': 'NoControllerCarrier',
+                'classification': 'unavailable-external-prerequisite',
+                'action': 'checkpoint-local-await-carrier',
+                'time': int(time.time()),
+            }
+    else:
         state['last_controller_ack'] = {
-            'ok': ack.get('status') == 'merged',
+            'ok': False,
+            'error': 'ControllerCarrierUnavailable',
+            'classification': observed_controller.get('classification'),
+            'action': 'checkpoint-local-continue-independent-lanes-await-carrier',
+            'carrier_failures': observed_controller.get('carrier_failures', []),
             'time': int(time.time()),
         }
-    except Exception as exc:
-        state['last_controller_ack'] = describe_exception(exc, int(time.time()))
 
     state['semantic_fingerprint'] = current_fingerprint
     state['updated_at'] = int(time.time())
