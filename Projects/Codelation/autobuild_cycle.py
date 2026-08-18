@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
@@ -13,6 +14,16 @@ STATE_DIR = ROOT / 'autobuild'
 STATE = STATE_DIR / 'state.json'
 EVENTS = STATE_DIR / 'events.jsonl'
 CONTROLLER = 'https://arkmatx.com/aurum/index.php'
+ERROR_BODY_LIMIT = 4096
+LIMIT_HEADERS = (
+    'Retry-After',
+    'RateLimit-Limit',
+    'RateLimit-Remaining',
+    'RateLimit-Reset',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'X-RateLimit-Reset',
+)
 
 DEFAULT = {
     'schema': 1,
@@ -120,6 +131,95 @@ def controller_emit(cycle, next_intent, targets):
         return json.load(response)
 
 
+def _read_http_error_body(exc):
+    try:
+        raw = exc.read(ERROR_BODY_LIMIT)
+    except Exception:
+        return None
+    if not raw:
+        return None
+    if isinstance(raw, bytes):
+        return raw.decode('utf-8', errors='replace')
+    return str(raw)
+
+
+def _limit_headers(exc):
+    headers = getattr(exc, 'headers', None)
+    if not headers:
+        return {}
+    found = {}
+    for name in LIMIT_HEADERS:
+        value = headers.get(name)
+        if value is not None:
+            found[name] = value
+    return found
+
+
+def _classify_http_error(code, body):
+    text = (body or '').lower()
+    if code == 429:
+        return 'rate-or-usage-limit'
+    if code == 402:
+        return 'billing-or-quota-limit'
+    if code == 403 and any(word in text for word in ('quota', 'rate limit', 'usage limit', 'resource limit')):
+        return 'usage-or-quota-limit'
+    if code == 403:
+        return 'authorization-or-policy'
+    if 500 <= code <= 599:
+        return 'controller-or-hosting-failure'
+    if 400 <= code <= 499:
+        return 'request-or-client-failure'
+    return 'http-failure'
+
+
+def _failure_action(classification):
+    if classification in {
+        'rate-or-usage-limit',
+        'billing-or-quota-limit',
+        'usage-or-quota-limit',
+    }:
+        return 'continue-independent-lanes-preserve-state-respect-retry-after'
+    if classification == 'controller-or-hosting-failure':
+        return 'continue-independent-lanes-preserve-state-backoff-and-reprobe'
+    if classification == 'authorization-or-policy':
+        return 'continue-independent-lanes-preserve-state-use-alternate-carrier'
+    return 'continue-safe-independent-lanes-preserve-state'
+
+
+def describe_exception(exc, observed_at):
+    if isinstance(exc, urllib.error.HTTPError):
+        body = _read_http_error_body(exc)
+        classification = _classify_http_error(int(exc.code), body)
+        return {
+            'ok': False,
+            'error': type(exc).__name__,
+            'http_status': int(exc.code),
+            'reason': str(exc.reason) if exc.reason is not None else None,
+            'classification': classification,
+            'action': _failure_action(classification),
+            'limit_headers': _limit_headers(exc),
+            'response_body': body,
+            'time': observed_at,
+        }
+    if isinstance(exc, urllib.error.URLError):
+        return {
+            'ok': False,
+            'error': type(exc).__name__,
+            'reason': str(exc.reason),
+            'classification': 'transport-or-dns-failure',
+            'action': 'continue-independent-lanes-preserve-state-backoff-and-reprobe',
+            'time': observed_at,
+        }
+    return {
+        'ok': False,
+        'error': type(exc).__name__,
+        'reason': str(exc),
+        'classification': 'unexpected-controller-failure',
+        'action': 'continue-safe-independent-lanes-preserve-state',
+        'time': observed_at,
+    }
+
+
 def choose_next(state):
     morris = state['targets']['Aurum-Morris']
     bb = state['targets']['BBPI4']
@@ -139,6 +239,9 @@ def _controller_semantics(status):
         return {
             'ok': False,
             'error': status.get('error'),
+            'http_status': status.get('http_status'),
+            'classification': status.get('classification'),
+            'action': status.get('action'),
         }
     return {
         'ok': True,
@@ -151,8 +254,8 @@ def _controller_semantics(status):
 def semantic_projection(state):
     """Return only state that can change the actual capability/frontier.
 
-    Heartbeat timestamps, controller event counters, run counters and observation
-    times are deliberately excluded. They are evidence, not progress.
+    Heartbeat timestamps, controller event counters, run counters, diagnostic
+    response bodies, limit headers and observation times are evidence, not progress.
     """
     return {
         'controller': _controller_semantics(state.get('last_controller_status')),
@@ -197,11 +300,7 @@ def main():
             state['targets']['BBPI4']['outbound_enrollment_ready'] = True
             state['targets']['Aurum-Morris']['outbound_enrollment_ready'] = True
     except Exception as exc:
-        observed_controller = {
-            'ok': False,
-            'error': type(exc).__name__,
-            'time': observed_at,
-        }
+        observed_controller = describe_exception(exc, observed_at)
 
     # Use the fresh observation to choose the frontier, but do not persist its
     # volatile counters/timestamp until we know the semantic state changed.
@@ -218,7 +317,7 @@ def main():
                     'reason': 'no-new-semantic-state',
                     'next': state['next'],
                     'semantic_fingerprint': current_fingerprint,
-                    'volatile_controller_events': observed_controller.get('events'),
+                    'controller_observation': observed_controller,
                 },
                 indent=2,
                 sort_keys=True,
@@ -236,11 +335,7 @@ def main():
             'time': int(time.time()),
         }
     except Exception as exc:
-        state['last_controller_ack'] = {
-            'ok': False,
-            'error': type(exc).__name__,
-            'time': int(time.time()),
-        }
+        state['last_controller_ack'] = describe_exception(exc, int(time.time()))
 
     state['semantic_fingerprint'] = current_fingerprint
     state['updated_at'] = int(time.time())
@@ -251,6 +346,7 @@ def main():
             'next': state['next'],
             'targets': state['targets'],
             'semantic_fingerprint': current_fingerprint,
+            'controller': _controller_semantics(observed_controller),
         },
     )
     save_state(state)
