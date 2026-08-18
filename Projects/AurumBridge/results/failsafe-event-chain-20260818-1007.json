@@ -1,0 +1,22 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "failsafe-event-chain-20260818-1007",
+    "action":  "bridge_health",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-08-18T14:10:40.0964040Z",
+    "finished_at":  "2026-08-18T14:10:40.4606890Z",
+    "data":  {
+                 "computer_name":  "LAPTOP-EBD8CG8P",
+                 "user":  "LAPTOP-EBD8CG8P\\bruce",
+                 "administrator":  false,
+                 "runner_name":  "LAPTOP-EBD8CG8P",
+                 "runner_os":  "Windows",
+                 "powershell":  "5.1.26100.9022",
+                 "os_caption":  "Microsoft Windows 11 Pro Insider Preview",
+                 "os_version":  "10.0.26220",
+                 "boot_time":  "2026-08-16T20:17:12.5000000Z",
+                 "observed_at":  "2026-08-18T14:10:40.4596903Z"
+             },
+    "error":  null
+}
