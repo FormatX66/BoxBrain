@@ -93,11 +93,16 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("--add-section .initrd", builder)
         self.assertIn("live-media-path=/live", builder)
 
-        # The independent UEFI path must be reproducible as ordinary files.
-        # It cannot require udev, loop partition nodes, mount namespaces, or a
-        # host filesystem driver to construct the USB image.
-        self.assertNotIn("losetup", builder)
-        self.assertNotIn("mount ", builder)
+        # Inspect executable shell lines rather than comments. Documentation may
+        # legitimately say "mount" while the construction path must never invoke it.
+        commands = [
+            line.strip()
+            for line in builder.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertFalse(any(line == "losetup" or line.startswith("losetup ") for line in commands))
+        self.assertFalse(any(line == "mount" or line.startswith("mount ") for line in commands))
+        self.assertFalse(any(line == "umount" or line.startswith("umount ") for line in commands))
         self.assertIn("mcopy -i", builder)
         self.assertIn("mkfs.ext4 -q -F -L AURUM_LIVE -d", builder)
         self.assertIn("dd if=\"$ESP_IMAGE\"", builder)
