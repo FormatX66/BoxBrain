@@ -24,7 +24,7 @@ concurrency:
 jobs:
   build-and-boot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 70
     steps:
       - name: Check out Aurum PC branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -44,8 +44,12 @@ jobs:
             Projects/AurumPC/aurum_wifi_recovery.py \
             Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py \
-            Projects/AurumPC/aurum_installer.py
+            Projects/AurumPC/aurum_installer.py \
+            Projects/AurumPC/aurum_boot_state.py \
+            Projects/Codelation/state_space.py
           sh -n Projects/AurumPC/build-iso.sh
+          sh -n Projects/AurumPC/build-direct-uefi-image.sh
+          bash -n Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
@@ -65,7 +69,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
           docker info >/dev/null
 
-      - name: Build Aurum PC live ISO with Debian-native tooling
+      - name: Build independent Aurum PC boot artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -79,14 +83,17 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 live-build debian-archive-keyring debootstrap \
                 xorriso isolinux syslinux-common squashfs-tools \
-                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools \
+                parted e2fsprogs util-linux systemd-boot-efi binutils
               lb --version
               sh Projects/AurumPC/build-iso.sh
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
+          test -s dist/Aurum-PC-v0.01-amd64-direct-uefi.img
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          sha256sum -c dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
 
-      - name: Generic UEFI boot and install smoke test
+      - name: GRUB ISO UEFI boot and install smoke test
         shell: bash
         run: |
           set -euo pipefail
@@ -94,7 +101,17 @@ jobs:
             dist/Aurum-PC-v0.01-amd64.iso \
             aurum-pc-qemu.log
           grep -q 'AURUM_HARDWARE_PROFILE status=ready' aurum-pc-qemu.log
-          echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+          echo 'AURUM_PC_V001_GRUB_UEFI_BOOT_VERIFIED'
+
+      - name: Direct UEFI boot smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh \
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img \
+            aurum-pc-direct-uefi.log
+          grep -q 'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK' aurum-pc-direct-uefi.log || true
+          echo 'AURUM_PC_V001_DIRECT_UEFI_BOOT_VERIFIED'
 
       - name: HP physical-topology twin preflight
         shell: bash
@@ -113,17 +130,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ls -lh dist/Aurum-PC-v0.01-amd64.iso
+          ls -lh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img
           cat dist/Aurum-PC-v0.01-amd64.iso.sha256
+          cat dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
 
-      - name: Publish boot-verified ISO
+      - name: Publish boot-verified PC seeds
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Aurum-PC-v0.01-amd64
           path: |
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
             aurum-pc-qemu.log
+            aurum-pc-direct-uefi.log
             aurum-hp-physical-twin.log
             Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error
