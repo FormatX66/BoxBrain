@@ -8,7 +8,7 @@ on:
       - '.github/workflows/codelation-windows-regression.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -16,7 +16,10 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Run Codelation suite and print exact failure
+
+      - name: Run Codelation suite without touching runtime state
+        id: tests
+        continue-on-error: true
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -27,9 +30,52 @@ jobs:
             -WorkingDirectory $env:GITHUB_WORKSPACE `
             -NoNewWindow -Wait -PassThru `
             -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          Write-Host '--- Codelation stdout ---'
-          if (Test-Path $stdout) { Get-Content $stdout | ForEach-Object { Write-Host $_ } }
-          Write-Host '--- Codelation stderr ---'
-          if (Test-Path $stderr) { Get-Content $stderr | ForEach-Object { Write-Host $_ } }
-          Write-Host "AURUM_CODELATION_WINDOWS_EXIT=$($p.ExitCode)"
+          $combined = @()
+          if (Test-Path $stdout) { $combined += @(Get-Content $stdout) }
+          if (Test-Path $stderr) { $combined += @(Get-Content $stderr) }
+          $tail = @($combined | Select-Object -Last 120)
+          $tail | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'codelation-tail.log') -Encoding UTF8
+          Write-Host ($tail -join "`n")
+          "exit_code=$($p.ExitCode)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+
+      - name: Publish regression receipt
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tailPath = Join-Path $env:RUNNER_TEMP 'codelation-tail.log'
+          $tail = if (Test-Path $tailPath) { @(Get-Content $tailPath | Select-Object -Last 120) } else { @() }
+          $failLines = @($tail | Where-Object { $_ -match '^(FAIL|ERROR):|^FAILED |^Ran [0-9]+ tests|^PermissionError:|^OSError:|^Traceback ' } | Select-Object -Last 40)
+          $receipt = [ordered]@{
+            schema_version = 1
+            workflow = 'codelation-windows-regression'
+            run_id = '${{ github.run_id }}'
+            tested_commit = '${{ github.sha }}'
+            test_exit_code = [int]'${{ steps.tests.outputs.exit_code }}'
+            test_step_outcome = '${{ steps.tests.outcome }}'
+            failure_summary = $failLines
+            tail = @($tail | Select-Object -Last 80)
+            runtime_mutated = $false
+            recorded_at_utc = [DateTimeOffset]::UtcNow.ToString('o')
+          }
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          New-Item -ItemType Directory -Path '.github\receipts' -Force | Out-Null
+          $path = '.github\receipts\codelation-windows-regression.json'
+          $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $path -Encoding UTF8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add $path
+          if (git diff --cached --quiet) { exit 0 }
+          git commit -m 'Record Windows Codelation regression [skip ci]'
+          for ($i=1; $i -le 4; $i++) {
+            git pull --rebase origin main
+            if ($LASTEXITCODE -eq 0) {
+              git push origin HEAD:main
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+            }
+            Start-Sleep -Seconds $i
+          }
+          throw 'Could not publish Codelation Windows regression receipt.'
