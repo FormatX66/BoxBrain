@@ -5,7 +5,8 @@ RewriteEngine On
 RewriteRule ^status$ index.php [L,QSA]
 RewriteRule ^nodes$ index.php [L,QSA]
 RewriteRule ^events$ index.php [L,QSA]
-RewriteRule ^work/(lease|result|status)$ index.php [L,QSA]
+RewriteRule ^work/status$ work-status.php [L,QSA]
+RewriteRule ^work/(lease|result)$ index.php [L,QSA]
 RewriteRule ^uaf$ index.php [L,QSA]
 
 <FilesMatch "^(?:\.|state)">
