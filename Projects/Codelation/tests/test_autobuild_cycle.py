@@ -1,7 +1,9 @@
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -43,6 +45,16 @@ class AutobuildSemanticConvergenceTests(unittest.TestCase):
             ],
             'events': events or {'merged': 10, 'outbox': 10},
         }
+
+    @staticmethod
+    def http_error(code, body, headers=None):
+        return urllib.error.HTTPError(
+            'https://arkmatx.com/aurum/index.php',
+            code,
+            'synthetic failure',
+            headers or {},
+            io.BytesIO(body.encode('utf-8')),
+        )
 
     def seed_state(self):
         state = json.loads(json.dumps(autobuild.DEFAULT))
@@ -97,6 +109,57 @@ class AutobuildSemanticConvergenceTests(unittest.TestCase):
             autobuild.main()
             self.assertEqual(persisted, self.state.read_bytes())
             self.assertEqual(1, emit.call_count)
+
+    def test_http_429_is_recorded_as_usage_limit_with_retry_metadata(self):
+        exc = self.http_error(
+            429,
+            '{"error":"usage limit reached"}',
+            {'Retry-After': '120', 'X-RateLimit-Remaining': '0'},
+        )
+        observed = autobuild.describe_exception(exc, 123)
+        self.assertEqual(429, observed['http_status'])
+        self.assertEqual('rate-or-usage-limit', observed['classification'])
+        self.assertEqual('120', observed['limit_headers']['Retry-After'])
+        self.assertEqual('0', observed['limit_headers']['X-RateLimit-Remaining'])
+        self.assertIn('usage limit reached', observed['response_body'])
+        self.assertIn('continue-independent-lanes', observed['action'])
+
+    def test_diagnostic_body_and_headers_do_not_manufacture_progress(self):
+        state = self.seed_state()
+        state['last_controller_status'] = {
+            'ok': False,
+            'error': 'HTTPError',
+            'http_status': 429,
+            'classification': 'rate-or-usage-limit',
+            'action': 'continue-independent-lanes-preserve-state-respect-retry-after',
+            'response_body': 'first body',
+            'limit_headers': {'Retry-After': '60'},
+            'time': 100,
+        }
+        first = autobuild.semantic_fingerprint(state)
+        state['last_controller_status']['response_body'] = 'different body'
+        state['last_controller_status']['limit_headers'] = {'Retry-After': '999'}
+        state['last_controller_status']['time'] = 999
+        second = autobuild.semantic_fingerprint(state)
+        self.assertEqual(first, second)
+
+    def test_http_status_class_change_is_semantic(self):
+        state = self.seed_state()
+        state['last_controller_status'] = {
+            'ok': False,
+            'error': 'HTTPError',
+            'http_status': 429,
+            'classification': 'rate-or-usage-limit',
+            'action': 'continue-independent-lanes-preserve-state-respect-retry-after',
+        }
+        limited = autobuild.semantic_fingerprint(state)
+        state['last_controller_status'].update(
+            http_status=503,
+            classification='controller-or-hosting-failure',
+            action='continue-independent-lanes-preserve-state-backoff-and-reprobe',
+        )
+        unavailable = autobuild.semantic_fingerprint(state)
+        self.assertNotEqual(limited, unavailable)
 
 
 if __name__ == '__main__':
