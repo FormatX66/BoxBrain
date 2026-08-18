@@ -1,0 +1,15 @@
+{
+  "schema": "aurum-usage-event-v1",
+  "incident_id": "usage-limit-20260818-1129-et",
+  "source": "chatgpt",
+  "kind": "usage_limit",
+  "observed_at": "2026-08-18T11:29:00-04:00",
+  "summary": "ChatGPT/Codex agentic usage became unavailable on the Windows PC while Aurum was transitioning from successful virtual boot work toward the physical USB test.",
+  "task": "Aurum PC seed, PC Bridge, USB flash, failure analysis, and usage-loop mitigation",
+  "evidence_refs": [
+    "Case 11777398 supplemental incident email sent 2026-08-18",
+    "Aurum PC v0.01 image/direct UEFI workflow evidence",
+    "Aurum PC Bridge and guarded USB flash workflow evidence",
+    "mitigation overhead: Aurum local usage loop required because of recurring usage/orchestration exhaustion"
+  ]
+}
