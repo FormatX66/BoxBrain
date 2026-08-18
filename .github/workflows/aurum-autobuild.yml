@@ -81,6 +81,7 @@ jobs:
           Projects.Codelation.tests.test_aurum_console
           Projects.Codelation.tests.test_aurum_gui
           Projects.Codelation.tests.test_adaptive_shell_gui_deployment
+          Projects.Codelation.tests.test_external_evidence_recovery_contract
           Projects.Codelation.tests.test_aurum_dialogue
           Projects.Codelation.tests.test_aurum_live
           Projects.Codelation.tests.test_local_lane_contract
@@ -268,6 +269,28 @@ jobs:
           done
           echo 'Unable to publish verified Aurum native state.' >&2
           exit 1
+
+      - name: Recover bounded external evidence when deterministic lane is waiting
+        if: >-
+          steps.state.outputs.blocked_reason == 'external-prerequisite-blocked' &&
+          steps.state.outputs.next_gap == 'adaptive_shell_gui_live_trial'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='aurum-external-evidence-recovery.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${AURUM_TRUNK}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EVIDENCE_RECOVERY active=true count=$active action=deduplicated"
+            exit 0
+          fi
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+            -f ref="$AURUM_TRUNK"
+          echo 'AURUM_EVIDENCE_RECOVERY requested=true event=aurum-external-evidence-recover'
 
       - name: Continue deterministic growth when state advanced
         if: >-
