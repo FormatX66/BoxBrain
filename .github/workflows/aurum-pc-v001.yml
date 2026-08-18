@@ -2,6 +2,12 @@ name: Aurum PC v0.01 Image
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/aurum-pc-v001.yml'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/Codelation/**'
   push:
     branches:
       - aurum/pc-v0.01
@@ -86,7 +92,7 @@ jobs:
                 grub-pc-bin grub-efi-amd64-bin dosfstools mtools \
                 parted e2fsprogs util-linux systemd-boot-efi binutils
               lb --version
-              sh Projects/AurumPC/build-iso.sh
+              AURUM_BUILD_DIRECT_UEFI=required sh Projects/AurumPC/build-iso.sh
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
           test -s dist/Aurum-PC-v0.01-amd64-direct-uefi.img
