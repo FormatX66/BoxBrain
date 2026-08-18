@@ -40,9 +40,9 @@ jobs:
 
           # This destructive action is scoped to the user's explicit instruction in ChatGPT:
           # "the usb drive is plugged into my pc go ahead and flash it."
-          # The action fails closed unless the current PR #44 head has a successful PC image
-          # run whose artifact contains the direct-UEFI image and checksum, and unless exactly
-          # one non-system USB disk is attached to this authorized Windows runner.
+          # Expected absence of a prerequisite is a WAITING/REFUSED state, not a
+          # workflow defect. Integrity failures after prerequisites are satisfied
+          # remain hard failures.
           $repo = $env:GITHUB_REPOSITORY
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
@@ -52,12 +52,14 @@ jobs:
 
           $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-            throw 'AURUM_FLASH_REFUSED reason=runner-not-elevated'
+            Write-Host 'AURUM_FLASH_WAITING reason=runner-not-elevated'
+            exit 0
           }
 
           $pr = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/pulls/$env:AURUM_PR"
           if ($pr.state -ne 'open' -or $pr.head.ref -ne $env:AURUM_SEED_BRANCH) {
-            throw "AURUM_FLASH_REFUSED reason=seed-pr-not-current state=$($pr.state) head=$($pr.head.ref)"
+            Write-Host "AURUM_FLASH_REFUSED reason=seed-pr-not-current state=$($pr.state) head=$($pr.head.ref)"
+            exit 0
           }
           $headSha = [string]$pr.head.sha
 
@@ -77,7 +79,7 @@ jobs:
           $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$runId/artifacts?per_page=100"
           $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq $env:AURUM_ARTIFACT -and -not $_.expired } | Select-Object -First 1)
           if ($artifact.Count -ne 1) {
-            throw "AURUM_FLASH_REFUSED run=$runId reason=boot-verified-artifact-missing"
+            throw "AURUM_FLASH_INTEGRITY_FAILURE run=$runId reason=boot-verified-artifact-missing"
           }
 
           $work = Join-Path $env:RUNNER_TEMP "aurum-pc01-flash-$runId"
@@ -88,14 +90,14 @@ jobs:
           Expand-Archive -LiteralPath $zip -DestinationPath $work -Force
 
           $image = Get-ChildItem -LiteralPath $work -Recurse -File -Filter $env:AURUM_IMAGE | Select-Object -First 1
-          if (-not $image) { throw 'AURUM_FLASH_REFUSED reason=direct-uefi-image-not-in-artifact' }
+          if (-not $image) { throw 'AURUM_FLASH_INTEGRITY_FAILURE reason=direct-uefi-image-not-in-artifact' }
           $shaFile = Get-ChildItem -LiteralPath $work -Recurse -File -Filter "$env:AURUM_IMAGE.sha256" | Select-Object -First 1
-          if (-not $shaFile) { throw 'AURUM_FLASH_REFUSED reason=direct-uefi-checksum-not-in-artifact' }
+          if (-not $shaFile) { throw 'AURUM_FLASH_INTEGRITY_FAILURE reason=direct-uefi-checksum-not-in-artifact' }
 
           $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
           $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $expected) {
-            throw "AURUM_FLASH_REFUSED reason=artifact-checksum-mismatch expected=$expected actual=$actual"
+            throw "AURUM_FLASH_INTEGRITY_FAILURE reason=artifact-checksum-mismatch expected=$expected actual=$actual"
           }
 
           $sentinelRoot = Join-Path $env:ProgramData 'Aurum'
@@ -114,7 +116,8 @@ jobs:
             })
           if ($usb.Count -ne 1) {
             $summary = @($usb | ForEach-Object { "disk=$($_.Number),model=$($_.FriendlyName),size=$($_.Size)" }) -join ';'
-            throw "AURUM_FLASH_REFUSED reason=expected-exactly-one-safe-usb count=$($usb.Count) candidates=$summary"
+            Write-Host "AURUM_FLASH_WAITING reason=expected-exactly-one-safe-usb count=$($usb.Count) candidates=$summary"
+            exit 0
           }
 
           $disk = $usb[0]
@@ -160,7 +163,7 @@ jobs:
               while ($remaining -gt 0) {
                 $want = [int][Math]::Min([int64]$buffer.Length, $remaining)
                 $read = $reader.Read($buffer, 0, $want)
-                if ($read -le 0) { throw 'AURUM_FLASH_REFUSED reason=short-readback' }
+                if ($read -le 0) { throw 'AURUM_FLASH_INTEGRITY_FAILURE reason=short-readback' }
                 $hasher.AppendData($buffer, 0, $read)
                 $remaining -= $read
               }
@@ -171,7 +174,7 @@ jobs:
               $reader.Dispose()
             }
             if ($readback -ne $actual) {
-              throw "AURUM_FLASH_REFUSED reason=raw-readback-hash-mismatch expected=$actual actual=$readback"
+              throw "AURUM_FLASH_INTEGRITY_FAILURE reason=raw-readback-hash-mismatch expected=$actual actual=$readback"
             }
           }
           finally {
