@@ -61,6 +61,50 @@ A retry is justified only when at least one of these changed:
 
 If nothing changed, replaying the same action is not progress.
 
+## Autonomous failure diagnosis and workaround rule
+
+Failures must be inspected before they are escalated. Do not collapse actionable
+transport/provider evidence into a generic exception name when exact evidence is
+available.
+
+For HTTP/API/provider failures, preserve the useful diagnostic surface when safe:
+
+- exact status/error code,
+- failure class,
+- bounded response body or provider error payload,
+- retry/rate/quota metadata such as `Retry-After` and remaining/reset limits,
+- endpoint/provider/carrier involved,
+- whether the failure affects the requested frontier or only one independent lane.
+
+Classify at least these distinct cases when evidence supports them:
+
+- rate/usage/quota limit,
+- billing/resource limit,
+- authorization/policy failure,
+- transport/DNS/connectivity failure,
+- controller/server/hosting failure,
+- invalid request/client failure,
+- unavailable external prerequisite.
+
+Before asking the user, automatically attempt the cheapest bounded safe workaround
+that can still satisfy the requested state, including when applicable:
+
+1. continue independent lanes that do not depend on the failed resource,
+2. use cached/verified state instead of repeating the same request,
+3. use an already-authorized alternate carrier/route/provider,
+4. fall back to deterministic local/open processing where capability is equivalent,
+5. respect explicit `Retry-After`/reset evidence or use bounded backoff for transient failures,
+6. preserve the checkpoint and resume from the same semantic state when the dependency changes.
+
+Do not blind-retry a stable failure, burn metered usage to discover facts already
+present in error telemetry, or ask the user to perform deterministic diagnosis the
+system can perform itself.
+
+Diagnostic response bodies, timestamps, retry counters, and changing rate-limit
+headers are evidence, not semantic progress by themselves. They should not create
+a retry/build loop unless the failure class, dependency availability, capability,
+frontier, authority, or another state-changing fact changed.
+
 ## Resource/usage rule
 
 Treat model/API usage, CI minutes, network transfers, hardware writes, and human
@@ -110,6 +154,11 @@ Ask the user only when a genuinely unresolved human decision, credential,
 permission, destructive authorization, subjective preference, or unavailable
 external fact is required. Do not ask the user to solve a deterministic failure
 that the system can inspect and fix itself.
+
+Before escalation, the system must have already performed available bounded safe
+diagnosis and exhausted authorized non-destructive alternatives that can satisfy
+the same state delta. The escalation should report the evidence and the exact
+human-only decision or input required, not merely report that an automation failed.
 
 ## Continuous review
 
