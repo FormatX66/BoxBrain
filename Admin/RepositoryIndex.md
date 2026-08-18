@@ -1,18 +1,21 @@
 # Repository Index
 
-This is the canonical registry of repositories known to BoxBrain.
+This is the canonical registry of repositories currently visible to BoxBrain through the authorized FormatX66 GitHub connection.
 
-| Project | Repository | State | Revision | Remote |
-| --- | --- | --- | --- | --- |
-| BoxBrain | This repository | Organization review | `codex/repository-organization` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
-| BrainConnect | [Canonical repository](https://github.com/FormatX66/BrainConnect) | Active alpha | `a431665` on `main` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
-| WebsiteBuilder | No repository discovered | Discovery | — | — |
-| Arkmatx | No repository discovered | Discovery | — | — |
-| AgentFramework | No repository discovered | Proposed | — | — |
-| WebsiteCluster | No repository discovered | Proposed | — | — |
-| Automation | No repository discovered | Proposed | — | — |
-| Security | No repository discovered | Proposed | — | — |
-| Research | No repository discovered | Proposed | — | — |
+| Repository / scope | State | Default branch | Remote |
+| --- | --- | --- | --- |
+| BoxBrain — BoxBrain, Aurum, Codelation, AurumBridge and coordination | Active | `main` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
+| BrainConnect | Active | `main` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
+| ClusterSites — canonical family website cluster | Active | `main` | [FormatX66/ClusterSites](https://github.com/FormatX66/ClusterSites) |
+| wetbeard-site — public website/deployment work | Active | `main` | [FormatX66/wetbeard-site](https://github.com/FormatX66/wetbeard-site) |
+| arkmatx-deploy — Arkmatx deployment/controller surface | Active | `main` | [FormatX66/arkmatx-deploy](https://github.com/FormatX66/arkmatx-deploy) |
+| HeX-Control | Scaffold / near-empty | `main` | [FormatX66/HeX-Control](https://github.com/FormatX66/HeX-Control) |
+| hex | Legacy empty repository | `master` | `FormatX66/hex` (private) |
+| desktop-tutorial | Legacy empty repository | `master` | `FormatX66/desktop-tutorial` (private) |
+
+## BoxBrain-contained project scopes
+
+These are projects/subsystems in the BoxBrain repository rather than separate repositories: [Aurum](../Projects/Aurum/ProjectIndex.md), [AurumBridge](../Projects/AurumBridge/ProjectIndex.md), [Codelation](../Projects/Codelation/ProjectIndex.md), [WebsiteBuilder](../Projects/WebsiteBuilder/ProjectIndex.md), [Arkmatx](../Projects/Arkmatx/ProjectIndex.md), [AgentFramework](../Projects/AgentFramework/ProjectIndex.md), [WebsiteCluster](../Projects/WebsiteCluster/ProjectIndex.md), [Automation](../Projects/Automation/ProjectIndex.md), [Security](../Projects/Security/ProjectIndex.md), and [Research](../Projects/Research/ProjectIndex.md).
 
 ## Local web surfaces
 
@@ -27,5 +30,4 @@ This is the canonical registry of repositories known to BoxBrain.
 - [Session index](SessionIndex.md)
 - [Project index](../Projects/README.md)
 
-Do not add a repository twice. Update this registry only after confirming its
-local path or remote URL.
+Repository discovery is evidence, not project identity: one project may span multiple repositories and one repository may host several bounded project scopes. Do not create duplicate registry rows for the same repository.
