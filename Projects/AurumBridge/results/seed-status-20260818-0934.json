@@ -1,0 +1,27 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "seed-status-20260818-0934",
+    "action":  "seed_status",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-08-18T13:34:18.1385799Z",
+    "finished_at":  "2026-08-18T13:34:21.2349674Z",
+    "data":  {
+                 "flash_sentinels":  [
+
+                                     ],
+                 "usb_disks":  [
+                                   {
+                                       "number":  2,
+                                       "friendly_name":  "SanDisk Cruzer Fit",
+                                       "serial":  "4C530001061117108440",
+                                       "size_bytes":  15664676864,
+                                       "is_boot":  false,
+                                       "is_system":  false,
+                                       "is_offline":  false
+                                   }
+                               ],
+                 "sentinel_root_exists":  true
+             },
+    "error":  null
+}
