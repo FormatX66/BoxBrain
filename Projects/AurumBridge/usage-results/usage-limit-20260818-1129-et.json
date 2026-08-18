@@ -1,0 +1,54 @@
+﻿{
+    "deduplicated":  false,
+    "incident":  {
+                     "schema":  "aurum-usage-incident-v1",
+                     "incident_id":  "usage-limit-20260818-1129-et",
+                     "source":  "chatgpt",
+                     "kind":  "usage_limit",
+                     "observed_at":  "2026-08-18T11:29:00.0000000-04:00",
+                     "recorded_at":  "2026-08-18T12:41:52.3085764-04:00",
+                     "host":  "LAPTOP-EBD8CG8P",
+                     "task":  "Aurum PC seed, PC Bridge, USB flash, failure analysis, and usage-loop mitigation",
+                     "summary":  "ChatGPT/Codex agentic usage became unavailable on the Windows PC while Aurum was transitioning from successful virtual boot work toward the physical USB test.",
+                     "evidence_refs":  [
+                                           "Case 11777398 supplemental incident email sent 2026-08-18",
+                                           "Aurum PC v0.01 image/direct UEFI workflow evidence",
+                                           "Aurum PC Bridge and guarded USB flash workflow evidence",
+                                           "mitigation overhead: Aurum local usage loop required because of recurring usage/orchestration exhaustion"
+                                       ],
+                     "authoritative_usage_quantity":  null,
+                     "authoritative_usage_quantity_source":  "OpenAI server telemetry required",
+                     "mitigation_overhead":  {
+                                                 "usage_loop_build_required":  true,
+                                                 "note":  "Building and operating this loop is compensatory work caused by recurring usage/orchestration failures and should be tracked separately from productive Aurum work."
+                                             },
+                     "continuation":  {
+                                          "model_dependent_work":  "pause-or-defer",
+                                          "deterministic_local_work":  "continue",
+                                          "preserve_checkpoint":  true,
+                                          "destructive_actions":  "remain-separately-authorized"
+                                      },
+                     "support_report":  {
+                                            "pending":  true,
+                                            "append_to_existing_case":  true,
+                                            "do_not_invent_usage_totals":  true,
+                                            "requested_review":  [
+                                                                     "authoritative usage consumed around the incident",
+                                                                     "duplicate or redundant orchestration",
+                                                                     "recovery loops after a known failure",
+                                                                     "corrective reruns",
+                                                                     "mitigation usage spent building the usage loop itself"
+                                                                 ]
+                                        }
+                 },
+    "state":  {
+                  "schema":  "aurum-usage-loop-state-v1",
+                  "model_access":  "limited",
+                  "local_only_continuation":  true,
+                  "report_pending":  true,
+                  "latest_incident_id":  "usage-limit-20260818-1129-et",
+                  "latest_incident_at":  "2026-08-18T11:29:00.0000000-04:00",
+                  "last_scan_at":  null,
+                  "state_root":  "C:\\ProgramData\\Aurum\\UsageLoop-v2"
+              }
+}
