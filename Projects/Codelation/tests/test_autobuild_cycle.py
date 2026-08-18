@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import os
 import tempfile
 import unittest
 import urllib.error
@@ -76,6 +77,50 @@ class AutobuildSemanticConvergenceTests(unittest.TestCase):
         self.state.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
         return state
 
+    def test_controller_urls_add_configured_fallbacks_without_duplicates(self):
+        with mock.patch.dict(
+            os.environ,
+            {'AURUM_CONTROLLER_FALLBACKS': 'https://temp.example/aurum/index.php, https://temp.example/aurum/index.php\nhttps://other.example/uaf'},
+            clear=False,
+        ):
+            urls = autobuild._controller_urls()
+        self.assertEqual(autobuild.CONTROLLER, urls[0])
+        self.assertEqual(3, len(urls))
+
+    def test_probe_uses_fallback_after_primary_500(self):
+        primary = autobuild.CONTROLLER
+        fallback = 'https://temp.example/aurum/index.php'
+        with mock.patch.object(autobuild, '_controller_urls', return_value=(primary, fallback)), mock.patch.object(
+            autobuild,
+            'controller_status',
+            side_effect=[self.http_error(500, 'primary down'), self.controller()],
+        ):
+            controller, endpoint, failures = autobuild.probe_controller()
+        self.assertEqual('Aurum-Arkmatx', controller['node'])
+        self.assertEqual(fallback, endpoint)
+        self.assertEqual(1, len(failures))
+        self.assertEqual(500, failures[0]['http_status'])
+        self.assertEqual(primary, failures[0]['endpoint'])
+
+    def test_emit_prefers_working_status_carrier(self):
+        primary = autobuild.CONTROLLER
+        fallback = 'https://temp.example/aurum/index.php'
+        with mock.patch.object(autobuild, '_controller_urls', return_value=(primary, fallback)), mock.patch.object(
+            autobuild,
+            'controller_emit',
+            return_value={'status': 'merged'},
+        ) as emit:
+            ack, endpoint, failures = autobuild.emit_with_failover(
+                8,
+                'next',
+                {},
+                preferred_endpoint=fallback,
+            )
+        self.assertEqual('merged', ack['status'])
+        self.assertEqual(fallback, endpoint)
+        self.assertEqual([], failures)
+        self.assertEqual(fallback, emit.call_args.kwargs['endpoint'])
+
     def test_heartbeat_counters_and_time_do_not_create_progress(self):
         original = self.seed_state()
         before = self.state.read_bytes()
@@ -122,23 +167,27 @@ class AutobuildSemanticConvergenceTests(unittest.TestCase):
         self.assertEqual('120', observed['limit_headers']['Retry-After'])
         self.assertEqual('0', observed['limit_headers']['X-RateLimit-Remaining'])
         self.assertIn('usage limit reached', observed['response_body'])
-        self.assertIn('continue-independent-lanes', observed['action'])
+        self.assertIn('alternate-carrier', observed['action'])
 
-    def test_diagnostic_body_and_headers_do_not_manufacture_progress(self):
+    def test_diagnostic_body_headers_and_carrier_do_not_manufacture_progress(self):
         state = self.seed_state()
         state['last_controller_status'] = {
             'ok': False,
             'error': 'HTTPError',
             'http_status': 429,
             'classification': 'rate-or-usage-limit',
-            'action': 'continue-independent-lanes-preserve-state-respect-retry-after',
+            'action': 'try-alternate-carrier-then-continue-independent-lanes-preserve-state-respect-retry-after',
             'response_body': 'first body',
             'limit_headers': {'Retry-After': '60'},
+            'endpoint': 'https://primary.example',
+            'carrier_failures': [{'endpoint': 'https://other.example'}],
             'time': 100,
         }
         first = autobuild.semantic_fingerprint(state)
         state['last_controller_status']['response_body'] = 'different body'
         state['last_controller_status']['limit_headers'] = {'Retry-After': '999'}
+        state['last_controller_status']['endpoint'] = 'https://fallback.example'
+        state['last_controller_status']['carrier_failures'] = []
         state['last_controller_status']['time'] = 999
         second = autobuild.semantic_fingerprint(state)
         self.assertEqual(first, second)
@@ -150,13 +199,13 @@ class AutobuildSemanticConvergenceTests(unittest.TestCase):
             'error': 'HTTPError',
             'http_status': 429,
             'classification': 'rate-or-usage-limit',
-            'action': 'continue-independent-lanes-preserve-state-respect-retry-after',
+            'action': 'try-alternate-carrier-then-continue-independent-lanes-preserve-state-respect-retry-after',
         }
         limited = autobuild.semantic_fingerprint(state)
         state['last_controller_status'].update(
             http_status=503,
             classification='controller-or-hosting-failure',
-            action='continue-independent-lanes-preserve-state-backoff-and-reprobe',
+            action='try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff',
         )
         unavailable = autobuild.semantic_fingerprint(state)
         self.assertNotEqual(limited, unavailable)
