@@ -7,6 +7,7 @@ BUILD_ROOT="$SCRIPT_DIR/.build"
 DIST="$REPO_ROOT/dist"
 IMAGE_NAME="Aurum-PC-v0.01-amd64.iso"
 DIRECT_UEFI_NAME="Aurum-PC-v0.01-amd64-direct-uefi.img"
+DIRECT_UEFI_MODE=${AURUM_BUILD_DIRECT_UEFI:-auto}
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "build-iso.sh must run as root (live-build uses chroot/mount operations)." >&2
@@ -20,6 +21,10 @@ if [ ! -d "$REPO_ROOT/Projects/Codelation" ]; then
   echo "Projects/Codelation is missing." >&2
   exit 2
 fi
+case "$DIRECT_UEFI_MODE" in
+  auto|required|off) ;;
+  *) echo "AURUM_BUILD_DIRECT_UEFI must be auto, required, or off" >&2; exit 2 ;;
+esac
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
@@ -233,17 +238,34 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
 
-# Build an independent UEFI path from the same verified live filesystem. The
-# direct seed is a normal GPT USB disk: firmware executes BOOTX64.EFI (a UKI
-# containing the kernel and initrd), then live-boot discovers the /live payload
-# on the second partition. It does not depend on GRUB being able to rediscover
-# an ISO-hybrid filesystem after the firmware has already launched GRUB.
-sh "$SCRIPT_DIR/build-direct-uefi-image.sh" \
-  "$BUILD_ROOT/binary" \
-  "$DIST/$DIRECT_UEFI_NAME"
+# Build an independent UEFI path from the same verified live filesystem when
+# the builder has that capability. CI that publishes PC seeds sets mode=required;
+# older/general virtual lanes may stay mode=auto and still verify the ISO path.
+DIRECT_AVAILABLE=true
+for tool in parted losetup mkfs.vfat mkfs.ext4 mount umount objcopy truncate sha256sum; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    DIRECT_AVAILABLE=false
+  fi
+done
+if [ ! -s /usr/lib/systemd/boot/efi/linuxx64.efi.stub ]; then
+  DIRECT_AVAILABLE=false
+fi
 
-ls -lh \
-  "$DIST/$IMAGE_NAME" \
-  "$DIST/$IMAGE_NAME.sha256" \
-  "$DIST/$DIRECT_UEFI_NAME" \
-  "$DIST/$DIRECT_UEFI_NAME.sha256"
+if [ "$DIRECT_UEFI_MODE" = off ]; then
+  echo 'AURUM_DIRECT_UEFI_BUILD status=disabled'
+elif [ "$DIRECT_AVAILABLE" = true ]; then
+  sh "$SCRIPT_DIR/build-direct-uefi-image.sh" \
+    "$BUILD_ROOT/binary" \
+    "$DIST/$DIRECT_UEFI_NAME"
+  echo 'AURUM_DIRECT_UEFI_BUILD status=built'
+elif [ "$DIRECT_UEFI_MODE" = required ]; then
+  echo 'AURUM_DIRECT_UEFI_BUILD status=failed reason=builder-capability-missing' >&2
+  exit 1
+else
+  echo 'AURUM_DIRECT_UEFI_BUILD status=skipped reason=builder-capability-missing mode=auto'
+fi
+
+ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
+if [ -s "$DIST/$DIRECT_UEFI_NAME" ]; then
+  ls -lh "$DIST/$DIRECT_UEFI_NAME" "$DIST/$DIRECT_UEFI_NAME.sha256"
+fi
