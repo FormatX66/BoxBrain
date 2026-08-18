@@ -1,0 +1,43 @@
+﻿{
+    "schema":  "aurum-local-reason-result-v1",
+    "job_id":  "usage-bottleneck-local-20260818-1203",
+    "status":  "unavailable",
+    "answer":  null,
+    "provenance":  {
+                       "processor_identity":  "AurumLocalReasoner",
+                       "host":  "LAPTOP-EBD8CG8P",
+                       "processor_location":  "physical-windows-pc",
+                       "provider":  "local",
+                       "runtime":  null,
+                       "model":  null,
+                       "external_provider_usage_consumed":  false,
+                       "external_provider_usage_units":  0,
+                       "prompt_tokens":  null,
+                       "completion_tokens":  null,
+                       "total_tokens":  null,
+                       "input_chars":  1515,
+                       "output_chars":  0,
+                       "elapsed_ms":  4655,
+                       "observed_at":  "2026-08-18T16:26:56.3606865Z"
+                   },
+    "runtime_inventory":  [
+                              {
+                                  "runtime":  "ollama",
+                                  "available":  false,
+                                  "models":  [
+
+                                             ]
+                              },
+                              {
+                                  "runtime":  "lm-studio",
+                                  "available":  false,
+                                  "models":  [
+
+                                             ]
+                              }
+                          ],
+    "error":  {
+                  "type":  "local_reasoning_runtime_unavailable",
+                  "message":  "No local Ollama or LM Studio model endpoint is currently available on loopback."
+              }
+}
