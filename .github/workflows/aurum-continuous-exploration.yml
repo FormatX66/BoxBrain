@@ -2,12 +2,18 @@ name: Aurum Continuous Exploration
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/15 * * * *'
   push:
-    branches: [main]
+    branches:
+      - main
+      - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-continuous-exploration.yml'
+      - '.github/workflows/aurum-virtual-lab.yml'
+      - '.github/workflows/aurum-autobuild.yml'
+      - 'Projects/Codelation/**'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/AurumPi3/**'
 
 permissions:
   contents: write
@@ -140,13 +146,13 @@ jobs:
           PY
 
   virtual-stress-watchdog:
-    name: Re-dispatch virtual hardware stress lane
+    name: Re-dispatch virtual hardware stress lane after changed frontier
     runs-on: ubuntu-24.04
     needs: exploration-lane
     if: always()
     timeout-minutes: 5
     steps:
-      - name: Keep virtual hardware retesting when idle
+      - name: Keep virtual hardware retesting when changed and idle
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
