@@ -1,0 +1,199 @@
+name: Aurum PC-01 Authorized USB Flash
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pc01-flash-authorized.yml'
+  workflow_run:
+    workflows: ['Aurum PC v0.01 Image']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: aurum-pc01-authorized-usb-flash
+  cancel-in-progress: false
+
+env:
+  AURUM_FLASH_AUTHORIZATION: 'bruce-explicit-2026-08-18T07:42-04:00'
+  AURUM_PR: '44'
+  AURUM_SEED_BRANCH: 'agent/aurum-direct-uefi-seed'
+  AURUM_ARTIFACT: 'Aurum-PC-v0.01-amd64'
+  AURUM_IMAGE: 'Aurum-PC-v0.01-amd64-direct-uefi.img'
+
+jobs:
+  flash:
+    name: Flash explicitly authorized PC-01 USB seed
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 25
+    steps:
+      - name: Wait for a genuinely boot-verified current seed and flash exactly one safe USB disk
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          # This destructive action is scoped to the user's explicit instruction in ChatGPT:
+          # "the usb drive is plugged into my pc go ahead and flash it."
+          # The action fails closed unless the current PR #44 head has a successful PC image
+          # run whose artifact contains the direct-UEFI image and checksum, and unless exactly
+          # one non-system USB disk is attached to this authorized Windows runner.
+          $repo = $env:GITHUB_REPOSITORY
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw 'AURUM_FLASH_REFUSED reason=runner-not-elevated'
+          }
+
+          $pr = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/pulls/$env:AURUM_PR"
+          if ($pr.state -ne 'open' -or $pr.head.ref -ne $env:AURUM_SEED_BRANCH) {
+            throw "AURUM_FLASH_REFUSED reason=seed-pr-not-current state=$($pr.state) head=$($pr.head.ref)"
+          }
+          $headSha = [string]$pr.head.sha
+
+          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-pc-v001.yml/runs?branch=$env:AURUM_SEED_BRANCH&status=success&per_page=50"
+          $run = @($runs.workflow_runs | Where-Object {
+              $_.conclusion -eq 'success' -and
+              $_.pull_requests.Count -gt 0 -and
+              $_.pull_requests[0].number -eq [int]$env:AURUM_PR -and
+              $_.pull_requests[0].head.sha -eq $headSha
+            } | Sort-Object id -Descending | Select-Object -First 1)
+          if ($run.Count -ne 1) {
+            Write-Host "AURUM_FLASH_WAITING head=$headSha reason=no-successful-current-pc-seed"
+            exit 0
+          }
+          $runId = [long]$run[0].id
+
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$runId/artifacts?per_page=100"
+          $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq $env:AURUM_ARTIFACT -and -not $_.expired } | Select-Object -First 1)
+          if ($artifact.Count -ne 1) {
+            throw "AURUM_FLASH_REFUSED run=$runId reason=boot-verified-artifact-missing"
+          }
+
+          $work = Join-Path $env:RUNNER_TEMP "aurum-pc01-flash-$runId"
+          if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          $zip = Join-Path $work 'seed.zip'
+          Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$($artifact[0].id)/zip" -OutFile $zip
+          Expand-Archive -LiteralPath $zip -DestinationPath $work -Force
+
+          $image = Get-ChildItem -LiteralPath $work -Recurse -File -Filter $env:AURUM_IMAGE | Select-Object -First 1
+          if (-not $image) { throw 'AURUM_FLASH_REFUSED reason=direct-uefi-image-not-in-artifact' }
+          $shaFile = Get-ChildItem -LiteralPath $work -Recurse -File -Filter "$env:AURUM_IMAGE.sha256" | Select-Object -First 1
+          if (-not $shaFile) { throw 'AURUM_FLASH_REFUSED reason=direct-uefi-checksum-not-in-artifact' }
+
+          $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) {
+            throw "AURUM_FLASH_REFUSED reason=artifact-checksum-mismatch expected=$expected actual=$actual"
+          }
+
+          $sentinelRoot = Join-Path $env:ProgramData 'Aurum'
+          New-Item -ItemType Directory -Path $sentinelRoot -Force | Out-Null
+          $sentinel = Join-Path $sentinelRoot "pc01-flash-$headSha-$actual.done"
+          if (Test-Path -LiteralPath $sentinel) {
+            Write-Host "AURUM_FLASH_ALREADY_COMPLETE head=$headSha image_sha256=$actual"
+            exit 0
+          }
+
+          $usb = @(Get-Disk | Where-Object {
+              $_.BusType -eq 'USB' -and
+              -not $_.IsBoot -and
+              -not $_.IsSystem -and
+              $_.Size -gt $image.Length
+            })
+          if ($usb.Count -ne 1) {
+            $summary = @($usb | ForEach-Object { "disk=$($_.Number),model=$($_.FriendlyName),size=$($_.Size)" }) -join ';'
+            throw "AURUM_FLASH_REFUSED reason=expected-exactly-one-safe-usb count=$($usb.Count) candidates=$summary"
+          }
+
+          $disk = $usb[0]
+          $diskNumber = [int]$disk.Number
+          $physicalPath = "\\.\PhysicalDrive$diskNumber"
+          Write-Host "AURUM_FLASH_TARGET runner=$env:COMPUTERNAME disk=$diskNumber model=$($disk.FriendlyName) serial=$($disk.SerialNumber) size=$($disk.Size) image_bytes=$($image.Length) run=$runId head=$headSha"
+
+          $wasOffline = [bool]$disk.IsOffline
+          try {
+            if (-not $wasOffline) {
+              Set-Disk -Number $diskNumber -IsOffline $true -ErrorAction Stop
+            }
+
+            $source = [System.IO.File]::Open($image.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+            try {
+              $target = New-Object System.IO.FileStream($physicalPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite, 4194304, [System.IO.FileOptions]::WriteThrough)
+              try {
+                $buffer = New-Object byte[] 4194304
+                $written = [int64]0
+                while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                  $target.Write($buffer, 0, $read)
+                  $written += $read
+                  if (($written % 268435456) -lt $buffer.Length) {
+                    Write-Host "AURUM_FLASH_PROGRESS bytes=$written total=$($image.Length)"
+                  }
+                }
+                $target.Flush($true)
+              }
+              finally {
+                $target.Dispose()
+              }
+            }
+            finally {
+              $source.Dispose()
+            }
+
+            # Read back exactly the written image length and verify its SHA-256.
+            $reader = New-Object System.IO.FileStream($physicalPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite, 4194304, [System.IO.FileOptions]::SequentialScan)
+            $hasher = [System.Security.Cryptography.IncrementalHash]::CreateHash([System.Security.Cryptography.HashAlgorithmName]::SHA256)
+            try {
+              $buffer = New-Object byte[] 4194304
+              $remaining = [int64]$image.Length
+              while ($remaining -gt 0) {
+                $want = [int][Math]::Min([int64]$buffer.Length, $remaining)
+                $read = $reader.Read($buffer, 0, $want)
+                if ($read -le 0) { throw 'AURUM_FLASH_REFUSED reason=short-readback' }
+                $hasher.AppendData($buffer, 0, $read)
+                $remaining -= $read
+              }
+              $readback = ([BitConverter]::ToString($hasher.GetHashAndReset())).Replace('-', '').ToLowerInvariant()
+            }
+            finally {
+              $hasher.Dispose()
+              $reader.Dispose()
+            }
+            if ($readback -ne $actual) {
+              throw "AURUM_FLASH_REFUSED reason=raw-readback-hash-mismatch expected=$actual actual=$readback"
+            }
+          }
+          finally {
+            if (-not $wasOffline) {
+              Set-Disk -Number $diskNumber -IsOffline $false -ErrorAction SilentlyContinue
+            }
+          }
+
+          @{
+            authorization = $env:AURUM_FLASH_AUTHORIZATION
+            repository = $repo
+            seed_head = $headSha
+            workflow_run = $runId
+            artifact_id = [long]$artifact[0].id
+            image = $env:AURUM_IMAGE
+            image_sha256 = $actual
+            disk_number = $diskNumber
+            disk_model = [string]$disk.FriendlyName
+            disk_serial = [string]$disk.SerialNumber
+            disk_size = [int64]$disk.Size
+            flashed_at = (Get-Date).ToUniversalTime().ToString('o')
+            raw_readback_verified = $true
+          } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $sentinel -Encoding UTF8
+
+          Write-Host "AURUM_PC01_USB_FLASH_OK run=$runId head=$headSha disk=$diskNumber image_sha256=$actual raw_readback_verified=true"
