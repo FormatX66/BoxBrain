@@ -1,0 +1,59 @@
+{
+  "schema": "aurum-machine-substrate-policy-v1",
+  "principle": "capability-before-carrier",
+  "bootstrap_carriers": [
+    "git",
+    "github",
+    "github-actions",
+    "python",
+    "docker",
+    "qemu",
+    "physical-nodes"
+  ],
+  "machine_native_layers": [
+    "content-addressed-object-ledger",
+    "runtime-neutral-capsules",
+    "capability-scheduled-processor-farm",
+    "immutable-execution-evidence",
+    "event-driven-continuation"
+  ],
+  "rules": [
+    "missing-product-is-not-a-fundamental-blocker",
+    "translate-product-dependency-into-required-capability",
+    "reuse-existing-carrier-when-it-satisfies-the-capability",
+    "otherwise-build-the-smallest-machine-native-replacement",
+    "keep-old-carrier-as-fallback-until-independent-convergence",
+    "do-not-claim-physical-capability-from-virtual-evidence",
+    "do-not-require-chat-transcript-as-authoritative-state",
+    "preserve-failed-experiments-as-addressable-evidence",
+    "schedule-by-capability-not-by-host-name",
+    "continue-independent-work-when-one-carrier-is-unavailable"
+  ],
+  "processor_farm": {
+    "current": [
+      "github-hosted-x86_64",
+      "github-hosted-arm64",
+      "bounded-gpt-python"
+    ],
+    "attach_when_authorized_and-fresh": [
+      "windows-self-hosted",
+      "BBPI4",
+      "future-aurum-native-nodes"
+    ],
+    "selection": "least-specialized-compatible-node-first",
+    "fan_in": "immutable-evidence-convergence"
+  },
+  "runtime_direction": {
+    "contract": "capsule",
+    "current_executors": ["python", "native", "container", "qemu"],
+    "future_executors": ["aurum-bytecode", "aurum-vm", "direct-machine-code"],
+    "scheduler_must_not_depend_on_executor_language": true
+  },
+  "state_direction": {
+    "contract": "sha256-content-addressed-object-graph",
+    "mutable_surface": "refs-only",
+    "git_required_for-internal-object-semantics": false,
+    "github_allowed-as-replication-and-bootstrap-carrier": true
+  },
+  "reversible": true
+}
