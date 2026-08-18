@@ -1,0 +1,188 @@
+name: Aurum Machine Fabric
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+      - agent/aurum-machine-substrate
+    paths:
+      - '.github/workflows/aurum-machine-fabric.yml'
+      - 'Projects/Codelation/machine_substrate.py'
+      - 'Projects/Codelation/MACHINE_SUBSTRATE.md'
+      - 'Projects/Codelation/tests/test_machine_substrate.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-machine-fabric-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-substrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify machine substrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/Codelation/machine_substrate.py
+          python3 -m unittest Projects.Codelation.tests.test_machine_substrate -v
+          python3 Projects/Codelation/machine_substrate.py demo > /tmp/aurum-machine-demo.json
+          python3 Projects/Codelation/machine_substrate.py plan > /tmp/aurum-machine-plan.json
+          python3 - <<'PY'
+          import json
+          for path in ('/tmp/aurum-machine-demo.json', '/tmp/aurum-machine-plan.json'):
+              data = json.load(open(path, encoding='utf-8'))
+              if not isinstance(data, dict):
+                  raise SystemExit(f'invalid machine output: {path}')
+          plan = json.load(open('/tmp/aurum-machine-plan.json', encoding='utf-8'))
+          if not plan.get('complete'):
+              raise SystemExit(f'bootstrap processor farm has blocked work: {plan.get("blocked")}')
+          if len(plan.get('assignments') or []) < 4:
+              raise SystemExit('bootstrap processor farm did not place all expected capsules')
+          PY
+
+  farm:
+    needs: validate-substrate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: safe-x64
+            runner: ubuntu-24.04
+            posture: safe
+            expected_arch: x86_64
+          - lane: adventurous-x64
+            runner: ubuntu-24.04
+            posture: adventurous
+            expected_arch: x86_64
+          - lane: verifier-x64
+            runner: ubuntu-24.04
+            posture: verify
+            expected_arch: x86_64
+          - lane: portability-arm64
+            runner: ubuntu-24.04-arm
+            posture: verify
+            expected_arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Execute independent machine lane
+        shell: bash
+        env:
+          AURUM_LANE: ${{ matrix.lane }}
+          AURUM_POSTURE: ${{ matrix.posture }}
+          AURUM_EXPECTED_ARCH: ${{ matrix.expected_arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p machine-evidence
+          python3 -m unittest Projects.Codelation.tests.test_machine_substrate -v
+          python3 Projects/Codelation/machine_substrate.py plan > machine-evidence/farm-plan.json
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import platform
+          from pathlib import Path
+
+          lane = os.environ['AURUM_LANE']
+          expected_arch = os.environ['AURUM_EXPECTED_ARCH']
+          actual_arch = platform.machine()
+          aliases = {
+              'x86_64': {'x86_64', 'AMD64', 'amd64'},
+              'aarch64': {'aarch64', 'arm64', 'ARM64'},
+          }
+          if actual_arch not in aliases[expected_arch]:
+              raise SystemExit(f'architecture mismatch lane={lane} expected={expected_arch} actual={actual_arch}')
+
+          source = Path('Projects/Codelation/machine_substrate.py').read_bytes()
+          plan = Path('machine-evidence/farm-plan.json').read_bytes()
+          evidence = {
+              'schema': 'aurum-machine-lane-evidence-v1',
+              'lane': lane,
+              'posture': os.environ['AURUM_POSTURE'],
+              'architecture': actual_arch,
+              'source_sha256': hashlib.sha256(source).hexdigest(),
+              'plan_sha256': hashlib.sha256(plan).hexdigest(),
+              'source_commit': os.environ.get('GITHUB_SHA', ''),
+              'status': 'passed',
+          }
+          Path('machine-evidence/lane-evidence.json').write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Publish lane evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Machine-Lane-${{ matrix.lane }}
+          path: machine-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  converge:
+    needs: farm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          pattern: Aurum-Machine-Lane-*
+          path: farm-evidence
+      - name: Converge independent lane evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('farm-evidence')
+          evidence_files = sorted(root.glob('Aurum-Machine-Lane-*/lane-evidence.json'))
+          if len(evidence_files) != 4:
+              raise SystemExit(f'expected 4 independent lane results, found {len(evidence_files)}')
+
+          items = [json.loads(path.read_text(encoding='utf-8')) for path in evidence_files]
+          lanes = {item['lane'] for item in items}
+          expected = {'safe-x64', 'adventurous-x64', 'verifier-x64', 'portability-arm64'}
+          if lanes != expected:
+              raise SystemExit(f'lane identity mismatch: {sorted(lanes)}')
+          if any(item.get('status') != 'passed' for item in items):
+              raise SystemExit('one or more machine lanes did not pass')
+          source_hashes = {item['source_sha256'] for item in items}
+          if len(source_hashes) != 1:
+              raise SystemExit('machine lanes did not execute the same substrate source')
+
+          payload = {
+              'schema': 'aurum-machine-fabric-convergence-v1',
+              'converged': True,
+              'source_sha256': next(iter(source_hashes)),
+              'lanes': sorted(items, key=lambda item: item['lane']),
+          }
+          canonical = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+          payload['convergence_sha256'] = hashlib.sha256(canonical).hexdigest()
+          Path('aurum-machine-fabric-convergence.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print('AURUM_MACHINE_FABRIC_CONVERGED lanes=4')
+          print('AURUM_MACHINE_FABRIC_SOURCE ' + payload['source_sha256'])
+          print('AURUM_MACHINE_FABRIC_EVIDENCE ' + payload['convergence_sha256'])
+          PY
+      - name: Publish convergence evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Machine-Fabric-Convergence-${{ github.sha }}
+          path: aurum-machine-fabric-convergence.json
+          if-no-files-found: error
+          retention-days: 30
