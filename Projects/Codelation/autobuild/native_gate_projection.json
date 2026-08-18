@@ -1,0 +1,385 @@
+{
+  "blocked_reason": "external-prerequisite-blocked",
+  "executor_checkpoint": {
+    "learned_expressions": {
+      "interface_context_mode_confidence": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "interface_roundtrip_observation": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "io_semantic_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_novelty_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "symmetric_difference",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_overlap_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_retention_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_stability_index": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_union_size": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "resource_context_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "resource_context_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "schema": "aurum-native-chain-resume-v1",
+    "verified_local_capabilities": [
+      "bounded-preference-evidence",
+      "categorical-token-policy",
+      "io-plan",
+      "labeled-text-projection",
+      "protected-token-filter",
+      "required-condition-classifier",
+      "reversible-state-delta-projection",
+      "thresholded-unique-best-selector"
+    ]
+  },
+  "external_evidence": {
+    "applied": false,
+    "evidence": null,
+    "reason": "gui-live-trial-evidence-expired"
+  },
+  "focus": "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68",
+  "labels": {
+    "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68": "adaptive_shell_gui_live_trial"
+  },
+  "machine_state_sha256": "fbcd243adab16e4a77e1adf9306e541d453994f8835e9cbc2e30891247972998",
+  "reasoning_request": null,
+  "reasoning_required": false,
+  "role": "codelation-only-not-authoritative",
+  "schema": "aurum-gate-projection-v1",
+  "work_done_this_burst": 0,
+  "yield_reason": "blocked-on-state"
+}
