@@ -71,6 +71,9 @@ class ArkmatxNodeHeartbeatTests(unittest.TestCase):
             self.proc.wait(timeout=3)
         except subprocess.TimeoutExpired:
             self.proc.kill()
+            # Windows can retain handles until the killed process has actually
+            # reaped. Always wait before deleting the temporary controller tree.
+            self.proc.wait(timeout=3)
         self.temp.cleanup()
 
     def post(self, payload):
