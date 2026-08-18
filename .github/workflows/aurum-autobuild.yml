@@ -173,10 +173,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          state='Projects/Codelation/autobuild/native_chain_state.json'
+          completed="$(python3 - "$state" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          if not path.is_file():
+              print(0)
+          else:
+              data = json.loads(path.read_text(encoding='utf-8'))
+              print(int(data.get('completed_generations') or 0))
+          PY
+          )"
+          epoch_size=64
+          generation_ceiling=$((completed + epoch_size))
+          echo "AURUM_AUTOBUILD_EPOCH start_generation=$completed epoch_size=$epoch_size ceiling=$generation_ceiling"
           python3 Projects/Codelation/run_native_autonomous_chain.py \
             --resume \
-            --max-generations 64 \
-            --state-path Projects/Codelation/autobuild/native_chain_state.json \
+            --max-generations "$generation_ceiling" \
+            --state-path "$state" \
             | tee /tmp/aurum-native-chain.json
 
       - name: Restore transient convergence override and retain provenance
@@ -268,7 +282,7 @@ jobs:
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
             -f ref="$AURUM_TRUNK"
-          echo 'AURUM_AUTOBUILD continued=true'
+          echo 'AURUM_AUTOBUILD continued=true trigger=verified-state-advanced'
 
       - name: Report bounded stop without global stall
         if: always()
@@ -276,4 +290,4 @@ jobs:
         run: |
           echo "AURUM_AUTOBUILD_STATE changed=${{ steps.checkpoint.outputs.changed }} blocked=${{ steps.state.outputs.blocked_reason }} reasoning=${{ steps.state.outputs.reasoning_required }}"
           echo "AURUM_VIRTUAL_PROOF_STATE applied=${{ steps.virtual_proof.outputs.applied }} source_commit=${{ steps.virtual_proof.outputs.source_commit }} run_id=${{ steps.virtual_proof.outputs.run_id }}"
-          echo 'A dependent physical or reasoning boundary stops only this lane; independent Aurum build lanes continue.'
+          echo 'Generation ceilings are per-run epochs, not a global build stop. A dependent physical or reasoning boundary stops only that lane; independent Aurum build lanes continue.'
