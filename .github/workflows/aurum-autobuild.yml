@@ -2,6 +2,8 @@ name: Aurum Autonomous Build Loop
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [aurum-self-build-continue]
   push:
     branches: [main]
     paths:
@@ -15,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: aurum-autobuild
@@ -24,10 +27,12 @@ jobs:
   cycle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.checkpoint.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 20
 
       - name: Run bounded Aurum cycle
         shell: bash
@@ -42,12 +47,46 @@ jobs:
           python3 -m unittest discover -s Projects/Codelation/tests -v
 
       - name: Commit state checkpoint
+        id: checkpoint
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'aurum-autobuild[bot]'
           git config user.email 'aurum-autobuild@users.noreply.github.com'
           git add Projects/Codelation/autobuild/state.json Projects/Codelation/autobuild/events.jsonl
-          git diff --cached --quiet && exit 0
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_AUTOBUILD stable=true'
+            exit 0
+          fi
           git commit -m 'Aurum autonomous checkpoint [skip ci]'
-          git push origin HEAD:main
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then
+              echo 'changed=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep "$attempt"
+          done
+          echo 'Unable to publish Aurum checkpoint.' >&2
+          exit 1
+
+      - name: Continue immediately while useful state advances
+        if: steps.checkpoint.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
+            -f ref=main
+          echo 'AURUM_AUTOBUILD continued=true trigger=state-advanced'
+
+      - name: Report stable convergence point
+        if: steps.checkpoint.outputs.changed != 'true'
+        shell: bash
+        run: |
+          echo 'AURUM_AUTOBUILD continued=false reason=no-new-deterministic-state'
+          echo 'Aurum waits here only for a new event, external evidence, or a reasoning-required gap.'
