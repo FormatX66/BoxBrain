@@ -1,18 +1,46 @@
 Set-StrictMode -Version Latest
 
+function Test-AurumUsageRootWritable {
+    param([Parameter(Mandatory = $true)][string]$Candidate)
+    try {
+        New-Item -ItemType Directory -Path $Candidate -Force -ErrorAction Stop | Out-Null
+        $probe = Join-Path $Candidate ('.write-probe-' + [guid]::NewGuid().ToString('N') + '.tmp')
+        'probe' | Set-Content -LiteralPath $probe -Encoding UTF8 -ErrorAction Stop
+        Remove-Item -LiteralPath $probe -Force -ErrorAction Stop
+
+        # Directory creation alone is not enough: an older state.json can carry
+        # a different ACL or read-only attribute. Verify that the actual state
+        # target can be replaced before selecting this root.
+        $statePath = Join-Path $Candidate 'state.json'
+        if (Test-Path -LiteralPath $statePath) {
+            $stream = [System.IO.File]::Open(
+                $statePath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::ReadWrite
+            )
+            $stream.Dispose()
+        }
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
 function Get-AurumUsageRoot {
     $candidates = @()
-    if ($env:ProgramData) { $candidates += (Join-Path $env:ProgramData 'Aurum\UsageLoop') }
+    if ($env:ProgramData) {
+        $candidates += (Join-Path $env:ProgramData 'Aurum\UsageLoop')
+        # If a legacy state file has an incompatible ACL, use a clean
+        # application-owned shared root instead of turning the incident watcher
+        # into a failure loop.
+        $candidates += (Join-Path $env:ProgramData 'Aurum\UsageLoop-v2')
+    }
     if ($env:LOCALAPPDATA) { $candidates += (Join-Path $env:LOCALAPPDATA 'Aurum\UsageLoop') }
 
-    foreach ($candidate in $candidates) {
-        try {
-            New-Item -ItemType Directory -Path $candidate -Force -ErrorAction Stop | Out-Null
-            return $candidate
-        }
-        catch {
-            continue
-        }
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (Test-AurumUsageRootWritable -Candidate $candidate) { return $candidate }
     }
     throw 'AURUM_USAGE_LOOP_NO_WRITABLE_STATE_ROOT'
 }
@@ -59,7 +87,15 @@ function Get-AurumUsageState {
 function Save-AurumUsageState {
     param([Parameter(Mandatory = $true)]$State)
     $path = Get-AurumUsageStatePath
-    $State | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding UTF8
+    $root = Split-Path -Parent $path
+    $temp = Join-Path $root ('.state-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        $State | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $temp -Encoding UTF8 -ErrorAction Stop
+        Move-Item -LiteralPath $temp -Destination $path -Force -ErrorAction Stop
+    }
+    finally {
+        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 function Get-AurumUsageIncidentId {
