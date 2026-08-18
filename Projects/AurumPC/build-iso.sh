@@ -30,11 +30,6 @@ rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
-# Physical discovery is intentionally stateless at the root filesystem layer.
-# A raw reflash can leave an old persistence partition at the end of a USB
-# device; automatically mounting it as a root overlay can mix old /opt/aurum
-# code with a new ISO. Do not request live persistence until Aurum explicitly
-# provisions a versioned state-only volume.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -238,11 +233,12 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
 
-# Build an independent UEFI path from the same verified live filesystem when
-# the builder has that capability. CI that publishes PC seeds sets mode=required;
-# older/general virtual lanes may stay mode=auto and still verify the ISO path.
+# The direct UEFI route is intentionally file-native: its ESP and ext4 live
+# filesystem are constructed as ordinary files and then assembled into GPT.
+# No loop devices, mounts, udev partition nodes, or host filesystem state are
+# prerequisites for this second boot path.
 DIRECT_AVAILABLE=true
-for tool in parted losetup mkfs.vfat mkfs.ext4 mount umount objcopy truncate sha256sum; do
+for tool in parted mkfs.vfat mkfs.ext4 mmd mcopy objcopy truncate sha256sum dd; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     DIRECT_AVAILABLE=false
   fi
@@ -257,7 +253,7 @@ elif [ "$DIRECT_AVAILABLE" = true ]; then
   sh "$SCRIPT_DIR/build-direct-uefi-image.sh" \
     "$BUILD_ROOT/binary" \
     "$DIST/$DIRECT_UEFI_NAME"
-  echo 'AURUM_DIRECT_UEFI_BUILD status=built'
+  echo 'AURUM_DIRECT_UEFI_BUILD status=built construction=file-native'
 elif [ "$DIRECT_UEFI_MODE" = required ]; then
   echo 'AURUM_DIRECT_UEFI_BUILD status=failed reason=builder-capability-missing' >&2
   exit 1
