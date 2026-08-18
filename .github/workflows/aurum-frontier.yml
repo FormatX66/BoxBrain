@@ -1,4 +1,4 @@
-name: Aurum Capability Frontier
+name: Aurum Gate-Native Capability Frontier
 
 on:
   workflow_dispatch:
@@ -7,11 +7,14 @@ on:
   pull_request:
     paths:
       - '.github/workflows/aurum-frontier.yml'
+      - 'Projects/Codelation/gate_native.py'
+      - 'Projects/Codelation/run_gate_frontier.py'
       - 'Projects/Codelation/run_native_frontier.py'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
       - 'Projects/Codelation/field/**'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/autobuild/external_evidence/**'
+      - 'Projects/Codelation/tests/test_gate_native.py'
       - 'Projects/Codelation/tests/test_native_frontier.py'
   push:
     branches:
@@ -19,11 +22,14 @@ on:
       - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-frontier.yml'
+      - 'Projects/Codelation/gate_native.py'
+      - 'Projects/Codelation/run_gate_frontier.py'
       - 'Projects/Codelation/run_native_frontier.py'
       - 'Projects/Codelation/run_native_autonomous_chain.py'
       - 'Projects/Codelation/field/**'
       - 'Projects/Codelation/autobuild/native_gap_specs/**'
       - 'Projects/Codelation/autobuild/external_evidence/**'
+      - 'Projects/Codelation/tests/test_gate_native.py'
       - 'Projects/Codelation/tests/test_native_frontier.py'
 
 permissions:
@@ -31,11 +37,12 @@ permissions:
   actions: write
 
 concurrency:
-  group: aurum-capability-frontier-${{ github.ref }}
+  group: aurum-gate-frontier-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  FRONTIER_STATE: Projects/Codelation/autobuild/native_frontier_state.json
+  MACHINE_STATE: Projects/Codelation/autobuild/native_gate_state.bin
+  PROJECTION: Projects/Codelation/autobuild/native_gate_projection.json
   LEGACY_BOOTSTRAP: Projects/Codelation/autobuild/native_chain_state.json
 
 jobs:
@@ -46,7 +53,7 @@ jobs:
       yield_reason: ${{ steps.state.outputs.yield_reason }}
       blocked_reason: ${{ steps.state.outputs.blocked_reason }}
       work_done: ${{ steps.state.outputs.work_done }}
-      frontier_nonempty: ${{ steps.state.outputs.frontier_nonempty }}
+      focus_active: ${{ steps.state.outputs.focus_active }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -56,56 +63,73 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Verify frontier semantics
+      - name: Verify gate-native semantics
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile Projects/Codelation/run_native_frontier.py
-          python3 -m unittest Projects.Codelation.tests.test_native_frontier -v
+          python3 -m py_compile \
+            Projects/Codelation/gate_native.py \
+            Projects/Codelation/run_gate_frontier.py \
+            Projects/Codelation/run_native_frontier.py
+          python3 -m unittest \
+            Projects.Codelation.tests.test_gate_native \
+            Projects.Codelation.tests.test_native_frontier \
+            -v
 
-      - name: Advance capability frontier
+      - name: Advance binary capability gate field
         shell: bash
         run: |
           set -euo pipefail
-          python3 Projects/Codelation/run_native_frontier.py \
-            --state-path "$FRONTIER_STATE" \
+          python3 Projects/Codelation/run_gate_frontier.py \
+            --machine-state "$MACHINE_STATE" \
+            --projection "$PROJECTION" \
             --bootstrap-state "$LEGACY_BOOTSTRAP" \
             --work-budget 32 \
-            | tee /tmp/aurum-frontier.json
+            | tee /tmp/aurum-gate-frontier.json
 
-      - name: Read frontier state
+      - name: Verify machine authority and read Codelation projection
         id: state
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import hashlib
           import json
           from pathlib import Path
-          state = json.loads(Path('Projects/Codelation/autobuild/native_frontier_state.json').read_text(encoding='utf-8'))
-          serialized = json.dumps(state, sort_keys=True).lower()
-          if 'generation' in serialized:
-              raise SystemExit('obsolete sequence semantics leaked into authoritative frontier state')
-          frontier = state.get('frontier') or []
-          print('yield_reason=' + str(state.get('yield_reason') or 'none'))
-          print('blocked_reason=' + str(state.get('blocked_reason') or 'none'))
-          print('work_done=' + str(state.get('work_done_this_burst') or 0))
-          print('frontier_nonempty=' + ('true' if frontier else 'false'))
+
+          binary = Path('Projects/Codelation/autobuild/native_gate_state.bin').read_bytes()
+          projection = json.loads(Path('Projects/Codelation/autobuild/native_gate_projection.json').read_text(encoding='utf-8'))
+          identity = hashlib.sha256(binary).hexdigest()
+          if projection.get('machine_state_sha256') != identity:
+              raise SystemExit('human Codelation projection is not bound to authoritative machine state')
+          if projection.get('role') != 'codelation-only-not-authoritative':
+              raise SystemExit('projection incorrectly claims machine authority')
+          lowered = binary.lower()
+          for forbidden in (b'generation', b'python', b'json', b'frontier', b'capability', b'learning_delta_score'):
+              if forbidden in lowered:
+                  raise SystemExit(f'human representation leaked into machine state: {forbidden!r}')
+          focus = projection.get('focus')
+          print('yield_reason=' + str(projection.get('yield_reason') or 'none'))
+          print('blocked_reason=' + str(projection.get('blocked_reason') or 'none'))
+          print('work_done=' + str(projection.get('work_done_this_burst') or 0))
+          print('focus_active=' + ('true' if focus else 'false'))
+          print('machine_state_sha256=' + identity)
           PY
 
-      - name: Commit verified frontier state
+      - name: Commit machine state and derived human projection
         if: github.event_name != 'pull_request'
         id: checkpoint
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'aurum-frontier[bot]'
-          git config user.email 'aurum-frontier@users.noreply.github.com'
-          git add "$FRONTIER_STATE"
+          git config user.name 'aurum-gate[bot]'
+          git config user.email 'aurum-gate@users.noreply.github.com'
+          git add "$MACHINE_STATE" "$PROJECTION"
           if git diff --cached --quiet; then
             echo 'changed=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m 'Advance Aurum capability frontier [skip ci]'
+          git commit -m 'Advance Aurum gate-native state [skip ci]'
           for attempt in 1 2 3 4 5; do
             branch="${GITHUB_REF_NAME}"
             git fetch origin "$branch"
@@ -116,13 +140,13 @@ jobs:
             git rebase --abort 2>/dev/null || true
             sleep "$attempt"
           done
-          echo 'Unable to publish frontier checkpoint.' >&2
+          echo 'Unable to publish gate-native checkpoint.' >&2
           exit 1
 
-      - name: Continue immediately while frontier can move
+      - name: Continue immediately while machine focus can move
         if: >-
           github.event_name != 'pull_request' &&
-          steps.state.outputs.frontier_nonempty == 'true' &&
+          steps.state.outputs.focus_active == 'true' &&
           steps.state.outputs.blocked_reason == 'none' &&
           steps.checkpoint.outputs.changed == 'true'
         shell: bash
@@ -134,11 +158,12 @@ jobs:
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-frontier.yml/dispatches" \
             -f ref="$branch"
-          echo "AURUM_FRONTIER_CONTINUE branch=$branch trigger=frontier-moved"
+          echo "AURUM_GATE_CONTINUE branch=$branch trigger=machine-state-changed"
 
-      - name: Report frontier state
+      - name: Report Codelation view
         if: always()
         shell: bash
         run: |
-          echo "AURUM_FRONTIER yield=${{ steps.state.outputs.yield_reason }} blocked=${{ steps.state.outputs.blocked_reason }} work=${{ steps.state.outputs.work_done }} frontier=${{ steps.state.outputs.frontier_nonempty }}"
-          echo 'Aurum has no lifecycle generation counter. Compute budgets only bound one worker burst.'
+          echo "AURUM_GATE yield=${{ steps.state.outputs.yield_reason }} blocked=${{ steps.state.outputs.blocked_reason }} work=${{ steps.state.outputs.work_done }} focus=${{ steps.state.outputs.focus_active }}"
+          echo "AURUM_GATE machine_state_sha256=${{ steps.state.outputs.machine_state_sha256 }}"
+          echo 'Binary gate state is authoritative. ASCII names, JSON, Python, files, and workflow labels are Codelation carriers only.'
