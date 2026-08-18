@@ -27,7 +27,7 @@ jobs:
           ref: aurum/trunk-v0.01
           fetch-depth: 1
 
-      - name: Resolve fresh BBPI4 physical-presence evidence
+      - name: Resolve fresh BBPI4 physical-presence evidence read-only
         id: evidence
         shell: bash
         run: |
@@ -41,12 +41,12 @@ jobs:
 
           controller = "https://arkmatx.com/aurum/index.php"
           windows_nodes = ("825e5a7b7d4a7aed", "85404f41d5507372")
-          capability = "bbpi4-bootstrap"
           freshness_seconds = 300
           evidence_lifetime = 900
           headers = {
               "Accept": "application/json",
-              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Prerequisite-Watch/1.0",
+              "Cache-Control": "no-cache",
+              "User-Agent": "Mozilla/5.0 BoxBrain-Aurum-Prerequisite-Watch/2.0",
           }
 
           state_path = Path("Projects/Codelation/autobuild/native_chain_state.json")
@@ -67,20 +67,25 @@ jobs:
               )
               raise SystemExit(0)
 
-          def request_json(path, *, data=None, method="GET"):
-              body = None
-              request_headers = dict(headers)
-              if data is not None:
-                  request_headers["Content-Type"] = "application/json"
-                  body = json.dumps(data, separators=(",", ":")).encode("utf-8")
+          def request_json(path):
               request = urllib.request.Request(
                   controller + path,
-                  data=body,
-                  headers=request_headers,
-                  method=method,
+                  headers=headers,
+                  method="GET",
               )
               with urllib.request.urlopen(request, timeout=20) as response:
                   return json.load(response)
+
+          def work_status(work_id):
+              query = urllib.parse.urlencode({"id": work_id})
+              try:
+                  return request_json("/work/status?" + query)
+              except Exception as exc:
+                  return {
+                      "work_id": work_id,
+                      "status": "unreadable",
+                      "read_error": type(exc).__name__,
+                  }
 
           before = request_json("/nodes")
           now = int(before.get("time") or time.time())
@@ -93,15 +98,20 @@ jobs:
               last_seen = int(item.get("last_seen") or 0)
               if now - last_seen <= freshness_seconds:
                   fresh_windows.append((last_seen, node_id, item))
+
           if not fresh_windows:
               ages = []
               for node_id in windows_nodes:
                   item = by_id.get(node_id)
                   if item:
                       ages.append(f"{node_id}:{max(0, now-int(item.get('last_seen') or 0))}")
+              bootstrap = work_status("bbpi4-bootstrap-v1")
               print(
                   "AURUM_PREREQUISITE_WAIT reason=authorized-windows-worker-offline "
-                  f"ages_seconds={','.join(ages) or 'unenrolled'}"
+                  f"ages_seconds={','.join(ages) or 'unenrolled'} "
+                  f"bootstrap_status={bootstrap.get('status')} "
+                  f"bootstrap_attempts={int(bootstrap.get('attempts') or 0)} "
+                  "probe_mode=read-only"
               )
               raise SystemExit(0)
 
@@ -110,45 +120,20 @@ jobs:
               str(item.get("node_id") or ""): int(item.get("last_seen") or 0)
               for item in before.get("nodes", [])
           }
-          requeued_at = int(time.time())
-          selected_worker = None
-          for _, node_id, _ in fresh_windows:
-              query = urllib.parse.urlencode({"node_id": node_id, "capabilities": capability})
-              work = request_json("/work/lease?" + query).get("work")
-              if work is None:
-                  selected_worker = node_id
-                  print(f"AURUM_PREREQUISITE_WORK worker={node_id} state=already-leased-or-unavailable")
-                  break
-              expected_work_id = f"bbpi4-swarm-{node_id}"
-              if work.get("work_id") != expected_work_id or work.get("capability") != capability:
-                  print(
-                      "AURUM_PREREQUISITE_WAIT reason=unexpected-work "
-                      f"worker={node_id} work_id={work.get('work_id')} capability={work.get('capability')}"
-                  )
-                  continue
-              request_json(
-                  "/work/result",
-                  data={
-                      "node_id": node_id,
-                      "work_id": expected_work_id,
-                      "status": "failed",
-                      "detail": {
-                          "reason": "aurum-physical-prerequisite-watch-requeue",
-                          "prerequisite_watch": True,
-                      },
-                      "completed_at": int(time.time()),
-                  },
-                  method="POST",
+          for last_seen, node_id, _ in fresh_windows:
+              swarm = work_status(f"bbpi4-swarm-{node_id}")
+              print(
+                  "AURUM_PREREQUISITE_WINDOWS "
+                  f"worker={node_id} age_seconds={max(0, now-last_seen)} "
+                  f"swarm_status={swarm.get('status')} "
+                  f"swarm_attempts={int(swarm.get('attempts') or 0)} "
+                  f"swarm_result={swarm.get('last_result_status') or 'none'} "
+                  "probe_mode=read-only"
               )
-              selected_worker = node_id
-              requeued_at = int(time.time())
-              print(f"AURUM_PREREQUISITE_WORK worker={node_id} state=requeued")
-              break
 
-          if selected_worker is None:
-              print("AURUM_PREREQUISITE_WAIT reason=no-bounded-bootstrap-work")
-              raise SystemExit(0)
-
+          # Observe only. Do not lease, fail, requeue, or otherwise mutate work to
+          # manufacture a causal heartbeat. Genuine worker activity must create the
+          # evidence on its own.
           candidate = None
           deadline = time.time() + 90
           while time.time() < deadline:
@@ -160,7 +145,7 @@ jobs:
                   if not node_id or node_id in windows_nodes:
                       continue
                   last_seen = int(item.get("last_seen") or 0)
-                  if last_seen < requeued_at or last_seen <= baseline.get(node_id, 0):
+                  if last_seen <= baseline.get(node_id, 0):
                       continue
                   if observed_at - last_seen > freshness_seconds:
                       continue
@@ -176,9 +161,13 @@ jobs:
               time.sleep(6)
 
           if candidate is None:
+              bootstrap = work_status("bbpi4-bootstrap-v1")
               print(
-                  "AURUM_PREREQUISITE_WAIT reason=no-causally-fresh-bbpi4-heartbeat "
-                  f"worker={selected_worker}"
+                  "AURUM_PREREQUISITE_WAIT reason=no-genuine-fresh-bbpi4-heartbeat "
+                  f"bootstrap_status={bootstrap.get('status')} "
+                  f"bootstrap_attempts={int(bootstrap.get('attempts') or 0)} "
+                  f"bootstrap_result={bootstrap.get('last_result_status') or 'none'} "
+                  "probe_mode=read-only"
               )
               raise SystemExit(0)
 
@@ -186,7 +175,7 @@ jobs:
           evidence = {
               "schema": "aurum-external-prerequisite-evidence-v0",
               "kind": "bbpi4-physical-presence",
-              "source": "aurum-public-controller-fresh-node",
+              "source": "aurum-public-controller-genuine-fresh-node",
               "verified": True,
               "node_id": node_id,
               "name": name[:128],
@@ -194,14 +183,15 @@ jobs:
               "last_seen": int(last_seen),
               "observed_at": int(observed_at),
               "expires_at": int(observed_at) + evidence_lifetime,
+              "observation_mode": "read-only-no-work-mutation",
           }
           path = Path("Projects/Codelation/autobuild/external_evidence/bbpi4_presence.json")
           path.parent.mkdir(parents=True, exist_ok=True)
           path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           print(
               "AURUM_PREREQUISITE_EVIDENCE "
-              f"worker={selected_worker} node_id={node_id} name={name.replace(' ', '_')} "
-              f"carrier={carrier} last_seen={last_seen}"
+              f"node_id={node_id} name={name.replace(' ', '_')} "
+              f"carrier={carrier} last_seen={last_seen} probe_mode=read-only"
           )
           PY
 
