@@ -466,14 +466,27 @@ def main() -> int:
     machine_path = args.machine_state.resolve()
     projection_path = args.projection.resolve()
     projection = _read_json(projection_path)
+    raw_machine: bytes | None = None
     try:
-        machine = MachineFrontier.from_bytes(machine_path.read_bytes())
+        raw_machine = machine_path.read_bytes()
+        machine = MachineFrontier.from_bytes(raw_machine)
     except (OSError, ValueError):
         machine, projection = bootstrap(_read_json(args.bootstrap_state.resolve()))
+        raw_machine = None
     if projection is None:
         raise SystemExit("machine state exists but Codelation projection is missing")
-    if projection.get("machine_state_sha256") != machine.identity():
+
+    projected_identity = projection.get("machine_state_sha256")
+    machine_identity = machine.identity()
+    raw_identity = hashlib.sha256(raw_machine).hexdigest() if raw_machine is not None else machine_identity
+    if projected_identity not in {machine_identity, raw_identity}:
         raise SystemExit("Codelation projection does not match authoritative machine state")
+    if projected_identity == raw_identity and raw_identity != machine_identity:
+        # Exact v1 bytes were verified before the in-memory v2 migration. Rebind the
+        # human projection to the canonical migrated bytes before any work is attempted.
+        projection = dict(projection)
+        projection["machine_state_sha256"] = machine_identity
+        projection["migration"] = "verified-v1-bytes-to-v2-scheduler"
 
     advanced, sidecar = advance(
         machine,
