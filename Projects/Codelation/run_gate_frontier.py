@@ -6,9 +6,14 @@ import hashlib
 import json
 import os
 import struct
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from Projects.Codelation import run_native_autonomous_chain as legacy_executor
 from Projects.Codelation.gate_native import Gate, GateField, atom, require_atom
