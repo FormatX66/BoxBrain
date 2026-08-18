@@ -1,0 +1,65 @@
+name: Aurum Event-Driven Continuation
+
+on:
+  workflow_run:
+    workflows:
+      - Aurum PC v0.01 Image
+      - Aurum Virtual Hardware Lab
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: aurum-event-driven-continuation
+  cancel-in-progress: false
+
+jobs:
+  continue:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Capture completion evidence
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = workflow_run ]; then
+            echo "AURUM_EVENT source=${{ github.event.workflow_run.name }}"
+            echo "AURUM_EVENT run_id=${{ github.event.workflow_run.id }}"
+            echo "AURUM_EVENT conclusion=${{ github.event.workflow_run.conclusion }}"
+            echo "AURUM_EVENT branch=${{ github.event.workflow_run.head_branch }}"
+            echo "AURUM_EVENT sha=${{ github.event.workflow_run.head_sha }}"
+          else
+            echo 'AURUM_EVENT source=manual-bootstrap'
+          fi
+
+      - name: Resume trunk convergence immediately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
+            -f ref=aurum/trunk-v0.01
+          echo 'AURUM_EVENT dispatched=aurum/trunk-v0.01'
+
+      - name: Resume main bounded cycle immediately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
+            -f ref=main
+          echo 'AURUM_EVENT dispatched=main'
+
+      - name: Explain scheduling role
+        shell: bash
+        run: |
+          echo 'AURUM_EVENT continuity=event-driven'
+          echo 'Hourly external scheduling is a watchdog only; it is not the primary build clock.'
