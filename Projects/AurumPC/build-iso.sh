@@ -6,6 +6,7 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 BUILD_ROOT="$SCRIPT_DIR/.build"
 DIST="$REPO_ROOT/dist"
 IMAGE_NAME="Aurum-PC-v0.01-amd64.iso"
+DIRECT_UEFI_NAME="Aurum-PC-v0.01-amd64-direct-uefi.img"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "build-iso.sh must run as root (live-build uses chroot/mount operations)." >&2
@@ -231,4 +232,18 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   cd "$REPO_ROOT"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
-ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
+
+# Build an independent UEFI path from the same verified live filesystem. The
+# direct seed is a normal GPT USB disk: firmware executes BOOTX64.EFI (a UKI
+# containing the kernel and initrd), then live-boot discovers the /live payload
+# on the second partition. It does not depend on GRUB being able to rediscover
+# an ISO-hybrid filesystem after the firmware has already launched GRUB.
+sh "$SCRIPT_DIR/build-direct-uefi-image.sh" \
+  "$BUILD_ROOT/binary" \
+  "$DIST/$DIRECT_UEFI_NAME"
+
+ls -lh \
+  "$DIST/$IMAGE_NAME" \
+  "$DIST/$IMAGE_NAME.sha256" \
+  "$DIST/$DIRECT_UEFI_NAME" \
+  "$DIST/$DIRECT_UEFI_NAME.sha256"
