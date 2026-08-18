@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-authorized-windows-ap.yml'
+      - '.github/receipts/aurum-local-lane-repair-validation.json'
+      - 'installer/repair-aurum-local-lane.ps1'
 
 permissions:
   contents: read
@@ -17,16 +19,66 @@ concurrency:
 jobs:
   connect:
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
+      - name: Check out current recovery logic
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Run only validated bounded local-lane self-heal
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $receiptPath = Join-Path $env:GITHUB_WORKSPACE '.github\receipts\aurum-local-lane-repair-validation.json'
+          $repairPath = Join-Path $env:GITHUB_WORKSPACE 'installer\repair-aurum-local-lane.ps1'
+          if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+            Write-Host 'AURUM_LOCAL_LANE_RECOVERY skipped=no-validation-receipt'
+            exit 0
+          }
+          $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
+          if ([string]$receipt.status -ne 'success') {
+            Write-Host "AURUM_LOCAL_LANE_RECOVERY skipped=validation-not-green status=$($receipt.status)"
+            exit 0
+          }
+          $testedCommit = [string]$receipt.tested_commit
+          if ([string]::IsNullOrWhiteSpace($testedCommit)) {
+            Write-Host 'AURUM_LOCAL_LANE_RECOVERY skipped=validation-missing-tested-commit'
+            exit 0
+          }
+          & git -C $env:GITHUB_WORKSPACE cat-file -e "$testedCommit^{commit}" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            & git -C $env:GITHUB_WORKSPACE fetch --depth=100 origin main
+          }
+          & git -C $env:GITHUB_WORKSPACE diff --quiet "$testedCommit..HEAD" -- 'installer/repair-aurum-local-lane.ps1'
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'AURUM_LOCAL_LANE_RECOVERY skipped=repair-script-newer-than-green-validation'
+            exit 0
+          }
+
+          $old = $ErrorActionPreference
+          try {
+            $ErrorActionPreference = 'Continue'
+            $output = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $repairPath -StartNow 2>&1)
+            $code = $LASTEXITCODE
+          }
+          finally { $ErrorActionPreference = $old }
+          $output | ForEach-Object { Write-Host $_ }
+          switch ($code) {
+            0 { Write-Host 'AURUM_LOCAL_LANE_RECOVERY bounded-repair=applied-or-already-approved' }
+            2 { Write-Host 'AURUM_LOCAL_LANE_RECOVERY bounded-repair=skipped reason=no-existing-approval' }
+            3 { Write-Host 'AURUM_LOCAL_LANE_RECOVERY bounded-repair=skipped reason=broader-drift-review-required' }
+            default { throw "Bounded Aurum local-lane repair failed with exit code $code" }
+          }
+
       - name: Locate authorized checkout and self-heal Aurum worker
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $candidates = @(
+            $env:GITHUB_WORKSPACE,
             'C:\Users\bruce\Documents\GitHub\BoxBrain',
-            'C:\Users\bruce\BoxBrain',
-            $env:GITHUB_WORKSPACE
+            'C:\Users\bruce\BoxBrain'
           ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 
           $root = $candidates |
