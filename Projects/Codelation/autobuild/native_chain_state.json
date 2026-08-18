@@ -367,6 +367,7 @@
   },
   "blocked_output": "blocked-candidate-verified",
   "blocked_reason": "external-prerequisite-blocked",
+  "cache_hit": true,
   "catalog_revision": "aurum-native-gap-catalog-v1",
   "completed_generations": 65,
   "external_evidence": {
@@ -4322,7 +4323,7 @@
   "next_gap": "adaptive_shell_gui_live_trial",
   "reasoning_request": null,
   "reasoning_required": false,
-  "resumed_from_generations": 64,
+  "resumed_from_generations": 65,
   "reusable_local_capabilities": [
     "bounded-preference-evidence",
     "categorical-token-policy",
