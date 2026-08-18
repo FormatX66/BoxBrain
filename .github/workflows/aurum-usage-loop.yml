@@ -8,8 +8,6 @@ on:
       - 'Projects/AurumBridge/UsageLoop.ps1'
       - 'Projects/AurumBridge/usage-events/**'
       - '.github/workflows/aurum-usage-loop.yml'
-  schedule:
-    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
@@ -37,6 +35,13 @@ jobs:
           Set-StrictMode -Version Latest
 
           $root = $env:GITHUB_WORKSPACE
+          # Elevated self-hosted jobs run as SYSTEM; make only this checked-out
+          # repository trusted for this process instead of changing global policy.
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+          Set-Location -LiteralPath $root
+
           $usageLoop = Join-Path $root 'Projects/AurumBridge/UsageLoop.ps1'
           $eventsDir = Join-Path $root 'Projects/AurumBridge/usage-events'
           $resultsDir = Join-Path $root 'Projects/AurumBridge/usage-results'
@@ -56,6 +61,9 @@ jobs:
             Write-Host "AURUM_USAGE_EVENT_RECORDED file=$($eventFile.Name) incident=$($registered.incident.incident_id) deduplicated=$($registered.deduplicated)"
           }
 
+          # A scan still runs when an actual event or manual dispatch invokes this
+          # workflow, but there is no recurring GitHub poll that creates work just
+          # to discover that nothing changed.
           $before = Get-AurumUsageLoopStatus
           $beforeId = [string]$before.state.latest_incident_id
           $scan = Invoke-AurumUsageScan -LookbackMinutes 120
