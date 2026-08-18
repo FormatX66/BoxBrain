@@ -10,7 +10,7 @@ on:
       - 'Projects/Codelation/**'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -129,3 +129,44 @@ jobs:
           if ($json.decision -ne 'review-required') { throw 'Deployer drift was not blocked.' }
           if ($json.authorization_mutated) { throw 'Deployer drift must never auto-refresh authorization.' }
           Write-Host 'AURUM_LOCAL_LANE_REPAIR deployer-drift=blocked'
+
+      - name: Record validation receipt
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          New-Item -ItemType Directory -Path '.github\receipts' -Force | Out-Null
+          $receipt = [ordered]@{
+            schema_version = 1
+            workflow = 'aurum-local-lane-repair-validation'
+            run_id = '${{ github.run_id }}'
+            tested_commit = '${{ github.sha }}'
+            status = '${{ job.status }}'
+            runner = 'windows-latest'
+            validates = @(
+              'powershell-parse',
+              'missing-approval-not-created',
+              'codelation-only-refresh-after-local-tests',
+              'deployer-drift-remains-blocked',
+              'no-bbpi4-touch-during-validation'
+            )
+            recorded_at_utc = [DateTimeOffset]::UtcNow.ToString('o')
+          }
+          $path = '.github\receipts\aurum-local-lane-repair-validation.json'
+          $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $path -Encoding UTF8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add $path
+          if (git diff --cached --quiet) { exit 0 }
+          git commit -m 'Record Aurum local-lane repair validation [skip ci]'
+          for ($attempt = 1; $attempt -le 4; $attempt++) {
+            git pull --rebase origin main
+            if ($LASTEXITCODE -ne 0) { continue }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Start-Sleep -Seconds $attempt
+          }
+          throw 'Could not publish Aurum local-lane validation receipt.'
