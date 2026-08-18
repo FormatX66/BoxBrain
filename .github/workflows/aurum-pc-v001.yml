@@ -110,7 +110,7 @@ jobs:
           bash Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh \
             dist/Aurum-PC-v0.01-amd64-direct-uefi.img \
             aurum-pc-direct-uefi.log
-          grep -q 'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK' aurum-pc-direct-uefi.log || true
+          grep -q 'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK' aurum-pc-direct-uefi.log
           echo 'AURUM_PC_V001_DIRECT_UEFI_BOOT_VERIFIED'
 
       - name: HP physical-topology twin preflight
