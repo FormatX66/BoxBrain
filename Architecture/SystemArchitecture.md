@@ -35,6 +35,15 @@ flowchart TD
     BC -. benchmarks and evidence .-> RES
 ```
 
+## Execution logic
+
+Every BoxBrain/Aurum component, agent, build loop, deployment, diagnostic, and
+automation follows the [state-first execution policy](ExecutionLogic.md):
+identify the requested outcome, observe current state, define the required state
+delta and constraints, choose the minimum useful action that can change that
+state or produce new evidence, and verify the resulting state. Repeated work
+without changed state/evidence is not progress.
+
 ## Boundaries
 
 - BoxBrain owns cross-project discovery, dependencies, priorities, decisions,
