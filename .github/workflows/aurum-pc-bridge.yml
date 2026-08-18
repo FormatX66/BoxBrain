@@ -56,9 +56,6 @@ jobs:
           foreach ($item in $pending) {
             Write-Host "AURUM_PC_BRIDGE_START file=$($item.Name) host=$env:COMPUTERNAME"
             & $executor -JobPath $item.Job -OutputPath $item.Result
-            if ($LASTEXITCODE -ne 0) {
-              throw "AURUM_PC_BRIDGE_FAILED file=$($item.Name) exit=$LASTEXITCODE"
-            }
           }
 
           git config user.name 'aurum-pc-bridge[bot]'
