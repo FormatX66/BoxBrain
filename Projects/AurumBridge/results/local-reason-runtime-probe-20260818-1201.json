@@ -1,0 +1,13 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "local-reason-runtime-probe-20260818-1201",
+    "action":  "docker_status",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-08-18T16:01:50.4992988Z",
+    "finished_at":  "2026-08-18T16:01:55.7298954Z",
+    "data":  {
+                 "available":  false
+             },
+    "error":  null
+}
