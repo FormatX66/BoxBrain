@@ -34,6 +34,13 @@ jobs:
           Set-StrictMode -Version Latest
 
           $root = $env:GITHUB_WORKSPACE
+          # The elevated runner executes as SYSTEM while this workspace is owned
+          # by the interactive account. Trust only this checkout for this process.
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+          Set-Location -LiteralPath $root
+
           $jobsDir = Join-Path $root 'Projects/AurumBridge/jobs'
           $resultsDir = Join-Path $root 'Projects/AurumBridge/results'
           $executor = Join-Path $root 'Projects/AurumBridge/AurumBridge.ps1'
@@ -56,6 +63,7 @@ jobs:
           foreach ($item in $pending) {
             Write-Host "AURUM_PC_BRIDGE_START file=$($item.Name) host=$env:COMPUTERNAME"
             & $executor -JobPath $item.Job -OutputPath $item.Result
+            if ($LASTEXITCODE -ne 0) { throw "AURUM_PC_BRIDGE_JOB_FAILED file=$($item.Name)" }
           }
 
           git config user.name 'aurum-pc-bridge[bot]'
