@@ -28,4 +28,23 @@ Example job:
 
 The GitHub workflow is only triggered by pushes to `main` affecting the bridge job/executor paths. Result-only commits do not trigger another execution cycle.
 
+## Local usage loop
+
+`UsageLoop.ps1` adds an independent, model-free failure loop for ChatGPT/Codex/Work usage exhaustion. It stores local state under `%ProgramData%\Aurum\UsageLoop` when writable and falls back to `%LOCALAPPDATA%\Aurum\UsageLoop` otherwise.
+
+The usage loop:
+
+- accepts bounded `aurum-usage-event-v1` incident records;
+- deduplicates incidents before they become another retry loop;
+- scans only known local OpenAI/Codex log roots for bounded usage-limit signals;
+- redacts likely credentials before preserving excerpts;
+- records a local incident ledger and continuation signal;
+- marks model access as limited while allowing deterministic local Aurum work to continue;
+- preserves a pending support-report record without inventing server-side token or credit quantities;
+- explicitly records the cost of building/operating the usage loop as mitigation overhead that can be correlated against authoritative OpenAI telemetry.
+
+`Aurum Local Usage Loop` runs on the self-hosted Windows runner every five minutes as a low-cost failsafe and immediately when a usage-event file is committed under `Projects/AurumBridge/usage-events/`. New sanitized evidence is written to `Projects/AurumBridge/usage-results/`. The local scan itself uses no model calls.
+
+The current support-mail transport remains separate from the local detector: the loop produces a deduplicated `report_pending` evidence record so an authorized Gmail/ChatGPT or future direct OAuth transport can append one incident to the existing support case instead of creating duplicate cases.
+
 This is a bootstrap carrier. The same capability/job/evidence contract can later be transported over Aurum's native gate field, an authenticated relay, or an MCP/ChatGPT adapter without changing the physical capability boundary.
