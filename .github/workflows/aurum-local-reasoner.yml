@@ -1,0 +1,82 @@
+name: Aurum Local Reasoner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumBridge/reasoning-jobs/**'
+      - 'Projects/AurumBridge/AurumLocalReasoner.ps1'
+      - '.github/workflows/aurum-local-reasoner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-local-reasoner-main
+  cancel-in-progress: false
+
+jobs:
+  reason:
+    name: Execute local Aurum reasoning jobs
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Process local reasoning jobs
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $root = $env:GITHUB_WORKSPACE
+          $jobsDir = Join-Path $root 'Projects/AurumBridge/reasoning-jobs'
+          $resultsDir = Join-Path $root 'Projects/AurumBridge/reasoning-results'
+          $executor = Join-Path $root 'Projects/AurumBridge/AurumLocalReasoner.ps1'
+          New-Item -ItemType Directory -Path $jobsDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
+
+          $pending = @()
+          foreach ($job in @(Get-ChildItem -LiteralPath $jobsDir -File -Filter '*.json' -ErrorAction SilentlyContinue | Sort-Object Name)) {
+            $result = Join-Path $resultsDir $job.Name
+            if (-not (Test-Path -LiteralPath $result)) {
+              $pending += [pscustomobject]@{ Job = $job.FullName; Result = $result; Name = $job.Name }
+            }
+          }
+
+          if ($pending.Count -eq 0) {
+            Write-Host 'AURUM_LOCAL_REASONER_IDLE reason=no-pending-jobs'
+            exit 0
+          }
+
+          foreach ($item in $pending) {
+            Write-Host "AURUM_LOCAL_REASON_START file=$($item.Name) host=$env:COMPUTERNAME"
+            & $executor -JobPath $item.Job -OutputPath $item.Result
+            if ($LASTEXITCODE -ne 0) { throw "AURUM_LOCAL_REASON_JOB_FAILED file=$($item.Name)" }
+          }
+
+          git config user.name 'aurum-local-reasoner[bot]'
+          git config user.email 'aurum-local-reasoner@users.noreply.github.com'
+          git add -- 'Projects/AurumBridge/reasoning-results'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AURUM_LOCAL_REASONER_NO_NEW_EVIDENCE'
+            exit 0
+          }
+
+          git commit -m 'Record Aurum local reasoning evidence [skip ci]'
+          $pushed = $false
+          for ($attempt = 1; $attempt -le 3 -and -not $pushed; $attempt++) {
+            git pull --rebase origin main
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_LOCAL_REASON_PUSH_PREP_FAILED' }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { $pushed = $true; break }
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          if (-not $pushed) { throw 'AURUM_LOCAL_REASON_PUSH_FAILED' }
+          Write-Host "AURUM_LOCAL_REASON_EVIDENCE_COMMITTED count=$($pending.Count) host=$env:COMPUTERNAME"
