@@ -10,7 +10,7 @@ The term is overloaded. This reference separates systems by **what persists afte
 1. **Output self-refinement** — improves an answer during one run; no persistent learning.
 2. **Memory / skill accumulation** — stores reusable knowledge, traces, skills, prompts, or procedures outside the model weights.
 3. **Scaffold / harness self-improvement** — modifies prompts, tools, workflows, memory policies, code, or agent architecture.
-4. **Program evolution / self-building** — generates and evaluates new code/program variants over repeated generations.
+4. **Program evolution / self-building** — generates and evaluates new code/program variants over repeated iterations.
 5. **Weight adaptation** — updates neural-network parameters based on new experience or self-generated data.
 6. **Curriculum self-generation** — generates its own increasingly difficult training tasks and learns from them.
 7. **Recursive self-improvement (RSI)** — the improvement mechanism itself can be changed or improved. Current systems remain bounded; unrestricted general RSI is not a solved capability.
@@ -53,7 +53,7 @@ external verifier / benchmark / reward
         ↓
 accept, reject, branch, or revert
         ↓
-persistent archive + next generation
+persistent archive + next state
 ```
 
 The verifier is critical. The strongest published systems rely on executable tests, formal constraints, benchmark scores, or other external reward signals rather than trusting the model's own opinion of whether it improved.
@@ -62,7 +62,6 @@ The verifier is critical. The strongest published systems rely on executable tes
 
 - [`PUBLIC_INTERFACES.md`](PUBLIC_INTERFACES.md) — which systems can actually be called, embedded, installed, or operated today.
 - [`AURUM_INTEGRATION.md`](AURUM_INTEGRATION.md) — architecture lessons and practical integration path for BoxBrain/Aurum.
-- [`SOURCES.md`](SOURCES.md) — primary papers, official project pages, repositories, and rolling survey sources.
 
 ## Maintenance rule
 
