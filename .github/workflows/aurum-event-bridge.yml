@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows:
       - Aurum PC v0.01 Image
+      - Aurum PC Bridge
       - Aurum Virtual Hardware Lab
     types: [completed]
   workflow_dispatch:
