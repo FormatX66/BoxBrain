@@ -9,7 +9,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 2
 fi
 
-for tool in parted losetup mkfs.vfat mkfs.ext4 mount umount objcopy truncate sha256sum; do
+for tool in parted losetup mkfs.vfat mkfs.ext4 mount umount objcopy truncate sha256sum awk; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "missing direct UEFI build dependency: $tool" >&2
     exit 2
@@ -49,7 +49,8 @@ if [ "$KERNEL_BYTES" -ge "$MAX_KERNEL_BYTES" ]; then
 fi
 
 WORK_DIR=$(mktemp -d /tmp/aurum-direct-uefi.XXXXXX)
-LOOP_DEVICE=
+ESP_LOOP=
+DATA_LOOP=
 ESP_MOUNT="$WORK_DIR/esp"
 DATA_MOUNT="$WORK_DIR/data"
 OSREL="$WORK_DIR/os-release"
@@ -60,7 +61,8 @@ cleanup() {
   set +e
   if mountpoint -q "$ESP_MOUNT" 2>/dev/null; then umount "$ESP_MOUNT"; fi
   if mountpoint -q "$DATA_MOUNT" 2>/dev/null; then umount "$DATA_MOUNT"; fi
-  if [ -n "${LOOP_DEVICE:-}" ]; then losetup -d "$LOOP_DEVICE" 2>/dev/null || true; fi
+  if [ -n "${ESP_LOOP:-}" ]; then losetup -d "$ESP_LOOP" 2>/dev/null || true; fi
+  if [ -n "${DATA_LOOP:-}" ]; then losetup -d "$DATA_LOOP" 2>/dev/null || true; fi
   rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT HUP INT TERM
@@ -92,22 +94,34 @@ parted -s "$OUTPUT_IMAGE" mkpart ESP fat32 1MiB 257MiB
 parted -s "$OUTPUT_IMAGE" set 1 esp on
 parted -s "$OUTPUT_IMAGE" mkpart AURUM_LIVE ext4 257MiB 100%
 
-LOOP_DEVICE=$(losetup --find --show --partscan "$OUTPUT_IMAGE")
-ESP_PART="${LOOP_DEVICE}p1"
-DATA_PART="${LOOP_DEVICE}p2"
-for _ in $(seq 1 50); do
-  [ -b "$ESP_PART" ] && [ -b "$DATA_PART" ] && break
-  sleep 0.1
-done
-[ -b "$ESP_PART" ] && [ -b "$DATA_PART" ] || {
-  echo "loop partitions did not appear for $LOOP_DEVICE" >&2
+# Do not depend on kernel-created /dev/loopXpN partition nodes. Minimal CI and
+# recovery environments may not have udev running, so --partscan can succeed
+# while the partition device nodes never materialize. Read the exact partition
+# byte ranges from the GPT and bind each range to its own loop device instead.
+# This preserves the raw GPT image while removing udev/device-manager timing as
+# a build dependency.
+PARTITION_TABLE=$(parted -sm "$OUTPUT_IMAGE" unit B print)
+ESP_RANGE=$(printf '%s\n' "$PARTITION_TABLE" | awk -F: '$1=="1" {gsub(/B/,"",$2); gsub(/B/,"",$4); print $2, $4}')
+DATA_RANGE=$(printf '%s\n' "$PARTITION_TABLE" | awk -F: '$1=="2" {gsub(/B/,"",$2); gsub(/B/,"",$4); print $2, $4}')
+set -- $ESP_RANGE
+ESP_OFFSET=${1:-}
+ESP_SIZE=${2:-}
+set -- $DATA_RANGE
+DATA_OFFSET=${1:-}
+DATA_SIZE=${2:-}
+if [ -z "$ESP_OFFSET" ] || [ -z "$ESP_SIZE" ] || [ -z "$DATA_OFFSET" ] || [ -z "$DATA_SIZE" ]; then
+  echo "could not resolve GPT partition byte ranges" >&2
+  printf '%s\n' "$PARTITION_TABLE" >&2
   exit 1
-}
+fi
 
-mkfs.vfat -F 32 -n AURUMEFI "$ESP_PART" >/dev/null
-mkfs.ext4 -F -L AURUM_LIVE "$DATA_PART" >/dev/null
-mount "$ESP_PART" "$ESP_MOUNT"
-mount "$DATA_PART" "$DATA_MOUNT"
+ESP_LOOP=$(losetup --find --show --offset "$ESP_OFFSET" --sizelimit "$ESP_SIZE" "$OUTPUT_IMAGE")
+DATA_LOOP=$(losetup --find --show --offset "$DATA_OFFSET" --sizelimit "$DATA_SIZE" "$OUTPUT_IMAGE")
+
+mkfs.vfat -F 32 -n AURUMEFI "$ESP_LOOP" >/dev/null
+mkfs.ext4 -F -L AURUM_LIVE "$DATA_LOOP" >/dev/null
+mount "$ESP_LOOP" "$ESP_MOUNT"
+mount "$DATA_LOOP" "$DATA_MOUNT"
 
 # Carry the complete live-build binary tree so live-boot sees /live together
 # with its generated .disk metadata/UUID instead of relying on guessed device
@@ -133,7 +147,9 @@ EOF
 sync
 umount "$ESP_MOUNT"
 umount "$DATA_MOUNT"
-losetup -d "$LOOP_DEVICE"
-LOOP_DEVICE=
+losetup -d "$ESP_LOOP"
+ESP_LOOP=
+losetup -d "$DATA_LOOP"
+DATA_LOOP=
 sha256sum "$OUTPUT_IMAGE" > "$OUTPUT_IMAGE.sha256"
 ls -lh "$OUTPUT_IMAGE" "$OUTPUT_IMAGE.sha256"
