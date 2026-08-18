@@ -1,0 +1,15 @@
+﻿{
+    "schema_version":  1,
+    "workflow":  "codelation-windows-isolate",
+    "run_id":  "32196239419",
+    "tested_commit":  "81cf08183a593497e35e2c12418fd2784edb7f52",
+    "failed_count":  0,
+    "failed_modules":  [
+
+                       ],
+    "all_modules":  [
+
+                    ],
+    "runtime_mutated":  false,
+    "recorded_at_utc":  "2026-08-18T23:27:02.1443478+00:00"
+}
