@@ -48,17 +48,30 @@ jobs:
           New-Item -ItemType Directory -Path $jobsDir -Force | Out-Null
           New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 
+          # Restore locally durable evidence before deciding a job is pending.
+          # This prevents a failed Git publication from paying for inference twice.
+          $durableRoot = if ($env:ProgramData) {
+            Join-Path $env:ProgramData 'Aurum\Bridge\reasoning-results'
+          } elseif ($env:LOCALAPPDATA) {
+            Join-Path $env:LOCALAPPDATA 'Aurum\Bridge\reasoning-results'
+          } else { $null }
+          if ($durableRoot -and (Test-Path -LiteralPath $durableRoot)) {
+            foreach ($cached in @(Get-ChildItem -LiteralPath $durableRoot -File -Filter '*.json' -ErrorAction SilentlyContinue)) {
+              $job = Join-Path $jobsDir $cached.Name
+              $result = Join-Path $resultsDir $cached.Name
+              if ((Test-Path -LiteralPath $job) -and -not (Test-Path -LiteralPath $result)) {
+                Copy-Item -LiteralPath $cached.FullName -Destination $result -Force
+                Write-Host "AURUM_LOCAL_REASON_RESTORED file=$($cached.Name) source=durable-local-evidence"
+              }
+            }
+          }
+
           $pending = @()
           foreach ($job in @(Get-ChildItem -LiteralPath $jobsDir -File -Filter '*.json' -ErrorAction SilentlyContinue | Sort-Object Name)) {
             $result = Join-Path $resultsDir $job.Name
             if (-not (Test-Path -LiteralPath $result)) {
               $pending += [pscustomobject]@{ Job = $job.FullName; Result = $result; Name = $job.Name }
             }
-          }
-
-          if ($pending.Count -eq 0) {
-            Write-Host 'AURUM_LOCAL_REASONER_IDLE reason=no-pending-jobs'
-            exit 0
           }
 
           foreach ($item in $pending) {
@@ -72,7 +85,11 @@ jobs:
           git add -- 'Projects/AurumBridge/reasoning-results'
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) {
-            Write-Host 'AURUM_LOCAL_REASONER_NO_NEW_EVIDENCE'
+            if ($pending.Count -eq 0) {
+              Write-Host 'AURUM_LOCAL_REASONER_IDLE reason=no-pending-jobs'
+            } else {
+              Write-Host 'AURUM_LOCAL_REASONER_NO_NEW_EVIDENCE'
+            }
             exit 0
           }
 
@@ -86,4 +103,4 @@ jobs:
             Start-Sleep -Seconds (2 * $attempt)
           }
           if (-not $pushed) { throw 'AURUM_LOCAL_REASON_PUSH_FAILED' }
-          Write-Host "AURUM_LOCAL_REASON_EVIDENCE_COMMITTED count=$($pending.Count) host=$env:COMPUTERNAME"
+          Write-Host "AURUM_LOCAL_REASON_EVIDENCE_COMMITTED executed=$($pending.Count) host=$env:COMPUTERNAME"
