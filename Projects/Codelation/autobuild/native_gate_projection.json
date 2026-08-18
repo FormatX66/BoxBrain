@@ -1,5 +1,5 @@
 {
-  "attempts_this_burst": 12,
+  "attempts_this_burst": 8,
   "blocked": {
     "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": "external-prerequisite-blocked",
     "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2": "external-prerequisite-blocked",
@@ -825,6 +825,6 @@
   ],
   "role": "codelation-only-not-authoritative",
   "schema": "aurum-gate-projection-v2",
-  "work_done_this_burst": 10,
+  "work_done_this_burst": 0,
   "yield_reason": "waiting-on-external-state"
 }
