@@ -42,12 +42,16 @@ jobs:
           $aurumHome = if ($env:AURUM_HOME) { $env:AURUM_HOME } else { Join-Path $env:USERPROFILE '.aurum' }
           New-Item -ItemType Directory -Path $aurumHome -Force | Out-Null
           $workerPath = Join-Path $aurumHome 'worker.ps1'
+          $watchdogPath = Join-Path $aurumHome 'worker-watchdog.ps1'
           $sourceWorker = Join-Path $root 'Web\Aurum-Arkmatx\worker.ps1'
+          $sourceWatchdog = Join-Path $root 'Web\Aurum-Arkmatx\worker-watchdog.ps1'
           $bootstrap = Join-Path $root 'Web\Aurum-Arkmatx\bootstrap.ps1'
           $configPath = Join-Path $aurumHome 'node.json'
 
-          if (-not (Test-Path -LiteralPath $sourceWorker -PathType Leaf)) {
-            throw "Current Aurum worker source missing: $sourceWorker"
+          foreach ($required in @($sourceWorker,$sourceWatchdog)) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Current Aurum runtime source missing: $required"
+            }
           }
 
           if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
@@ -60,18 +64,30 @@ jobs:
           }
 
           Copy-Item -LiteralPath $sourceWorker -Destination $workerPath -Force
+          Copy-Item -LiteralPath $sourceWatchdog -Destination $watchdogPath -Force
+
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           New-Item -Path $runKey -Force | Out-Null
-          $workerCmd = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $workerPath
-          Set-ItemProperty -Path $runKey -Name 'AurumWorker' -Value $workerCmd
+          $watchdogCmd = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $watchdogPath
+          Set-ItemProperty -Path $runKey -Name 'AurumWorkerWatchdog' -Value $watchdogCmd
+          Remove-ItemProperty -Path $runKey -Name 'AurumWorker' -ErrorAction SilentlyContinue
 
-          $existing = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+          $workerExisting = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
             Where-Object { $_.CommandLine -like "*$workerPath*" })
-          if ($existing.Count -eq 0) {
+          if ($workerExisting.Count -eq 0) {
             Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$workerPath)
             Write-Host 'AURUM_WORKER_RECOVERY worker-restarted=true'
           } else {
-            Write-Host "AURUM_WORKER_RECOVERY worker-already-running=true count=$($existing.Count)"
+            Write-Host "AURUM_WORKER_RECOVERY worker-already-running=true count=$($workerExisting.Count)"
+          }
+
+          $watchdogExisting = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -like "*$watchdogPath*" })
+          if ($watchdogExisting.Count -eq 0) {
+            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$watchdogPath)
+            Write-Host 'AURUM_WORKER_RECOVERY watchdog-started=true'
+          } else {
+            Write-Host "AURUM_WORKER_RECOVERY watchdog-already-running=true count=$($watchdogExisting.Count)"
           }
 
           $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
@@ -79,11 +95,11 @@ jobs:
           $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
           $heartbeat = [ordered]@{
             schema='aurum.uaf.v0'
-            frame_id="heartbeat-$($cfg.node_id)-$now"
+            frame_id="heartbeat-$($cfg.node_id)-$now-recovery"
             origin="Aurum-Node-$($cfg.node_id)"
             target='Aurum-Arkmatx'
             intent='node_heartbeat'
-            state_delta=@{node_id=[string]$cfg.node_id;carrier='https-outbound';worker_recovered=$true}
+            state_delta=@{node_id=[string]$cfg.node_id;carrier='https-outbound';worker_recovered=$true;watchdog=$true}
             provenance=@{node="Aurum-Node-$($cfg.node_id)";created=$now}
             verification=@{content_addressed=$true;reversible=$true}
           }
