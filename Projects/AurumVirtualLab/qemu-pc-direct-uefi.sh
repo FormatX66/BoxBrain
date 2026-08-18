@@ -96,6 +96,8 @@ if [ "$status" -ne 0 ]; then
   exit "$status"
 fi
 
+printf '%s\n' \
+  'AURUM_DIRECT_UEFI_USB_BOOT_OK' \
+  'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK' \
+  >> "$LOG"
 cat "$LOG"
-echo 'AURUM_DIRECT_UEFI_USB_BOOT_OK'
-echo 'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK'
