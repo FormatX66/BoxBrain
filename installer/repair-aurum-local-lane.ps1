@@ -194,6 +194,7 @@ if ($drift.Count -gt 0) {
 }
 
 $taskState = Start-OrRepairScheduledLane -WatcherPath $installedWatcher -ConfigPath $configPath -BinRoot $binRoot
+$authorizationScope = if ($authorizationMutated) { 'codelation-tree-hash-only' } else { 'none' }
 [pscustomobject]@{
     schema_version = 1
     repaired = $true
@@ -204,7 +205,7 @@ $taskState = Start-OrRepairScheduledLane -WatcherPath $installedWatcher -ConfigP
     current_commit = $currentCommit
     tests_passed = $testsPassed
     authorization_mutated = $authorizationMutated
-    authorization_scope = if ($authorizationMutated) { 'codelation-tree-hash-only' } else { 'none' }
+    authorization_scope = $authorizationScope
     deployment_performed = $false
     bbpi4_touched = $false
 } | ConvertTo-Json -Depth 6
