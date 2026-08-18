@@ -44,6 +44,14 @@ parted -s "$secondary_usb" mkpart primary 1025MiB 100%
 nvme_before=$(dd if="$internal_nvme" bs=1M count=8 status=none | sha256sum | awk '{print $1}')
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
+
+# QEMU's pipe chardev on Unix does not create its FIFOs.  It requires
+# <path>.in and <path>.out to exist before startup.  Keep both ends open in the
+# harness as well so QEMU cannot block waiting for the opposite FIFO endpoint.
+mkfifo "$monitor.in" "$monitor.out"
+exec 4<>"$monitor.in"
+exec 5<>"$monitor.out"
+
 : > "$LOG"
 qemu_pid=
 
@@ -53,6 +61,8 @@ cleanup() {
     wait "$qemu_pid" 2>/dev/null || true
   fi
   exec 3>&-
+  exec 4>&-
+  exec 5>&-
   rm -rf "$work_dir"
 }
 trap cleanup EXIT
@@ -109,9 +119,11 @@ qemu_pid=$!
 
 # Force the emulated Ethernet link down after monitor startup to reproduce the
 # observed no-carrier state while still leaving an Ethernet controller visible.
+# FD 4 is the held-open monitor input FIFO; writing here avoids reopening a FIFO
+# whose reader lifecycle is controlled by QEMU.
 for _ in $(seq 1 40); do
-  if [ -p "$monitor.in" ]; then
-    printf 'set_link hpeth off\n' > "$monitor.in" || true
+  if kill -0 "$qemu_pid" 2>/dev/null; then
+    printf 'set_link hpeth off\n' >&4 || true
     break
   fi
   sleep 0.25
