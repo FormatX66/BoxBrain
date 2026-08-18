@@ -1,10 +1,12 @@
-Options -Indexes
 RewriteEngine On
-RewriteRule ^status$ index.php/status [L,QSA]
-RewriteRule ^nodes$ index.php/nodes [L,QSA]
-RewriteRule ^events$ index.php/events [L,QSA]
-RewriteRule ^work/(.*)$ index.php/work/$1 [L,QSA]
-RewriteRule ^uaf$ index.php/uaf [L,QSA]
+
+# Shared-host-safe front controller routing. Preserve the original REQUEST_URI and
+# route directly to index.php instead of depending on PATH_INFO support.
+RewriteRule ^status$ index.php [L,QSA]
+RewriteRule ^nodes$ index.php [L,QSA]
+RewriteRule ^events$ index.php [L,QSA]
+RewriteRule ^work/(lease|result|status)$ index.php [L,QSA]
+RewriteRule ^uaf$ index.php [L,QSA]
 
 <FilesMatch "^(?:\.|state)">
   Require all denied
