@@ -2,6 +2,12 @@ name: Aurum Machine Fabric
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/aurum-machine-fabric.yml'
+      - 'Projects/Codelation/machine_substrate.py'
+      - 'Projects/Codelation/MACHINE_SUBSTRATE.md'
+      - 'Projects/Codelation/tests/test_machine_substrate.py'
   push:
     branches:
       - aurum/trunk-v0.01
