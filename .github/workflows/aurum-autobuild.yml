@@ -8,9 +8,11 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-autobuild.yml'
+      - '.github/workflows/aurum-event-bridge.yml'
       - 'Projects/Codelation/autobuild_cycle.py'
       - 'Projects/Codelation/tests/test_autobuild_cycle.py'
       - 'Projects/Codelation/tests/test_arkmatx_node_heartbeat.py'
+      - 'Projects/Codelation/tests/test_local_lane_contract.py'
       - 'Web/Aurum-Arkmatx/index.php'
       - 'Web/Aurum-Arkmatx/bootstrap.sh'
       - 'Web/Aurum-Arkmatx/bootstrap.ps1'
