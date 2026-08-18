@@ -1,5 +1,5 @@
 {
-  "cycle": 28,
+  "cycle": 29,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -33,7 +33,7 @@
   },
   "last_controller_ack": {
     "ok": true,
-    "time": 1787062622
+    "time": 1787062633
   },
   "last_controller_status": {
     "capabilities": [
@@ -52,16 +52,16 @@
       "work_status"
     ],
     "events": {
-      "merged": 85,
+      "merged": 86,
       "nodes": 5,
-      "outbox": 85,
+      "outbox": 86,
       "rejected": 0,
       "work": 7
     },
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1787062621
+    "time": 1787062633
   },
   "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
   "observations": {
@@ -146,5 +146,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787062622
+  "updated_at": 1787062633
 }
