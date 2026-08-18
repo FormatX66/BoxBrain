@@ -1,0 +1,131 @@
+name: Validate Aurum Local-Lane Self-Heal
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'installer/repair-aurum-local-lane.ps1'
+      - '.github/workflows/aurum-local-lane-repair-validation.yml'
+      - 'Projects/Codelation/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell without execution
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'installer\repair-aurum-local-lane.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'Aurum local-lane repair script has PowerShell parse errors.'
+          }
+          Write-Host 'AURUM_LOCAL_LANE_REPAIR parse=ok'
+
+      - name: Prove missing approval is not silently created
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'aurum-missing-approval'
+          $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\repair-aurum-local-lane.ps1 -InstallRoot $root 2>&1
+          $code = $LASTEXITCODE
+          if ($code -ne 2) { throw "Expected bounded missing-approval exit 2, got $code" }
+          $json = ($output -join "`n") | ConvertFrom-Json
+          if ($json.decision -ne 'existing-approval-missing') { throw 'Missing approval was not classified correctly.' }
+          if ($json.authorization_mutated) { throw 'Missing approval must never be silently created.' }
+          Write-Host 'AURUM_LOCAL_LANE_REPAIR missing-approval=bounded'
+
+      - name: Prove Codelation-only drift refreshes only after local tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'aurum-existing-approval'
+          $binRoot = Join-Path $installRoot 'bin'
+          $stateRoot = Join-Path $installRoot 'state'
+          $runtimeRepo = Join-Path $installRoot 'repository'
+          New-Item -ItemType Directory -Path $binRoot,$stateRoot -Force | Out-Null
+          git clone --no-tags --single-branch --branch main https://github.com/FormatX66/BoxBrain.git $runtimeRepo
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create isolated validation repository.' }
+          Copy-Item installer\aurum-local-lane\watch-aurum-local-lane.ps1 (Join-Path $binRoot 'watch-aurum-local-lane.ps1') -Force
+
+          $deployer = Join-Path $runtimeRepo 'installer\deploy-aurum-live-to-pi.ps1'
+          $watcher = Join-Path $binRoot 'watch-aurum-local-lane.ps1'
+          $head = (git -C $runtimeRepo rev-parse HEAD).Trim()
+          $config = [ordered]@{
+            schema_version = 1
+            repository_root = $runtimeRepo
+            state_path = (Join-Path $stateRoot 'state.json')
+            key_path = (Join-Path $env:RUNNER_TEMP 'unused-key')
+            poll_seconds = 60
+            approved_commit = $head
+            approved_deployer_sha256 = (Get-FileHash $deployer -Algorithm SHA256).Hash.ToLowerInvariant()
+            approved_codelation_tree_sha256 = ('0' * 64)
+            approved_watcher_sha256 = (Get-FileHash $watcher -Algorithm SHA256).Hash.ToLowerInvariant()
+            installed_at = [DateTimeOffset]::UtcNow.ToString('o')
+          }
+          $configPath = Join-Path $installRoot 'config.json'
+          $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
+
+          $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\repair-aurum-local-lane.ps1 -InstallRoot $installRoot 2>&1
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $output | ForEach-Object { Write-Host $_ }
+            throw "Codelation-only self-heal failed with $code"
+          }
+          $json = ($output -join "`n") | ConvertFrom-Json
+          if ($json.decision -ne 'codelation-only-refresh-applied') { throw "Unexpected decision: $($json.decision)" }
+          if (-not $json.tests_passed) { throw 'Refresh occurred without passing local tests.' }
+          if (-not $json.authorization_mutated) { throw 'Expected bounded Codelation hash refresh.' }
+          if ($json.authorization_scope -ne 'codelation-tree-hash-only') { throw 'Authorization scope expanded unexpectedly.' }
+          if ($json.deployment_performed -or $json.bbpi4_touched) { throw 'Repair validation must not deploy or touch BBPI4.' }
+          Write-Host 'AURUM_LOCAL_LANE_REPAIR codelation-only-refresh=verified'
+
+      - name: Prove deployer drift remains blocked
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'aurum-deployer-drift'
+          $binRoot = Join-Path $installRoot 'bin'
+          $stateRoot = Join-Path $installRoot 'state'
+          $runtimeRepo = Join-Path $installRoot 'repository'
+          New-Item -ItemType Directory -Path $binRoot,$stateRoot -Force | Out-Null
+          git clone --no-tags --single-branch --branch main https://github.com/FormatX66/BoxBrain.git $runtimeRepo
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create isolated validation repository.' }
+          Copy-Item installer\aurum-local-lane\watch-aurum-local-lane.ps1 (Join-Path $binRoot 'watch-aurum-local-lane.ps1') -Force
+
+          $watcher = Join-Path $binRoot 'watch-aurum-local-lane.ps1'
+          $head = (git -C $runtimeRepo rev-parse HEAD).Trim()
+          $config = [ordered]@{
+            schema_version = 1
+            repository_root = $runtimeRepo
+            state_path = (Join-Path $stateRoot 'state.json')
+            key_path = (Join-Path $env:RUNNER_TEMP 'unused-key')
+            poll_seconds = 60
+            approved_commit = $head
+            approved_deployer_sha256 = ('0' * 64)
+            approved_codelation_tree_sha256 = ('0' * 64)
+            approved_watcher_sha256 = (Get-FileHash $watcher -Algorithm SHA256).Hash.ToLowerInvariant()
+            installed_at = [DateTimeOffset]::UtcNow.ToString('o')
+          }
+          $configPath = Join-Path $installRoot 'config.json'
+          $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
+
+          $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\repair-aurum-local-lane.ps1 -InstallRoot $installRoot 2>&1
+          $code = $LASTEXITCODE
+          if ($code -ne 3) { throw "Expected review-required exit 3, got $code" }
+          $json = ($output -join "`n") | ConvertFrom-Json
+          if ($json.decision -ne 'review-required') { throw 'Deployer drift was not blocked.' }
+          if ($json.authorization_mutated) { throw 'Deployer drift must never auto-refresh authorization.' }
+          Write-Host 'AURUM_LOCAL_LANE_REPAIR deployer-drift=blocked'
