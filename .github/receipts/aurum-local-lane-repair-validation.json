@@ -1,8 +1,8 @@
 ﻿{
     "schema_version":  1,
     "workflow":  "aurum-local-lane-repair-validation",
-    "run_id":  "32195591930",
-    "tested_commit":  "5a898ff7069193490597d4bffd6ea97b4fd390c8",
+    "run_id":  "32195790780",
+    "tested_commit":  "d54b68ef4fd5ae96e7ffac4be030713a714cc111",
     "status":  "failure",
     "runner":  "windows-latest",
     "validates":  [
@@ -12,5 +12,5 @@
                       "deployer-drift-remains-blocked",
                       "no-bbpi4-touch-during-validation"
                   ],
-    "recorded_at_utc":  "2026-08-18T23:05:04.6053676+00:00"
+    "recorded_at_utc":  "2026-08-18T23:07:39.5345567+00:00"
 }
