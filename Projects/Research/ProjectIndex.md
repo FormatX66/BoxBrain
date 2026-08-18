@@ -7,21 +7,20 @@ and conclusions without mixing unverified ideas into product documentation.
 
 ## Current status
 
-Proposed. No research repository or dataset was discovered.
+Active reference work. The current self-learning/self-building AI survey is a
+dated technical reference used to compare improvement loops, public interfaces,
+and practical Aurum integration patterns.
 
 ## Metadata
 
-- **Owner:** Unconfirmed
+- **Owner:** BoxBrain / Aurum
 - **Priority:** P1
-- **Completion:** 0%
-- **Dependencies:** Defined hypotheses, evaluation criteria, and Security review
-- **Documentation:** This metadata record only
-- **Repositories:** None discovered
-- **Related projects:** [BrainConnect](../BrainConnect/ProjectIndex.md),
-  [AgentFramework](../AgentFramework/ProjectIndex.md),
-  [Security](../Security/ProjectIndex.md)
+- **Completion:** Capability-based reference work
+- **Dependencies:** Defined hypotheses, evaluation criteria, source verification, and Security review
+- **Current reference:** [Self-Learning / Self-Building AI](../../Research/SelfLearningAI/README.md)
+- **Related projects:** [Aurum](../Aurum/ProjectIndex.md), [BrainConnect](../BrainConnect/ProjectIndex.md), [AgentFramework](../AgentFramework/ProjectIndex.md), [Security](../Security/ProjectIndex.md)
 
 ## Next step
 
-Define the first BrainConnect observation and multi-model benchmark after the
-observation-only milestone is implemented.
+Keep research inputs dated and source-verifiable, then promote only tested
+architecture lessons into active Aurum capabilities.
