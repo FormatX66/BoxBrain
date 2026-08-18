@@ -1,0 +1,35 @@
+name: Codelation Windows Regression Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/codelation-windows-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Codelation suite and print exact failure
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stdout = Join-Path $env:RUNNER_TEMP 'codelation-stdout.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'codelation-stderr.log'
+          $p = Start-Process -FilePath python.exe `
+            -ArgumentList @('-m','unittest','discover','-s','Projects/Codelation/tests','-v') `
+            -WorkingDirectory $env:GITHUB_WORKSPACE `
+            -NoNewWindow -Wait -PassThru `
+            -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          Write-Host '--- Codelation stdout ---'
+          if (Test-Path $stdout) { Get-Content $stdout | ForEach-Object { Write-Host $_ } }
+          Write-Host '--- Codelation stderr ---'
+          if (Test-Path $stderr) { Get-Content $stderr | ForEach-Object { Write-Host $_ } }
+          Write-Host "AURUM_CODELATION_WINDOWS_EXIT=$($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { exit $p.ExitCode }
