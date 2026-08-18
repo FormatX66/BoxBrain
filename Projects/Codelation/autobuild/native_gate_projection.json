@@ -1,7 +1,6 @@
 {
   "attempts_this_burst": 8,
   "blocked": {
-    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": "external-prerequisite-blocked",
     "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2": "external-prerequisite-blocked",
     "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651": "external-prerequisite-blocked",
     "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840": "external-prerequisite-blocked",
@@ -646,7 +645,18 @@
     ]
   },
   "external_evidence": {
-    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": null,
+    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": {
+      "authority_granted": false,
+      "credential_content_captured": false,
+      "physical_hardware": "not-proven-or-implied",
+      "proof_artifact": "Aurum-VirtualLab-Convergence-09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+      "proof_artifact_id": 9313909353,
+      "schema": "aurum.same-commit.virtual-lab-proof.v1",
+      "source_commit": "09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+      "verified": true,
+      "workflow": "aurum-virtual-lab.yml",
+      "workflow_run_id": 32107299611
+    },
     "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193": null,
     "09294ddb53d0337bad7cd0e1d41443e9aabd4503adcfc2b72ad6524d5b7e607a": null,
     "0a7abf61c25f25a41e95a50c89612ca2b0f630f00d9e278484973a9465f68b7f": null,
@@ -722,7 +732,7 @@
     "fd7ec6bd6859a7e6c1c6b70eac03c68c6ccc09b33ad942adb684315dfc9ea258": null,
     "reason": "gui-live-trial-evidence-expired"
   },
-  "focus": "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6",
+  "focus": "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2",
   "labels": {
     "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": "adaptive_shell_gui_context_virtual_convergence",
     "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193": "io_safe_port_choice",
@@ -769,10 +779,9 @@
     "faa6f25da05b8e3b76f521e22c238e3e30d13284ce5a527f2982e24ccc37e48d": "adaptive_shell_gui_dialogue_readiness",
     "fd7ec6bd6859a7e6c1c6b70eac03c68c6ccc09b33ad942adb684315dfc9ea258": "memory_semantic_delta_score"
   },
-  "machine_state_sha256": "33ad81af0bddbaa81a3d0cd66016690cde0b9bb57690716a21e5328379e6d2ce",
+  "machine_state_sha256": "997f5e3c54eb9a4df9ec44c508cee2e297cebfadcedd55009636234d62d29930",
   "migration": "verified-v1-bytes-to-v2-scheduler",
   "parked": [
-    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6",
     "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2",
     "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651",
     "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840",
@@ -786,6 +795,7 @@
   "reasoning_requests": {},
   "reasoning_required": false,
   "resolved": [
+    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6",
     "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193",
     "09294ddb53d0337bad7cd0e1d41443e9aabd4503adcfc2b72ad6524d5b7e607a",
     "0a7abf61c25f25a41e95a50c89612ca2b0f630f00d9e278484973a9465f68b7f",
@@ -825,6 +835,18 @@
   ],
   "role": "codelation-only-not-authoritative",
   "schema": "aurum-gate-projection-v2",
-  "work_done_this_burst": 0,
+  "virtual_convergence_evidence": {
+    "authority_granted": false,
+    "credential_content_captured": false,
+    "physical_hardware": "not-proven-or-implied",
+    "proof_artifact": "Aurum-VirtualLab-Convergence-09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+    "proof_artifact_id": 9313909353,
+    "schema": "aurum.same-commit.virtual-lab-proof.v1",
+    "source_commit": "09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+    "verified": true,
+    "workflow": "aurum-virtual-lab.yml",
+    "workflow_run_id": 32107299611
+  },
+  "work_done_this_burst": 1,
   "yield_reason": "waiting-on-external-state"
 }
