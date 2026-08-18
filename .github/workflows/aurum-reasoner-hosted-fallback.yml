@@ -1,0 +1,125 @@
+name: Aurum Reasoner Hosted Fallback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumBridge/reasoning-fallback-jobs/**'
+      - '.github/workflows/aurum-reasoner-hosted-fallback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-reasoner-hosted-fallback
+  cancel-in-progress: false
+
+jobs:
+  reason:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+
+      - name: Start local open-model runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name aurum-ollama -p 127.0.0.1:11434:11434 ollama/ollama
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          docker exec aurum-ollama ollama pull llama3.2:1b
+
+      - name: Process fallback reasoning jobs with provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, time, urllib.request
+
+          jobs = pathlib.Path('Projects/AurumBridge/reasoning-fallback-jobs')
+          results = pathlib.Path('Projects/AurumBridge/reasoning-results')
+          results.mkdir(parents=True, exist_ok=True)
+          for job_path in sorted(jobs.glob('*.json')):
+              out = results / job_path.name
+              if out.exists():
+                  continue
+              job = json.loads(job_path.read_text(encoding='utf-8'))
+              if job.get('schema') != 'aurum-local-reason-job-v1':
+                  raise SystemExit('invalid schema')
+              prompt = str(job.get('prompt') or '')
+              if not (1 <= len(prompt) <= 12000):
+                  raise SystemExit('invalid prompt length')
+              body = json.dumps({
+                  'model': 'llama3.2:1b',
+                  'prompt': prompt,
+                  'stream': False,
+                  'options': {'num_predict': 1024, 'temperature': 0.2},
+              }).encode('utf-8')
+              started = time.time()
+              req = urllib.request.Request(
+                  'http://127.0.0.1:11434/api/generate',
+                  data=body,
+                  headers={'Content-Type': 'application/json'},
+                  method='POST',
+              )
+              with urllib.request.urlopen(req, timeout=600) as response:
+                  r = json.load(response)
+              answer = str(r.get('response') or '')
+              prompt_tokens = r.get('prompt_eval_count')
+              completion_tokens = r.get('eval_count')
+              total_tokens = None
+              if isinstance(prompt_tokens, int) and isinstance(completion_tokens, int):
+                  total_tokens = prompt_tokens + completion_tokens
+              result = {
+                  'schema': 'aurum-local-reason-result-v1',
+                  'job_id': job.get('id'),
+                  'status': 'ok' if answer else 'empty',
+                  'answer': answer,
+                  'provenance': {
+                      'processor_identity': 'AurumLocalReasoner',
+                      'host': 'github-hosted-ubuntu',
+                      'processor_location': 'github-hosted-temporary-body',
+                      'provider': 'local-open-model',
+                      'runtime': 'ollama-container',
+                      'model': 'llama3.2:1b',
+                      'external_provider_usage_consumed': False,
+                      'external_provider_usage_units': 0,
+                      'prompt_tokens': prompt_tokens,
+                      'completion_tokens': completion_tokens,
+                      'total_tokens': total_tokens,
+                      'input_chars': len(prompt),
+                      'output_chars': len(answer),
+                      'elapsed_ms': int((time.time() - started) * 1000),
+                      'model_registry_download_occurred': True,
+                  },
+              }
+              out.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+              print(f"AURUM_FALLBACK_REASON_OK job={job.get('id')} model=llama3.2:1b external_usage=false")
+          PY
+
+      - name: Commit reasoning evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-local-reasoner[bot]'
+          git config user.email 'aurum-local-reasoner@users.noreply.github.com'
+          git add -- Projects/AurumBridge/reasoning-results
+          if git diff --cached --quiet; then
+            echo 'AURUM_FALLBACK_NO_NEW_EVIDENCE'
+            exit 0
+          fi
+          git commit -m 'Record Aurum fallback reasoning evidence [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
