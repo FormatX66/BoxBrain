@@ -77,7 +77,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("wifi-interface-missing", spec)
         self.assertIn("qemu-hp-physical-twin.sh", workflow)
 
-    def test_direct_uefi_seed_removes_grub_from_the_primary_uefi_contract(self) -> None:
+    def test_direct_uefi_seed_removes_grub_and_host_mount_state_from_primary_contract(self) -> None:
         outer = BUILD_SCRIPT.read_text(encoding="utf-8")
         builder = DIRECT_UEFI_BUILDER.read_text(encoding="utf-8")
         smoke = DIRECT_UEFI_SMOKE.read_text(encoding="utf-8")
@@ -93,12 +93,17 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("--add-section .initrd", builder)
         self.assertIn("live-media-path=/live", builder)
 
-        # Direct image construction must not invoke losetup partition scanning;
-        # CI/recovery environments may have no udevd to create loopXpN nodes.
-        self.assertNotIn("losetup --find --show --partscan", builder)
-        self.assertIn("parted -sm", builder)
-        self.assertIn("--offset", builder)
-        self.assertIn("--sizelimit", builder)
+        # The independent UEFI path must be reproducible as ordinary files.
+        # It cannot require udev, loop partition nodes, mount namespaces, or a
+        # host filesystem driver to construct the USB image.
+        self.assertNotIn("losetup", builder)
+        self.assertNotIn("mount ", builder)
+        self.assertIn("mcopy -i", builder)
+        self.assertIn("mkfs.ext4 -q -F -L AURUM_LIVE -d", builder)
+        self.assertIn("dd if=\"$ESP_IMAGE\"", builder)
+        self.assertIn("dd if=\"$DATA_IMAGE\"", builder)
+        self.assertIn("construction_contract=file-native-no-loop-no-mount", builder)
+        self.assertIn("mmd mcopy", outer)
 
         self.assertIn("usb-storage,drive=seed,bootindex=1", smoke)
         self.assertNotIn("-cdrom", smoke)
