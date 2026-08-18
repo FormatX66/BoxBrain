@@ -93,9 +93,9 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("--add-section .initrd", builder)
         self.assertIn("live-media-path=/live", builder)
 
-        # Direct image construction must not depend on udev creating loopXpN
-        # partition device nodes. CI/recovery environments may have no udevd.
-        self.assertNotIn("--partscan", builder)
+        # Direct image construction must not invoke losetup partition scanning;
+        # CI/recovery environments may have no udevd to create loopXpN nodes.
+        self.assertNotIn("losetup --find --show --partscan", builder)
         self.assertIn("parted -sm", builder)
         self.assertIn("--offset", builder)
         self.assertIn("--sizelimit", builder)
