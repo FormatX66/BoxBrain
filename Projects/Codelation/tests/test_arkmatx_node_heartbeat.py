@@ -12,6 +12,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 SOURCE = REPO / 'Web' / 'Aurum-Arkmatx' / 'index.php'
+EVENT_BRIDGE = REPO / '.github' / 'workflows' / 'aurum-event-bridge.yml'
 
 
 def free_port():
@@ -112,6 +113,15 @@ class ArkmatxNodeHeartbeatTests(unittest.TestCase):
             controller = json.load(response)
         self.assertIn('node_heartbeat', controller['capabilities'])
         self.assertEqual(controller['events']['nodes'], 1)
+
+
+class EventDrivenContinuationContractTests(unittest.TestCase):
+    def test_pc_bridge_completion_is_an_event_source_for_autobuild(self):
+        workflow = EVENT_BRIDGE.read_text(encoding='utf-8')
+        self.assertIn('- Aurum PC Bridge', workflow)
+        self.assertIn('aurum-autobuild.yml/dispatches', workflow)
+        self.assertIn('-f ref=main', workflow)
+        self.assertIn('-f ref=aurum/trunk-v0.01', workflow)
 
 
 if __name__ == '__main__':
