@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 12
     steps:
-      - name: Locate the authorized BoxBrain checkout and use BBPI4's AP
+      - name: Locate authorized checkout and self-heal Aurum worker
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -38,6 +38,57 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($root)) {
             throw 'No authorized BoxBrain checkout was found on this Windows runner.'
           }
+
+          $aurumHome = if ($env:AURUM_HOME) { $env:AURUM_HOME } else { Join-Path $env:USERPROFILE '.aurum' }
+          New-Item -ItemType Directory -Path $aurumHome -Force | Out-Null
+          $workerPath = Join-Path $aurumHome 'worker.ps1'
+          $sourceWorker = Join-Path $root 'Web\Aurum-Arkmatx\worker.ps1'
+          $bootstrap = Join-Path $root 'Web\Aurum-Arkmatx\bootstrap.ps1'
+          $configPath = Join-Path $aurumHome 'node.json'
+
+          if (-not (Test-Path -LiteralPath $sourceWorker -PathType Leaf)) {
+            throw "Current Aurum worker source missing: $sourceWorker"
+          }
+
+          if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+            if (-not (Test-Path -LiteralPath $bootstrap -PathType Leaf)) {
+              throw "Aurum node config and bootstrap are both missing: $configPath"
+            }
+            Write-Host 'AURUM_WORKER_RECOVERY enrollment-required'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
+            if ($LASTEXITCODE -ne 0) { throw "Aurum bootstrap returned exit code $LASTEXITCODE" }
+          }
+
+          Copy-Item -LiteralPath $sourceWorker -Destination $workerPath -Force
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          New-Item -Path $runKey -Force | Out-Null
+          $workerCmd = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $workerPath
+          Set-ItemProperty -Path $runKey -Name 'AurumWorker' -Value $workerCmd
+
+          $existing = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -like "*$workerPath*" })
+          if ($existing.Count -eq 0) {
+            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$workerPath)
+            Write-Host 'AURUM_WORKER_RECOVERY worker-restarted=true'
+          } else {
+            Write-Host "AURUM_WORKER_RECOVERY worker-already-running=true count=$($existing.Count)"
+          }
+
+          $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+          $controller = if ($cfg.controller) { [string]$cfg.controller } else { 'https://arkmatx.com/aurum/index.php' }
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+          $heartbeat = [ordered]@{
+            schema='aurum.uaf.v0'
+            frame_id="heartbeat-$($cfg.node_id)-$now"
+            origin="Aurum-Node-$($cfg.node_id)"
+            target='Aurum-Arkmatx'
+            intent='node_heartbeat'
+            state_delta=@{node_id=[string]$cfg.node_id;carrier='https-outbound';worker_recovered=$true}
+            provenance=@{node="Aurum-Node-$($cfg.node_id)";created=$now}
+            verification=@{content_addressed=$true;reversible=$true}
+          }
+          Invoke-RestMethod -Method Post -Uri $controller -ContentType 'application/json' -Body ($heartbeat | ConvertTo-Json -Depth 8 -Compress) | Out-Null
+          Write-Host "AURUM_WORKER_RECOVERY heartbeat=true node=$($cfg.node_id) controller=$controller"
 
           $keyPath = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
           if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
