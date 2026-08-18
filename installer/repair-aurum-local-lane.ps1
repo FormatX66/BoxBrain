@@ -54,6 +54,32 @@ function Get-CodelationTreeHash {
     finally { $sha.Dispose() }
 }
 
+function Invoke-CodelationTests {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+
+    $python = Get-Command python.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $python) { $python = Get-Command py.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
+    if ($null -eq $python) { throw "Python is unavailable for the required local Codelation test confirmation." }
+
+    $pythonPath = $python.Source
+    $arguments = @()
+    if ([IO.Path]::GetFileName($pythonPath).Equals('py.exe', [StringComparison]::OrdinalIgnoreCase)) { $arguments += '-3' }
+    $arguments += @('-m','unittest','discover','-s','Projects/Codelation/tests','-v')
+
+    $stdout = Join-Path $env:TEMP ("aurum-codelation-stdout-{0}.log" -f [Guid]::NewGuid().ToString('N'))
+    $stderr = Join-Path $env:TEMP ("aurum-codelation-stderr-{0}.log" -f [Guid]::NewGuid().ToString('N'))
+    try {
+        $process = Start-Process -FilePath $pythonPath -ArgumentList $arguments -WorkingDirectory $RepositoryRoot -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+        $output = @()
+        if (Test-Path -LiteralPath $stdout) { $output += @(Get-Content -LiteralPath $stdout -ErrorAction SilentlyContinue) }
+        if (Test-Path -LiteralPath $stderr) { $output += @(Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue) }
+        return [pscustomobject]@{ ExitCode = [int]$process.ExitCode; Output = $output }
+    }
+    finally {
+        Remove-Item -LiteralPath $stdout,$stderr -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Start-OrRepairScheduledLane {
     param(
         [Parameter(Mandatory)][string]$WatcherPath,
@@ -72,9 +98,7 @@ function Start-OrRepairScheduledLane {
         Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Bounded BoxBrain lane for BBPI4 Aurum deploy/verify only." -Force | Out-Null
         $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
     }
-    if ($StartNow.IsPresent -and $task.State -ne 'Running') {
-        Start-ScheduledTask -TaskName $taskName
-    }
+    if ($StartNow.IsPresent -and $task.State -ne 'Running') { Start-ScheduledTask -TaskName $taskName }
     return [string]$task.State
 }
 
@@ -100,9 +124,7 @@ $config = Read-JsonFile -Path $configPath
 if ([int]$config.schema_version -ne 1) { throw "Aurum lane configuration schema is unsupported." }
 $repo = [IO.Path]::GetFullPath([string]$config.repository_root).TrimEnd('\')
 $expectedRepoParent = $resolvedInstallRoot + '\'
-if (-not (($repo + '\').StartsWith($expectedRepoParent, [StringComparison]::OrdinalIgnoreCase))) {
-    throw "Existing Aurum lane repository escaped the approved install root."
-}
+if (-not (($repo + '\').StartsWith($expectedRepoParent, [StringComparison]::OrdinalIgnoreCase))) { throw "Existing Aurum lane repository escaped the approved install root." }
 if (-not (Test-Path -LiteralPath $repo -PathType Container)) { throw "Existing Aurum lane repository is unavailable." }
 if (-not (Test-Path -LiteralPath $installedWatcher -PathType Leaf)) { throw "Existing approved Aurum lane watcher is unavailable." }
 
@@ -111,9 +133,7 @@ $script:PowerShell = (Get-Command powershell.exe -CommandType Application -Error
 
 $remote = Invoke-GitBounded @("-C", $repo, "remote", "get-url", "origin")
 $remoteUrl = [string]($remote.Output | Select-Object -First 1)
-if ($remote.ExitCode -ne 0 -or $remoteUrl -notmatch '(?i)github\.com[:/]FormatX66/BoxBrain(?:\.git)?$') {
-    throw "Existing Aurum lane repository remote is not the approved BoxBrain repository."
-}
+if ($remote.ExitCode -ne 0 -or $remoteUrl -notmatch '(?i)github\.com[:/]FormatX66/BoxBrain(?:\.git)?$') { throw "Existing Aurum lane repository remote is not the approved BoxBrain repository." }
 $status = Invoke-GitBounded @("-C", $repo, "status", "--porcelain", "--untracked-files=no")
 if ($status.ExitCode -ne 0 -or $status.Output.Count -gt 0) { throw "Existing Aurum lane repository has unrelated local changes." }
 $fetch = Invoke-GitBounded @("-C", $repo, "fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main")
@@ -159,41 +179,20 @@ if ($drift.Count -gt 0) {
         exit 3
     }
 
-    $python = Get-Command python.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $python) { $python = Get-Command py.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
-    if ($null -eq $python) { throw "Python is unavailable for the required local Codelation test confirmation." }
-    $pythonPath = $python.Source
-    $pythonArgs = @()
-    if ([IO.Path]::GetFileName($pythonPath).Equals('py.exe', [StringComparison]::OrdinalIgnoreCase)) { $pythonArgs += '-3' }
-    $pythonArgs += @('-m','unittest','discover','-s','Projects/Codelation/tests','-v')
-    $old = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Continue'
-        Push-Location $repo
-        try {
-            $testOutput = @(& $pythonPath @pythonArgs 2>&1)
-            $testCode = $LASTEXITCODE
-        }
-        finally { Pop-Location }
-    }
-    finally { $ErrorActionPreference = $old }
-    if ($testCode -ne 0) {
-        $tail = (($testOutput | Select-Object -Last 20 | ForEach-Object { [string]$_ }) -join '; ')
+    $testResult = Invoke-CodelationTests -RepositoryRoot $repo
+    if ($testResult.ExitCode -ne 0) {
+        $tail = (($testResult.Output | Select-Object -Last 40 | ForEach-Object { [string]$_ }) -join '; ')
         throw "Codelation tests did not pass; approval was not changed. $tail"
     }
     $testsPassed = $true
 
-    # This is the only automatic authorization mutation allowed here: update the
-    # Codelation tree hash after proving deployer and watcher approvals are still
-    # unchanged and the exact current source passes its local deterministic tests.
+    # The only automatic authorization mutation permitted here: refresh only the
+    # Codelation tree hash after deployer/watcher approvals are unchanged and the
+    # exact current source passes its local deterministic suite.
     $config.approved_codelation_tree_sha256 = $actualTree
     $config.approved_commit = $currentCommit
-    if ($config.PSObject.Properties.Name -contains 'refreshed_at') {
-        $config.refreshed_at = [DateTimeOffset]::UtcNow.ToString('o')
-    }
-    else {
-        $config | Add-Member -NotePropertyName refreshed_at -NotePropertyValue ([DateTimeOffset]::UtcNow.ToString('o'))
-    }
+    if ($config.PSObject.Properties.Name -contains 'refreshed_at') { $config.refreshed_at = [DateTimeOffset]::UtcNow.ToString('o') }
+    else { $config | Add-Member -NotePropertyName refreshed_at -NotePropertyValue ([DateTimeOffset]::UtcNow.ToString('o')) }
     Write-JsonAtomic -Path $configPath -Value $config
     $authorizationMutated = $true
     $decision = 'codelation-only-refresh-applied'
