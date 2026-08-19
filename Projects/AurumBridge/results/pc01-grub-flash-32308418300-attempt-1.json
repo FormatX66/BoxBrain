@@ -1,0 +1,23 @@
+{
+    "schema":  "aurum-pc01-grub-flash-receipt-v1",
+    "state":  "GRUB_FLASH_OK",
+    "github_workflow_run":  32308418300,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-19T22:24:26.2294567Z",
+    "data":  {
+                 "image":  "Aurum-PC-v0.01-amd64.iso",
+                 "disk_size":  15664676864,
+                 "boot_path":  "grub-iso-hybrid",
+                 "artifact_id":  9374953315,
+                 "disk_number":  1,
+                 "raw_readback_verified":  true,
+                 "image_sha256":  "329d7671c3edb442147e1f00d62eeced1f6be3be6cde3cf18961e424a9a7b0dd",
+                 "disk_model":  "SanDisk Cruzer Fit",
+                 "authorization":  "bruce-explicit-2026-08-19T18:18-04:00-grub-iso",
+                 "seed_run":  32276897305,
+                 "disk_serial":  "4C530001061117108440",
+                 "flashed_at":  "2026-08-19T22:24:26.2234570Z"
+             }
+}
