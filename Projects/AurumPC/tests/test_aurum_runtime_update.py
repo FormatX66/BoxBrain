@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aurum_runtime_update import ALLOWLIST, RuntimeUpdater
+
+MODULE_PATH = Path(__file__).parents[1] / "aurum_runtime_update.py"
+SPEC = importlib.util.spec_from_file_location("aurum_runtime_update", MODULE_PATH)
+assert SPEC and SPEC.loader
+runtime_module = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = runtime_module
+SPEC.loader.exec_module(runtime_module)
+ALLOWLIST = runtime_module.ALLOWLIST
+RuntimeUpdater = runtime_module.RuntimeUpdater
 
 
 class AurumRuntimeUpdateTests(unittest.TestCase):
