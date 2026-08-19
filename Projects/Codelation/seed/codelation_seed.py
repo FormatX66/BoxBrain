@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import signal
 import struct
 import subprocess
 import sys
@@ -175,11 +177,14 @@ def _installed_wifi_bootstrap() -> None:
 
 
 def _launch_installed_wifi_bootstrap() -> None:
-    """Launch interactive WiFi outside the seed runner's short deterministic bound."""
+    """Give the detached WiFi helper exclusive ownership of the physical TTY."""
     if not Path("/etc/aurum-installed.json").is_file():
         return
+    parent_pid = os.getppid()
     try:
         script = str(Path(__file__).resolve())
+        env = dict(os.environ)
+        env["AURUM_WIFI_PARENT_PID"] = str(parent_pid)
         with Path("/dev/tty").open("r", encoding="utf-8", buffering=1) as tty_in, Path("/dev/tty").open(
             "w", encoding="utf-8", buffering=1
         ) as tty_out:
@@ -189,9 +194,18 @@ def _launch_installed_wifi_bootstrap() -> None:
                 stdout=tty_out,
                 stderr=tty_out,
                 close_fds=True,
+                env=env,
             )
-        print("AURUM_WIFI_BOOTSTRAP " + json.dumps({"status": "launched"}, sort_keys=True))
+        # The Aurum console is the seed process parent.  Stop it before this seed
+        # subprocess exits so it cannot consume SSID/password keystrokes intended
+        # for the detached WiFi helper.  The helper always resumes it in finally.
+        os.kill(parent_pid, signal.SIGSTOP)
+        print("AURUM_WIFI_BOOTSTRAP " + json.dumps({"status": "launched-exclusive-tty"}, sort_keys=True))
     except Exception as exc:
+        try:
+            os.kill(parent_pid, signal.SIGCONT)
+        except OSError:
+            pass
         print(
             "AURUM_WIFI_BOOTSTRAP "
             + json.dumps({"status": "launch-failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True)
@@ -214,8 +228,17 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     if args.command == "wifi-bootstrap":
-        time.sleep(1.0)
-        _installed_wifi_bootstrap()
+        parent_text = os.environ.get("AURUM_WIFI_PARENT_PID", "")
+        parent_pid = int(parent_text) if parent_text.isdigit() else None
+        try:
+            time.sleep(0.5)
+            _installed_wifi_bootstrap()
+        finally:
+            if parent_pid is not None:
+                try:
+                    os.kill(parent_pid, signal.SIGCONT)
+                except OSError:
+                    pass
         return 0
 
     graph = SeedGraph.load(args.model)
@@ -229,7 +252,7 @@ def main() -> int:
             _launch_installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
-        print(f"source={short(source)} prediction={short(graph.predict(source))}")
+        print(f"source={short(source)} prediction={short(graph.predict(source))")
     else:
         observations = sum(score.seen for score in graph.edges.values())
         confirmations = sum(score.confirmed for score in graph.edges.values())
