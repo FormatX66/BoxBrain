@@ -1,0 +1,22 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "bridge-health-elevated-20260819-1455",
+    "action":  "bridge_health",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-08-19T19:17:45.3584487Z",
+    "finished_at":  "2026-08-19T19:17:45.8259737Z",
+    "data":  {
+                 "computer_name":  "LAPTOP-EBD8CG8P",
+                 "user":  "NT AUTHORITY\\SYSTEM",
+                 "administrator":  true,
+                 "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+                 "runner_os":  "Windows",
+                 "powershell":  "5.1.26100.9202",
+                 "os_caption":  "Microsoft Windows 11 Pro Insider Preview",
+                 "os_version":  "10.0.26220",
+                 "boot_time":  "2026-08-19T18:22:43.5000000Z",
+                 "observed_at":  "2026-08-19T19:17:45.8249698Z"
+             },
+    "error":  null
+}
