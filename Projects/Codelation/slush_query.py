@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import json
 import sqlite3
 from pathlib import Path
@@ -69,7 +70,7 @@ class SlushQuery:
         )
         params.append(limit)
 
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             rows = con.execute(sql, params).fetchall()
             result = []
             for row in rows:
@@ -99,7 +100,7 @@ class SlushQuery:
         if not object_id or any(c not in "0123456789abcdef" for c in object_id):
             raise ValueError("object_id must be a hexadecimal id or prefix")
 
-        with self._connect() as con:
+        with closing(self._connect()) as con:
             ids = [
                 bytes(row[0]) for row in con.execute(
                     "SELECT id FROM objects WHERE lower(hex(id)) LIKE ? ORDER BY hex(id) LIMIT 2",
