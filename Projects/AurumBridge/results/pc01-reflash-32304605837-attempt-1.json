@@ -1,0 +1,22 @@
+{
+    "schema":  "aurum-pc01-reflash-receipt-v1",
+    "state":  "REFLASH_OK",
+    "github_workflow_run":  32304605837,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-19T21:39:57.6548166Z",
+    "data":  {
+                 "image":  "Aurum-PC-v0.01-amd64-direct-uefi.img",
+                 "disk_size":  15664676864,
+                 "artifact_id":  9374953315,
+                 "disk_number":  1,
+                 "raw_readback_verified":  true,
+                 "image_sha256":  "b6548b29424e200d9b4b8845824ad0483e3ccacd97cf0e64fc7e1299ad090e36",
+                 "disk_model":  "SanDisk Cruzer Fit",
+                 "authorization":  "bruce-explicit-2026-08-19T17:33-04:00",
+                 "seed_run":  32276897305,
+                 "disk_serial":  "4C530001061117108440",
+                 "reflashed_at":  "2026-08-19T21:39:57.6488166Z"
+             }
+}
