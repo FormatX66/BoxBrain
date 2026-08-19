@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $repo = 'FormatX66/BoxBrain'
 $repoUrl = 'https://github.com/FormatX66/BoxBrain'
 $runnerRoot = 'C:\actions-runner'
-$runnerName = $env:COMPUTERNAME
+$runnerName = "AURUM-$env:COMPUTERNAME"
 $customLabel = 'aurum-elevated'
 
 function Ensure-GhCli {
@@ -78,7 +78,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $usb = @(Get-Disk -ErrorAction SilentlyContinue | Where-Object { $_.BusType -eq 'USB' -and -not $_.IsBoot -and -not $_.IsSystem })
-Write-Host "AURUM_RUNNER_BOOTSTRAP_HOST host=$env:COMPUTERNAME usb_safe_count=$($usb.Count)"
+Write-Host "AURUM_RUNNER_BOOTSTRAP_HOST host=$env:COMPUTERNAME runner=$runnerName usb_safe_count=$($usb.Count)"
 foreach ($disk in $usb) {
     Write-Host "AURUM_RUNNER_BOOTSTRAP_USB disk=$($disk.Number) model=$($disk.FriendlyName) serial=$($disk.SerialNumber) size=$($disk.Size)"
 }
@@ -96,7 +96,9 @@ Expand-Archive -LiteralPath $zip -DestinationPath $runnerRoot -Force
 
 Push-Location $runnerRoot
 try {
-    & .\config.cmd --unattended --url $repoUrl --token $registrationToken --name $runnerName --labels $customLabel --work '_work' --runasservice
+    # --replace makes repeat recovery idempotent if a stale registration for the
+    # dedicated Aurum runner name already exists in GitHub.
+    & .\config.cmd --unattended --url $repoUrl --token $registrationToken --name $runnerName --labels $customLabel --work '_work' --runasservice --replace
     if ($LASTEXITCODE -ne 0) { throw "AURUM_RUNNER_CONFIG_FAILED exit=$LASTEXITCODE" }
 }
 finally {
