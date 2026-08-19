@@ -122,9 +122,12 @@ class EventDrivenContinuationContractTests(unittest.TestCase):
     def test_pc_bridge_completion_is_an_event_source_for_autobuild(self):
         workflow = EVENT_BRIDGE.read_text(encoding='utf-8')
         self.assertIn('- Aurum PC Bridge', workflow)
-        self.assertIn('aurum-autobuild.yml/dispatches', workflow)
-        self.assertIn('-f ref=main', workflow)
-        self.assertIn('-f ref=aurum/trunk-v0.01', workflow)
+        self.assertIn("workflow='aurum-autobuild.yml'", workflow)
+        self.assertIn('actions/workflows/${workflow}/dispatches', workflow)
+        self.assertIn("ref='main'", workflow)
+        self.assertIn("ref='aurum/trunk-v0.01'", workflow)
+        self.assertIn('-f ref="$ref"', workflow)
+        self.assertIn('action=deduplicated', workflow)
 
 
 if __name__ == '__main__':
