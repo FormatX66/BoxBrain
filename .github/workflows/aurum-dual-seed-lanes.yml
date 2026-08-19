@@ -1,0 +1,129 @@
+name: Aurum Dual Seed Lanes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-dual-seed-lanes.yml'
+      - 'Projects/Codelation/**'
+      - 'installer/deploy-aurum-live-to-pi.ps1'
+      - 'installer/reconcile-existing-aurum-gold-seed-on-pi.ps1'
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  pc01-seed:
+    name: Dispatch PC-01 x86_64 seed build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch current PC-01 seed branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          url = f'https://api.github.com/repos/{repo}/actions/workflows/aurum-pc-v001.yml/dispatches'
+          data = json.dumps({'ref':'agent/aurum-direct-uefi-seed'}).encode()
+          req = urllib.request.Request(url, data=data, method='POST', headers={
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'Content-Type': 'application/json',
+          })
+          with urllib.request.urlopen(req, timeout=30) as r:
+              if r.status not in (204,):
+                  raise SystemExit(f'Unexpected dispatch status {r.status}')
+          print('AURUM_PC01_SEED_DISPATCHED ref=agent/aurum-direct-uefi-seed')
+          PY
+
+  pi4-seed:
+    name: Reconcile and verify Pi4 ARM64 gold seed
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 30
+    steps:
+      - name: Check out current Aurum control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+
+      - name: Preflight Pi4 route, reconcile seed, verify, and publish receipt
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $repo = $env:GITHUB_REPOSITORY
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          function Publish-PiReceipt([string]$State, [hashtable]$Data) {
+            $path = "Projects/AurumBridge/results/pi4-seed-$env:GITHUB_RUN_ID-attempt-$env:GITHUB_RUN_ATTEMPT.json"
+            $receipt = [ordered]@{
+              schema = 'aurum-pi4-seed-receipt-v1'
+              state = $State
+              github_workflow_run = [long]$env:GITHUB_RUN_ID
+              github_run_attempt = [int]$env:GITHUB_RUN_ATTEMPT
+              host = $env:COMPUTERNAME
+              runner_name = $env:RUNNER_NAME
+              observed_at = (Get-Date).ToUniversalTime().ToString('o')
+              data = $Data
+            }
+            $json = $receipt | ConvertTo-Json -Depth 8
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+            $body = @{
+              message = "Record Pi4 Aurum seed receipt state=$State [skip ci]"
+              content = $encoded
+              branch = 'main'
+            } | ConvertTo-Json -Depth 4
+            Invoke-RestMethod -Method Put -Headers $headers -Uri "https://api.github.com/repos/$repo/contents/$path" -Body $body -ContentType 'application/json' | Out-Null
+          }
+
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'runner-not-elevated' }
+            exit 0
+          }
+
+          $key = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
+          if (-not (Test-Path -LiteralPath $key -PathType Leaf)) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'pi-ssh-key-missing'; key_path = $key }
+            Write-Host "AURUM_PI4_WAITING reason=pi-ssh-key-missing key=$key"
+            exit 0
+          }
+
+          try {
+            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses @('10.12.194.1','10.42.194.1','192.168.0.194') -PiUser 'kali' -KeyPath $key 2>&1
+            $text = ($evidence | Out-String)
+            if ($text -notmatch 'AURUM_GOLD_SEED_RECONCILED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-reconciled-marker' }
+            if ($text -notmatch 'AURUM_LIVE_VERIFIED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-live-verified-marker' }
+            if ($text -notmatch 'AURUM_PEER_SELF_TEST_OK') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-peer-self-test-marker' }
+            if ($text -notmatch 'architecture=(aarch64|arm64)') { throw 'AURUM_PI4_VERIFY_FAILURE reason=unexpected-architecture' }
+
+            $address = if ($text -match 'AURUM_GOLD_SEED_RECONCILED address=([^\s]+)') { $Matches[1] } else { 'unknown' }
+            $seedSha = if ($text -match 'seed_sha256=([0-9a-fA-F]{64})') { $Matches[1].ToLowerInvariant() } else { 'unknown' }
+            Publish-PiReceipt 'PI4_SEED_OK' @{
+              address = $address
+              user = 'kali'
+              architecture = 'arm64'
+              seed_sha256 = $seedSha
+              aurum_live_verified = $true
+              peer_self_test_verified = $true
+              gold_seed_preserved = $true
+              source_commit = $env:GITHUB_SHA
+            }
+            Write-Host "AURUM_PI4_SEED_OK address=$address architecture=arm64 seed_sha256=$seedSha"
+          } catch {
+            $message = $_.Exception.Message
+            Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; source_commit = $env:GITHUB_SHA }
+            throw
+          }
