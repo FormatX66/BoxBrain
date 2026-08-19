@@ -1,0 +1,13 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "WAITING",
+    "github_workflow_run":  32309150164,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-19T22:30:56.6451861Z",
+    "data":  {
+                 "key_path":  "C:\\WINDOWS\\system32\\config\\systemprofile\\.ssh\\boxbrain_pi_ed25519",
+                 "reason":  "pi-ssh-key-missing"
+             }
+}
