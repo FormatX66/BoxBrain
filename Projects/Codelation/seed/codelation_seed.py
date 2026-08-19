@@ -7,7 +7,9 @@ import argparse
 import hashlib
 import json
 import struct
+import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -172,6 +174,30 @@ def _installed_wifi_bootstrap() -> None:
         )
 
 
+def _launch_installed_wifi_bootstrap() -> None:
+    """Launch interactive WiFi outside the seed runner's short deterministic bound."""
+    if not Path("/etc/aurum-installed.json").is_file():
+        return
+    try:
+        script = str(Path(__file__).resolve())
+        with Path("/dev/tty").open("r", encoding="utf-8", buffering=1) as tty_in, Path("/dev/tty").open(
+            "w", encoding="utf-8", buffering=1
+        ) as tty_out:
+            subprocess.Popen(
+                [sys.executable, script, "wifi-bootstrap"],
+                stdin=tty_in,
+                stdout=tty_out,
+                stderr=tty_out,
+                close_fds=True,
+            )
+        print("AURUM_WIFI_BOOTSTRAP " + json.dumps({"status": "launched"}, sort_keys=True))
+    except Exception as exc:
+        print(
+            "AURUM_WIFI_BOOTSTRAP "
+            + json.dumps({"status": "launch-failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True)
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Codelation passive state seed")
     commands = root.add_subparsers(dest="command", required=True)
@@ -181,11 +207,17 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("observation")
     summary = commands.add_parser("summary")
     summary.add_argument("--model", type=Path, default=Path("seed.bin"))
+    commands.add_parser("wifi-bootstrap")
     return root
 
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.command == "wifi-bootstrap":
+        time.sleep(1.0)
+        _installed_wifi_bootstrap()
+        return 0
+
     graph = SeedGraph.load(args.model)
     if args.command == "observe":
         current = state_id(args.observation.encode())
@@ -194,7 +226,7 @@ def main() -> int:
         result = "unscored" if correct is None else ("confirmed" if correct else "missed")
         print(f"state={short(current)} prediction={short(prediction)} result={result}")
         if args.observation == "aurum-x86-ready":
-            _installed_wifi_bootstrap()
+            _launch_installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
         print(f"source={short(source)} prediction={short(graph.predict(source))}")
