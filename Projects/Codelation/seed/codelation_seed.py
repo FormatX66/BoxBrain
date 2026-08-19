@@ -196,9 +196,6 @@ def _launch_installed_wifi_bootstrap() -> None:
                 close_fds=True,
                 env=env,
             )
-        # The Aurum console is the seed process parent.  Stop it before this seed
-        # subprocess exits so it cannot consume SSID/password keystrokes intended
-        # for the detached WiFi helper.  The helper always resumes it in finally.
         os.kill(parent_pid, signal.SIGSTOP)
         print("AURUM_WIFI_BOOTSTRAP " + json.dumps({"status": "launched-exclusive-tty"}, sort_keys=True))
     except Exception as exc:
@@ -252,7 +249,7 @@ def main() -> int:
             _launch_installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
-        print(f"source={short(source)} prediction={short(graph.predict(source))")
+        print(f"source={short(source)} prediction={short(graph.predict(source))}")
     else:
         observations = sum(score.seen for score in graph.edges.values())
         confirmations = sum(score.confirmed for score in graph.edges.values())
