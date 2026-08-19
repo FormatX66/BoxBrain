@@ -20,6 +20,7 @@ DEFAULT_MARKER = Path("/etc/aurum-installed.json")
 ALLOWLIST = (
     "aurum_bootstrap.py",
     "aurum_console.py",
+    "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_installer.py",
     "aurum_network.py",
