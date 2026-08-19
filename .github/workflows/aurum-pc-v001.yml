@@ -123,13 +123,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # qemu-hp-physical-twin.sh owns these acceptance checks internally and
+          # exits non-zero if boot, detailed hardware, Wi-Fi diagnostics, or
+          # NVMe preservation fails. Do not re-grep console-only summary markers
+          # from the raw VM log after a successful harness exit.
           bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
             dist/Aurum-PC-v0.01-amd64.iso \
             aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' aurum-hp-physical-twin.log
           echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
 
       - name: Record image metadata
