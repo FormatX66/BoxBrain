@@ -144,9 +144,11 @@ def _installed_wifi_bootstrap() -> None:
         else:
             old_in, old_out = sys.stdin, sys.stdout
             try:
-                with Path("/dev/tty").open("r+") as tty:
-                    sys.stdin = tty
-                    sys.stdout = tty
+                with Path("/dev/tty").open("r", encoding="utf-8", buffering=1) as tty_in, Path("/dev/tty").open(
+                    "w", encoding="utf-8", buffering=1
+                ) as tty_out:
+                    sys.stdin = tty_in
+                    sys.stdout = tty_out
                     network = interactive_wifi_setup(interfaces[0])
             finally:
                 sys.stdin = old_in
