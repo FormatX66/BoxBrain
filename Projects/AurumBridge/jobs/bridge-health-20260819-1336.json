@@ -1,0 +1,5 @@
+{
+  "schema": "aurum-pc-bridge-job-v1",
+  "id": "bridge-health-20260819-1336",
+  "action": "bridge_health"
+}
