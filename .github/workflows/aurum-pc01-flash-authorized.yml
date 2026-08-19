@@ -188,10 +188,16 @@ jobs:
           $diskNumber = [int]$disk.Number
           $physicalPath = "\\.\PhysicalDrive$diskNumber"
           $driveLetters = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue | Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
+          $expectedSerial = ([string]$disk.SerialNumber).Trim()
+          $expectedSize = [int64]$disk.Size
           Write-Host "AURUM_FLASH_TARGET runner=$env:COMPUTERNAME disk=$diskNumber model=$($disk.FriendlyName) serial=$($disk.SerialNumber) size=$($disk.Size) image_bytes=$($image.Length) run=$seedRunId head=$headSha"
 
           $diskWasOfflined = $false
           try {
+            if ([string]::IsNullOrWhiteSpace($expectedSerial)) {
+              throw "AURUM_FLASH_PREP_FAILURE reason=missing-target-serial disk=$diskNumber"
+            }
+
             # Fixed/USB-attached disks can often be offlined. Windows removable media such as
             # SanDisk Cruzer Fit explicitly rejects Set-Disk -IsOffline. Preflight both branches.
             if (-not [bool]$disk.IsOffline) {
@@ -214,7 +220,52 @@ jobs:
                       }
                     }
                   }
-                  Start-Sleep -Seconds 1
+
+                  # A removed drive letter can leave a mounted, letterless volume. That state
+                  # blocks raw writes even for an elevated runner. Re-prove the exact USB identity,
+                  # then clear only that already-authorized target so Windows releases all volumes.
+                  $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+                  if (
+                    $live.BusType -ne 'USB' -or
+                    [bool]$live.IsBoot -or
+                    [bool]$live.IsSystem -or
+                    ([string]$live.SerialNumber).Trim() -ne $expectedSerial -or
+                    [int64]$live.Size -ne $expectedSize
+                  ) {
+                    throw "AURUM_FLASH_PREP_FAILURE reason=target-identity-changed-before-clean disk=$diskNumber serial=$($live.SerialNumber)"
+                  }
+
+                  $diskpartScript = Join-Path $env:RUNNER_TEMP "aurum-pc01-clean-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT.txt"
+                  @(
+                    "select disk $diskNumber"
+                    "clean"
+                  ) | Set-Content -LiteralPath $diskpartScript -Encoding ASCII
+                  try {
+                    $diskpartOutput = @(& diskpart.exe /s $diskpartScript 2>&1)
+                    $diskpartExit = $LASTEXITCODE
+                  } finally {
+                    Remove-Item -LiteralPath $diskpartScript -Force -ErrorAction SilentlyContinue
+                  }
+                  if ($diskpartExit -ne 0) {
+                    throw "AURUM_FLASH_PREP_FAILURE reason=diskpart-clean-failed exit=$diskpartExit output=$($diskpartOutput -join ' | ')"
+                  }
+
+                  $refresh = Get-Command Update-HostStorageCache -ErrorAction SilentlyContinue
+                  if ($refresh) { Update-HostStorageCache }
+                  Start-Sleep -Seconds 2
+                  $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+                  $remainingPartitions = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue)
+                  if (
+                    $live.BusType -ne 'USB' -or
+                    [bool]$live.IsBoot -or
+                    [bool]$live.IsSystem -or
+                    ([string]$live.SerialNumber).Trim() -ne $expectedSerial -or
+                    [int64]$live.Size -ne $expectedSize -or
+                    $remainingPartitions.Count -ne 0
+                  ) {
+                    throw "AURUM_FLASH_PREP_FAILURE reason=removable-clean-not-proven disk=$diskNumber partitions=$($remainingPartitions.Count) serial=$($live.SerialNumber)"
+                  }
+                  Write-Host "AURUM_FLASH_DEVICE_PREP mode=removable-clean disk=$diskNumber serial=$expectedSerial partitions=0"
                 } else {
                   throw
                 }
