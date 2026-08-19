@@ -93,6 +93,43 @@ def short(identity: bytes | None) -> str:
     return "none" if identity is None else identity.hex()[:12]
 
 
+def _installed_runtime_sync() -> None:
+    """Atomically refresh only the allowlisted installed Aurum runtime files."""
+    if not Path("/etc/aurum-installed.json").is_file():
+        return
+    repo_root = Path(__file__).resolve().parents[3]
+    updater = repo_root / "Projects" / "AurumPC" / "aurum_runtime_update.py"
+    if not updater.is_file():
+        print("AURUM_RUNTIME_BOOTSTRAP " + json.dumps({"status": "updater-missing"}, sort_keys=True))
+        return
+    try:
+        result = subprocess.run(
+            [sys.executable, str(updater), "apply"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=30,
+        )
+        detail = result.stdout.strip()[-4000:]
+        if result.returncode != 0:
+            print(
+                "AURUM_RUNTIME_BOOTSTRAP "
+                + json.dumps({"status": "failed", "detail": detail}, sort_keys=True)
+            )
+            return
+        try:
+            payload = json.loads(detail)
+        except json.JSONDecodeError:
+            payload = {"status": "updated", "detail": detail}
+        print("AURUM_RUNTIME_BOOTSTRAP " + json.dumps(payload, sort_keys=True))
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(
+            "AURUM_RUNTIME_BOOTSTRAP "
+            + json.dumps({"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True)
+        )
+
+
 def _installed_wifi_bootstrap() -> None:
     """Use the installed Aurum TTY to recover/configure WiFi without a shell."""
     if not Path("/etc/aurum-installed.json").is_file():
@@ -246,6 +283,7 @@ def main() -> int:
         result = "unscored" if correct is None else ("confirmed" if correct else "missed")
         print(f"state={short(current)} prediction={short(prediction)} result={result}")
         if args.observation == "aurum-x86-ready":
+            _installed_runtime_sync()
             _launch_installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
