@@ -30,7 +30,10 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     throw 'AURUM_RUNNER_REPAIR_REQUIRES_ADMIN'
 }
 
-$services = Get-AurumRunnerServices
+# Force array semantics even when exactly one runner service exists. PowerShell
+# otherwise unwraps a one-item function result into a scalar, which has no
+# .Count property under StrictMode.
+$services = @(Get-AurumRunnerServices)
 if ($services.Count -eq 0) {
     $runnerRoot = Find-ConfiguredRunnerRoot
     if (-not $runnerRoot) {
@@ -52,7 +55,7 @@ if ($services.Count -eq 0) {
     finally { Pop-Location }
 
     Start-Sleep -Seconds 2
-    $services = Get-AurumRunnerServices
+    $services = @(Get-AurumRunnerServices)
 }
 
 if ($services.Count -eq 0) { throw 'AURUM_RUNNER_SERVICE_STILL_MISSING' }
