@@ -67,10 +67,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
-            -f ref=aurum/trunk-v0.01
-          echo 'AURUM_EVENT dispatched=aurum/trunk-v0.01'
+          workflow='aurum-autobuild.yml'
+          ref='aurum/trunk-v0.01'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${ref}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EVENT autobuild_ref=$ref active=$active action=deduplicated"
+          else
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+              -f ref="$ref"
+            echo "AURUM_EVENT dispatched=$ref"
+          fi
 
       - name: Resume main bounded cycle immediately
         shell: bash
@@ -78,10 +87,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/aurum-autobuild.yml/dispatches" \
-            -f ref=main
-          echo 'AURUM_EVENT dispatched=main'
+          workflow='aurum-autobuild.yml'
+          ref='main'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${ref}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EVENT autobuild_ref=$ref active=$active action=deduplicated"
+          else
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+              -f ref="$ref"
+            echo "AURUM_EVENT dispatched=$ref"
+          fi
 
       - name: Explain scheduling role
         shell: bash

@@ -11,6 +11,7 @@ DEPLOYER = ROOT / "installer" / "deploy-aurum-live-to-pi.ps1"
 RECONCILER = ROOT / "installer" / "reconcile-existing-aurum-gold-seed-on-pi.ps1"
 EVENT_BRIDGE = ROOT / ".github" / "workflows" / "aurum-event-bridge.yml"
 AUTHORIZED_WINDOWS_AP = ROOT / ".github" / "workflows" / "aurum-authorized-windows-ap.yml"
+EXTERNAL_EVIDENCE_RECOVERY = ROOT / ".github" / "workflows" / "aurum-external-evidence-recovery.yml"
 
 
 class LocalLaneContractTests(unittest.TestCase):
@@ -90,6 +91,36 @@ class LocalLaneContractTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", windows_ap)
         self.assertIn(".github/receipts/aurum-local-lane-repair-validation.json", windows_ap)
         self.assertIn("validation-not-green", windows_ap)
+
+    def test_event_bridge_deduplicates_both_autobuild_refs(self):
+        bridge = EVENT_BRIDGE.read_text(encoding="utf-8")
+
+        self.assertEqual(bridge.count("workflow='aurum-autobuild.yml'"), 2)
+        self.assertEqual(bridge.count("autobuild_ref=$ref"), 2)
+        self.assertGreaterEqual(bridge.count('status == "queued"'), 3)
+        self.assertGreaterEqual(bridge.count('status == "in_progress"'), 3)
+        self.assertIn("ref='aurum/trunk-v0.01'", bridge)
+        self.assertIn("ref='main'", bridge)
+
+    def test_external_evidence_recovery_is_default_branch_dispatchable_and_bounded(self):
+        self.assertTrue(EXTERNAL_EVIDENCE_RECOVERY.is_file())
+        recovery = EXTERNAL_EVIDENCE_RECOVERY.read_text(encoding="utf-8")
+
+        self.assertIn("name: Aurum External Evidence Recovery", recovery)
+        self.assertIn("workflow_dispatch:", recovery)
+        self.assertIn("ref: aurum/trunk-v0.01", recovery)
+        self.assertIn("runs-on: [self-hosted, Windows, X64]", recovery)
+        self.assertIn("$evidence.authority_granted -ne $false", recovery)
+        for guard in (
+            "packages_installed",
+            "persistent_service_enabled",
+            "raw_disk_changed",
+            "firmware_changed",
+            "bootloader_changed",
+            "security_reduced",
+        ):
+            self.assertIn(guard, recovery)
+        self.assertIn("AURUM_EXTERNAL_EVIDENCE published=true autobuild_trigger=push", recovery)
 
 
 if __name__ == "__main__":
