@@ -26,19 +26,26 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $stdout = Join-Path $env:RUNNER_TEMP 'codelation-stdout.log'
           $stderr = Join-Path $env:RUNNER_TEMP 'codelation-stderr.log'
-          $p = Start-Process -FilePath python.exe `
-            -ArgumentList @('-m','unittest','discover','-s','Projects/Codelation/tests','-v') `
-            -WorkingDirectory $env:GITHUB_WORKSPACE `
-            -NoNewWindow -Wait -PassThru `
-            -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $exitCode = 127
+          try {
+            $p = Start-Process -FilePath python.exe `
+              -ArgumentList @('-m','unittest','discover','-s','Projects/Codelation/tests','-v') `
+              -WorkingDirectory $env:GITHUB_WORKSPACE `
+              -NoNewWindow -Wait -PassThru `
+              -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $exitCode = [int]$p.ExitCode
+          }
+          catch {
+            @($_ | Out-String) | Set-Content -LiteralPath $stderr -Encoding UTF8
+          }
           $combined = @()
           if (Test-Path $stdout) { $combined += @(Get-Content $stdout) }
           if (Test-Path $stderr) { $combined += @(Get-Content $stderr) }
           $tail = @($combined | Select-Object -Last 120)
           $tail | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'codelation-tail.log') -Encoding UTF8
           Write-Host ($tail -join "`n")
-          "exit_code=$($p.ExitCode)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          if ($p.ExitCode -ne 0) { exit $p.ExitCode }
+          "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if ($exitCode -ne 0) { exit $exitCode }
 
       - name: Publish regression receipt
         if: always()
@@ -47,13 +54,15 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tailPath = Join-Path $env:RUNNER_TEMP 'codelation-tail.log'
           $tail = if (Test-Path $tailPath) { @(Get-Content $tailPath | Select-Object -Last 120) } else { @() }
-          $failLines = @($tail | Where-Object { $_ -match '^(FAIL|ERROR):|^FAILED |^Ran [0-9]+ tests|^PermissionError:|^OSError:|^Traceback ' } | Select-Object -Last 40)
+          $failLines = @($tail | Where-Object { $_ -match '^(FAIL|ERROR):|^FAILED |^Ran [0-9]+ tests|^PermissionError:|^OSError:|^Traceback |^AssertionError:' } | Select-Object -Last 40)
+          $rawExit = '${{ steps.tests.outputs.exit_code }}'
+          $testExitCode = if ($rawExit -match '^-?[0-9]+$') { [int]$rawExit } else { -1 }
           $receipt = [ordered]@{
             schema_version = 1
             workflow = 'codelation-windows-regression'
             run_id = '${{ github.run_id }}'
             tested_commit = '${{ github.sha }}'
-            test_exit_code = [int]'${{ steps.tests.outputs.exit_code }}'
+            test_exit_code = $testExitCode
             test_step_outcome = '${{ steps.tests.outcome }}'
             failure_summary = $failLines
             tail = @($tail | Select-Object -Last 80)
