@@ -12,7 +12,10 @@ import threading
 import time
 from pathlib import Path
 
+from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
 from aurum_installer import AurumInstaller, InstallError
+from aurum_network import ensure_online, interactive_wifi_setup, network_status
+from aurum_runtime_update import RuntimeUpdateError, RuntimeUpdater
 from aurum_workspace import AurumWorkspace, WorkspaceError
 
 VERSION = "0.01"
@@ -120,6 +123,8 @@ class SelfBuildController:
 
 BUILDS = SelfBuildController(WORKSPACE)
 INSTALLER = AurumInstaller()
+RUNTIME = RuntimeUpdater(workspace=WORKSPACE.workspace, state_dir=WORKSPACE.state_dir)
+GUI = GuiRuntime(workspace=WORKSPACE.workspace, state_dir=WORKSPACE.state_dir)
 
 
 def _read_text(path: Path, default: str = "unknown") -> str:
@@ -186,7 +191,7 @@ def selftest() -> tuple[bool, str]:
         if not verification.verified:
             return False, "io-plan-verification-failed"
         return True, f"io-plan={verification.invocation_output}"
-    except Exception as exc:  # bounded boot diagnostic; no mutation occurs
+    except Exception as exc:
         return False, f"{type(exc).__name__}:{exc}"
 
 
@@ -197,6 +202,7 @@ def show_status() -> None:
         "runtime_mode": "installed" if Path("/etc/aurum-installed.json").is_file() else "live",
         "substrate": "linux-hardware-compatibility-layer",
         "hardware": hardware(),
+        "network": network_status(),
         "aurum": {
             "completed_generations": state.get("completed_generations"),
             "latest_completed_gap": state.get("latest_completed_gap"),
@@ -227,6 +233,52 @@ def show_result(operation) -> None:
         print(json.dumps(result, indent=2, sort_keys=True), flush=True)
     except WorkspaceError as exc:
         print(f"AURUM_WORKSPACE_REFUSED detail={exc}", flush=True)
+
+
+def show_network() -> None:
+    print(json.dumps(network_status(), indent=2, sort_keys=True), flush=True)
+
+
+def run_wifi_setup() -> None:
+    try:
+        result = interactive_wifi_setup()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(f"AURUM_WIFI_SETUP status={result.get('status')} online={str(bool(result.get('online'))).lower()}", flush=True)
+    except Exception as exc:
+        print(f"AURUM_WIFI_SETUP status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
+def run_wifi_reconnect() -> None:
+    try:
+        result = ensure_online(interactive=False)
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(f"AURUM_WIFI_RECONNECT status={result.get('status')} online={str(bool(result.get('online'))).lower()}", flush=True)
+    except Exception as exc:
+        print(f"AURUM_WIFI_RECONNECT status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
+def run_runtime(action: str) -> None:
+    try:
+        result = RUNTIME.apply() if action == "sync" else RUNTIME.plan()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        if action == "sync" and result.get("reboot_required"):
+            print("AURUM_RUNTIME_SYNC status=updated reboot_required=true", flush=True)
+    except (RuntimeUpdateError, OSError) as exc:
+        print(f"AURUM_RUNTIME_SYNC status=failed detail={exc}", flush=True)
+
+
+def run_gui(action: str) -> None:
+    try:
+        if action == "start":
+            result = GUI.start()
+        elif action == "stop":
+            result = GUI.stop()
+        else:
+            result = GUI.status()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(f"AURUM_GUI_RUNTIME status={result.get('status')} address=127.0.0.1 port={result.get('port')}", flush=True)
+    except (GuiRuntimeError, OSError) as exc:
+        print(f"AURUM_GUI_RUNTIME status=failed detail={exc}", flush=True)
 
 
 def show_install_plan() -> None:
@@ -276,11 +328,12 @@ def run_install(confirmation_code: str) -> None:
 
 def command_help() -> None:
     print(
-        "status | hardware | field | selftest | seed | seed-status | self-build | "
-        "self-build-status | self-build-cancel | "
+        "status | hardware | network-status | wifi-setup | wifi-reconnect | field | selftest | "
+        "seed | seed-status | self-build | self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
-        "git-promote authorize-network confirm-push | install | "
-        "install confirm ERASE-CODE | reboot | poweroff | help",
+        "git-promote authorize-network confirm-push | runtime-status | runtime-sync | "
+        "gui-status | gui-start | gui-stop | install | install confirm ERASE-CODE | "
+        "reboot | poweroff | help",
         flush=True,
     )
 
@@ -319,6 +372,12 @@ def main() -> int:
             show_status()
         elif command == "hardware" and len(tokens) == 1:
             print(json.dumps(hardware(), indent=2, sort_keys=True), flush=True)
+        elif command == "network-status" and len(tokens) == 1:
+            show_network()
+        elif command == "wifi-setup" and len(tokens) == 1:
+            run_wifi_setup()
+        elif command == "wifi-reconnect" and len(tokens) == 1:
+            run_wifi_reconnect()
         elif command == "field" and len(tokens) == 1:
             show_field()
         elif command == "selftest" and len(tokens) == 1:
@@ -351,6 +410,16 @@ def main() -> int:
                     confirm_push=tokens[2].lower() == "confirm-push",
                 )
             )
+        elif command == "runtime-status" and len(tokens) == 1:
+            run_runtime("status")
+        elif command == "runtime-sync" and len(tokens) == 1:
+            run_runtime("sync")
+        elif command == "gui-status" and len(tokens) == 1:
+            run_gui("status")
+        elif command == "gui-start" and len(tokens) == 1:
+            run_gui("start")
+        elif command == "gui-stop" and len(tokens) == 1:
+            run_gui("stop")
         elif command == "install" and len(tokens) == 1:
             show_install_plan()
         elif command == "install" and len(tokens) == 3 and tokens[1].lower() == "confirm":
