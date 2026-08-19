@@ -1,0 +1,17 @@
+{
+    "schema":  "aurum-pc01-flash-receipt-v1",
+    "state":  "INTEGRITY_FAILURE",
+    "github_workflow_run":  32291684979,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-19T19:40:07.6855363Z",
+    "data":  {
+                 "image_sha256":  "b6548b29424e200d9b4b8845824ad0483e3ccacd97cf0e64fc7e1299ad090e36",
+                 "disk_model":  "SanDisk Cruzer Fit",
+                 "disk_number":  1,
+                 "head":  "7c841adcb05fd7a36c4769e43d606089b2cf5fa5",
+                 "reason":  "Not Supported\n \nExtended information:\nRemovable media cannot be set to offline.\n \n\nActivity ID: {ba5a120d-3007-0002-d326-5aba0730dd01}",
+                 "disk_serial":  "4C530001061117108440"
+             }
+}
