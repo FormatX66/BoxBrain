@@ -6,6 +6,7 @@ on:
       - Aurum PC v0.01 Image
       - Aurum PC Bridge
       - Aurum Virtual Hardware Lab
+      - Validate Aurum Local-Lane Self-Heal
     types: [completed]
   workflow_dispatch:
 
