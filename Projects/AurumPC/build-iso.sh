@@ -103,7 +103,7 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py aurum_time.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_console.py aurum_bootstrap.py aurum_gui_runtime.py aurum_hardware.py aurum_network.py aurum_runtime_update.py aurum_time.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
