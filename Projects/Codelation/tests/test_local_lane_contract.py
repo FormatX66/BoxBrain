@@ -92,6 +92,16 @@ class LocalLaneContractTests(unittest.TestCase):
         self.assertIn(".github/receipts/aurum-local-lane-repair-validation.json", windows_ap)
         self.assertIn("validation-not-green", windows_ap)
 
+    def test_verified_reflash_completion_reenters_event_chain(self):
+        bridge = EVENT_BRIDGE.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            bridge.count("Aurum PC-01 One-Time Verified Reflash"), 1
+        )
+        self.assertIn("types: [completed]", bridge)
+        self.assertIn("ref='aurum/trunk-v0.01'", bridge)
+        self.assertIn("ref='main'", bridge)
+
     def test_event_bridge_deduplicates_both_autobuild_refs(self):
         bridge = EVENT_BRIDGE.read_text(encoding="utf-8")
 
