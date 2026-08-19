@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from aurum_gui_runtime import GuiRuntime
+
+MODULE_PATH = Path(__file__).parents[1] / "aurum_gui_runtime.py"
+SPEC = importlib.util.spec_from_file_location("aurum_gui_runtime", MODULE_PATH)
+assert SPEC and SPEC.loader
+gui_module = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = gui_module
+SPEC.loader.exec_module(gui_module)
+GuiRuntime = gui_module.GuiRuntime
 
 
 class AurumGuiRuntimeTests(unittest.TestCase):
