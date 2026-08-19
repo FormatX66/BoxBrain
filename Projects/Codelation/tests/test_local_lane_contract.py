@@ -9,6 +9,8 @@ AP_HELPER = ROOT / "installer" / "invoke-aurum-via-bbpi4-ap.ps1"
 WATCHER = ROOT / "installer" / "aurum-local-lane" / "watch-aurum-local-lane.ps1"
 DEPLOYER = ROOT / "installer" / "deploy-aurum-live-to-pi.ps1"
 RECONCILER = ROOT / "installer" / "reconcile-existing-aurum-gold-seed-on-pi.ps1"
+EVENT_BRIDGE = ROOT / ".github" / "workflows" / "aurum-event-bridge.yml"
+AUTHORIZED_WINDOWS_AP = ROOT / ".github" / "workflows" / "aurum-authorized-windows-ap.yml"
 
 
 class LocalLaneContractTests(unittest.TestCase):
@@ -73,6 +75,21 @@ class LocalLaneContractTests(unittest.TestCase):
         )
         self.assertIn("foreach ($address in $addresses)", text)
         self.assertIn("Address = $address; Text = $text", text)
+
+    def test_hosted_validation_completion_explicitly_resumes_windows_lane(self):
+        bridge = EVENT_BRIDGE.read_text(encoding="utf-8")
+        windows_ap = AUTHORIZED_WINDOWS_AP.read_text(encoding="utf-8")
+
+        self.assertIn("Validate Aurum Local-Lane Self-Heal", bridge)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", bridge)
+        self.assertIn("aurum-authorized-windows-ap.yml", bridge)
+        self.assertIn("actions: write", bridge)
+        self.assertIn("action=deduplicated", bridge)
+        self.assertIn("/dispatches", bridge)
+
+        self.assertIn("workflow_dispatch:", windows_ap)
+        self.assertIn(".github/receipts/aurum-local-lane-repair-validation.json", windows_ap)
+        self.assertIn("validation-not-green", windows_ap)
 
 
 if __name__ == "__main__":
