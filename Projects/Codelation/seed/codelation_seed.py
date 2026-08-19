@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import struct
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -87,6 +89,87 @@ def short(identity: bytes | None) -> str:
     return "none" if identity is None else identity.hex()[:12]
 
 
+def _installed_wifi_bootstrap() -> None:
+    """Use the installed Aurum TTY to recover/configure WiFi without a shell."""
+    if not Path("/etc/aurum-installed.json").is_file():
+        return
+    aurum_root = Path("/opt/aurum")
+    required = (
+        aurum_root / "aurum_network.py",
+        aurum_root / "aurum_wifi_recovery.py",
+        aurum_root / "aurum_wifi_diag.py",
+    )
+    if not all(path.is_file() for path in required):
+        print("AURUM_WIFI_BOOTSTRAP " + json.dumps({"status": "runtime-helper-missing"}, sort_keys=True))
+        return
+    root_text = str(aurum_root)
+    if root_text not in sys.path:
+        sys.path.insert(0, root_text)
+    try:
+        from aurum_network import ensure_online, interactive_wifi_setup, wireless_interfaces
+        from aurum_wifi_diag import diagnose
+        from aurum_wifi_recovery import recover_existing_wifi_driver
+
+        recovery = recover_existing_wifi_driver()
+        interfaces = wireless_interfaces()
+        if not interfaces:
+            diagnostic = diagnose()
+            compact = [
+                {
+                    "address": item.get("address"),
+                    "vendor": item.get("vendor"),
+                    "device": item.get("device"),
+                    "class": item.get("class"),
+                    "driver": item.get("driver"),
+                    "modalias": item.get("modalias"),
+                }
+                for item in diagnostic.get("pci_network_candidates", [])
+            ]
+            print(
+                "AURUM_WIFI_BOOTSTRAP "
+                + json.dumps(
+                    {
+                        "status": "driver-unresolved",
+                        "recovery": recovery,
+                        "pci_candidates": compact,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return
+
+        current = ensure_online(interactive=False)
+        if current.get("online"):
+            network = current
+        else:
+            old_in, old_out = sys.stdin, sys.stdout
+            try:
+                with Path("/dev/tty").open("r+") as tty:
+                    sys.stdin = tty
+                    sys.stdout = tty
+                    network = interactive_wifi_setup(interfaces[0])
+            finally:
+                sys.stdin = old_in
+                sys.stdout = old_out
+        print(
+            "AURUM_WIFI_BOOTSTRAP "
+            + json.dumps(
+                {
+                    "status": "online" if network.get("online") else network.get("status"),
+                    "interfaces": wireless_interfaces(),
+                    "network": network,
+                    "recovery": recovery,
+                },
+                sort_keys=True,
+            )
+        )
+    except Exception as exc:
+        print(
+            "AURUM_WIFI_BOOTSTRAP "
+            + json.dumps({"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True)
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Codelation passive state seed")
     commands = root.add_subparsers(dest="command", required=True)
@@ -108,6 +191,8 @@ def main() -> int:
         graph.save(args.model)
         result = "unscored" if correct is None else ("confirmed" if correct else "missed")
         print(f"state={short(current)} prediction={short(prediction)} result={result}")
+        if args.observation == "aurum-x86-ready":
+            _installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
         print(f"source={short(source)} prediction={short(graph.predict(source))}")
