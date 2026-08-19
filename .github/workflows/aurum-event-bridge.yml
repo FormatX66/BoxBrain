@@ -38,6 +38,29 @@ jobs:
             echo 'AURUM_EVENT source=manual-bootstrap'
           fi
 
+      - name: Resume validated Windows local lane after hosted proof
+        if: >-
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.name == 'Validate Aurum Local-Lane Self-Heal' &&
+          github.event.workflow_run.conclusion == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='aurum-authorized-windows-ap.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=main&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EVENT local_lane_recovery=active count=$active action=deduplicated"
+          else
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+              -f ref=main
+            echo 'AURUM_EVENT local_lane_recovery=dispatched ref=main'
+          fi
+
       - name: Resume trunk convergence immediately
         shell: bash
         env:
