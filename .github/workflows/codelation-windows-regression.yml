@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/codelation-windows-regression.yml'
+      - 'Projects/Codelation/**'
 
 permissions:
   contents: write
