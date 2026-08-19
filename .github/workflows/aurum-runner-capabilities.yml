@@ -1,0 +1,168 @@
+name: Aurum Runner Capability Matrix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-runner-capabilities.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  capabilities:
+    name: Probe Aurum workstation runner capabilities
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 20
+    steps:
+      - name: Probe and publish machine-readable capability receipt
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $repo = $env:GITHUB_REPOSITORY
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          function Test-Command([string]$Name) {
+            return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+          }
+
+          function Safe-Run([scriptblock]$Block) {
+            try {
+              $value = & $Block
+              return [ordered]@{ ok = $true; value = $value; error = $null }
+            } catch {
+              return [ordered]@{ ok = $false; value = $null; error = $_.Exception.Message }
+            }
+          }
+
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+          $isAdmin = [bool]$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+          $service = @(Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -like 'actions.runner.*' -and $_.Name -like '*AURUM-LAPTOP-EBD8CG8P*'
+          } | Select-Object -First 1)
+
+          $scratch = Join-Path $env:ProgramData 'Aurum\RunnerCapabilityProbe'
+          New-Item -ItemType Directory -Path $scratch -Force | Out-Null
+          $scratchFile = Join-Path $scratch 'scratch.txt'
+          'aurum-runner-capability-probe' | Set-Content -LiteralPath $scratchFile -Encoding UTF8
+          $scratchRoundTrip = (Get-Content -LiteralPath $scratchFile -Raw).Trim()
+          Remove-Item -LiteralPath $scratchFile -Force -ErrorAction SilentlyContinue
+
+          $gitVersion = if (Test-Command 'git') { (& git --version 2>&1 | Select-Object -First 1) } else { $null }
+          $ghVersion = if (Test-Command 'gh') { (& gh --version 2>&1 | Select-Object -First 1) } else { $null }
+          $pythonCmd = if (Test-Command 'python') { 'python' } elseif (Test-Command 'py') { 'py' } else { $null }
+          $pythonVersion = if ($pythonCmd) { (& $pythonCmd --version 2>&1 | Select-Object -First 1) } else { $null }
+          $dockerVersion = if (Test-Command 'docker') { (& docker version --format '{{.Server.Version}}' 2>$null | Select-Object -First 1) } else { $null }
+
+          $github443 = [bool](Test-NetConnection github.com -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue)
+          $api443 = [bool](Test-NetConnection api.github.com -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue)
+          $dnsGithub = Safe-Run { (Resolve-DnsName github.com -Type A -ErrorAction Stop | Select-Object -First 3 -ExpandProperty IPAddress) }
+          $apiRepo = Safe-Run { (Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo").full_name }
+          $apiSelf = Safe-Run { (Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runners?per_page=100").runners | Where-Object { $_.name -eq $env:RUNNER_NAME } | Select-Object -First 1 | ForEach-Object { [ordered]@{ id = $_.id; status = $_.status; busy = $_.busy; labels = @($_.labels.name) } } }
+
+          $gitRemoteProbe = Safe-Run {
+            $tempRepo = Join-Path $env:RUNNER_TEMP "aurum-capability-git-$env:GITHUB_RUN_ID"
+            if (Test-Path -LiteralPath $tempRepo) { Remove-Item -LiteralPath $tempRepo -Recurse -Force }
+            & git init $tempRepo | Out-Null
+            Push-Location $tempRepo
+            try {
+              & git remote add origin "https://github.com/$repo.git"
+              $refs = @(& git ls-remote --heads origin 2>&1)
+              if ($LASTEXITCODE -ne 0) { throw ($refs -join "`n") }
+              [ordered]@{ head_ref_count = $refs.Count; sample = @($refs | Select-Object -First 3) }
+            } finally {
+              Pop-Location
+              Remove-Item -LiteralPath $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $processTop = @(Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 | ForEach-Object {
+            [ordered]@{ name = $_.ProcessName; id = $_.Id; cpu_seconds = if ($null -ne $_.CPU) { [double]$_.CPU } else { 0.0 }; working_set_bytes = [int64]$_.WorkingSet64 }
+          })
+
+          $usb = @(Get-Disk | Where-Object { $_.BusType -eq 'USB' } | Sort-Object Number | ForEach-Object {
+            [ordered]@{
+              number = [int]$_.Number
+              model = [string]$_.FriendlyName
+              serial = [string]$_.SerialNumber
+              size_bytes = [int64]$_.Size
+              is_boot = [bool]$_.IsBoot
+              is_system = [bool]$_.IsSystem
+              is_read_only = [bool]$_.IsReadOnly
+            }
+          })
+
+          $sessions = Safe-Run { @(Get-CimInstance Win32_LogonSession -ErrorAction Stop | Select-Object -First 20 LogonId, LogonType, StartTime) }
+          $explorer = @(Get-Process explorer -ErrorAction SilentlyContinue | ForEach-Object { [ordered]@{ id = $_.Id; session_id = $_.SessionId } })
+          $runnerSession = (Get-Process -Id $PID).SessionId
+          $interactiveVisible = ($explorer | Where-Object { $_.session_id -eq $runnerSession }).Count -gt 0
+
+          $result = [ordered]@{
+            schema = 'aurum-runner-capabilities-v1'
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            host = $env:COMPUTERNAME
+            runner = [ordered]@{
+              name = $env:RUNNER_NAME
+              os = $env:RUNNER_OS
+              arch = $env:RUNNER_ARCH
+              identity = $identity
+              administrator = $isAdmin
+              process_session_id = $runnerSession
+              service = if ($service.Count -eq 1) { [ordered]@{ name = $service[0].Name; state = $service[0].State; start_mode = $service[0].StartMode; account = $service[0].StartName; path = $service[0].PathName } } else { $null }
+              github_registration = $apiSelf
+            }
+            capabilities = [ordered]@{
+              scratch_write_roundtrip = ($scratchRoundTrip -eq 'aurum-runner-capability-probe')
+              github_https_443 = $github443
+              api_github_https_443 = $api443
+              dns_github = $dnsGithub
+              github_api_repo_read = $apiRepo
+              git_available = [bool]$gitVersion
+              git_version = $gitVersion
+              git_remote_read = $gitRemoteProbe
+              gh_available = [bool]$ghVersion
+              gh_version = $ghVersion
+              python_available = [bool]$pythonCmd
+              python_version = $pythonVersion
+              docker_cli_available = (Test-Command 'docker')
+              docker_server_version = $dockerVersion
+              powershell_version = $PSVersionTable.PSVersion.ToString()
+              process_inventory = $true
+              service_inventory = $true
+              storage_inventory = $true
+              usb_inventory = $usb
+              explorer_sessions = $explorer
+              interactive_desktop_same_session = $interactiveVisible
+              logon_session_probe = $sessions
+            }
+            safety = [ordered]@{
+              destructive_disk_write_tested = $false
+              firmware_change_tested = $false
+              credential_contents_exposed = $false
+            }
+          }
+
+          $json = $result | ConvertTo-Json -Depth 12
+          Write-Host $json
+
+          $path = "Projects/AurumBridge/runner-capabilities/runner-capabilities-$env:GITHUB_RUN_ID.json"
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+          $body = @{
+            message = "Record Aurum runner capability matrix [skip ci]"
+            content = $encoded
+            branch = 'main'
+          } | ConvertTo-Json -Depth 4
+          Invoke-RestMethod -Method Put -Headers $headers -Uri "https://api.github.com/repos/$repo/contents/$path" -Body $body -ContentType 'application/json' | Out-Null
+          Write-Host "AURUM_RUNNER_CAPABILITY_MATRIX_OK path=$path"
