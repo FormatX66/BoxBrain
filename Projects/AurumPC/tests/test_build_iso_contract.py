@@ -39,8 +39,9 @@ class BuildIsoContractTests(unittest.TestCase):
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("--debian-installer none", script)
         for package in (
-            "aurum_installer.py", "aurum_time.py", "aurum_wifi_recovery.py", "systemd-timesyncd",
-            "kmod", "parted", "rsync", "dosfstools", "e2fsprogs", "grub-efi-amd64-bin", "grub2-common",
+            "aurum_installer.py", "aurum_time.py", "aurum_wifi_recovery.py", "aurum_runtime_update.py",
+            "aurum_gui_runtime.py", "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools",
+            "e2fsprogs", "grub-efi-amd64-bin", "grub2-common",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
