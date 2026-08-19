@@ -7,6 +7,7 @@ on:
       - Aurum PC Bridge
       - Aurum Virtual Hardware Lab
       - Validate Aurum Local-Lane Self-Heal
+      - Aurum PC-01 One-Time Verified Reflash
     types: [completed]
   workflow_dispatch:
 
