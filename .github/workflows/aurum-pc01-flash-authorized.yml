@@ -27,7 +27,7 @@ env:
 jobs:
   flash:
     name: Flash explicitly authorized PC-01 USB seed
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
     timeout-minutes: 25
     steps:
       - name: Wait for a genuinely boot-verified current seed and flash exactly one safe USB disk
