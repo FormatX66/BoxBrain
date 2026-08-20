@@ -25,6 +25,8 @@ ALLOWLIST = (
     "aurum_autonomy.py",
     "aurum_bootstrap.py",
     "aurum_console.py",
+    "aurum_desktop.py",
+    "aurum_desktop_runtime.py",
     "aurum_display_runtime.py",
     "aurum_driver_synthesis.py",
     "aurum_echo_native.py",
