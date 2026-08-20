@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'Projects/AurumBridge/jobs/**'
+      - 'Projects/AurumBridge/requests/pi-pc01-visibility/**'
       - 'Projects/AurumBridge/AurumBridge.ps1'
       - '.github/workflows/aurum-pc-bridge.yml'
 
@@ -26,6 +27,112 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: true
+
+      - name: Process bounded BBPI4 PC-01 visibility requests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+          Set-Location -LiteralPath $root
+
+          $requestDir = Join-Path $root 'Projects\AurumBridge\requests\pi-pc01-visibility'
+          $resultDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $requestDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+
+          $requests = @(Get-ChildItem -LiteralPath $requestDir -File -Filter '*.json' -ErrorAction SilentlyContinue | Sort-Object Name)
+          foreach ($request in $requests) {
+            $resultPath = Join-Path $resultDir $request.Name
+            if (Test-Path -LiteralPath $resultPath) { continue }
+
+            $body = Get-Content -LiteralPath $request.FullName -Raw | ConvertFrom-Json
+            if ([string]$body.schema -ne 'aurum-bbpi4-pc01-visibility-request-v1') { throw "Invalid visibility request schema: $($request.Name)" }
+            if ([string]$body.action -ne 'pi_pc01_visibility') { throw "Invalid visibility request action: $($request.Name)" }
+
+            $keyCandidates = @(
+              (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+              'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+              'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+            )
+            $keyCandidates += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'
+            })
+            $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+            if (-not $key) { throw 'Dedicated BBPI4 SSH key boxbrain_pi_ed25519 not found on runner host.' }
+
+            $ssh = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+            $keyscan = (Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+            $keygen = (Get-Command ssh-keygen.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+            $expectedFingerprint = 'SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY'
+            $targets = @('10.42.194.1','10.12.194.1','192.168.0.194')
+            $attempts = @()
+            $selected = $null
+            $remoteOutput = $null
+
+            foreach ($target in $targets) {
+              $scanLines = @(& $keyscan -T 4 -t ed25519 $target 2>$null | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+              if ($scanLines.Count -eq 0) {
+                $attempts += [ordered]@{ address=$target; host_key='unavailable'; ssh_exit=$null; output=$null }
+                continue
+              }
+              $temp = Join-Path $env:RUNNER_TEMP ("bbpi4-pc01-key-" + [Guid]::NewGuid().ToString('N'))
+              try {
+                [IO.File]::WriteAllLines($temp, @([string]$scanLines[0]), [Text.Encoding]::ASCII)
+                $fpText = @(& $keygen -lf $temp -E sha256 2>&1) -join ' '
+              } finally {
+                Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+              }
+              $fpMatch = [regex]::Match($fpText, 'SHA256:[A-Za-z0-9+/=]+')
+              if (-not $fpMatch.Success -or $fpMatch.Value -ne $expectedFingerprint) {
+                $attempts += [ordered]@{ address=$target; host_key='fingerprint-mismatch'; ssh_exit=$null; output=$null }
+                continue
+              }
+
+              $knownHosts = Join-Path $env:RUNNER_TEMP ("bbpi4-pc01-knownhosts-" + [Guid]::NewGuid().ToString('N'))
+              [IO.File]::WriteAllLines($knownHosts, @([string]$scanLines[0]), [Text.Encoding]::ASCII)
+              try {
+                $remote = "echo AURUM_BBPI4_PC01_PROBE; hostname; echo '--- addresses ---'; ip -brief addr; echo '--- ping pc-01.local ---'; ping -c 3 pc-01.local || true; echo '--- neighbors ---'; ip neigh"
+                $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@$target" $remote 2>&1)
+                $exit = $LASTEXITCODE
+              } finally {
+                Remove-Item -LiteralPath $knownHosts -Force -ErrorAction SilentlyContinue
+              }
+              $attempts += [ordered]@{ address=$target; host_key='verified'; ssh_exit=$exit; output=($lines -join "`n") }
+              if ($exit -eq 0) {
+                $selected = $target
+                $remoteOutput = $lines -join "`n"
+                break
+              }
+            }
+
+            $result = [ordered]@{
+              schema = 'aurum-bbpi4-pc01-visibility-result-v1'
+              request_id = [string]$body.id
+              state = if ($selected) { 'OK' } else { 'BBPI4_UNREACHABLE' }
+              runner_host = $env:COMPUTERNAME
+              bbpi4_address = $selected
+              observed_at = (Get-Date).ToUniversalTime().ToString('o')
+              commands = @('ping -c 3 pc-01.local','ip neigh')
+              output = $remoteOutput
+              attempts = $attempts
+            }
+            $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resultPath -Encoding UTF8
+          }
+
+          git config user.name 'aurum-pc-bridge[bot]'
+          git config user.email 'aurum-pc-bridge@users.noreply.github.com'
+          git add -- 'Projects/AurumBridge/results'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m 'Record BBPI4 PC-01 visibility evidence [skip ci]'
+            git pull --rebase origin main
+            git push origin HEAD:main
+            if ($LASTEXITCODE -ne 0) { throw 'BBPI4 visibility evidence push failed.' }
+          }
 
       - name: Process pending bridge jobs
         shell: powershell
