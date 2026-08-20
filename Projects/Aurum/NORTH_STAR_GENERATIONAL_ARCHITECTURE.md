@@ -93,7 +93,21 @@ This applies beyond capabilities. Human-facing names for files, workspaces, syst
 
 **The user owns the language; Aurum owns the semantic mapping.**
 
-### 9. Predictive hardware understanding and diagnosis
+### 9. Always assist, and teach along the way
+
+Aurum should reduce user friction immediately while also helping the user become more capable over time. Assistance and learning are not separate modes that require the user to choose between getting the task done and improving their own skill.
+
+The system should first preserve the user's momentum: infer intent, correct obvious errors, surface likely words, simplify unnecessary complexity, and complete routine work when confidence is high. At the same time, it should learn from the interaction process itself, including hesitation, repeated backspacing, retyping, abandoned phrases, corrections, undo actions, accepted or rejected suggestions, repeated spelling patterns, and other signs of friction.
+
+When useful and welcome, Aurum should turn those signals into lightweight teaching moments: better word choices, spelling reinforcement, typing practice based on real mistakes, explanation of why a correction was made, shortcuts, conceptual guidance, or gradual reduction of assistance as the user improves.
+
+Teaching should remain adaptive and non-punitive. It should not interrupt a time-sensitive task merely to deliver a lesson, repeatedly correct a user's chosen dialect or voice, or optimize for formal correctness at the expense of intent. The system should distinguish between an error, a personal style, a vocabulary search, and an unfamiliar concept before deciding how to help.
+
+The long-term goal is not dependence on correction. A good Aurum trait can deliberately become less visible as the user becomes more capable, while remaining ready to assist when friction returns.
+
+**Help the user now; help the user grow next.**
+
+### 10. Predictive hardware understanding and diagnosis
 
 Because Aurum continuously observes the machine it inhabits, it should develop behavioral baselines for its hardware rather than relying only on static health flags.
 
@@ -101,7 +115,7 @@ Over time it should correlate signals such as timing, retries, corrected errors,
 
 The goal is not merely to report a failing component after an error. Aurum should eventually isolate degrading hardware, distinguish component failure from configuration/software failure, estimate confidence, preserve data where possible, adapt around a failure temporarily, and tell the human what actually needs attention.
 
-### 10. Presence-adaptive power instead of sleep, hibernation, and shutdown ceremony
+### 11. Presence-adaptive power instead of sleep, hibernation, and shutdown ceremony
 
 Aurum should not require the human to manage traditional computer power states as a normal operating-system task. Sleep, hibernation, shutdown, and a software power-button ritual are compatibility concepts, not north-star user concepts.
 
@@ -113,7 +127,7 @@ A physical power control may remain as an emergency, recovery, maintenance, or h
 
 This principle does not authorize unsafe direct manipulation of voltage, clocks, thermals, firmware, or hardware power rails. Early implementations should use proven platform power-management interfaces and remain bounded by device evidence and thermal/recovery invariants. More direct machine-native power control is earned only as Aurum's hardware models and verification become strong enough to support it safely.
 
-### 11. Continuously adaptive externally, rigorously attributable internally
+### 12. Continuously adaptive externally, rigorously attributable internally
 
 Aurum may eventually have no user-facing concept equivalent to monthly updates or conventional driver releases, but every consequential change must remain attributable.
 
@@ -140,4 +154,4 @@ The north-star experience is a computer that continuously maintains and reshapes
 
 ## North-star statement
 
-**Aurum is a continuously self-building, generational, machine-first computing environment. It treats conventional operating systems, desktops, files, drivers, software abstractions, terminology, and traditional whole-machine power states as optional human-facing or compatibility projections over an adaptive machine-native state. Each node learns from its exact machine, contributes evidence to the wider lineage, inherits validated traits, and can evolve its kernel, hardware interfaces, memory representation, power behavior, capability expression, terminology, and user environment while preserving known-good generations, provenance, and stable semantic identity beneath user-specific language.**
+**Aurum is a continuously self-building, generational, machine-first computing environment. It treats conventional operating systems, desktops, files, drivers, software abstractions, terminology, and traditional whole-machine power states as optional human-facing or compatibility projections over an adaptive machine-native state. Each node learns from its exact machine and its authorized users, contributes evidence to the wider lineage, inherits validated traits, reduces friction while teaching along the way, and can evolve its kernel, hardware interfaces, memory representation, power behavior, capability expression, terminology, and user environment while preserving known-good generations, provenance, and stable semantic identity beneath user-specific language.**
