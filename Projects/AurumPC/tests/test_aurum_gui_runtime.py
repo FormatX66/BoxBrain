@@ -22,14 +22,17 @@ class AurumGuiRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             workspace = root / "workspace"
+            aurum_pc = workspace / "Projects" / "AurumPC"
             seed = workspace / "Projects" / "Codelation" / "seed"
             mind = workspace / "Projects" / "Codelation" / "mind"
             state = root / "state"
             run = root / "run"
             (workspace / ".git").mkdir(parents=True)
+            aurum_pc.mkdir(parents=True)
             seed.mkdir(parents=True)
             mind.mkdir(parents=True)
             (seed / "aurum_gui.py").write_text("print('gui')\n", encoding="utf-8")
+            (aurum_pc / "aurum_arcade.py").write_text("print('arcade')\n", encoding="utf-8")
             bootstrap = {
                 "schema": "aurum.mind.v1",
                 "identity": "BBPI4/Aurum",
@@ -46,7 +49,10 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             copied = state / "gui" / "mind" / "bootstrap_mind.json"
             self.assertTrue(copied.is_file())
             self.assertEqual(json.loads(copied.read_text(encoding="utf-8")), bootstrap)
-            self.assertEqual(runtime.status()["status"], "stopped")
+            status = runtime.status()
+            self.assertEqual(status["status"], "stopped")
+            self.assertEqual(status["arcade"]["status"], "stopped")
+            self.assertEqual(status["arcade"]["machine"], "Hopper")
             self.assertFalse((workspace / "Projects" / "Codelation" / "state").exists())
 
 
