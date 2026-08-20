@@ -39,6 +39,8 @@ jobs:
             Projects/AurumPC/aurum_arcade.py \
             Projects/AurumPC/aurum_autonomy.py \
             Projects/AurumPC/aurum_bootstrap.py \
+            Projects/AurumPC/aurum_desktop.py \
+            Projects/AurumPC/aurum_desktop_runtime.py \
             Projects/AurumPC/aurum_display_runtime.py \
             Projects/AurumPC/aurum_driver_synthesis.py \
             Projects/AurumPC/aurum_echo_native.py \
@@ -78,6 +80,10 @@ jobs:
           grep -q '"auto_local_echo_display": false' Projects/AurumPC/pc01_autonomy_policy.json
           grep -q 'Every fourth return leaves a temporary echo well' Projects/AurumPC/aurum_arcade.py
           grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
+          grep -q 'aurum_desktop_runtime.py' Projects/AurumPC/aurum_gui_runtime.py
+          grep -q 'aurum_desktop.py' Projects/AurumPC/aurum_runtime_update.py
+          grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_desktop_runtime.py
+          grep -q 'Ctrl+Alt+F1 recovery console' Projects/AurumPC/aurum_desktop.py
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
           grep -q 'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"' Projects/AurumPC/aurum_display_runtime.py
           grep -q 'physical_echo_activation' Projects/AurumPC/aurum_runtime_update.py
