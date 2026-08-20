@@ -75,7 +75,7 @@ jobs:
           grep -q 'aurum_driver_synthesis.py' Projects/AurumPC/aurum_autonomy.py
           grep -q 'load_synthesized_modules.*false' Projects/AurumPC/pc01_autonomy_policy.json
           grep -q '"machine_display_name": "Hopper"' Projects/AurumPC/pc01_autonomy_policy.json
-          grep -q '"auto_local_echo_display": true' Projects/AurumPC/pc01_autonomy_policy.json
+          grep -q '"auto_local_echo_display": false' Projects/AurumPC/pc01_autonomy_policy.json
           grep -q 'Every fourth return leaves a temporary echo well' Projects/AurumPC/aurum_arcade.py
           grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
