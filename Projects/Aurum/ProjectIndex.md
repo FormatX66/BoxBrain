@@ -10,6 +10,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 
 ## Canonical project documents
 
+- [North-star generational architecture](NORTH_STAR_GENERATIONAL_ARCHITECTURE.md)
 - [Contributor start](START_HERE.md)
 - [State authority](STATE_AUTHORITY.md)
 - [Autonomous driver synthesis](AUTONOMOUS_DRIVER_SYNTHESIS.md)
