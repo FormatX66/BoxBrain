@@ -36,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile \
+            Projects/AurumPC/aurum_arcade.py \
             Projects/AurumPC/aurum_autonomy.py \
             Projects/AurumPC/aurum_bootstrap.py \
             Projects/AurumPC/aurum_driver_synthesis.py \
@@ -70,6 +71,9 @@ jobs:
           grep -q '_launch_installed_autonomy' Projects/Codelation/seed/codelation_seed.py
           grep -q 'aurum_driver_synthesis.py' Projects/AurumPC/aurum_autonomy.py
           grep -q 'load_synthesized_modules.*false' Projects/AurumPC/pc01_autonomy_policy.json
+          grep -q '"machine_display_name": "Hopper"' Projects/AurumPC/pc01_autonomy_policy.json
+          grep -q 'Every fourth return leaves a temporary echo well' Projects/AurumPC/aurum_arcade.py
+          grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
 
       - name: Install independent VM tooling
         shell: bash
