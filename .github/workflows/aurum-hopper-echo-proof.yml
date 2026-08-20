@@ -34,15 +34,16 @@ jobs:
           out="Projects/AurumBridge/results/hopper-echo-proof-${GITHUB_RUN_ID}.json"
           observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           runner="$(hostname)"
-          body_file="$(mktemp)"
-          trap 'rm -f "$body_file"' EXIT
+          body_first="$(mktemp)"
+          body_second="$(mktemp)"
+          trap 'rm -f "$body_first" "$body_second"' EXIT
 
           endpoint=''
           attempts='[]'
           for round in 1 2 3 4 5; do
             for host in hopper.local pc-01.local hopper pc-01; do
               url="http://${host}:8767/proof"
-              http="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body_file" -w '%{http_code}' "$url" 2>/dev/null || true)"
+              http="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body_first" -w '%{http_code}' "$url" 2>/dev/null || true)"
               attempts="$(python3 - "$attempts" "$round" "$url" "$http" <<'PY'
 import json, sys
 items=json.loads(sys.argv[1])
@@ -50,8 +51,8 @@ items.append({'round':int(sys.argv[2]),'url':sys.argv[3],'http_status':sys.argv[
 print(json.dumps(items,separators=(',',':')))
 PY
 )"
-              if [ "$http" = 200 ] && python3 -m json.tool "$body_file" >/dev/null 2>&1; then
-                schema="$(python3 - "$body_file" <<'PY'
+              if [ "$http" = 200 ] && python3 -m json.tool "$body_first" >/dev/null 2>&1; then
+                schema="$(python3 - "$body_first" <<'PY'
 import json,sys
 try:
     print(json.load(open(sys.argv[1],encoding='utf-8')).get('schema',''))
@@ -81,21 +82,37 @@ payload={
   'ready':False,
   'attempts':json.loads(attempts),
   'proof':None,
+  'frame_progress':None,
 }
 with open(out,'w',encoding='utf-8') as f: json.dump(payload,f,indent=2,sort_keys=True); f.write('\n')
 PY
           else
-            python3 - "$out" "$observed" "$runner" "$endpoint" "$attempts" "$body_file" <<'PY'
+            sleep 3
+            http_second="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body_second" -w '%{http_code}' "$endpoint" 2>/dev/null || true)"
+            python3 - "$out" "$observed" "$runner" "$endpoint" "$attempts" "$body_first" "$body_second" "$http_second" <<'PY'
 import json,sys
-out,observed,runner,endpoint,attempts,body_path=sys.argv[1:]
-proof=json.load(open(body_path,encoding='utf-8'))
+out,observed,runner,endpoint,attempts,first_path,second_path,http_second=sys.argv[1:]
+first=json.load(open(first_path,encoding='utf-8'))
+try:
+    second=json.load(open(second_path,encoding='utf-8')) if http_second == '200' else {}
+except Exception:
+    second={}
+proof=second if second.get('schema') == 'aurum.hopper.echo-proof.v1' else first
 machine=proof.get('machine') or {}
 display=proof.get('display') or {}
 echo=proof.get('echo') or {}
 inputp=proof.get('input') or {}
 res=echo.get('physical_resolution')
+first_frames=(first.get('echo') or {}).get('frames_presented')
+second_frames=(second.get('echo') or {}).get('frames_presented')
+frame_progress=bool(
+    isinstance(first_frames,int) and not isinstance(first_frames,bool)
+    and isinstance(second_frames,int) and not isinstance(second_frames,bool)
+    and second_frames > first_frames >= 0
+)
 ready=bool(
-  proof.get('ready') is True
+  second.get('schema') == 'aurum.hopper.echo-proof.v1'
+  and proof.get('ready') is True
   and machine.get('authorized_exact_hopper') is True
   and machine.get('display_name') == 'Hopper'
   and machine.get('configured_hostname') == 'hopper'
@@ -108,8 +125,8 @@ ready=bool(
   and echo.get('process_running') is True
   and echo.get('fullscreen') is True
   and isinstance(echo.get('video_driver'),str) and bool(echo.get('video_driver').strip())
-  and isinstance(res,list) and len(res)==2 and all(isinstance(v,int) and v>0 for v in res)
-  and isinstance(echo.get('frames_presented'),int) and echo.get('frames_presented') > 0
+  and isinstance(res,list) and len(res)==2 and all(isinstance(v,int) and not isinstance(v,bool) and v>0 for v in res)
+  and frame_progress
   and inputp.get('keyboard_path_available') is True
   and inputp.get('pointer_path_available') is True
 )
@@ -122,6 +139,13 @@ payload={
   'ready':ready,
   'attempts':json.loads(attempts),
   'proof':proof,
+  'frame_progress':{
+    'first_frames_presented':first_frames,
+    'second_frames_presented':second_frames,
+    'progressed':frame_progress,
+    'sample_interval_seconds':3,
+    'second_http_status':http_second or None,
+  },
 }
 with open(out,'w',encoding='utf-8') as f: json.dump(payload,f,indent=2,sort_keys=True); f.write('\n')
 PY
