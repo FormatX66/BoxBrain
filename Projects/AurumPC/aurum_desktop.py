@@ -144,6 +144,17 @@ def _render() -> int:
     if width < 800 or height < 480:
         raise RuntimeError(f"physical display too small: {width}x{height}")
     pygame.display.set_caption("Aurum — Hopper")
+    _atomic_json(DEFAULT_STATE / "desktop-ui.json", {
+        "schema": SCHEMA,
+        "status": "running",
+        "pid": os.getpid(),
+        "surface": "physical",
+        "machine": "Hopper",
+        "host_actuation": False,
+        "video_driver": os.environ.get("SDL_VIDEODRIVER", "auto"),
+        "resolution": [width, height],
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    })
 
     scale = min(width / 1440.0, height / 900.0)
 
@@ -362,7 +373,7 @@ def main() -> int:
     pid_path.write_text(str(os.getpid()) + "\n", encoding="utf-8")
     _atomic_json(state_path, {
         "schema": SCHEMA,
-        "status": "running",
+        "status": "launching",
         "pid": os.getpid(),
         "surface": "physical",
         "machine": "Hopper",
