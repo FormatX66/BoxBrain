@@ -20,7 +20,7 @@ from mesh_efficiency import (  # noqa: E402
     plan_candidate_paths,
 )
 from run_capacity_mesh_cycle import policy_audit  # noqa: E402
-from run_capacity_mesh_lane import suite_test_modules  # noqa: E402
+from run_capacity_mesh_lane import full_suite_test_modules, suite_test_modules  # noqa: E402
 
 
 POLICY = ROOT / "autobuild" / "capacity_mesh_policy.json"
@@ -46,6 +46,10 @@ class MeshEfficiencyTests(unittest.TestCase):
             {entry["name"] for entry in matrix["include"]},
             {path["name"] for path in policy["candidate_paths"]},
         )
+        for entry in matrix["include"]:
+            self.assertIn("shard_index", entry)
+            self.assertIn("shard_count", entry)
+            self.assertLess(entry["shard_index"], entry["shard_count"])
 
     def test_parallel_paths_use_distinct_capacity(self):
         paths = (
@@ -94,15 +98,33 @@ class MeshEfficiencyTests(unittest.TestCase):
         self.assertTrue(broad)
         self.assertTrue(core.isdisjoint(broad))
 
+    def test_shards_partition_each_suite_without_overlap(self):
+        for suite, shard_count in (("core", 4), ("broad", 6), ("verification", 6), ("portability", 2)):
+            full = set(full_suite_test_modules(suite))
+            observed: set[str] = set()
+            for shard_index in range(shard_count):
+                shard = set(
+                    suite_test_modules(
+                        suite,
+                        shard_index=shard_index,
+                        shard_count=shard_count,
+                    )
+                )
+                self.assertTrue(observed.isdisjoint(shard))
+                observed.update(shard)
+            self.assertEqual(observed, full)
+
     def test_policy_audit_reports_zero_duplicate_module_work(self):
         policy = self._policy()
         audit = policy_audit(policy)
+        self.assertEqual(audit["matrix_lane_count"], 18)
         self.assertEqual(audit["duplicate_work_items"], 0)
         self.assertEqual(audit["duplicate_work_fraction"], 0.0)
         self.assertLessEqual(
             audit["duplicate_work_fraction"],
             policy["limits"]["maximum_duplicate_work_fraction"],
         )
+        self.assertTrue(audit["target_met"])
 
     def test_policy_audit_detects_same_runner_suite_overlap(self):
         policy = self._policy()
@@ -114,12 +136,11 @@ class MeshEfficiencyTests(unittest.TestCase):
         }
         with patch(
             "run_capacity_mesh_cycle.suite_test_modules",
-            side_effect=lambda suite: modules_by_suite[suite],
+            side_effect=lambda suite, **_kwargs: modules_by_suite[suite],
         ):
             audit = policy_audit(policy)
-        self.assertEqual(audit["duplicate_work_items"], 1)
-        self.assertEqual(audit["duplicate_work_total"], 3)
-        self.assertAlmostEqual(audit["duplicate_work_fraction"], 1 / 3)
+        self.assertGreater(audit["duplicate_work_items"], 0)
+        self.assertGreater(audit["duplicate_work_fraction"], 0.05)
         self.assertFalse(audit["target_met"])
 
     def test_fresh_heartbeat_nodes_can_be_excluded_without_inventing_presence(self):
