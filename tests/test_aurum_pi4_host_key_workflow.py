@@ -50,3 +50,12 @@ def test_reconciler_transfers_bounded_script_instead_of_inline_payload():
     assert '"${target}:$transfer/aurum-reconcile.sh"' in text
     assert "Remove-Item -LiteralPath $localRemoteScript" in text
     assert "base64.b64decode" not in text
+
+
+def test_reconciler_handles_native_stderr_but_enforces_exit_codes():
+    text = RECONCILER.read_text(encoding="utf-8")
+    assert "function Invoke-OpenSshNative" in text
+    assert '$ErrorActionPreference = "Continue"' in text
+    assert "nativeExitCode = $LASTEXITCODE" in text
+    assert "reconcileResult.ExitCode -ne 0" in text
+    assert "evidenceResult.ExitCode -ne 0" in text

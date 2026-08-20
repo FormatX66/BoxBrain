@@ -55,10 +55,44 @@ if ($UserKnownHostsFile) {
     $options += @("-o", "UserKnownHostsFile=$UserKnownHostsFile")
 }
 
+function Invoke-OpenSshNative {
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [switch]$SuppressStderr
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    $nativeOutput = @()
+    $nativeExitCode = 1
+    try {
+        # Windows PowerShell 5.1 wraps any native stderr line in a
+        # NativeCommandError when the caller uses Stop. OpenSSH and Python's
+        # unittest runner legitimately write diagnostics/progress to stderr,
+        # so capture it and continue to enforce the actual process exit code.
+        $ErrorActionPreference = "Continue"
+        if ($SuppressStderr) {
+            $nativeOutput = @(& $Executable @Arguments 2>$null)
+        } else {
+            $nativeOutput = @(& $Executable @Arguments 2>&1)
+        }
+        $nativeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    [pscustomobject]@{ Output = $nativeOutput; ExitCode = $nativeExitCode }
+}
+
+function Write-OpenSshOutput($Result) {
+    foreach ($item in $Result.Output) { Write-Output ([string]$item) }
+}
+
 $selected = $null
 foreach ($address in $PiAddresses) {
-    & $sshPath @options "$PiUser@$address" "test -d /opt/boxbrain/codelation || test -d /opt/aurum" 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $probe = Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @("$PiUser@$address", "test -d /opt/boxbrain/codelation || test -d /opt/aurum")) -SuppressStderr
+    if ($probe.ExitCode -eq 0) {
         $selected = $address
         break
     }
@@ -71,13 +105,16 @@ $target = "$PiUser@$selected"
 $transfer = "/tmp/aurum-reconcile-$([Guid]::NewGuid().ToString('N'))"
 $localRemoteScript = $null
 try {
-    & $sshPath @options $target "umask 077; mkdir -p -- '$transfer/Projects'"
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the bounded BBPI4 staging directory." }
+    $mkdirResult = Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @($target, "umask 077; mkdir -p -- '$transfer/Projects'"))
+    Write-OpenSshOutput $mkdirResult
+    if ($mkdirResult.ExitCode -ne 0) { throw "Could not create the bounded BBPI4 staging directory." }
 
-    & $scpPath @options -r "$source" "${target}:$transfer/Projects/"
-    if ($LASTEXITCODE -ne 0) { throw "Could not stage the Aurum dialogue/live-graph source on BBPI4." }
-    & $scpPath @options -r (Join-Path $repositoryRoot "installer") "${target}:$transfer/"
-    if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded installer contract on BBPI4." }
+    $sourceTransfer = Invoke-OpenSshNative -Executable $scpPath -Arguments ($options + @("-r", $source, "${target}:$transfer/Projects/"))
+    Write-OpenSshOutput $sourceTransfer
+    if ($sourceTransfer.ExitCode -ne 0) { throw "Could not stage the Aurum dialogue/live-graph source on BBPI4." }
+    $installerTransfer = Invoke-OpenSshNative -Executable $scpPath -Arguments ($options + @("-r", (Join-Path $repositoryRoot "installer"), "${target}:$transfer/"))
+    Write-OpenSshOutput $installerTransfer
+    if ($installerTransfer.ExitCode -ne 0) { throw "Could not stage the bounded installer contract on BBPI4." }
 
     $remote = @'
 #!/usr/bin/env bash
@@ -303,25 +340,28 @@ printf '%s\n' \
     $localRemoteScript = Join-Path ([IO.Path]::GetTempPath()) "aurum-reconcile-$([Guid]::NewGuid().ToString('N')).sh"
     $utf8NoBom = New-Object Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($localRemoteScript, ($remote -replace "`r", ""), $utf8NoBom)
-    & $scpPath @options $localRemoteScript "${target}:$transfer/aurum-reconcile.sh"
-    if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded BBPI4 reconciliation script." }
+    $scriptTransfer = Invoke-OpenSshNative -Executable $scpPath -Arguments ($options + @($localRemoteScript, "${target}:$transfer/aurum-reconcile.sh"))
+    Write-OpenSshOutput $scriptTransfer
+    if ($scriptTransfer.ExitCode -ne 0) { throw "Could not stage the bounded BBPI4 reconciliation script." }
 
     $remoteScript = "$transfer/aurum-reconcile.sh"
     $remoteCommand = "chmod 700 -- $remoteScript && $remoteScript $transfer $PiUser"
-    & $sshPath @options $target $remoteCommand
-    if ($LASTEXITCODE -ne 0) {
+    $reconcileResult = Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @($target, $remoteCommand))
+    Write-OpenSshOutput $reconcileResult
+    if ($reconcileResult.ExitCode -ne 0) {
         throw "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
     }
 }
 finally {
-    & $sshPath @options $target "rm -rf -- '$transfer' /tmp/aurum-reconcile.sh" 2>$null
+    [void](Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @($target, "rm -rf -- '$transfer' /tmp/aurum-reconcile.sh")) -SuppressStderr)
     if ($localRemoteScript -and (Test-Path -LiteralPath $localRemoteScript -PathType Leaf)) {
         Remove-Item -LiteralPath $localRemoteScript -Force -ErrorAction SilentlyContinue
     }
 }
 
-$evidence = & $sshPath @options $target "cat /opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt"
-if ($LASTEXITCODE -ne 0) { throw "Could not retrieve reconciled Aurum evidence from BBPI4." }
+$evidenceResult = Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @($target, "cat /opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt"))
+if ($evidenceResult.ExitCode -ne 0) { throw "Could not retrieve reconciled Aurum evidence from BBPI4." }
+$evidence = @($evidenceResult.Output | ForEach-Object { [string]$_ })
 $text = ($evidence -join "`n")
 $required = @(
     "identity=BBPI4/Aurum",
