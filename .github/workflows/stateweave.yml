@@ -1,0 +1,31 @@
+name: StateWeave Experimental
+
+on:
+  push:
+    branches:
+      - stateweave-experimental
+    paths:
+      - 'stateweave/**'
+      - 'Architecture/StateWeave.md'
+      - '.github/workflows/stateweave.yml'
+  pull_request:
+    paths:
+      - 'stateweave/**'
+      - 'Architecture/StateWeave.md'
+      - '.github/workflows/stateweave.yml'
+
+jobs:
+  stateweave-v0:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run StateWeave v0 tests
+        working-directory: stateweave
+        run: python -m unittest -v test_stateweave.py
