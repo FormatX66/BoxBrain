@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Aurum's native physical desktop for Hopper.
 
-The desktop is a presentation surface, not a shell. It renders local Aurum
-state directly with pygame, keeps tty1 available as the recovery console, and
+The desktop is a presentation surface, not a shell. It renders verified local
+state and durable user-facing traits, keeps tty1 available as recovery, and
 does not expose arbitrary host actuation. The physical launcher owns VT2.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import signal
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -60,16 +62,47 @@ def _online() -> bool:
         fields = line.split()
         if len(fields) < 4 or fields[1] != "00000000":
             continue
-        interface = fields[0]
         try:
             flags = int(fields[3], 16)
         except ValueError:
             continue
         if not (flags & 0x1):
             continue
+        interface = fields[0]
         if _text(Path("/sys/class/net") / interface / "operstate", "down") in {"up", "unknown"}:
             return True
     return False
+
+
+def _load_traits(workspace: Path, runtime_root: Path) -> dict[str, Any]:
+    candidates = (
+        runtime_root / "aurum_traits.py",
+        workspace / "Projects" / "AurumPC" / "aurum_traits.py",
+        Path(__file__).with_name("aurum_traits.py"),
+    )
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"aurum_traits_{os.getpid()}_{time.time_ns()}", path)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            result = module.summary()
+            if isinstance(result, dict) and result.get("schema") == "aurum.traits.v1":
+                return result
+        except Exception:
+            continue
+    return {
+        "schema": "aurum.traits.v1",
+        "total": 0,
+        "foundation_ready": 0,
+        "planned": 0,
+        "traits": [],
+        "host_actuation": False,
+    }
 
 
 def collect_snapshot(
@@ -86,6 +119,7 @@ def collect_snapshot(
         seed = {"status": "seeded"}
     driver = _json_file(state_dir / "driver-lab" / "latest-cycle.json")
     chain = _json_file(runtime_root / "codelation" / "autobuild" / "native_chain_state.json")
+    traits = _load_traits(workspace, runtime_root)
     head = _git_head(workspace)
     return {
         "schema": SCHEMA,
@@ -104,6 +138,10 @@ def collect_snapshot(
         "driver_devices": len(driver.get("devices") or driver.get("queue") or []),
         "completed_generations": chain.get("completed_generations"),
         "next_gap": chain.get("next_gap") or "continuous observation",
+        "traits": list(traits.get("traits") or []),
+        "traits_total": int(traits.get("total") or 0),
+        "traits_foundation_ready": int(traits.get("foundation_ready") or 0),
+        "traits_planned": int(traits.get("planned") or 0),
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
@@ -159,18 +197,22 @@ def _render() -> int:
     scale = min(width / 1440.0, height / 900.0)
 
     def font(size: int, bold: bool = False):
-        return pygame.font.SysFont("DejaVu Sans", max(12, int(size * scale)), bold=bold)
+        return pygame.font.SysFont("DejaVu Sans", max(11, int(size * scale)), bold=bold)
 
+    f_tiny = font(12)
     f_small = font(15)
     f_body = font(19)
     f_card = font(25, True)
-    f_title = font(48, True)
+    f_title = font(46, True)
     f_mark = font(34, True)
 
     bg = (8, 10, 15)
+    rail_bg = (10, 12, 18)
     panel = (18, 22, 31)
     panel2 = (23, 28, 39)
+    selected_bg = (34, 30, 22)
     line = (66, 58, 39)
+    selected_line = (96, 78, 39)
     gold = (245, 196, 81)
     gold_soft = (255, 230, 160)
     ink = (246, 242, 232)
@@ -179,12 +221,12 @@ def _render() -> int:
     warn = (245, 196, 81)
     danger = (255, 140, 140)
 
-    rail_w = int(108 * scale)
+    rail_w = int(148 * scale)
     margin = int(34 * scale)
     gap = int(18 * scale)
-    top_h = int(118 * scale)
-    bottom_h = int(74 * scale)
-    tab_names = ["Home", "Build", "Hardware", "Field", "Settings"]
+    top_h = int(112 * scale)
+    bottom_h = int(70 * scale)
+    tab_names = ["Home", "Traits", "Build", "Hardware", "Field", "Settings"]
     selected = 0
     last_refresh = 0.0
     snapshot = collect_snapshot()
@@ -193,49 +235,129 @@ def _render() -> int:
     def rounded(rect, color, radius=18, border=None):
         pygame.draw.rect(screen, color, rect, border_radius=max(4, int(radius * scale)))
         if border:
-            pygame.draw.rect(screen, border, rect, width=max(1, int(scale)), border_radius=max(4, int(radius * scale)))
+            pygame.draw.rect(
+                screen,
+                border,
+                rect,
+                width=max(1, int(scale)),
+                border_radius=max(4, int(radius * scale)),
+            )
 
     def text(surface_text, pos, color=ink, face=f_body):
         screen.blit(face.render(str(surface_text), True, color), pos)
 
     def card(rect, title, value, note, status_color=gold):
         rounded(rect, panel, 18, line)
-        x, y, w, h = rect
-        pygame.draw.circle(screen, status_color, (x + int(22 * scale), y + int(24 * scale)), max(3, int(5 * scale)))
-        text(title.upper(), (x + int(38 * scale), y + int(13 * scale)), muted, f_small)
-        text(_fit(value, 28), (x + int(20 * scale), y + int(49 * scale)), ink, f_card)
-        text(_fit(note, 44), (x + int(20 * scale), y + h - int(31 * scale)), muted, f_small)
+        x, y, _w, h = rect
+        pygame.draw.circle(
+            screen,
+            status_color,
+            (x + int(22 * scale), y + int(24 * scale)),
+            max(3, int(5 * scale)),
+        )
+        text(title.upper(), (x + int(38 * scale), y + int(13 * scale)), muted, f_tiny)
+        text(_fit(value, 30), (x + int(20 * scale), y + int(48 * scale)), ink, f_card)
+        text(_fit(note, 52), (x + int(20 * scale), y + h - int(30 * scale)), muted, f_small)
 
     def draw_home(content):
-        x, y, w, h = content
-        cols = 3 if w > int(1000 * scale) else 2
+        x, y, w, _h = content
+        cols = 3 if w > int(940 * scale) else 2
         card_w = (w - gap * (cols - 1)) // cols
         card_h = int(154 * scale)
         cards = [
             ("Generation", "Gen1", f"head {snapshot['head_short']}", good),
-            ("Autonomy", snapshot["autonomy_status"], "unattended" if snapshot["autonomy_unattended"] else "operator present", good if snapshot["autonomy_status"] == "cycle-complete" else warn),
-            ("Runtime", snapshot["runtime_status"], snapshot["runtime_schema"], good if snapshot["runtime_status"] in {"current", "updated"} else warn),
-            ("Network", "Online" if snapshot["online"] else "Offline", snapshot["hostname"], good if snapshot["online"] else danger),
-            ("Seed", snapshot["seed_status"], "Codelation local seed", good if snapshot["seed_status"] in {"seeded", "ready"} else warn),
-            ("Drivers", snapshot["driver_status"], f"{snapshot['driver_devices']} modeled/queued", good),
+            (
+                "Traits",
+                f"{snapshot['traits_foundation_ready']} ready",
+                f"{snapshot['traits_total']} registered · {snapshot['traits_planned']} to materialize",
+                good if snapshot["traits_foundation_ready"] else warn,
+            ),
+            (
+                "Autonomy",
+                snapshot["autonomy_status"],
+                "unattended" if snapshot["autonomy_unattended"] else "operator present",
+                good if snapshot["autonomy_status"] == "cycle-complete" else warn,
+            ),
+            (
+                "Runtime",
+                snapshot["runtime_status"],
+                snapshot["runtime_schema"],
+                good if snapshot["runtime_status"] in {"current", "updated"} else warn,
+            ),
+            (
+                "Network",
+                "Online" if snapshot["online"] else "Offline",
+                snapshot["hostname"],
+                good if snapshot["online"] else danger,
+            ),
+            (
+                "Seed",
+                snapshot["seed_status"],
+                "Codelation local seed",
+                good if snapshot["seed_status"] in {"seeded", "ready"} else warn,
+            ),
         ]
         for index, data in enumerate(cards):
             row, col = divmod(index, cols)
-            rect = pygame.Rect(x + col * (card_w + gap), y + row * (card_h + gap), card_w, card_h)
+            rect = pygame.Rect(
+                x + col * (card_w + gap),
+                y + row * (card_h + gap),
+                card_w,
+                card_h,
+            )
             card(rect, *data)
+
+    def draw_traits(content):
+        x, y, w, h = content
+        traits = list(snapshot.get("traits") or [])
+        cols = 2 if w < int(1050 * scale) else 3
+        rows = max(1, (len(traits) + cols - 1) // cols)
+        card_w = (w - gap * (cols - 1)) // cols
+        available_h = h - int(54 * scale)
+        card_h = max(int(106 * scale), min(int(142 * scale), (available_h - gap * max(0, rows - 1)) // rows))
+        text(
+            "Capabilities stay stable while their implementation can evolve underneath them.",
+            (x, y),
+            muted,
+            f_small,
+        )
+        start_y = y + int(42 * scale)
+        for index, trait in enumerate(traits):
+            row, col = divmod(index, cols)
+            rect = pygame.Rect(
+                x + col * (card_w + gap),
+                start_y + row * (card_h + gap),
+                card_w,
+                card_h,
+            )
+            stage = str(trait.get("stage") or "planned")
+            color = good if stage == "foundation-ready" else warn
+            note = "foundation ready" if stage == "foundation-ready" else "next materialization lane"
+            card(
+                rect,
+                str(trait.get("id") or "TR8"),
+                str(trait.get("name") or "Trait"),
+                note,
+                color,
+            )
 
     def draw_detail(content, tab):
         x, y, w, h = content
         rounded(pygame.Rect(x, y, w, h), panel, 22, line)
         text(tab, (x + int(28 * scale), y + int(24 * scale)), gold_soft, f_card)
-        rows: list[tuple[str, object]] = []
+        rows: list[tuple[str, object]]
         if tab == "Build":
             rows = [
                 ("Branch", snapshot["branch"]),
                 ("Current head", snapshot["head"]),
                 ("Autonomy", snapshot["autonomy_status"]),
                 ("Runtime", f"{snapshot['runtime_status']} · {snapshot['runtime_schema']}"),
-                ("Completed native generations", snapshot["completed_generations"] if snapshot["completed_generations"] is not None else "adaptive"),
+                (
+                    "Completed native generations",
+                    snapshot["completed_generations"]
+                    if snapshot["completed_generations"] is not None
+                    else "adaptive",
+                ),
                 ("Next frontier", snapshot["next_gap"]),
             ]
         elif tab == "Hardware":
@@ -244,8 +366,8 @@ def _render() -> int:
                 ("Hostname", snapshot["hostname"]),
                 ("Display", f"{width} × {height} fullscreen"),
                 ("Physical surface", "VT2 · pygame"),
-                ("Recovery console", "Ctrl+Alt+F1"),
-                ("Network", "online" if snapshot["online"] else "offline"),
+                ("Input route", os.environ.get("SDL_VIDEODRIVER", "auto")),
+                ("Modeled devices", snapshot["driver_devices"]),
             ]
         elif tab == "Field":
             rows = [
@@ -258,18 +380,23 @@ def _render() -> int:
             ]
         else:
             rows = [
-                ("Aurum desktop", "native physical presentation v1"),
+                ("Aurum desktop", "native physical presentation v2"),
+                ("Traits", f"{snapshot['traits_total']} registered"),
                 ("Refresh", "F5 or click Refresh"),
                 ("Recovery console", "Ctrl+Alt+F1"),
                 ("Return to desktop", "Ctrl+Alt+F2"),
-                ("Exit desktop process", "F12"),
                 ("Host authority", "bounded; no arbitrary shell"),
             ]
         ry = y + int(84 * scale)
         for label, value in rows:
             text(label, (x + int(30 * scale), ry), muted, f_small)
-            text(_fit(value, 72), (x + int(250 * scale), ry - int(4 * scale)), ink, f_body)
-            pygame.draw.line(screen, line, (x + int(28 * scale), ry + int(30 * scale)), (x + w - int(28 * scale), ry + int(30 * scale)))
+            text(_fit(value, 72), (x + int(255 * scale), ry - int(4 * scale)), ink, f_body)
+            pygame.draw.line(
+                screen,
+                line,
+                (x + int(28 * scale), ry + int(30 * scale)),
+                (x + w - int(28 * scale), ry + int(30 * scale)),
+            )
             ry += int(58 * scale)
 
     while not STOP_REQUESTED:
@@ -287,7 +414,7 @@ def _render() -> int:
                     last_refresh = now
                 elif event.key == pygame.K_F12:
                     return 0
-                elif pygame.K_1 <= event.key <= pygame.K_5:
+                elif pygame.K_1 <= event.key <= pygame.K_6:
                     selected = event.key - pygame.K_1
                 elif event.key in (pygame.K_LEFT, pygame.K_UP):
                     selected = (selected - 1) % len(tab_names)
@@ -296,53 +423,102 @@ def _render() -> int:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
                 for i in range(len(tab_names)):
-                    by = int((145 + i * 72) * scale)
-                    rect = pygame.Rect(int(13 * scale), by, rail_w - int(26 * scale), int(54 * scale))
+                    by = int((126 + i * 62) * scale)
+                    rect = pygame.Rect(
+                        int(12 * scale),
+                        by,
+                        rail_w - int(24 * scale),
+                        int(48 * scale),
+                    )
                     if rect.collidepoint(mx, my):
                         selected = i
-                refresh_rect = pygame.Rect(width - int(150 * scale), height - int(58 * scale), int(118 * scale), int(38 * scale))
+                refresh_rect = pygame.Rect(
+                    width - int(150 * scale),
+                    height - int(56 * scale),
+                    int(118 * scale),
+                    int(36 * scale),
+                )
                 if refresh_rect.collidepoint(mx, my):
                     snapshot = collect_snapshot()
                     last_refresh = now
 
         screen.fill(bg)
-        pygame.draw.circle(screen, (28, 24, 16), (width - int(130 * scale), int(70 * scale)), int(220 * scale))
+        pygame.draw.circle(
+            screen,
+            (28, 24, 16),
+            (width - int(130 * scale), int(70 * scale)),
+            int(220 * scale),
+        )
 
-        pygame.draw.rect(screen, (10, 12, 18), pygame.Rect(0, 0, rail_w, height))
+        pygame.draw.rect(screen, rail_bg, pygame.Rect(0, 0, rail_w, height))
         pygame.draw.line(screen, line, (rail_w, 0), (rail_w, height))
-        mark = pygame.Rect(int(21 * scale), int(22 * scale), int(66 * scale), int(66 * scale))
+        mark = pygame.Rect(
+            int(21 * scale),
+            int(20 * scale),
+            int(66 * scale),
+            int(66 * scale),
+        )
         rounded(mark, gold, 20)
         text("A", (mark.x + int(19 * scale), mark.y + int(11 * scale)), (23, 17, 6), f_mark)
+        text("AURUM", (int(95 * scale), int(32 * scale)), gold_soft, f_small)
+        text("GEN1", (int(95 * scale), int(52 * scale)), muted, f_tiny)
+
         for i, name in enumerate(tab_names):
-            by = int((145 + i * 72) * scale)
-            rect = pygame.Rect(int(13 * scale), by, rail_w - int(26 * scale), int(54 * scale))
+            by = int((126 + i * 62) * scale)
+            rect = pygame.Rect(
+                int(12 * scale),
+                by,
+                rail_w - int(24 * scale),
+                int(48 * scale),
+            )
             if i == selected:
-                rounded(rect, (34, 30, 22), 15, (96, 78, 39))
-            text(str(i + 1), (rect.x + int(9 * scale), rect.y + int(15 * scale)), gold if i == selected else muted, f_small)
-            text(name[:4], (rect.x + int(28 * scale), rect.y + int(15 * scale)), gold_soft if i == selected else muted, f_small)
+                rounded(rect, selected_bg, 14, selected_line)
+            number_color = gold if i == selected else muted
+            label_color = gold_soft if i == selected else muted
+            text(str(i + 1), (rect.x + int(10 * scale), rect.y + int(14 * scale)), number_color, f_tiny)
+            text(name, (rect.x + int(30 * scale), rect.y + int(12 * scale)), label_color, f_small)
 
         cx = rail_w + margin
         cw = width - cx - margin
-        text("AURUM · HOPPER", (cx, int(25 * scale)), gold, f_small)
-        text(tab_names[selected], (cx, int(48 * scale)), ink, f_title)
+        text("AURUM · HOPPER", (cx, int(22 * scale)), gold, f_small)
+        text(tab_names[selected], (cx, int(43 * scale)), ink, f_title)
+
         status = "ONLINE" if snapshot["online"] else "OFFLINE"
         status_color = good if snapshot["online"] else danger
-        chip = pygame.Rect(width - int(188 * scale), int(34 * scale), int(154 * scale), int(38 * scale))
-        rounded(chip, (18, 31, 28) if snapshot["online"] else (38, 22, 23), 19, status_color)
-        pygame.draw.circle(screen, status_color, (chip.x + int(19 * scale), chip.centery), max(3, int(5 * scale)))
-        text(status, (chip.x + int(34 * scale), chip.y + int(9 * scale)), status_color, f_small)
+        chip = pygame.Rect(
+            width - int(188 * scale),
+            int(32 * scale),
+            int(154 * scale),
+            int(36 * scale),
+        )
+        rounded(chip, (18, 31, 28) if snapshot["online"] else (38, 22, 23), 18, status_color)
+        pygame.draw.circle(
+            screen,
+            status_color,
+            (chip.x + int(19 * scale), chip.centery),
+            max(3, int(5 * scale)),
+        )
+        text(status, (chip.x + int(34 * scale), chip.y + int(8 * scale)), status_color, f_small)
 
         content = pygame.Rect(cx, top_h, cw, height - top_h - bottom_h)
         if selected == 0:
             draw_home(content)
+        elif tab_names[selected] == "Traits":
+            draw_traits(content)
         else:
             draw_detail(content, tab_names[selected])
 
         pygame.draw.line(screen, line, (rail_w, height - bottom_h), (width, height - bottom_h))
-        text("Aurum Gen1 · native physical desktop · Ctrl+Alt+F1 recovery console", (cx, height - int(48 * scale)), muted, f_small)
-        refresh_rect = pygame.Rect(width - int(150 * scale), height - int(58 * scale), int(118 * scale), int(38 * scale))
+        footer = "Gen1 · traits are capabilities, not apps · Ctrl+Alt+F1 recovery"
+        text(footer, (cx, height - int(45 * scale)), muted, f_small)
+        refresh_rect = pygame.Rect(
+            width - int(150 * scale),
+            height - int(56 * scale),
+            int(118 * scale),
+            int(36 * scale),
+        )
         rounded(refresh_rect, panel2, 14, line)
-        text("Refresh  F5", (refresh_rect.x + int(13 * scale), refresh_rect.y + int(10 * scale)), gold_soft, f_small)
+        text("Refresh  F5", (refresh_rect.x + int(13 * scale), refresh_rect.y + int(9 * scale)), gold_soft, f_small)
 
         pygame.display.flip()
         clock.tick(30)
