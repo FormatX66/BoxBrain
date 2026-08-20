@@ -17,6 +17,18 @@ On a physical primary console Aurum automatically:
 
 The serial/QEMU console disables autonomous first boot so CI can drive deterministic verification without racing the physical-console build.
 
+## Unattended PC-01 lane
+
+The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime, run a local resumable self-build without dirtying Git, start the loopback-only GUI, and advance the adaptive driver synthesis lane.
+
+The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
+
+## Adaptive driver synthesis
+
+`aurum_driver_synthesis.py` builds a confidence-scored exact-device dossier from OS hardware metadata, modaliases, the currently proven bound driver and module hash/metadata, and repeated read-only controlled observations. It queues one non-critical target at a time and emits a candidate behavior contract. When the matching kernel build toolchain is available it may compile a non-binding shadow `.ko` carrier to prove the build path.
+
+The shadow carrier contains no device-id table or probe callback and is never loaded. Network, graphics, input and other non-critical devices can therefore begin model/contract/compile work while storage and boot-critical devices stay gated. Later physical replacement still requires a separate one-target-at-a-time backup, behavior-comparison and automatic-restore gate.
+
 ## Safety
 
 Hardware inventory is read-only and defaults to `/run/aurum`. The removable boot path remains the known-good recovery path. Aurum does not automatically overwrite an internal disk. Physical driver replacement remains one target at a time with compile-before-load, behavior comparison, backup and automatic-restore gates. Storage/boot-critical replacement, firmware/NVRAM/OTP/fuse writes, power/clock/voltage/thermal/reset control and unbounded raw MMIO/PIO remain separately gated.
