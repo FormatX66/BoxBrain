@@ -72,6 +72,8 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("-device nvme", twin)
         self.assertIn("usb-storage,drive=seed", twin)
         self.assertIn("set_link hpeth off", twin)
+        self.assertIn('mkfifo "$monitor.in" "$monitor.out"', twin)
+        self.assertIn("printf 'set_link hpeth off\\n' >&4", twin)
         self.assertIn("2026-04-27T19:50:12", twin)
         self.assertIn("AURUM_HP_TWIN_NVME_PRESERVED_OK", twin)
         self.assertIn("wifi-interface-missing", spec)

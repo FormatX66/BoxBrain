@@ -44,6 +44,12 @@ parted -s "$secondary_usb" mkpart primary 1025MiB 100%
 nvme_before=$(dd if="$internal_nvme" bs=1M count=8 status=none | sha256sum | awk '{print $1}')
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
+# QEMU's pipe monitor opens an existing endpoint (or an existing .in/.out
+# pair); it does not create the FIFOs. Hold both sides open so QEMU startup and
+# the bounded set_link command cannot deadlock waiting for a peer.
+mkfifo "$monitor.in" "$monitor.out"
+exec 4<>"$monitor.in"
+exec 5<>"$monitor.out"
 : > "$LOG"
 qemu_pid=
 
@@ -53,6 +59,8 @@ cleanup() {
     wait "$qemu_pid" 2>/dev/null || true
   fi
   exec 3>&-
+  exec 4>&-
+  exec 5>&-
   rm -rf "$work_dir"
 }
 trap cleanup EXIT
@@ -111,7 +119,7 @@ qemu_pid=$!
 # observed no-carrier state while still leaving an Ethernet controller visible.
 for _ in $(seq 1 40); do
   if [ -p "$monitor.in" ]; then
-    printf 'set_link hpeth off\n' > "$monitor.in" || true
+    printf 'set_link hpeth off\n' >&4 || true
     break
   fi
   sleep 0.25
