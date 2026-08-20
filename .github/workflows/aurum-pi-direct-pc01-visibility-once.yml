@@ -1,4 +1,4 @@
-# trigger-retry-1
+# trigger-retry-2
 name: Aurum Direct Pi PC-01 Visibility Probe
 
 on:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-pi-direct-pc01-visibility-once.yml'
+      - 'Projects/AurumBridge/requests/pi-pc01-visibility/**'
 
 permissions:
   contents: write
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   probe:
-    name: Probe PC-01 from self-hosted Linux node
+    name: Probe PC-01 and Hopper Echo from self-hosted Linux node
     runs-on: [self-hosted, Linux]
     timeout-minutes: 5
     steps:
@@ -26,32 +27,79 @@ jobs:
           fetch-depth: 2
           persist-credentials: true
 
-      - name: Run visibility probe and commit receipt
+      - name: Run read-only visibility and Echo proof probe and commit receipt
         shell: bash
         run: |
           set -u
-          echo AURUM_DIRECT_PI_PC01_PROBE
+          echo AURUM_DIRECT_PI_PC01_HOPPER_PROBE
           host="$(hostname)"
           observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           addresses="$(ip -brief addr 2>&1 || true)"
           pingout="$(ping -c 3 pc-01.local 2>&1 || true)"
+          hopper_resolve="$(getent ahostsv4 hopper.local 2>&1; getent ahostsv4 hopper 2>&1)"
+          hopper_ping="$(ping -c 2 hopper 2>&1 || true)"
           neigh="$(ip neigh 2>&1 || true)"
+
+          proof1=""
+          proof1_host=""
+          for candidate in hopper.local hopper; do
+            candidate_proof="$(curl -sS --connect-timeout 3 --max-time 6 "http://${candidate}:8767/proof" 2>/dev/null || true)"
+            if [ -n "$candidate_proof" ]; then
+              proof1="$candidate_proof"
+              proof1_host="$candidate"
+              break
+            fi
+          done
+
+          sleep 3
+
+          proof2=""
+          proof2_host=""
+          for candidate in hopper.local hopper; do
+            candidate_proof="$(curl -sS --connect-timeout 3 --max-time 6 "http://${candidate}:8767/proof" 2>/dev/null || true)"
+            if [ -n "$candidate_proof" ]; then
+              proof2="$candidate_proof"
+              proof2_host="$candidate"
+              break
+            fi
+          done
+
+          port_state=""
+          for port in 8765 8766 8767; do
+            if timeout 4 bash -c "</dev/tcp/hopper/$port" 2>/dev/null; then
+              port_state+="hopper:${port}=open\n"
+            else
+              port_state+="hopper:${port}=closed-or-unreachable\n"
+            fi
+          done
+
           mkdir -p Projects/AurumBridge/results
-          out="Projects/AurumBridge/results/direct-pi-pc01-visibility-${GITHUB_RUN_ID}.txt"
+          out="Projects/AurumBridge/results/direct-pi-pc01-hopper-visibility-${GITHUB_RUN_ID}.txt"
           {
-            echo "schema=aurum-direct-pi-pc01-visibility-v1"
+            echo "schema=aurum-direct-pi-pc01-hopper-visibility-v2"
             echo "host=$host"
             echo "observed_at=$observed"
             echo "--- addresses ---"
             printf '%s\n' "$addresses"
             echo "--- ping pc-01.local ---"
             printf '%s\n' "$pingout"
+            echo "--- hopper resolution ---"
+            printf '%s\n' "$hopper_resolve"
+            echo "--- ping hopper ---"
+            printf '%s\n' "$hopper_ping"
+            echo "--- hopper proof sample 1 host=$proof1_host ---"
+            printf '%s\n' "$proof1"
+            echo "--- hopper proof sample 2 host=$proof2_host ---"
+            printf '%s\n' "$proof2"
+            echo "--- bounded hopper service ports ---"
+            printf '%b' "$port_state"
             echo "--- ip neigh ---"
             printf '%s\n' "$neigh"
           } | tee "$out"
+
           git config user.name 'aurum-direct-pi-probe[bot]'
           git config user.email 'aurum-direct-pi-probe@users.noreply.github.com'
           git add -- "$out"
-          git commit -m "Record direct Pi PC-01 visibility probe [skip ci]"
+          git commit -m "Record direct Pi PC-01 and Hopper visibility probe [skip ci]"
           git pull --rebase origin main
           git push origin HEAD:main
