@@ -1,0 +1,90 @@
+name: Aurum BBPI4 PC-01 Visibility Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi-pc01-visibility-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-bbpi4-pc01-visibility-once
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Run read-only PC-01 visibility check from BBPI4
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: SSH to BBPI4 and probe PC-01
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+          Set-Location -LiteralPath $root
+
+          $ssh = Get-Command ssh.exe -ErrorAction Stop
+          $keyCandidates = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keyCandidates += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'
+          })
+          $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $key) { throw 'BBPI4 SSH key boxbrain_pi_ed25519 not found on runner host' }
+
+          $targets = @('10.42.194.1','10.12.194.1','192.168.0.194')
+          $remote = "echo AURUM_BBPI4_PC01_PROBE; hostname; echo '--- addresses ---'; ip -brief addr; echo '--- ping pc-01.local ---'; ping -c 3 pc-01.local || true; echo '--- neighbors ---'; ip neigh"
+          $attempts = @()
+          $selected = $null
+          $output = $null
+
+          foreach ($target in $targets) {
+            $lines = @(& $ssh.Source -i $key -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "kali@$target" $remote 2>&1)
+            $exit = $LASTEXITCODE
+            $attempts += [ordered]@{ address = $target; exit = $exit; output = ($lines -join "`n") }
+            if ($exit -eq 0) {
+              $selected = $target
+              $output = $lines -join "`n"
+              break
+            }
+          }
+
+          $result = [ordered]@{
+            schema = 'aurum-bbpi4-pc01-visibility-v1'
+            state = if ($selected) { 'OK' } else { 'UNREACHABLE' }
+            runner_host = $env:COMPUTERNAME
+            bbpi4_address = $selected
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            command = 'ping -c 3 pc-01.local; ip neigh'
+            output = $output
+            attempts = $attempts
+          }
+          $resultsDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
+          $resultPath = Join-Path $resultsDir "bbpi4-pc01-visibility-$env:GITHUB_RUN_ID.json"
+          $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resultPath -Encoding UTF8
+          Write-Host ($result | ConvertTo-Json -Depth 8)
+
+          git config user.name 'aurum-bbpi4-probe[bot]'
+          git config user.email 'aurum-bbpi4-probe@users.noreply.github.com'
+          git add -- 'Projects/AurumBridge/results'
+          git commit -m "Record BBPI4 PC-01 visibility probe [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+          if (-not $selected) { throw 'BBPI4 was not reachable from the self-hosted runner on any known route' }
