@@ -22,16 +22,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-boot:
+  validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 12
     steps:
-      - name: Check out Aurum PC branch
+      - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
 
-      - name: Validate bounded runtime sources
+      - name: Validate bounded runtime sources before expensive build
         shell: bash
         run: |
           set -euo pipefail
@@ -39,25 +39,29 @@ jobs:
             Projects/AurumPC/aurum_arcade.py \
             Projects/AurumPC/aurum_autonomy.py \
             Projects/AurumPC/aurum_bootstrap.py \
+            Projects/AurumPC/aurum_console.py \
+            Projects/AurumPC/aurum_control_plane.py \
             Projects/AurumPC/aurum_desktop.py \
             Projects/AurumPC/aurum_desktop_runtime.py \
             Projects/AurumPC/aurum_display_runtime.py \
             Projects/AurumPC/aurum_driver_synthesis.py \
             Projects/AurumPC/aurum_echo_native.py \
+            Projects/AurumPC/aurum_gpt_trait.py \
+            Projects/AurumPC/aurum_gui_runtime.py \
             Projects/AurumPC/aurum_hardware.py \
             Projects/AurumPC/aurum_hopper_gui.py \
+            Projects/AurumPC/aurum_installer.py \
             Projects/AurumPC/aurum_network.py \
+            Projects/AurumPC/aurum_runtime_update.py \
             Projects/AurumPC/aurum_time.py \
+            Projects/AurumPC/aurum_traits.py \
             Projects/AurumPC/aurum_wifi_diag.py \
             Projects/AurumPC/aurum_wifi_recovery.py \
-            Projects/AurumPC/aurum_gui_runtime.py \
-            Projects/AurumPC/aurum_runtime_update.py \
-            Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py \
-            Projects/AurumPC/aurum_installer.py \
             Projects/Codelation/seed/codelation_seed.py
           python3 -m json.tool Projects/AurumPC/pc01_autonomy_policy.json >/dev/null
           sh -n Projects/AurumPC/build-iso.sh
+          bash -n Projects/AurumVirtualLab/qemu-pc-smoke.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
@@ -82,8 +86,12 @@ jobs:
           grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
           grep -q 'aurum_desktop_runtime.py' Projects/AurumPC/aurum_gui_runtime.py
           grep -q 'aurum_desktop.py' Projects/AurumPC/aurum_runtime_update.py
+          grep -q 'aurum_traits.py' Projects/AurumPC/aurum_runtime_update.py
+          grep -q 'aurum_gpt_trait.py' Projects/AurumPC/aurum_runtime_update.py
+          grep -q 'aurum_control_plane.py' Projects/AurumPC/aurum_runtime_update.py
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_desktop_runtime.py
           grep -q 'Ctrl+Alt+F1 recovery console' Projects/AurumPC/aurum_desktop.py
+          grep -q 'xserver-xorg-input-libinput' Projects/AurumPC/build-iso.sh
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
           grep -q 'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"' Projects/AurumPC/aurum_display_runtime.py
           grep -q 'physical_echo_activation' Projects/AurumPC/aurum_runtime_update.py
@@ -92,18 +100,20 @@ jobs:
           grep -q 'pointer_path_available' Projects/AurumPC/aurum_echo_native.py
           grep -q 'host_actuation.*False' Projects/AurumPC/aurum_echo_native.py
 
-      - name: Install independent VM tooling
+  build-image:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact Aurum source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+      - name: Build Aurum PC live ISO once
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
           docker info >/dev/null
-
-      - name: Build Aurum PC live ISO with Debian-native tooling
-        shell: bash
-        run: |
-          set -euo pipefail
           docker run --rm --privileged \
             -v "$PWD:/workspace" \
             -w /workspace \
@@ -120,8 +130,40 @@ jobs:
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+      - name: Publish immutable image for parallel verification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pc-unverified-${{ github.sha }}
+          path: |
+            dist/Aurum-PC-v0.01-amd64.iso
+            dist/Aurum-PC-v0.01-amd64.iso.sha256
+          if-no-files-found: error
+          retention-days: 2
 
-      - name: Generic UEFI boot and install smoke test
+  generic-uefi-smoke:
+    needs: build-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact Aurum source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+      - name: Download exact image under test
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-unverified-${{ github.sha }}
+          path: dist
+      - name: Verify image digest before boot
+        shell: bash
+        run: sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+      - name: Install independent VM tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
+      - name: Generic UEFI boot and installed-runtime smoke
         shell: bash
         run: |
           set -euo pipefail
@@ -130,7 +172,38 @@ jobs:
             aurum-pc-qemu.log
           grep -q 'AURUM_HARDWARE_PROFILE status=ready' aurum-pc-qemu.log
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+      - name: Publish generic boot evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pc-generic-evidence-${{ github.sha }}
+          path: aurum-pc-qemu.log
+          if-no-files-found: error
+          retention-days: 7
 
+  hp-twin-smoke:
+    needs: build-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact Aurum source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+      - name: Download exact image under test
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-unverified-${{ github.sha }}
+          path: dist
+      - name: Verify image digest before topology test
+        shell: bash
+        run: sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+      - name: Install independent VM tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
       - name: HP physical-topology twin preflight
         shell: bash
         run: |
@@ -143,14 +216,52 @@ jobs:
           grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' aurum-hp-physical-twin.log
           grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' aurum-hp-physical-twin.log
           echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
+      - name: Publish HP twin evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pc-hp-evidence-${{ github.sha }}
+          path: aurum-hp-physical-twin.log
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Record image metadata
+  publish-verified-image:
+    needs: [build-image, generic-uefi-smoke, hp-twin-smoke]
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Check out verification specification
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+      - name: Download verified image
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-unverified-${{ github.sha }}
+          path: dist
+      - name: Download generic evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-generic-evidence-${{ github.sha }}
+          path: evidence/generic
+      - name: Download HP evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-hp-evidence-${{ github.sha }}
+          path: evidence/hp
+      - name: Re-verify immutable image and evidence
         shell: bash
         run: |
           set -euo pipefail
-          ls -lh dist/Aurum-PC-v0.01-amd64.iso
-          cat dist/Aurum-PC-v0.01-amd64.iso.sha256
-
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          grep -q 'AURUM_HARDWARE_PROFILE status=ready' evidence/generic/aurum-pc-qemu.log
+          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' evidence/hp/aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' evidence/hp/aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' evidence/hp/aurum-hp-physical-twin.log
+          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' evidence/hp/aurum-hp-physical-twin.log
+          cp evidence/generic/aurum-pc-qemu.log .
+          cp evidence/hp/aurum-hp-physical-twin.log .
+          echo 'AURUM_PC_IMAGE_ALL_VERIFIERS_CONVERGED'
       - name: Publish boot-verified ISO
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
