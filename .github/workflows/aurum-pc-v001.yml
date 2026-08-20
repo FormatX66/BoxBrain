@@ -36,7 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile \
+            Projects/AurumPC/aurum_autonomy.py \
             Projects/AurumPC/aurum_bootstrap.py \
+            Projects/AurumPC/aurum_driver_synthesis.py \
             Projects/AurumPC/aurum_hardware.py \
             Projects/AurumPC/aurum_network.py \
             Projects/AurumPC/aurum_time.py \
@@ -46,7 +48,9 @@ jobs:
             Projects/AurumPC/aurum_runtime_update.py \
             Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py \
-            Projects/AurumPC/aurum_installer.py
+            Projects/AurumPC/aurum_installer.py \
+            Projects/Codelation/seed/codelation_seed.py
+          python3 -m json.tool Projects/AurumPC/pc01_autonomy_policy.json >/dev/null
           sh -n Projects/AurumPC/build-iso.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
@@ -54,6 +58,8 @@ jobs:
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
           grep -q 'network-status | wifi-setup | wifi-reconnect' Projects/AurumPC/aurum_console.py
           grep -q 'runtime-status | runtime-sync' Projects/AurumPC/aurum_console.py
+          grep -q 'autonomy-status | autonomy-cycle' Projects/AurumPC/aurum_console.py
+          grep -q 'driver-status | driver-cycle' Projects/AurumPC/aurum_console.py
           grep -q 'gui-status | gui-start | gui-stop' Projects/AurumPC/aurum_console.py
           grep -q 'install confirm ERASE-CODE' Projects/AurumPC/aurum_console.py
           grep -q 'internal_disk_writes.*False' Projects/AurumPC/aurum_hardware.py
@@ -61,7 +67,9 @@ jobs:
           grep -q 'AURUM_WIFI_DIAG' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'recover_existing_wifi_driver' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'synchronize_clock' Projects/AurumPC/aurum_bootstrap.py
-          grep -q 'aurum_runtime_update.py' Projects/Codelation/seed/codelation_seed.py
+          grep -q '_launch_installed_autonomy' Projects/Codelation/seed/codelation_seed.py
+          grep -q 'aurum_driver_synthesis.py' Projects/AurumPC/aurum_autonomy.py
+          grep -q 'load_synthesized_modules.*false' Projects/AurumPC/pc01_autonomy_policy.json
 
       - name: Install independent VM tooling
         shell: bash
