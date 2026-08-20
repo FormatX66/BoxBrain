@@ -6,7 +6,7 @@ from typing import Any, Iterable, Mapping, Sequence
 from capacity_mesh import AssignmentPlan, Node, WorkItem, assign_parallel
 
 
-MESH_EFFICIENCY_REVISION = "aurum-mesh-efficiency-v1"
+MESH_EFFICIENCY_REVISION = "aurum-mesh-efficiency-v2"
 _ALLOWED_POSTURES = frozenset({"safe", "adventurous", "verify"})
 _ALLOWED_RUNNERS = frozenset({"ubuntu-latest", "ubuntu-24.04-arm", "windows-latest"})
 _ALLOWED_SUITES = frozenset({"core", "broad", "verification", "portability"})
@@ -20,6 +20,8 @@ class CandidatePath:
     weight: int = 1
     runner: str = "ubuntu-latest"
     suite: str = "core"
+    shard_index: int = 0
+    shard_count: int = 1
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,7 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
     raw = policy.get("candidate_paths", ())
     paths: list[CandidatePath] = []
     seen_names: set[str] = set()
+    seen_shards: set[tuple[str, str, int, int]] = set()
     safe_count = 0
     verifier_count = 0
     for item in raw:
@@ -48,6 +51,8 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
         posture = str(item["posture"])
         runner = str(item["runner"])
         suite = str(item["suite"])
+        shard_index = int(item.get("shard_index", 0))
+        shard_count = int(item.get("shard_count", 1))
         if name in seen_names:
             raise ValueError(f"duplicate candidate path: {name}")
         if posture not in _ALLOWED_POSTURES:
@@ -56,6 +61,11 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
             raise ValueError(f"unsupported runner: {runner}")
         if suite not in _ALLOWED_SUITES:
             raise ValueError(f"unsupported suite: {suite}")
+        if shard_count < 1 or shard_index < 0 or shard_index >= shard_count:
+            raise ValueError(f"invalid shard contract for {name}: {shard_index}/{shard_count}")
+        shard_key = (runner, suite, shard_index, shard_count)
+        if shard_key in seen_shards:
+            raise ValueError(f"duplicate shard contract: {runner}:{suite}:{shard_index}/{shard_count}")
         path = CandidatePath(
             name=name,
             posture=posture,
@@ -63,9 +73,12 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
             weight=int(item.get("weight", 1)),
             runner=runner,
             suite=suite,
+            shard_index=shard_index,
+            shard_count=shard_count,
         )
         paths.append(path)
         seen_names.add(name)
+        seen_shards.add(shard_key)
         safe_count += posture == "safe"
         verifier_count += posture == "verify"
     if len(paths) > maximum:
@@ -118,9 +131,7 @@ def assess_efficiency(
     useful_parallelism = min(max(0, work_count), total_capacity)
     denominator = useful_parallelism or 1
     utilization = min(1.0, assigned_slots / denominator)
-    duplicate_denominator = (
-        work_count if duplicate_work_total is None else duplicate_work_total
-    )
+    duplicate_denominator = work_count if duplicate_work_total is None else duplicate_work_total
     duplicate_fraction = duplicate_work_items / max(1, duplicate_denominator)
     idle_capacity = max(0, total_capacity - assigned_slots)
     target_met = (
@@ -155,6 +166,8 @@ def github_matrix_from_policy(policy: Mapping[str, Any]) -> Mapping[str, list[Ma
                 "posture": path.posture,
                 "runner": path.runner,
                 "suite": path.suite,
+                "shard_index": path.shard_index,
+                "shard_count": path.shard_count,
             }
             for path in hosted
         ]
