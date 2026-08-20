@@ -1,0 +1,148 @@
+name: Aurum Hopper Echo Physical Proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-hopper-echo-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-hopper-echo-physical-proof
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    name: Read Hopper physical Echo proof from local network
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Probe read-only Hopper proof endpoint
+        shell: bash
+        run: |
+          set -u
+          mkdir -p Projects/AurumBridge/results
+          out="Projects/AurumBridge/results/hopper-echo-proof-${GITHUB_RUN_ID}.json"
+          observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          runner="$(hostname)"
+          body_file="$(mktemp)"
+          trap 'rm -f "$body_file"' EXIT
+
+          endpoint=''
+          attempts='[]'
+          for round in 1 2 3 4 5; do
+            for host in hopper.local pc-01.local hopper pc-01; do
+              url="http://${host}:8767/proof"
+              http="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body_file" -w '%{http_code}' "$url" 2>/dev/null || true)"
+              attempts="$(python3 - "$attempts" "$round" "$url" "$http" <<'PY'
+import json, sys
+items=json.loads(sys.argv[1])
+items.append({'round':int(sys.argv[2]),'url':sys.argv[3],'http_status':sys.argv[4] or None})
+print(json.dumps(items,separators=(',',':')))
+PY
+)"
+              if [ "$http" = 200 ] && python3 -m json.tool "$body_file" >/dev/null 2>&1; then
+                schema="$(python3 - "$body_file" <<'PY'
+import json,sys
+try:
+    print(json.load(open(sys.argv[1],encoding='utf-8')).get('schema',''))
+except Exception:
+    print('')
+PY
+)"
+                if [ "$schema" = 'aurum.hopper.echo-proof.v1' ]; then
+                  endpoint="$url"
+                  break 2
+                fi
+              fi
+            done
+            sleep 6
+          done
+
+          if [ -z "$endpoint" ]; then
+            python3 - "$out" "$observed" "$runner" "$attempts" <<'PY'
+import json,sys
+out,observed,runner,attempts=sys.argv[1:]
+payload={
+  'schema':'aurum-hopper-echo-external-proof-v1',
+  'state':'NO_FRESH_HOPPER_PROOF',
+  'observed_at':observed,
+  'runner_host':runner,
+  'endpoint':None,
+  'ready':False,
+  'attempts':json.loads(attempts),
+  'proof':None,
+}
+with open(out,'w',encoding='utf-8') as f: json.dump(payload,f,indent=2,sort_keys=True); f.write('\n')
+PY
+          else
+            python3 - "$out" "$observed" "$runner" "$endpoint" "$attempts" "$body_file" <<'PY'
+import json,sys
+out,observed,runner,endpoint,attempts,body_path=sys.argv[1:]
+proof=json.load(open(body_path,encoding='utf-8'))
+machine=proof.get('machine') or {}
+display=proof.get('display') or {}
+echo=proof.get('echo') or {}
+inputp=proof.get('input') or {}
+res=echo.get('physical_resolution')
+ready=bool(
+  proof.get('ready') is True
+  and machine.get('authorized_exact_hopper') is True
+  and machine.get('display_name') == 'Hopper'
+  and machine.get('configured_hostname') == 'hopper'
+  and display.get('ready') is True
+  and display.get('physical_display') is True
+  and display.get('status') == 'running'
+  and echo.get('ready') is True
+  and echo.get('status') == 'running'
+  and echo.get('game') == 'Echo Rally'
+  and echo.get('process_running') is True
+  and echo.get('fullscreen') is True
+  and isinstance(echo.get('video_driver'),str) and bool(echo.get('video_driver').strip())
+  and isinstance(res,list) and len(res)==2 and all(isinstance(v,int) and v>0 for v in res)
+  and isinstance(echo.get('frames_presented'),int) and echo.get('frames_presented') > 0
+  and inputp.get('keyboard_path_available') is True
+  and inputp.get('pointer_path_available') is True
+)
+payload={
+  'schema':'aurum-hopper-echo-external-proof-v1',
+  'state':'READY' if ready else 'HOPPER_REPORTED_NOT_READY',
+  'observed_at':observed,
+  'runner_host':runner,
+  'endpoint':endpoint,
+  'ready':ready,
+  'attempts':json.loads(attempts),
+  'proof':proof,
+}
+with open(out,'w',encoding='utf-8') as f: json.dump(payload,f,indent=2,sort_keys=True); f.write('\n')
+PY
+          fi
+
+          cat "$out"
+
+      - name: Commit external proof receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-hopper-proof[bot]'
+          git config user.email 'aurum-hopper-proof@users.noreply.github.com'
+          git add -- 'Projects/AurumBridge/results/hopper-echo-proof-'*.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record Hopper Echo physical proof [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          exit 1
