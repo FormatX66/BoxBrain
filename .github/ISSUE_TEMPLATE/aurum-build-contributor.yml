@@ -1,0 +1,50 @@
+name: Join the Aurum Build
+about: Opt in to an independent Aurum build/verification contribution lane.
+title: "[Aurum Build Contributor] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Aurum. This enrollment is for independent build and verification work on a public fork of BoxBrain. It does not grant Aurum access to your personal files or computer, and it does not give your account write authority over the Aurum trunk.
+
+  - type: input
+    id: fork
+    attributes:
+      label: Your BoxBrain fork
+      description: Paste the URL of your public BoxBrain fork after creating it.
+      placeholder: https://github.com/your-name/BoxBrain
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution preference
+      description: Aurum can assign independent work based on available lanes.
+      options:
+        - Any safe build or verification lane
+        - Verification only
+        - x86_64 build/testing
+        - ARM/portability testing
+        - UI/trait tests
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Opt-in confirmations
+      options:
+        - label: I created this fork and I am choosing to contribute GitHub-hosted Actions capacity to independent Aurum build or verification work.
+          required: true
+        - label: I understand I can stop participating at any time by disabling Actions or deleting my fork.
+          required: true
+        - label: I understand this does not give Aurum access to personal files, local devices, credentials, or private repositories.
+          required: true
+        - label: I understand contributed lanes are for independent useful work and verification, not duplicate jobs intended only to multiply GitHub quotas.
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        After submitting this form, keep Actions enabled on your fork. Aurum contributor jobs remain bounded to public repository build/test work and do not receive Aurum trunk write authority.
