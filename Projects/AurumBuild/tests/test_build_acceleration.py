@@ -198,6 +198,9 @@ class BuildAccelerationTests(unittest.TestCase):
         pc = (REPOSITORY_ROOT / ".github/workflows/aurum-pc-v001.yml").read_text(
             encoding="utf-8"
         )
+        build_script = (REPOSITORY_ROOT / "Projects/AurumPC/build-iso.sh").read_text(
+            encoding="utf-8"
+        )
         image_verifier = (REPOSITORY_ROOT / "Projects/AurumBuild/verify-pc-image.sh").read_text(
             encoding="utf-8"
         )
@@ -208,10 +211,14 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertIn("needs: [build-image, generic-uefi-smoke, hp-twin-smoke]", pc)
         self.assertIn("needs.build-image.outputs.builder_image", pc)
         self.assertIn("live_build_cache_identity", pc)
-        self.assertIn("bash Projects/AurumBuild/verify-pc-image.sh", pc)
+        self.assertIn("verify-pc-image.sh", build_script)
         self.assertIn("AURUM_PC_ISO_PROVENANCE verified=true", image_verifier)
         self.assertNotIn("| grep -Fq", pc)
+        self.assertNotIn("| grep -Fq", image_verifier)
         self.assertNotIn("apt-get install", pc)
+        self.assertIn("source/image provenance mismatch", image_verifier)
+        self.assertIn("bash -n Projects/AurumBuild/verify-pc-image.sh", pc)
+        self.assertNotIn("AURUM_PC_READY version=0.01 arch=x86_64", image_verifier)
 
     def test_live_build_cache_is_copy_on_write_and_committed_only_after_checksum(self) -> None:
         script = (REPOSITORY_ROOT / "Projects/AurumPC/build-iso.sh").read_text(
@@ -220,7 +227,10 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertIn('cp -a --reflink=auto "$PERSISTENT_CACHE_ROOT/."', script)
         self.assertNotIn("cp -al", script)
         checksum = script.index('sha256sum "dist/$IMAGE_NAME"')
+        provenance = script.index("verify-pc-image.sh")
         commit = script.index("rsync -a --delete --delete-excluded")
+        self.assertLess(checksum, provenance)
+        self.assertLess(provenance, commit)
         self.assertLess(checksum, commit)
         self.assertIn("--include='/packages.*/***'", script)
         self.assertIn("--exclude='*'", script)

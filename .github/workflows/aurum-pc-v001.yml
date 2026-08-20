@@ -184,7 +184,6 @@ jobs:
               set -euo pipefail
               bash Projects/AurumBuild/verify-builder.sh
               sh Projects/AurumPC/build-iso.sh
-              bash Projects/AurumBuild/verify-pc-image.sh
             '
           finished="$(date +%s)"
           test -s dist/Aurum-PC-v0.01-amd64.iso

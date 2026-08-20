@@ -265,8 +265,15 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
 
+# Provenance is part of the cache transaction. A package cache becomes trusted
+# only after the exact bundled control-plane source and serial boot contract
+# have been recovered from the completed ISO and verified.
+bash "$REPO_ROOT/Projects/AurumBuild/verify-pc-image.sh" \
+  "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
+
 if [ -n "$PERSISTENT_CACHE_ROOT" ]; then
-  # Commit reusable packages only after the complete image and sidecar exist.
+  # Commit reusable packages only after the complete image, sidecar, and
+  # source/image provenance verification exist.
   # A failed/speculative build therefore cannot contaminate trusted cache state.
   # Exclude indices, Contents files, and cached build stages. Debian validates
   # every restored package against the freshly downloaded signed indices.

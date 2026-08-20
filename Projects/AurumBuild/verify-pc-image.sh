@@ -1,22 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-iso=${1:-dist/Aurum-PC-v0.01-amd64.iso}
-checksum=${2:-dist/Aurum-PC-v0.01-amd64.iso.sha256}
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repository_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
+iso=${1:-$repository_root/dist/Aurum-PC-v0.01-amd64.iso}
+checksum=${2:-$repository_root/dist/Aurum-PC-v0.01-amd64.iso.sha256}
+
+if [ ! -s "$iso" ]; then
+  echo "Aurum PC provenance input is missing or empty: $iso" >&2
+  exit 2
+fi
+if [ ! -s "$checksum" ]; then
+  echo "Aurum PC checksum input is missing or empty: $checksum" >&2
+  exit 2
+fi
+
 verify_dir=$(mktemp -d /tmp/aurum-iso-verify.XXXXXX)
-cleanup() { rm -rf "$verify_dir"; }
+cleanup() { rm -rf -- "$verify_dir"; }
 trap cleanup EXIT
 
-xorriso -osirrox on \
+if ! xorriso -osirrox on \
   -indev "$iso" \
   -extract /live/filesystem.squashfs "$verify_dir/filesystem.squashfs" \
   >"$verify_dir/xorriso.log" 2>&1
-source_sha=$(sha256sum Projects/AurumPC/aurum_console.py | awk '{print $1}')
-unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py \
-  > "$verify_dir/aurum_console.py"
+then
+  echo "Aurum PC provenance could not extract /live/filesystem.squashfs." >&2
+  cat "$verify_dir/xorriso.log" >&2
+  exit 1
+fi
+
+source_sha=$(sha256sum "$repository_root/Projects/AurumPC/aurum_console.py" | awk '{print $1}')
+if ! unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py \
+  >"$verify_dir/aurum_console.py"
+then
+  echo "Aurum PC provenance could not read /opt/aurum/aurum_console.py." >&2
+  exit 1
+fi
 image_sha=$(sha256sum "$verify_dir/aurum_console.py" | awk '{print $1}')
 if [ "$source_sha" != "$image_sha" ]; then
-  echo "Embedded Aurum console source mismatch: source=$source_sha image=$image_sha" >&2
+  echo "Aurum PC source/image provenance mismatch: source_sha=$source_sha image_sha=$image_sha" >&2
   exit 1
 fi
 
@@ -44,8 +66,18 @@ if versions != {"0.01"}:
     raise SystemExit(f"embedded console version mismatch: {versions}")
 PY
 
-unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/systemd/system/aurum-pc-serial.service \
-  | grep -Fq "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py"
-test -s "$iso"
-sha256sum -c "$checksum"
-echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha"
+if ! unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/systemd/system/aurum-pc-serial.service \
+  >"$verify_dir/aurum-pc-serial.service"
+then
+  echo "Aurum PC provenance could not read aurum-pc-serial.service." >&2
+  exit 1
+fi
+if ! grep -F "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py" \
+  "$verify_dir/aurum-pc-serial.service" >/dev/null
+then
+  echo "Aurum PC image is missing its serial verification service contract." >&2
+  exit 1
+fi
+
+(cd "$repository_root" && sha256sum -c "$checksum")
+echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha image_sha=$image_sha"
