@@ -1,34 +1,39 @@
 #!/usr/bin/env python3
-"""TR8:GPT — OpenAI reasoning bridge for Aurum on Hopper.
+"""GPT trait — OpenAI reasoning bridge for Aurum on Hopper.
 
-This first stage deliberately provides reasoning and build planning without
-arbitrary host actuation. The next stage attaches a narrow Aurum build broker
-so GPT can request verified local build/test operations while the broker, not
-the model, owns machine authority.
+GPT may reason about and request changes across the whole Aurum OS. Aurum's
+control plane remains the authority for authorization, execution, verification,
+and rollback. The model therefore gains full OS scope without raw shell access
+becoming the operating-system contract.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum.tr8.gpt.v1"
+SCHEMA = "aurum.trait.gpt.v1"
 API_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = os.environ.get("AURUM_GPT_MODEL", "gpt-5.6-sol")
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
+DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_KEY_FILE = Path(os.environ.get("AURUM_OPENAI_KEY_FILE", "/run/credentials/aurum-gpt/openai_api_key"))
 
 SYSTEM_TEXT = (
-    "You are TR8:GPT inside Aurum on Hopper. Help build and operate Aurum using "
-    "the supplied verified machine context. Do not claim an action happened unless "
-    "the local Aurum broker reports that it happened. Prefer machine-first capability "
-    "design, reversible changes, concise operator guidance, and explicit blockers."
+    "You are GPT operating as a reasoning trait inside Aurum on Hopper. You may reason about "
+    "and request changes across every Aurum OS domain, including appearance, interaction, traits, "
+    "builds, runtime, kernel, devices, transport, storage, identity, permissions, recovery, and power. "
+    "Aurum's control plane owns authorization, execution, verification, and rollback. Do not claim an "
+    "action happened unless Aurum reports that it happened. Prefer machine-first capability design, "
+    "reversible changes, concise operator guidance, and explicit blockers."
 )
 
 
@@ -70,6 +75,36 @@ def _api_key() -> str | None:
     return value or None
 
 
+def _control_catalog() -> dict[str, Any]:
+    candidates = (
+        DEFAULT_RUNTIME / "aurum_control_plane.py",
+        DEFAULT_WORKSPACE / "Projects" / "AurumPC" / "aurum_control_plane.py",
+        Path(__file__).with_name("aurum_control_plane.py"),
+    )
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"aurum_control_plane_{os.getpid()}_{time.time_ns()}", path)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            value = module.catalog()
+            if isinstance(value, dict) and value.get("schema") == "aurum.control-plane.v1":
+                return value
+        except Exception:
+            continue
+    return {
+        "schema": "aurum.control-plane.v1",
+        "scope": "all-os-domains",
+        "model_intent_scope": "full",
+        "execution_authority": "aurum-policy-broker",
+        "domains": [],
+    }
+
+
 def local_context(state_dir: Path = DEFAULT_STATE, workspace: Path = DEFAULT_WORKSPACE) -> dict[str, Any]:
     autonomy = _json_file(state_dir / "autonomy.json")
     runtime = _json_file(state_dir / "runtime-update.json")
@@ -85,20 +120,25 @@ def local_context(state_dir: Path = DEFAULT_STATE, workspace: Path = DEFAULT_WOR
         "runtime_schema": runtime.get("schema") or "unknown",
         "desktop_status": desktop.get("status") or "unknown",
         "physical_surface": desktop.get("surface") or "unknown",
+        "control_plane": _control_catalog(),
     }
 
 
 def status() -> dict[str, Any]:
+    control = _control_catalog()
     return {
         "schema": SCHEMA,
-        "trait": "TR8:GPT",
+        "trait": "GPT",
         "status": "ready-for-api-key" if _api_key() else "key-required",
         "model": DEFAULT_MODEL,
         "endpoint": API_URL,
         "responses_api": True,
         "local_context": local_context(),
+        "model_intent_scope": control.get("model_intent_scope"),
+        "control_scope": control.get("scope"),
+        "execution_authority": control.get("execution_authority"),
         "host_actuation": False,
-        "build_broker": "not-yet-attached",
+        "build_broker": "control-plane-planning-ready-executor-pending",
         "key_persisted_by_trait": False,
     }
 
@@ -119,12 +159,12 @@ def _extract_text(payload: dict[str, Any]) -> str:
 def ask(prompt: str, *, model: str = DEFAULT_MODEL, timeout: int = 180) -> dict[str, Any]:
     key = _api_key()
     if not key:
-        raise GptTraitError("OPENAI_API_KEY is not available to TR8:GPT")
+        raise GptTraitError("OPENAI_API_KEY is not available to the GPT trait")
     clean = " ".join(str(prompt).split())
     if not clean:
         raise GptTraitError("prompt is empty")
     if len(clean) > 24000:
-        raise GptTraitError("prompt exceeds TR8:GPT input bound")
+        raise GptTraitError("prompt exceeds GPT trait input bound")
 
     context = local_context()
     body = json.dumps(
@@ -146,7 +186,7 @@ def ask(prompt: str, *, model: str = DEFAULT_MODEL, timeout: int = 180) -> dict[
         headers={
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "User-Agent": "Aurum-TR8-GPT/1",
+            "User-Agent": "Aurum-GPT-Trait/1",
         },
     )
     try:
@@ -163,19 +203,20 @@ def ask(prompt: str, *, model: str = DEFAULT_MODEL, timeout: int = 180) -> dict[
         raise GptTraitError("OpenAI response contained no output text")
     return {
         "schema": SCHEMA,
-        "trait": "TR8:GPT",
+        "trait": "GPT",
         "status": "completed",
         "model": payload.get("model") or model,
         "response_id": payload.get("id"),
         "text": text,
+        "control_scope": "all-os-domains",
         "host_actuation": False,
-        "build_broker": "not-yet-attached",
+        "build_broker": "control-plane-planning-ready-executor-pending",
         "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Aurum TR8:GPT reasoning bridge")
+    parser = argparse.ArgumentParser(description="Aurum GPT reasoning trait")
     parser.add_argument("command", choices=("status", "ask", "build-plan"))
     parser.add_argument("prompt", nargs="*")
     parser.add_argument("--model", default=DEFAULT_MODEL)
@@ -191,13 +232,13 @@ def main() -> int:
             prompt = " ".join(args.prompt).strip()
             if args.command == "build-plan":
                 prompt = (
-                    "Prepare the next bounded Aurum implementation plan for this request. "
-                    "Separate operations the local build broker can eventually execute from "
-                    "anything requiring operator approval. Request: " + prompt
+                    "Prepare the next Aurum control-plane implementation plan for this request. "
+                    "Use any OS domain required, but separate model intent from operations the Aurum "
+                    "executor must authorize, execute, verify, and receipt. Request: " + prompt
                 )
             result = ask(prompt, model=args.model)
     except GptTraitError as exc:
-        result = {"schema": SCHEMA, "trait": "TR8:GPT", "status": "failed", "detail": str(exc)}
+        result = {"schema": SCHEMA, "trait": "GPT", "status": "failed", "detail": str(exc)}
         print(json.dumps(result, sort_keys=True))
         return 1
     print(json.dumps(result, sort_keys=True))
