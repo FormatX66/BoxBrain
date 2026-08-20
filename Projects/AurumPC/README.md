@@ -17,9 +17,15 @@ On a physical primary console Aurum automatically:
 
 The serial/QEMU console disables autonomous first boot so CI can drive deterministic verification without racing the physical-console build.
 
+## Hopper
+
+The original PC-01 physical sandbox is now **Hopper**. The name preserves the history of the machine as Grace's first real gaming PC while also giving a quiet nod to Grace Hopper. Its machine-bound autonomy policy verifies the installed NVMe serial/size before applying the persistent hostname `hopper`; the previous hostname is backed up in Aurum state.
+
+Hopper's first Aurum application is **Echo Rally**, a dependency-free Pong-like proof running through the loopback-only Aurum arcade runtime. Every fourth paddle return leaves a temporary echo well at that impact point. The wells gently bend later ball trajectories, so the arena literally remembers earlier play. The game exercises canvas rendering, frame timing, keyboard input, pointer/touch input, synthesized audio, pause/reset, solo AI and two-player control without exposing host actuation.
+
 ## Unattended PC-01 lane
 
-The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime, run a local resumable self-build without dirtying Git, start the loopback-only GUI, and advance the adaptive driver synthesis lane.
+The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime, run a local resumable self-build without dirtying Git, start the loopback-only GUI/arcade surfaces, and advance the adaptive driver synthesis lane.
 
 The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
 
