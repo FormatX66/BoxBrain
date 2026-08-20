@@ -15,6 +15,13 @@ class EventDrivenContinuationTests(unittest.TestCase):
         self.assertIn("workflow='aurum-autobuild.yml'", text)
         self.assertIn('action=deduplicated', text)
 
+    def test_authorized_pc01_flash_completion_is_a_continuation_source(self):
+        text = EVENT_BRIDGE.read_text(encoding='utf-8')
+        self.assertIn('- Aurum PC-01 Authorized USB Flash', text)
+        self.assertIn('workflow_run:', text)
+        self.assertIn("workflow='aurum-autobuild.yml'", text)
+        self.assertIn('action=deduplicated', text)
+
     def test_event_bridge_change_wakes_main_autobuild(self):
         text = AUTOBUILD.read_text(encoding='utf-8')
         self.assertIn("- '.github/workflows/aurum-event-bridge.yml'", text)
