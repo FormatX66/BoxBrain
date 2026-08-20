@@ -12,6 +12,8 @@ import threading
 import time
 from pathlib import Path
 
+from aurum_autonomy import AutonomyManager
+from aurum_driver_synthesis import AdaptiveDriverSynthesizer, DriverSynthesisError, load_policy as load_driver_policy
 from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
 from aurum_installer import AurumInstaller, InstallError
 from aurum_network import ensure_online, interactive_wifi_setup, network_status
@@ -27,6 +29,9 @@ WORKSPACE = AurumWorkspace(
     workspace=Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain")),
     state_dir=Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state")),
 )
+POLICY = WORKSPACE.workspace / "Projects" / "AurumPC" / "pc01_autonomy_policy.json"
+if not POLICY.is_file():
+    POLICY = ROOT / "pc01_autonomy_policy.json"
 
 
 class SelfBuildController:
@@ -125,6 +130,15 @@ BUILDS = SelfBuildController(WORKSPACE)
 INSTALLER = AurumInstaller()
 RUNTIME = RuntimeUpdater(workspace=WORKSPACE.workspace, state_dir=WORKSPACE.state_dir)
 GUI = GuiRuntime(workspace=WORKSPACE.workspace, state_dir=WORKSPACE.state_dir)
+DRIVERS = AdaptiveDriverSynthesizer(
+    state_dir=WORKSPACE.state_dir / "driver-lab",
+    policy=load_driver_policy(POLICY),
+)
+AUTONOMY = AutonomyManager(
+    workspace=WORKSPACE.workspace,
+    state_dir=WORKSPACE.state_dir,
+    policy_path=POLICY,
+)
 
 
 def _read_text(path: Path, default: str = "unknown") -> str:
@@ -203,6 +217,8 @@ def show_status() -> None:
         "substrate": "linux-hardware-compatibility-layer",
         "hardware": hardware(),
         "network": network_status(),
+        "autonomy": AUTONOMY.status(),
+        "drivers": DRIVERS.status(),
         "aurum": {
             "completed_generations": state.get("completed_generations"),
             "latest_completed_gap": state.get("latest_completed_gap"),
@@ -281,6 +297,28 @@ def run_gui(action: str) -> None:
         print(f"AURUM_GUI_RUNTIME status=failed detail={exc}", flush=True)
 
 
+def run_drivers(action: str) -> None:
+    try:
+        result = DRIVERS.cycle() if action == "cycle" else DRIVERS.status()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(
+            f"AURUM_DRIVER_SYNTHESIS status={result.get('status')} devices={result.get('devices_modeled')} "
+            f"physical_swap=false",
+            flush=True,
+        )
+    except (DriverSynthesisError, OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"AURUM_DRIVER_SYNTHESIS status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
+def run_autonomy(action: str) -> None:
+    try:
+        result = AUTONOMY.cycle() if action == "cycle" else AUTONOMY.status()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(f"AURUM_AUTONOMY status={result.get('status')} unattended={str(bool(result.get('unattended'))).lower()}", flush=True)
+    except Exception as exc:
+        print(f"AURUM_AUTONOMY status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
 def show_install_plan() -> None:
     try:
         plan = INSTALLER.plan()
@@ -332,6 +370,7 @@ def command_help() -> None:
         "seed | seed-status | self-build | self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
         "git-promote authorize-network confirm-push | runtime-status | runtime-sync | "
+        "autonomy-status | autonomy-cycle | driver-status | driver-cycle | "
         "gui-status | gui-start | gui-stop | install | install confirm ERASE-CODE | "
         "reboot | poweroff | help",
         flush=True,
@@ -414,6 +453,14 @@ def main() -> int:
             run_runtime("status")
         elif command == "runtime-sync" and len(tokens) == 1:
             run_runtime("sync")
+        elif command == "autonomy-status" and len(tokens) == 1:
+            run_autonomy("status")
+        elif command == "autonomy-cycle" and len(tokens) == 1:
+            run_autonomy("cycle")
+        elif command == "driver-status" and len(tokens) == 1:
+            run_drivers("status")
+        elif command == "driver-cycle" and len(tokens) == 1:
+            run_drivers("cycle")
         elif command == "gui-status" and len(tokens) == 1:
             run_gui("status")
         elif command == "gui-start" and len(tokens) == 1:
