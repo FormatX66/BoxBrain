@@ -49,6 +49,19 @@ jobs:
             }
           }
 
+          function Test-BoundedTcp([string]$HostName, [int]$Port) {
+            $client = New-Object System.Net.Sockets.TcpClient
+            try {
+              $async = $client.BeginConnect($HostName, $Port, $null, $null)
+              if (-not $async.AsyncWaitHandle.WaitOne(1500, $false)) { return $false }
+              try { $client.EndConnect($async); return $client.Connected } catch { return $false }
+            } catch {
+              return $false
+            } finally {
+              $client.Dispose()
+            }
+          }
+
           for ($round = 1; $round -le 5 -and -not $endpoint; $round++) {
             foreach ($hostName in @('hopper.local','pc-01.local','hopper','pc-01')) {
               $url = "http://${hostName}:8767/proof"
@@ -69,6 +82,21 @@ jobs:
             $secondProbe = Read-Proof $endpoint
             if ($secondProbe.ok -and [string]$secondProbe.proof.schema -eq 'aurum.hopper.echo-proof.v1') {
               $second = $secondProbe.proof
+            }
+          }
+
+          $diagnostics = @()
+          foreach ($hostName in @('hopper.local','pc-01.local','hopper','pc-01')) {
+            $addresses = @()
+            try {
+              $addresses = @(Resolve-DnsName $hostName -Type A -ErrorAction Stop | Select-Object -ExpandProperty IPAddress -Unique)
+            } catch {}
+            $diagnostics += [ordered]@{
+              host = $hostName
+              addresses = $addresses
+              aurum_gui_8765 = [bool](Test-BoundedTcp $hostName 8765)
+              aurum_arcade_8766 = [bool](Test-BoundedTcp $hostName 8766)
+              echo_proof_8767 = [bool](Test-BoundedTcp $hostName 8767)
             }
           }
 
@@ -117,6 +145,7 @@ jobs:
             endpoint = $endpoint
             ready = [bool]$ready
             attempts = @($attempts)
+            network_diagnostics = $diagnostics
             proof = $proof
             frame_progress = $frameProgress
           }
