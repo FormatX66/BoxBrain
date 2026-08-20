@@ -25,6 +25,18 @@ Architecture-specific kernels, firmware helpers, device trees, bootloaders, driv
 
 A machine must never be forced to consume another architecture's payload merely because both live on the same drive.
 
+## Human-facing principle
+
+Aurum should be framed as a system that **likes to help people**, not as a system inheriting their problems.
+
+The universal seed exists to remove machine complexity from the person's path. The user supplies intent; Aurum does the helpful work of identifying the machine, finding or constructing the right phenotype, preserving recovery, and making the computer useful.
+
+Preferred language emphasizes assistance, service, adaptability, and partnership. Avoid framing boot, compatibility, setup, or repair as "Aurum's problem."
+
+A concise expression of the desired experience is:
+
+**Plug in the Aurum seed; Aurum takes it from there.**
+
 ## Target boot families
 
 The carrier should be extensible rather than hard-coded to only two machines. Candidate boot families include:
@@ -166,4 +178,4 @@ The drive is a physical expression of Aurum's generational genetics:
 
 **Preserve the seed; adapt the phenotype to the machine.**
 
-The user should eventually need to know only one thing: plug in the Aurum seed. The machine-specific boot mechanics are Aurum's problem, not theirs.
+The user should eventually need to know only one thing: plug in the Aurum seed. **Aurum takes it from there and helps the machine become useful for the person.**
