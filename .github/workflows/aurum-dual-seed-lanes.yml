@@ -88,6 +88,17 @@ jobs:
             Invoke-RestMethod -Method Put -Headers $headers -Uri "https://api.github.com/repos/$repo/contents/$path" -Body $body -ContentType 'application/json' | Out-Null
           }
 
+          function Get-SshSha256Fingerprint([string]$KeyBlob) {
+            try {
+              $bytes = [Convert]::FromBase64String($KeyBlob)
+              $sha = [Security.Cryptography.SHA256]::Create()
+              try { $digest = $sha.ComputeHash($bytes) } finally { $sha.Dispose() }
+              return 'SHA256:' + ([Convert]::ToBase64String($digest).TrimEnd('='))
+            } catch {
+              return 'invalid-key-blob'
+            }
+          }
+
           $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
             Publish-PiReceipt 'WAITING' @{ reason = 'runner-not-elevated'; transport = 'usb-c-ssh' }
@@ -129,15 +140,91 @@ jobs:
             exit 0
           }
 
+          # Preserve strict host-key checking without trusting a new key blindly. The
+          # Pi may already be trusted under its LAN address or hostname while this job
+          # reaches it through the USB-C gadget address. Scan only the direct USB-C
+          # endpoint, then accept that address only when its ED25519 key blob exactly
+          # matches a key already present in an authorized Windows profile's known_hosts.
+          $knownHostCandidates = New-Object System.Collections.Generic.List[string]
+          $knownHostCandidates.Add((Join-Path $HOME '.ssh\known_hosts'))
+          if (Test-Path -LiteralPath 'C:\Users' -PathType Container) {
+            Get-ChildItem -LiteralPath 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              $knownHostCandidates.Add((Join-Path $_.FullName '.ssh\known_hosts'))
+            }
+          }
+          $knownHostSources = @($knownHostCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique)
+          $trustedKeyBlobs = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+          foreach ($knownHostSource in $knownHostSources) {
+            Get-Content -LiteralPath $knownHostSource -ErrorAction SilentlyContinue | ForEach-Object {
+              if ($_ -match '(?:^|\s)ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') {
+                [void]$trustedKeyBlobs.Add($Matches[1])
+              }
+            }
+          }
+
+          $keyscan = Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction SilentlyContinue
+          if (-not $keyscan) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'ssh-keyscan-missing'; transport = 'usb-c-ssh' }
+            Write-Host 'AURUM_PI4_WAITING reason=ssh-keyscan-missing transport=usb-c-ssh'
+            exit 0
+          }
+
+          $trustedUsbLines = New-Object System.Collections.Generic.List[string]
+          $verifiedAddresses = New-Object System.Collections.Generic.List[string]
+          $untrustedFingerprints = [ordered]@{}
+          foreach ($address in $reachable) {
+            $scanLines = @(& $keyscan.Source -T 4 -t ed25519 $address 2>$null)
+            foreach ($scanLine in $scanLines) {
+              if ($scanLine -notmatch '^\S+\s+ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') { continue }
+              $blob = $Matches[1]
+              if ($trustedKeyBlobs.Contains($blob)) {
+                $trustedUsbLines.Add("$address ssh-ed25519 $blob")
+                $verifiedAddresses.Add($address)
+                break
+              }
+              if (-not $untrustedFingerprints.Contains($address)) {
+                $untrustedFingerprints[$address] = Get-SshSha256Fingerprint $blob
+              }
+            }
+          }
+
+          if ($verifiedAddresses.Count -eq 0) {
+            Publish-PiReceipt 'WAITING' @{
+              reason = 'usb-c-host-key-not-pretrusted'
+              transport = 'usb-c-ssh'
+              addresses = $reachable
+              fingerprints = $untrustedFingerprints
+              trusted_ed25519_key_count = $trustedKeyBlobs.Count
+              known_hosts_sources = $knownHostSources.Count
+            }
+            Write-Host "AURUM_PI4_WAITING reason=usb-c-host-key-not-pretrusted addresses=$($reachable -join ',')"
+            exit 0
+          }
+
+          # OpenSSH under the SYSTEM runner reads systemprofile/.ssh/known_hosts.
+          # Add only the already-trusted key under the USB-C alias for this operation,
+          # then restore the exact original bytes afterward.
+          $systemSshDir = Join-Path $HOME '.ssh'
+          $systemKnownHosts = Join-Path $systemSshDir 'known_hosts'
+          $systemSshDirExisted = Test-Path -LiteralPath $systemSshDir -PathType Container
+          $systemKnownHostsExisted = Test-Path -LiteralPath $systemKnownHosts -PathType Leaf
+          $systemKnownHostsBackup = if ($systemKnownHostsExisted) { [IO.File]::ReadAllBytes($systemKnownHosts) } else { $null }
+          if (-not $systemSshDirExisted) { New-Item -ItemType Directory -Path $systemSshDir -Force | Out-Null }
+          $existingKnownHostsText = if ($systemKnownHostsExisted) { [IO.File]::ReadAllText($systemKnownHosts) } else { '' }
+          $separator = if ($existingKnownHostsText.Length -gt 0 -and -not $existingKnownHostsText.EndsWith("`n")) { "`r`n" } else { '' }
+          $aliasText = ($trustedUsbLines | Select-Object -Unique) -join "`r`n"
+          $utf8NoBom = New-Object Text.UTF8Encoding($false)
+          [IO.File]::WriteAllText($systemKnownHosts, $existingKnownHostsText + $separator + $aliasText + "`r`n", $utf8NoBom)
+
           try {
-            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses $reachable -PiUser 'kali' -KeyPath $key 2>&1
+            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses @($verifiedAddresses) -PiUser 'kali' -KeyPath $key 2>&1
             $text = ($evidence | Out-String)
             if ($text -notmatch 'AURUM_GOLD_SEED_RECONCILED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-reconciled-marker' }
             if ($text -notmatch 'AURUM_LIVE_VERIFIED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-live-verified-marker' }
             if ($text -notmatch 'AURUM_PEER_SELF_TEST_OK') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-peer-self-test-marker' }
             if ($text -notmatch 'architecture=(aarch64|arm64)') { throw 'AURUM_PI4_VERIFY_FAILURE reason=unexpected-architecture' }
 
-            $address = if ($text -match 'AURUM_GOLD_SEED_RECONCILED address=([^\s]+)') { $Matches[1] } else { $reachable[0] }
+            $address = if ($text -match 'AURUM_GOLD_SEED_RECONCILED address=([^\s]+)') { $Matches[1] } else { $verifiedAddresses[0] }
             $seedSha = if ($text -match 'seed_sha256=([0-9a-fA-F]{64})') { $Matches[1].ToLowerInvariant() } else { 'unknown' }
             Publish-PiReceipt 'PI4_SEED_OK' @{
               address = $address
@@ -148,11 +235,22 @@ jobs:
               aurum_live_verified = $true
               peer_self_test_verified = $true
               gold_seed_preserved = $true
+              host_key_pretrusted = $true
               source_commit = $env:GITHUB_SHA
             }
             Write-Host "AURUM_PI4_SEED_OK transport=usb-c-ssh address=$address architecture=arm64 seed_sha256=$seedSha"
           } catch {
             $message = $_.Exception.Message
-            Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; transport = 'usb-c-ssh'; source_commit = $env:GITHUB_SHA }
+            Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; transport = 'usb-c-ssh'; host_key_pretrusted = $true; source_commit = $env:GITHUB_SHA }
             throw
+          } finally {
+            if ($systemKnownHostsExisted) {
+              [IO.File]::WriteAllBytes($systemKnownHosts, $systemKnownHostsBackup)
+            } elseif (Test-Path -LiteralPath $systemKnownHosts -PathType Leaf) {
+              Remove-Item -LiteralPath $systemKnownHosts -Force -ErrorAction SilentlyContinue
+            }
+            if (-not $systemSshDirExisted -and (Test-Path -LiteralPath $systemSshDir -PathType Container)) {
+              $remaining = @(Get-ChildItem -LiteralPath $systemSshDir -Force -ErrorAction SilentlyContinue)
+              if ($remaining.Count -eq 0) { Remove-Item -LiteralPath $systemSshDir -Force -ErrorAction SilentlyContinue }
+            }
           }
