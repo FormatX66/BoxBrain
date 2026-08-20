@@ -43,7 +43,7 @@ jobs:
           PY
 
   pi4-seed:
-    name: Reconcile and verify Pi4 ARM64 gold seed
+    name: Reconcile and verify Pi4 ARM64 gold seed over USB-C SSH
     runs-on: [self-hosted, Windows, X64, aurum-elevated]
     timeout-minutes: 30
     steps:
@@ -52,7 +52,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Preflight Pi4 route, reconcile seed, verify, and publish receipt
+      - name: Preflight USB-C SSH, reconcile seed, verify, and publish receipt
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
@@ -90,29 +90,58 @@ jobs:
 
           $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-            Publish-PiReceipt 'WAITING' @{ reason = 'runner-not-elevated' }
+            Publish-PiReceipt 'WAITING' @{ reason = 'runner-not-elevated'; transport = 'usb-c-ssh' }
             exit 0
           }
 
-          $key = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
-          if (-not (Test-Path -LiteralPath $key -PathType Leaf)) {
-            Publish-PiReceipt 'WAITING' @{ reason = 'pi-ssh-key-missing'; key_path = $key }
-            Write-Host "AURUM_PI4_WAITING reason=pi-ssh-key-missing key=$key"
+          # The self-hosted runner runs as SYSTEM, so $HOME points at systemprofile.
+          # Prefer an explicitly supplied key, then the runner home, then discover the
+          # existing dedicated BoxBrain key under an authorized Windows user profile.
+          $keyCandidates = New-Object System.Collections.Generic.List[string]
+          if ($env:AURUM_PI_SSH_KEY) { $keyCandidates.Add($env:AURUM_PI_SSH_KEY) }
+          $keyCandidates.Add((Join-Path $HOME '.ssh\boxbrain_pi_ed25519'))
+          if (Test-Path -LiteralPath 'C:\Users' -PathType Container) {
+            Get-ChildItem -LiteralPath 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              $keyCandidates.Add((Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'))
+            }
+          }
+          $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'pi-ssh-key-missing'; transport = 'usb-c-ssh'; candidate_key_locations = $keyCandidates.Count }
+            Write-Host 'AURUM_PI4_WAITING reason=pi-ssh-key-missing transport=usb-c-ssh'
+            exit 0
+          }
+
+          # USB-C gadget-network SSH is the authoritative Pi route for this lane.
+          # Do not fall back to Wi-Fi/LAN: a failure here should diagnose the USB-C path.
+          $usbAddresses = @('10.12.194.1','10.42.194.1')
+          $reachable = @()
+          foreach ($address in $usbAddresses) {
+            try {
+              if (Test-NetConnection -ComputerName $address -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue) {
+                $reachable += $address
+              }
+            } catch { }
+          }
+          if ($reachable.Count -eq 0) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'usb-c-ssh-unreachable'; transport = 'usb-c-ssh'; addresses = $usbAddresses }
+            Write-Host "AURUM_PI4_WAITING reason=usb-c-ssh-unreachable addresses=$($usbAddresses -join ',')"
             exit 0
           }
 
           try {
-            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses @('10.12.194.1','10.42.194.1','192.168.0.194') -PiUser 'kali' -KeyPath $key 2>&1
+            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses $reachable -PiUser 'kali' -KeyPath $key 2>&1
             $text = ($evidence | Out-String)
             if ($text -notmatch 'AURUM_GOLD_SEED_RECONCILED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-reconciled-marker' }
             if ($text -notmatch 'AURUM_LIVE_VERIFIED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-live-verified-marker' }
             if ($text -notmatch 'AURUM_PEER_SELF_TEST_OK') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-peer-self-test-marker' }
             if ($text -notmatch 'architecture=(aarch64|arm64)') { throw 'AURUM_PI4_VERIFY_FAILURE reason=unexpected-architecture' }
 
-            $address = if ($text -match 'AURUM_GOLD_SEED_RECONCILED address=([^\s]+)') { $Matches[1] } else { 'unknown' }
+            $address = if ($text -match 'AURUM_GOLD_SEED_RECONCILED address=([^\s]+)') { $Matches[1] } else { $reachable[0] }
             $seedSha = if ($text -match 'seed_sha256=([0-9a-fA-F]{64})') { $Matches[1].ToLowerInvariant() } else { 'unknown' }
             Publish-PiReceipt 'PI4_SEED_OK' @{
               address = $address
+              transport = 'usb-c-ssh'
               user = 'kali'
               architecture = 'arm64'
               seed_sha256 = $seedSha
@@ -121,9 +150,9 @@ jobs:
               gold_seed_preserved = $true
               source_commit = $env:GITHUB_SHA
             }
-            Write-Host "AURUM_PI4_SEED_OK address=$address architecture=arm64 seed_sha256=$seedSha"
+            Write-Host "AURUM_PI4_SEED_OK transport=usb-c-ssh address=$address architecture=arm64 seed_sha256=$seedSha"
           } catch {
             $message = $_.Exception.Message
-            Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; source_commit = $env:GITHUB_SHA }
+            Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; transport = 'usb-c-ssh'; source_commit = $env:GITHUB_SHA }
             throw
           }
