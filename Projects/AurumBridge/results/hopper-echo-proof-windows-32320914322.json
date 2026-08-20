@@ -1,0 +1,133 @@
+﻿{
+    "schema":  "aurum-hopper-echo-external-proof-v1",
+    "state":  "NO_FRESH_HOPPER_PROOF",
+    "observed_at":  "2026-08-20T01:26:28.7653033Z",
+    "runner_host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "endpoint":  null,
+    "ready":  false,
+    "attempts":  [
+                     {
+                         "round":  1,
+                         "url":  "http://hopper.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  1,
+                         "url":  "http://pc-01.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01.local\u0027"
+                     },
+                     {
+                         "round":  1,
+                         "url":  "http://hopper:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027hopper\u0027"
+                     },
+                     {
+                         "round":  1,
+                         "url":  "http://pc-01:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01\u0027"
+                     },
+                     {
+                         "round":  2,
+                         "url":  "http://hopper.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  2,
+                         "url":  "http://pc-01.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01.local\u0027"
+                     },
+                     {
+                         "round":  2,
+                         "url":  "http://hopper:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027hopper\u0027"
+                     },
+                     {
+                         "round":  2,
+                         "url":  "http://pc-01:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01\u0027"
+                     },
+                     {
+                         "round":  3,
+                         "url":  "http://hopper.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  3,
+                         "url":  "http://pc-01.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01.local\u0027"
+                     },
+                     {
+                         "round":  3,
+                         "url":  "http://hopper:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  3,
+                         "url":  "http://pc-01:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01\u0027"
+                     },
+                     {
+                         "round":  4,
+                         "url":  "http://hopper.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  4,
+                         "url":  "http://pc-01.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01.local\u0027"
+                     },
+                     {
+                         "round":  4,
+                         "url":  "http://hopper:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  4,
+                         "url":  "http://pc-01:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01\u0027"
+                     },
+                     {
+                         "round":  5,
+                         "url":  "http://hopper.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  5,
+                         "url":  "http://pc-01.local:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01.local\u0027"
+                     },
+                     {
+                         "round":  5,
+                         "url":  "http://hopper:8767/proof",
+                         "http_status":  null,
+                         "error":  "Unable to connect to the remote server"
+                     },
+                     {
+                         "round":  5,
+                         "url":  "http://pc-01:8767/proof",
+                         "http_status":  null,
+                         "error":  "The remote name could not be resolved: \u0027pc-01\u0027"
+                     }
+                 ],
+    "proof":  null,
+    "frame_progress":  null
+}
