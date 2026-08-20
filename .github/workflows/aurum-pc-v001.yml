@@ -45,7 +45,6 @@ jobs:
             Projects/AurumPC/aurum_hardware.py \
             Projects/AurumPC/aurum_hopper_gui.py \
             Projects/AurumPC/aurum_network.py \
-            Projects/AurumPC/aurum_proof_server.py \
             Projects/AurumPC/aurum_time.py \
             Projects/AurumPC/aurum_wifi_diag.py \
             Projects/AurumPC/aurum_wifi_recovery.py \
