@@ -1,0 +1,34 @@
+name: TypeTrix Windows
+
+on:
+  push:
+    branches:
+      - typetrix/windows-v0.01
+    paths:
+      - 'Projects/TypeTrixWindows/**'
+      - '.github/workflows/typetrix-windows.yml'
+  pull_request:
+    paths:
+      - 'Projects/TypeTrixWindows/**'
+      - '.github/workflows/typetrix-windows.yml'
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: Projects/TypeTrixWindows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -A x64
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test core
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Verify TSF DLL exists
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path build -Recurse -Filter TypeTrixTsf.dll | Select-Object -First 1
+          if (-not $dll) { throw 'TypeTrixTsf.dll was not produced' }
+          Write-Host "Built $($dll.FullName)"
