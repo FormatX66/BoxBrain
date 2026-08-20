@@ -18,8 +18,10 @@ DEFAULT_TARGET = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_MARKER = Path("/etc/aurum-installed.json")
 ALLOWLIST = (
+    "aurum_autonomy.py",
     "aurum_bootstrap.py",
     "aurum_console.py",
+    "aurum_driver_synthesis.py",
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_installer.py",
