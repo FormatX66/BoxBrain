@@ -1,0 +1,104 @@
+name: Aurum Pi4 P0 Read-Only Inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi4-p0-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi4-p0-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Inventory BBPI4 without storage or boot changes
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify Raspberry Pi and capture read-only inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="$(tr -d '\0' </proc/device-tree/model 2>/dev/null || true)"
+          case "$model" in
+            *"Raspberry Pi 4"*) ;;
+            *) echo "Refusing: runner is not a Raspberry Pi 4: $model" >&2; exit 3 ;;
+          esac
+
+          mkdir -p Projects/AurumBridge/results
+          out="Projects/AurumBridge/results/pi4-p0-inventory-${GITHUB_RUN_ID}.txt"
+          {
+            echo 'schema=aurum-pi4-p0-inventory-v1'
+            echo "observed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "hostname=$(hostname)"
+            echo "model=$model"
+            echo "arch=$(uname -m)"
+            echo "kernel=$(uname -r)"
+            echo '--- cmdline ---'
+            cat /proc/cmdline 2>/dev/null || true
+            echo '--- root source ---'
+            findmnt -no SOURCE,TARGET,FSTYPE,OPTIONS / 2>&1 || true
+            echo '--- block devices ---'
+            lsblk -b -o NAME,PATH,TYPE,SIZE,FSTYPE,FSVER,LABEL,PARTLABEL,PARTUUID,UUID,MOUNTPOINTS,MODEL,SERIAL,TRAN,RO 2>&1 || true
+            echo '--- filesystems/free space ---'
+            df -hT 2>&1 || true
+            echo '--- mounts ---'
+            findmnt -R / 2>&1 || true
+            echo '--- boot mount candidates ---'
+            findmnt /boot 2>&1 || true
+            findmnt /boot/firmware 2>&1 || true
+            echo '--- firmware files ---'
+            ls -la /boot 2>&1 | head -n 120 || true
+            [ -d /boot/firmware ] && ls -la /boot/firmware 2>&1 | head -n 160 || true
+            echo '--- EEPROM current config (read-only) ---'
+            if command -v rpi-eeprom-config >/dev/null 2>&1; then
+              rpi-eeprom-config 2>&1 || true
+            else
+              echo 'rpi-eeprom-config unavailable'
+            fi
+            echo '--- EEPROM version/status ---'
+            if command -v rpi-eeprom-update >/dev/null 2>&1; then
+              rpi-eeprom-update 2>&1 || true
+            else
+              echo 'rpi-eeprom-update unavailable'
+            fi
+            echo '--- network ---'
+            ip -brief addr 2>&1 || true
+            ip route 2>&1 || true
+            echo '--- USB topology ---'
+            lsusb -t 2>&1 || true
+            lsusb 2>&1 || true
+            echo '--- PCI ---'
+            lspci -nn 2>&1 || true
+          } | tee "$out"
+
+          sha256sum "$out" > "$out.sha256"
+
+      - name: Commit P0 inventory receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-pi4-inventory[bot]'
+          git config user.email 'aurum-pi4-inventory@users.noreply.github.com'
+          git add -- Projects/AurumBridge/results/pi4-p0-inventory-*.txt Projects/AurumBridge/results/pi4-p0-inventory-*.txt.sha256
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record Pi4 P0 read-only inventory [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          exit 1
