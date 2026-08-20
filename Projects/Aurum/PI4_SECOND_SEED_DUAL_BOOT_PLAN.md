@@ -10,20 +10,23 @@ The Pi4 is not an x86-64 substitute; it is a more demanding portability test. Ho
 
 BBPI4 currently serves the BoxBrain/Kali/rescue role. That role remains valuable and must stay recoverable. Aurum must therefore coexist with the existing Pi environment rather than overwrite it as the first step.
 
-## Preferred dual-boot model
+## Preferred boot model
 
-Use separate bootable media/partitions so the existing Kali/BoxBrain environment remains known-good while Aurum ARM64 develops beside it.
+The preferred Aurum carrier is now **one universal physical seed drive that can boot both x86-64 PCs and Raspberry Pi 4**, as defined in `Projects/Aurum/UNIVERSAL_PC_PI_SEED_DRIVE.md`.
 
-Preferred order:
+That drive contains one shared boot/seed carrier plus separate x86-64 and ARM64 payloads. Hopper and BBPI4 therefore inherit one semantic seed while booting architecture-specific kernels/root payloads.
+
+For the Pi itself, the existing Kali/BoxBrain environment remains independently recoverable. During development the preferred Pi arrangement is:
 
 1. Preserve and inventory the existing Pi boot/storage layout before writes.
-2. Build an ARM64 Aurum seed independently of the current Pi installation.
-3. Place Aurum on separate boot media or a dedicated partition; do not overwrite the known-good Kali root.
-4. Add a reversible boot-selection layer only after both sides boot independently.
-5. Default behavior during development should keep the existing BoxBrain/Kali path recoverable.
-6. Aurum state, lineage, and machine model remain separate from the compatibility OS filesystem.
+2. Build the ARM64 Aurum payload independently of the current Pi installation.
+3. Rebuild the existing Aurum PC seed USB as the universal PC+Pi carrier only after that drive is exactly identified and authorized.
+4. Boot BBPI4 from the universal seed without overwriting the known-good Kali root.
+5. Keep Kali/BoxBrain as the independent fallback environment.
+6. Add a more polished boot-selection layer only after both sides boot independently.
+7. Aurum state, lineage, and machine model remain separate from the compatibility OS filesystems.
 
-A two-media implementation (existing Kali/BoxBrain media plus Aurum USB/secondary media) is acceptable as the first dual-boot phenotype because it preserves rollback with the smallest storage risk. A unified boot menu can follow after independent boot proof.
+A separate-media Kali fallback plus universal Aurum USB gives the smallest storage risk and cleanest rollback.
 
 ## ARM seed adaptation
 
@@ -53,23 +56,26 @@ Machine-specific on Pi4:
 ### P0 — Observe only
 
 - Confirm current Pi storage devices, boot source, firmware boot order, free space, and active Kali/BoxBrain layout.
-- Produce a signed/hashed inventory receipt.
+- Identify the currently plugged PC seed USB exactly: model, serial, capacity, partition layout and current content hash where practical.
+- Produce inventory receipts.
 - Make no storage changes.
 
 ### P1 — ARM64 seed builds off-machine
 
 - Build/validate the Pi4 Aurum seed artifact.
-- Boot-test in an ARM virtual/emulated lane where useful, without treating emulation as physical proof.
+- Build/validate the universal multi-architecture disk-image constructor.
+- Boot-test in ARM/x86 virtual/emulated lanes where useful, without treating emulation as physical proof.
 
-### P2 — Independent physical Aurum boot
+### P2 — Universal seed physical proof
 
-- Put the Aurum ARM seed on separate media or dedicated free space.
-- Boot BBPI4 into Aurum without touching the known-good Kali root.
-- Prove local display or authorized remote console, networking, exact-machine identity, and self-build.
+- Rebuild only the explicitly authorized PC seed USB as the universal carrier.
+- Prove that exact drive boots x86-64 Aurum on Hopper.
+- Prove that same exact drive boots ARM64 Aurum on BBPI4 without touching the known-good Kali root.
+- Prove network, local console/display/input, node identity and self-build on the Pi phenotype.
 
-### P3 — Reversible dual boot
+### P3 — Reversible Pi coexistence
 
-- Make both Kali/BoxBrain and Aurum selectable/recoverable.
+- Make Kali/BoxBrain and Aurum both selectable/recoverable through independent media/boot paths.
 - No boot path may depend on deleting the other.
 - Preserve one-shot rescue behavior and BoxBrain's existing rescue/KVM role.
 
@@ -81,12 +87,12 @@ Machine-specific on Pi4:
 
 ## Gen1 interpretation
 
-BBPI4 may satisfy Gen1's **second physical node / cross-architecture seed portability** gate once the same semantic seed produces a usable physical Aurum phenotype on ARM64.
+BBPI4 may satisfy Gen1's **second physical node / cross-architecture seed portability** gate once the same semantic seed and same universal physical carrier produce a usable physical Aurum phenotype on ARM64 and x86-64.
 
 A later second x86-64 PC remains useful for measuring same-architecture portability, but lack of a second PC should not block Gen1's architecture-neutral evolution work now.
 
 ## Safety boundary
 
-Do not repartition, overwrite, replace the Kali/BoxBrain root, alter Pi EEPROM boot order, or make another persistent boot change until P0 inventory proves the target and an explicit reversible plan exists. Build artifacts and read-only inspection can proceed automatically.
+Do not repartition, overwrite, replace the Kali/BoxBrain root, alter Pi EEPROM boot order, or rewrite the currently plugged PC seed USB until P0 inventory proves the exact target and an explicit reversible plan exists. Build artifacts and read-only inspection can proceed automatically.
 
-The objective is not merely "Aurum runs on a Pi." The objective is to prove that one Aurum lineage can express itself across materially different machines while preserving each machine's known-good recovery path.
+The objective is not merely "Aurum runs on a Pi." The objective is to prove that one Aurum lineage and one seed carrier can express themselves across materially different machines while preserving each machine's known-good recovery path.
