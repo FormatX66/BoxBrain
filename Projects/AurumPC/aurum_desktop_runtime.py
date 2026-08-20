@@ -21,6 +21,12 @@ DEFAULT_RECEIPT = Path("/etc/aurum-installed.json")
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
 DEFAULT_DESKTOP = Path("/opt/aurum/aurum_desktop.py")
+DEFAULT_INPUT_DEVICES = Path("/proc/bus/input/devices")
+TOUCHPAD_MARKERS = ("touchpad", "clickpad", "glidepoint", "trackpad")
+XORG_LIBINPUT_DRIVERS = (
+    Path("/usr/lib/xorg/modules/input/libinput_drv.so"),
+    Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),
+)
 
 
 class DesktopRuntimeError(RuntimeError):
@@ -72,6 +78,24 @@ def _run(arguments: list[str], *, timeout: int, env: Mapping[str, str] | None = 
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise DesktopRuntimeError(f"desktop operation failed: {type(exc).__name__}:{exc}") from exc
+
+
+def _touchpad_present(path: Path = DEFAULT_INPUT_DEVICES) -> bool:
+    """Detect a laptop-style pointer that benefits from libinput translation."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        return False
+    for block in text.split("\n\n"):
+        if not any(marker in block for marker in TOUCHPAD_MARKERS):
+            continue
+        if "handlers=" in block and "event" in block:
+            return True
+    return False
+
+
+def _xorg_libinput_ready() -> bool:
+    return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)
 
 
 class HopperDesktopRuntime:
@@ -182,24 +206,51 @@ class HopperDesktopRuntime:
         }
 
     def _ensure_x_fallback(self, policy: Mapping[str, Any]) -> dict[str, Any]:
-        if shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")):
-            return {"status": "ready", "installed": False}
+        x_ready = bool(shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")))
+        if x_ready and _xorg_libinput_ready():
+            return {
+                "status": "ready",
+                "installed": False,
+                "input_driver": "xserver-xorg-input-libinput",
+            }
         if not bool(policy.get("install_local_display_dependencies")):
-            return {"status": "missing", "reason": "dependency-install-disabled"}
+            return {
+                "status": "missing",
+                "reason": "dependency-install-disabled",
+                "input_driver": "xserver-xorg-input-libinput",
+            }
         apt = shutil.which("apt-get")
         if not apt or os.geteuid() != 0:
-            return {"status": "missing", "reason": "apt-or-root-unavailable"}
+            return {
+                "status": "missing",
+                "reason": "apt-or-root-unavailable",
+                "input_driver": "xserver-xorg-input-libinput",
+            }
         env = dict(os.environ)
         env["DEBIAN_FRONTEND"] = "noninteractive"
         install = _run(
-            [apt, "install", "-y", "--no-install-recommends", "xserver-xorg", "xinit", "x11-xserver-utils"],
+            [
+                apt,
+                "install",
+                "-y",
+                "--no-install-recommends",
+                "xserver-xorg",
+                "xinit",
+                "x11-xserver-utils",
+                "xserver-xorg-input-libinput",
+            ],
             timeout=600,
             env=env,
         )
-        ready = bool(shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")))
+        ready = bool(
+            shutil.which("xinit")
+            and (shutil.which("Xorg") or shutil.which("X"))
+            and _xorg_libinput_ready()
+        )
         return {
             "status": "ready" if install.returncode == 0 and ready else "failed",
             "installed": True,
+            "input_driver": "xserver-xorg-input-libinput",
             "detail": "" if install.returncode == 0 else install.stdout[-1600:],
         }
 
@@ -260,6 +311,49 @@ class HopperDesktopRuntime:
                 raise DesktopRuntimeError("Aurum desktop did not stop after bounded SIGTERM window")
         self.desktop_pid.unlink(missing_ok=True)
 
+    def _x_command(self, *, openvt: str, env_tool: str, python: str) -> list[str]:
+        xinit = shutil.which("xinit")
+        if not xinit:
+            raise DesktopRuntimeError("xinit disappeared after dependency setup")
+        return [
+            openvt, "-c", "2", "-s", "-f", "--",
+            xinit,
+            env_tool,
+            "SDL_VIDEODRIVER=x11",
+            f"AURUM_STATE_DIR={self.state_dir}",
+            f"AURUM_RUN_DIR={self.run_dir}",
+            python, str(self.desktop), "run",
+            "--state-dir", str(self.state_dir),
+            "--run-dir", str(self.run_dir),
+            "--", ":0", "vt2", "-nolisten", "tcp",
+        ]
+
+    def _try_x11(
+        self,
+        *,
+        policy: Mapping[str, Any],
+        openvt: str,
+        env_tool: str,
+        python: str,
+        pygame_dep: Mapping[str, Any],
+        console_dep: Mapping[str, Any],
+        input_policy: str,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+        xdeps = self._ensure_x_fallback(policy)
+        if xdeps.get("status") != "ready":
+            return None, xdeps
+        self._clear_desktop()
+        self._launch(self._x_command(openvt=openvt, env_tool=env_tool, python=python), "x11-vt2")
+        ready = self._wait_running("x11-vt2", seconds=25.0)
+        if ready is not None:
+            ready["dependency"] = dict(pygame_dep)
+            ready["console_dependency"] = dict(console_dep)
+            ready["x_dependencies"] = xdeps
+            ready["input_policy"] = input_policy
+            _atomic_json(self.state_path, ready)
+            return ready, xdeps
+        return None, xdeps
+
     def start(self) -> dict[str, Any]:
         authorized, reason = self.authorization()
         if not authorized:
@@ -293,6 +387,22 @@ class HopperDesktopRuntime:
         python = shutil.which("python3") or sys.executable
         self._clear_desktop()
 
+        touchpad = _touchpad_present()
+        xdeps: dict[str, Any] = {}
+        if touchpad:
+            ready, xdeps = self._try_x11(
+                policy=policy,
+                openvt=openvt,
+                env_tool=env_tool,
+                python=python,
+                pygame_dep=pygame_dep,
+                console_dep=console_dep,
+                input_policy="touchpad-libinput-x11",
+            )
+            if ready is not None:
+                return ready
+            self._clear_desktop()
+
         kms_command = [
             openvt, "-c", "2", "-s", "-f", "--",
             env_tool,
@@ -308,45 +418,25 @@ class HopperDesktopRuntime:
         if ready is not None:
             ready["dependency"] = pygame_dep
             ready["console_dependency"] = console_dep
+            ready["input_policy"] = "direct-kms" if not touchpad else "touchpad-x11-unavailable-kms-fallback"
+            if xdeps:
+                ready["x_dependencies"] = xdeps
             _atomic_json(self.state_path, ready)
             return ready
 
         self._clear_desktop()
-        xdeps = self._ensure_x_fallback(policy)
-        if xdeps.get("status") != "ready":
-            result = {
-                "schema": SCHEMA,
-                "status": "failed",
-                "phase": "x-fallback-dependencies",
-                "dependency": pygame_dep,
-                "console_dependency": console_dep,
-                "x_dependencies": xdeps,
-            }
-            _atomic_json(self.state_path, result)
-            return result
-        xinit = shutil.which("xinit")
-        if not xinit:
-            raise DesktopRuntimeError("xinit disappeared after dependency setup")
-        x_command = [
-            openvt, "-c", "2", "-s", "-f", "--",
-            xinit,
-            env_tool,
-            "SDL_VIDEODRIVER=x11",
-            f"AURUM_STATE_DIR={self.state_dir}",
-            f"AURUM_RUN_DIR={self.run_dir}",
-            python, str(self.desktop), "run",
-            "--state-dir", str(self.state_dir),
-            "--run-dir", str(self.run_dir),
-            "--", ":0", "vt2", "-nolisten", "tcp",
-        ]
-        self._launch(x_command, "x11-vt2")
-        ready = self._wait_running("x11-vt2", seconds=25.0)
+        ready, xdeps = self._try_x11(
+            policy=policy,
+            openvt=openvt,
+            env_tool=env_tool,
+            python=python,
+            pygame_dep=pygame_dep,
+            console_dep=console_dep,
+            input_policy="x11-libinput-fallback",
+        )
         if ready is not None:
-            ready["dependency"] = pygame_dep
-            ready["console_dependency"] = console_dep
-            ready["x_dependencies"] = xdeps
-            _atomic_json(self.state_path, ready)
             return ready
+
         result = {
             "schema": SCHEMA,
             "status": "failed",
@@ -355,6 +445,7 @@ class HopperDesktopRuntime:
             "console_dependency": console_dep,
             "x_dependencies": xdeps,
             "desktop": _json_file(self.desktop_receipt),
+            "touchpad_detected": touchpad,
             "detail": self.log_path.read_text(encoding="utf-8", errors="replace")[-2500:] if self.log_path.is_file() else "",
         }
         _atomic_json(self.state_path, result)
