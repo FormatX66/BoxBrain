@@ -80,6 +80,7 @@ rsync
 dosfstools
 e2fsprogs
 util-linux
+kbd
 grub-efi-amd64-bin
 grub2-common
 build-essential
