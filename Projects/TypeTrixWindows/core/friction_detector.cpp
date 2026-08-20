@@ -1,7 +1,6 @@
 #include "friction_detector.h"
 
 #include <algorithm>
-#include <cmath>
 #include <set>
 
 namespace typetrix {
@@ -37,7 +36,7 @@ FrictionSignal FrictionDetector::observe(const EditEvent& event) {
             return e.type == EventType::Backspace;
         });
         if (backspaces >= 2) {
-            signal.confidence = std::min(1.0, signal.confidence + 0.15);
+            signal.confidence = std::min(1.0, signal.confidence + 0.20);
             signal.reasons.push_back("pause-after-editing");
         }
     }
