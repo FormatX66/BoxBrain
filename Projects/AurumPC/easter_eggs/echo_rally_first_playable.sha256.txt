@@ -1,0 +1,4 @@
+Echo Rally first-playable Hopper Easter egg
+source_blob_sha1 af4a5cd4d0abaa250f704f6fee3b3248a56757a8
+preservation_manifest_commit e71ef840656ba2494b270f0922183fceb0efcd2b
+rule original first-playable implementation remains preserved even when descendants evolve
