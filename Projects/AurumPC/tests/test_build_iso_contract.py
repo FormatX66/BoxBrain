@@ -35,13 +35,14 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn("Projects/AurumVirtualLab/qemu-pc-smoke.sh", workflow)
 
-    def test_live_image_contains_guarded_recovery_dependencies(self) -> None:
+    def test_live_image_contains_guarded_recovery_and_autonomy_dependencies(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("--debian-installer none", script)
         for package in (
             "aurum_installer.py", "aurum_time.py", "aurum_wifi_recovery.py", "aurum_runtime_update.py",
-            "aurum_gui_runtime.py", "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools",
-            "e2fsprogs", "grub-efi-amd64-bin", "grub2-common",
+            "aurum_gui_runtime.py", "aurum_autonomy.py", "aurum_driver_synthesis.py", "pc01_autonomy_policy.json",
+            "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
+            "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
