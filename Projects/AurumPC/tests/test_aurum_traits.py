@@ -18,18 +18,19 @@ class AurumTraitRegistryTests(unittest.TestCase):
     def test_gen1_catalog_has_durable_unique_trait_ids(self) -> None:
         catalog = traits_module.catalog()
         ids = [item["id"] for item in catalog]
-        self.assertEqual(len(ids), 7)
+        self.assertEqual(len(ids), 8)
         self.assertEqual(len(set(ids)), len(ids))
         self.assertEqual(
             ids,
             [
-                "TR8:WEB",
-                "TR8:FILES",
-                "TR8:MEDIA",
-                "TR8:WRITE",
-                "TR8:INTENT",
-                "TR8:CONNECT",
-                "TR8:RECOVER",
+                "TRAIT:GPT",
+                "TRAIT:INTENT",
+                "TRAIT:CONNECT",
+                "TRAIT:RECOVER",
+                "TRAIT:WEB",
+                "TRAIT:FILES",
+                "TRAIT:WRITE",
+                "TRAIT:MEDIA",
             ],
         )
 
@@ -37,10 +38,11 @@ class AurumTraitRegistryTests(unittest.TestCase):
         summary = traits_module.summary()
         self.assertEqual(summary["schema"], "aurum.traits.v1")
         self.assertEqual(summary["foundation_ready"], 3)
+        self.assertEqual(summary["foundation_building"], 1)
         self.assertEqual(summary["planned"], 4)
         self.assertFalse(summary["host_actuation"])
-        self.assertEqual(traits_module.trait("tr8:connect")["stage"], "foundation-ready")
-        self.assertIsNone(traits_module.trait("TR8:DOES-NOT-EXIST"))
+        self.assertEqual(traits_module.trait("trait:connect")["stage"], "foundation-ready")
+        self.assertIsNone(traits_module.trait("TRAIT:DOES-NOT-EXIST"))
 
 
 if __name__ == "__main__":
