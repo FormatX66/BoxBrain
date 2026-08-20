@@ -27,6 +27,7 @@ ALLOWLIST = (
     "aurum_driver_synthesis.py",
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
+    "aurum_hopper_gui.py",
     "aurum_installer.py",
     "aurum_network.py",
     "aurum_runtime_update.py",
@@ -249,7 +250,7 @@ class RuntimeUpdater:
         receipt = {
             "schema": SCHEMA,
             "status": "updated",
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "updated_at": time.strftime("%Y-%m-%dT%H%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
             "changed": applied,
