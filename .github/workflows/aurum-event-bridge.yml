@@ -8,6 +8,7 @@ on:
       - Aurum Virtual Hardware Lab
       - Validate Aurum Local-Lane Self-Heal
       - Aurum PC-01 One-Time Verified Reflash
+      - Aurum PC-01 Authorized USB Flash
       - Aurum Dual Seed Lanes
     types: [completed]
   workflow_dispatch:
