@@ -32,6 +32,7 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             seed.mkdir(parents=True)
             mind.mkdir(parents=True)
             (seed / "aurum_gui.py").write_text("print('gui')\n", encoding="utf-8")
+            (aurum_pc / "aurum_hopper_gui.py").write_text("print('hopper gui')\n", encoding="utf-8")
             (aurum_pc / "aurum_arcade.py").write_text("print('arcade')\n", encoding="utf-8")
             bootstrap = {
                 "schema": "aurum.mind.v1",
