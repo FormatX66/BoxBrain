@@ -7,14 +7,17 @@ on:
     paths:
       - 'stateweave/**'
       - 'stateweave_kernel/**'
+      - 'experiments/**'
       - 'Architecture/StateWeave*.md'
       - '.github/workflows/stateweave-adaptive-kernel.yml'
   pull_request:
     paths:
       - 'stateweave/**'
       - 'stateweave_kernel/**'
+      - 'experiments/**'
       - 'Architecture/StateWeave*.md'
       - '.github/workflows/stateweave-adaptive-kernel.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,3 +34,5 @@ jobs:
         run: python -m unittest discover -s stateweave -p 'test_*.py' -v
       - name: StateWeave adaptive-kernel tests
         run: python -m unittest discover -s stateweave_kernel -p 'test_*.py' -v
+      - name: Run shared Aurum race benchmark
+        run: python experiments/benchmark.py
