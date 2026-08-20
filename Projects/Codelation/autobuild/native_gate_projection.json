@@ -1,0 +1,852 @@
+{
+  "attempts_this_burst": 8,
+  "blocked": {
+    "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2": "external-prerequisite-blocked",
+    "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651": "external-prerequisite-blocked",
+    "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840": "external-prerequisite-blocked",
+    "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68": "external-prerequisite-blocked",
+    "6d59475189e805789cc40d7145539fa7e30db16dcfdc7e8b39d5629e376cb119": "external-prerequisite-blocked",
+    "ee4766aa46914edce539a20217db3f6eec1021577d2fc12d7cadedeff4e79e5a": "external-prerequisite-blocked",
+    "f6b14aece0ef001af8f13af74988b3370b25f7256a7ae4c27c508cd7f1196c38": "external-prerequisite-blocked"
+  },
+  "blocked_reason": "external-prerequisite-blocked",
+  "executor_checkpoint": {
+    "learned_expressions": {
+      "capability_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "capability_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "capability_stability_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "interface_context_mode_confidence": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "profile",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "evidence",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "interface_feedback_stability_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "interface_roundtrip_observation": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "emitted",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "io_observation_stability_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "io_semantic_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_novelty_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "symmetric_difference",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_overlap_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "intersection",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_retention_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "union",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        }
+      },
+      "learning_stability_index": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "after",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "before",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "learning_union_size": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "union",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "memory_semantic_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "memory_semantic_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "resource_context_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "resource_context_delta_score": {
+        "op": "length",
+        "value": {
+          "left": {
+            "op": "split",
+            "value": {
+              "name": "after",
+              "op": "input"
+            }
+          },
+          "op": "symmetric_difference",
+          "right": {
+            "op": "split",
+            "value": {
+              "name": "before",
+              "op": "input"
+            }
+          }
+        }
+      },
+      "transport_semantic_coverage_ratio": {
+        "left": {
+          "op": "length",
+          "value": {
+            "left": {
+              "op": "split",
+              "value": {
+                "name": "observed",
+                "op": "input"
+              }
+            },
+            "op": "intersection",
+            "right": {
+              "op": "split",
+              "value": {
+                "name": "required",
+                "op": "input"
+              }
+            }
+          }
+        },
+        "op": "safe_divide",
+        "right": {
+          "op": "length",
+          "value": {
+            "op": "split",
+            "value": {
+              "name": "required",
+              "op": "input"
+            }
+          }
+        }
+      }
+    },
+    "schema": "aurum-native-chain-resume-v1",
+    "verified_local_capabilities": [
+      "bounded-preference-evidence",
+      "categorical-token-policy",
+      "io-plan",
+      "labeled-text-projection",
+      "protected-token-filter",
+      "required-condition-classifier",
+      "reversible-state-delta-projection",
+      "thresholded-unique-best-selector"
+    ]
+  },
+  "external_evidence": {
+    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": {
+      "authority_granted": false,
+      "credential_content_captured": false,
+      "physical_hardware": "not-proven-or-implied",
+      "proof_artifact": "Aurum-VirtualLab-Convergence-09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+      "proof_artifact_id": 9313909353,
+      "schema": "aurum.same-commit.virtual-lab-proof.v1",
+      "source_commit": "09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+      "verified": true,
+      "workflow": "aurum-virtual-lab.yml",
+      "workflow_run_id": 32107299611
+    },
+    "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193": null,
+    "09294ddb53d0337bad7cd0e1d41443e9aabd4503adcfc2b72ad6524d5b7e607a": null,
+    "0a7abf61c25f25a41e95a50c89612ca2b0f630f00d9e278484973a9465f68b7f": null,
+    "11dda48f3421776abb0f485b7a9de900d98d3b4c9369fbc202c28d95fe8a970d": null,
+    "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2": {
+      "applied": false,
+      "evidence": null,
+      "reason": "iteration-observation-evidence-expired"
+    },
+    "20569a3913ed804a15f22acadf28144743f567157e44351cbd338dd6e2af79bf": null,
+    "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651": {
+      "applied": false,
+      "evidence": null,
+      "reason": "trial-evidence-expired"
+    },
+    "269b413c22eb22bccccf41c90dd6fe557e9667e3a32103843207887efb9400d5": null,
+    "271ccee118941a1bb51b1ba3319e32a6878e12e2b4cb03d24d7b74054c99ec9f": null,
+    "27de54aed38ae480dfebb7544ab7269f30a1ed726eeb2c0d7b7979724a675bd5": null,
+    "2f6998451400488fe7519759fc30df2c27dbfc8664a42d7904e458b9f33406d2": null,
+    "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840": {
+      "applied": false,
+      "evidence": null,
+      "reason": "gui-capability-evidence-expired"
+    },
+    "38b1e5f5cb475c9a6f6449da0b964aaed7f527608f1559c16999a202e1e8de78": null,
+    "3b047b660de4a4a4a9efed2bb54ce25748c2c8f1efc01c9733782d653933a079": null,
+    "44e034303187eaaae99116503dd593e8dcd823a8dea40c4310037d40ff58699e": null,
+    "45ee912001e654cd061e999fcc0f026e824783cc5b7894db3d3dd3ed00a314a9": null,
+    "4cea280d5babce76def4da9b75576a8c171ac54046b93ea67cdb047b9eb701f3": null,
+    "5c5133afcc484b8ee8d73bdbbaf5c7c7dd73e5bd70b634e11f50292d2c52fb3b": null,
+    "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68": {
+      "applied": false,
+      "evidence": null,
+      "reason": "gui-live-trial-evidence-expired"
+    },
+    "6516ef40bee0b62b1d710b3383fe03fa637be99cf554972ca077f9438264b059": null,
+    "65251cfac520de67c37f876cb6c8dada08932cadbe0a143f57696ca1940c34cf": null,
+    "6d59475189e805789cc40d7145539fa7e30db16dcfdc7e8b39d5629e376cb119": {
+      "applied": false,
+      "evidence": null,
+      "reason": "gui-preference-trial-evidence-expired"
+    },
+    "81234d9af69d14fb1f1839aeab77d548567c5a8f9fb7d90a654e0e17b247b15c": null,
+    "89d74dbd6d27e5f304e54f6d386f31833b25a68aada359ef3924588d1e0d39d4": null,
+    "a4bb3b76abf43afe9cc354abf8b55eb8895c9fa12be4595110149e7fe2979973": null,
+    "aaa87ecd0ea9fcefa414673a6cd63e068e09fb0cfc170370b2dc9037b983c6e4": null,
+    "ad1c2881a7cd243a1850c969f232e2b213c7ac559a97bab3eec01461150187d1": null,
+    "aebd17fdbfbc7a1f532e5427c422d1d2fa2f9a7ebd92163a28f129529d43aab8": null,
+    "applied": false,
+    "b661e2fb90406a5bd8743480d1475b8efc947ccca464c133c003420a110399fb": null,
+    "bc81c17c51731c8ae968754146bfdf7f3ed0fa597ced8195996b374361d07af9": null,
+    "c656a60132d4d4a5ac4ab2bf53dec786bd00584ffdcdd8acc32ce7f37ac49e81": null,
+    "c74887b3ea67880d637d917d2664000f89bc5e70a5d38a283dbe5d30774ef726": null,
+    "cca6b08ccab7654abdd09f89e0e2dab376bc5d1f0ce37317394ab23407a79437": null,
+    "d79b7f0d21d8205eb4f82c6d0f66b94c74a261cd7f0cbe083f467cf4d44a9d77": null,
+    "d911085c6759a9271f7197ef85c768429da18f1e87936c678b9405f955671309": null,
+    "e51f761af08e01b3821f3b80c7fee7096b5608312003bea921e56d1cb92bd572": null,
+    "ec0ba9b6c9f85bc44d2fffb08b66963ddff4db3c2a3cc41937a2a58980a2ea14": null,
+    "ee4766aa46914edce539a20217db3f6eec1021577d2fc12d7cadedeff4e79e5a": {
+      "applied": false,
+      "evidence": null,
+      "reason": "gui-key-bootstrap-trial-evidence-expired"
+    },
+    "evidence": null,
+    "f44754e1987593ed6e2b7bcd5b903937f895800ae474f5dc8291c99db55a2aa4": null,
+    "f679f4be82f9e071a4639d6c1f953bfff82cc57107180d564630da2201000980": null,
+    "f6b14aece0ef001af8f13af74988b3370b25f7256a7ae4c27c508cd7f1196c38": {
+      "applied": false,
+      "evidence": null,
+      "reason": "evidence-expired"
+    },
+    "faa6f25da05b8e3b76f521e22c238e3e30d13284ce5a527f2982e24ccc37e48d": null,
+    "fd7ec6bd6859a7e6c1c6b70eac03c68c6ccc09b33ad942adb684315dfc9ea258": null,
+    "reason": "gui-live-trial-evidence-expired"
+  },
+  "focus": "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2",
+  "labels": {
+    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6": "adaptive_shell_gui_context_virtual_convergence",
+    "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193": "io_safe_port_choice",
+    "09294ddb53d0337bad7cd0e1d41443e9aabd4503adcfc2b72ad6524d5b7e607a": "adaptive_shell_gui_semantic_context_integration",
+    "0a7abf61c25f25a41e95a50c89612ca2b0f630f00d9e278484973a9465f68b7f": "learning_retention_ratio",
+    "11dda48f3421776abb0f485b7a9de900d98d3b4c9369fbc202c28d95fe8a970d": "io_observation_stability_ratio",
+    "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2": "adaptive_shell_iteration_observation_readiness",
+    "20569a3913ed804a15f22acadf28144743f567157e44351cbd338dd6e2af79bf": "learning_overlap_score",
+    "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651": "adaptive_shell_live_trial",
+    "269b413c22eb22bccccf41c90dd6fe557e9667e3a32103843207887efb9400d5": "capability_stability_ratio",
+    "271ccee118941a1bb51b1ba3319e32a6878e12e2b4cb03d24d7b74054c99ec9f": "capability_delta_score",
+    "27de54aed38ae480dfebb7544ab7269f30a1ed726eeb2c0d7b7979724a675bd5": "transport_semantic_coverage_ratio",
+    "2f6998451400488fe7519759fc30df2c27dbfc8664a42d7904e458b9f33406d2": "interface_roundtrip_observation",
+    "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840": "adaptive_shell_iteration_observation",
+    "38b1e5f5cb475c9a6f6449da0b964aaed7f527608f1559c16999a202e1e8de78": "io_semantic_coverage_ratio",
+    "3b047b660de4a4a4a9efed2bb54ce25748c2c8f1efc01c9733782d653933a079": "interface_mode_selection",
+    "44e034303187eaaae99116503dd593e8dcd823a8dea40c4310037d40ff58699e": "adaptive_shell_closed_loop",
+    "45ee912001e654cd061e999fcc0f026e824783cc5b7894db3d3dd3ed00a314a9": "resource_context_delta_score",
+    "4cea280d5babce76def4da9b75576a8c171ac54046b93ea67cdb047b9eb701f3": "interface_human_state_projection",
+    "5c5133afcc484b8ee8d73bdbbaf5c7c7dd73e5bd70b634e11f50292d2c52fb3b": "learning_novelty_ratio",
+    "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68": "adaptive_shell_gui_live_trial",
+    "6516ef40bee0b62b1d710b3383fe03fa637be99cf554972ca077f9438264b059": "adaptive_shell_gui_context_state_exchange",
+    "65251cfac520de67c37f876cb6c8dada08932cadbe0a143f57696ca1940c34cf": "io_binding_readiness",
+    "6d59475189e805789cc40d7145539fa7e30db16dcfdc7e8b39d5629e376cb119": "adaptive_shell_gui_preference_live_trial",
+    "81234d9af69d14fb1f1839aeab77d548567c5a8f9fb7d90a654e0e17b247b15c": "memory_semantic_coverage_ratio",
+    "89d74dbd6d27e5f304e54f6d386f31833b25a68aada359ef3924588d1e0d39d4": "learning_delta_score",
+    "a4bb3b76abf43afe9cc354abf8b55eb8895c9fa12be4595110149e7fe2979973": "learning_union_size",
+    "aaa87ecd0ea9fcefa414673a6cd63e068e09fb0cfc170370b2dc9037b983c6e4": "adaptive_shell_next_iteration_planning",
+    "ad1c2881a7cd243a1850c969f232e2b213c7ac559a97bab3eec01461150187d1": "adaptive_shell_gui_preference_iteration_planning",
+    "aebd17fdbfbc7a1f532e5427c422d1d2fa2f9a7ebd92163a28f129529d43aab8": "interface_adaptation_proposal",
+    "b661e2fb90406a5bd8743480d1475b8efc947ccca464c133c003420a110399fb": "interface_stability_budget",
+    "bc81c17c51731c8ae968754146bfdf7f3ed0fa597ced8195996b374361d07af9": "adaptive_shell_gui_iteration_planning",
+    "c656a60132d4d4a5ac4ab2bf53dec786bd00584ffdcdd8acc32ce7f37ac49e81": "interface_context_mode_confidence",
+    "c74887b3ea67880d637d917d2664000f89bc5e70a5d38a283dbe5d30774ef726": "interface_feedback_stability_ratio",
+    "cca6b08ccab7654abdd09f89e0e2dab376bc5d1f0ce37317394ab23407a79437": "learning_stability_index",
+    "d79b7f0d21d8205eb4f82c6d0f66b94c74a261cd7f0cbe083f467cf4d44a9d77": "capability_coverage_ratio",
+    "d911085c6759a9271f7197ef85c768429da18f1e87936c678b9405f955671309": "resource_context_proposal",
+    "e51f761af08e01b3821f3b80c7fee7096b5608312003bea921e56d1cb92bd572": "resource_context_actuation_readiness",
+    "ec0ba9b6c9f85bc44d2fffb08b66963ddff4db3c2a3cc41937a2a58980a2ea14": "adaptive_shell_gui_context_surface_integration",
+    "ee4766aa46914edce539a20217db3f6eec1021577d2fc12d7cadedeff4e79e5a": "adaptive_shell_gui_key_bootstrap_live_trial",
+    "f44754e1987593ed6e2b7bcd5b903937f895800ae474f5dc8291c99db55a2aa4": "resource_context_coverage_ratio",
+    "f679f4be82f9e071a4639d6c1f953bfff82cc57107180d564630da2201000980": "interface_user_feedback_learning",
+    "f6b14aece0ef001af8f13af74988b3370b25f7256a7ae4c27c508cd7f1196c38": "adaptive_shell_live_trial_readiness",
+    "faa6f25da05b8e3b76f521e22c238e3e30d13284ce5a527f2982e24ccc37e48d": "adaptive_shell_gui_dialogue_readiness",
+    "fd7ec6bd6859a7e6c1c6b70eac03c68c6ccc09b33ad942adb684315dfc9ea258": "memory_semantic_delta_score"
+  },
+  "machine_state_sha256": "997f5e3c54eb9a4df9ec44c508cee2e297cebfadcedd55009636234d62d29930",
+  "migration": "verified-v1-bytes-to-v2-scheduler",
+  "parked": [
+    "1c53608466418a36cfd5801ca4c4238fee007ede0835cdefb5dc8591d3c7def2",
+    "24b2af158ae4f0dba4824c3a72208e8e7c38ed055d661072cf299c03650a8651",
+    "33f057d55725380296a9f878fa638ea33989238ae9e119cd93fe588581e29840",
+    "6009d7ef97a3dc3a356e1964e14655bcb3f1072f56ac77623d35efb38aa85f68",
+    "6d59475189e805789cc40d7145539fa7e30db16dcfdc7e8b39d5629e376cb119",
+    "ee4766aa46914edce539a20217db3f6eec1021577d2fc12d7cadedeff4e79e5a",
+    "f6b14aece0ef001af8f13af74988b3370b25f7256a7ae4c27c508cd7f1196c38"
+  ],
+  "pending": [],
+  "reasoning_request": null,
+  "reasoning_requests": {},
+  "reasoning_required": false,
+  "resolved": [
+    "02ee59c1faf6c4163a7842f02fdb3db206c95a9effaa646000eea3bcde9f24f6",
+    "0720edfaad2b766c37a37fffcc91e4b744c75901bbac5db5d4679a4d1da45193",
+    "09294ddb53d0337bad7cd0e1d41443e9aabd4503adcfc2b72ad6524d5b7e607a",
+    "0a7abf61c25f25a41e95a50c89612ca2b0f630f00d9e278484973a9465f68b7f",
+    "11dda48f3421776abb0f485b7a9de900d98d3b4c9369fbc202c28d95fe8a970d",
+    "20569a3913ed804a15f22acadf28144743f567157e44351cbd338dd6e2af79bf",
+    "269b413c22eb22bccccf41c90dd6fe557e9667e3a32103843207887efb9400d5",
+    "271ccee118941a1bb51b1ba3319e32a6878e12e2b4cb03d24d7b74054c99ec9f",
+    "27de54aed38ae480dfebb7544ab7269f30a1ed726eeb2c0d7b7979724a675bd5",
+    "2f6998451400488fe7519759fc30df2c27dbfc8664a42d7904e458b9f33406d2",
+    "38b1e5f5cb475c9a6f6449da0b964aaed7f527608f1559c16999a202e1e8de78",
+    "3b047b660de4a4a4a9efed2bb54ce25748c2c8f1efc01c9733782d653933a079",
+    "44e034303187eaaae99116503dd593e8dcd823a8dea40c4310037d40ff58699e",
+    "45ee912001e654cd061e999fcc0f026e824783cc5b7894db3d3dd3ed00a314a9",
+    "4cea280d5babce76def4da9b75576a8c171ac54046b93ea67cdb047b9eb701f3",
+    "5c5133afcc484b8ee8d73bdbbaf5c7c7dd73e5bd70b634e11f50292d2c52fb3b",
+    "6516ef40bee0b62b1d710b3383fe03fa637be99cf554972ca077f9438264b059",
+    "65251cfac520de67c37f876cb6c8dada08932cadbe0a143f57696ca1940c34cf",
+    "81234d9af69d14fb1f1839aeab77d548567c5a8f9fb7d90a654e0e17b247b15c",
+    "89d74dbd6d27e5f304e54f6d386f31833b25a68aada359ef3924588d1e0d39d4",
+    "a4bb3b76abf43afe9cc354abf8b55eb8895c9fa12be4595110149e7fe2979973",
+    "aaa87ecd0ea9fcefa414673a6cd63e068e09fb0cfc170370b2dc9037b983c6e4",
+    "ad1c2881a7cd243a1850c969f232e2b213c7ac559a97bab3eec01461150187d1",
+    "aebd17fdbfbc7a1f532e5427c422d1d2fa2f9a7ebd92163a28f129529d43aab8",
+    "b661e2fb90406a5bd8743480d1475b8efc947ccca464c133c003420a110399fb",
+    "bc81c17c51731c8ae968754146bfdf7f3ed0fa597ced8195996b374361d07af9",
+    "c656a60132d4d4a5ac4ab2bf53dec786bd00584ffdcdd8acc32ce7f37ac49e81",
+    "c74887b3ea67880d637d917d2664000f89bc5e70a5d38a283dbe5d30774ef726",
+    "cca6b08ccab7654abdd09f89e0e2dab376bc5d1f0ce37317394ab23407a79437",
+    "d79b7f0d21d8205eb4f82c6d0f66b94c74a261cd7f0cbe083f467cf4d44a9d77",
+    "d911085c6759a9271f7197ef85c768429da18f1e87936c678b9405f955671309",
+    "e51f761af08e01b3821f3b80c7fee7096b5608312003bea921e56d1cb92bd572",
+    "ec0ba9b6c9f85bc44d2fffb08b66963ddff4db3c2a3cc41937a2a58980a2ea14",
+    "f44754e1987593ed6e2b7bcd5b903937f895800ae474f5dc8291c99db55a2aa4",
+    "f679f4be82f9e071a4639d6c1f953bfff82cc57107180d564630da2201000980",
+    "faa6f25da05b8e3b76f521e22c238e3e30d13284ce5a527f2982e24ccc37e48d",
+    "fd7ec6bd6859a7e6c1c6b70eac03c68c6ccc09b33ad942adb684315dfc9ea258"
+  ],
+  "role": "codelation-only-not-authoritative",
+  "schema": "aurum-gate-projection-v2",
+  "virtual_convergence_evidence": {
+    "authority_granted": false,
+    "credential_content_captured": false,
+    "physical_hardware": "not-proven-or-implied",
+    "proof_artifact": "Aurum-VirtualLab-Convergence-09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+    "proof_artifact_id": 9313909353,
+    "schema": "aurum.same-commit.virtual-lab-proof.v1",
+    "source_commit": "09a6b815c3b74e57ecc62cf3133eea14e322c5f6",
+    "verified": true,
+    "workflow": "aurum-virtual-lab.yml",
+    "workflow_run_id": 32107299611
+  },
+  "work_done_this_burst": 1,
+  "yield_reason": "waiting-on-external-state"
+}
