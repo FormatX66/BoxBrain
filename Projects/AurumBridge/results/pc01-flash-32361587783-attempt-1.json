@@ -1,0 +1,18 @@
+{
+    "schema":  "aurum-pc01-flash-receipt-v1",
+    "state":  "FLASH_FAILURE",
+    "github_workflow_run":  32361587783,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-20T11:25:04.4484717Z",
+    "data":  {
+                 "image_sha256":  "9ea55ed5350eaa2fbadede2faf8dd55bb6e05897f2c955a4eea0846198b43bb5",
+                 "disk_model":  "SanDisk Cruzer Fit",
+                 "disk_number":  1,
+                 "removable_media":  true,
+                 "head":  "7c841adcb05fd7a36c4769e43d606089b2cf5fa5",
+                 "reason":  "AURUM_FLASH_PREP_FAILURE reason=diskpart-clean-failed exit=-2147024875 output= | Microsoft DiskPart version 10.0.26100.8941 |  | Copyright (C) Microsoft Corporation. | On computer: LAPTOP-EBD8CG8P |  | Disk 1 is now the selected disk. |  | DiskPart has encountered an error: The device is not ready. | See the System Event Log for more information.",
+                 "disk_serial":  "4C530001061117108440"
+             }
+}
