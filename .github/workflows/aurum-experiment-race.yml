@@ -1,0 +1,192 @@
+name: Aurum Experiment Race
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '17 */12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-experiment-race
+  cancel-in-progress: true
+
+jobs:
+  lane:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: conventional-aurum
+            ref: main
+            install: python -m pip install -e controller
+            command: python -m unittest discover -s controller/tests -p 'test_*.py' -v
+            loc_paths: controller/src ui/lib
+          - name: stateweave
+            ref: stateweave-experimental
+            install: ':'
+            command: python -m unittest discover -s stateweave -p 'test_*.py' -v
+            loc_paths: stateweave
+          - name: adaptive-kernel
+            ref: adaptive-kernel-experimental
+            install: ':'
+            command: python -m unittest discover -s adaptive_kernel -p 'test_*.py' -v
+            loc_paths: adaptive_kernel
+          - name: stateweave-adaptive-kernel
+            ref: stateweave-adaptive-kernel
+            install: ':'
+            command: python -m unittest discover -s stateweave -p 'test_*.py' -v && python -m unittest discover -s stateweave_kernel -p 'test_*.py' -v
+            loc_paths: stateweave stateweave_kernel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install lane dependencies
+        shell: bash
+        run: ${{ matrix.install }}
+
+      - name: Run lane and capture evidence
+        id: run
+        shell: bash
+        env:
+          LANE_NAME: ${{ matrix.name }}
+          LANE_REF: ${{ matrix.ref }}
+          LANE_COMMAND: ${{ matrix.command }}
+          LOC_PATHS: ${{ matrix.loc_paths }}
+        run: |
+          set +e
+          started=$(date +%s)
+          bash -lc "$LANE_COMMAND" 2>&1 | tee lane-test.log
+          code=${PIPESTATUS[0]}
+          finished=$(date +%s)
+          duration=$((finished-started))
+          sha=$(git rev-parse HEAD)
+          loc=0
+          for path in $LOC_PATHS; do
+            if [ -e "$path" ]; then
+              subtotal=$(find "$path" -type f \( -name '*.py' -o -name '*.dart' -o -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name '*.S' -o -name '*.s' \) -print0 | xargs -0 -r cat | wc -l)
+              loc=$((loc+subtotal))
+            fi
+          done
+          if [ "$code" -eq 0 ]; then status=pass; else status=fail; fi
+          python - <<'PY'
+          import json, os
+          record = {
+              "lane": os.environ["LANE_NAME"],
+              "ref": os.environ["LANE_REF"],
+              "sha": os.popen("git rev-parse HEAD").read().strip(),
+              "status": os.environ.get("STATUS", "unknown"),
+              "exit_code": int(os.environ.get("EXIT_CODE", "0")),
+              "duration_seconds": int(os.environ.get("DURATION", "0")),
+              "targeted_loc": int(os.environ.get("TARGETED_LOC", "0")),
+          }
+          with open("lane-result.json", "w", encoding="utf-8") as f:
+              json.dump(record, f, indent=2, sort_keys=True)
+          PY
+        continue-on-error: true
+
+      - name: Normalize result evidence
+        if: always()
+        shell: bash
+        env:
+          LANE_NAME: ${{ matrix.name }}
+          LANE_REF: ${{ matrix.ref }}
+          LOC_PATHS: ${{ matrix.loc_paths }}
+        run: |
+          # Recompute deterministically here so a failed test command cannot prevent evidence publication.
+          sha=$(git rev-parse HEAD)
+          loc=0
+          for path in $LOC_PATHS; do
+            if [ -e "$path" ]; then
+              subtotal=$(find "$path" -type f \( -name '*.py' -o -name '*.dart' -o -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name '*.S' -o -name '*.s' \) -print0 | xargs -0 -r cat | wc -l)
+              loc=$((loc+subtotal))
+            fi
+          done
+          if grep -Eq '^OK$|^OK \(' lane-test.log 2>/dev/null; then status=pass; else status=fail; fi
+          duration=0
+          python - <<PY
+          import json
+          record = {
+              "lane": "${LANE_NAME}",
+              "ref": "${LANE_REF}",
+              "sha": "${sha}",
+              "status": "${status}",
+              "duration_seconds": ${duration},
+              "targeted_loc": ${loc},
+          }
+          with open("lane-result.json", "w", encoding="utf-8") as f:
+              json.dump(record, f, indent=2, sort_keys=True)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: race-${{ matrix.name }}
+          path: |
+            lane-result.json
+            lane-test.log
+          retention-days: 30
+
+  scoreboard:
+    name: Scoreboard
+    needs: lane
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: race-*
+          path: race-results
+
+      - name: Build scorecard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob, json, os
+          rows=[]
+          for path in glob.glob('race-results/**/lane-result.json', recursive=True):
+              with open(path, encoding='utf-8') as f:
+                  rows.append(json.load(f))
+          rows.sort(key=lambda r: r['lane'])
+          lines=[
+              '# Aurum Experiment Race',
+              '',
+              'This scorecard is evidence only. A lane is not promoted automatically.',
+              '',
+              '| Lane | Status | Targeted LOC | Commit |',
+              '|---|---:|---:|---|',
+          ]
+          for r in rows:
+              lines.append(f"| {r['lane']} | {r['status']} | {r['targeted_loc']} | `{r['sha'][:10]}` |")
+          lines += [
+              '',
+              '## Promotion rule',
+              '',
+              'Promote only after a shared real-world capability benchmark shows equal or better verified outcome, safety, recoverability, and resource cost. Native unit-test success alone does not declare a winner.',
+          ]
+          text='\n'.join(lines)+'\n'
+          open('AURUM_EXPERIMENT_SCORECARD.md','w',encoding='utf-8').write(text)
+          summary=os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary:
+              with open(summary,'a',encoding='utf-8') as f: f.write(text)
+          print(text)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurum-experiment-scorecard
+          path: AURUM_EXPERIMENT_SCORECARD.md
+          retention-days: 30
