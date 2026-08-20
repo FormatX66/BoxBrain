@@ -21,19 +21,20 @@ RESIDENT_CAPABILITIES: tuple[dict[str, str], ...] = (
     {"id": "CORE:TIME", "name": "Time", "summary": "Clock synchronization and monotonic runtime timing."},
     {"id": "CORE:GROWTH", "name": "Update + Self-build", "summary": "Generation growth, guarded runtime update, and local self-build."},
     {"id": "CORE:SAFETY", "name": "Safety + Recovery", "summary": "Diagnostics, rollback, recovery console, and bounded physical changes."},
+    {"id": "CORE:CONTROL", "name": "AI Control Plane", "summary": "Expose every OS domain to authorized model intent while Aurum owns policy, execution, verification, and recovery."},
 )
 
 TRAITS: tuple[dict[str, Any], ...] = (
     {
-        "id": "TR8:GPT",
+        "id": "TRAIT:GPT",
         "name": "GPT",
         "stage": "foundation-building",
         "resident": True,
         "priority": 0,
-        "summary": "OpenAI reasoning and coding bridge that can graduate from conversation into bounded Aurum build work on Hopper.",
+        "summary": "OpenAI reasoning and coding bridge that can graduate from conversation into policy-mediated Aurum build and OS control on Hopper.",
     },
     {
-        "id": "TR8:INTENT",
+        "id": "TRAIT:INTENT",
         "name": "Intent",
         "stage": "foundation-ready",
         "resident": True,
@@ -41,7 +42,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Translate natural user intent into bounded capability requests and adaptive input help.",
     },
     {
-        "id": "TR8:CONNECT",
+        "id": "TRAIT:CONNECT",
         "name": "Connect",
         "stage": "foundation-ready",
         "resident": True,
@@ -49,7 +50,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Manage network and device connectivity as one capability rather than separate admin tools.",
     },
     {
-        "id": "TR8:RECOVER",
+        "id": "TRAIT:RECOVER",
         "name": "Recover",
         "stage": "foundation-ready",
         "resident": True,
@@ -57,7 +58,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Diagnose, restore, and return to a known-good generation without specialist administration.",
     },
     {
-        "id": "TR8:WEB",
+        "id": "TRAIT:WEB",
         "name": "Web",
         "stage": "planned",
         "resident": True,
@@ -65,7 +66,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Browse and use web experiences without exposing browser plumbing as the capability itself.",
     },
     {
-        "id": "TR8:FILES",
+        "id": "TRAIT:FILES",
         "name": "Files",
         "stage": "planned",
         "resident": True,
@@ -73,7 +74,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Human-friendly access to local, removable, and connected storage projections.",
     },
     {
-        "id": "TR8:WRITE",
+        "id": "TRAIT:WRITE",
         "name": "Write",
         "stage": "planned",
         "resident": True,
@@ -81,7 +82,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "summary": "Create and edit text while preserving user intent, voice, and reversible assistance.",
     },
     {
-        "id": "TR8:MEDIA",
+        "id": "TRAIT:MEDIA",
         "name": "Media",
         "stage": "planned",
         "resident": True,
