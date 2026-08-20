@@ -83,7 +83,19 @@ Over time it should correlate signals such as timing, retries, corrected errors,
 
 The goal is not merely to report a failing component after an error. Aurum should eventually isolate degrading hardware, distinguish component failure from configuration/software failure, estimate confidence, preserve data where possible, adapt around a failure temporarily, and tell the human what actually needs attention.
 
-### 9. Continuously adaptive externally, rigorously attributable internally
+### 9. Presence-adaptive power instead of sleep, hibernation, and shutdown ceremony
+
+Aurum should not require the human to manage traditional computer power states as a normal operating-system task. Sleep, hibernation, shutdown, and a software power-button ritual are compatibility concepts, not north-star user concepts.
+
+The normal Aurum node is logically present continuously. Power use should adapt to actual need: user presence, active workload, latency expectations, background work, thermal conditions, battery or external-power context, device availability, and learned usage patterns.
+
+When little is required, Aurum should contract resource use rather than asking the user to put the whole machine into a named state. Displays can become dark, processors can spend more time in verified low-power idle states, unused devices can become quiescent, background work can be deferred or consolidated, and active capabilities can shrink toward the minimum needed to remain responsive and maintain durable state. When the user returns or demand rises, the machine expands again.
+
+A physical power control may remain as an emergency, recovery, maintenance, or hard-isolation mechanism, but it should not define the ordinary lifecycle of the computer. Likewise, unexpected loss of power should be treated as a recoverable interruption of the phenotype, not as loss of the machine's identity or lineage; durable state and generations should allow Aurum to reconstruct itself cleanly.
+
+This principle does not authorize unsafe direct manipulation of voltage, clocks, thermals, firmware, or hardware power rails. Early implementations should use proven platform power-management interfaces and remain bounded by device evidence and thermal/recovery invariants. More direct machine-native power control is earned only as Aurum's hardware models and verification become strong enough to support it safely.
+
+### 10. Continuously adaptive externally, rigorously attributable internally
 
 Aurum may eventually have no user-facing concept equivalent to monthly updates or conventional driver releases, but every consequential change must remain attributable.
 
@@ -110,4 +122,4 @@ The north-star experience is a computer that continuously maintains and reshapes
 
 ## North-star statement
 
-**Aurum is a continuously self-building, generational, machine-first computing environment. It treats conventional operating systems, desktops, files, drivers, and software abstractions as optional human-facing or compatibility projections over an adaptive machine-native state. Each node learns from its exact machine, contributes evidence to the wider lineage, inherits validated traits, and can evolve its kernel, hardware interfaces, memory representation, and user environment while preserving known-good generations and provenance.**
+**Aurum is a continuously self-building, generational, machine-first computing environment. It treats conventional operating systems, desktops, files, drivers, software abstractions, and traditional whole-machine power states as optional human-facing or compatibility projections over an adaptive machine-native state. Each node learns from its exact machine, contributes evidence to the wider lineage, inherits validated traits, and can evolve its kernel, hardware interfaces, memory representation, power behavior, and user environment while preserving known-good generations and provenance.**
