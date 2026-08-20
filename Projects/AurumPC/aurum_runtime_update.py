@@ -9,12 +9,13 @@ import py_compile
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum-pc-runtime-update-v2"
+SCHEMA = "aurum-pc-runtime-update-v3"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_TARGET = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
@@ -24,7 +25,9 @@ ALLOWLIST = (
     "aurum_autonomy.py",
     "aurum_bootstrap.py",
     "aurum_console.py",
+    "aurum_display_runtime.py",
     "aurum_driver_synthesis.py",
+    "aurum_echo_native.py",
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
@@ -167,6 +170,51 @@ class RuntimeUpdater:
         _atomic_json(self.state_dir / "machine-identity.json", receipt)
         return receipt
 
+    def _launch_physical_echo(self) -> dict[str, Any]:
+        policy_path = self.source / "pc01_autonomy_policy.json"
+        policy = _json_file(policy_path)
+        identity = self._identity_plan()
+        if not identity.get("authorized"):
+            return {"status": "skipped", "reason": "machine-not-authorized"}
+        if not bool(policy.get("auto_local_echo_display")):
+            return {"status": "skipped", "reason": "physical-echo-disabled"}
+        display = self.target / "aurum_display_runtime.py"
+        game = self.target / "aurum_echo_native.py"
+        if not display.is_file() or not game.is_file():
+            return {"status": "skipped", "reason": "display-runtime-not-installed"}
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        log = (self.state_dir / "hopper-display-bootstrap.log").open("ab", buffering=0)
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(display),
+                    "start",
+                    "--policy",
+                    str(policy_path),
+                    "--receipt",
+                    str(self.installed_marker),
+                    "--state-dir",
+                    str(self.state_dir),
+                    "--game",
+                    str(game),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=log,
+                close_fds=True,
+                start_new_session=True,
+            )
+        finally:
+            log.close()
+        return {
+            "status": "launched",
+            "pid": process.pid,
+            "machine": "Hopper",
+            "game": "Echo Rally",
+            "physical_display": True,
+        }
+
     def plan(self) -> dict[str, Any]:
         if not self.installed_marker.is_file():
             return {"schema": SCHEMA, "available": False, "reason": "not-installed-runtime", "files": []}
@@ -219,7 +267,16 @@ class RuntimeUpdater:
         identity = self._apply_identity()
         changed = list(plan.get("changed") or [])
         if not changed:
-            return {**plan, "status": "current", "reboot_required": False, "identity": identity}
+            activation = self._launch_physical_echo()
+            result = {
+                **plan,
+                "status": "current",
+                "reboot_required": False,
+                "identity": identity,
+                "physical_echo_activation": activation,
+            }
+            _atomic_json(self.state_dir / "runtime-update.json", result)
+            return result
         self.target.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
         backup = self.state_dir / "runtime-backup" / f"{stamp}-{os.getpid()}"
@@ -247,16 +304,18 @@ class RuntimeUpdater:
                 else:
                     target.unlink(missing_ok=True)
             raise
+        activation = self._launch_physical_echo()
         receipt = {
             "schema": SCHEMA,
             "status": "updated",
-            "updated_at": time.strftime("%Y-%m-%dT%H%M:%SZ", time.gmtime()),
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
             "changed": applied,
             "backup": str(backup),
             "reboot_required": False,
             "identity": identity,
+            "physical_echo_activation": activation,
         }
         _atomic_json(self.state_dir / "runtime-update.json", receipt)
         return receipt
