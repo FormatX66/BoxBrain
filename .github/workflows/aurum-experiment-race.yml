@@ -54,60 +54,30 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install lane dependencies
-        shell: bash
-        run: ${{ matrix.install }}
-
       - name: Run lane and capture evidence
-        id: run
         shell: bash
         env:
           LANE_NAME: ${{ matrix.name }}
           LANE_REF: ${{ matrix.ref }}
+          INSTALL_COMMAND: ${{ matrix.install }}
           LANE_COMMAND: ${{ matrix.command }}
           LOC_PATHS: ${{ matrix.loc_paths }}
         run: |
           set +e
           started=$(date +%s)
-          bash -lc "$LANE_COMMAND" 2>&1 | tee lane-test.log
-          code=${PIPESTATUS[0]}
+
+          bash -lc "$INSTALL_COMMAND" > lane-test.log 2>&1
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            bash -lc "$LANE_COMMAND" >> lane-test.log 2>&1
+            code=$?
+          fi
+
+          cat lane-test.log
           finished=$(date +%s)
           duration=$((finished-started))
           sha=$(git rev-parse HEAD)
-          loc=0
-          for path in $LOC_PATHS; do
-            if [ -e "$path" ]; then
-              subtotal=$(find "$path" -type f \( -name '*.py' -o -name '*.dart' -o -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name '*.S' -o -name '*.s' \) -print0 | xargs -0 -r cat | wc -l)
-              loc=$((loc+subtotal))
-            fi
-          done
-          if [ "$code" -eq 0 ]; then status=pass; else status=fail; fi
-          python - <<'PY'
-          import json, os
-          record = {
-              "lane": os.environ["LANE_NAME"],
-              "ref": os.environ["LANE_REF"],
-              "sha": os.popen("git rev-parse HEAD").read().strip(),
-              "status": os.environ.get("STATUS", "unknown"),
-              "exit_code": int(os.environ.get("EXIT_CODE", "0")),
-              "duration_seconds": int(os.environ.get("DURATION", "0")),
-              "targeted_loc": int(os.environ.get("TARGETED_LOC", "0")),
-          }
-          with open("lane-result.json", "w", encoding="utf-8") as f:
-              json.dump(record, f, indent=2, sort_keys=True)
-          PY
-        continue-on-error: true
 
-      - name: Normalize result evidence
-        if: always()
-        shell: bash
-        env:
-          LANE_NAME: ${{ matrix.name }}
-          LANE_REF: ${{ matrix.ref }}
-          LOC_PATHS: ${{ matrix.loc_paths }}
-        run: |
-          # Recompute deterministically here so a failed test command cannot prevent evidence publication.
-          sha=$(git rev-parse HEAD)
           loc=0
           for path in $LOC_PATHS; do
             if [ -e "$path" ]; then
@@ -115,8 +85,9 @@ jobs:
               loc=$((loc+subtotal))
             fi
           done
-          if grep -Eq '^OK$|^OK \(' lane-test.log 2>/dev/null; then status=pass; else status=fail; fi
-          duration=0
+
+          if [ "$code" -eq 0 ]; then status=pass; else status=fail; fi
+
           python - <<PY
           import json
           record = {
@@ -124,12 +95,17 @@ jobs:
               "ref": "${LANE_REF}",
               "sha": "${sha}",
               "status": "${status}",
+              "exit_code": ${code},
               "duration_seconds": ${duration},
               "targeted_loc": ${loc},
           }
           with open("lane-result.json", "w", encoding="utf-8") as f:
               json.dump(record, f, indent=2, sort_keys=True)
           PY
+
+          # Preserve the evidence and let the scoreboard report red lanes without
+          # preventing the other experiments from completing.
+          exit 0
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -166,11 +142,14 @@ jobs:
               '',
               'This scorecard is evidence only. A lane is not promoted automatically.',
               '',
-              '| Lane | Status | Targeted LOC | Commit |',
-              '|---|---:|---:|---|',
+              '| Lane | Status | Runtime | Targeted LOC | Commit |',
+              '|---|---:|---:|---:|---|',
           ]
           for r in rows:
-              lines.append(f"| {r['lane']} | {r['status']} | {r['targeted_loc']} | `{r['sha'][:10]}` |")
+              lines.append(
+                  f"| {r['lane']} | {r['status']} | {r['duration_seconds']}s | "
+                  f"{r['targeted_loc']} | `{r['sha'][:10]}` |"
+              )
           lines += [
               '',
               '## Promotion rule',
@@ -181,7 +160,8 @@ jobs:
           open('AURUM_EXPERIMENT_SCORECARD.md','w',encoding='utf-8').write(text)
           summary=os.environ.get('GITHUB_STEP_SUMMARY')
           if summary:
-              with open(summary,'a',encoding='utf-8') as f: f.write(text)
+              with open(summary,'a',encoding='utf-8') as f:
+                  f.write(text)
           print(text)
           PY
 
