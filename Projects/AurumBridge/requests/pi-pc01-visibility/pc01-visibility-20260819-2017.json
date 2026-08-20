@@ -1,0 +1,5 @@
+{
+  "schema": "aurum-bbpi4-pc01-visibility-request-v1",
+  "id": "pc01-visibility-20260819-2017",
+  "action": "pi_pc01_visibility"
+}
