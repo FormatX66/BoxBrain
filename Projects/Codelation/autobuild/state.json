@@ -1,5 +1,5 @@
 {
-  "cycle": 563,
+  "cycle": 564,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -32,53 +32,76 @@
     "verified_at": 1786621820
   },
   "last_controller_ack": {
-    "carrier_failures": [],
-    "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
-    "ok": true,
-    "time": 1787091876
-  },
-  "last_controller_status": {
-    "capabilities": [
-      "content_addressed_state",
-      "conversation_stream",
-      "human_projection",
-      "node_directory",
-      "node_enroll",
-      "node_heartbeat",
-      "prompt_ingest",
-      "uaf_emit",
-      "uaf_receive",
-      "uaf_store",
-      "work_lease",
-      "work_result",
-      "work_status"
-    ],
+    "action": "checkpoint-local-continue-independent-lanes-await-carrier",
     "carrier_failures": [
       {
-        "action": "try-alternate-carrier-then-continue-independent-lanes-preserve-state-backoff",
-        "classification": "controller-or-hosting-failure",
+        "action": "continue-safe-independent-lanes-preserve-state",
+        "classification": "request-or-client-failure",
         "endpoint": "https://arkmatx.com/aurum/index.php",
         "error": "HTTPError",
-        "http_status": 500,
+        "http_status": 409,
         "limit_headers": {},
         "ok": false,
-        "reason": "Internal Server Error",
-        "response_body": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<title>500 Internal Server Error</title>\n</head><body>\n<h1>Internal Server Error</h1>\n<p>The server encountered an internal error or\nmisconfiguration and was unable to complete\nyour request.</p>\n<p>Please contact the server administrator at \n webmaster@arkmatx.madmorrigan.com to inform them of the time this error occurred,\n and the actions you performed just before this error.</p>\n<p>More information about this error may be available\nin the server error log.</p>\n<p>Additionally, a 500 Internal Server Error\nerror was encountered while trying to use an ErrorDocument to handle the request.</p>\n</body></html>\n",
-        "time": 1787091876
+        "reason": "Conflict",
+        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
+        "time": 1787189072
+      },
+      {
+        "action": "continue-safe-independent-lanes-preserve-state",
+        "classification": "request-or-client-failure",
+        "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
+        "error": "HTTPError",
+        "http_status": 409,
+        "limit_headers": {},
+        "ok": false,
+        "reason": "Conflict",
+        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
+        "time": 1787189072
       }
     ],
+    "classification": "request-or-client-failure",
+    "error": "ControllerCarrierUnavailable",
+    "ok": false,
+    "time": 1787189072
+  },
+  "last_controller_status": {
+    "action": "continue-safe-independent-lanes-preserve-state",
+    "all_carriers_failed": true,
+    "carrier_failures": [
+      {
+        "action": "continue-safe-independent-lanes-preserve-state",
+        "classification": "request-or-client-failure",
+        "endpoint": "https://arkmatx.com/aurum/index.php",
+        "error": "HTTPError",
+        "http_status": 409,
+        "limit_headers": {},
+        "ok": false,
+        "reason": "Conflict",
+        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
+        "time": 1787189072
+      },
+      {
+        "action": "continue-safe-independent-lanes-preserve-state",
+        "classification": "request-or-client-failure",
+        "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
+        "error": "HTTPError",
+        "http_status": 409,
+        "limit_headers": {},
+        "ok": false,
+        "reason": "Conflict",
+        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
+        "time": 1787189072
+      }
+    ],
+    "classification": "request-or-client-failure",
     "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
-    "events": {
-      "merged": 0,
-      "nodes": 0,
-      "outbox": 0,
-      "rejected": 0,
-      "work": 3
-    },
-    "node": "Aurum-Arkmatx",
-    "ok": true,
-    "status": "active-edge-web-node",
-    "time": 1787091875
+    "error": "HTTPError",
+    "http_status": 409,
+    "limit_headers": {},
+    "ok": false,
+    "reason": "Conflict",
+    "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
+    "time": 1787189072
   },
   "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
   "observations": {
@@ -120,7 +143,7 @@
     }
   },
   "schema": 1,
-  "semantic_fingerprint": "30e7ced8e0914deeb18a41b18e7542666a7d048d7232b35c7529f28c0d947fcc",
+  "semantic_fingerprint": "c36e8bb54cf7e2d727b9815cbc21917ec5b66e42fb9cf380cae321a80a4c4a96",
   "targets": {
     "Aurum-Morris": {
       "carriers": [
@@ -164,5 +187,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787091876
+  "updated_at": 1787189072
 }
