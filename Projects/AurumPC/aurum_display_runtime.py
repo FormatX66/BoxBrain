@@ -4,7 +4,9 @@
 The launcher is machine-bound to the installed Hopper receipt. It first tries
 SDL's direct KMS/DRM path on VT2. If that is unavailable, it installs a minimal
 Xorg fallback and starts the same native Echo Rally client there. It exposes no
-network listener and grants no shell or host-control API.
+host-control API. When an older Echo runtime is already active, it restarts only
+that bounded game process so a newly installed proof-capable build can take over
+without rebooting Hopper.
 """
 from __future__ import annotations
 
@@ -21,7 +23,8 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
-SCHEMA = "aurum-hopper-display-v1"
+SCHEMA = "aurum-hopper-display-v2"
+EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"
 DEFAULT_POLICY = Path(__file__).with_name("pc01_autonomy_policy.json")
 DEFAULT_RECEIPT = Path("/etc/aurum-installed.json")
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
@@ -123,16 +126,18 @@ class HopperDisplay:
         pid = self._pid()
         owned = bool(pid and self._owned(pid))
         game = _json_file(self.game_receipt)
+        running = bool(owned and game.get("status") == "running")
         return {
             "schema": SCHEMA,
-            "status": "running" if owned and game.get("status") == "running" else "stopped",
+            "status": "running" if running else "stopped",
             "authorized": authorized,
             "authorization_reason": reason,
             "machine": "Hopper",
             "pid": pid if owned else None,
             "game": game,
-            "physical_display": bool(owned and game.get("status") == "running"),
-            "network_listener": False,
+            "game_schema_current": game.get("schema") == EXPECTED_GAME_SCHEMA,
+            "physical_display": running,
+            "proof_listener": game.get("proof_listener"),
             "host_actuation_api": False,
         }
 
@@ -196,6 +201,8 @@ class HopperDisplay:
             {
                 "schema": SCHEMA,
                 "status": "launching",
+                "authorized": True,
+                "authorization_reason": "authorized-hopper",
                 "machine": "Hopper",
                 "mode": mode,
                 "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -206,7 +213,7 @@ class HopperDisplay:
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             current = self.status()
-            if current["status"] == "running":
+            if current["status"] == "running" and current.get("game_schema_current") is True:
                 result = {
                     **current,
                     "mode": mode,
@@ -221,14 +228,18 @@ class HopperDisplay:
             time.sleep(0.3)
         return None
 
-    def _clear_failed_game(self) -> None:
+    def _clear_game(self) -> None:
         pid = self._pid()
         if pid and self._owned(pid):
             try:
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
-            time.sleep(0.5)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and self._owned(pid):
+                time.sleep(0.1)
+            if self._owned(pid):
+                raise DisplayRuntimeError("Echo runtime did not stop after bounded SIGTERM window")
         self.game_pid.unlink(missing_ok=True)
         self.game_receipt.unlink(missing_ok=True)
 
@@ -238,12 +249,17 @@ class HopperDisplay:
             result = {"schema": SCHEMA, "status": "refused", "authorized": False, "reason": reason}
             _atomic_json(self.state_path, result)
             return result
-        if self.status()["status"] == "running":
-            return self.status()
+
+        current = self.status()
+        if current["status"] == "running" and current.get("game_schema_current") is True:
+            return current
         if os.geteuid() != 0:
             raise DisplayRuntimeError("Hopper physical display startup requires root-owned Aurum runtime")
         if not self.game.is_file():
             raise DisplayRuntimeError(f"installed Echo client missing: {self.game}")
+        if current["status"] == "running" and current.get("game_schema_current") is not True:
+            self._clear_game()
+
         policy = _json_file(self.policy_path)
         dependency = self._ensure_pygame(policy)
         if dependency.get("status") != "ready":
@@ -256,7 +272,7 @@ class HopperDisplay:
         if not openvt:
             raise DisplayRuntimeError("openvt is required for the physical display lane")
 
-        self._clear_failed_game()
+        self._clear_game()
         kms_command = [
             openvt,
             "-c",
@@ -281,14 +297,13 @@ class HopperDisplay:
             _atomic_json(self.state_path, ready)
             return ready
 
-        self._clear_failed_game()
+        self._clear_game()
         xdeps = self._ensure_x_fallback(policy)
         if xdeps.get("status") != "ready":
             result = {
                 "schema": SCHEMA,
                 "status": "failed",
                 "phase": "x-fallback-dependencies",
-                "kms_failure": _json_file(self.game_receipt),
                 "dependency": dependency,
                 "x_dependencies": xdeps,
             }
@@ -340,16 +355,7 @@ class HopperDisplay:
         return result
 
     def stop(self) -> dict[str, Any]:
-        pid = self._pid()
-        if pid and self._owned(pid):
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline and pid and self._owned(pid):
-            time.sleep(0.1)
-        self.game_pid.unlink(missing_ok=True)
+        self._clear_game()
         result = self.status()
         _atomic_json(self.state_path, result)
         return result
