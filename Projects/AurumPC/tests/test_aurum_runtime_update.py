@@ -45,14 +45,15 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             plan = updater.plan()
             self.assertTrue(plan["available"])
             self.assertEqual(set(plan["changed"]), set(ALLOWLIST))
+            self.assertFalse(plan["identity"]["authorized"])
 
             with patch("aurum_runtime_update.os.geteuid", return_value=0):
                 result = updater.apply()
             self.assertEqual(result["status"], "updated")
-            self.assertTrue(result["reboot_required"])
+            self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v1")
+            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v2")
             self.assertTrue(Path(receipt["backup"]).is_dir())
             for name in ALLOWLIST:
                 self.assertEqual((target / name).read_text(encoding="utf-8"), f"VALUE = {name!r}\n")
