@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Durable Gen1 capability-trait registry for Aurum.
+"""Durable Gen1 capability and trait registry for Aurum.
 
-Traits describe user-meaningful capabilities, not a permanent app model.  A
-trait may initially be backed by compatibility software, but its semantic
-identity remains stable while the implementation evolves underneath it.
+Resident capabilities are substrate abilities every normal Aurum generation
+must preserve. Traits are user-meaningful capabilities whose implementation
+may evolve without changing their semantic identity.
 """
 from __future__ import annotations
 
@@ -11,55 +11,93 @@ from typing import Any
 
 SCHEMA = "aurum.traits.v1"
 
+RESIDENT_CAPABILITIES: tuple[dict[str, str], ...] = (
+    {"id": "CORE:BOOT", "name": "Boot + Generation", "summary": "Boot, generation identity, and known-good continuation."},
+    {"id": "CORE:INPUT", "name": "Input", "summary": "Keyboard, pointer, touch, accessibility, and future input projections."},
+    {"id": "CORE:DISPLAY", "name": "Display", "summary": "Physical and projected human-facing presentation surfaces."},
+    {"id": "CORE:IDENTITY", "name": "Identity + Permissions", "summary": "Machine and user identity with bounded authorization."},
+    {"id": "CORE:TRANSPORT", "name": "Transport", "summary": "Network and local transports without tying the capability to one interface."},
+    {"id": "CORE:STORAGE", "name": "Storage + State", "summary": "Durable state, removable media, and storage substrate access."},
+    {"id": "CORE:TIME", "name": "Time", "summary": "Clock synchronization and monotonic runtime timing."},
+    {"id": "CORE:GROWTH", "name": "Update + Self-build", "summary": "Generation growth, guarded runtime update, and local self-build."},
+    {"id": "CORE:SAFETY", "name": "Safety + Recovery", "summary": "Diagnostics, rollback, recovery console, and bounded physical changes."},
+)
+
 TRAITS: tuple[dict[str, Any], ...] = (
     {
-        "id": "TR8:WEB",
-        "name": "Web",
-        "stage": "planned",
-        "summary": "Browse and use web experiences without exposing browser plumbing as the capability itself.",
-    },
-    {
-        "id": "TR8:FILES",
-        "name": "Files",
-        "stage": "planned",
-        "summary": "Human-friendly access to local, removable, and connected storage projections.",
-    },
-    {
-        "id": "TR8:MEDIA",
-        "name": "Media",
-        "stage": "planned",
-        "summary": "Play and inspect image, audio, and video content through a durable media capability.",
-    },
-    {
-        "id": "TR8:WRITE",
-        "name": "Write",
-        "stage": "planned",
-        "summary": "Create and edit text while preserving user intent, voice, and reversible assistance.",
+        "id": "TR8:GPT",
+        "name": "GPT",
+        "stage": "foundation-building",
+        "resident": True,
+        "priority": 0,
+        "summary": "OpenAI reasoning and coding bridge that can graduate from conversation into bounded Aurum build work on Hopper.",
     },
     {
         "id": "TR8:INTENT",
         "name": "Intent",
         "stage": "foundation-ready",
+        "resident": True,
+        "priority": 1,
         "summary": "Translate natural user intent into bounded capability requests and adaptive input help.",
     },
     {
         "id": "TR8:CONNECT",
         "name": "Connect",
         "stage": "foundation-ready",
+        "resident": True,
+        "priority": 2,
         "summary": "Manage network and device connectivity as one capability rather than separate admin tools.",
     },
     {
         "id": "TR8:RECOVER",
         "name": "Recover",
         "stage": "foundation-ready",
+        "resident": True,
+        "priority": 3,
         "summary": "Diagnose, restore, and return to a known-good generation without specialist administration.",
+    },
+    {
+        "id": "TR8:WEB",
+        "name": "Web",
+        "stage": "planned",
+        "resident": True,
+        "priority": 4,
+        "summary": "Browse and use web experiences without exposing browser plumbing as the capability itself.",
+    },
+    {
+        "id": "TR8:FILES",
+        "name": "Files",
+        "stage": "planned",
+        "resident": True,
+        "priority": 5,
+        "summary": "Human-friendly access to local, removable, and connected storage projections.",
+    },
+    {
+        "id": "TR8:WRITE",
+        "name": "Write",
+        "stage": "planned",
+        "resident": True,
+        "priority": 6,
+        "summary": "Create and edit text while preserving user intent, voice, and reversible assistance.",
+    },
+    {
+        "id": "TR8:MEDIA",
+        "name": "Media",
+        "stage": "planned",
+        "resident": True,
+        "priority": 7,
+        "summary": "Play and inspect image, audio, and video content through a durable media capability.",
     },
 )
 
 
+def resident_capabilities() -> list[dict[str, str]]:
+    return [dict(item) for item in RESIDENT_CAPABILITIES]
+
+
 def catalog() -> list[dict[str, Any]]:
     """Return a copy-safe ordered trait catalog for presentation and planning."""
-    return [dict(item) for item in TRAITS]
+    return [dict(item) for item in sorted(TRAITS, key=lambda item: int(item.get("priority", 999)))]
 
 
 def trait(trait_id: str) -> dict[str, Any] | None:
@@ -73,12 +111,19 @@ def trait(trait_id: str) -> dict[str, Any] | None:
 def summary() -> dict[str, Any]:
     traits = catalog()
     foundation = [item for item in traits if item["stage"] == "foundation-ready"]
+    building = [item for item in traits if item["stage"] == "foundation-building"]
     planned = [item for item in traits if item["stage"] == "planned"]
+    resident = [item for item in traits if item.get("resident") is True]
+    core = resident_capabilities()
     return {
         "schema": SCHEMA,
         "total": len(traits),
         "foundation_ready": len(foundation),
+        "foundation_building": len(building),
         "planned": len(planned),
+        "resident_traits": len(resident),
+        "resident_capabilities": core,
+        "resident_capability_count": len(core),
         "traits": traits,
         "host_actuation": False,
     }
