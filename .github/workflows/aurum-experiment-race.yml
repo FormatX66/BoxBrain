@@ -64,7 +64,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run lane and capture evidence
+      - name: Run native tests and shared benchmark
         shell: bash
         env:
           LANE_NAME: ${{ matrix.name }}
@@ -75,12 +75,39 @@ jobs:
         run: |
           set +e
           started=$(date +%s)
+          : > lane-test.log
 
-          bash -lc "$INSTALL_COMMAND" > lane-test.log 2>&1
-          code=$?
-          if [ "$code" -eq 0 ]; then
+          bash -lc "$INSTALL_COMMAND" >> lane-test.log 2>&1
+          install_code=$?
+
+          if [ "$install_code" -eq 0 ]; then
             bash -lc "$LANE_COMMAND" >> lane-test.log 2>&1
-            code=$?
+            native_code=$?
+          else
+            native_code=$install_code
+          fi
+
+          python experiments/benchmark.py >> lane-test.log 2>&1
+          benchmark_code=$?
+
+          if [ ! -f benchmark-result.json ]; then
+            python - <<PY
+          import json
+          with open('benchmark-result.json','w',encoding='utf-8') as f:
+              json.dump({
+                  'benchmark': 'bounded_recovery_v1',
+                  'lane': '${LANE_NAME}',
+                  'success': False,
+                  'invariant_preserved': False,
+                  'first_attempts': None,
+                  'second_attempts': None,
+                  'rollback_count': None,
+                  'learned_avoidance': False,
+                  'machine_native_representation': False,
+                  'semantic_planner': False,
+                  'adaptive_hardware': False,
+              }, f, indent=2, sort_keys=True)
+          PY
           fi
 
           cat lane-test.log
@@ -96,25 +123,27 @@ jobs:
             fi
           done
 
-          if [ "$code" -eq 0 ]; then status=pass; else status=fail; fi
+          if [ "$native_code" -eq 0 ]; then native_status=pass; else native_status=fail; fi
+          if [ "$benchmark_code" -eq 0 ]; then benchmark_status=pass; else benchmark_status=fail; fi
 
           python - <<PY
           import json
           record = {
-              "lane": "${LANE_NAME}",
-              "ref": "${LANE_REF}",
-              "sha": "${sha}",
-              "status": "${status}",
-              "exit_code": ${code},
-              "duration_seconds": ${duration},
-              "targeted_loc": ${loc},
+              'lane': '${LANE_NAME}',
+              'ref': '${LANE_REF}',
+              'sha': '${sha}',
+              'native_status': '${native_status}',
+              'native_exit_code': ${native_code},
+              'benchmark_status': '${benchmark_status}',
+              'benchmark_exit_code': ${benchmark_code},
+              'duration_seconds': ${duration},
+              'targeted_loc': ${loc},
           }
-          with open("lane-result.json", "w", encoding="utf-8") as f:
+          with open('lane-result.json','w',encoding='utf-8') as f:
               json.dump(record, f, indent=2, sort_keys=True)
           PY
 
-          # Preserve the evidence and let the scoreboard report red lanes without
-          # preventing the other experiments from completing.
+          # Red lanes remain evidence; they do not stop the other racers.
           exit 0
 
       - uses: actions/upload-artifact@v4
@@ -123,6 +152,7 @@ jobs:
           name: race-${{ matrix.name }}
           path: |
             lane-result.json
+            benchmark-result.json
             lane-test.log
           retention-days: 30
 
@@ -142,29 +172,46 @@ jobs:
         run: |
           python - <<'PY'
           import glob, json, os
-          rows=[]
+          lanes={}
           for path in glob.glob('race-results/**/lane-result.json', recursive=True):
               with open(path, encoding='utf-8') as f:
-                  rows.append(json.load(f))
-          rows.sort(key=lambda r: r['lane'])
+                  r=json.load(f)
+              lanes.setdefault(r['lane'], {})['lane']=r
+          for path in glob.glob('race-results/**/benchmark-result.json', recursive=True):
+              with open(path, encoding='utf-8') as f:
+                  r=json.load(f)
+              lanes.setdefault(r['lane'], {})['bench']=r
+
           lines=[
               '# Aurum Experiment Race',
               '',
-              'This scorecard is evidence only. A lane is not promoted automatically.',
+              'Every lane runs its native tests plus the same `bounded_recovery_v1` semantic benchmark.',
+              'This scorecard is evidence only; no lane is promoted automatically.',
               '',
-              '| Lane | Status | Runtime | Targeted LOC | Commit |',
-              '|---|---:|---:|---:|---|',
+              '| Lane | Native | Common benchmark | Attempts 1st→2nd | Learned avoidance | Machine-native | Adaptive HW | LOC |',
+              '|---|---:|---:|---:|---:|---:|---:|---:|',
           ]
-          for r in rows:
+          for name in sorted(lanes):
+              lr=lanes[name].get('lane', {})
+              b=lanes[name].get('bench', {})
+              first=b.get('first_attempts')
+              second=b.get('second_attempts')
+              attempts=f'{first}→{second}' if first is not None and second is not None else 'n/a'
               lines.append(
-                  f"| {r['lane']} | {r['status']} | {r['duration_seconds']}s | "
-                  f"{r['targeted_loc']} | `{r['sha'][:10]}` |"
+                  f"| {name} | {lr.get('native_status','?')} | {lr.get('benchmark_status','?')} | "
+                  f"{attempts} | {str(b.get('learned_avoidance',False)).lower()} | "
+                  f"{str(b.get('machine_native_representation',False)).lower()} | "
+                  f"{str(b.get('adaptive_hardware',False)).lower()} | {lr.get('targeted_loc','?')} |"
               )
+
           lines += [
               '',
-              '## Promotion rule',
+              '## Guardrails',
               '',
-              'Promote only after a shared real-world capability benchmark shows equal or better verified outcome, safety, recoverability, and resource cost. Native unit-test success alone does not declare a winner.',
+              '- A benchmark pass requires the desired state and the safety invariant.',
+              '- Unit-test success alone does not declare a winner.',
+              '- Lower LOC is descriptive, not automatically better.',
+              '- Promotion requires a shared real-world Aurum capability with equal or better verified outcome, safety, recoverability, and resource cost.',
           ]
           text='\n'.join(lines)+'\n'
           open('AURUM_EXPERIMENT_SCORECARD.md','w',encoding='utf-8').write(text)
