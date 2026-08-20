@@ -100,7 +100,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .cache/ccache
-          docker run --rm --privileged \
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -v "$PWD:/workspace" \
             -v "$PWD/.cache/ccache:/cache/ccache" \
             -w /workspace \

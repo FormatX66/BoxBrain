@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(ROOT))
 
 from kernel_selfbuild.compiler import KernelCompileRequest, compile_commands, compile_kernel
@@ -83,6 +84,13 @@ class SelfKernelCompilerExecutorTests(unittest.TestCase):
             flat = [token for command in compile_commands(request) for token in command]
             self.assertIn("CC=ccache gcc", flat)
             self.assertIn("HOSTCC=ccache gcc", flat)
+
+    def test_github_kernel_container_preserves_runner_ownership_without_privilege(self):
+        workflow = (
+            REPOSITORY_ROOT / ".github/workflows/aurum-self-kernel-compiler.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('--user "$(id -u):$(id -g)"', workflow)
+        self.assertNotIn("docker run --rm --privileged", workflow)
 
     def test_external_module_build_never_loads_module(self):
         with tempfile.TemporaryDirectory() as tmp:
