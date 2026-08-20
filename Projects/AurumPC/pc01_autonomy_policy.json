@@ -1,0 +1,30 @@
+{
+  "schema": "aurum-pc-autonomy-policy-v1",
+  "machine_match": {
+    "installed_target_serial": "BTTE934116YM512B-1",
+    "installed_target_size_bytes": 512110190592
+  },
+  "authorization_reference": "chatgpt-user-pc01-unattended-build-and-adaptive-drivers-20260819",
+  "enabled": true,
+  "poll_interval_seconds": 300,
+  "auto_git_sync": true,
+  "auto_runtime_update": true,
+  "auto_self_build": true,
+  "auto_gui_start": true,
+  "auto_driver_synthesis": true,
+  "install_driver_build_toolchain": true,
+  "auto_reboot_after_runtime_update": false,
+  "driver_policy": {
+    "model_all_observed_devices": true,
+    "one_build_target_at_a_time": true,
+    "compile_shadow_carrier": true,
+    "load_synthesized_modules": false,
+    "replace_bound_drivers": false,
+    "firmware_writes": false,
+    "nvram_otp_fuse_writes": false,
+    "power_clock_voltage_thermal_reset_control": false,
+    "raw_mmio_pio": false,
+    "storage_boot_critical_replacement": false,
+    "automatic_restore_required_before_future_physical_swap": true
+  }
+}
