@@ -25,11 +25,13 @@ ALLOWLIST = (
     "aurum_autonomy.py",
     "aurum_bootstrap.py",
     "aurum_console.py",
+    "aurum_control_plane.py",
     "aurum_desktop.py",
     "aurum_desktop_runtime.py",
     "aurum_display_runtime.py",
     "aurum_driver_synthesis.py",
     "aurum_echo_native.py",
+    "aurum_gpt_trait.py",
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
@@ -37,6 +39,7 @@ ALLOWLIST = (
     "aurum_network.py",
     "aurum_runtime_update.py",
     "aurum_time.py",
+    "aurum_traits.py",
     "aurum_wifi_diag.py",
     "aurum_wifi_recovery.py",
     "aurum_workspace.py",
@@ -167,7 +170,7 @@ class RuntimeUpdater:
             "previous_hostname": old,
             "runtime_command": runtime_command,
             "machine_match": plan["machine_match"],
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "updated_at": time.strftime("%Y-%m-%dT%H%M%SZ", time.gmtime()),
         }
         _atomic_json(self.state_dir / "machine-identity.json", receipt)
         return receipt
