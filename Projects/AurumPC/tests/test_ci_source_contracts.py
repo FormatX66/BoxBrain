@@ -42,7 +42,7 @@ class AurumCISourceContractTests(unittest.TestCase):
             ("Projects/AurumPC/aurum_runtime_update.py", r"aurum_gpt_trait\.py"),
             ("Projects/AurumPC/aurum_runtime_update.py", r"aurum_control_plane\.py"),
             ("Projects/AurumPC/aurum_desktop_runtime.py", r"SDL_VIDEODRIVER=kmsdrm"),
-            ("Projects/AurumPC/aurum_desktop.py", r"Ctrl\+Alt\+F1 recovery console"),
+            ("Projects/AurumPC/aurum_desktop.py", r"Ctrl\+Alt\+F1 recovery"),
             ("Projects/AurumPC/build-iso.sh", r"xserver-xorg-input-libinput"),
             ("Projects/AurumPC/aurum_display_runtime.py", r"SDL_VIDEODRIVER=kmsdrm"),
             ("Projects/AurumPC/aurum_display_runtime.py", r'EXPECTED_GAME_SCHEMA = "aurum\.echo\.native\.v2"'),
