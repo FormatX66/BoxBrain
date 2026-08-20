@@ -53,7 +53,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v2")
+            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v3")
             self.assertTrue(Path(receipt["backup"]).is_dir())
             for name in ALLOWLIST:
                 self.assertEqual((target / name).read_text(encoding="utf-8"), f"VALUE = {name!r}\n")
