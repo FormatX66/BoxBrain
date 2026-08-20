@@ -1,5 +1,5 @@
 {
-  "cycle": 569,
+  "cycle": 570,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -35,7 +35,7 @@
     "carrier_failures": [],
     "endpoint": "https://arkmatx.com/aurum/index.php",
     "ok": true,
-    "time": 1787189270
+    "time": 1787235865
   },
   "last_controller_status": {
     "capabilities": [
@@ -56,18 +56,18 @@
     "carrier_failures": [],
     "endpoint": "https://arkmatx.com/aurum/index.php",
     "events": {
-      "merged": 442,
+      "merged": 1185,
       "nodes": 0,
-      "outbox": 3,
+      "outbox": 4,
       "rejected": 0,
       "work": 3
     },
     "node": "Aurum-Arkmatx",
     "ok": true,
     "status": "active-edge-web-node",
-    "time": 1787189269
+    "time": 1787235864
   },
-  "next": "bootstrap-bbpi4-via-usb-ap-mdns-or-rdp-then-enroll-arkmatx",
+  "next": "enroll-bbpi4-arkmatx-and-verify-heartbeat",
   "observations": {
     "aurum_field_v0": {
       "authoritative_storage_unchanged": true,
@@ -104,10 +104,19 @@
       "reason": "repository result belongs to older request and is not valid evidence for this verify request",
       "request_id": "aurum-verify-20260813T024536Z",
       "result": "pending"
+    },
+    "pi4_seed_receipt": {
+      "address": "10.12.194.1",
+      "observed_at": "2026-08-20T12:18:19.1067115Z",
+      "run_attempt": 1,
+      "seed_sha256": "2f5df773b71bf8ab39db9806d0bc49143cbf1b33cc180b724debb878817e0f33",
+      "source_commit": "e9e13b3469d7e6172fd13e34265572872ef57b0b",
+      "state": "PI4_SEED_OK",
+      "workflow_run": 32368070881
     }
   },
   "schema": 1,
-  "semantic_fingerprint": "30e7ced8e0914deeb18a41b18e7542666a7d048d7232b35c7529f28c0d947fcc",
+  "semantic_fingerprint": "26eace46b56d924e0fa48b61fa9cce9062148170a6b76984d3eac5b74a8f6e4e",
   "targets": {
     "Aurum-Morris": {
       "carriers": [
@@ -142,6 +151,9 @@
       "local_lane_verify_result_status": "pending-stale-result-rejected",
       "outbound_enrollment_ready": true,
       "pending_local_lane_verify_request": "aurum-verify-20260813T024536Z",
+      "physical_seed_architecture": "arm64",
+      "physical_seed_transport": "usb-c-ssh",
+      "physical_seed_verified": true,
       "preferred_bootstrap": [
         "10.12.194.1",
         "10.42.194.1",
@@ -151,5 +163,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787189270
+  "updated_at": 1787235865
 }
