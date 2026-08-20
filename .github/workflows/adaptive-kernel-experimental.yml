@@ -1,0 +1,29 @@
+name: Adaptive Kernel Experimental
+
+on:
+  push:
+    branches:
+      - adaptive-kernel-experimental
+    paths:
+      - 'adaptive_kernel/**'
+      - 'Architecture/AdaptiveKernelExperiment.md'
+      - '.github/workflows/adaptive-kernel-experimental.yml'
+  pull_request:
+    paths:
+      - 'adaptive_kernel/**'
+      - 'Architecture/AdaptiveKernelExperiment.md'
+      - '.github/workflows/adaptive-kernel-experimental.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run standalone adaptive-kernel tests
+        run: python -m unittest discover -s adaptive_kernel -p 'test_*.py' -v
