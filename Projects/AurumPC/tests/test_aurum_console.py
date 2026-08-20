@@ -16,6 +16,8 @@ class AurumConsoleContractTests(unittest.TestCase):
             "self-build-status",
             "git-sync authorize-network",
             "runtime-status | runtime-sync",
+            "autonomy-status | autonomy-cycle",
+            "driver-status | driver-cycle",
             "gui-status | gui-start | gui-stop",
             "install confirm ERASE-CODE",
         ):
@@ -26,11 +28,13 @@ class AurumConsoleContractTests(unittest.TestCase):
         self.assertIn("aurum_console.hardware = collect_hardware_profile", source)
         self.assertIn("AURUM_WIFI_DIAG", source)
 
-    def test_seed_can_refresh_installed_runtime_without_a_shell(self) -> None:
+    def test_seed_can_refresh_runtime_and_launch_unattended_builds_without_a_shell(self) -> None:
         source = (ROOT.parent / "Codelation" / "seed" / "codelation_seed.py").read_text(encoding="utf-8")
         self.assertIn("_installed_runtime_sync", source)
         self.assertIn("aurum_runtime_update.py", source)
-        self.assertIn("AURUM_RUNTIME_BOOTSTRAP", source)
+        self.assertIn("_launch_installed_autonomy", source)
+        self.assertIn("aurum_autonomy.py", source)
+        self.assertIn("AURUM_AUTONOMY_BOOTSTRAP", source)
 
 
 if __name__ == "__main__":
