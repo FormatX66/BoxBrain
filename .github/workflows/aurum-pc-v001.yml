@@ -39,8 +39,11 @@ jobs:
             Projects/AurumPC/aurum_arcade.py \
             Projects/AurumPC/aurum_autonomy.py \
             Projects/AurumPC/aurum_bootstrap.py \
+            Projects/AurumPC/aurum_display_runtime.py \
             Projects/AurumPC/aurum_driver_synthesis.py \
+            Projects/AurumPC/aurum_echo_native.py \
             Projects/AurumPC/aurum_hardware.py \
+            Projects/AurumPC/aurum_hopper_gui.py \
             Projects/AurumPC/aurum_network.py \
             Projects/AurumPC/aurum_time.py \
             Projects/AurumPC/aurum_wifi_diag.py \
@@ -72,8 +75,12 @@ jobs:
           grep -q 'aurum_driver_synthesis.py' Projects/AurumPC/aurum_autonomy.py
           grep -q 'load_synthesized_modules.*false' Projects/AurumPC/pc01_autonomy_policy.json
           grep -q '"machine_display_name": "Hopper"' Projects/AurumPC/pc01_autonomy_policy.json
+          grep -q '"auto_local_echo_display": true' Projects/AurumPC/pc01_autonomy_policy.json
           grep -q 'Every fourth return leaves a temporary echo well' Projects/AurumPC/aurum_arcade.py
           grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
+          grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
+          grep -q 'physical_echo_activation' Projects/AurumPC/aurum_runtime_update.py
+          grep -q 'network_listener.*False' Projects/AurumPC/aurum_echo_native.py
 
       - name: Install independent VM tooling
         shell: bash
