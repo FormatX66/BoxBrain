@@ -37,7 +37,11 @@ def duplicate_test_work(paths) -> tuple[int, int]:
     duplicate_work_items = 0
     total_work_items = 0
     for path in paths:
-        modules = suite_test_modules(path.suite)
+        modules = suite_test_modules(
+            path.suite,
+            shard_index=path.shard_index,
+            shard_count=path.shard_count,
+        )
         total_work_items += len(modules)
         seen = seen_by_runner.setdefault(path.runner, set())
         duplicate_work_items += sum(module in seen for module in modules)
@@ -63,13 +67,13 @@ def policy_audit(policy: dict) -> dict:
         duplicate_work_items=duplicate_work_items,
         duplicate_work_total=duplicate_work_total,
         target_slot_utilization=float(limits.get("target_slot_utilization", 0.85)),
-        maximum_duplicate_work_fraction=float(
-            limits.get("maximum_duplicate_work_fraction", 0.05)
-        ),
+        maximum_duplicate_work_fraction=float(limits.get("maximum_duplicate_work_fraction", 0.05)),
     )
+    matrix = github_matrix_from_policy(policy)
     return {
-        "schema": "aurum-capacity-mesh-audit-v1",
+        "schema": "aurum-capacity-mesh-audit-v2",
         "candidate_paths": [path.name for path in paths],
+        "matrix_lane_count": len(matrix.get("include", ())),
         "available_nodes": [node.name for node in nodes],
         "assignments": {name: list(items) for name, items in plan.assignments.items()},
         "unassigned": list(plan.unassigned),
