@@ -3,6 +3,9 @@
 #include <objbase.h>
 
 #include <atomic>
+#include <cwchar>
+#include <iterator>
+#include <new>
 #include <string>
 
 #include "friction_detector.h"
@@ -76,7 +79,7 @@ bool IsModifierKey(WPARAM key) {
 class TypeTrixTextService final : public ITfTextInputProcessorEx, public ITfKeyEventSink {
 public:
     TypeTrixTextService() { ++g_live_objects; }
-    ~TypeTrixTextService() override {
+    ~TypeTrixTextService() {
         Deactivate();
         --g_live_objects;
     }
@@ -179,7 +182,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE OnKeyDown(ITfContext*, WPARAM key, LPARAM, BOOL* eaten) override {
         if (!eaten) return E_POINTER;
-        *eaten = FALSE; // TypeTrix v0 observes only; it never steals the user's keystroke.
+        *eaten = FALSE; // v0 observes only; it never steals the user's keystroke.
 
         typetrix::EditEvent event;
         event.timestamp_ms = NowMs();
@@ -196,8 +199,8 @@ public:
             event.type = typetrix::EventType::Input;
         }
 
-        // v0 deliberately records no raw characters. Later TSF edit-session code can supply
-        // short-lived context only after protected/password-context suppression is proven.
+        // v0 deliberately records no raw characters. Later TSF edit-session code may
+        // provide short-lived context only after protected/password suppression is proven.
         const auto signal = detector_.observe(event);
         if (signal.show_candidates) {
             OutputDebugStringW(L"TypeTrix: probable typing-friction episode detected.\n");
@@ -234,7 +237,7 @@ private:
 class TypeTrixClassFactory final : public IClassFactory {
 public:
     TypeTrixClassFactory() { ++g_live_objects; }
-    ~TypeTrixClassFactory() override { --g_live_objects; }
+    ~TypeTrixClassFactory() { --g_live_objects; }
 
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** object) override {
         if (!object) return E_POINTER;
@@ -299,7 +302,7 @@ HRESULT RegisterComServer() {
     }
     RegSetValueExW(key, nullptr, 0, REG_SZ,
                    reinterpret_cast<const BYTE*>(kServiceName),
-                   static_cast<DWORD>((std::size(kServiceName)) * sizeof(wchar_t)));
+                   static_cast<DWORD>(std::size(kServiceName) * sizeof(wchar_t)));
     RegCloseKey(key);
 
     const std::wstring inproc = root + L"\\InprocServer32";
