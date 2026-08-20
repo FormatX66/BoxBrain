@@ -6,13 +6,19 @@ on:
       - stateweave-experimental
     paths:
       - 'stateweave/**'
+      - 'experiments/**'
       - 'Architecture/StateWeave.md'
       - '.github/workflows/stateweave.yml'
   pull_request:
     paths:
       - 'stateweave/**'
+      - 'experiments/**'
       - 'Architecture/StateWeave.md'
       - '.github/workflows/stateweave.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   stateweave-v0:
@@ -27,5 +33,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run StateWeave v0 tests
-        working-directory: stateweave
-        run: python -m unittest -v test_stateweave.py
+        run: python -m unittest discover -s stateweave -p 'test_*.py' -v
+
+      - name: Run shared Aurum race benchmark
+        run: python experiments/benchmark.py
