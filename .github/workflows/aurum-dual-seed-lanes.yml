@@ -105,9 +105,6 @@ jobs:
             exit 0
           }
 
-          # The self-hosted runner runs as SYSTEM, so $HOME points at systemprofile.
-          # Prefer an explicitly supplied key, then the runner home, then discover the
-          # existing dedicated BoxBrain key under an authorized Windows user profile.
           $keyCandidates = New-Object System.Collections.Generic.List[string]
           if ($env:AURUM_PI_SSH_KEY) { $keyCandidates.Add($env:AURUM_PI_SSH_KEY) }
           $keyCandidates.Add((Join-Path $HOME '.ssh\boxbrain_pi_ed25519'))
@@ -123,8 +120,6 @@ jobs:
             exit 0
           }
 
-          # USB-C gadget-network SSH is the authoritative Pi route for this lane.
-          # Do not fall back to Wi-Fi/LAN: a failure here should diagnose the USB-C path.
           $usbAddresses = @('10.12.194.1','10.42.194.1')
           $reachable = @()
           foreach ($address in $usbAddresses) {
@@ -140,11 +135,6 @@ jobs:
             exit 0
           }
 
-          # Preserve strict host-key checking without trusting a new key blindly. The
-          # Pi may already be trusted under its LAN address or hostname while this job
-          # reaches it through the USB-C gadget address. Scan only the direct USB-C
-          # endpoint, then accept that address only when its ED25519 key blob exactly
-          # matches a key already present in an authorized Windows profile's known_hosts.
           $knownHostCandidates = New-Object System.Collections.Generic.List[string]
           $knownHostCandidates.Add((Join-Path $HOME '.ssh\known_hosts'))
           if (Test-Path -LiteralPath 'C:\Users' -PathType Container) {
@@ -201,9 +191,6 @@ jobs:
             exit 0
           }
 
-          # OpenSSH under the SYSTEM runner reads systemprofile/.ssh/known_hosts.
-          # Add only the already-trusted key under the USB-C alias for this operation,
-          # then restore the exact original bytes afterward.
           $systemSshDir = Join-Path $HOME '.ssh'
           $systemKnownHosts = Join-Path $systemSshDir 'known_hosts'
           $systemSshDirExisted = Test-Path -LiteralPath $systemSshDir -PathType Container
