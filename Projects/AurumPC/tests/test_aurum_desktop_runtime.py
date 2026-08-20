@@ -109,6 +109,25 @@ class HopperDesktopRuntimeTests(unittest.TestCase):
             self.assertFalse(authorized)
             self.assertEqual(reason, "installed-target-serial-mismatch")
 
+    def test_touchpad_detection_requires_pointer_style_input_block(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            devices = Path(temporary) / "devices"
+            devices.write_text(
+                "I: Bus=0011 Vendor=0002 Product=0007 Version=01b1\n"
+                "N: Name=\"SynPS/2 Synaptics TouchPad\"\n"
+                "H: Handlers=mouse0 event8\n\n"
+                "N: Name=\"AT Translated Set 2 keyboard\"\n"
+                "H: Handlers=sysrq kbd event3\n",
+                encoding="utf-8",
+            )
+            self.assertTrue(runtime_module._touchpad_present(devices))
+            devices.write_text(
+                "N: Name=\"AT Translated Set 2 keyboard\"\n"
+                "H: Handlers=sysrq kbd event3\n",
+                encoding="utf-8",
+            )
+            self.assertFalse(runtime_module._touchpad_present(devices))
+
 
 if __name__ == "__main__":
     unittest.main()
