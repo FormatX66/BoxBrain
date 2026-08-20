@@ -3,7 +3,8 @@ FROM debian:bookworm@sha256:813017f3d62be4b5891a7acca6a01bdcd4b8513daa81b1ab99d3
 
 LABEL org.opencontainers.image.source="https://github.com/FormatX66/BoxBrain" \
       org.opencontainers.image.title="Aurum reproducible PC builder" \
-      org.opencontainers.image.description="Prepared live-build and QEMU toolchain for Aurum PC"
+      org.opencontainers.image.description="Prepared live-build, compiler-cache, kernel, and QEMU toolchain for Aurum" \
+      org.aurum.authority="BUILD-ONLY,VERIFY-ONLY"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -13,7 +14,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 COPY Projects/AurumBuild/packages.builder.txt /usr/share/aurum-builder/packages.builder.txt
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     set -eux; \
     rm -f /etc/apt/apt.conf.d/docker-clean; \
     printf 'Binary::apt::APT::Keep-Downloaded-Packages "true";\n' \
@@ -28,7 +28,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     lb --version; \
     qemu-system-x86_64 --version; \
     python3 --version; \
+    ccache --set-config=compiler_check=content; \
+    ccache --set-config=hash_dir=true; \
+    ccache --set-config=base_dir=/workspace; \
+    mkdir -p /cache/ccache; \
     rm -rf /var/lib/apt/lists/*
+
+ENV CCACHE_DIR=/cache/ccache \
+    CCACHE_BASEDIR=/workspace \
+    CCACHE_COMPILERCHECK=content \
+    CCACHE_HASHDIR=true
 
 WORKDIR /workspace
 CMD ["/bin/bash"]

@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Fast validation before expensive build
         id: validation
         shell: bash
@@ -53,6 +54,7 @@ jobs:
           python3 -m json.tool Projects/Codelation/autobuild/capacity_mesh_policy.json >/dev/null
           sh -n Projects/AurumPC/build-iso.sh
           bash -n Projects/AurumBuild/verify-builder.sh
+          bash -n Projects/AurumBuild/verify-pc-image.sh
           bash -n Projects/AurumVirtualLab/qemu-pc-smoke.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumBuild/tests -v
@@ -92,6 +94,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Log in for read-only builder consumption
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -181,21 +184,7 @@ jobs:
               set -euo pipefail
               bash Projects/AurumBuild/verify-builder.sh
               sh Projects/AurumPC/build-iso.sh
-
-              verify_dir=/tmp/aurum-iso-verify
-              mkdir -p "$verify_dir"
-              xorriso -osirrox on \
-                -indev dist/Aurum-PC-v0.01-amd64.iso \
-                -extract /live/filesystem.squashfs "$verify_dir/filesystem.squashfs" \
-                >/tmp/aurum-xorriso.log 2>&1
-              source_sha=$(sha256sum Projects/AurumPC/aurum_console.py | cut -d " " -f1)
-              image_sha=$(unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py | sha256sum | cut -d " " -f1)
-              test "$source_sha" = "$image_sha"
-              unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py \
-                | grep -F "AURUM_PC_READY version=0.01 arch=x86_64" >/dev/null
-              unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/systemd/system/aurum-pc-serial.service \
-                | grep -F "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py" >/dev/null
-              echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha"
+              bash Projects/AurumBuild/verify-pc-image.sh
             '
           finished="$(date +%s)"
           test -s dist/Aurum-PC-v0.01-amd64.iso
@@ -217,6 +206,23 @@ jobs:
             --iso-build-seconds '${{ steps.iso-build.outputs.seconds }}' \
             --output evidence/artifact-manifest.json \
             --github-output "$GITHUB_OUTPUT"
+      - name: Record provider-scoped build evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          builder_digest="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["builder_image"].split("@", 1)[1])')"
+          build_config_hash="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["build_configuration_sha256"])')"
+          python3 Projects/AurumBuild/evidence.py record \
+            --source-sha '${{ github.sha }}' \
+            --architecture x86_64 \
+            --builder-image-digest "$builder_digest" \
+            --build-config-hash "$build_config_hash" \
+            --artifact dist/Aurum-PC-v0.01-amd64.iso \
+            --provider github-x64 \
+            --lane pc-iso-build \
+            --result passed \
+            --authority BUILD-ONLY \
+            --output evidence/build-provider.json
       - name: Publish exact unverified image for parallel verification
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -226,6 +232,7 @@ jobs:
             dist/Aurum-PC-v0.01-amd64.iso.sha256
             evidence/build-identity.json
             evidence/artifact-manifest.json
+            evidence/build-provider.json
           if-no-files-found: error
           retention-days: 2
 
@@ -241,6 +248,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Download exact image under test
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -274,6 +282,19 @@ jobs:
             --required-marker 'AURUM_SELF_BUILD_FINISHED status=passed' \
             --duration-seconds "$((finished - started))" \
             --output verification-generic.json
+          builder_digest="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["builder_image"].split("@", 1)[1])')"
+          build_config_hash="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["build_configuration_sha256"])')"
+          python3 Projects/AurumBuild/evidence.py record \
+            --source-sha '${{ github.sha }}' \
+            --architecture x86_64 \
+            --builder-image-digest "$builder_digest" \
+            --build-config-hash "$build_config_hash" \
+            --artifact dist/Aurum-PC-v0.01-amd64.iso \
+            --provider github-x64 \
+            --lane generic-uefi-smoke \
+            --result passed \
+            --authority VERIFY-ONLY \
+            --output verification-generic-provider.json
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
       - name: Publish generic boot evidence
         if: always()
@@ -283,6 +304,7 @@ jobs:
           path: |
             aurum-pc-qemu.log
             verification-generic.json
+            verification-generic-provider.json
           if-no-files-found: error
           retention-days: 7
 
@@ -298,6 +320,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Download exact image under test
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -332,6 +355,19 @@ jobs:
             --required-marker 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' \
             --duration-seconds "$((finished - started))" \
             --output verification-hp.json
+          builder_digest="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["builder_image"].split("@", 1)[1])')"
+          build_config_hash="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["build_configuration_sha256"])')"
+          python3 Projects/AurumBuild/evidence.py record \
+            --source-sha '${{ github.sha }}' \
+            --architecture x86_64 \
+            --builder-image-digest "$builder_digest" \
+            --build-config-hash "$build_config_hash" \
+            --artifact dist/Aurum-PC-v0.01-amd64.iso \
+            --provider github-x64 \
+            --lane hopper-topology-twin \
+            --result passed \
+            --authority VERIFY-ONLY \
+            --output verification-hp-provider.json
           echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
       - name: Publish HP twin evidence
         if: always()
@@ -341,6 +377,7 @@ jobs:
           path: |
             aurum-hp-physical-twin.log
             verification-hp.json
+            verification-hp-provider.json
           if-no-files-found: error
           retention-days: 7
 
@@ -353,6 +390,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Download verified image candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -383,6 +421,14 @@ jobs:
             --evidence evidence/generic/verification-generic.json \
             --evidence evidence/hp/verification-hp.json \
             --output evidence/promotion-manifest.json
+          python3 Projects/AurumBuild/evidence.py converge \
+            --expected-source '${{ github.sha }}' \
+            --expected-artifact-sha256 '${{ needs.build-image.outputs.iso_sha256 }}' \
+            --minimum-verifiers 2 \
+            --output evidence/provider-convergence.json \
+            evidence/build-provider.json \
+            evidence/generic/verification-generic-provider.json \
+            evidence/hp/verification-hp-provider.json
           cp evidence/generic/aurum-pc-qemu.log .
           cp evidence/hp/aurum-hp-physical-twin.log .
           echo 'AURUM_PC_IMAGE_ALL_VERIFIERS_CONVERGED'
@@ -395,9 +441,12 @@ jobs:
             dist/Aurum-PC-v0.01-amd64.iso.sha256
             evidence/artifact-manifest.json
             evidence/promotion-manifest.json
+            evidence/provider-convergence.json
             evidence/validation/validation.json
             evidence/generic/verification-generic.json
+            evidence/generic/verification-generic-provider.json
             evidence/hp/verification-hp.json
+            evidence/hp/verification-hp-provider.json
             aurum-pc-qemu.log
             aurum-hp-physical-twin.log
             Projects/AurumVirtualLab/hp-physical-twin-v1.json

@@ -23,8 +23,21 @@ rsync
 
 # Explicit script/runtime tools used by the build and verification contracts.
 bash
+bc
+bison
+build-essential
+busybox-static
+ccache
 coreutils
+file
+flex
 gawk
 grep
+kmod
+libelf-dev
+libssl-dev
+linux-source
 python3
 sed
+util-linux
+xz-utils

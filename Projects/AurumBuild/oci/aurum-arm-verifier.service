@@ -1,0 +1,20 @@
+[Unit]
+Description=Aurum exact-source OCI ARM verifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aurum-arm
+Group=aurum-arm
+ExecStart=/usr/local/lib/aurum-arm/run-verifier.sh
+Environment=HOME=/var/lib/aurum-arm
+Environment=XDG_RUNTIME_DIR=/run/aurum-arm
+RuntimeDirectory=aurum-arm
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/aurum-arm /run/aurum-arm
+
+[Install]
+WantedBy=multi-user.target

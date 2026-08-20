@@ -198,6 +198,9 @@ class BuildAccelerationTests(unittest.TestCase):
         pc = (REPOSITORY_ROOT / ".github/workflows/aurum-pc-v001.yml").read_text(
             encoding="utf-8"
         )
+        image_verifier = (REPOSITORY_ROOT / "Projects/AurumBuild/verify-pc-image.sh").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("Projects/AurumBuild/Dockerfile.builder", builder)
         self.assertIn("packages: write", builder)
         self.assertNotIn("pull_request_target", builder)
@@ -205,7 +208,8 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertIn("needs: [build-image, generic-uefi-smoke, hp-twin-smoke]", pc)
         self.assertIn("needs.build-image.outputs.builder_image", pc)
         self.assertIn("live_build_cache_identity", pc)
-        self.assertIn("AURUM_PC_ISO_PROVENANCE verified=true", pc)
+        self.assertIn("bash Projects/AurumBuild/verify-pc-image.sh", pc)
+        self.assertIn("AURUM_PC_ISO_PROVENANCE verified=true", image_verifier)
         self.assertNotIn("| grep -Fq", pc)
         self.assertNotIn("apt-get install", pc)
 

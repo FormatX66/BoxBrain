@@ -1,0 +1,76 @@
+version: 2.1
+
+jobs:
+  independent-verifier:
+    docker:
+      - image: cimg/python@sha256:c7c2d34d432641701168615300b551f060cf16ad4f6d4bf2b3650384793828d4
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Enforce the exact upstream commit
+          command: |
+            set -eu
+            observed=$(git rev-parse --verify HEAD)
+            test "$observed" = "$CIRCLE_SHA1"
+            test -z "$(git status --short)"
+            echo "AURUM_CIRCLECI_SOURCE_OK source_sha=$observed"
+      - run:
+          name: Run independent alternate-container verification
+          command: |
+            set -eu
+            python3 -m py_compile \
+              Projects/AurumBuild/*.py \
+              Projects/Codelation/field/*.py \
+              Projects/Codelation/run_capacity_mesh_cycle.py
+            python3 -m unittest \
+              Projects.Codelation.tests.test_distributed_build \
+              Projects.Codelation.tests.test_capacity_mesh \
+              Projects.Codelation.tests.test_mesh_efficiency \
+              Projects.AurumPC.tests.test_ci_source_contracts \
+              -v
+      - run:
+          name: Rebuild a selected deterministic artifact twice
+          command: |
+            set -eu
+            mkdir -p circleci-evidence
+            roots='Projects/AurumBuild Projects/Codelation/field Projects/Codelation/tests/test_distributed_build.py'
+            python3 Projects/AurumBuild/deterministic_bundle.py \
+              --output circleci-evidence/selected-a.tar.gz $roots
+            python3 Projects/AurumBuild/deterministic_bundle.py \
+              --output circleci-evidence/selected-b.tar.gz $roots
+            sha256sum circleci-evidence/selected-a.tar.gz circleci-evidence/selected-b.tar.gz
+            cmp circleci-evidence/selected-a.tar.gz circleci-evidence/selected-b.tar.gz
+      - run:
+          name: Emit evidence-only CircleCI receipt
+          command: |
+            set -eu
+            config_hash=$(python3 Projects/AurumBuild/cache_identity.py hash-files \
+              Projects/AurumBuild/Dockerfile.builder \
+              Projects/AurumBuild/packages.builder.txt \
+              Projects/Codelation/autobuild/capacity_mesh_policy.json \
+              .circleci/config.yml)
+            python3 Projects/AurumBuild/evidence.py record \
+              --source-sha "$CIRCLE_SHA1" \
+              --architecture x86_64 \
+              --builder-image-digest sha256:c7c2d34d432641701168615300b551f060cf16ad4f6d4bf2b3650384793828d4 \
+              --build-config-hash "$config_hash" \
+              --artifact circleci-evidence/selected-a.tar.gz \
+              --provider circleci-verifier \
+              --lane alternate-container-determinism \
+              --result passed \
+              --authority VERIFY-ONLY \
+              --output circleci-evidence/result.json
+      - store_artifacts:
+          path: circleci-evidence
+          destination: aurum-independent-verifier
+
+workflows:
+  aurum-independent-verification:
+    jobs:
+      - independent-verifier:
+          filters:
+            branches:
+              only: aurum/trunk-v0.01
+            tags:
+              ignore: /.*/

@@ -66,6 +66,24 @@ class SelfKernelCompilerExecutorTests(unittest.TestCase):
             self.assertTrue((output / "aurum-kernel-manifest.json").is_file())
             self.assertTrue(all("/boot" not in token for call in calls for token in call))
 
+    def test_compile_command_can_use_content_checked_ccache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = self._kernel_tree(root)
+            config = root / "seed.config"
+            config.write_text("CONFIG_MODULES=y\n", encoding="utf-8")
+            request = KernelCompileRequest(
+                "x86_64",
+                source,
+                root / "out",
+                root / "stage",
+                config,
+                compiler_cache="ccache",
+            )
+            flat = [token for command in compile_commands(request) for token in command]
+            self.assertIn("CC=ccache gcc", flat)
+            self.assertIn("HOSTCC=ccache gcc", flat)
+
     def test_external_module_build_never_loads_module(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -81,7 +99,7 @@ class SelfKernelCompilerExecutorTests(unittest.TestCase):
             result = build_external_module(kernel_build_dir=kernel, module_dir=module, runner=fake_runner)
             self.assertFalse(result.loaded)
             self.assertFalse(result.installed_to_running_kernel)
-            self.assertEqual(result.ko_files[-1].split("/")[-1], "aurum_test.ko")
+            self.assertEqual(Path(result.ko_files[-1]).name, "aurum_test.ko")
 
     def test_modalias_resolution_prefers_existing_kernel_module_database(self):
         with tempfile.TemporaryDirectory() as tmp:

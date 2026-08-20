@@ -8,12 +8,19 @@ on:
       - aurum/trunk-v0.01
     paths:
       - '.github/workflows/aurum-self-kernel-compiler.yml'
+      - 'Projects/AurumBuild/Dockerfile.builder'
+      - 'Projects/AurumBuild/build_acceleration.py'
+      - 'Projects/AurumBuild/cache_identity.py'
+      - 'Projects/AurumBuild/evidence.py'
+      - 'Projects/AurumBuild/packages.builder.txt'
+      - 'Projects/AurumBuild/resolve-builder.sh'
       - 'Projects/AurumKernel/**'
       - 'Projects/Codelation/kernel_selfbuild/**'
       - 'Projects/Codelation/tests/test_self_kernel_compiler*.py'
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: aurum-self-kernel-compiler-${{ github.ref }}
@@ -27,7 +34,8 @@ jobs:
       - name: Check out Aurum kernel branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Validate bounded kernel build sources
         shell: bash
@@ -37,63 +45,139 @@ jobs:
           python3 -m py_compile Projects/Codelation/kernel_selfbuild/*.py
           python3 -m unittest discover -s Projects/Codelation/tests -p 'test_self_kernel_compiler*.py' -v
 
-      - name: Install independent VM tooling
+      - name: Authenticate for the repository-scoped builder
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve one immutable builder digest
+        id: builder
         shell: bash
+        run: bash Projects/AurumBuild/resolve-builder.sh
+
+      - name: Derive exact compiler cache identity
+        id: cache-identity
+        shell: bash
+        env:
+          BUILDER: ${{ steps.builder.outputs.reference }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86
-          docker info >/dev/null
+          source_hash=$(python3 Projects/AurumBuild/cache_identity.py hash-files \
+            Projects/AurumKernel Projects/Codelation/kernel_selfbuild)
+          config_hash=$(python3 Projects/AurumBuild/cache_identity.py hash-files \
+            Projects/AurumKernel/build-kernel.sh Projects/Codelation/kernel_selfbuild)
+          dependency_hash=$(python3 Projects/AurumBuild/cache_identity.py hash-files \
+            Projects/AurumBuild/Dockerfile.builder \
+            Projects/AurumBuild/packages.builder.txt)
+          toolchain=$(docker run --rm "$BUILDER" gcc -dumpfullversion -dumpversion | tr -d '\r\n')
+          identity=$(python3 Projects/AurumBuild/cache_identity.py cache-key \
+            --source-hash "$source_hash" \
+            --architecture x86_64 \
+            --toolchain "gcc-$toolchain" \
+            --build-config-hash "$config_hash" \
+            --dependency-manifest-hash "$dependency_hash" \
+            --builder-image-digest '${{ steps.builder.outputs.digest }}')
+          python3 - "$identity" <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sys
+          value = json.loads(sys.argv[1])
+          print('key=' + value['key'])
+          print('config_hash=' + value['build_config_hash'])
+          PY
+
+      - name: Restore exact compiler cache
+        id: ccache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4
+        with:
+          path: .cache/ccache
+          key: ${{ steps.cache-identity.outputs.key }}
 
       - name: Build Aurum machine kernel with Debian-native tooling
         shell: bash
+        env:
+          AURUM_BUILDER: ${{ steps.builder.outputs.reference }}
         run: |
           set -euo pipefail
+          mkdir -p .cache/ccache
           docker run --rm --privileged \
             -v "$PWD:/workspace" \
+            -v "$PWD/.cache/ccache:/cache/ccache" \
             -w /workspace \
-            debian:bookworm \
-            sh -lc '
+            -e AURUM_COMPILER_CACHE=ccache \
+            -e CCACHE_DIR=/cache/ccache \
+            "$AURUM_BUILDER" \
+            bash -lc '
               set -eu
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                linux-source build-essential bc bison flex \
-                libssl-dev libelf-dev cpio gzip xz-utils \
-                kmod rsync busybox-static python3
+              ccache --zero-stats
               sh Projects/AurumKernel/build-kernel.sh
+              ccache --show-stats
             '
           test -s dist/Aurum-Kernel-v0.01-x86_64/bzImage
           test -s dist/Aurum-Kernel-v0.01-x86_64/initramfs.cpio.gz
           sha256sum -c dist/Aurum-Kernel-v0.01-x86_64/SHA256SUMS
 
-      - name: Kernel boot smoke test
+      - name: Record kernel build-only evidence
         shell: bash
         run: |
+          python3 Projects/AurumBuild/evidence.py record \
+            --source-sha "$GITHUB_SHA" \
+            --architecture x86_64 \
+            --builder-image-digest '${{ steps.builder.outputs.digest }}' \
+            --build-config-hash '${{ steps.cache-identity.outputs.config_hash }}' \
+            --artifact dist/Aurum-Kernel-v0.01-x86_64/bzImage \
+            --provider github-x64 \
+            --lane kernel-build \
+            --result passed \
+            --authority BUILD-ONLY \
+            --output dist/Aurum-Kernel-v0.01-x86_64/build-evidence.json
+
+      - name: Kernel boot smoke test
+        shell: bash
+        env:
+          AURUM_BUILDER: ${{ steps.builder.outputs.reference }}
+        run: |
           set -euo pipefail
-          set +e
-          timeout 120s qemu-system-x86_64 \
-            -machine q35,accel=tcg \
-            -cpu qemu64 \
-            -m 768 \
-            -smp 2 \
-            -kernel dist/Aurum-Kernel-v0.01-x86_64/bzImage \
-            -initrd dist/Aurum-Kernel-v0.01-x86_64/initramfs.cpio.gz \
-            -append 'console=ttyS0 rdinit=/init panic=-1' \
-            -display none \
-            -serial stdio \
-            -monitor none \
-            -no-reboot \
-            > aurum-kernel-qemu.log 2>&1
-          qemu_status=$?
-          set -e
+          docker run --rm -v "$PWD:/workspace" -w /workspace "$AURUM_BUILDER" bash -lc '
+            set +e
+            timeout 120s qemu-system-x86_64 \
+              -machine q35,accel=tcg \
+              -cpu qemu64 \
+              -m 768 \
+              -smp 2 \
+              -kernel dist/Aurum-Kernel-v0.01-x86_64/bzImage \
+              -initrd dist/Aurum-Kernel-v0.01-x86_64/initramfs.cpio.gz \
+              -append "console=ttyS0 rdinit=/init panic=-1" \
+              -display none \
+              -serial stdio \
+              -monitor none \
+              -no-reboot \
+              > aurum-kernel-qemu.log 2>&1
+            qemu_status=$?
+            set -e
+            if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
+              exit "$qemu_status"
+            fi
+          '
           cat aurum-kernel-qemu.log
           grep -F 'AURUM_KERNEL_READY version=0.01 arch=x86_64' aurum-kernel-qemu.log
           grep -F 'selftest=ok' aurum-kernel-qemu.log
-          if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
-            echo "QEMU exited unexpectedly with status $qemu_status" >&2
-            exit "$qemu_status"
-          fi
           echo 'AURUM_KERNEL_V001_BOOT_VERIFIED'
+
+      - name: Record kernel verifier evidence
+        shell: bash
+        run: |
+          python3 Projects/AurumBuild/evidence.py record \
+            --source-sha "$GITHUB_SHA" \
+            --architecture x86_64 \
+            --builder-image-digest '${{ steps.builder.outputs.digest }}' \
+            --build-config-hash '${{ steps.cache-identity.outputs.config_hash }}' \
+            --artifact dist/Aurum-Kernel-v0.01-x86_64/bzImage \
+            --provider github-x64 \
+            --lane kernel-qemu-smoke \
+            --result passed \
+            --authority VERIFY-ONLY \
+            --output dist/Aurum-Kernel-v0.01-x86_64/verify-evidence.json
 
       - name: Record kernel metadata
         shell: bash

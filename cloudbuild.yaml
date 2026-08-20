@@ -1,0 +1,56 @@
+steps:
+  - id: exact-source-and-burst-verification
+    name: python@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        if [ "${_AURUM_COST_CLASS}" != free ]; then
+          echo 'Aurum Cloud Build refuses non-free cost class.' >&2
+          exit 2
+        fi
+        python3 Projects/AurumBuild/source_identity.py verify \
+          --repository . \
+          --expected-source-sha "${_AURUM_SOURCE_SHA}" \
+          --manifest aurum-cloud-source-identity.json
+        python3 -m unittest \
+          Projects.Codelation.tests.test_distributed_build \
+          Projects.Codelation.tests.test_capacity_mesh \
+          Projects.Codelation.tests.test_mesh_efficiency \
+          -v
+        mkdir -p /workspace/gcp-evidence
+        roots='Projects/AurumBuild Projects/Codelation/field Projects/Codelation/tests/test_distributed_build.py'
+        python3 Projects/AurumBuild/deterministic_bundle.py \
+          --output /workspace/gcp-evidence/selected-a.tar.gz $$roots
+        python3 Projects/AurumBuild/deterministic_bundle.py \
+          --output /workspace/gcp-evidence/selected-b.tar.gz $$roots
+        cmp /workspace/gcp-evidence/selected-a.tar.gz /workspace/gcp-evidence/selected-b.tar.gz
+        config_hash=$$(python3 Projects/AurumBuild/cache_identity.py hash-files \
+          Projects/AurumBuild/Dockerfile.builder \
+          Projects/AurumBuild/packages.builder.txt \
+          Projects/Codelation/autobuild/capacity_mesh_policy.json \
+          cloudbuild.yaml)
+        python3 Projects/AurumBuild/evidence.py record \
+          --source-sha "${_AURUM_SOURCE_SHA}" \
+          --architecture x86_64 \
+          --builder-image-digest sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 \
+          --build-config-hash "$$config_hash" \
+          --artifact /workspace/gcp-evidence/selected-a.tar.gz \
+          --provider gcp-burst \
+          --lane selected-deterministic-build \
+          --result passed \
+          --authority BUILD-ONLY \
+          --output /workspace/gcp-evidence/result.json
+        cat /workspace/gcp-evidence/result.json
+
+substitutions:
+  _AURUM_SOURCE_SHA: required-exact-source-sha
+  _AURUM_COST_CLASS: free
+
+options:
+  machineType: E2_STANDARD_2
+  diskSizeGb: '100'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s
+queueTtl: 300s

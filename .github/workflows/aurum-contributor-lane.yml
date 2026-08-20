@@ -1,0 +1,122 @@
+name: Aurum Contributor Lane
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+env:
+  AURUM_UPSTREAM_REPO: FormatX66/BoxBrain
+  AURUM_UPSTREAM_REF: aurum/trunk-v0.01
+  AURUM_ALT_IMAGE: python@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1
+
+jobs:
+  contribute:
+    if: github.repository_owner != 'FormatX66'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out authoritative Aurum trunk read-only
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ env.AURUM_UPSTREAM_REPO }}
+          ref: ${{ env.AURUM_UPSTREAM_REF }}
+          path: aurum-src
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record exact upstream head
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(git -C aurum-src rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "AURUM_CONTRIBUTOR_UPSTREAM_SHA=$sha"
+
+      - name: Restore per-fork exact-source receipt
+        id: receipt
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4
+        with:
+          path: contributor-receipt
+          key: aurum-contributor-${{ github.repository_owner }}-${{ steps.upstream.outputs.sha }}
+
+      - name: Select deterministic independent shard
+        if: steps.receipt.outputs.cache-hit != 'true'
+        id: shard
+        shell: bash
+        env:
+          CONTRIBUTOR: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          cd aurum-src
+          python3 - <<'PY' > ../selected-tests.txt
+          import hashlib, os
+          from pathlib import Path
+          files = sorted(Path('Projects/Codelation/tests').glob('test_*.py')) + sorted(Path('Projects/AurumPC/tests').glob('test_*.py'))
+          count = min(16, len(files))
+          index = int.from_bytes(hashlib.sha256(os.environ['CONTRIBUTOR'].casefold().encode()).digest()[:8], 'big') % count
+          print(f'# shard {index}/{count}')
+          for item, path in enumerate(files):
+              if item % count == index:
+                  print('.'.join(path.with_suffix('').parts))
+          PY
+          cat ../selected-tests.txt
+
+      - name: Run evidence-only shard in a digest-pinned alternate container
+        if: steps.receipt.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/aurum-src:/workspace:ro" \
+            -v "$PWD:/receipt" \
+            -w /workspace \
+            "$AURUM_ALT_IMAGE" \
+            sh -ceu '
+              tests=$(grep -v "^#" /receipt/selected-tests.txt | tr "\n" " ")
+              python3 -m unittest $tests -v
+              python3 Projects/AurumBuild/deterministic_bundle.py \
+                --output /receipt/contributor-selected.tar.gz \
+                Projects/AurumBuild Projects/Codelation/field
+            '
+
+      - name: Write exact evidence-only contributor receipt
+        if: steps.receipt.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p contributor-receipt
+          config_hash=$(python3 aurum-src/Projects/AurumBuild/cache_identity.py hash-files \
+            aurum-src/Projects/AurumBuild/Dockerfile.builder \
+            aurum-src/Projects/AurumBuild/packages.builder.txt \
+            selected-tests.txt)
+          python3 aurum-src/Projects/AurumBuild/evidence.py record \
+            --source-sha '${{ steps.upstream.outputs.sha }}' \
+            --architecture x86_64 \
+            --builder-image-digest sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 \
+            --build-config-hash "$config_hash" \
+            --artifact contributor-selected.tar.gz \
+            --provider contributor-fork \
+            --lane 'fork-${{ github.repository_owner }}' \
+            --result passed \
+            --authority VERIFY-ONLY \
+            --output contributor-receipt/result.json
+
+      - name: Report already verified exact commit
+        if: steps.receipt.outputs.cache-hit == 'true'
+        run: echo 'AURUM_CONTRIBUTOR_ALREADY_VERIFIED_THIS_HEAD'
+
+      - name: Publish contributor evidence
+        if: steps.receipt.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-contributor-${{ github.repository_owner }}-${{ steps.upstream.outputs.sha }}
+          path: |
+            contributor-receipt/result.json
+            contributor-selected.tar.gz
+          if-no-files-found: error
+          retention-days: 14

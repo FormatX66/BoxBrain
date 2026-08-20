@@ -1,0 +1,84 @@
+name: Aurum Optional GCP Burst
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-gcp-burst.yml'
+      - 'cloudbuild.yaml'
+      - 'Projects/AurumBuild/Dockerfile.builder'
+      - 'Projects/AurumBuild/cache_identity.py'
+      - 'Projects/AurumBuild/deterministic_bundle.py'
+      - 'Projects/AurumBuild/evidence.py'
+      - 'Projects/AurumBuild/gcp/**'
+      - 'Projects/AurumBuild/packages.builder.txt'
+      - 'Projects/AurumBuild/source_identity.py'
+      - 'Projects/Codelation/autobuild/capacity_mesh_policy.json'
+      - 'Projects/Codelation/field/**'
+      - 'Projects/Codelation/tests/test_distributed_build.py'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aurum-gcp-burst
+  cancel-in-progress: false
+
+jobs:
+  burst:
+    if: vars.AURUM_GCP_BURST_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact Aurum source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify clean exact source and write transfer identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --short)"
+          python3 Projects/AurumBuild/source_identity.py create \
+            --repository . \
+            --source-sha "$GITHUB_SHA" \
+            --output aurum-cloud-source-identity.json
+
+      - name: Authenticate with short-lived Google credentials
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ vars.AURUM_GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.AURUM_GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.AURUM_GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Enforce monthly free-tier reserve
+        shell: bash
+        run: |
+          set -euo pipefail
+          month_start=$(date -u +%Y-%m-01T00:00:00Z)
+          gcloud builds list \
+            --project '${{ vars.AURUM_GCP_PROJECT_ID }}' \
+            --filter="createTime>=$month_start" \
+            --limit=1000 \
+            --format=json > "$RUNNER_TEMP/gcp-builds.json"
+          python3 Projects/AurumBuild/gcp/budget_guard.py \
+            "$RUNNER_TEMP/gcp-builds.json" --limit-minutes 2000
+
+      - name: Submit bounded exact-source burst work
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud builds submit . \
+            --project '${{ vars.AURUM_GCP_PROJECT_ID }}' \
+            --config cloudbuild.yaml \
+            --ignore-file Projects/AurumBuild/gcp/gcloudignore \
+            --substitutions="_AURUM_SOURCE_SHA=$GITHUB_SHA,_AURUM_COST_CLASS=free"

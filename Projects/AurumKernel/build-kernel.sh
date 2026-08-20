@@ -94,6 +94,7 @@ request = KernelCompileRequest(
     base_config=Path(os.environ["AURUM_BUILD_CONFIG"]),
     jobs=int(os.environ["AURUM_BUILD_JOBS"]),
     lsmod_file=Path(lsmod) if lsmod else None,
+    compiler_cache=os.environ.get("AURUM_COMPILER_CACHE") or None,
 )
 manifest = compile_kernel(request)
 print(manifest.to_dict())

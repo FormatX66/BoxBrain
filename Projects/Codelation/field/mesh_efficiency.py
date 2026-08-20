@@ -161,6 +161,24 @@ def nodes_from_policy(policy: Mapping[str, Any], *, available: Iterable[str] | N
                 capabilities=frozenset(str(value) for value in item.get("capabilities", ())),
                 capacity=max(0, int(item.get("capacity", 0))),
                 cost=int(item.get("cost", 0)),
+                provider=str(item.get("kind", name)),
+                architecture=str(item.get("architecture", "any")),
+                available=(
+                    name in available_names
+                    if available_names is not None
+                    else item.get("availability", "available") == "available"
+                ),
+                expected_queue_seconds=max(0, int(item.get("expected_queue_seconds", 0))),
+                estimated_runtime_seconds=max(0, int(item.get("estimated_runtime_seconds", 0))),
+                cache_locality=float(item.get("cache_locality", 0.0)),
+                external_cost_class=str(item.get("external_cost_class", "free")),
+                verification_strength=max(0, int(item.get("verification_strength", 0))),
+                authority_level=str(item.get("authority_level", "BUILD-ONLY")),
+                authority_levels=frozenset(str(value) for value in item.get("authority_levels", ())),
+                trust_level=max(0, int(item.get("trust_level", 0))),
+                safe=bool(item.get("safe", True)),
+                intent_compatible=bool(item.get("intent_compatible", True)),
+                optional=bool(item.get("optional", False)),
             )
         )
     return tuple(nodes)

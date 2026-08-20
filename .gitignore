@@ -39,3 +39,5 @@ captures/
 artifacts/
 *.tmp
 *.log
+# Short-lived GitHub OIDC credential files must never be committed or uploaded.
+gha-creds-*.json

@@ -142,6 +142,20 @@ class Node:
     capabilities: frozenset[str]
     capacity: int = 1
     cost: int = 0
+    provider: str = "local"
+    architecture: str = "any"
+    available: bool = True
+    expected_queue_seconds: int = 0
+    estimated_runtime_seconds: int = 0
+    cache_locality: float = 0.0
+    external_cost_class: str = "free"
+    verification_strength: int = 0
+    authority_level: str = "BUILD-ONLY"
+    authority_levels: frozenset[str] = frozenset()
+    trust_level: int = 0
+    safe: bool = True
+    intent_compatible: bool = True
+    optional: bool = False
 
 
 @dataclass(frozen=True)
@@ -149,6 +163,11 @@ class WorkItem:
     name: str
     requires: frozenset[str]
     weight: int = 1
+    architecture: str = "any"
+    allowed_cost_classes: frozenset[str] = frozenset({"free", "controlled"})
+    minimum_verification_strength: int = 0
+    required_authority: str | None = None
+    preserve_user_intent: bool = True
 
 
 @dataclass(frozen=True)
@@ -169,7 +188,19 @@ def assign_parallel(work: Sequence[WorkItem], nodes: Sequence[Node]) -> Assignme
         candidates = [
             node
             for node in nodes
-            if slots[node.name] > 0 and item.requires.issubset(node.capabilities)
+            if slots[node.name] > 0
+            and node.available
+            and node.safe
+            and (node.intent_compatible or not item.preserve_user_intent)
+            and item.requires.issubset(node.capabilities)
+            and (item.architecture == "any" or node.architecture in {"any", item.architecture})
+            and node.external_cost_class in item.allowed_cost_classes
+            and node.verification_strength >= item.minimum_verification_strength
+            and (
+                item.required_authority is None
+                or item.required_authority
+                in (node.authority_levels or frozenset({node.authority_level}))
+            )
         ]
         if not candidates:
             unassigned.append(item.name)
@@ -178,9 +209,13 @@ def assign_parallel(work: Sequence[WorkItem], nodes: Sequence[Node]) -> Assignme
             continue
         candidates.sort(
             key=lambda node: (
-                len(assignments[node.name]),
+                -node.verification_strength,
+                node.expected_queue_seconds + node.estimated_runtime_seconds,
+                len(assignments[node.name]) / max(1, node.capacity),
+                -node.cache_locality,
                 node.cost,
                 -node.capacity,
+                -node.trust_level,
                 node.name,
             )
         )

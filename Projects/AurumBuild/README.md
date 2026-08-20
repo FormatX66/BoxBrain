@@ -21,3 +21,26 @@ whose names and hashes are revalidated by Debian tooling cross runs. The cache
 is staged onto the live-build filesystem and is committed back only after a
 successful build, avoiding cross-device hard-link failures and failed-build
 contamination.
+
+## Compiler cache
+
+Kernel/native lanes mount `.cache/ccache` at `/cache/ccache`. Cache identity
+includes the relevant source/config hash, architecture, compiler version,
+dependency definition, and exact builder digest. `ccache` checks compiler
+content. A missing or mismatched cache rebuilds and never changes a verifier.
+
+## Distributed evidence and authority
+
+`evidence.py` records source SHA, architecture, builder digest, build-config
+hash, artifact SHA-256, provider, lane, result, timestamp, and authority.
+Convergence fails closed on any identity mismatch and requires distinct
+verifier lanes.
+
+- `BUILD-ONLY`: may create artifacts, never promote.
+- `VERIFY-ONLY`: may test artifacts, never promote.
+- `PHYSICAL-EVIDENCE`: Hopper/Pi4 observations, never direct promotion.
+- `PROMOTION`: only the Aurum convergence gate.
+
+CircleCI configuration is at `.circleci/config.yml`; optional GCP and OCI
+setup is under `gcp/` and `oci/`. External providers remain accelerators and
+are never dependencies of the GitHub/local verified path.

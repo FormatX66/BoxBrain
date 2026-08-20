@@ -23,6 +23,7 @@ class KernelCompileRequest:
     jobs: int = 1
     lsmod_file: Path | None = None
     cross_compile: str | None = None
+    compiler_cache: str | None = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,11 @@ def compile_commands(request: KernelCompileRequest) -> tuple[tuple[str, ...], ..
     common = ("make", "-C", str(request.source_dir.resolve()), f"O={request.output_dir.resolve()}", f"ARCH={arch}")
     if request.cross_compile:
         common += (f"CROSS_COMPILE={request.cross_compile}",)
+    if request.compiler_cache:
+        if request.compiler_cache not in {"ccache", "sccache"}:
+            raise ValueError("compiler_cache must be ccache or sccache")
+        compiler = f"{request.compiler_cache} {request.cross_compile or ''}gcc"
+        common += (f"CC={compiler}", f"HOSTCC={request.compiler_cache} gcc")
     commands: list[tuple[str, ...]] = [common + ("olddefconfig",)]
     if request.lsmod_file is not None:
         commands.append(common + (f"LSMOD={request.lsmod_file.resolve()}", "localmodconfig"))

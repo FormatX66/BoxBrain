@@ -55,7 +55,7 @@ def policy_audit(policy: dict) -> dict:
     available = [
         node["name"]
         for node in policy.get("nodes", ())
-        if node.get("availability") != "fresh-heartbeat-required"
+        if node.get("availability", "available") == "available"
     ]
     nodes = nodes_from_policy(policy, available=available)
     plan = plan_candidate_paths(paths, nodes)
@@ -77,7 +77,7 @@ def policy_audit(policy: dict) -> dict:
         work_type_counts[path.work_type] = work_type_counts.get(path.work_type, 0) + 1
         architecture_counts[path.architecture] = architecture_counts.get(path.architecture, 0) + 1
     return {
-        "schema": "aurum-capacity-mesh-audit-v2",
+        "schema": "aurum-capacity-mesh-audit-v3",
         "candidate_paths": [path.name for path in paths],
         "matrix_lane_count": len(matrix.get("include", ())),
         "available_nodes": [node.name for node in nodes],
@@ -95,6 +95,11 @@ def policy_audit(policy: dict) -> dict:
         "work_type_counts": work_type_counts,
         "architecture_counts": architecture_counts,
         "target_met": snapshot.target_met,
+        "optional_providers_excluded": sorted(
+            node["name"]
+            for node in policy.get("nodes", ())
+            if node.get("optional", False) and node.get("availability", "available") != "available"
+        ),
     }
 
 

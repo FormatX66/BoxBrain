@@ -3,7 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-BUILD_ROOT="$SCRIPT_DIR/.build"
+BUILD_ROOT=${AURUM_PC_BUILD_ROOT:-"$SCRIPT_DIR/.build"}
 DIST="$REPO_ROOT/dist"
 IMAGE_NAME="Aurum-PC-v0.01-amd64.iso"
 PERSISTENT_CACHE_ROOT=${AURUM_LB_CACHE_DIR:-}
@@ -63,6 +63,7 @@ lb config \
   --bootloaders "syslinux grub-efi" \
   --uefi-secure-boot disable \
   --checksums sha256 \
+  --zsync false \
   --memtest none \
   --bootappend-live "boot=live components quiet preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum PC v0.01" \

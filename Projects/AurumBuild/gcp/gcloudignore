@@ -1,0 +1,8 @@
+.git
+.cache
+dist
+**/.build
+**/__pycache__
+*.iso
+*.log
+gha-creds-*.json

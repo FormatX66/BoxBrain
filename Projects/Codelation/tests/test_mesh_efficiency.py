@@ -230,10 +230,10 @@ class MeshEfficiencyTests(unittest.TestCase):
         policy = self._policy()
         nodes = nodes_from_policy(
             policy,
-            available={"github-hosted-x64", "github-hosted-arm64", "gpt-python"},
+            available={"github-x64", "github-arm64", "gpt-python"},
         )
-        self.assertNotIn("BBPI4", {node.name for node in nodes})
-        self.assertNotIn("windows-authorized-node", {node.name for node in nodes})
+        self.assertNotIn("bbpi4-physical", {node.name for node in nodes})
+        self.assertNotIn("hopper-physical", {node.name for node in nodes})
 
 
 if __name__ == "__main__":
