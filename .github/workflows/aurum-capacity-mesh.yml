@@ -29,7 +29,7 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-slim
-    timeout-minutes: 2
+    timeout-minutes: 3
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -38,6 +38,11 @@ jobs:
         with:
           ref: aurum/trunk-v0.01
           fetch-depth: 1
+      - name: Refuse inefficient or duplicate fan-out
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/Codelation/run_capacity_mesh_cycle.py --audit
       - name: Build bounded fan-out matrix
         id: matrix
         shell: bash
@@ -51,13 +56,13 @@ jobs:
     needs: plan
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 18
       matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     continue-on-error: ${{ matrix.posture == 'adventurous' }}
     steps:
-      - name: Check out Aurum trunk
+      - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: aurum/trunk-v0.01
@@ -66,8 +71,10 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Run bounded mesh lane
+      - name: Run independent bounded shard
         shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
           mkdir -p mesh-results
@@ -75,6 +82,8 @@ jobs:
             --name '${{ matrix.name }}' \
             --posture '${{ matrix.posture }}' \
             --suite '${{ matrix.suite }}' \
+            --shard-index '${{ matrix.shard_index }}' \
+            --shard-count '${{ matrix.shard_count }}' \
             --result 'mesh-results/${{ matrix.name }}.json'
       - name: Publish lane evidence
         if: always()
@@ -82,7 +91,7 @@ jobs:
         with:
           name: aurum-mesh-${{ matrix.name }}-${{ github.run_id }}
           path: mesh-results/${{ matrix.name }}.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   fan-in:
@@ -91,11 +100,12 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 2
     steps:
-      - name: Report mesh boundary
+      - name: Enforce verified fan-in boundary
         shell: bash
         run: |
+          set -euo pipefail
           echo "planner=${{ needs.plan.result }}"
           echo "lanes=${{ needs.lane.result }}"
           if [ '${{ needs.plan.result }}' != 'success' ]; then exit 1; fi
           if [ '${{ needs.lane.result }}' != 'success' ]; then exit 1; fi
-          echo 'Aurum capacity mesh reached verified fan-in boundary.'
+          echo 'AURUM_CAPACITY_MESH_VERIFIED_FAN_IN'
