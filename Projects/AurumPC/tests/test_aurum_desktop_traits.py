@@ -17,13 +17,14 @@ class AurumDesktopTraitContractTests(unittest.TestCase):
         self.assertIn("traits are capabilities, not apps", desktop)
         self.assertIn("foundation-ready", traits)
         for trait_id in (
-            "TR8:WEB",
-            "TR8:FILES",
-            "TR8:MEDIA",
-            "TR8:WRITE",
-            "TR8:INTENT",
-            "TR8:CONNECT",
-            "TR8:RECOVER",
+            "TRAIT:GPT",
+            "TRAIT:INTENT",
+            "TRAIT:CONNECT",
+            "TRAIT:RECOVER",
+            "TRAIT:WEB",
+            "TRAIT:FILES",
+            "TRAIT:WRITE",
+            "TRAIT:MEDIA",
         ):
             self.assertIn(trait_id, traits)
 
