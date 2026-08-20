@@ -12,6 +12,14 @@ Aurum should first preserve the person's intent and keep them moving. When the u
 
 This is not a diagnostic system and must not infer or label a medical condition from behavior. It adapts to observed interaction patterns and user preferences.
 
+## Windows proving ground: TypeTriX
+
+The standalone Windows proving-ground repository is `FormatX66/TypeTriX`.
+
+TypeTriX should validate the portable intent/friction engine against real Windows text-input surfaces using Microsoft Text Services Framework (TSF) while keeping Windows-specific integration outside the portable semantic core. Successful portable behavior can later be inherited by Aurum as `TR8:INTENT`, `TR8:WORDS`, `TR8:LEARN`, or user-named equivalents.
+
+The Windows project is a compatibility phenotype and experimental evidence source, not the canonical definition of the Aurum capability.
+
 ## Capability model
 
 These are Aurum traits with stable machine semantics and user-adaptable names. Suggested canonical identities are:
