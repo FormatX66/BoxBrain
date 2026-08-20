@@ -17,6 +17,16 @@ This is the canonical registry of repositories currently visible to BoxBrain thr
 
 These are projects/subsystems in the BoxBrain repository rather than separate repositories: [Aurum](../Projects/Aurum/ProjectIndex.md), [AurumBridge](../Projects/AurumBridge/ProjectIndex.md), [Codelation](../Projects/Codelation/ProjectIndex.md), [WebsiteBuilder](../Projects/WebsiteBuilder/ProjectIndex.md), [Arkmatx](../Projects/Arkmatx/ProjectIndex.md), [AgentFramework](../Projects/AgentFramework/ProjectIndex.md), [WebsiteCluster](../Projects/WebsiteCluster/ProjectIndex.md), [Automation](../Projects/Automation/ProjectIndex.md), [Security](../Projects/Security/ProjectIndex.md), and [Research](../Projects/Research/ProjectIndex.md).
 
+## Active Aurum design and policy documents
+
+- [Adaptive learning accessibility](../Projects/Aurum/ADAPTIVE_LEARNING_ACCESSIBILITY.md)
+- [Brand identity](../Projects/Aurum/BRAND_IDENTITY.md)
+- [Gen1 everyone OS plan](../Projects/Aurum/GEN1_EVERYONE_OS_PLAN.md)
+- [Pi4 second-seed dual-boot plan](../Projects/Aurum/PI4_SECOND_SEED_DUAL_BOOT_PLAN.md)
+- [Universal PC/Pi seed drive](../Projects/Aurum/UNIVERSAL_PC_PI_SEED_DRIVE.md)
+- [Execution preflight policy](../Projects/AurumBridge/EXECUTION_PREFLIGHT_POLICY.md)
+- [Observability policy](../Projects/AurumBridge/OBSERVABILITY_POLICY.md)
+
 ## Local web surfaces
 
 - [Aurum-Arkmatx web edge](../Web/Aurum-Arkmatx/README.md)
