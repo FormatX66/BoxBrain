@@ -43,7 +43,8 @@ class GuiRuntime:
         self.port = port
         self.arcade_port = arcade_port
         self.seed_dir = workspace / "Projects" / "Codelation" / "seed"
-        self.gui_script = self.seed_dir / "aurum_gui.py"
+        self.base_gui_script = self.seed_dir / "aurum_gui.py"
+        self.gui_script = workspace / "Projects" / "AurumPC" / "aurum_hopper_gui.py"
         self.arcade_script = workspace / "Projects" / "AurumPC" / "aurum_arcade.py"
         self.bootstrap_mind = workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json"
         self.pid_path = run_dir / "aurum-gui.pid"
@@ -68,7 +69,7 @@ class GuiRuntime:
 
     def _owned_gui(self, pid: int) -> bool:
         cmdline = self._cmdline(pid)
-        return "aurum_gui.py" in cmdline and str(self.gui_script) in cmdline
+        return "aurum_hopper_gui.py" in cmdline and str(self.gui_script) in cmdline
 
     def _owned_arcade(self, pid: int) -> bool:
         cmdline = self._cmdline(pid)
@@ -135,7 +136,7 @@ class GuiRuntime:
     def prepare(self) -> None:
         if not (self.workspace / ".git").is_dir():
             raise GuiRuntimeError("Git workspace is not initialized")
-        if not self.gui_script.is_file() or not self.bootstrap_mind.is_file():
+        if not self.base_gui_script.is_file() or not self.gui_script.is_file() or not self.bootstrap_mind.is_file():
             raise GuiRuntimeError("Aurum GUI source is incomplete")
         if not self.arcade_script.is_file():
             raise GuiRuntimeError("Aurum arcade source is incomplete")
@@ -223,6 +224,19 @@ class GuiRuntime:
 
     def start(self) -> dict[str, Any]:
         self.prepare()
+        # Upgrade an already-running pre-Hopper GUI without requiring a reboot.
+        old_pid = self._read_pid(self.pid_path)
+        if old_pid and not self._owned_gui(old_pid):
+            old_cmdline = self._cmdline(old_pid)
+            if "aurum_gui.py" in old_cmdline:
+                try:
+                    os.kill(old_pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline and Path(f"/proc/{old_pid}").exists():
+                    time.sleep(0.1)
+                self.pid_path.unlink(missing_ok=True)
         self._start_gui()
         self._start_arcade()
         return self.status()
