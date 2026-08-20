@@ -6,13 +6,16 @@ on:
       - adaptive-kernel-experimental
     paths:
       - 'adaptive_kernel/**'
+      - 'experiments/**'
       - 'Architecture/AdaptiveKernelExperiment.md'
       - '.github/workflows/adaptive-kernel-experimental.yml'
   pull_request:
     paths:
       - 'adaptive_kernel/**'
+      - 'experiments/**'
       - 'Architecture/AdaptiveKernelExperiment.md'
       - '.github/workflows/adaptive-kernel-experimental.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,3 +30,5 @@ jobs:
           python-version: '3.12'
       - name: Run standalone adaptive-kernel tests
         run: python -m unittest discover -s adaptive_kernel -p 'test_*.py' -v
+      - name: Run shared Aurum race benchmark
+        run: python experiments/benchmark.py
