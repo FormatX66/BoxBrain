@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_FAILURE",
+    "github_workflow_run":  32359553349,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-20T10:34:27.9852124Z",
+    "data":  {
+                 "transport":  "usb-c-ssh",
+                 "host_key_pretrusted":  true,
+                 "source_commit":  "10ed93cb639de5fe4ca42379c8519ad0d0a5f6fb",
+                 "reason":  "test_graph_round_trip_and_tamper_detection (test_aurum_live.AurumLiveTests.test_graph_round_trip_and_tamper_detection) ... ok"
+             }
+}
