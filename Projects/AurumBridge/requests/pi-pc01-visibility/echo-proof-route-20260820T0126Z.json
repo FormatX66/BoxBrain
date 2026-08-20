@@ -1,0 +1,6 @@
+{
+  "schema": "aurum-bbpi4-pc01-visibility-request-v1",
+  "id": "echo-proof-route-20260820T0126Z",
+  "action": "pi_pc01_visibility",
+  "purpose": "Read-only route check before Hopper Echo physical proof retrieval"
+}
