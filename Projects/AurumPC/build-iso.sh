@@ -81,6 +81,8 @@ e2fsprogs
 util-linux
 grub-efi-amd64-bin
 grub2-common
+build-essential
+linux-headers-amd64
 EOF
 
 GRUB_FONT=/usr/share/grub/unicode.pf2
@@ -103,10 +105,12 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_console.py aurum_bootstrap.py aurum_gui_runtime.py aurum_hardware.py aurum_network.py aurum_runtime_update.py aurum_time.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_autonomy.py aurum_console.py aurum_bootstrap.py aurum_driver_synthesis.py aurum_gui_runtime.py aurum_hardware.py aurum_network.py aurum_runtime_update.py aurum_time.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
+cp "$SCRIPT_DIR/pc01_autonomy_policy.json" config/includes.chroot/opt/aurum/pc01_autonomy_policy.json
+chmod 0644 config/includes.chroot/opt/aurum/pc01_autonomy_policy.json
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
 mkdir -p config/includes.chroot/usr/lib/aurum
 cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" config/includes.chroot/usr/lib/aurum/native-chain-state.json
