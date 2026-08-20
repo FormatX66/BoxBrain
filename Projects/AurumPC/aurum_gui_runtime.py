@@ -14,11 +14,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum-pc-gui-runtime-v1"
+SCHEMA = "aurum-pc-gui-runtime-v2"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_RUN = Path("/run/aurum")
 DEFAULT_PORT = 8765
+DEFAULT_ARCADE_PORT = 8766
 
 
 class GuiRuntimeError(RuntimeError):
@@ -33,57 +34,111 @@ class GuiRuntime:
         state_dir: Path = DEFAULT_STATE,
         run_dir: Path = DEFAULT_RUN,
         port: int = DEFAULT_PORT,
+        arcade_port: int = DEFAULT_ARCADE_PORT,
     ) -> None:
         self.workspace = workspace
         self.state_dir = state_dir
         self.root = state_dir / "gui"
         self.run_dir = run_dir
         self.port = port
+        self.arcade_port = arcade_port
         self.seed_dir = workspace / "Projects" / "Codelation" / "seed"
         self.gui_script = self.seed_dir / "aurum_gui.py"
+        self.arcade_script = workspace / "Projects" / "AurumPC" / "aurum_arcade.py"
         self.bootstrap_mind = workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json"
         self.pid_path = run_dir / "aurum-gui.pid"
         self.log_path = run_dir / "aurum-gui.log"
+        self.arcade_pid_path = run_dir / "aurum-arcade.pid"
+        self.arcade_log_path = run_dir / "aurum-arcade.log"
 
-    def _pid(self) -> int | None:
+    @staticmethod
+    def _read_pid(path: Path) -> int | None:
         try:
-            pid = int(self.pid_path.read_text(encoding="utf-8").strip())
+            pid = int(path.read_text(encoding="utf-8").strip())
         except (OSError, ValueError):
             return None
         return pid if pid > 1 else None
 
-    def _owned_process(self, pid: int) -> bool:
+    @staticmethod
+    def _cmdline(pid: int) -> str:
         try:
-            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
         except OSError:
-            return False
+            return ""
+
+    def _owned_gui(self, pid: int) -> bool:
+        cmdline = self._cmdline(pid)
         return "aurum_gui.py" in cmdline and str(self.gui_script) in cmdline
 
-    def _probe(self) -> dict[str, Any]:
+    def _owned_arcade(self, pid: int) -> bool:
+        cmdline = self._cmdline(pid)
+        return "aurum_arcade.py" in cmdline and str(self.arcade_script) in cmdline
+
+    @staticmethod
+    def _json_probe(port: int, path: str, user_agent: str) -> dict[str, Any]:
         request = urllib.request.Request(
-            f"http://127.0.0.1:{self.port}/api/status",
-            headers={"Host": f"127.0.0.1:{self.port}", "User-Agent": "Aurum-PC-GUI-Probe/1"},
+            f"http://127.0.0.1:{port}{path}",
+            headers={"Host": f"127.0.0.1:{port}", "User-Agent": user_agent},
         )
         try:
             with urllib.request.urlopen(request, timeout=2) as response:
                 raw = response.read(65536)
                 payload = json.loads(raw.decode("utf-8"))
-                return {
-                    "reachable": response.status == 200,
-                    "http_status": response.status,
-                    "gui_schema": payload.get("schema"),
-                    "loopback_only": bool((payload.get("transport") or {}).get("loopback_only")),
-                    "dialogue_only": bool((payload.get("authority") or {}).get("dialogue_only")),
-                    "host_actuation": bool((payload.get("authority") or {}).get("host_actuation")),
-                }
+                return {"reachable": response.status == 200, "http_status": response.status, "payload": payload}
         except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
             return {"reachable": False}
+
+    def _gui_status(self) -> dict[str, Any]:
+        pid = self._read_pid(self.pid_path)
+        owned = bool(pid and self._owned_gui(pid))
+        probe = self._json_probe(self.port, "/api/status", "Aurum-PC-GUI-Probe/2") if owned else {"reachable": False}
+        if pid and not owned:
+            self.pid_path.unlink(missing_ok=True)
+            pid = None
+        payload = probe.get("payload") if isinstance(probe.get("payload"), dict) else {}
+        return {
+            "status": "running" if owned and probe.get("reachable") else "stopped",
+            "pid": pid if owned else None,
+            "address": "127.0.0.1",
+            "port": self.port,
+            "loopback_only": True,
+            "probe": {
+                "reachable": bool(probe.get("reachable")),
+                "http_status": probe.get("http_status"),
+                "gui_schema": payload.get("schema"),
+                "loopback_only": bool((payload.get("transport") or {}).get("loopback_only")),
+                "dialogue_only": bool((payload.get("authority") or {}).get("dialogue_only")),
+                "host_actuation": bool((payload.get("authority") or {}).get("host_actuation")),
+            },
+        }
+
+    def _arcade_status(self) -> dict[str, Any]:
+        pid = self._read_pid(self.arcade_pid_path)
+        owned = bool(pid and self._owned_arcade(pid))
+        probe = self._json_probe(self.arcade_port, "/api/status", "Aurum-PC-Arcade-Probe/1") if owned else {"reachable": False}
+        if pid and not owned:
+            self.arcade_pid_path.unlink(missing_ok=True)
+            pid = None
+        payload = probe.get("payload") if isinstance(probe.get("payload"), dict) else {}
+        return {
+            "status": "running" if owned and probe.get("reachable") else "stopped",
+            "pid": pid if owned else None,
+            "address": "127.0.0.1",
+            "port": self.arcade_port,
+            "loopback_only": True,
+            "game": payload.get("game", "Echo Rally"),
+            "machine": payload.get("machine", "Hopper"),
+            "host_actuation": bool(payload.get("host_actuation", False)),
+            "probe": {"reachable": bool(probe.get("reachable")), "http_status": probe.get("http_status")},
+        }
 
     def prepare(self) -> None:
         if not (self.workspace / ".git").is_dir():
             raise GuiRuntimeError("Git workspace is not initialized")
         if not self.gui_script.is_file() or not self.bootstrap_mind.is_file():
             raise GuiRuntimeError("Aurum GUI source is incomplete")
+        if not self.arcade_script.is_file():
+            raise GuiRuntimeError("Aurum arcade source is incomplete")
         self.root.mkdir(parents=True, exist_ok=True)
         mind_dir = self.root / "mind"
         mind_dir.mkdir(parents=True, exist_ok=True)
@@ -94,41 +149,27 @@ class GuiRuntime:
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def status(self) -> dict[str, Any]:
-        pid = self._pid()
-        owned = bool(pid and self._owned_process(pid))
-        probe = self._probe() if owned else {"reachable": False}
-        if pid and not owned:
-            self.pid_path.unlink(missing_ok=True)
-            pid = None
+        gui = self._gui_status()
+        arcade = self._arcade_status()
         return {
             "schema": SCHEMA,
-            "status": "running" if owned and probe.get("reachable") else "stopped",
-            "pid": pid if owned else None,
-            "address": "127.0.0.1",
-            "port": self.port,
+            "status": "running" if gui["status"] == "running" else "stopped",
+            "pid": gui["pid"],
+            "address": gui["address"],
+            "port": gui["port"],
             "loopback_only": True,
-            "probe": probe,
+            "probe": gui["probe"],
             "root": str(self.root),
+            "arcade": arcade,
+            "machine": "Hopper",
         }
 
-    def start(self) -> dict[str, Any]:
-        self.prepare()
-        current = self.status()
-        if current["status"] == "running":
-            return current
-        log = self.log_path.open("ab", buffering=0)
+    @staticmethod
+    def _spawn(script: Path, arguments: list[str], pid_path: Path, log_path: Path) -> subprocess.Popen[bytes]:
+        log = log_path.open("ab", buffering=0)
         try:
             process = subprocess.Popen(
-                [
-                    sys.executable,
-                    str(self.gui_script),
-                    "--root",
-                    str(self.root),
-                    "--host",
-                    "127.0.0.1",
-                    "--port",
-                    str(self.port),
-                ],
+                [sys.executable, str(script), *arguments],
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=log,
@@ -137,43 +178,80 @@ class GuiRuntime:
             )
         finally:
             log.close()
-        self.pid_path.write_text(str(process.pid) + "\n", encoding="utf-8")
+        pid_path.write_text(str(process.pid) + "\n", encoding="utf-8")
+        return process
+
+    def _start_gui(self) -> None:
+        if self._gui_status()["status"] == "running":
+            return
+        process = self._spawn(
+            self.gui_script,
+            ["--root", str(self.root), "--host", "127.0.0.1", "--port", str(self.port)],
+            self.pid_path,
+            self.log_path,
+        )
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
-            result = self.status()
-            if result["status"] == "running":
-                return result
+            if self._gui_status()["status"] == "running":
+                return
             if process.poll() is not None:
                 break
             time.sleep(0.25)
-        detail = ""
-        try:
-            detail = self.log_path.read_text(encoding="utf-8", errors="replace")[-1000:]
-        except OSError:
-            pass
         self.pid_path.unlink(missing_ok=True)
+        detail = self.log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.log_path.is_file() else ""
         raise GuiRuntimeError("GUI did not become ready" + (f": {detail}" if detail else ""))
 
-    def stop(self) -> dict[str, Any]:
-        pid = self._pid()
+    def _start_arcade(self) -> None:
+        if self._arcade_status()["status"] == "running":
+            return
+        process = self._spawn(
+            self.arcade_script,
+            ["--host", "127.0.0.1", "--port", str(self.arcade_port)],
+            self.arcade_pid_path,
+            self.arcade_log_path,
+        )
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            if self._arcade_status()["status"] == "running":
+                return
+            if process.poll() is not None:
+                break
+            time.sleep(0.25)
+        self.arcade_pid_path.unlink(missing_ok=True)
+        detail = self.arcade_log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.arcade_log_path.is_file() else ""
+        raise GuiRuntimeError("Arcade did not become ready" + (f": {detail}" if detail else ""))
+
+    def start(self) -> dict[str, Any]:
+        self.prepare()
+        self._start_gui()
+        self._start_arcade()
+        return self.status()
+
+    @staticmethod
+    def _stop_owned(pid_path: Path, owner_check, timeout: float = 5.0) -> None:
+        pid = GuiRuntime._read_pid(pid_path)
         if not pid:
-            return self.status()
-        if not self._owned_process(pid):
-            self.pid_path.unlink(missing_ok=True)
+            return
+        if not owner_check(pid):
+            pid_path.unlink(missing_ok=True)
             raise GuiRuntimeError("refusing to signal an unrecognized process")
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline and self._owned_process(pid):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and owner_check(pid):
             time.sleep(0.1)
-        self.pid_path.unlink(missing_ok=True)
+        pid_path.unlink(missing_ok=True)
+
+    def stop(self) -> dict[str, Any]:
+        self._stop_owned(self.arcade_pid_path, self._owned_arcade)
+        self._stop_owned(self.pid_path, self._owned_gui)
         return self.status()
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Installed Aurum loopback GUI runtime manager")
+    parser = argparse.ArgumentParser(description="Installed Aurum GUI + arcade runtime manager")
     parser.add_argument("command", choices=("status", "start", "stop"))
     return parser
 
