@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
-SCHEMA = "aurum-hopper-display-v2"
+SCHEMA = "aurum-hopper-display-v3"
 EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"
 DEFAULT_POLICY = Path(__file__).with_name("pc01_autonomy_policy.json")
 DEFAULT_RECEIPT = Path("/etc/aurum-installed.json")
@@ -50,6 +50,17 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     temporary.write_text(json.dumps(dict(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.chmod(temporary, 0o600)
     os.replace(temporary, path)
+
+
+def _console_notice(message: str) -> None:
+    """Best-effort bounded notice on Hopper's primary Aurum console."""
+    text = " ".join(str(message).split())[-1400:]
+    try:
+        with open("/dev/tty1", "w", encoding="utf-8", errors="replace") as handle:
+            handle.write(f"\nAURUM_ECHO_DISPLAY {text}\n")
+            handle.flush()
+    except OSError:
+        pass
 
 
 def _authorized(policy: Mapping[str, Any], receipt: Mapping[str, Any]) -> tuple[bool, str]:
@@ -159,6 +170,27 @@ class HopperDisplay:
             return {"status": "failed", "phase": "apt-install-pygame", "detail": install.stdout[-1600:]}
         return {"status": "ready" if importlib.util.find_spec("pygame") is not None else "missing-after-install", "package": "python3-pygame", "installed": True}
 
+    def _ensure_openvt(self, policy: Mapping[str, Any]) -> dict[str, Any]:
+        openvt = shutil.which("openvt")
+        if openvt:
+            return {"status": "ready", "package": "kbd", "installed": False, "path": openvt}
+        if not bool(policy.get("install_local_display_dependencies")):
+            return {"status": "missing", "reason": "dependency-install-disabled", "package": "kbd"}
+        apt = shutil.which("apt-get")
+        if not apt or os.geteuid() != 0:
+            return {"status": "missing", "reason": "apt-or-root-unavailable", "package": "kbd"}
+        env = dict(os.environ)
+        env["DEBIAN_FRONTEND"] = "noninteractive"
+        install = _run([apt, "install", "-y", "--no-install-recommends", "kbd"], timeout=600, env=env)
+        openvt = shutil.which("openvt")
+        return {
+            "status": "ready" if install.returncode == 0 and openvt else "failed",
+            "package": "kbd",
+            "installed": True,
+            "path": openvt,
+            "detail": "" if install.returncode == 0 else install.stdout[-1600:],
+        }
+
     def _ensure_x_fallback(self, policy: Mapping[str, Any]) -> dict[str, Any]:
         if shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")):
             return {"status": "ready", "installed": False}
@@ -266,11 +298,20 @@ class HopperDisplay:
             result = {"schema": SCHEMA, "status": "failed", "phase": "pygame", "dependency": dependency}
             _atomic_json(self.state_path, result)
             return result
-        openvt = shutil.which("openvt")
+        console_dependency = self._ensure_openvt(policy)
+        if console_dependency.get("status") != "ready":
+            result = {
+                "schema": SCHEMA,
+                "status": "failed",
+                "phase": "console-tools",
+                "dependency": dependency,
+                "console_dependency": console_dependency,
+            }
+            _atomic_json(self.state_path, result)
+            return result
+        openvt = str(console_dependency.get("path") or "")
         env_tool = shutil.which("env") or "/usr/bin/env"
         python = shutil.which("python3") or sys.executable
-        if not openvt:
-            raise DisplayRuntimeError("openvt is required for the physical display lane")
 
         self._clear_game()
         kms_command = [
@@ -294,9 +335,11 @@ class HopperDisplay:
         ready = self._wait_running("kmsdrm-vt2")
         if ready is not None:
             ready["dependency"] = dependency
+            ready["console_dependency"] = console_dependency
             _atomic_json(self.state_path, ready)
             return ready
 
+        _console_notice("status=fallback phase=kmsdrm detail=direct-display-did-not-stay-running next=x11")
         self._clear_game()
         xdeps = self._ensure_x_fallback(policy)
         if xdeps.get("status") != "ready":
@@ -305,6 +348,7 @@ class HopperDisplay:
                 "status": "failed",
                 "phase": "x-fallback-dependencies",
                 "dependency": dependency,
+                "console_dependency": console_dependency,
                 "x_dependencies": xdeps,
             }
             _atomic_json(self.state_path, result)
@@ -339,6 +383,7 @@ class HopperDisplay:
         ready = self._wait_running("x11-vt2", seconds=25.0)
         if ready is not None:
             ready["dependency"] = dependency
+            ready["console_dependency"] = console_dependency
             ready["x_dependencies"] = xdeps
             _atomic_json(self.state_path, ready)
             return ready
@@ -347,6 +392,7 @@ class HopperDisplay:
             "status": "failed",
             "phase": "physical-display",
             "dependency": dependency,
+            "console_dependency": console_dependency,
             "x_dependencies": xdeps,
             "game": _json_file(self.game_receipt),
             "detail": self.log_path.read_text(encoding="utf-8", errors="replace")[-2500:] if self.log_path.is_file() else "",
@@ -395,6 +441,10 @@ def main() -> int:
             result = runtime.status()
     except (DisplayRuntimeError, OSError, ValueError) as exc:
         result = {"schema": SCHEMA, "status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+    if result.get("status") == "failed":
+        _console_notice(
+            f"status=failed phase={result.get('phase','exception')} detail={result.get('detail') or result.get('console_dependency') or result.get('dependency') or result.get('x_dependencies')}"
+        )
     print(json.dumps(result, sort_keys=True))
     return 0 if result.get("status") in {"running", "stopped", "busy"} else 1
 
