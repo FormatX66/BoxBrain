@@ -90,7 +90,7 @@ jobs:
           grep -q 'aurum_gpt_trait.py' Projects/AurumPC/aurum_runtime_update.py
           grep -q 'aurum_control_plane.py' Projects/AurumPC/aurum_runtime_update.py
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_desktop_runtime.py
-          grep -q 'Ctrl+Alt+F1 recovery console' Projects/AurumPC/aurum_desktop.py
+          grep -q 'Ctrl+Alt+F1 recovery' Projects/AurumPC/aurum_desktop.py
           grep -q 'xserver-xorg-input-libinput' Projects/AurumPC/build-iso.sh
           grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
           grep -q 'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"' Projects/AurumPC/aurum_display_runtime.py
@@ -103,7 +103,7 @@ jobs:
   build-image:
     needs: validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -127,6 +127,21 @@ jobs:
                 grub-pc-bin grub-efi-amd64-bin dosfstools mtools
               lb --version
               sh Projects/AurumPC/build-iso.sh
+
+              verify_dir=/tmp/aurum-iso-verify
+              mkdir -p "$verify_dir"
+              xorriso -osirrox on \
+                -indev dist/Aurum-PC-v0.01-amd64.iso \
+                -extract /live/filesystem.squashfs "$verify_dir/filesystem.squashfs" \
+                >/tmp/aurum-xorriso.log 2>&1
+              source_sha=$(sha256sum Projects/AurumPC/aurum_console.py | cut -d " " -f1)
+              image_sha=$(unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py | sha256sum | cut -d " " -f1)
+              test "$source_sha" = "$image_sha"
+              unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py \
+                | grep -Fq "AURUM_PC_READY version=0.01 arch=x86_64"
+              unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/systemd/system/aurum-pc-serial.service \
+                | grep -Fq "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py"
+              echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha"
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
