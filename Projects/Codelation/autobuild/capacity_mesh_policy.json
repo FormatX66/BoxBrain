@@ -1,20 +1,53 @@
 {
   "schema": "aurum-capacity-mesh-policy-v1",
-  "revision": "2026-08-14",
+  "revision": "2026-08-20",
   "principles": [
     "local-first",
     "evidence-first",
+    "auto-select-most-efficient-proven-path",
+    "user-need-not-know-better-path-exists",
+    "preserve-user-intent",
+    "never-trade-safety-or-verification-for-speed",
     "no-quota-sharding",
     "no-arbitrary-remote-command-execution",
     "fan-out-only-for-independent-work",
     "fan-in-only-from-verified-evidence",
     "do-not-idle-when-authorized-deterministic-work-exists"
   ],
+  "optimization": {
+    "default_mode": "automatic",
+    "discover_better_paths_without_user_prompt": true,
+    "adopt_better_path_when": "verified-equivalent-or-better-and-reversible",
+    "objective_order": [
+      "correctness",
+      "safety",
+      "user-intent",
+      "verification-strength",
+      "latency",
+      "compute-efficiency",
+      "cost"
+    ],
+    "require_user_decision_when": [
+      "user-intent-would-change",
+      "irreversible-or-destructive-change",
+      "new-external-cost",
+      "new-permission-or-credential-scope",
+      "privacy-boundary-change"
+    ],
+    "forbidden_shortcuts": [
+      "weaken-verification",
+      "skip-required-recovery",
+      "silently-destructive-change",
+      "quota-evasion",
+      "unverified-promotion"
+    ]
+  },
   "limits": {
-    "max_parallel_hosted_lanes": 8,
-    "max_speculative_paths_per_gap": 4,
-    "minimum_verifier_lanes": 1,
-    "target_slot_utilization": 0.85,
+    "max_parallel_hosted_lanes": 18,
+    "reserve_hosted_slots": 2,
+    "max_speculative_paths_per_gap": 18,
+    "minimum_verifier_lanes": 4,
+    "target_slot_utilization": 0.90,
     "maximum_duplicate_work_fraction": 0.05,
     "maximum_queue_minutes": 5
   },
@@ -23,7 +56,7 @@
       "name": "github-hosted-x64",
       "kind": "github-actions",
       "capabilities": ["build", "git", "network", "python", "test", "x86_64"],
-      "capacity": 8,
+      "capacity": 16,
       "ephemeral": true,
       "authority": "repository"
     },
@@ -63,44 +96,32 @@
     }
   ],
   "candidate_paths": [
-    {
-      "name": "safe-x64",
-      "posture": "safe",
-      "runner": "ubuntu-latest",
-      "suite": "core",
-      "requires": ["python", "test", "x86_64"],
-      "weight": 100
-    },
-    {
-      "name": "adventurous-x64",
-      "posture": "adventurous",
-      "runner": "ubuntu-latest",
-      "suite": "broad",
-      "requires": ["python", "test", "x86_64"],
-      "weight": 90
-    },
-    {
-      "name": "independent-verifier-x64",
-      "posture": "verify",
-      "runner": "ubuntu-latest",
-      "suite": "verification",
-      "requires": ["python", "test", "x86_64"],
-      "weight": 80
-    },
-    {
-      "name": "portability-arm64",
-      "posture": "verify",
-      "runner": "ubuntu-24.04-arm",
-      "suite": "portability",
-      "requires": ["arm64", "python", "test"],
-      "weight": 70
-    }
+    {"name": "core-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 140, "shard_index": 0, "shard_count": 4},
+    {"name": "core-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 139, "shard_index": 1, "shard_count": 4},
+    {"name": "core-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 138, "shard_index": 2, "shard_count": 4},
+    {"name": "core-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 137, "shard_index": 3, "shard_count": 4},
+    {"name": "broad-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 130, "shard_index": 0, "shard_count": 6},
+    {"name": "broad-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 129, "shard_index": 1, "shard_count": 6},
+    {"name": "broad-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 128, "shard_index": 2, "shard_count": 6},
+    {"name": "broad-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 127, "shard_index": 3, "shard_count": 6},
+    {"name": "broad-x64-4", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 116, "shard_index": 4, "shard_count": 6},
+    {"name": "broad-x64-5", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 115, "shard_index": 5, "shard_count": 6},
+    {"name": "verify-x64-0", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 125, "shard_index": 0, "shard_count": 6},
+    {"name": "verify-x64-1", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 124, "shard_index": 1, "shard_count": 6},
+    {"name": "verify-x64-2", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 123, "shard_index": 2, "shard_count": 6},
+    {"name": "verify-x64-3", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 122, "shard_index": 3, "shard_count": 6},
+    {"name": "verify-x64-4", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 121, "shard_index": 4, "shard_count": 6},
+    {"name": "verify-x64-5", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 120, "shard_index": 5, "shard_count": 6},
+    {"name": "portability-arm64-0", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "requires": ["arm64", "python", "test"], "weight": 118, "shard_index": 0, "shard_count": 2},
+    {"name": "portability-arm64-1", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "requires": ["arm64", "python", "test"], "weight": 117, "shard_index": 1, "shard_count": 2}
   ],
   "fan_in": {
     "selection": "verified-evidence-score",
     "require_safe_path": true,
     "require_independent_verification": true,
+    "require_cross_architecture_evidence": true,
     "reject_unsafe_or_unauthorized": true,
-    "prefer_lower_cost_when_evidence_is_equivalent": true
+    "prefer_lower-cost-when-evidence-is-equivalent": true,
+    "promotion": "single-verified-path-only"
   }
 }
