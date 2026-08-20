@@ -1,0 +1,27 @@
+{
+  "schema": "aurum-pc-build-baseline-v1",
+  "source": {
+    "repository": "FormatX66/BoxBrain",
+    "workflow": "aurum-pc-v001.yml",
+    "run_id": 32368078169,
+    "run_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32368078169",
+    "head_branch": "agent/aurum-direct-uefi-seed",
+    "head_sha": "7c841adcb05fd7a36c4769e43d606089b2cf5fa5",
+    "observed_at": "2026-08-20T12:31:57Z"
+  },
+  "measurement": {
+    "boundary": "validation-step-start-through-publication-step-complete",
+    "critical_path_seconds": 860,
+    "github_job_seconds_including_setup": 868,
+    "steps_seconds": {
+      "validation": 0,
+      "independent_vm_tool_bootstrap": 33,
+      "iso_build_including_container_dependency_bootstrap": 361,
+      "generic_uefi_install_smoke": 255,
+      "direct_uefi_smoke": 60,
+      "hopper_hp_topology_twin": 109,
+      "artifact_publication": 42
+    }
+  },
+  "provenance": "Durations copied from the completed GitHub Actions job and step timestamps; no values are estimated."
+}

@@ -10,6 +10,8 @@ on:
       - 'agent/**'
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
+      - '.github/workflows/aurum-builder.yml'
+      - 'Projects/AurumBuild/**'
       - 'Projects/AurumPC/**'
       - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
@@ -21,111 +23,163 @@ concurrency:
   group: aurum-pc-v001-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  BUILDER_REPOSITORY: ghcr.io/formatx66/boxbrain/aurum-builder
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    outputs:
+      pipeline_started_epoch: ${{ steps.validation.outputs.pipeline_started_epoch }}
+      validation_seconds: ${{ steps.validation.outputs.validation_seconds }}
     steps:
       - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 1
-
-      - name: Validate bounded runtime sources before expensive build
+          fetch-depth: 0
+      - name: Fast validation before expensive build
+        id: validation
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile \
-            Projects/AurumPC/aurum_arcade.py \
-            Projects/AurumPC/aurum_autonomy.py \
-            Projects/AurumPC/aurum_bootstrap.py \
-            Projects/AurumPC/aurum_console.py \
-            Projects/AurumPC/aurum_control_plane.py \
-            Projects/AurumPC/aurum_desktop.py \
-            Projects/AurumPC/aurum_desktop_runtime.py \
-            Projects/AurumPC/aurum_display_runtime.py \
-            Projects/AurumPC/aurum_driver_synthesis.py \
-            Projects/AurumPC/aurum_echo_native.py \
-            Projects/AurumPC/aurum_gpt_trait.py \
-            Projects/AurumPC/aurum_gui_runtime.py \
-            Projects/AurumPC/aurum_hardware.py \
-            Projects/AurumPC/aurum_hopper_gui.py \
-            Projects/AurumPC/aurum_installer.py \
-            Projects/AurumPC/aurum_network.py \
-            Projects/AurumPC/aurum_runtime_update.py \
-            Projects/AurumPC/aurum_time.py \
-            Projects/AurumPC/aurum_traits.py \
-            Projects/AurumPC/aurum_wifi_diag.py \
-            Projects/AurumPC/aurum_wifi_recovery.py \
-            Projects/AurumPC/aurum_workspace.py \
-            Projects/Codelation/seed/codelation_seed.py
+          started="$(date +%s)"
+          python3 -m py_compile Projects/AurumBuild/build_acceleration.py
+          python3 -m compileall -q \
+            Projects/AurumBuild Projects/AurumPC Projects/Codelation
           python3 -m json.tool Projects/AurumPC/pc01_autonomy_policy.json >/dev/null
+          python3 -m json.tool Projects/AurumVirtualLab/hp-physical-twin-v1.json >/dev/null
+          python3 -m json.tool Projects/AurumBuild/baselines/pc-v001-before-builder.json >/dev/null
+          python3 -m json.tool Projects/Codelation/autobuild/capacity_mesh_policy.json >/dev/null
           sh -n Projects/AurumPC/build-iso.sh
+          bash -n Projects/AurumBuild/verify-builder.sh
           bash -n Projects/AurumVirtualLab/qemu-pc-smoke.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
+          python3 -m unittest discover -s Projects/AurumBuild/tests -v
           python3 -m unittest discover -s Projects/AurumPC/tests -v
-          grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
-          grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
-          grep -q 'network-status | wifi-setup | wifi-reconnect' Projects/AurumPC/aurum_console.py
-          grep -q 'runtime-status | runtime-sync' Projects/AurumPC/aurum_console.py
-          grep -q 'autonomy-status | autonomy-cycle' Projects/AurumPC/aurum_console.py
-          grep -q 'driver-status | driver-cycle' Projects/AurumPC/aurum_console.py
-          grep -q 'gui-status | gui-start | gui-stop' Projects/AurumPC/aurum_console.py
-          grep -q 'install confirm ERASE-CODE' Projects/AurumPC/aurum_console.py
-          grep -q 'internal_disk_writes.*False' Projects/AurumPC/aurum_hardware.py
-          grep -q 'preserve_current_removable_boot.*True' Projects/AurumPC/aurum_hardware.py
-          grep -q 'AURUM_WIFI_DIAG' Projects/AurumPC/aurum_bootstrap.py
-          grep -q 'recover_existing_wifi_driver' Projects/AurumPC/aurum_bootstrap.py
-          grep -q 'synchronize_clock' Projects/AurumPC/aurum_bootstrap.py
-          grep -q '_launch_installed_autonomy' Projects/Codelation/seed/codelation_seed.py
-          grep -q 'aurum_driver_synthesis.py' Projects/AurumPC/aurum_autonomy.py
-          grep -q 'load_synthesized_modules.*false' Projects/AurumPC/pc01_autonomy_policy.json
-          grep -q '"machine_display_name": "Hopper"' Projects/AurumPC/pc01_autonomy_policy.json
-          grep -q '"auto_local_echo_display": false' Projects/AurumPC/pc01_autonomy_policy.json
-          grep -q 'Every fourth return leaves a temporary echo well' Projects/AurumPC/aurum_arcade.py
-          grep -q 'aurum_arcade.py' Projects/AurumPC/aurum_gui_runtime.py
-          grep -q 'aurum_desktop_runtime.py' Projects/AurumPC/aurum_gui_runtime.py
-          grep -q 'aurum_desktop.py' Projects/AurumPC/aurum_runtime_update.py
-          grep -q 'aurum_traits.py' Projects/AurumPC/aurum_runtime_update.py
-          grep -q 'aurum_gpt_trait.py' Projects/AurumPC/aurum_runtime_update.py
-          grep -q 'aurum_control_plane.py' Projects/AurumPC/aurum_runtime_update.py
-          grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_desktop_runtime.py
-          grep -q 'Ctrl+Alt+F1 recovery' Projects/AurumPC/aurum_desktop.py
-          grep -q 'xserver-xorg-input-libinput' Projects/AurumPC/build-iso.sh
-          grep -q 'SDL_VIDEODRIVER=kmsdrm' Projects/AurumPC/aurum_display_runtime.py
-          grep -q 'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"' Projects/AurumPC/aurum_display_runtime.py
-          grep -q 'physical_echo_activation' Projects/AurumPC/aurum_runtime_update.py
-          grep -q 'PROOF_SCHEMA = "aurum.hopper.echo-proof.v1"' Projects/AurumPC/aurum_echo_native.py
-          grep -q 'keyboard_path_available' Projects/AurumPC/aurum_echo_native.py
-          grep -q 'pointer_path_available' Projects/AurumPC/aurum_echo_native.py
-          grep -q 'host_actuation.*False' Projects/AurumPC/aurum_echo_native.py
+          python3 Projects/Codelation/run_capacity_mesh_cycle.py --audit >/dev/null
+          finished="$(date +%s)"
+          duration="$((finished - started))"
+          python3 Projects/AurumBuild/build_acceleration.py stage \
+            --name validation \
+            --started-epoch "$started" \
+            --finished-epoch "$finished" \
+            --source-sha '${{ github.sha }}' \
+            --output validation.json
+          echo "pipeline_started_epoch=${started}" >> "$GITHUB_OUTPUT"
+          echo "validation_seconds=${duration}" >> "$GITHUB_OUTPUT"
+      - name: Publish validation timing evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pc-validation-${{ github.sha }}
+          path: validation.json
+          if-no-files-found: error
+          retention-days: 7
 
   build-image:
     needs: validate
+    permissions:
+      contents: read
+      packages: read
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    outputs:
+      builder_image: ${{ steps.builder.outputs.image }}
+      iso_sha256: ${{ steps.artifact.outputs.iso_sha256 }}
+      artifact_identity: ${{ steps.artifact.outputs.artifact_identity }}
     steps:
       - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 1
-      - name: Build Aurum PC live ISO once
+          fetch-depth: 0
+      - name: Log in for read-only builder consumption
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull and resolve prepared builder once
+        id: builder
         shell: bash
         run: |
           set -euo pipefail
-          docker info >/dev/null
+          revision="$(python3 Projects/AurumBuild/build_acceleration.py builder-revision)"
+          tag="${BUILDER_REPOSITORY}:git-${revision}"
+          started="$(date +%s)"
+          pulled=false
+          for attempt in $(seq 1 60); do
+            if docker pull "$tag"; then pulled=true; break; fi
+            echo "Prepared builder unavailable (attempt ${attempt}/60); waiting for its workflow."
+            sleep 15
+          done
+          if [ "$pulled" != true ]; then
+            echo "Prepared builder was not published: $tag" >&2
+            exit 1
+          fi
+          image="$(docker image inspect --format '{{index .RepoDigests 0}}' "$tag")"
+          finished="$(date +%s)"
+          case "$image" in
+            "$BUILDER_REPOSITORY"@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "Builder is not an immutable expected digest: $image" >&2; exit 1 ;;
+          esac
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "pull_seconds=$((finished - started))" >> "$GITHUB_OUTPUT"
+      - name: Measure prepared container startup
+        id: startup
+        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ steps.builder.outputs.image }}
+        run: |
+          set -euo pipefail
+          started="$(date +%s)"
+          docker run --rm "$BUILDER_IMAGE" true
+          finished="$(date +%s)"
+          echo "seconds=$((finished - started))" >> "$GITHUB_OUTPUT"
+      - name: Compute content and cache identities
+        id: identity
+        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ steps.builder.outputs.image }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python3 Projects/AurumBuild/build_acceleration.py identity \
+            --source-sha '${{ github.sha }}' \
+            --architecture x86_64 \
+            --builder-image "$BUILDER_IMAGE" \
+            --output evidence/build-identity.json \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Select bounded cache refresh generation
+        id: cache-generation
+        shell: bash
+        run: echo "value=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore compatible live-build package cache
+        id: live-build-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .aurum-cache/live-build
+          key: aurum-livebuild-${{ runner.os }}-${{ runner.arch }}-${{ steps.identity.outputs.live_build_cache_identity }}-${{ steps.cache-generation.outputs.value }}
+          restore-keys: |
+            aurum-livebuild-${{ runner.os }}-${{ runner.arch }}-${{ steps.identity.outputs.live_build_cache_identity }}-
+      - name: Build Aurum PC live ISO once with prepared toolchain
+        id: iso-build
+        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ steps.builder.outputs.image }}
+        run: |
+          set -euo pipefail
+          mkdir -p .aurum-cache/live-build
+          source_date_epoch="$(git show -s --format=%ct '${{ github.sha }}')"
+          started="$(date +%s)"
           docker run --rm --privileged \
+            -e AURUM_LB_CACHE_DIR=/workspace/.aurum-cache/live-build \
+            -e SOURCE_DATE_EPOCH="$source_date_epoch" \
             -v "$PWD:/workspace" \
             -w /workspace \
-            debian:bookworm \
-            sh -lc '
-              set -eu
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                live-build debian-archive-keyring debootstrap \
-                xorriso isolinux syslinux-common squashfs-tools \
-                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
-              lb --version
+            "$BUILDER_IMAGE" \
+            bash -lc '
+              set -euo pipefail
+              bash Projects/AurumBuild/verify-builder.sh
               sh Projects/AurumPC/build-iso.sh
 
               verify_dir=/tmp/aurum-iso-verify
@@ -143,24 +197,47 @@ jobs:
                 | grep -Fq "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py"
               echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha"
             '
+          finished="$(date +%s)"
           test -s dist/Aurum-PC-v0.01-amd64.iso
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
-      - name: Publish immutable image for parallel verification
+          echo "seconds=$((finished - started))" >> "$GITHUB_OUTPUT"
+      - name: Bind unverified artifact to exact inputs
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumBuild/build_acceleration.py artifact \
+            --identity evidence/build-identity.json \
+            --iso dist/Aurum-PC-v0.01-amd64.iso \
+            --cache-hit '${{ steps.live-build-cache.outputs.cache-hit }}' \
+            --pipeline-started-epoch '${{ needs.validate.outputs.pipeline_started_epoch }}' \
+            --validation-seconds '${{ needs.validate.outputs.validation_seconds }}' \
+            --builder-pull-seconds '${{ steps.builder.outputs.pull_seconds }}' \
+            --container-start-seconds '${{ steps.startup.outputs.seconds }}' \
+            --iso-build-seconds '${{ steps.iso-build.outputs.seconds }}' \
+            --output evidence/artifact-manifest.json \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Publish exact unverified image for parallel verification
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: aurum-pc-unverified-${{ github.sha }}
           path: |
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
+            evidence/build-identity.json
+            evidence/artifact-manifest.json
           if-no-files-found: error
           retention-days: 2
 
   generic-uefi-smoke:
     needs: build-image
+    permissions:
+      contents: read
+      packages: read
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - name: Check out exact Aurum source
+      - name: Check out exact Aurum verification source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
@@ -168,40 +245,56 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: aurum-pc-unverified-${{ github.sha }}
-          path: dist
-      - name: Verify image digest before boot
+          path: .
+      - name: Log in for exact builder digest
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generic low-memory UEFI install reboot and self-build smoke
         shell: bash
-        run: sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
-      - name: Install independent VM tooling
-        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ needs.build-image.outputs.builder_image }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
-      - name: Generic UEFI boot and installed-runtime smoke
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
-            dist/Aurum-PC-v0.01-amd64.iso \
-            aurum-pc-qemu.log
-          grep -q 'AURUM_HARDWARE_PROFILE status=ready' aurum-pc-qemu.log
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          docker pull "$BUILDER_IMAGE"
+          started="$(date +%s)"
+          docker run --rm -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
+            bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
+              dist/Aurum-PC-v0.01-amd64.iso aurum-pc-qemu.log
+          finished="$(date +%s)"
+          python3 Projects/AurumBuild/build_acceleration.py verification \
+            --artifact evidence/artifact-manifest.json \
+            --profile generic-uefi-install \
+            --log aurum-pc-qemu.log \
+            --required-marker 'AURUM_HARDWARE_PROFILE status=ready' \
+            --required-marker 'AURUM_INSTALL_FINISHED status=passed' \
+            --required-marker 'AURUM_SELF_BUILD_FINISHED status=passed' \
+            --duration-seconds "$((finished - started))" \
+            --output verification-generic.json
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
       - name: Publish generic boot evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: aurum-pc-generic-evidence-${{ github.sha }}
-          path: aurum-pc-qemu.log
+          path: |
+            aurum-pc-qemu.log
+            verification-generic.json
           if-no-files-found: error
           retention-days: 7
 
   hp-twin-smoke:
     needs: build-image
+    permissions:
+      contents: read
+      packages: read
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - name: Check out exact Aurum source
+      - name: Check out exact Aurum verification source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
@@ -209,51 +302,67 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: aurum-pc-unverified-${{ github.sha }}
-          path: dist
-      - name: Verify image digest before topology test
+          path: .
+      - name: Log in for exact builder digest
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Hopper HP topology and offline-recovery twin
         shell: bash
-        run: sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
-      - name: Install independent VM tooling
-        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ needs.build-image.outputs.builder_image }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
-      - name: HP physical-topology twin preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
-            dist/Aurum-PC-v0.01-amd64.iso \
-            aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' aurum-hp-physical-twin.log
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          docker pull "$BUILDER_IMAGE"
+          started="$(date +%s)"
+          docker run --rm -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
+            bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
+              dist/Aurum-PC-v0.01-amd64.iso aurum-hp-physical-twin.log
+          finished="$(date +%s)"
+          python3 Projects/AurumBuild/build_acceleration.py verification \
+            --artifact evidence/artifact-manifest.json \
+            --profile hopper-hp-topology-twin \
+            --log aurum-hp-physical-twin.log \
+            --required-marker 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' \
+            --required-marker 'AURUM_HP_TWIN_NVME_PRESERVED_OK' \
+            --required-marker 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' \
+            --required-marker 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' \
+            --duration-seconds "$((finished - started))" \
+            --output verification-hp.json
           echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
       - name: Publish HP twin evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: aurum-pc-hp-evidence-${{ github.sha }}
-          path: aurum-hp-physical-twin.log
+          path: |
+            aurum-hp-physical-twin.log
+            verification-hp.json
           if-no-files-found: error
           retention-days: 7
 
   publish-verified-image:
     needs: [build-image, generic-uefi-smoke, hp-twin-smoke]
     runs-on: ubuntu-slim
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Check out verification specification
+      - name: Check out verification and promotion specification
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
-      - name: Download verified image
+      - name: Download verified image candidate
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: aurum-pc-unverified-${{ github.sha }}
-          path: dist
+          path: .
+      - name: Download validation evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: aurum-pc-validation-${{ github.sha }}
+          path: evidence/validation
       - name: Download generic evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -264,16 +373,16 @@ jobs:
         with:
           name: aurum-pc-hp-evidence-${{ github.sha }}
           path: evidence/hp
-      - name: Re-verify immutable image and evidence
+      - name: Enforce digest convergence and mandatory verification
         shell: bash
         run: |
           set -euo pipefail
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
-          grep -q 'AURUM_HARDWARE_PROFILE status=ready' evidence/generic/aurum-pc-qemu.log
-          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' evidence/hp/aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' evidence/hp/aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' evidence/hp/aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' evidence/hp/aurum-hp-physical-twin.log
+          python3 Projects/AurumBuild/build_acceleration.py promote \
+            --artifact evidence/artifact-manifest.json \
+            --evidence evidence/generic/verification-generic.json \
+            --evidence evidence/hp/verification-hp.json \
+            --output evidence/promotion-manifest.json
           cp evidence/generic/aurum-pc-qemu.log .
           cp evidence/hp/aurum-hp-physical-twin.log .
           echo 'AURUM_PC_IMAGE_ALL_VERIFIERS_CONVERGED'
@@ -284,8 +393,41 @@ jobs:
           path: |
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
+            evidence/artifact-manifest.json
+            evidence/promotion-manifest.json
+            evidence/validation/validation.json
+            evidence/generic/verification-generic.json
+            evidence/hp/verification-hp.json
             aurum-pc-qemu.log
             aurum-hp-physical-twin.log
             Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error
           retention-days: 14
+      - name: Record measured critical path after publication
+        id: timing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumBuild/build_acceleration.py timing \
+            --artifact evidence/artifact-manifest.json \
+            --promotion evidence/promotion-manifest.json \
+            --baseline Projects/AurumBuild/baselines/pc-v001-before-builder.json \
+            --pipeline-finished-epoch "$(date +%s)" \
+            --output evidence/pipeline-timing.json \
+            --github-output "$GITHUB_OUTPUT"
+          critical_path="$(python3 -c 'import json; print(json.load(open("evidence/pipeline-timing.json"))["critical_path_seconds"])')"
+          time_saved="$(python3 -c 'import json; print(json.load(open("evidence/pipeline-timing.json"))["time_saved_seconds"])')"
+          speedup="$(python3 -c 'import json; print(json.load(open("evidence/pipeline-timing.json"))["speedup_ratio"])')"
+          {
+            echo '### Aurum PC build acceleration'
+            echo "- Critical path: ${critical_path} seconds"
+            echo "- Time saved vs measured baseline: ${time_saved} seconds"
+            echo "- Speedup ratio: ${speedup}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish machine-readable timing evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pc-timing-${{ github.sha }}
+          path: evidence/pipeline-timing.json
+          if-no-files-found: error
+          retention-days: 30

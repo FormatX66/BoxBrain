@@ -1,0 +1,30 @@
+# Aurum PC ISO construction. Derived from aurum-pc-v001.yml and build-iso.sh.
+ca-certificates
+cpio
+debian-archive-keyring
+debootstrap
+dosfstools
+git
+grub-efi-amd64-bin
+grub-pc-bin
+isolinux
+live-build
+mtools
+squashfs-tools
+syslinux-common
+xorriso
+
+# Aurum x86_64 virtual verification. Derived from the two QEMU smoke scripts.
+ovmf
+parted
+qemu-system-x86
+qemu-utils
+rsync
+
+# Explicit script/runtime tools used by the build and verification contracts.
+bash
+coreutils
+gawk
+grep
+python3
+sed

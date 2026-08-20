@@ -1,0 +1,149 @@
+name: Aurum Prepared Builder
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-builder.yml'
+      - 'Projects/AurumBuild/Dockerfile.builder'
+      - 'Projects/AurumBuild/build_acceleration.py'
+      - 'Projects/AurumBuild/packages.builder.txt'
+      - 'Projects/AurumBuild/verify-builder.sh'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: aurum-builder-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUILDER_REPOSITORY: ghcr.io/formatx66/boxbrain/aurum-builder
+
+jobs:
+  publish-builder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Aurum builder definition
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute immutable builder tag
+        id: reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision="$(python3 Projects/AurumBuild/build_acceleration.py builder-revision)"
+          created="$(git show -s --format=%cI "$revision")"
+          image="${BUILDER_REPOSITORY}:git-${revision}"
+          echo "revision=${revision}" >> "$GITHUB_OUTPUT"
+          echo "created=${created}" >> "$GITHUB_OUTPUT"
+          echo "tag=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Refuse to replace an existing immutable tag
+        id: existing
+        shell: bash
+        env:
+          BUILDER_TAG: ${{ steps.reference.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "$BUILDER_TAG" >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+            echo "Builder already exists and will not be replaced: ${BUILDER_TAG}"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish prepared Aurum builder
+        id: build
+        if: steps.existing.outputs.exists != 'true'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Projects/AurumBuild/Dockerfile.builder
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.reference.outputs.tag }}
+          cache-from: type=gha,scope=aurum-builder-amd64
+          cache-to: type=gha,mode=max,scope=aurum-builder-amd64
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.revision=${{ steps.reference.outputs.revision }}
+            org.opencontainers.image.created=${{ steps.reference.outputs.created }}
+
+      - name: Resolve and verify registry digest
+        id: digest
+        shell: bash
+        env:
+          BUILDER_TAG: ${{ steps.reference.outputs.tag }}
+        run: |
+          set -euo pipefail
+          manifest="$(docker buildx imagetools inspect "$BUILDER_TAG" --format '{{json .Manifest}}')"
+          digest="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["digest"])' <<<"$manifest")"
+          case "$digest" in
+            sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "Invalid registry digest: $digest" >&2; exit 1 ;;
+          esac
+          image="${BUILDER_REPOSITORY}@${digest}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          docker pull "$image"
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            "$image" \
+            bash Projects/AurumBuild/verify-builder.sh
+
+      - name: Record immutable builder evidence
+        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ steps.digest.outputs.image }}
+          BUILDER_REVISION: ${{ steps.reference.outputs.revision }}
+          EXISTED: ${{ steps.existing.outputs.exists }}
+        run: |
+          set -euo pipefail
+          mkdir -p builder-evidence
+          docker run --rm "$BUILDER_IMAGE" \
+            cat /usr/share/aurum-builder/dpkg-versions.txt \
+            > builder-evidence/dpkg-versions.txt
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "schema": "aurum-builder-publication-v1",
+              "builder_image": os.environ["BUILDER_IMAGE"],
+              "builder_revision": os.environ["BUILDER_REVISION"],
+              "existing_immutable_image_reused": os.environ["EXISTED"] == "true",
+              "architecture": "amd64",
+              "toolchain_verified": True,
+          }
+          Path("builder-evidence/builder.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Publish builder evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-builder-evidence-${{ steps.reference.outputs.revision }}
+          path: builder-evidence
+          if-no-files-found: error
+          retention-days: 30

@@ -6,6 +6,7 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 BUILD_ROOT="$SCRIPT_DIR/.build"
 DIST="$REPO_ROOT/dist"
 IMAGE_NAME="Aurum-PC-v0.01-amd64.iso"
+PERSISTENT_CACHE_ROOT=${AURUM_LB_CACHE_DIR:-}
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "build-iso.sh must run as root (live-build uses chroot/mount operations)." >&2
@@ -22,6 +23,19 @@ fi
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
+
+if [ -n "$PERSISTENT_CACHE_ROOT" ]; then
+  case "$PERSISTENT_CACHE_ROOT" in
+    /*) ;;
+    *) echo "AURUM_LB_CACHE_DIR must be an absolute path." >&2; exit 2 ;;
+  esac
+  mkdir -p "$PERSISTENT_CACHE_ROOT" "$BUILD_ROOT/cache"
+  # A reflink is copy-on-write where supported and an ordinary copy otherwise.
+  # Never hard-link a speculative build to trusted cache content: a failed build
+  # must be unable to modify the previously committed cache through an inode.
+  cp -a --reflink=auto "$PERSISTENT_CACHE_ROOT/." "$BUILD_ROOT/cache/"
+  echo "AURUM_LIVE_BUILD_CACHE_STAGED source=$PERSISTENT_CACHE_ROOT"
+fi
 cd "$BUILD_ROOT"
 
 # Physical discovery is intentionally stateless at the root filesystem layer.
@@ -41,6 +55,9 @@ lb config \
   --apt-source-archives false \
   --security true \
   --updates true \
+  --cache true \
+  --cache-indices false \
+  --cache-packages true \
   --linux-packages "linux-image" \
   --linux-flavours "amd64" \
   --bootloaders "syslinux grub-efi" \
@@ -51,6 +68,11 @@ lb config \
   --iso-application "Aurum PC v0.01" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_PC_001"
+
+# live-build 20230502 has no command-line token for an empty stage-cache list:
+# the string "false" is treated as a stage name. Keep only validated package
+# files across runs; never restore a bootstrap/chroot/rootfs stage.
+sed -i 's/^LB_CACHE_STAGES=.*/LB_CACHE_STAGES=""/' config/common
 
 mkdir -p config/package-lists
 cat > config/package-lists/aurum.list.chroot <<'EOF'
@@ -241,4 +263,18 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   cd "$REPO_ROOT"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
+
+if [ -n "$PERSISTENT_CACHE_ROOT" ]; then
+  # Commit reusable packages only after the complete image and sidecar exist.
+  # A failed/speculative build therefore cannot contaminate trusted cache state.
+  # Exclude indices, Contents files, and cached build stages. Debian validates
+  # every restored package against the freshly downloaded signed indices.
+  rsync -a --delete --delete-excluded \
+    --include='/packages.*/' \
+    --include='/packages.*/***' \
+    --exclude='*' \
+    "$BUILD_ROOT/cache/" "$PERSISTENT_CACHE_ROOT/"
+  echo "AURUM_LIVE_BUILD_CACHE_COMMITTED target=$PERSISTENT_CACHE_ROOT"
+fi
+
 ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
