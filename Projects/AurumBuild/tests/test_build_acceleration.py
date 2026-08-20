@@ -206,6 +206,7 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertIn("needs.build-image.outputs.builder_image", pc)
         self.assertIn("live_build_cache_identity", pc)
         self.assertIn("AURUM_PC_ISO_PROVENANCE verified=true", pc)
+        self.assertNotIn("| grep -Fq", pc)
         self.assertNotIn("apt-get install", pc)
 
     def test_live_build_cache_is_copy_on_write_and_committed_only_after_checksum(self) -> None:

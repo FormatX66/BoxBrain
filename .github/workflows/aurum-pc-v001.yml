@@ -192,9 +192,9 @@ jobs:
               image_sha=$(unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py | sha256sum | cut -d " " -f1)
               test "$source_sha" = "$image_sha"
               unsquashfs -cat "$verify_dir/filesystem.squashfs" opt/aurum/aurum_console.py \
-                | grep -Fq "AURUM_PC_READY version=0.01 arch=x86_64"
+                | grep -F "AURUM_PC_READY version=0.01 arch=x86_64" >/dev/null
               unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/systemd/system/aurum-pc-serial.service \
-                | grep -Fq "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py"
+                | grep -F "ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py" >/dev/null
               echo "AURUM_PC_ISO_PROVENANCE verified=true source_sha=$source_sha"
             '
           finished="$(date +%s)"
