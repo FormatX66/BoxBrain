@@ -1,0 +1,148 @@
+name: Aurum Hopper Echo Physical Proof Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-hopper-echo-proof-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-hopper-echo-physical-proof-windows
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    name: Read Hopper proof from authorized workstation
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Probe read-only Hopper endpoint
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          $resultDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+          $out = Join-Path $resultDir ("hopper-echo-proof-windows-$env:GITHUB_RUN_ID.json")
+          $attempts = [System.Collections.Generic.List[object]]::new()
+          $endpoint = $null
+          $first = $null
+
+          function Read-Proof([string]$Url) {
+            try {
+              $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 4
+              $obj = $response.Content | ConvertFrom-Json
+              return [ordered]@{ ok=$true; status=[int]$response.StatusCode; proof=$obj; error=$null }
+            } catch {
+              return [ordered]@{ ok=$false; status=$null; proof=$null; error=$_.Exception.Message }
+            }
+          }
+
+          for ($round = 1; $round -le 5 -and -not $endpoint; $round++) {
+            foreach ($hostName in @('hopper.local','pc-01.local','hopper','pc-01')) {
+              $url = "http://${hostName}:8767/proof"
+              $probe = Read-Proof $url
+              $attempts.Add([ordered]@{ round=$round; url=$url; http_status=$probe.status; error=$probe.error })
+              if ($probe.ok -and [string]$probe.proof.schema -eq 'aurum.hopper.echo-proof.v1') {
+                $endpoint = $url
+                $first = $probe.proof
+                break
+              }
+            }
+            if (-not $endpoint) { Start-Sleep -Seconds 6 }
+          }
+
+          $second = $null
+          if ($endpoint) {
+            Start-Sleep -Seconds 3
+            $secondProbe = Read-Proof $endpoint
+            if ($secondProbe.ok -and [string]$secondProbe.proof.schema -eq 'aurum.hopper.echo-proof.v1') {
+              $second = $secondProbe.proof
+            }
+          }
+
+          $ready = $false
+          $frameProgress = $null
+          $proof = if ($second) { $second } elseif ($first) { $first } else { $null }
+          if ($first -and $second) {
+            $firstFrames = $first.echo.frames_presented
+            $secondFrames = $second.echo.frames_presented
+            $progressed = ($null -ne $firstFrames -and $null -ne $secondFrames -and [int64]$secondFrames -gt [int64]$firstFrames)
+            $frameProgress = [ordered]@{
+              first_frames_presented = $firstFrames
+              second_frames_presented = $secondFrames
+              progressed = [bool]$progressed
+              sample_interval_seconds = 3
+            }
+            $resolution = @($second.echo.physical_resolution)
+            $resolutionValid = ($resolution.Count -eq 2 -and [int64]$resolution[0] -gt 0 -and [int64]$resolution[1] -gt 0)
+            $ready = [bool](
+              $second.ready -eq $true -and
+              $second.machine.authorized_exact_hopper -eq $true -and
+              [string]$second.machine.display_name -eq 'Hopper' -and
+              [string]$second.machine.configured_hostname -eq 'hopper' -and
+              $second.display.ready -eq $true -and
+              $second.display.physical_display -eq $true -and
+              [string]$second.display.status -eq 'running' -and
+              $second.echo.ready -eq $true -and
+              [string]$second.echo.status -eq 'running' -and
+              [string]$second.echo.game -eq 'Echo Rally' -and
+              $second.echo.process_running -eq $true -and
+              $second.echo.fullscreen -eq $true -and
+              -not [string]::IsNullOrWhiteSpace([string]$second.echo.video_driver) -and
+              $resolutionValid -and
+              $progressed -and
+              $second.input.keyboard_path_available -eq $true -and
+              $second.input.pointer_path_available -eq $true
+            )
+          }
+
+          $payload = [ordered]@{
+            schema = 'aurum-hopper-echo-external-proof-v1'
+            state = if ($ready) { 'READY' } elseif ($endpoint) { 'HOPPER_REPORTED_NOT_READY' } else { 'NO_FRESH_HOPPER_PROOF' }
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            runner_host = $env:COMPUTERNAME
+            runner_name = $env:RUNNER_NAME
+            endpoint = $endpoint
+            ready = [bool]$ready
+            attempts = @($attempts)
+            proof = $proof
+            frame_progress = $frameProgress
+          }
+          $payload | ConvertTo-Json -Depth 14 | Set-Content -LiteralPath $out -Encoding UTF8
+          Get-Content -LiteralPath $out -Raw
+
+      - name: Commit external proof receipt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $env:GITHUB_WORKSPACE
+          git config user.name 'aurum-hopper-proof[bot]'
+          git config user.email 'aurum-hopper-proof@users.noreply.github.com'
+          git add -- 'Projects/AurumBridge/results/hopper-echo-proof-windows-*.json'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          git commit -m 'Record Hopper Echo physical proof from workstation [skip ci]'
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            git pull --rebase origin main
+            if ($LASTEXITCODE -ne 0) { throw 'Hopper proof rebase failed.' }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+          throw 'Hopper proof push failed.'
