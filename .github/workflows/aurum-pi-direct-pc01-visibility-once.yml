@@ -1,0 +1,56 @@
+name: Aurum Direct Pi PC-01 Visibility Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi-direct-pc01-visibility-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-direct-pi-pc01-visibility-once
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe PC-01 from self-hosted Linux node
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Run visibility probe and commit receipt
+        shell: bash
+        run: |
+          set -u
+          echo AURUM_DIRECT_PI_PC01_PROBE
+          host="$(hostname)"
+          observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          addresses="$(ip -brief addr 2>&1 || true)"
+          pingout="$(ping -c 3 pc-01.local 2>&1 || true)"
+          neigh="$(ip neigh 2>&1 || true)"
+          mkdir -p Projects/AurumBridge/results
+          out="Projects/AurumBridge/results/direct-pi-pc01-visibility-${GITHUB_RUN_ID}.txt"
+          {
+            echo "schema=aurum-direct-pi-pc01-visibility-v1"
+            echo "host=$host"
+            echo "observed_at=$observed"
+            echo "--- addresses ---"
+            printf '%s\n' "$addresses"
+            echo "--- ping pc-01.local ---"
+            printf '%s\n' "$pingout"
+            echo "--- ip neigh ---"
+            printf '%s\n' "$neigh"
+          } | tee "$out"
+          git config user.name 'aurum-direct-pi-probe[bot]'
+          git config user.email 'aurum-direct-pi-probe@users.noreply.github.com'
+          git add -- "$out"
+          git commit -m "Record direct Pi PC-01 visibility probe [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
