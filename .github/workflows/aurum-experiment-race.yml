@@ -4,8 +4,18 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows:
+      - StateWeave Experimental
+      - Adaptive Kernel Experimental
+      - StateWeave Adaptive Kernel
+    types:
+      - completed
+  repository_dispatch:
+    types:
+      - aurum-experiment-frontier
   schedule:
-    - cron: '17 */12 * * *'
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
