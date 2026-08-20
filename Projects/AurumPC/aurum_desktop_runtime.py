@@ -361,8 +361,13 @@ class HopperDesktopRuntime:
             _atomic_json(self.state_path, result)
             return result
         current = self.status()
+        touchpad = _touchpad_present()
         if current["status"] == "running":
-            return current
+            if not touchpad or current.get("mode") == "x11-vt2":
+                return current
+            # Pixels are healthy, but a laptop touchpad needs libinput translation.
+            # Restart the presentation surface on X11 without touching tty1.
+            self._clear_desktop()
         if self._echo_owns_vt2():
             return {"schema": SCHEMA, "status": "refused", "reason": "vt2-owned-by-echo", "machine": "Hopper"}
         if os.geteuid() != 0:
@@ -387,7 +392,6 @@ class HopperDesktopRuntime:
         python = shutil.which("python3") or sys.executable
         self._clear_desktop()
 
-        touchpad = _touchpad_present()
         xdeps: dict[str, Any] = {}
         if touchpad:
             ready, xdeps = self._try_x11(
