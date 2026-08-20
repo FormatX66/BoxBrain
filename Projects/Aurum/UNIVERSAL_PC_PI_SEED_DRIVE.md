@@ -1,97 +1,169 @@
-# Aurum Universal PC + Pi Seed Drive
+# Aurum Universal Boot Seed
 
-## Goal
+## North-star goal
 
-Make one physical USB drive boot Aurum on both:
+Build **one physical Aurum boot drive that can carry the seed to as many supported machines and architectures as practical**.
+
+Informal shorthand: **one boot drive to rule them all**.
+
+The drive is not one monolithic OS image. It is a self-describing multi-architecture seed carrier with multiple boot frontends and machine-specific phenotype payloads behind one shared semantic Aurum lineage.
+
+When inserted into a supported machine, the boot firmware sees the frontend it understands, Aurum identifies the machine/architecture, selects or materializes the appropriate phenotype, and preserves all machine-specific state under that node's identity.
+
+The first two physical targets are:
 
 - x86-64 UEFI PCs such as Hopper
 - Raspberry Pi 4 ARM64
 
-The drive is a multi-architecture seed carrier, not one shared machine image. Each machine boots its own architecture-specific kernel/root while inheriting the same Aurum semantic seed, lineage, recovery metadata, and shared capability definitions.
+They are the beginning of the universal carrier, not its final scope.
 
-## Why this is feasible
+## Architectural rule
 
-A single FAT32 boot partition can carry both boot conventions without conflict:
+**One seed. Many boot frontends. Many phenotypes. One lineage.**
 
-- x86-64 UEFI removable-media loader at `EFI/BOOT/BOOTX64.EFI`
-- Raspberry Pi boot files such as `config.txt`, firmware/device-tree files, and an ARM64 kernel image
+Architecture-specific kernels, firmware helpers, device trees, bootloaders, drivers, and compatibility roots are implementation material. The durable identity is the shared Aurum seed, capability semantics, provenance, recovery data, lineage, and construction knowledge.
 
-The remainder of the drive keeps architecture-specific system payloads separate.
+A machine must never be forced to consume another architecture's payload merely because both live on the same drive.
 
-## Proposed layout
+## Target boot families
 
-1. `AURUM_BOOT` — FAT32, shared boot partition
-   - `EFI/BOOT/BOOTX64.EFI` for x86-64 UEFI
-   - x86 GRUB/config/kernel/initrd references
-   - Raspberry Pi 4 firmware/config/device-tree/ARM64 kernel boot files
-   - architecture-neutral seed manifest and generation metadata
+The carrier should be extensible rather than hard-coded to only two machines. Candidate boot families include:
 
-2. `AURUM_X64` — x86-64 Aurum root/live payload
-   - Hopper/PC compatibility substrate
-   - never mounted as Pi root
+- x86-64 UEFI
+- x86 legacy BIOS where still useful
+- ARM64 UEFI systems
+- Raspberry Pi firmware boot
+- additional ARM boards with board-specific firmware/device-tree adapters
+- future architectures such as RISC-V when stable boot/runtime support is available
 
-3. `AURUM_ARM64` — Raspberry Pi 4 Aurum root payload
-   - Pi-specific compatibility substrate
-   - never mounted as x86 root
+Supporting a new platform means adding a bounded boot adapter plus phenotype construction knowledge, not creating a separate Aurum identity.
 
-4. `AURUM_SEED` — architecture-neutral lineage/state carrier
+No claim is made that one drive can boot literally every historical computer. The north-star requirement is that **one physical carrier should boot every Aurum-supported platform whose firmware can reasonably consume that carrier**.
+
+## Shared boot-partition concept
+
+A shared FAT-compatible boot area can contain non-conflicting boot conventions side by side, for example:
+
+- `EFI/BOOT/BOOTX64.EFI` for x86-64 UEFI removable media
+- future architecture-specific UEFI removable loaders where appropriate
+- Raspberry Pi boot files such as `config.txt`, firmware/device-tree files, and ARM64 kernel material
+- architecture-neutral seed manifest and generation metadata
+
+Firmware selects what it understands; Aurum then selects the matching phenotype.
+
+## Proposed logical layout
+
+1. `AURUM_BOOT` — shared boot/front-door partition
+   - architecture/firmware-specific boot adapters
+   - minimal discovery/bootstrap code
+   - generation selector and recovery entry
+   - architecture-neutral seed manifest
+
+2. `AURUM_PAYLOADS` — architecture/board phenotype store
+   - x86-64 payload
+   - ARM64/Pi payload
+   - future platform payloads
+   - each payload independently replaceable and checksummed
+
+3. `AURUM_SEED` — architecture-neutral lineage carrier
    - Codelation seed
    - trait/TR8 definitions
+   - construction knowledge
    - generation manifests
    - checksums/provenance
    - recovery metadata
-   - optional immutable first-playable Echo Rally ancestry
+   - immutable historical ancestry such as first-playable Echo Rally
 
-5. optional `AURUM_STATE` — explicitly versioned writable state
-   - machine-specific state stored under node identity
-   - Hopper and BBPI4 must not overwrite each other's machine model/state
+4. `AURUM_STATE` — versioned writable state
+   - namespaced by node identity
+   - hardware models
+   - local generation evidence
+   - user-approved local personalization
+   - never allow one node to overwrite another node's machine state
+
+The physical implementation may initially use separate partitions for x86 and ARM roots if that is simpler/recoverable. The logical contract above matters more than the exact partition count.
 
 ## Boot behavior
 
-### On an x86-64 PC
+### x86-64 PC
 
-UEFI finds the removable-media x64 loader under `EFI/BOOT/BOOTX64.EFI`. It boots the x86 Aurum payload and ignores the Pi boot files.
+UEFI finds the removable x64 loader, loads the x86 bootstrap, identifies the machine, then boots/materializes the x86 Aurum phenotype. Pi/other-platform files are ignored.
 
-### On Raspberry Pi 4
+### Raspberry Pi 4
 
-The Pi EEPROM/firmware sees the FAT boot partition, reads the Pi boot configuration, selects the ARM64 kernel/root payload, and ignores the x86 UEFI loader.
+Pi firmware reads its boot files, loads the ARM64 bootstrap and Pi device-tree/firmware material, identifies BBPI4, then boots/materializes the Pi phenotype. x86 boot material is ignored.
 
-The Pi must already permit USB mass-storage boot in its EEPROM boot order. Do not change EEPROM configuration until the current value is inventoried and a reversible plan is recorded.
+The Pi must already permit the relevant boot medium in EEPROM `BOOT_ORDER`; persistent EEPROM changes remain gated until current configuration is inventoried and rollback is known.
 
-## Important constraint
+### Future supported machine
 
-The current PC seed is produced as an amd64 ISO-hybrid image. Raw-writing that ISO consumes the drive as an x86-focused image layout. Therefore the existing drive cannot simply have Pi files copied onto it reliably and be called universal.
+Its firmware consumes the appropriate frontend. If the seed already contains a compatible phenotype, it boots it. If Aurum has sufficient construction knowledge but no ready phenotype, the long-term design allows the seed to materialize/cache one using an authorized build path, then record that adaptation into lineage.
 
-The universal seed should be rebuilt as a deliberate partitioned disk image from the x86 and ARM artifacts. Converting the currently plugged PC seed drive will require rewriting its partition table/content after the exact device is identified and explicitly authorized.
+## Discovery before phenotype
+
+The universal carrier should progressively minimize assumptions before machine identification. Early bootstrap should determine only what is needed to choose a safe next stage, such as:
+
+- CPU architecture
+- firmware/boot family
+- board/system identity
+- available memory
+- storage topology
+- display/input availability
+- network capability
+- known-good hardware compatibility path
+
+Missing facts are blockers, not values to invent.
+
+## Current constraint
+
+The present Hopper seed is produced as an amd64 ISO-hybrid. Raw-writing that ISO consumes the drive as an x86-focused image layout, so it cannot simply have Pi files copied onto it and reliably become universal.
+
+The universal carrier must be intentionally constructed as a disk image containing all required frontends/payloads and the shared seed/state contracts.
 
 ## Build sequence
 
-1. Preserve current PC seed artifact and checksum.
-2. Complete read-only inventory of the plugged seed drive and BBPI4.
-3. Build ARM64 Pi seed independently.
-4. Build a universal disk-image constructor that creates the layout above.
-5. Validate the image without touching physical media:
-   - GPT/partition structure
-   - FAT boot contents
-   - x86 UEFI loader present
-   - Pi firmware/config/kernel present
+1. Preserve the current working PC seed artifact/checksum and Hopper proof.
+2. Complete read-only inventory of the actual plugged seed drive and BBPI4.
+3. Build the ARM64/Pi phenotype independently.
+4. Build a universal-carrier constructor rather than architecture-specific raw writers.
+5. Validate the image off-media:
+   - partition/filesystem structure
+   - boot adapters present for each declared platform
    - architecture payload separation
-   - seed checksums and node-state isolation
+   - shared seed checksums/provenance
+   - node-state isolation
+   - recovery path
 6. Flash only the explicitly identified seed drive.
-7. Physically prove x86 boot on Hopper.
-8. Physically prove ARM64 boot on BBPI4.
-9. Keep both physical proof receipts in the same generation manifest.
+7. Re-prove x86 boot on Hopper.
+8. Prove ARM64 boot on BBPI4.
+9. Record both physical proofs in the same generation manifest.
+10. Add future platforms by boot-adapter/phenotype modules without replacing the universal seed identity.
 
-## Recovery
+## Self-updating carrier
 
-A universal seed must never make one architecture's failure destroy the other's boot payload. Architecture-specific roots are independently replaceable, while the shared seed manifest records ancestry and last-known-good generations.
+Long term, the drive should be capable of safely refreshing itself while preserving known-good generations:
 
-If one phenotype fails, the drive remains usable to boot/recover the other architecture where hardware permits.
+observe machine -> identify supported boot family -> select/materialize phenotype -> validate -> cache signed/checksummed generation -> preserve rollback -> contribute scoped evidence to lineage
+
+A failed platform adaptation must not damage payloads that already boot other machines.
+
+## Recovery rule
+
+The universal seed must remain useful even when one phenotype fails. Boot adapters, phenotype payloads, shared seed data, and machine state are independently recoverable.
+
+A bad ARM candidate must not break x86 recovery. A bad x86 candidate must not destroy Pi boot. No new platform is allowed to overwrite the last known-good universal front door without a tested rollback.
+
+## Success levels
+
+- **U0:** same physical drive boots Hopper x86-64 and BBPI4 ARM64.
+- **U1:** same drive carries a shared Gen1 Aurum shell/traits across both while keeping machine-specific lineage separated.
+- **U2:** new supported hardware can be added through modular boot adapters/phenotypes without redesigning the whole carrier.
+- **U3:** the seed can safely identify, materialize, validate, cache, and recover machine-specific phenotypes with minimal human intervention.
 
 ## North-star interpretation
 
-This drive is a physical expression of the Aurum genetics model:
+The drive is a physical expression of Aurum's generational genetics:
 
-**one seed, multiple phenotypes.**
+**Preserve the seed; adapt the phenotype to the machine.**
 
-The USB carries stable meaning/evidence/capability; Hopper and BBPI4 materialize different machine-specific implementations from it.
+The user should eventually need to know only one thing: plug in the Aurum seed. The machine-specific boot mechanics are Aurum's problem, not theirs.
