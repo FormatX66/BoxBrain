@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pc01-flash-receipt-v1",
+    "state":  "WAITING",
+    "github_workflow_run":  32316167564,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-20T00:09:19.2605609Z",
+    "data":  {
+                 "candidates":  "",
+                 "head":  "7c841adcb05fd7a36c4769e43d606089b2cf5fa5",
+                 "reason":  "expected-exactly-one-safe-usb",
+                 "count":  0
+             }
+}
