@@ -51,11 +51,60 @@
     "maximum_duplicate_work_fraction": 0.05,
     "maximum_queue_minutes": 5
   },
+  "work_classes": {
+    "container-build": {
+      "architectures": ["x86_64"],
+      "execution_environment": "docker-buildkit",
+      "artifact_role": "immutable-builder-image",
+      "compatibility_identity": ["builder-definition", "base-image-digest", "architecture"]
+    },
+    "cached-build": {
+      "architectures": ["x86_64", "arm64"],
+      "execution_environment": "prepared-container",
+      "artifact_role": "content-addressed-build-output",
+      "compatibility_identity": ["source-or-relevant-source-hash", "architecture", "toolchain-image-digest", "build-configuration", "dependency-definition"]
+    },
+    "unit-test-shard": {
+      "architectures": ["x86_64", "arm64"],
+      "execution_environment": "github-hosted-runner",
+      "artifact_role": "test-evidence"
+    },
+    "verification-shard": {
+      "architectures": ["x86_64", "arm64"],
+      "execution_environment": "github-hosted-runner",
+      "artifact_role": "verification-evidence"
+    },
+    "vm-topology-verification": {
+      "architectures": ["x86_64"],
+      "execution_environment": "qemu-uefi-tcg",
+      "artifact_role": "topology-specific-verification-evidence"
+    },
+    "artifact-convergence": {
+      "architectures": ["multi-architecture"],
+      "execution_environment": "ephemeral-fan-in",
+      "artifact_role": "single-verified-promotion-path"
+    }
+  },
+  "physical_consumers": {
+    "Hopper": {
+      "architecture": "x86_64",
+      "role": "final-physical-evidence-and-generation-propagation",
+      "accepts": "verified-promoted-artifacts-only",
+      "speculative_compilation": false
+    },
+    "BBPI4": {
+      "architecture": "arm64",
+      "role": "physical-arm-seed-and-node-validation",
+      "accepts": "architecture-distinguished-verified-evidence",
+      "speculative_compilation": false,
+      "blocks_hopper": false
+    }
+  },
   "nodes": [
     {
       "name": "github-hosted-x64",
       "kind": "github-actions",
-      "capabilities": ["build", "git", "network", "python", "test", "x86_64"],
+      "capabilities": ["artifact-convergence", "build", "buildkit", "cache", "cached-build", "container-build", "docker", "git", "network", "python", "qemu", "test", "unit-test-shard", "verification-shard", "vm-topology-verification", "x86_64"],
       "capacity": 16,
       "ephemeral": true,
       "authority": "repository"
@@ -63,7 +112,7 @@
     {
       "name": "github-hosted-arm64",
       "kind": "github-actions",
-      "capabilities": ["build", "git", "network", "python", "test", "arm64"],
+      "capabilities": ["arm64", "build", "cache", "git", "network", "python", "test", "unit-test-shard", "verification-shard"],
       "capacity": 2,
       "ephemeral": true,
       "authority": "repository"
@@ -89,31 +138,31 @@
     {
       "name": "BBPI4",
       "kind": "physical-node",
-      "capabilities": ["arm64", "physical-io", "physical-network"],
+      "capabilities": ["arm64", "physical-arm-evidence", "physical-io", "physical-network", "seed-validation"],
       "capacity": 1,
       "availability": "fresh-heartbeat-required",
       "authority": "explicit-local-lane"
     }
   ],
   "candidate_paths": [
-    {"name": "core-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 140, "shard_index": 0, "shard_count": 4},
-    {"name": "core-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 139, "shard_index": 1, "shard_count": 4},
-    {"name": "core-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 138, "shard_index": 2, "shard_count": 4},
-    {"name": "core-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "requires": ["python", "test", "x86_64"], "weight": 137, "shard_index": 3, "shard_count": 4},
-    {"name": "broad-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 130, "shard_index": 0, "shard_count": 6},
-    {"name": "broad-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 129, "shard_index": 1, "shard_count": 6},
-    {"name": "broad-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 128, "shard_index": 2, "shard_count": 6},
-    {"name": "broad-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 127, "shard_index": 3, "shard_count": 6},
-    {"name": "broad-x64-4", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 116, "shard_index": 4, "shard_count": 6},
-    {"name": "broad-x64-5", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "requires": ["python", "test", "x86_64"], "weight": 115, "shard_index": 5, "shard_count": 6},
-    {"name": "verify-x64-0", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 125, "shard_index": 0, "shard_count": 6},
-    {"name": "verify-x64-1", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 124, "shard_index": 1, "shard_count": 6},
-    {"name": "verify-x64-2", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 123, "shard_index": 2, "shard_count": 6},
-    {"name": "verify-x64-3", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 122, "shard_index": 3, "shard_count": 6},
-    {"name": "verify-x64-4", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 121, "shard_index": 4, "shard_count": 6},
-    {"name": "verify-x64-5", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "requires": ["python", "test", "x86_64"], "weight": 120, "shard_index": 5, "shard_count": 6},
-    {"name": "portability-arm64-0", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "requires": ["arm64", "python", "test"], "weight": 118, "shard_index": 0, "shard_count": 2},
-    {"name": "portability-arm64-1", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "requires": ["arm64", "python", "test"], "weight": 117, "shard_index": 1, "shard_count": 2}
+    {"name": "core-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 140, "shard_index": 0, "shard_count": 4},
+    {"name": "core-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 139, "shard_index": 1, "shard_count": 4},
+    {"name": "core-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 138, "shard_index": 2, "shard_count": 4},
+    {"name": "core-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "core", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 137, "shard_index": 3, "shard_count": 4},
+    {"name": "broad-x64-0", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 130, "shard_index": 0, "shard_count": 6},
+    {"name": "broad-x64-1", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 129, "shard_index": 1, "shard_count": 6},
+    {"name": "broad-x64-2", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 128, "shard_index": 2, "shard_count": 6},
+    {"name": "broad-x64-3", "posture": "safe", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 127, "shard_index": 3, "shard_count": 6},
+    {"name": "broad-x64-4", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 116, "shard_index": 4, "shard_count": 6},
+    {"name": "broad-x64-5", "posture": "adventurous", "runner": "ubuntu-latest", "suite": "broad", "work_type": "unit-test-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "test-evidence", "requires": ["python", "test", "unit-test-shard", "x86_64"], "weight": 115, "shard_index": 5, "shard_count": 6},
+    {"name": "verify-x64-0", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 125, "shard_index": 0, "shard_count": 6},
+    {"name": "verify-x64-1", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 124, "shard_index": 1, "shard_count": 6},
+    {"name": "verify-x64-2", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 123, "shard_index": 2, "shard_count": 6},
+    {"name": "verify-x64-3", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 122, "shard_index": 3, "shard_count": 6},
+    {"name": "verify-x64-4", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 121, "shard_index": 4, "shard_count": 6},
+    {"name": "verify-x64-5", "posture": "verify", "runner": "ubuntu-latest", "suite": "verification", "work_type": "verification-shard", "architecture": "x86_64", "execution_environment": "github-hosted-runner", "artifact_role": "verification-evidence", "requires": ["python", "test", "verification-shard", "x86_64"], "weight": 120, "shard_index": 5, "shard_count": 6},
+    {"name": "portability-arm64-0", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "work_type": "verification-shard", "architecture": "arm64", "execution_environment": "github-hosted-runner", "artifact_role": "cross-architecture-evidence", "requires": ["arm64", "python", "test", "verification-shard"], "weight": 118, "shard_index": 0, "shard_count": 2},
+    {"name": "portability-arm64-1", "posture": "verify", "runner": "ubuntu-24.04-arm", "suite": "portability", "work_type": "verification-shard", "architecture": "arm64", "execution_environment": "github-hosted-runner", "artifact_role": "cross-architecture-evidence", "requires": ["arm64", "python", "test", "verification-shard"], "weight": 117, "shard_index": 1, "shard_count": 2}
   ],
   "fan_in": {
     "selection": "verified-evidence-score",

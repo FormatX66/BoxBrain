@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 3
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      source_sha: ${{ steps.source.outputs.sha }}
     steps:
       - name: Check out Aurum trunk
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -43,6 +44,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 Projects/Codelation/run_capacity_mesh_cycle.py --audit
+      - name: Bind mesh to checked-out Aurum source
+        id: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build bounded fan-out matrix
         id: matrix
         shell: bash
@@ -65,7 +70,7 @@ jobs:
       - name: Check out exact Aurum source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: aurum/trunk-v0.01
+          ref: ${{ needs.plan.outputs.source_sha }}
           fetch-depth: 1
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -84,6 +89,11 @@ jobs:
             --suite '${{ matrix.suite }}' \
             --shard-index '${{ matrix.shard_index }}' \
             --shard-count '${{ matrix.shard_count }}' \
+            --work-type '${{ matrix.work_type }}' \
+            --architecture '${{ matrix.architecture }}' \
+            --execution-environment '${{ matrix.execution_environment }}' \
+            --artifact-role '${{ matrix.artifact_role }}' \
+            --source-sha '${{ needs.plan.outputs.source_sha }}' \
             --result 'mesh-results/${{ matrix.name }}.json'
       - name: Publish lane evidence
         if: always()
@@ -100,12 +110,36 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 2
     steps:
-      - name: Enforce verified fan-in boundary
+      - name: Check out exact mesh convergence specification
+        if: needs.plan.result == 'success'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+      - name: Download every independent lane result
+        if: needs.plan.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: aurum-mesh-*-${{ github.run_id }}
+          path: mesh-results
+          merge-multiple: true
+      - name: Enforce evidence-bound fan-in
         shell: bash
         run: |
           set -euo pipefail
           echo "planner=${{ needs.plan.result }}"
           echo "lanes=${{ needs.lane.result }}"
           if [ '${{ needs.plan.result }}' != 'success' ]; then exit 1; fi
+          python3 Projects/Codelation/run_capacity_mesh_cycle.py \
+            --converge-results mesh-results \
+            --source-sha '${{ needs.plan.outputs.source_sha }}' \
+            --output mesh-convergence.json
           if [ '${{ needs.lane.result }}' != 'success' ]; then exit 1; fi
           echo 'AURUM_CAPACITY_MESH_VERIFIED_FAN_IN'
+      - name: Publish convergence evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-mesh-convergence-${{ github.run_id }}
+          path: mesh-convergence.json
+          if-no-files-found: error
+          retention-days: 14

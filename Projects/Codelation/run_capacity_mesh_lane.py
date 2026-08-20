@@ -100,6 +100,11 @@ def main() -> int:
     parser.add_argument("--suite", required=True, choices=("core", "broad", "verification", "portability"))
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--work-type", required=True)
+    parser.add_argument("--architecture", required=True, choices=("x86_64", "arm64"))
+    parser.add_argument("--execution-environment", required=True)
+    parser.add_argument("--artifact-role", required=True)
+    parser.add_argument("--source-sha", required=True)
     parser.add_argument("--result", type=Path)
     args = parser.parse_args()
     if args.shard_count < 1 or args.shard_index < 0 or args.shard_index >= args.shard_count:
@@ -132,16 +137,23 @@ def main() -> int:
             duration = time.monotonic() - started
 
     result = {
-        "schema": "aurum-capacity-mesh-lane-result-v2",
+        "schema": "aurum-capacity-mesh-lane-result-v3",
         "name": args.name,
         "posture": args.posture,
         "suite": args.suite,
+        "work_type": args.work_type,
+        "architecture": args.architecture,
+        "execution_environment": args.execution_environment,
+        "artifact_role": args.artifact_role,
+        "source_sha": args.source_sha,
         "shard_index": args.shard_index,
         "shard_count": args.shard_count,
         "work_item_count": work_item_count,
         "verified": returncode == 0,
         "returncode": returncode,
         "duration_seconds": round(duration, 3),
+        "state_authority": "ephemeral-github-runner",
+        "physical_state_mutated": False,
     }
     print(json.dumps(result, sort_keys=True))
     if args.result is not None:

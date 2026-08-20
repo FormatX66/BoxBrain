@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -19,7 +20,7 @@ from mesh_efficiency import (  # noqa: E402
     nodes_from_policy,
     plan_candidate_paths,
 )
-from run_capacity_mesh_cycle import policy_audit  # noqa: E402
+from run_capacity_mesh_cycle import converge_lane_results, policy_audit  # noqa: E402
 from run_capacity_mesh_lane import full_suite_test_modules, suite_test_modules  # noqa: E402
 
 
@@ -29,6 +30,29 @@ POLICY = ROOT / "autobuild" / "capacity_mesh_policy.json"
 class MeshEfficiencyTests(unittest.TestCase):
     def _policy(self):
         return json.loads(POLICY.read_text(encoding="utf-8"))
+
+    def _lane_results(self, policy, source_sha="a" * 40):
+        return [
+            {
+                "schema": "aurum-capacity-mesh-lane-result-v3",
+                "name": path.name,
+                "posture": path.posture,
+                "suite": path.suite,
+                "work_type": path.work_type,
+                "architecture": path.architecture,
+                "execution_environment": path.execution_environment,
+                "artifact_role": path.artifact_role,
+                "source_sha": source_sha,
+                "shard_index": path.shard_index,
+                "shard_count": path.shard_count,
+                "verified": True,
+                "returncode": 0,
+                "duration_seconds": 1.0,
+                "state_authority": "ephemeral-github-runner",
+                "physical_state_mutated": False,
+            }
+            for path in candidate_paths_from_policy(policy)
+        ]
 
     def test_policy_preserves_safe_and_verifier_paths(self):
         paths = candidate_paths_from_policy(self._policy())
@@ -50,6 +74,25 @@ class MeshEfficiencyTests(unittest.TestCase):
             self.assertIn("shard_index", entry)
             self.assertIn("shard_count", entry)
             self.assertLess(entry["shard_index"], entry["shard_count"])
+            self.assertIn(entry["work_type"], {"unit-test-shard", "verification-shard"})
+            self.assertIn(entry["architecture"], {"x86_64", "arm64"})
+            self.assertFalse(entry["may_mutate_physical_state"])
+
+    def test_policy_registers_build_vm_and_convergence_work_without_duplicate_scheduler(self):
+        policy = self._policy()
+        self.assertEqual(
+            set(policy["work_classes"]),
+            {
+                "container-build",
+                "cached-build",
+                "unit-test-shard",
+                "verification-shard",
+                "vm-topology-verification",
+                "artifact-convergence",
+            },
+        )
+        self.assertFalse(policy["physical_consumers"]["Hopper"]["speculative_compilation"])
+        self.assertFalse(policy["physical_consumers"]["BBPI4"]["blocks_hopper"])
 
     def test_parallel_paths_use_distinct_capacity(self):
         paths = (
@@ -142,6 +185,46 @@ class MeshEfficiencyTests(unittest.TestCase):
         self.assertGreater(audit["duplicate_work_items"], 0)
         self.assertGreater(audit["duplicate_work_fraction"], 0.05)
         self.assertFalse(audit["target_met"])
+
+    def test_evidence_fan_in_distinguishes_arm64_from_x86_64(self):
+        policy = self._policy()
+        convergence = converge_lane_results(
+            policy,
+            self._lane_results(policy),
+            source_sha="a" * 40,
+        )
+        self.assertEqual(convergence["architectures"], ["arm64", "x86_64"])
+        self.assertTrue(convergence["verified"])
+
+    def test_failed_mandatory_verifier_prevents_mesh_convergence(self):
+        policy = self._policy()
+        results = self._lane_results(policy)
+        failed = next(result for result in results if result["posture"] == "verify")
+        failed["verified"] = False
+        failed["returncode"] = 1
+        with self.assertRaisesRegex(ValueError, "mandatory capacity mesh lanes failed"):
+            converge_lane_results(policy, results, source_sha="a" * 40)
+
+    def test_speculative_mesh_lane_cannot_mutate_physical_state(self):
+        policy = self._policy()
+        results = self._lane_results(policy)
+        results[0]["physical_state_mutated"] = True
+        with self.assertRaisesRegex(ValueError, "mutated trusted physical state"):
+            converge_lane_results(policy, results, source_sha="a" * 40)
+
+    def test_arm_evidence_cannot_be_relabelled_as_x86(self):
+        policy = copy.deepcopy(self._policy())
+        arm = next(path for path in policy["candidate_paths"] if "arm64" in path["name"])
+        arm["architecture"] = "x86_64"
+        with self.assertRaisesRegex(ValueError, "ARM runner has non-ARM evidence"):
+            candidate_paths_from_policy(policy)
+
+    def test_lane_cannot_claim_success_with_a_failed_return_code(self):
+        policy = self._policy()
+        results = self._lane_results(policy)
+        results[0]["returncode"] = 1
+        with self.assertRaisesRegex(ValueError, "verification and return code disagree"):
+            converge_lane_results(policy, results, source_sha="a" * 40)
 
     def test_fresh_heartbeat_nodes_can_be_excluded_without_inventing_presence(self):
         policy = self._policy()

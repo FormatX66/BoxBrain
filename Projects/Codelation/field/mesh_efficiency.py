@@ -6,10 +6,21 @@ from typing import Any, Iterable, Mapping, Sequence
 from capacity_mesh import AssignmentPlan, Node, WorkItem, assign_parallel
 
 
-MESH_EFFICIENCY_REVISION = "aurum-mesh-efficiency-v2"
+MESH_EFFICIENCY_REVISION = "aurum-mesh-efficiency-v3"
 _ALLOWED_POSTURES = frozenset({"safe", "adventurous", "verify"})
 _ALLOWED_RUNNERS = frozenset({"ubuntu-latest", "ubuntu-24.04-arm", "windows-latest"})
 _ALLOWED_SUITES = frozenset({"core", "broad", "verification", "portability"})
+_REQUIRED_WORK_TYPES = frozenset(
+    {
+        "container-build",
+        "cached-build",
+        "unit-test-shard",
+        "verification-shard",
+        "vm-topology-verification",
+        "artifact-convergence",
+    }
+)
+_ALLOWED_ARCHITECTURES = frozenset({"x86_64", "arm64", "multi-architecture"})
 
 
 @dataclass(frozen=True)
@@ -22,6 +33,11 @@ class CandidatePath:
     suite: str = "core"
     shard_index: int = 0
     shard_count: int = 1
+    work_type: str = "unit-test-shard"
+    architecture: str = "x86_64"
+    execution_environment: str = "github-hosted-runner"
+    artifact_role: str = "test-evidence"
+    may_mutate_physical_state: bool = False
 
 
 @dataclass(frozen=True)
@@ -38,6 +54,7 @@ class MeshEfficiencySnapshot:
 
 
 def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePath, ...]:
+    validate_work_classes(policy)
     limits = policy.get("limits", {})
     maximum = max(1, int(limits.get("max_speculative_paths_per_gap", 4)))
     raw = policy.get("candidate_paths", ())
@@ -53,6 +70,11 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
         suite = str(item["suite"])
         shard_index = int(item.get("shard_index", 0))
         shard_count = int(item.get("shard_count", 1))
+        work_type = str(item.get("work_type", ""))
+        architecture = str(item.get("architecture", ""))
+        execution_environment = str(item.get("execution_environment", ""))
+        artifact_role = str(item.get("artifact_role", ""))
+        may_mutate_physical_state = bool(item.get("may_mutate_physical_state", False))
         if name in seen_names:
             raise ValueError(f"duplicate candidate path: {name}")
         if posture not in _ALLOWED_POSTURES:
@@ -61,6 +83,18 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
             raise ValueError(f"unsupported runner: {runner}")
         if suite not in _ALLOWED_SUITES:
             raise ValueError(f"unsupported suite: {suite}")
+        if work_type not in _REQUIRED_WORK_TYPES:
+            raise ValueError(f"unsupported work type: {work_type}")
+        if architecture not in _ALLOWED_ARCHITECTURES:
+            raise ValueError(f"unsupported architecture: {architecture}")
+        if not execution_environment or not artifact_role:
+            raise ValueError(f"incomplete work metadata for {name}")
+        if runner == "ubuntu-24.04-arm" and architecture != "arm64":
+            raise ValueError(f"ARM runner has non-ARM evidence: {name}")
+        if runner != "ubuntu-24.04-arm" and architecture == "arm64":
+            raise ValueError(f"ARM evidence is assigned to a non-ARM runner: {name}")
+        if may_mutate_physical_state:
+            raise ValueError(f"hosted candidate may not mutate physical state: {name}")
         if shard_count < 1 or shard_index < 0 or shard_index >= shard_count:
             raise ValueError(f"invalid shard contract for {name}: {shard_index}/{shard_count}")
         shard_key = (runner, suite, shard_index, shard_count)
@@ -75,6 +109,11 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
             suite=suite,
             shard_index=shard_index,
             shard_count=shard_count,
+            work_type=work_type,
+            architecture=architecture,
+            execution_environment=execution_environment,
+            artifact_role=artifact_role,
+            may_mutate_physical_state=may_mutate_physical_state,
         )
         paths.append(path)
         seen_names.add(name)
@@ -89,6 +128,24 @@ def candidate_paths_from_policy(policy: Mapping[str, Any]) -> tuple[CandidatePat
     if verifier_count < minimum_verifiers:
         raise ValueError("mesh policy does not provide enough verifier lanes")
     return tuple(paths)
+
+
+def validate_work_classes(policy: Mapping[str, Any]) -> None:
+    work_classes = policy.get("work_classes", {})
+    if not isinstance(work_classes, Mapping):
+        raise ValueError("mesh work_classes must be a mapping")
+    missing = _REQUIRED_WORK_TYPES - set(str(name) for name in work_classes)
+    if missing:
+        raise ValueError(f"mesh work classes are missing: {sorted(missing)}")
+    for name in sorted(_REQUIRED_WORK_TYPES):
+        definition = work_classes[name]
+        if not isinstance(definition, Mapping):
+            raise ValueError(f"invalid work class: {name}")
+        architectures = {str(value) for value in definition.get("architectures", ())}
+        if not architectures or not architectures.issubset(_ALLOWED_ARCHITECTURES):
+            raise ValueError(f"invalid architecture metadata for work class: {name}")
+        if not definition.get("execution_environment") or not definition.get("artifact_role"):
+            raise ValueError(f"incomplete work class metadata: {name}")
 
 
 def nodes_from_policy(policy: Mapping[str, Any], *, available: Iterable[str] | None = None) -> tuple[Node, ...]:
@@ -168,6 +225,11 @@ def github_matrix_from_policy(policy: Mapping[str, Any]) -> Mapping[str, list[Ma
                 "suite": path.suite,
                 "shard_index": path.shard_index,
                 "shard_count": path.shard_count,
+                "work_type": path.work_type,
+                "architecture": path.architecture,
+                "execution_environment": path.execution_environment,
+                "artifact_role": path.artifact_role,
+                "may_mutate_physical_state": path.may_mutate_physical_state,
             }
             for path in hosted
         ]
@@ -183,4 +245,5 @@ __all__ = [
     "github_matrix_from_policy",
     "nodes_from_policy",
     "plan_candidate_paths",
+    "validate_work_classes",
 ]
