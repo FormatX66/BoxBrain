@@ -1,0 +1,14 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_FAILURE",
+    "github_workflow_run":  32332783544,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-20T04:41:35.3132603Z",
+    "data":  {
+                 "transport":  "usb-c-ssh",
+                 "source_commit":  "030d65f27549b24544e5323511115cd3a83a1ad9",
+                 "reason":  "No ED25519 host key is known for 10.12.194.1 and you have requested strict checking."
+             }
+}
