@@ -130,6 +130,46 @@ def _installed_runtime_sync() -> None:
         )
 
 
+def _launch_installed_autonomy() -> None:
+    """Launch the machine-bound unattended build loop outside the seed timeout."""
+    if not Path("/etc/aurum-installed.json").is_file():
+        return
+    repo_root = Path(__file__).resolve().parents[3]
+    workspace_script = repo_root / "Projects" / "AurumPC" / "aurum_autonomy.py"
+    installed_script = Path("/opt/aurum/aurum_autonomy.py")
+    script = workspace_script if workspace_script.is_file() else installed_script
+    workspace_policy = repo_root / "Projects" / "AurumPC" / "pc01_autonomy_policy.json"
+    installed_policy = Path("/opt/aurum/pc01_autonomy_policy.json")
+    policy = workspace_policy if workspace_policy.is_file() else installed_policy
+    if not script.is_file() or not policy.is_file():
+        print(
+            "AURUM_AUTONOMY_BOOTSTRAP "
+            + json.dumps({"status": "source-or-policy-missing", "script": str(script), "policy": str(policy)}, sort_keys=True)
+        )
+        return
+    state = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
+    try:
+        state.mkdir(parents=True, exist_ok=True)
+        log = (state / "autonomy.log").open("ab", buffering=0)
+        try:
+            subprocess.Popen(
+                [sys.executable, str(script), "run", "--policy", str(policy)],
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=log,
+                close_fds=True,
+                start_new_session=True,
+            )
+        finally:
+            log.close()
+        print("AURUM_AUTONOMY_BOOTSTRAP " + json.dumps({"status": "launched", "policy": str(policy)}, sort_keys=True))
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(
+            "AURUM_AUTONOMY_BOOTSTRAP "
+            + json.dumps({"status": "launch-failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True)
+        )
+
+
 def _installed_wifi_bootstrap() -> None:
     """Use the installed Aurum TTY to recover/configure WiFi without a shell."""
     if not Path("/etc/aurum-installed.json").is_file():
@@ -284,6 +324,7 @@ def main() -> int:
         print(f"state={short(current)} prediction={short(prediction)} result={result}")
         if args.observation == "aurum-x86-ready":
             _installed_runtime_sync()
+            _launch_installed_autonomy()
             _launch_installed_wifi_bootstrap()
     elif args.command == "predict":
         source = state_id(args.observation.encode())
