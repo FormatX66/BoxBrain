@@ -3,7 +3,10 @@
 param(
     [string[]]$PiAddresses = @("10.42.194.1", "10.12.194.1", "192.168.0.194"),
     [string]$PiUser = "kali",
-    [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519")
+    [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519"),
+    [string]$SshExecutable,
+    [string]$ScpExecutable,
+    [string]$UserKnownHostsFile
 )
 
 Set-StrictMode -Version Latest
@@ -12,6 +15,9 @@ $ErrorActionPreference = "Stop"
 if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
     throw "The dedicated BoxBrain SSH identity was not found at $KeyPath."
 }
+if ($PiUser -notmatch '^[a-z_][a-z0-9_-]*$') {
+    throw "The BBPI4 SSH user is not a safe POSIX account name: $PiUser"
+}
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $repositoryRoot "Projects\Codelation"
@@ -19,8 +25,22 @@ if (-not (Test-Path -LiteralPath $source -PathType Container)) {
     throw "Aurum dialogue/live-graph source is missing: $source"
 }
 
-$ssh = Get-Command ssh.exe -CommandType Application -ErrorAction Stop
-$scp = Get-Command scp.exe -CommandType Application -ErrorAction Stop
+$sshPath = if ($SshExecutable) {
+    if (-not (Test-Path -LiteralPath $SshExecutable -PathType Leaf)) {
+        throw "The requested SSH executable was not found: $SshExecutable"
+    }
+    (Resolve-Path -LiteralPath $SshExecutable).Path
+} else {
+    (Get-Command ssh.exe -CommandType Application -ErrorAction Stop).Source
+}
+$scpPath = if ($ScpExecutable) {
+    if (-not (Test-Path -LiteralPath $ScpExecutable -PathType Leaf)) {
+        throw "The requested SCP executable was not found: $ScpExecutable"
+    }
+    (Resolve-Path -LiteralPath $ScpExecutable).Path
+} else {
+    (Get-Command scp.exe -CommandType Application -ErrorAction Stop).Source
+}
 $options = @(
     "-i", $KeyPath,
     "-o", "BatchMode=yes",
@@ -28,10 +48,16 @@ $options = @(
     "-o", "StrictHostKeyChecking=yes",
     "-o", "ConnectTimeout=4"
 )
+if ($UserKnownHostsFile) {
+    if (-not (Test-Path -LiteralPath $UserKnownHostsFile -PathType Leaf)) {
+        throw "The verified SSH known_hosts file was not found: $UserKnownHostsFile"
+    }
+    $options += @("-o", "UserKnownHostsFile=$UserKnownHostsFile")
+}
 
 $selected = $null
 foreach ($address in $PiAddresses) {
-    & $ssh.Source @options "$PiUser@$address" "test -d /opt/boxbrain/codelation || test -d /opt/aurum" 2>$null
+    & $sshPath @options "$PiUser@$address" "test -d /opt/boxbrain/codelation || test -d /opt/aurum" 2>$null
     if ($LASTEXITCODE -eq 0) {
         $selected = $address
         break
@@ -43,13 +69,14 @@ if ($null -eq $selected) {
 
 $target = "$PiUser@$selected"
 $transfer = "/tmp/aurum-reconcile-$([Guid]::NewGuid().ToString('N'))"
+$localRemoteScript = $null
 try {
-    & $ssh.Source @options $target "umask 077; mkdir -p -- '$transfer/Projects'"
+    & $sshPath @options $target "umask 077; mkdir -p -- '$transfer/Projects'"
     if ($LASTEXITCODE -ne 0) { throw "Could not create the bounded BBPI4 staging directory." }
 
-    & $scp.Source @options -r "$source" "${target}:$transfer/Projects/"
+    & $scpPath @options -r "$source" "${target}:$transfer/Projects/"
     if ($LASTEXITCODE -ne 0) { throw "Could not stage the Aurum dialogue/live-graph source on BBPI4." }
-    & $scp.Source @options -r (Join-Path $repositoryRoot "installer") "${target}:$transfer/"
+    & $scpPath @options -r (Join-Path $repositoryRoot "installer") "${target}:$transfer/"
     if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded installer contract on BBPI4." }
 
     $remote = @'
@@ -270,18 +297,30 @@ printf '%s\n' \
   "transfer_cleanup=$transfer_cleanup"
 '@
 
-    $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($remote -replace "`r", "")))
-    $remoteCommand = 'python3 -c ''import base64;open("/tmp/aurum-reconcile.sh","wb").write(base64.b64decode("{0}"))'' && chmod 700 /tmp/aurum-reconcile.sh && /tmp/aurum-reconcile.sh ''{1}'' ''{2}''; rc=$?; rm -f /tmp/aurum-reconcile.sh; exit $rc' -f $payload, $transfer, $PiUser
-    & $ssh.Source @options $target $remoteCommand
+    # Passing this script as a Base64 command-line payload exceeded a fragile
+    # Windows/MSYS/zsh quoting boundary. Transfer the exact bytes as a bounded
+    # temporary file instead, then remove both local and remote copies.
+    $localRemoteScript = Join-Path ([IO.Path]::GetTempPath()) "aurum-reconcile-$([Guid]::NewGuid().ToString('N')).sh"
+    $utf8NoBom = New-Object Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($localRemoteScript, ($remote -replace "`r", ""), $utf8NoBom)
+    & $scpPath @options $localRemoteScript "${target}:$transfer/aurum-reconcile.sh"
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the bounded BBPI4 reconciliation script." }
+
+    $remoteScript = "$transfer/aurum-reconcile.sh"
+    $remoteCommand = "chmod 700 -- $remoteScript && $remoteScript $transfer $PiUser"
+    & $sshPath @options $target $remoteCommand
     if ($LASTEXITCODE -ne 0) {
         throw "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
     }
 }
 finally {
-    & $ssh.Source @options $target "rm -rf -- '$transfer' /tmp/aurum-reconcile.sh" 2>$null
+    & $sshPath @options $target "rm -rf -- '$transfer' /tmp/aurum-reconcile.sh" 2>$null
+    if ($localRemoteScript -and (Test-Path -LiteralPath $localRemoteScript -PathType Leaf)) {
+        Remove-Item -LiteralPath $localRemoteScript -Force -ErrorAction SilentlyContinue
+    }
 }
 
-$evidence = & $ssh.Source @options $target "cat /opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt"
+$evidence = & $sshPath @options $target "cat /opt/boxbrain/codelation/verification/AURUM_LIVE_VERIFY.txt"
 if ($LASTEXITCODE -ne 0) { throw "Could not retrieve reconciled Aurum evidence from BBPI4." }
 $text = ($evidence -join "`n")
 $required = @(

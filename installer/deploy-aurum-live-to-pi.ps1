@@ -3,7 +3,10 @@
 param(
     [string[]]$PiAddresses = @("10.12.194.1", "10.42.194.1", "192.168.0.194"),
     [string]$PiUser = "kali",
-    [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519")
+    [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519"),
+    [string]$SshExecutable,
+    [string]$ScpExecutable,
+    [string]$UserKnownHostsFile
 )
 
 Set-StrictMode -Version Latest
@@ -24,4 +27,7 @@ $arguments = @{
     PiUser = $PiUser
     KeyPath = $KeyPath
 }
+if ($SshExecutable) { $arguments.SshExecutable = $SshExecutable }
+if ($ScpExecutable) { $arguments.ScpExecutable = $ScpExecutable }
+if ($UserKnownHostsFile) { $arguments.UserKnownHostsFile = $UserKnownHostsFile }
 & $reconciler @arguments

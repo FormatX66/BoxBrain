@@ -99,6 +99,43 @@ jobs:
             }
           }
 
+          function Get-OpenSshToolchains {
+            $directories = New-Object System.Collections.Generic.List[string]
+            if ($env:AURUM_OPENSSH_BIN) { $directories.Add($env:AURUM_OPENSSH_BIN) }
+            if ($env:ProgramFiles) { $directories.Add((Join-Path $env:ProgramFiles 'Git\usr\bin')) }
+            Get-Command ssh-keyscan.exe -All -CommandType Application -ErrorAction SilentlyContinue | ForEach-Object {
+              $directories.Add((Split-Path -Parent $_.Source))
+            }
+
+            foreach ($directory in ($directories | Select-Object -Unique)) {
+              $keyscanPath = Join-Path $directory 'ssh-keyscan.exe'
+              $sshPath = Join-Path $directory 'ssh.exe'
+              $scpPath = Join-Path $directory 'scp.exe'
+              if ((Test-Path -LiteralPath $keyscanPath -PathType Leaf) -and
+                  (Test-Path -LiteralPath $sshPath -PathType Leaf) -and
+                  (Test-Path -LiteralPath $scpPath -PathType Leaf)) {
+                [pscustomobject]@{ Keyscan = $keyscanPath; Ssh = $sshPath; Scp = $scpPath }
+              }
+            }
+          }
+
+          function Invoke-Ed25519Keyscan([string]$KeyscanPath, [string]$Address) {
+            $previousErrorActionPreference = $ErrorActionPreference
+            $scanLines = @()
+            $keyscanExitCode = 1
+            try {
+              # OpenSSH writes its identification banner to stderr. Windows
+              # PowerShell turns native stderr into an ErrorRecord when the
+              # workflow-wide preference is Stop, even when keyscan is healthy.
+              $ErrorActionPreference = 'Continue'
+              $scanLines = @(& $KeyscanPath -T 4 -t ed25519 $Address 2>$null)
+              $keyscanExitCode = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $previousErrorActionPreference
+            }
+            [pscustomobject]@{ Lines = $scanLines; ExitCode = $keyscanExitCode }
+          }
+
           $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
             Publish-PiReceipt 'WAITING' @{ reason = 'runner-not-elevated'; transport = 'usb-c-ssh' }
@@ -143,39 +180,68 @@ jobs:
             }
           }
           $knownHostSources = @($knownHostCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -Unique)
-          $trustedKeyBlobs = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+          $trustedPiAliases = @(
+            'BBPI4',
+            'bbpi4',
+            'bbpi4.local',
+            'kali-raspberrypi',
+            'kali-raspberrypi.local',
+            'kali-raspberrypi.mshome.net',
+            '10.42.194.1',
+            '192.168.0.194'
+          )
+          $sshKeygen = Get-Command ssh-keygen.exe -CommandType Application -ErrorAction SilentlyContinue
+          if (-not $sshKeygen) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'ssh-keygen-missing'; transport = 'usb-c-ssh' }
+            Write-Host 'AURUM_PI4_WAITING reason=ssh-keygen-missing transport=usb-c-ssh'
+            exit 0
+          }
+
+          $trustedPiKeyBlobs = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
           foreach ($knownHostSource in $knownHostSources) {
-            Get-Content -LiteralPath $knownHostSource -ErrorAction SilentlyContinue | ForEach-Object {
-              if ($_ -match '(?:^|\s)ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') {
-                [void]$trustedKeyBlobs.Add($Matches[1])
+            foreach ($trustedPiAlias in $trustedPiAliases) {
+              $trustedLines = @(& $sshKeygen.Source -F $trustedPiAlias -f $knownHostSource 2>$null)
+              foreach ($trustedLine in $trustedLines) {
+                if ($trustedLine -match '(?:^|\s)ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') {
+                  [void]$trustedPiKeyBlobs.Add($Matches[1])
+                }
               }
             }
           }
 
-          $keyscan = Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction SilentlyContinue
-          if (-not $keyscan) {
-            Publish-PiReceipt 'WAITING' @{ reason = 'ssh-keyscan-missing'; transport = 'usb-c-ssh' }
-            Write-Host 'AURUM_PI4_WAITING reason=ssh-keyscan-missing transport=usb-c-ssh'
+          $openSshToolchains = @(Get-OpenSshToolchains)
+          if ($openSshToolchains.Count -eq 0) {
+            Publish-PiReceipt 'WAITING' @{ reason = 'ssh-toolchain-missing'; transport = 'usb-c-ssh' }
+            Write-Host 'AURUM_PI4_WAITING reason=ssh-toolchain-missing transport=usb-c-ssh'
             exit 0
           }
 
           $trustedUsbLines = New-Object System.Collections.Generic.List[string]
           $verifiedAddresses = New-Object System.Collections.Generic.List[string]
           $untrustedFingerprints = [ordered]@{}
+          $selectedToolchain = $null
+          $verifiedHostKeyFingerprint = $null
           foreach ($address in $reachable) {
-            $scanLines = @(& $keyscan.Source -T 4 -t ed25519 $address 2>$null)
-            foreach ($scanLine in $scanLines) {
-              if ($scanLine -notmatch '^\S+\s+ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') { continue }
-              $blob = $Matches[1]
-              if ($trustedKeyBlobs.Contains($blob)) {
-                $trustedUsbLines.Add("$address ssh-ed25519 $blob")
-                $verifiedAddresses.Add($address)
-                break
+            foreach ($toolchain in $openSshToolchains) {
+              $scan = Invoke-Ed25519Keyscan $toolchain.Keyscan $address
+              if ($scan.ExitCode -ne 0) { continue }
+              foreach ($scanLine in $scan.Lines) {
+                if ($scanLine -notmatch '^\S+\s+ssh-ed25519\s+([A-Za-z0-9+/=]+)(?:\s|$)') { continue }
+                $blob = $Matches[1]
+                if ($trustedPiKeyBlobs.Contains($blob)) {
+                  $trustedUsbLines.Add("$address ssh-ed25519 $blob")
+                  $verifiedAddresses.Add($address)
+                  $selectedToolchain = $toolchain
+                  $verifiedHostKeyFingerprint = Get-SshSha256Fingerprint $blob
+                  break
+                }
+                if (-not $untrustedFingerprints.Contains($address)) {
+                  $untrustedFingerprints[$address] = Get-SshSha256Fingerprint $blob
+                }
               }
-              if (-not $untrustedFingerprints.Contains($address)) {
-                $untrustedFingerprints[$address] = Get-SshSha256Fingerprint $blob
-              }
+              if ($selectedToolchain) { break }
             }
+            if ($selectedToolchain) { break }
           }
 
           if ($verifiedAddresses.Count -eq 0) {
@@ -184,7 +250,7 @@ jobs:
               transport = 'usb-c-ssh'
               addresses = $reachable
               fingerprints = $untrustedFingerprints
-              trusted_ed25519_key_count = $trustedKeyBlobs.Count
+              trusted_pi_ed25519_key_count = $trustedPiKeyBlobs.Count
               known_hosts_sources = $knownHostSources.Count
             }
             Write-Host "AURUM_PI4_WAITING reason=usb-c-host-key-not-pretrusted addresses=$($reachable -join ',')"
@@ -204,7 +270,13 @@ jobs:
           [IO.File]::WriteAllText($systemKnownHosts, $existingKnownHostsText + $separator + $aliasText + "`r`n", $utf8NoBom)
 
           try {
-            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 -PiAddresses @($verifiedAddresses) -PiUser 'kali' -KeyPath $key 2>&1
+            $evidence = & .\installer\deploy-aurum-live-to-pi.ps1 `
+              -PiAddresses @($verifiedAddresses) `
+              -PiUser 'kali' `
+              -KeyPath $key `
+              -SshExecutable $selectedToolchain.Ssh `
+              -ScpExecutable $selectedToolchain.Scp `
+              -UserKnownHostsFile $systemKnownHosts 2>&1
             $text = ($evidence | Out-String)
             if ($text -notmatch 'AURUM_GOLD_SEED_RECONCILED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-reconciled-marker' }
             if ($text -notmatch 'AURUM_LIVE_VERIFIED') { throw 'AURUM_PI4_VERIFY_FAILURE reason=missing-live-verified-marker' }
@@ -223,9 +295,11 @@ jobs:
               peer_self_test_verified = $true
               gold_seed_preserved = $true
               host_key_pretrusted = $true
+              host_key_fingerprint = $verifiedHostKeyFingerprint
+              ssh_executable = $selectedToolchain.Ssh
               source_commit = $env:GITHUB_SHA
             }
-            Write-Host "AURUM_PI4_SEED_OK transport=usb-c-ssh address=$address architecture=arm64 seed_sha256=$seedSha"
+            Write-Host "AURUM_PI4_SEED_OK transport=usb-c-ssh address=$address architecture=arm64 seed_sha256=$seedSha host_key_fingerprint=$verifiedHostKeyFingerprint"
           } catch {
             $message = $_.Exception.Message
             Publish-PiReceipt 'PI4_SEED_FAILURE' @{ reason = $message; transport = 'usb-c-ssh'; host_key_pretrusted = $true; source_commit = $env:GITHUB_SHA }
