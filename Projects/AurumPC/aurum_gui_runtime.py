@@ -14,10 +14,11 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum-pc-gui-runtime-v2"
+SCHEMA = "aurum-pc-gui-runtime-v3"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
-DEFAULT_RUN = Path("/run/aurum")
+DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
+DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_PORT = 8765
 DEFAULT_ARCADE_PORT = 8766
 
@@ -33,6 +34,7 @@ class GuiRuntime:
         workspace: Path = DEFAULT_WORKSPACE,
         state_dir: Path = DEFAULT_STATE,
         run_dir: Path = DEFAULT_RUN,
+        runtime_root: Path = DEFAULT_RUNTIME,
         port: int = DEFAULT_PORT,
         arcade_port: int = DEFAULT_ARCADE_PORT,
     ) -> None:
@@ -40,12 +42,16 @@ class GuiRuntime:
         self.state_dir = state_dir
         self.root = state_dir / "gui"
         self.run_dir = run_dir
+        self.runtime_root = runtime_root
         self.port = port
         self.arcade_port = arcade_port
         self.seed_dir = workspace / "Projects" / "Codelation" / "seed"
         self.base_gui_script = self.seed_dir / "aurum_gui.py"
         self.gui_script = workspace / "Projects" / "AurumPC" / "aurum_hopper_gui.py"
         self.arcade_script = workspace / "Projects" / "AurumPC" / "aurum_arcade.py"
+        self.policy_path = workspace / "Projects" / "AurumPC" / "pc01_autonomy_policy.json"
+        self.desktop_runtime = runtime_root / "aurum_desktop_runtime.py"
+        self.desktop_script = runtime_root / "aurum_desktop.py"
         self.bootstrap_mind = workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json"
         self.pid_path = run_dir / "aurum-gui.pid"
         self.log_path = run_dir / "aurum-gui.log"
@@ -92,7 +98,7 @@ class GuiRuntime:
     def _gui_status(self) -> dict[str, Any]:
         pid = self._read_pid(self.pid_path)
         owned = bool(pid and self._owned_gui(pid))
-        probe = self._json_probe(self.port, "/api/status", "Aurum-PC-GUI-Probe/2") if owned else {"reachable": False}
+        probe = self._json_probe(self.port, "/api/status", "Aurum-PC-GUI-Probe/3") if owned else {"reachable": False}
         if pid and not owned:
             self.pid_path.unlink(missing_ok=True)
             pid = None
@@ -133,6 +139,42 @@ class GuiRuntime:
             "probe": {"reachable": bool(probe.get("reachable")), "http_status": probe.get("http_status")},
         }
 
+    def _desktop(self, action: str) -> dict[str, Any]:
+        if not self.desktop_runtime.is_file() or not self.desktop_script.is_file():
+            return {"status": "unavailable", "reason": "desktop-runtime-not-installed", "surface": "physical"}
+        arguments = [
+            sys.executable,
+            str(self.desktop_runtime),
+            action,
+            "--policy",
+            str(self.policy_path if self.policy_path.is_file() else self.runtime_root / "pc01_autonomy_policy.json"),
+            "--state-dir",
+            str(self.state_dir),
+            "--run-dir",
+            str(self.run_dir),
+            "--desktop",
+            str(self.desktop_script),
+        ]
+        try:
+            result = subprocess.run(
+                arguments,
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=35 if action == "start" else 8,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}", "surface": "physical"}
+        text = result.stdout.strip()
+        try:
+            payload = json.loads(text.splitlines()[-1]) if text else {}
+        except json.JSONDecodeError:
+            payload = {"status": "failed", "detail": text[-1800:]}
+        if not isinstance(payload, dict):
+            payload = {"status": "failed", "detail": "desktop-runtime-returned-non-object"}
+        return payload
+
     def prepare(self) -> None:
         if not (self.workspace / ".git").is_dir():
             raise GuiRuntimeError("Git workspace is not initialized")
@@ -152,6 +194,7 @@ class GuiRuntime:
     def status(self) -> dict[str, Any]:
         gui = self._gui_status()
         arcade = self._arcade_status()
+        desktop = self._desktop("status")
         return {
             "schema": SCHEMA,
             "status": "running" if gui["status"] == "running" else "stopped",
@@ -162,6 +205,8 @@ class GuiRuntime:
             "probe": gui["probe"],
             "root": str(self.root),
             "arcade": arcade,
+            "desktop": desktop,
+            "physical_desktop": desktop.get("status") == "running",
             "machine": "Hopper",
         }
 
@@ -224,7 +269,6 @@ class GuiRuntime:
 
     def start(self) -> dict[str, Any]:
         self.prepare()
-        # Upgrade an already-running pre-Hopper GUI without requiring a reboot.
         old_pid = self._read_pid(self.pid_path)
         if old_pid and not self._owned_gui(old_pid):
             old_cmdline = self._cmdline(old_pid)
@@ -239,7 +283,10 @@ class GuiRuntime:
                 self.pid_path.unlink(missing_ok=True)
         self._start_gui()
         self._start_arcade()
-        return self.status()
+        desktop = self._desktop("start")
+        result = self.status()
+        result["desktop_start"] = desktop
+        return result
 
     @staticmethod
     def _stop_owned(pid_path: Path, owner_check, timeout: float = 5.0) -> None:
@@ -259,13 +306,16 @@ class GuiRuntime:
         pid_path.unlink(missing_ok=True)
 
     def stop(self) -> dict[str, Any]:
+        desktop = self._desktop("stop")
         self._stop_owned(self.arcade_pid_path, self._owned_arcade)
         self._stop_owned(self.pid_path, self._owned_gui)
-        return self.status()
+        result = self.status()
+        result["desktop_stop"] = desktop
+        return result
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Installed Aurum GUI + arcade runtime manager")
+    parser = argparse.ArgumentParser(description="Installed Aurum GUI + physical desktop runtime manager")
     parser.add_argument("command", choices=("status", "start", "stop"))
     return parser
 
