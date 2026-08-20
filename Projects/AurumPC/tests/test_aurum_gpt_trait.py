@@ -33,7 +33,7 @@ class AurumGptTraitTests(unittest.TestCase):
                  patch.object(module, "DEFAULT_WORKSPACE", workspace):
                 result = module.status()
             encoded = json.dumps(result)
-            self.assertEqual(result["trait"], "TR8:GPT")
+            self.assertEqual(result["trait"], "GPT")
             self.assertEqual(result["status"], "ready-for-api-key")
             self.assertFalse(result["host_actuation"])
             self.assertFalse(result["key_persisted_by_trait"])
