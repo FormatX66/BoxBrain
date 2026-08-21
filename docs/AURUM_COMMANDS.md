@@ -4,59 +4,76 @@ This file is the canonical list of Aurum / BoxBrain commands that are actually i
 
 ## Rule
 
-A command is not considered real merely because it sounds reasonable, appears in a plan, or was suggested in chat. It must have repository evidence showing where it is implemented or documented.
+A command is not real merely because it sounds reasonable or was suggested in chat. It must have repository evidence showing where it is implemented or documented.
 
-Each command should move through these states:
-
-1. **Proposed** — desired vocabulary only; do not tell a user to run it.
+States:
+1. **Proposed** — vocabulary only; do not tell a user to run it.
 2. **Implemented** — executable handling exists in code.
 3. **Tested** — automated or bounded functional proof exists.
 4. **Physical** — successfully exercised on an authorized physical Aurum node such as Hopper.
 
-Voice/chat assistants should consult this file before giving Bruce an Aurum command. If a command is absent or still Proposed, do not invent it.
+## Hopper Aurum console
 
-## Verified / documented commands
+Implementation: `Projects/AurumPC/aurum_console.py` on `aurum/trunk-v0.01`.
 
-| Command | Scope | State | Evidence / behavior | Hopper-safe? |
-|---|---|---:|---|---|
-| `RUN` | BoxBrain approval-gated AI diagnostics | Documented | After reviewing a typed diagnostic proposal, `RUN` authorizes one of the fixed read-only diagnostics selected by the model. User text does not become shell input. | Not a general Hopper maintenance command |
-| `RESET` | BoxBrain dashboard emergency-stop reset | Documented | Required confirmation phrase to reset the persisted emergency-stop state from the dashboard. | Dashboard control, not Hopper shell/GUI maintenance |
-| `OPEN` | BoxBrain target/session manager | Documented | Required confirmation phrase before launching an operator-controlled OS session to an enrolled target. | Session-launch control, not Hopper update command |
+| Command | State | Purpose / boundary |
+|---|---:|---|
+| `status` | Physical | Overall Aurum node status. |
+| `hardware` | Physical | Read-only hardware inventory. |
+| `network-status` | Physical | Read-only network status. |
+| `wifi-setup` | Implemented | Interactive Wi-Fi setup. |
+| `wifi-reconnect` | Implemented | Reconnect using existing configuration. |
+| `input-status` | Implemented | Read-only pointer/touchpad discovery, libinput/module state, and power-policy observation. |
+| `input-recover` | Implemented | Applies the bounded pointer wake policy already defined by `aurum_input.py`; no broad driver replacement. |
+| `field` | Physical | Show current reusable native/local capability field. |
+| `selftest` | Physical | Run bounded Aurum self-test. |
+| `seed` | Physical | Seed local Aurum state. |
+| `seed-status` | Physical | Read seed status. |
+| `self-build` | Physical | Start bounded background self-build. |
+| `self-build-status` | Physical | Read self-build progress. |
+| `self-build-cancel` | Implemented | Request bounded cancellation while preserving checkpoint state. |
+| `git-status` | Physical | Read Hopper's bounded Aurum workspace state. |
+| `git-sync authorize-network` | Physical | Fetch and fast-forward only from the configured BoxBrain branch; refuses dirty/local divergent state. |
+| `git-auth` | Implemented | Cache a GitHub token in memory for one hour; no token persistence. |
+| `git-promote authorize-network confirm-push` | Implemented | Promote only allowlisted verified self-build outputs. |
+| `runtime-status` | Physical | Compare workspace runtime payload with installed Aurum runtime. |
+| `runtime-sync` | Physical | Apply the bounded allowlisted runtime update. |
+| `autonomy-status` | Physical | Read autonomy state. |
+| `autonomy-cycle` | Physical | Run one bounded autonomy cycle. |
+| `driver-status` | Physical | Read adaptive driver-synthesis status. |
+| `driver-cycle` | Physical | Run one shadow driver-synthesis cycle; `physical_swap=false`. |
+| `gui-status` | Physical | Read GUI, arcade, and physical desktop runtime state. |
+| `gui-start` | Physical | Start Aurum GUI/desktop presentation. |
+| `gui-stop` | Physical | Stop Aurum GUI/desktop presentation. |
+| `install` | Implemented | Show bounded install plan. |
+| `install confirm ERASE-CODE` | Implemented | Confirm an explicitly selected destructive install target. |
+| `reboot` | Physical | Explicit Aurum reboot command. |
+| `poweroff` | Implemented | Explicit Aurum poweroff command. |
+| `help` / `?` | Physical | Print the real command surface. |
 
-## Hopper / Aurum-native maintenance vocabulary
+### Input commands
 
-The following are desirable stable Aurum-facing commands, but they are **not yet verified as implemented**. Do not instruct Bruce to run them until their state advances.
+`input-status` and `input-recover` were added on 2026-08-21 in commit `0938a229631394f3d06382e1a935161ac83df345` on `aurum/trunk-v0.01`.
 
-| Proposed command | Intended meaning | State |
+They use `Projects/AurumPC/aurum_input.py`, which detects touchpads/pointers, reports `libinput`, checks `i2c_hid_acpi`, `hid_multitouch`, `psmouse`, and `usbhid`, and can apply a bounded wake policy to managed pointer devices.
+
+They remain **Implemented** until physically exercised on Hopper.
+
+## BoxBrain confirmation phrases
+
+| Command | Scope | State |
 |---|---|---:|
-| `aurum status` | Show node identity, generation, runtime/seed revision, GUI revision, and health | Proposed |
-| `aurum reconcile` | Reconcile the node with its trusted current Aurum state without requiring manual Git administration | Proposed |
-| `aurum update` | Apply an approved newer Aurum runtime/seed state through the Aurum-native update path | Proposed |
-| `aurum gui reload` | Reload/restart only the human-facing GUI after a verified local update | Proposed |
-| `aurum diagnose` | Run safe Aurum diagnostics and report failures in Aurum terms | Proposed |
-| `aurum recover` | Enter or invoke the bounded known-good/rollback recovery path | Proposed |
-
-## Logging requirements
-
-When a command becomes real, record:
-
-- exact command text and aliases;
-- parser/handler implementation path;
-- permission or confirmation requirements;
-- side effects and safety boundary;
-- automated test path and result;
-- first physical node proof;
-- first Hopper proof, when applicable;
-- version/generation first supporting it;
-- deprecated replacements, if any.
+| `RUN` | Approval-gated fixed read-only diagnostics | Documented |
+| `RESET` | Dashboard emergency-stop reset | Documented |
+| `OPEN` | Operator-controlled target session launch | Documented |
 
 ## Assistant behavior
 
 Before suggesting an Aurum command:
-
-1. Read this registry.
+1. Read this registry or the live `help` output.
 2. Use only commands whose documented scope matches the requested action.
-3. Never substitute Linux, Windows, Git, or shell administration for an Aurum-native command unless Bruce explicitly asks for the underlying bootstrap procedure.
-4. If no real Aurum command exists for the task, say so and treat that missing command/path as an implementation gap.
+3. Do not invent Aurum commands.
+4. Do not substitute Linux/Windows administration when an Aurum-native command exists.
+5. If no command exists, identify the missing capability as an implementation gap.
 
-Last initialized: 2026-08-21.
+Last updated: 2026-08-21.
