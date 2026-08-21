@@ -1,0 +1,54 @@
+version: 2.1
+
+jobs:
+  repository-integrity:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Validate repository structure and links
+          command: python Admin/validate_repository.py
+      - run:
+          name: Test repository validator
+          command: python -m unittest Admin.tests.test_validate_repository
+
+  codelation:
+    docker:
+      - image: cimg/python:3.13
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Run Codelation seed suite
+          command: python -m unittest discover -s Projects/Codelation/tests -v
+
+  backend:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install controller test dependencies
+          command: |
+            cd controller
+            python -m pip install -e ".[dev]"
+      - run:
+          name: Run controller tests
+          command: |
+            cd controller
+            python -m pytest -q
+      - run:
+          name: Run Kali Pi edge-agent tests
+          command: |
+            cd edge/kali-pi-agent
+            python -m unittest discover -s tests -v
+
+workflows:
+  boxbrain-circleci:
+    jobs:
+      - repository-integrity
+      - codelation
+      - backend
