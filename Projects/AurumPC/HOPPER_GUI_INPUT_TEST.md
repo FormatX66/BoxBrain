@@ -9,10 +9,16 @@ startup surface.
 
 ## Update the installed Hopper runtime
 
-From Hopper's root-owned Aurum recovery console:
+From Hopper's root-owned Aurum recovery console, fetch the branch and stage the
+guarded helper without changing the current checkout first:
 
 ```sh
-sh /var/lib/aurum/workspace/BoxBrain/installer/prepare-hopper-gui-input-test.sh
+workspace=/var/lib/aurum/workspace/BoxBrain
+branch=aurum/hopper-gui-input-test-20260821
+git -C "$workspace" fetch --no-tags origin "$branch"
+git -C "$workspace" show "origin/$branch:installer/prepare-hopper-gui-input-test.sh" \
+  > /run/prepare-hopper-gui-input-test.sh
+sh /run/prepare-hopper-gui-input-test.sh
 ```
 
 The helper refuses a dirty workspace or a machine without an installed Aurum
