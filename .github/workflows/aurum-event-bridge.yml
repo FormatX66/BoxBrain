@@ -11,6 +11,7 @@ on:
       - Aurum PC-01 One-Time Verified Reflash
       - Aurum PC-01 Authorized USB Flash
       - Aurum Dual Seed Lanes
+      - Aurum Human Capability Traits
     types: [completed]
   workflow_dispatch:
 
