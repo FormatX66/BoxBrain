@@ -1,0 +1,47 @@
+name: Aurum Pi4 Continuation Failsafe
+
+on:
+  workflow_run:
+    workflows:
+      - Aurum Dual Seed Lanes
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: aurum-pi4-continuation-failsafe
+  cancel-in-progress: false
+
+jobs:
+  continue:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resume bounded main cycle after verified Pi4 seed lane
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='aurum-autobuild.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=main&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_PI4_CONTINUATION active=$active action=deduplicated"
+          else
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+              -f ref=main
+            echo 'AURUM_PI4_CONTINUATION dispatched=main'
+          fi
+
+      - name: Explain recovery role
+        shell: bash
+        run: |
+          echo 'AURUM_PI4_CONTINUATION role=narrow-event-chain-failsafe'
+          echo 'Primary continuation remains Aurum Event-Driven Continuation; this path only guarantees a fresh bounded cycle after a successful Pi4 seed lane.'

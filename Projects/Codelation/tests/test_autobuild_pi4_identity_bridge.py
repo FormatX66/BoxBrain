@@ -8,6 +8,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 MODULE_PATH = REPO / 'Projects' / 'AurumBridge' / 'aurum_autobuild_entry.py'
 EVENT_BRIDGE = REPO / '.github' / 'workflows' / 'aurum-event-bridge.yml'
+PI4_CONTINUATION = REPO / '.github' / 'workflows' / 'aurum-pi4-continuation-failsafe.yml'
 spec = importlib.util.spec_from_file_location('aurum_autobuild_identity_test', MODULE_PATH)
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
@@ -148,6 +149,16 @@ class Pi4IdentityEventChainTests(unittest.TestCase):
         self.assertIn('github.event.repository.full_name == github.repository', workflow)
         self.assertIn("github.event.workflow_run.event != 'pull_request'", workflow)
         self.assertNotIn('github.event.workflow_run.head_repository.full_name == github.repository', workflow)
+
+    def test_pi4_continuation_failsafe_is_narrow_deduplicated_and_direct(self):
+        workflow = PI4_CONTINUATION.read_text(encoding='utf-8')
+        self.assertIn('- Aurum Dual Seed Lanes', workflow)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+        self.assertIn("github.event.workflow_run.event != 'pull_request'", workflow)
+        self.assertIn("workflow='aurum-autobuild.yml'", workflow)
+        self.assertIn('action=deduplicated', workflow)
+        self.assertIn("-f ref=main", workflow)
+        self.assertNotIn('head_repository.full_name', workflow)
 
 
 if __name__ == '__main__':
