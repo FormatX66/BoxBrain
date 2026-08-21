@@ -1,0 +1,66 @@
+name: Aurum Human Capability Traits
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumTraits/**'
+      - 'Projects/Aurum/GEN1_EVERYONE_OS_PLAN.md'
+      - '.github/workflows/aurum-human-traits.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-human-traits-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  seed-contract:
+    name: Complete seed trait contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate every mandatory human trait is carried by the seed
+        run: python3 Projects/AurumTraits/validate_traits.py
+
+  trait-builds:
+    name: Build ${{ matrix.trait }}
+    needs: seed-contract
+    strategy:
+      fail-fast: false
+      matrix:
+        trait:
+          - 'TR8:WEB'
+          - 'TR8:FILES'
+          - 'TR8:MEDIA'
+          - 'TR8:WRITE'
+          - 'TR8:INTENT'
+          - 'TR8:CONNECT'
+          - 'TR8:RECOVER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate staged trait implementation contract
+        run: python3 Projects/AurumTraits/validate_traits.py --trait '${{ matrix.trait }}'
+      - name: Record parallel trait build boundary
+        run: echo 'AURUM_TRAIT_BUILD trait=${{ matrix.trait }} stage=contract implementation=parallel'
+
+  all-traits:
+    name: All human trait lanes
+    if: always()
+    needs: [seed-contract, trait-builds]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all parallel lanes
+        env:
+          SEED_RESULT: ${{ needs.seed-contract.result }}
+          TRAITS_RESULT: ${{ needs.trait-builds.result }}
+        run: |
+          set -euo pipefail
+          test "$SEED_RESULT" = success
+          test "$TRAITS_RESULT" = success
+          echo 'AURUM_HUMAN_TRAITS_OK complete_seed_contract=true parallel_builds=true'
