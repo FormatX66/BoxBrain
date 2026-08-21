@@ -33,56 +33,8 @@ else
   git -C "$WORKSPACE" switch --create "$BRANCH" --track "origin/$BRANCH"
 fi
 
-install -d -m 0755 /etc/X11/xorg.conf.d /etc/systemd/system /usr/lib/systemd/system-sleep
-cat > /etc/X11/xorg.conf.d/40-aurum-libinput.conf <<'EOF'
-Section "InputClass"
-    Identifier "Aurum libinput pointer"
-    MatchIsPointer "on"
-    Driver "libinput"
-    Option "AccelProfile" "adaptive"
-EndSection
-
-Section "InputClass"
-    Identifier "Aurum libinput touchpad"
-    MatchIsTouchpad "on"
-    Driver "libinput"
-    Option "Tapping" "on"
-    Option "DisableWhileTyping" "on"
-    Option "NaturalScrolling" "false"
-EndSection
-EOF
-
-cat > /etc/systemd/system/aurum-input-bootstrap.service <<'EOF'
-[Unit]
-Description=Aurum mouse and trackpad wake bootstrap
-After=systemd-udev-trigger.service
-Before=aurum-pc-console.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json || true'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-cat > /usr/lib/systemd/system-sleep/aurum-input-wake <<'EOF'
-#!/bin/sh
-set -u
-if [ "${1:-}" = post ]; then
-  /usr/bin/python3 /opt/aurum/aurum_input.py \
-    --apply-wake-policy --write-state /run/aurum-input-status.json \
-    >/run/aurum-input-resume.log 2>&1 || true
-fi
-EOF
-chmod 0755 /usr/lib/systemd/system-sleep/aurum-input-wake
-
 python3 "$WORKSPACE/Projects/AurumPC/aurum_runtime_update.py" plan >/run/aurum-hopper-test-plan.json
 python3 "$WORKSPACE/Projects/AurumPC/aurum_runtime_update.py" apply >/run/aurum-hopper-test-apply.json
-systemctl daemon-reload
-systemctl enable aurum-input-bootstrap.service >/dev/null
-systemctl restart aurum-input-bootstrap.service
 
 install -d -m 0700 "$STATE_DIR"
 python3 - "$STATE_DIR/hopper-gui-input-test.json" "$BRANCH" "$previous_branch" "$previous_head" <<'PY'

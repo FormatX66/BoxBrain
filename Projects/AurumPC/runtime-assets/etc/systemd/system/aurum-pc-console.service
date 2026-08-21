@@ -1,0 +1,30 @@
+[Unit]
+Description=Aurum PC primary console
+After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service
+Wants=aurum-input-bootstrap.service
+Conflicts=getty@tty1.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
+Environment=PYTHONUNBUFFERED=1
+Environment=AURUM_PRIMARY_CONSOLE=1
+Environment=AURUM_BOOT_SCREEN=1
+Environment=MALLOC_ARENA_MAX=2
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+OOMScoreAdjust=-100
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

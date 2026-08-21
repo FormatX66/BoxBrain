@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from subprocess import CompletedProcess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ runtime_module = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = runtime_module
 SPEC.loader.exec_module(runtime_module)
 ALLOWLIST = runtime_module.ALLOWLIST
+SYSTEM_ASSETS = runtime_module.SYSTEM_ASSETS
 RuntimeUpdater = runtime_module.RuntimeUpdater
 
 
@@ -26,6 +28,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             workspace = root / "workspace"
             source = workspace / "Projects" / "AurumPC"
             target = root / "target"
+            system_root = root / "system"
             state = root / "state"
             marker = root / "aurum-installed.json"
             (workspace / ".git").mkdir(parents=True)
@@ -35,16 +38,22 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             for name in ALLOWLIST:
                 (source / name).write_text(f"VALUE = {name!r}\n", encoding="utf-8")
                 (target / name).write_text("VALUE = 'old'\n", encoding="utf-8")
+            for relative, _mode in SYSTEM_ASSETS:
+                asset = source / "runtime-assets" / relative
+                asset.parent.mkdir(parents=True, exist_ok=True)
+                asset.write_text(f"managed asset: {relative}\n", encoding="utf-8")
 
             updater = RuntimeUpdater(
                 workspace=workspace,
                 target=target,
                 state_dir=state,
                 installed_marker=marker,
+                system_root=system_root,
             )
             plan = updater.plan()
             self.assertTrue(plan["available"])
             self.assertEqual(set(plan["changed"]), set(ALLOWLIST))
+            self.assertEqual(set(plan["system_changed"]), {name for name, _mode in SYSTEM_ASSETS})
             self.assertFalse(plan["identity"]["authorized"])
 
             with patch.object(runtime_module.os, "geteuid", return_value=0, create=True):
@@ -53,10 +62,38 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v3")
+            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v4")
             self.assertTrue(Path(receipt["backup"]).is_dir())
+            self.assertEqual(receipt["system_activation"]["reason"], "simulated-system-root")
             for name in ALLOWLIST:
                 self.assertEqual((target / name).read_text(encoding="utf-8"), f"VALUE = {name!r}\n")
+            for relative, mode in SYSTEM_ASSETS:
+                installed = system_root / relative
+                self.assertEqual(installed.read_text(encoding="utf-8"), f"managed asset: {relative}\n")
+                self.assertEqual(installed.stat().st_mode & 0o777, mode)
+
+    def test_system_integration_reloads_enables_and_recovers_inactive_input_service(self) -> None:
+        updater = RuntimeUpdater(system_root=Path("/"))
+
+        def completed(arguments, **_kwargs):
+            returncode = 3 if "is-active" in arguments else 0
+            return CompletedProcess(arguments, returncode, stdout="")
+
+        with (
+            patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
+            patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+        ):
+            result = updater._activate_system_integration(
+                ["aurum_input.py"],
+                ["etc/systemd/system/aurum-input-bootstrap.service"],
+            )
+
+        self.assertEqual(result["status"], "ready")
+        invocations = [call.args[0][1:] for call in runner.call_args_list]
+        self.assertIn(["daemon-reload"], invocations)
+        self.assertIn(["enable", "aurum-input-bootstrap.service", "aurum-pc-console.service"], invocations)
+        self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
+        self.assertTrue(result["boot_screen_visible_on_next_boot"])
 
     def test_plan_refuses_when_not_installed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -23,11 +23,11 @@ The original PC-01 physical sandbox is now **Hopper**. The name preserves the hi
 
 Hopper's first Aurum application is **Echo Rally**, a dependency-free Pong-like proof running through the loopback-only Aurum arcade runtime. Every fourth paddle return leaves a temporary echo well at that impact point. The wells gently bend later ball trajectories, so the arena literally remembers earlier play. The game exercises canvas rendering, frame timing, keyboard input, pointer/touch input, synthesized audio, pause/reset, solo AI and two-player control without exposing host actuation.
 
-The isolated [Hopper GUI, boot, and input test lane](HOPPER_GUI_INPUT_TEST.md) packages the next presentation profiles, a real-stage VT loading screen, and bounded mouse/trackpad wake handling without pulling in the StateWeave/adaptive-kernel experiment.
+The [Hopper GUI, boot, and input growth release](HOPPER_GUI_INPUT_TEST.md) packages the next presentation profiles, a real-stage VT loading screen, and bounded mouse/trackpad wake handling without pulling in the StateWeave/adaptive-kernel experiment. Its verified capability is promoted through the allowlisted Aurum trunk so Hopper consumes it through the unattended growth loop rather than an operator shell procedure.
 
 ## Unattended PC-01 lane
 
-The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime, run a local resumable self-build without dirtying Git, start the loopback-only GUI/arcade surfaces, and advance the adaptive driver synthesis lane.
+The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime and bounded system assets, run a local resumable self-build without dirtying Git, start the loopback-only GUI/arcade surfaces, and advance the adaptive driver synthesis lane.
 
 The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
 

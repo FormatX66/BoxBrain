@@ -14,6 +14,7 @@ HP_TWIN = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-hp-physical-t
 HP_TWIN_SPEC = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "hp-physical-twin-v1.json"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
 HOPPER_PREPARE = REPOSITORY_ROOT / "installer" / "prepare-hopper-gui-input-test.sh"
+RUNTIME_ASSETS = Path(__file__).parents[1] / "runtime-assets"
 
 
 class BuildIsoContractTests(unittest.TestCase):
@@ -56,21 +57,27 @@ class BuildIsoContractTests(unittest.TestCase):
 
     def test_hopper_input_bootstrap_and_resume_policy_are_packaged(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
+        input_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-input-bootstrap.service").read_text(encoding="utf-8")
+        input_hook = (RUNTIME_ASSETS / "usr/lib/systemd/system-sleep/aurum-input-wake").read_text(encoding="utf-8")
+        libinput = (RUNTIME_ASSETS / "etc/X11/xorg.conf.d/40-aurum-libinput.conf").read_text(encoding="utf-8")
+        console = (RUNTIME_ASSETS / "etc/systemd/system/aurum-pc-console.service").read_text(encoding="utf-8")
         for module in ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid"):
-            self.assertIn(f"modprobe {module}", script)
+            self.assertIn(f"modprobe {module}", input_service)
+        self.assertIn("runtime-assets", script)
         self.assertIn("aurum-input-bootstrap.service", script)
-        self.assertIn("--apply-wake-policy", script)
+        self.assertIn("--apply-wake-policy", input_service)
+        self.assertIn("--apply-wake-policy", input_hook)
         self.assertIn("system-sleep/aurum-input-wake", script)
-        self.assertIn('MatchIsTouchpad "on"', script)
-        self.assertIn('Option "Tapping" "on"', script)
-        self.assertIn("AURUM_BOOT_SCREEN=1", script)
+        self.assertIn('MatchIsTouchpad "on"', libinput)
+        self.assertIn('Option "Tapping" "on"', libinput)
+        self.assertIn("AURUM_BOOT_SCREEN=1", console)
 
     def test_hopper_live_prepare_is_guarded_and_receipted(self) -> None:
         script = HOPPER_PREPARE.read_text(encoding="utf-8")
         self.assertIn("aurum/hopper-gui-input-test-20260821", script)
         self.assertIn("status --porcelain", script)
         self.assertIn("aurum_runtime_update.py\" apply", script)
-        self.assertIn("systemctl restart aurum-input-bootstrap.service", script)
+        self.assertNotIn("cat > /etc/systemd", script)
         self.assertIn("previous_head", script)
         self.assertIn("ready-for-physical-test", script)
 

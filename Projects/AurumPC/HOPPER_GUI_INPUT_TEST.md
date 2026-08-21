@@ -1,4 +1,4 @@
-# Hopper GUI, boot, and input test lane
+# Hopper GUI, boot, and input growth release
 
 Branch: `aurum/hopper-gui-input-test-20260821`
 
@@ -7,25 +7,20 @@ include StateWeave, the adaptive-kernel experiment, or their combined branch.
 Echo Rally remains a manual Easter egg and is not restored as an unattended
 startup surface.
 
-## Update the installed Hopper runtime
+## Unattended delivery
 
-From Hopper's root-owned Aurum recovery console, fetch the branch and stage the
-guarded helper without changing the current checkout first:
+After the verified test lane is promoted to `aurum/trunk-v0.01`, Hopper's
+machine-bound autonomy worker discovers it during the normal five-minute growth
+cycle. The worker fast-forwards only the allowlisted trunk, atomically updates
+the guarded Python runtime and system assets, enables/restarts the input wake
+service, refreshes the GUI, and records its receipts. No operator shell command,
+reflash, or live-update reboot is required.
 
-```sh
-workspace=/var/lib/aurum/workspace/BoxBrain
-branch=aurum/hopper-gui-input-test-20260821
-git -C "$workspace" fetch --no-tags origin "$branch"
-git -C "$workspace" show "origin/$branch:installer/prepare-hopper-gui-input-test.sh" \
-  > /run/prepare-hopper-gui-input-test.sh
-sh /run/prepare-hopper-gui-input-test.sh
-```
-
-The helper refuses a dirty workspace or a machine without an installed Aurum
-receipt. It fetches the exact test branch, applies only the runtime allowlist,
-installs the bounded libinput/wake configuration, restarts the Hopper GUI, and
-records `/var/lib/aurum/state/hopper-gui-input-test.json`. No reflash or reboot
-is required for the live GUI/input update.
+The managed system assets are sourced from `Projects/AurumPC/runtime-assets` and
+share one implementation with the bootable ISO. They include the deterministic
+libinput configuration, input bootstrap service, post-resume wake hook, and
+primary-console loading-screen unit. Runtime replacement keeps a rollback copy
+under Aurum state before changing any installed file.
 
 The boot screen is visible on the next normal boot. The recovery console stays
 on `tty1`; the graphical desktop remains on `tty2`.
@@ -40,6 +35,7 @@ on `tty1`; the graphical desktop remains on `tty2`.
 5. Suspend and resume once, then verify both pointer paths still respond.
 6. In Hardware, confirm the pointer count, trackpad count, and wake-policy state.
 
-If the runtime cannot be pulled, use the `Aurum-Hopper-GUI-Input-Test-20260821`
-ISO artifact produced by the branch workflow. Keep the currently working Aurum
-media available as the recovery path.
+If Hopper is powered off or offline, growth remains published on the allowlisted
+trunk and is consumed automatically after connectivity returns. The
+`Aurum-Hopper-GUI-Input-Test-20260821` ISO artifact remains the recovery-media
+path, not the normal update mechanism.

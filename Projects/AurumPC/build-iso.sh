@@ -168,87 +168,19 @@ EOF
 
 # Hopper's touchpad and external mice share one deterministic libinput path.
 # Tapping remains a presentation choice; runtime power is handled separately.
-mkdir -p config/includes.chroot/etc/X11/xorg.conf.d
-cat > config/includes.chroot/etc/X11/xorg.conf.d/40-aurum-libinput.conf <<'EOF'
-Section "InputClass"
-    Identifier "Aurum libinput pointer"
-    MatchIsPointer "on"
-    Driver "libinput"
-    Option "AccelProfile" "adaptive"
-EndSection
-
-Section "InputClass"
-    Identifier "Aurum libinput touchpad"
-    MatchIsTouchpad "on"
-    Driver "libinput"
-    Option "Tapping" "on"
-    Option "DisableWhileTyping" "on"
-    Option "NaturalScrolling" "false"
-EndSection
-EOF
-
-cat > config/includes.chroot/etc/systemd/system/aurum-input-bootstrap.service <<'EOF'
-[Unit]
-Description=Aurum mouse and trackpad wake bootstrap
-After=systemd-udev-trigger.service
-Before=aurum-pc-console.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json || true'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Runtime power policy can be reset by suspend. Reapply only to classified
-# pointer devices after resume; the helper uses only the nearest bounded sysfs
-# ancestor that exposes each power-policy setting.
-mkdir -p config/includes.chroot/usr/lib/systemd/system-sleep
-cat > config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake <<'EOF'
-#!/bin/sh
-set -u
-if [ "${1:-}" = post ]; then
-  /usr/bin/python3 /opt/aurum/aurum_input.py \
-    --apply-wake-policy --write-state /run/aurum-input-status.json \
-    >/run/aurum-input-resume.log 2>&1 || true
-fi
-EOF
-chmod 0755 config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake
-
-cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
-[Unit]
-Description=Aurum PC primary console
-After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service
-Wants=aurum-input-bootstrap.service
-Conflicts=getty@tty1.service
-ConditionPathExists=/dev/tty1
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
-Environment=PYTHONUNBUFFERED=1
-Environment=AURUM_PRIMARY_CONSOLE=1
-Environment=AURUM_BOOT_SCREEN=1
-Environment=MALLOC_ARENA_MAX=2
-Nice=5
-IOSchedulingClass=best-effort
-IOSchedulingPriority=6
-OOMScoreAdjust=-100
-StandardInput=tty-force
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
-TTYVTDisallocate=yes
-Restart=always
-RestartSec=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
+RUNTIME_ASSETS="$REPO_ROOT/Projects/AurumPC/runtime-assets"
+install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/X11/xorg.conf.d/40-aurum-libinput.conf" \
+  config/includes.chroot/etc/X11/xorg.conf.d/40-aurum-libinput.conf
+install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/systemd/system/aurum-input-bootstrap.service" \
+  config/includes.chroot/etc/systemd/system/aurum-input-bootstrap.service
+install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/systemd/system/aurum-pc-console.service" \
+  config/includes.chroot/etc/systemd/system/aurum-pc-console.service
+install -D -m 0755 \
+  "$RUNTIME_ASSETS/usr/lib/systemd/system-sleep/aurum-input-wake" \
+  config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake
 
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-serial.service <<'EOF'
 [Unit]

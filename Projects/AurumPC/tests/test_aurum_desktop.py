@@ -38,7 +38,7 @@ class AurumDesktopTests(unittest.TestCase):
                 json.dumps({"status": "cycle-complete", "unattended": True}), encoding="utf-8"
             )
             (state / "runtime-update.json").write_text(
-                json.dumps({"schema": "aurum-pc-runtime-update-v3", "status": "current"}), encoding="utf-8"
+                json.dumps({"schema": "aurum-pc-runtime-update-v4", "status": "current"}), encoding="utf-8"
             )
             (state / "machine-identity.json").write_text(
                 json.dumps({"display_name": "Hopper", "hostname": "hopper"}), encoding="utf-8"
