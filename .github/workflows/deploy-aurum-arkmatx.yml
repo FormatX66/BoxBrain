@@ -22,20 +22,77 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Require deployment configuration
+      - name: Detect hosted deployment configuration
+        id: config
         env:
           HOST: ${{ secrets.ARKMATX_SSH_HOST }}
           USER: ${{ secrets.ARKMATX_SSH_USER }}
           KEY: ${{ secrets.ARKMATX_SSH_KEY }}
           HOST_KEY: ${{ secrets.ARKMATX_SSH_HOST_KEY }}
           REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+          PUBLIC_URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
         run: |
           set -euo pipefail
-          for name in HOST USER KEY HOST_KEY REMOTE_PATH; do
-            test -n "${!name:-}" || { echo "Missing $name" >&2; exit 2; }
+          missing=()
+          for name in HOST USER KEY HOST_KEY REMOTE_PATH PUBLIC_URL; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
           done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+            echo 'missing=none' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_WEB_HOSTING configured=true'
+          else
+            joined="$(IFS=,; printf '%s' "${missing[*]}")"
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo "missing=$joined" >> "$GITHUB_OUTPUT"
+            echo "AURUM_WEB_HOSTING configured=false missing=$joined"
+            echo '::notice::Hosted Arkmatx deployment is not configured. The no-secret repository dashboard and voice mirrors will still be validated and receipted.'
+          fi
+
+      - name: Validate no-secret dashboard and voice mirrors
+        run: |
+          set -euo pipefail
+          test -s Web/Aurum-Arkmatx/dashboard.html
+          test -s Web/Aurum-Arkmatx/voice-status.txt
+          test -s Web/Aurum-Arkmatx/voice-status.json
+          test -s Web/Aurum-Arkmatx/voice-status/index.html
+          test -s Web/Aurum-Arkmatx/status
+          test -s Web/Aurum-Arkmatx/nodes
+          test -s AURUM_VOICE_STATUS.md
+          grep -F 'Progress is proof, not activity.' Web/Aurum-Arkmatx/dashboard.html >/dev/null
+          grep -F 'voice-status.json' Web/Aurum-Arkmatx/dashboard.html >/dev/null
+          grep -F 'AURUM VOICE STATUS' Web/Aurum-Arkmatx/voice-status.txt >/dev/null
+          grep -F 'Read Aurum Voice Status' AURUM_VOICE_STATUS.md >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('Web/Aurum-Arkmatx')
+          payload = json.loads((root / 'voice-status.json').read_text(encoding='utf-8'))
+          assert payload['schema'] == 'aurum-voice-status-v1'
+          assert payload['overall']['state'] == 'awaiting-boot-proof'
+          capabilities = payload['human_capabilities']
+          assert len(capabilities) == 7
+          expected = {'defined', 'executable', 'tested', 'seeded', 'booted', 'used'}
+          for capability in capabilities:
+              assert set(capability['stages']) == expected
+              assert capability['stages']['defined'] is True
+              assert capability['stages']['executable'] is True
+              assert capability['stages']['tested'] is True
+              assert capability['stages']['seeded'] is True
+              assert capability['stages']['booted'] is False
+              assert capability['stages']['used'] is False
+          status = json.loads((root / 'status').read_text(encoding='utf-8'))
+          nodes = json.loads((root / 'nodes').read_text(encoding='utf-8'))
+          assert status['status'] == 'read-only-static-status-mirror'
+          assert isinstance(nodes['nodes'], list)
+          print('AURUM_STATIC_MIRRORS_OK capabilities=7 floor=4/6 next=booted')
+          PY
 
       - name: Configure pinned SSH identity
+        if: steps.config.outputs.configured == 'true'
         env:
           KEY: ${{ secrets.ARKMATX_SSH_KEY }}
           HOST_KEY: ${{ secrets.ARKMATX_SSH_HOST_KEY }}
@@ -48,6 +105,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Verify host and PHP
+        if: steps.config.outputs.configured == 'true'
         env:
           HOST: ${{ secrets.ARKMATX_SSH_HOST }}
           USER: ${{ secrets.ARKMATX_SSH_USER }}
@@ -60,6 +118,7 @@ jobs:
             "php -v >/dev/null && mkdir -p -- '$REMOTE_PATH'"
 
       - name: Upload web node
+        if: steps.config.outputs.configured == 'true'
         env:
           HOST: ${{ secrets.ARKMATX_SSH_HOST }}
           USER: ${{ secrets.ARKMATX_SSH_USER }}
@@ -74,11 +133,11 @@ jobs:
             "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -xzf /tmp/aurum-arkmatx.tgz -C '$REMOTE_PATH'; rm -f /tmp/aurum-arkmatx.tgz; php -l '$REMOTE_PATH/index.php'; php -l '$REMOTE_PATH/voice-status.php'"
 
       - name: Verify public node, dashboard, and voice mirror
+        if: steps.config.outputs.configured == 'true'
         env:
           URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
         run: |
           set -euo pipefail
-          test -n "$URL"
           base="${URL%/}"
 
           body="$(curl --fail --silent --show-error --max-time 10 "$base/status")"
@@ -113,6 +172,7 @@ jobs:
           PY
 
       - name: Observe bounded BBPI4 AP probes
+        if: steps.config.outputs.configured == 'true'
         env:
           URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
         run: |
@@ -161,7 +221,8 @@ jobs:
               )
           PY
 
-      - name: Publish dashboard and voice mirror deployment receipt
+      - name: Publish hosted dashboard and voice mirror receipt
+        if: steps.config.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLIC_URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
@@ -219,4 +280,74 @@ jobs:
               if response.status not in (200, 201):
                   raise SystemExit(f'unexpected receipt status {response.status}')
           print(f'AURUM_WEB_MIRROR_RECEIPT path={path} state=WEB_MIRROR_OK')
+          PY
+
+      - name: Publish no-secret static mirror receipt
+        if: steps.config.outputs.configured != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MISSING: ${{ steps.config.outputs.missing }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timezone
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id = os.environ['GITHUB_RUN_ID']
+          attempt = os.environ['GITHUB_RUN_ATTEMPT']
+          path = f'Projects/AurumBridge/results/web-static-mirror-{run_id}-attempt-{attempt}.json'
+          payload = {
+              'schema': 'aurum-web-static-mirror-receipt-v1',
+              'state': 'WEB_STATIC_MIRROR_OK',
+              'github_workflow_run': int(run_id),
+              'github_run_attempt': int(attempt),
+              'source_commit': os.environ['GITHUB_SHA'],
+              'observed_at': datetime.now(timezone.utc).isoformat(),
+              'hosted_deployment': {
+                  'configured': False,
+                  'missing': [item for item in os.environ.get('MISSING', '').split(',') if item],
+              },
+              'public_sources': {
+                  'text': 'https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.txt',
+                  'json': 'https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.json',
+                  'repository': 'https://github.com/FormatX66/BoxBrain/blob/main/AURUM_VOICE_STATUS.md',
+              },
+              'verified': {
+                  'dashboard_truth_banner': True,
+                  'dashboard_reads_static_json': True,
+                  'plain_text_voice_status': True,
+                  'json_voice_status': True,
+                  'browser_static_voice_view': True,
+                  'seven_human_capabilities': True,
+                  'six_evidence_gates': True,
+                  'seeded_floor': '4/6',
+              },
+          }
+          encoded = base64.b64encode(
+              (json.dumps(payload, indent=2) + '\n').encode('utf-8')
+          ).decode('ascii')
+          body = json.dumps({
+              'message': 'Record Aurum static dashboard voice mirror state=WEB_STATIC_MIRROR_OK [skip ci]',
+              'content': encoded,
+              'branch': 'main',
+          }).encode('utf-8')
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/contents/{path}',
+              data=body,
+              method='PUT',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in (200, 201):
+                  raise SystemExit(f'unexpected receipt status {response.status}')
+          print(f'AURUM_WEB_STATIC_MIRROR_RECEIPT path={path} state=WEB_STATIC_MIRROR_OK')
           PY
