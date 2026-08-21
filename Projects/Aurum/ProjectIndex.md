@@ -12,6 +12,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 
 - [North-star generational architecture](NORTH_STAR_GENERATIONAL_ARCHITECTURE.md)
 - [Gen1 Everyone-OS execution plan](GEN1_EVERYONE_OS_PLAN.md)
+- [Aurum command registry](../../docs/AURUM_COMMANDS.md)
 - [Contributor start](START_HERE.md)
 - [State authority](STATE_AUTHORITY.md)
 - [Autonomous driver synthesis](AUTONOMOUS_DRIVER_SYNTHESIS.md)
