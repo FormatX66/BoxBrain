@@ -1,0 +1,136 @@
+name: Aurum Pi4 Heartbeat Readback Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi4-heartbeat-readback-once.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: aurum-pi4-heartbeat-readback-once
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run readback regression contract
+        run: python3 tests/test_pi4_heartbeat_readback_once.py
+      - name: Read current Arkmatx node proof and recover only a missed main wake
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          controller = 'https://arkmatx.com/aurum/index.php'
+          excluded = {'825e5a7b7d4a7aed', '85404f41d5507372'}
+          api_headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'Aurum-Pi4-Heartbeat-Readback/1.0',
+          }
+
+          def request_json(url, *, data=None, method='GET', headers=None):
+              body = None if data is None else json.dumps(data, separators=(',', ':')).encode('utf-8')
+              req = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  if response.status == 204:
+                      return None
+                  return json.load(response)
+
+          nodes_payload = request_json(
+              controller + '/nodes',
+              headers={'Accept': 'application/json', 'User-Agent': 'Aurum-Pi4-Heartbeat-Readback/1.0'},
+          )
+          now = int(nodes_payload.get('time') or time.time())
+          fresh = []
+          for item in nodes_payload.get('nodes', []):
+              node_id = str(item.get('node_id') or '')
+              if not node_id or node_id in excluded:
+                  continue
+              carrier = str(item.get('carrier') or '').lower()
+              os_name = str(item.get('os') or '').lower()
+              arch = str(item.get('arch') or '').lower()
+              status = str(item.get('status') or '').lower()
+              last_seen = int(item.get('last_seen') or 0)
+              age_seconds = max(0, now - last_seen)
+              if (
+                  carrier == 'https-outbound'
+                  and os_name == 'linux'
+                  and arch in {'arm64', 'aarch64'}
+                  and status == 'online'
+                  and age_seconds <= 900
+              ):
+                  copy = dict(item)
+                  copy['age_seconds'] = age_seconds
+                  fresh.append(copy)
+          fresh.sort(key=lambda item: int(item.get('last_seen') or 0), reverse=True)
+          fresh_node = fresh[0] if fresh else None
+
+          runs = request_json(
+              f'https://api.github.com/repos/{repo}/actions/workflows/aurum-autobuild.yml/runs?branch=main&per_page=20',
+              headers=api_headers,
+          )
+          active_statuses = {'queued', 'in_progress', 'waiting', 'requested', 'pending'}
+          active_main = sum(1 for run in runs.get('workflow_runs', []) if run.get('status') in active_statuses)
+          autobuild_action = 'none'
+
+          if fresh_node and active_main == 0:
+              request_json(
+                  f'https://api.github.com/repos/{repo}/actions/workflows/aurum-autobuild.yml/dispatches',
+                  data={'ref': 'main'},
+                  method='POST',
+                  headers={**api_headers, 'Content-Type': 'application/json'},
+              )
+              autobuild_action = 'dispatched'
+          elif fresh_node:
+              autobuild_action = 'deduplicated-active'
+
+          outcome = 'HEARTBEAT_VERIFIED' if fresh_node else 'NO_FRESH_HEARTBEAT'
+          receipt = {
+              'schema': 'aurum-pi4-heartbeat-readback-v1',
+              'outcome': outcome,
+              'github_workflow_run': int(os.environ['GITHUB_RUN_ID']),
+              'source_commit': os.environ['GITHUB_SHA'],
+              'observed_at': int(time.time()),
+              'controller_time': now,
+              'fresh_node': fresh_node,
+              'active_main_before': active_main,
+              'autobuild_action': autobuild_action,
+          }
+          encoded = base64.b64encode(json.dumps(receipt, indent=2, sort_keys=True).encode('utf-8')).decode('ascii')
+          path = f"Projects/AurumBridge/results/pi4-heartbeat-readback-{os.environ['GITHUB_RUN_ID']}.json"
+          request_json(
+              f'https://api.github.com/repos/{repo}/contents/{path}',
+              data={
+                  'message': f'Record Pi4 heartbeat readback outcome={outcome} [skip ci]',
+                  'content': encoded,
+                  'branch': 'main',
+              },
+              method='PUT',
+              headers={**api_headers, 'Content-Type': 'application/json'},
+          )
+          if fresh_node:
+              print(
+                  'AURUM_PI4_HEARTBEAT_READBACK '
+                  f"outcome={outcome} node_id={fresh_node.get('node_id')} "
+                  f"age_seconds={fresh_node.get('age_seconds')} autobuild={autobuild_action}"
+              )
+          else:
+              print(f'AURUM_PI4_HEARTBEAT_READBACK outcome={outcome} active_main={active_main}')
+          PY
