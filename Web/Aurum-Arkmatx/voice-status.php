@@ -21,7 +21,7 @@ function aurum_fetch_json(string $url): ?array
 {
     $headers = [
         'Accept: application/vnd.github+json',
-        'User-Agent: Aurum-Voice-Status/1',
+        'User-Agent: Aurum-Voice-Status/2',
         'X-GitHub-Api-Version: 2022-11-28',
     ];
 
@@ -82,16 +82,6 @@ function aurum_time(?string $value): int
     return $parsed === false ? 0 : $parsed;
 }
 
-function aurum_latest_run(array $runs, callable $match): ?array
-{
-    foreach ($runs as $run) {
-        if (is_array($run) && $match($run)) {
-            return $run;
-        }
-    }
-    return null;
-}
-
 function aurum_active_run(array $run): bool
 {
     return in_array((string) ($run['status'] ?? ''), [
@@ -125,6 +115,77 @@ function aurum_commit_message(array $commit): string
     return (string) ($commit['commit']['message'] ?? '');
 }
 
+function aurum_run_head_time(array $run): int
+{
+    $headCommit = $run['head_commit'] ?? null;
+    if (is_array($headCommit)) {
+        foreach (['timestamp', 'date'] as $key) {
+            $value = aurum_time(isset($headCommit[$key]) ? (string) $headCommit[$key] : null);
+            if ($value > 0) {
+                return $value;
+            }
+        }
+    }
+    return 0;
+}
+
+function aurum_eligible_runs(
+    array $runs,
+    string $workflow,
+    int $minimumHeadTime,
+    ?string $branch = null
+): array {
+    $eligible = [];
+    foreach ($runs as $run) {
+        if (!is_array($run) || (string) ($run['name'] ?? '') !== $workflow) {
+            continue;
+        }
+        if ($branch !== null && (string) ($run['head_branch'] ?? '') !== $branch) {
+            continue;
+        }
+        // A run created after integration can still point at an older commit.
+        // Only the source commit timestamp may qualify evidence for a new gate.
+        if (aurum_run_head_time($run) < $minimumHeadTime) {
+            continue;
+        }
+        $eligible[] = $run;
+    }
+    usort($eligible, static function (array $left, array $right): int {
+        return aurum_time((string) ($right['updated_at'] ?? $right['created_at'] ?? ''))
+            <=> aurum_time((string) ($left['updated_at'] ?? $left['created_at'] ?? ''));
+    });
+    return $eligible;
+}
+
+function aurum_first_success(array $runs): ?array
+{
+    foreach ($runs as $run) {
+        if ((string) ($run['conclusion'] ?? '') === 'success') {
+            return $run;
+        }
+    }
+    return null;
+}
+
+function aurum_run_evidence(?array $latest, ?array $verified): array
+{
+    if ($latest === null) {
+        return ['state' => 'pending', 'verified_success' => false];
+    }
+    $state = aurum_active_run($latest)
+        ? 'active'
+        : ((string) ($latest['conclusion'] ?? $latest['status'] ?? 'unknown'));
+    return [
+        'state' => $state,
+        'run_id' => $latest['id'] ?? null,
+        'head_sha' => $latest['head_sha'] ?? null,
+        'updated_at' => $latest['updated_at'] ?? null,
+        'verified_success' => $verified !== null,
+        'verified_run_id' => $verified['id'] ?? null,
+        'verified_at' => $verified['updated_at'] ?? null,
+    ];
+}
+
 function aurum_build_live_status(array $snapshot): array
 {
     $commitsUrl = 'https://api.github.com/repos/' . AURUM_REPO . '/commits?sha=main&per_page=100';
@@ -143,37 +204,41 @@ function aurum_build_live_status(array $snapshot): array
     $pcThreshold = aurum_time((string) ($payload['evidence_thresholds']['pc_seed_integration_utc'] ?? ''));
     $piThreshold = aurum_time((string) ($payload['evidence_thresholds']['pi_seed_integration_utc'] ?? ''));
 
-    $humanActive = aurum_latest_run($runs, static function (array $run): bool {
-        return (string) ($run['name'] ?? '') === 'Aurum Human Capability Traits'
-            && aurum_active_run($run);
-    });
-    $humanSuccess = aurum_latest_run($runs, static function (array $run) use ($runtimeThreshold): bool {
-        return (string) ($run['name'] ?? '') === 'Aurum Human Capability Traits'
-            && (string) ($run['conclusion'] ?? '') === 'success'
-            && aurum_time((string) ($run['updated_at'] ?? '')) >= $runtimeThreshold;
-    });
-    if ($humanSuccess !== null) {
+    $humanRuns = aurum_eligible_runs(
+        $runs,
+        'Aurum Human Capability Traits',
+        $runtimeThreshold,
+        'main'
+    );
+    $pcRuns = aurum_eligible_runs(
+        $runs,
+        'Aurum PC v0.01 Image',
+        $pcThreshold,
+        'agent/aurum-direct-uefi-seed'
+    );
+    $piRuns = aurum_eligible_runs(
+        $runs,
+        'Aurum Dual Seed Lanes',
+        $piThreshold,
+        'main'
+    );
+
+    $humanLatest = $humanRuns[0] ?? null;
+    $pcLatest = $pcRuns[0] ?? null;
+    $piLatest = $piRuns[0] ?? null;
+    $humanVerified = aurum_first_success($humanRuns);
+    $pcVerified = aurum_first_success($pcRuns);
+    $piVerified = aurum_first_success($piRuns);
+
+    if ($humanVerified !== null) {
         aurum_set_all_stage($payload, 'tested', true);
     }
-
-    $pcSeedSuccess = aurum_latest_run($runs, static function (array $run) use ($pcThreshold): bool {
-        return (string) ($run['name'] ?? '') === 'Aurum PC v0.01 Image'
-            && (string) ($run['head_branch'] ?? '') === 'agent/aurum-direct-uefi-seed'
-            && (string) ($run['conclusion'] ?? '') === 'success'
-            && aurum_time((string) ($run['updated_at'] ?? '')) >= $pcThreshold;
-    });
-    $piSeedSuccess = aurum_latest_run($runs, static function (array $run) use ($piThreshold): bool {
-        return (string) ($run['name'] ?? '') === 'Aurum Dual Seed Lanes'
-            && (string) ($run['conclusion'] ?? '') === 'success'
-            && aurum_time((string) ($run['updated_at'] ?? '')) >= $piThreshold;
-    });
-
-    if ($pcSeedSuccess !== null || $piSeedSuccess !== null) {
+    if ($pcVerified !== null || $piVerified !== null) {
         aurum_set_all_stage($payload, 'seeded', true);
     }
-    if ($pcSeedSuccess !== null) {
-        // This workflow inspects the finished SquashFS and completes independent
-        // GRUB/direct-UEFI boot smoke tests before it can conclude successfully.
+    if ($pcVerified !== null) {
+        // The PC workflow inspects the finished SquashFS and completes
+        // independent GRUB/direct-UEFI boot smoke tests before success.
         aurum_set_all_stage($payload, 'booted', true);
     }
 
@@ -222,7 +287,7 @@ function aurum_build_live_status(array $snapshot): array
             $capability['current'] = 'A verified seed artifact contains the capability; boot proof is pending.';
             $capability['next'] = 'Boot the updated seed and verify the capability is present after startup.';
         } elseif ($count >= 3) {
-            // Preserve the richer static current/next language at the present gate.
+            // Preserve richer per-trait language from the durable snapshot.
         } elseif ($count >= 2) {
             $capability['current'] = 'Executable implementation exists; functional test proof is pending.';
             $capability['next'] = 'Pass the functional implementation lane.';
@@ -233,7 +298,20 @@ function aurum_build_live_status(array $snapshot): array
     }
     unset($capability);
 
-    if ($humanActive !== null) {
+    $activeHuman = $humanLatest !== null && aurum_active_run($humanLatest);
+    $latestFailures = [];
+    foreach ([
+        'PC seed' => $pcLatest,
+        'Pi seed' => $piLatest,
+    ] as $name => $run) {
+        if ($run !== null && in_array((string) ($run['conclusion'] ?? ''), [
+            'failure', 'timed_out', 'startup_failure'
+        ], true)) {
+            $latestFailures[] = $name;
+        }
+    }
+
+    if ($activeHuman) {
         $payload['overall'] = [
             'state' => 'running',
             'plain' => 'The human capability implementation workflow is actively running. All seven traits remain independent parallel lanes.',
@@ -257,6 +335,12 @@ function aurum_build_live_status(array $snapshot): array
             'plain' => 'All seven capabilities are executable, tested, and present in a verified seed artifact. Boot proof is the next gate.',
             'human_action' => 'None until the automated boot lane identifies a real physical boundary.',
         ];
+    } elseif ($minimumStage >= 3 && $latestFailures !== []) {
+        $payload['overall'] = [
+            'state' => 'automated-seed-repair-needed',
+            'plain' => 'All seven everyday capabilities remain executable and tested, but the latest ' . implode(' and ', $latestFailures) . ' integration attempt failed. Seeded has not been earned by that failed attempt.',
+            'human_action' => 'None right now. This is an automated software/build failure, not a human-only physical boundary.',
+        ];
     } elseif ($minimumStage >= 3) {
         $payload['overall'] = [
             'state' => 'awaiting-seed-proof',
@@ -266,17 +350,9 @@ function aurum_build_live_status(array $snapshot): array
     }
 
     $payload['live_evidence'] = [
-        'human_trait_workflow' => $humanActive !== null
-            ? ['state' => 'active', 'run_id' => $humanActive['id'] ?? null, 'updated_at' => $humanActive['updated_at'] ?? null]
-            : ($humanSuccess !== null
-                ? ['state' => 'success', 'run_id' => $humanSuccess['id'] ?? null, 'updated_at' => $humanSuccess['updated_at'] ?? null]
-                : ['state' => 'not-observed']),
-        'pc_seed_with_human_traits' => $pcSeedSuccess !== null
-            ? ['state' => 'success', 'run_id' => $pcSeedSuccess['id'] ?? null, 'updated_at' => $pcSeedSuccess['updated_at'] ?? null]
-            : ['state' => 'pending'],
-        'pi_seed_with_human_traits' => $piSeedSuccess !== null
-            ? ['state' => 'success', 'run_id' => $piSeedSuccess['id'] ?? null, 'updated_at' => $piSeedSuccess['updated_at'] ?? null]
-            : ['state' => 'pending'],
+        'human_trait_workflow' => aurum_run_evidence($humanLatest, $humanVerified),
+        'pc_seed_with_human_traits' => aurum_run_evidence($pcLatest, $pcVerified),
+        'pi_seed_with_human_traits' => aurum_run_evidence($piLatest, $piVerified),
         'github_commits_loaded' => is_array($commits) ? count($commits) : 0,
         'github_runs_loaded' => count($runs),
     ];
@@ -287,7 +363,7 @@ function aurum_build_live_status(array $snapshot): array
 function aurum_cached_status(): array
 {
     $snapshot = aurum_json_file(__DIR__ . '/voice-status-snapshot.json');
-    $cachePath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'aurum-voice-status-v1.json';
+    $cachePath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'aurum-voice-status-v2.json';
     if (is_file($cachePath) && (time() - (int) filemtime($cachePath)) < AURUM_CACHE_SECONDS) {
         try {
             return aurum_json_file($cachePath);
@@ -337,6 +413,22 @@ function aurum_plain_status(array $payload): string
         );
         $lines[] = '  Current: ' . (string) ($capability['current'] ?? 'Unknown.');
         $lines[] = '  Next: ' . (string) ($capability['next'] ?? 'Unknown.');
+    }
+    $lines[] = '';
+    $lines[] = 'Live build evidence:';
+    foreach ([
+        'Human trait workflow' => 'human_trait_workflow',
+        'PC seed with human traits' => 'pc_seed_with_human_traits',
+        'Pi seed with human traits' => 'pi_seed_with_human_traits',
+    ] as $label => $key) {
+        $item = $payload['live_evidence'][$key] ?? [];
+        $lines[] = sprintf(
+            '- %s: %s; latest run %s; verified success %s.',
+            $label,
+            (string) ($item['state'] ?? 'unknown'),
+            (string) ($item['run_id'] ?? 'none'),
+            !empty($item['verified_success']) ? 'yes' : 'no'
+        );
     }
     $lines[] = '';
     $lines[] = 'System milestones:';
