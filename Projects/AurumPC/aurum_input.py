@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
-"""Bounded Hopper pointer discovery and resume-safe wake policy."""
+"""Bounded Hopper pointer discovery and resume-safe input recovery."""
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA = "aurum.input.v2"
+SCHEMA = "aurum.input.v3"
 SYS_INPUT = Path("/sys/class/input")
 DEV_INPUT = Path("/dev/input")
 DEFAULT_STATE = Path("/run/aurum-input-status.json")
 COMMON_MODULES = ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid")
 POINTER_KINDS = frozenset({"touchpad", "mouse", "relative-pointer", "absolute-pointer"})
+XORG_LIBINPUT_DRIVERS = (
+    Path("/usr/lib/xorg/modules/input/libinput_drv.so"),
+    Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),
+)
+LIBINPUT_PACKAGES = ("xserver-xorg-input-libinput", "libinput-tools")
 
 
 def _read(path: Path, default: str = "") -> str:
@@ -52,12 +58,6 @@ def classify_device(name: str, *, rel: tuple[int, ...], abs_axes: tuple[int, ...
 
 
 def _power_files(device: Path) -> dict[str, Path]:
-    """Find the nearest power policy for each setting exposed by this device.
-
-    Each setting stops at its first match and the search is bounded to eight
-    ancestors so a pointer cannot walk all the way to a broad machine policy.
-    """
-
     try:
         current = device.resolve(strict=True)
     except OSError:
@@ -85,11 +85,7 @@ def _power_snapshot(device: Path) -> dict[str, Any]:
     }
 
 
-def input_devices(
-    *,
-    sys_input: Path = SYS_INPUT,
-    dev_input: Path = DEV_INPUT,
-) -> list[dict[str, Any]]:
+def input_devices(*, sys_input: Path = SYS_INPUT, dev_input: Path = DEV_INPUT) -> list[dict[str, Any]]:
     devices: list[dict[str, Any]] = []
     if not sys_input.exists():
         return devices
@@ -162,10 +158,13 @@ def module_state() -> dict[str, bool]:
     return {name: (Path("/sys/module") / name).exists() for name in COMMON_MODULES}
 
 
-def libinput_available() -> bool:
+def libinput_cli_available() -> bool:
+    executable = shutil.which("libinput")
+    if not executable:
+        return False
     try:
         result = subprocess.run(
-            ["libinput", "list-devices"],
+            [executable, "list-devices"],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -174,6 +173,57 @@ def libinput_available() -> bool:
     except (OSError, subprocess.SubprocessError):
         return False
     return result.returncode == 0
+
+
+def xorg_libinput_driver_available() -> bool:
+    return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)
+
+
+def repair_libinput() -> dict[str, Any]:
+    before = {
+        "cli": libinput_cli_available(),
+        "xorg_driver": xorg_libinput_driver_available(),
+    }
+    if before["cli"] and before["xorg_driver"]:
+        return {"status": "already-ready", "before": before, "after": before, "installed": []}
+    apt = shutil.which("apt-get")
+    if not apt:
+        return {"status": "blocked", "reason": "apt-get-unavailable", "before": before, "installed": []}
+    if os.geteuid() != 0:
+        return {"status": "blocked", "reason": "root-required", "before": before, "installed": []}
+    env = dict(os.environ)
+    env["DEBIAN_FRONTEND"] = "noninteractive"
+    try:
+        result = subprocess.run(
+            [apt, "install", "-y", "--no-install-recommends", *LIBINPUT_PACKAGES],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=600,
+            env=env,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {
+            "status": "failed",
+            "reason": f"{type(exc).__name__}:{exc}",
+            "before": before,
+            "installed": [],
+        }
+    after = {
+        "cli": libinput_cli_available(),
+        "xorg_driver": xorg_libinput_driver_available(),
+    }
+    ready = after["cli"] and after["xorg_driver"]
+    return {
+        "status": "ready" if ready else "failed",
+        "before": before,
+        "after": after,
+        "installed": list(LIBINPUT_PACKAGES) if result.returncode == 0 else [],
+        "returncode": result.returncode,
+        "detail": "" if result.returncode == 0 else result.stdout[-1600:],
+        "gui_restart_required": bool(result.returncode == 0 and before != after),
+    }
 
 
 def status(*, apply_wake: bool = False) -> dict[str, Any]:
@@ -185,17 +235,31 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
         if apply_wake
         else {"status": "observed", "managed_pointer_count": 0, "changed": [], "errors": []}
     )
+    libinput = {
+        "cli": libinput_cli_available(),
+        "xorg_driver": xorg_libinput_driver_available(),
+    }
+    repair = repair_libinput() if apply_wake and pointers and not all(libinput.values()) else {"status": "not-needed"}
+    if repair.get("status") in {"ready", "already-ready"}:
+        libinput = {
+            "cli": libinput_cli_available(),
+            "xorg_driver": xorg_libinput_driver_available(),
+        }
     for item in devices:
         item.pop("_device_path", None)
+    healthy = bool(pointers and not wake_policy["errors"] and libinput["xorg_driver"])
     return {
         "schema": SCHEMA,
-        "status": "ready" if pointers and not wake_policy["errors"] else "no-pointer-detected" if not pointers else "degraded",
-        "libinput_available": libinput_available(),
+        "status": "ready" if healthy else "no-pointer-detected" if not pointers else "degraded",
+        "libinput_available": bool(libinput["cli"]),
+        "libinput": libinput,
+        "repair": repair,
         "modules": module_state(),
         "wake_policy": wake_policy,
         "touchpads": touchpads,
         "pointers": pointers,
         "devices": devices,
+        "gui_restart_required": bool(repair.get("gui_restart_required")),
     }
 
 
@@ -207,7 +271,7 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Inspect and wake Hopper pointer devices")
+    parser = argparse.ArgumentParser(description="Inspect and recover Hopper pointer devices")
     parser.add_argument("--apply-wake-policy", action="store_true")
     parser.add_argument("--write-state", type=Path, default=DEFAULT_STATE)
     args = parser.parse_args()
