@@ -9,9 +9,10 @@
       "human_aliases": ["web", "browser", "internet"],
       "goal": "Browser-compatible web access without making a particular browser the permanent Aurum abstraction.",
       "compatibility_providers": [
+        {"kind": "executable", "command": "firefox-esr", "role": "graphical-browser"},
+        {"kind": "executable", "command": "firefox", "role": "graphical-browser"},
         {"kind": "executable", "command": "chromium", "role": "graphical-browser"},
         {"kind": "executable", "command": "chromium-browser", "role": "graphical-browser"},
-        {"kind": "executable", "command": "firefox", "role": "graphical-browser"},
         {"kind": "executable", "command": "google-chrome", "role": "graphical-browser"}
       ]
     },
@@ -21,9 +22,9 @@
       "human_aliases": ["garden", "files", "documents", "my things"],
       "goal": "Human-compatible storage projection over machine-native state, without exposing filesystem mechanics as the permanent user model.",
       "compatibility_providers": [
+        {"kind": "executable", "command": "pcmanfm", "role": "graphical-file-projection"},
         {"kind": "executable", "command": "nautilus", "role": "graphical-file-projection"},
         {"kind": "executable", "command": "thunar", "role": "graphical-file-projection"},
-        {"kind": "executable", "command": "pcmanfm", "role": "graphical-file-projection"},
         {"kind": "executable", "command": "dolphin", "role": "graphical-file-projection"},
         {"kind": "executable", "command": "xdg-open", "role": "projection-launcher"}
       ]
@@ -69,6 +70,8 @@
       "human_aliases": ["connect", "wifi", "bluetooth", "usb", "devices"],
       "goal": "Express device and network connectivity as one capability across interchangeable transports.",
       "compatibility_providers": [
+        {"kind": "executable", "command": "ip", "role": "network-observation"},
+        {"kind": "executable", "command": "iw", "role": "wifi-observation"},
         {"kind": "executable", "command": "nmcli", "role": "network-control"},
         {"kind": "executable", "command": "bluetoothctl", "role": "bluetooth-control"},
         {"kind": "executable", "command": "lsusb", "role": "usb-observation"}
