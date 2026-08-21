@@ -77,9 +77,84 @@ class GuiRuntime:
         cmdline = self._cmdline(pid)
         return "aurum_hopper_gui.py" in cmdline and str(self.gui_script) in cmdline
 
+    def _recognized_aurum_gui(self, pid: int) -> bool:
+        cmdline = self._cmdline(pid)
+        return "aurum_hopper_gui.py" in cmdline or "aurum_gui.py" in cmdline
+
     def _owned_arcade(self, pid: int) -> bool:
         cmdline = self._cmdline(pid)
         return "aurum_arcade.py" in cmdline and str(self.arcade_script) in cmdline
+
+    @staticmethod
+    def _listener_inodes(port: int) -> set[str]:
+        wanted = f"{port:04X}"
+        found: set[str] = set()
+        for table in (Path("/proc/net/tcp"), Path("/proc/net/tcp6")):
+            try:
+                lines = table.read_text(encoding="utf-8", errors="replace").splitlines()[1:]
+            except OSError:
+                continue
+            for line in lines:
+                fields = line.split()
+                if len(fields) < 10:
+                    continue
+                local = fields[1]
+                state = fields[3]
+                if ":" not in local or state != "0A":
+                    continue
+                if local.rsplit(":", 1)[1].upper() == wanted:
+                    found.add(fields[9])
+        return found
+
+    @classmethod
+    def _listener_pids(cls, port: int) -> list[int]:
+        inodes = cls._listener_inodes(port)
+        if not inodes:
+            return []
+        found: list[int] = []
+        try:
+            proc_entries = list(Path("/proc").iterdir())
+        except OSError:
+            return found
+        for entry in proc_entries:
+            if not entry.name.isdigit():
+                continue
+            pid = int(entry.name)
+            fd_dir = entry / "fd"
+            try:
+                fds = list(fd_dir.iterdir())
+            except OSError:
+                continue
+            for fd in fds:
+                try:
+                    target = os.readlink(fd)
+                except OSError:
+                    continue
+                if target.startswith("socket:[") and target[8:-1] in inodes:
+                    found.append(pid)
+                    break
+        return sorted(set(found))
+
+    def _clear_stale_gui_listener(self) -> None:
+        listeners = self._listener_pids(self.port)
+        if not listeners:
+            return
+        unknown = [pid for pid in listeners if not self._recognized_aurum_gui(pid)]
+        if unknown:
+            details = ", ".join(f"pid={pid} cmd={self._cmdline(pid)[:180]!r}" for pid in unknown)
+            raise GuiRuntimeError(f"port {self.port} is occupied by an unrecognized process: {details}")
+        for pid in listeners:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                continue
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if not self._listener_pids(self.port):
+                self.pid_path.unlink(missing_ok=True)
+                return
+            time.sleep(0.1)
+        raise GuiRuntimeError(f"stale Aurum GUI listener on port {self.port} did not stop")
 
     @staticmethod
     def _json_probe(port: int, path: str, user_agent: str) -> dict[str, Any]:
@@ -230,6 +305,7 @@ class GuiRuntime:
     def _start_gui(self) -> None:
         if self._gui_status()["status"] == "running":
             return
+        self._clear_stale_gui_listener()
         process = self._spawn(
             self.gui_script,
             ["--root", str(self.root), "--host", "127.0.0.1", "--port", str(self.port)],
@@ -272,7 +348,7 @@ class GuiRuntime:
         old_pid = self._read_pid(self.pid_path)
         if old_pid and not self._owned_gui(old_pid):
             old_cmdline = self._cmdline(old_pid)
-            if "aurum_gui.py" in old_cmdline:
+            if "aurum_gui.py" in old_cmdline or "aurum_hopper_gui.py" in old_cmdline:
                 try:
                     os.kill(old_pid, signal.SIGTERM)
                 except ProcessLookupError:
@@ -308,7 +384,10 @@ class GuiRuntime:
     def stop(self) -> dict[str, Any]:
         desktop = self._desktop("stop")
         self._stop_owned(self.arcade_pid_path, self._owned_arcade)
-        self._stop_owned(self.pid_path, self._owned_gui)
+        try:
+            self._stop_owned(self.pid_path, self._owned_gui)
+        except GuiRuntimeError:
+            self._clear_stale_gui_listener()
         result = self.status()
         result["desktop_stop"] = desktop
         return result
