@@ -15,6 +15,7 @@ from pathlib import Path
 from aurum_autonomy import AutonomyManager
 from aurum_driver_synthesis import AdaptiveDriverSynthesizer, DriverSynthesisError, load_policy as load_driver_policy
 from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
+from aurum_input import status as input_status
 from aurum_installer import AurumInstaller, InstallError
 from aurum_network import ensure_online, interactive_wifi_setup, network_status
 from aurum_runtime_update import RuntimeUpdateError, RuntimeUpdater
@@ -255,6 +256,20 @@ def show_network() -> None:
     print(json.dumps(network_status(), indent=2, sort_keys=True), flush=True)
 
 
+def run_input(action: str) -> None:
+    try:
+        result = input_status(apply_wake=action == "recover")
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        print(
+            f"AURUM_INPUT status={result.get('status')} touchpads={len(result.get('touchpads') or [])} "
+            f"pointers={len(result.get('pointers') or [])} libinput={str(bool(result.get('libinput_available'))).lower()} "
+            f"wake={result.get('wake_policy', {}).get('status')}",
+            flush=True,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"AURUM_INPUT status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
 def run_wifi_setup() -> None:
     try:
         result = interactive_wifi_setup()
@@ -366,7 +381,7 @@ def run_install(confirmation_code: str) -> None:
 
 def command_help() -> None:
     print(
-        "status | hardware | network-status | wifi-setup | wifi-reconnect | field | selftest | "
+        "status | hardware | network-status | wifi-setup | wifi-reconnect | input-status | input-recover | field | selftest | "
         "seed | seed-status | self-build | self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
         "git-promote authorize-network confirm-push | runtime-status | runtime-sync | "
@@ -417,6 +432,10 @@ def main() -> int:
             run_wifi_setup()
         elif command == "wifi-reconnect" and len(tokens) == 1:
             run_wifi_reconnect()
+        elif command == "input-status" and len(tokens) == 1:
+            run_input("status")
+        elif command == "input-recover" and len(tokens) == 1:
+            run_input("recover")
         elif command == "field" and len(tokens) == 1:
             show_field()
         elif command == "selftest" and len(tokens) == 1:
