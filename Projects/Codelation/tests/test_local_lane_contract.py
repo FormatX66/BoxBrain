@@ -63,6 +63,15 @@ class LocalLaneContractTests(unittest.TestCase):
         self.assertIn("codelation_diagnostic_status=failed-nonblocking", text)
         self.assertNotIn("codelation_tests=passed", text)
 
+    def test_reconciler_preserves_legacy_verification_aliases_without_rejecting_approved_units(self):
+        text = RECONCILER.read_text(encoding="utf-8")
+        self.assertIn("matching_systemd_units=$new_units_count", text)
+        self.assertIn("matching_user_cron=$user_cron_changed", text)
+        self.assertIn("matching_root_cron=$root_cron_changed", text)
+        self.assertIn("existing_systemd_units=$existing_units_count", text)
+        self.assertIn("new_unapproved_systemd_units=$new_units_count", text)
+        self.assertNotIn("matching_systemd_units=$existing_units_count", text)
+
     def test_watcher_does_not_force_the_lan_only_route(self):
         text = WATCHER.read_text(encoding="utf-8")
         self.assertNotIn('-PiAddresses "192.168.0.194"', text)
