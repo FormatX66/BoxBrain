@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: true
 
-      - name: Read Hopper proof endpoint
+      - name: Read Hopper health endpoint
         shell: bash
         run: |
           set -euo pipefail
@@ -39,52 +39,72 @@ jobs:
           observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           runner="$(hostname)"
           endpoint=''
+          source_kind=''
           http=''
+
           for host in hopper.local pc-01.local hopper pc-01; do
-            candidate="http://${host}:8767/proof"
-            code="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body" -w '%{http_code}' "$candidate" 2>/dev/null || true)"
-            if [ "$code" = '200' ] && python3 -m json.tool "$body" >/dev/null 2>&1; then
-              endpoint="$candidate"
-              http="$code"
-              break
-            fi
+            for spec in '8768/status:self-debug' '8767/proof:echo-proof'; do
+              path="${spec%%:*}"
+              kind="${spec##*:}"
+              candidate="http://${host}:${path}"
+              code="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body" -w '%{http_code}' "$candidate" 2>/dev/null || true)"
+              if [ "$code" = '200' ] && python3 -m json.tool "$body" >/dev/null 2>&1; then
+                endpoint="$candidate"
+                source_kind="$kind"
+                http="$code"
+                break 2
+              fi
+            done
           done
 
-          python3 - "$out" "$observed" "$runner" "$endpoint" "$http" "$body" <<'PY'
+          python3 - "$out" "$observed" "$runner" "$endpoint" "$source_kind" "$http" "$body" <<'PY'
           import json, sys
-          out, observed, runner, endpoint, http, body = sys.argv[1:]
-          proof = None
+          out, observed, runner, endpoint, source_kind, http, body = sys.argv[1:]
+          report = None
           if endpoint:
               try:
-                  proof = json.load(open(body, encoding='utf-8'))
+                  report = json.load(open(body, encoding='utf-8'))
               except Exception:
-                  proof = None
+                  report = None
           payload = {
-              'schema': 'aurum.hopper.live-status.v1',
+              'schema': 'aurum.hopper.live-status.v2',
               'observed_at': observed,
               'runner_host': runner,
-              'reachable': bool(endpoint and proof),
+              'reachable': bool(endpoint and report),
               'endpoint': endpoint or None,
+              'source_kind': source_kind or None,
               'http_status': int(http) if http.isdigit() else None,
-              'proof': proof,
+              'report': report,
           }
-          if isinstance(proof, dict):
-              machine = proof.get('machine') or {}
-              display = proof.get('display') or {}
-              echo = proof.get('echo') or {}
-              input_state = proof.get('input') or {}
+          if source_kind == 'self-debug' and isinstance(report, dict):
+              payload['summary'] = {
+                  'machine': report.get('machine') or 'Hopper',
+                  'health': report.get('status'),
+                  'issue_count': report.get('issue_count'),
+                  'issues': [item.get('code') for item in (report.get('issues') or []) if isinstance(item, dict)],
+                  'gui_status': (report.get('gui') or {}).get('status'),
+                  'physical_desktop': (report.get('gui') or {}).get('physical_desktop'),
+                  'touchpads': (report.get('input') or {}).get('touchpads'),
+                  'pointers': (report.get('input') or {}).get('pointers'),
+                  'libinput': (report.get('input') or {}).get('libinput'),
+                  'runtime_changes': (report.get('runtime') or {}).get('changes'),
+                  'online': (report.get('network') or {}).get('online'),
+              }
+          elif source_kind == 'echo-proof' and isinstance(report, dict):
+              machine = report.get('machine') or {}
+              display = report.get('display') or {}
+              echo = report.get('echo') or {}
+              input_state = report.get('input') or {}
               payload['summary'] = {
                   'machine': machine.get('display_name') or machine.get('hostname') or 'Hopper',
-                  'authorized_exact_hopper': machine.get('authorized_exact_hopper'),
+                  'health': 'legacy-proof',
                   'display_status': display.get('status'),
                   'physical_display': display.get('physical_display'),
                   'echo_status': echo.get('status'),
-                  'echo_process_running': echo.get('process_running'),
-                  'keyboard_path_available': input_state.get('keyboard_path_available'),
                   'pointer_path_available': input_state.get('pointer_path_available'),
               }
           else:
-              payload['summary'] = {'machine': 'Hopper', 'status': 'unreachable'}
+              payload['summary'] = {'machine': 'Hopper', 'health': 'unreachable'}
           with open(out, 'w', encoding='utf-8') as f:
               json.dump(payload, f, indent=2, sort_keys=True)
               f.write('\n')
