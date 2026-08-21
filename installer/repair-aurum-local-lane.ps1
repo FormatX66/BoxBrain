@@ -140,8 +140,44 @@ $fetch = Invoke-GitBounded @("-C", $repo, "fetch", "--no-tags", "origin", "+refs
 if ($fetch.ExitCode -ne 0) { throw "Could not refresh existing Aurum lane repository." }
 $checkout = Invoke-GitBounded @("-C", $repo, "checkout", "main")
 if ($checkout.ExitCode -ne 0) { throw "Could not select main in existing Aurum lane repository." }
-$merge = Invoke-GitBounded @("-C", $repo, "merge", "--ff-only", "refs/remotes/origin/main")
-if ($merge.ExitCode -ne 0) { throw "Existing Aurum lane repository could not fast-forward cleanly." }
+
+$historyRecovery = 'none'
+$historyBackupRef = $null
+$localHeadResult = Invoke-GitBounded @("-C", $repo, "rev-parse", "HEAD")
+$remoteHeadResult = Invoke-GitBounded @("-C", $repo, "rev-parse", "refs/remotes/origin/main")
+if ($localHeadResult.ExitCode -ne 0 -or $remoteHeadResult.ExitCode -ne 0) { throw "Could not resolve local/remote Aurum lane history." }
+$localHeadBeforeSync = [string]($localHeadResult.Output | Select-Object -First 1)
+$remoteHead = [string]($remoteHeadResult.Output | Select-Object -First 1)
+
+if ($localHeadBeforeSync -ne $remoteHead) {
+    $ancestor = Invoke-GitBounded @("-C", $repo, "merge-base", "--is-ancestor", $localHeadBeforeSync, $remoteHead)
+    if ($ancestor.ExitCode -eq 0) {
+        $merge = Invoke-GitBounded @("-C", $repo, "merge", "--ff-only", "refs/remotes/origin/main")
+        if ($merge.ExitCode -ne 0) { throw "Existing Aurum lane repository could not fast-forward cleanly." }
+        $historyRecovery = 'fast-forward'
+    }
+    elseif ($ancestor.ExitCode -eq 1) {
+        # GitHub automation may legitimately rewrite main while this approved local
+        # lane is offline. Preserve every local commit under an explicit recovery
+        # ref before aligning clean main to the current remote. This is reversible:
+        # no commit is discarded, untracked files are untouched, and dirty tracked
+        # state was already rejected above.
+        $stamp = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssZ')
+        $short = if ($localHeadBeforeSync.Length -gt 12) { $localHeadBeforeSync.Substring(0,12) } else { $localHeadBeforeSync }
+        $historyBackupRef = "refs/heads/aurum/recovery-backup-$stamp-$short"
+        $backup = Invoke-GitBounded @("-C", $repo, "update-ref", $historyBackupRef, $localHeadBeforeSync)
+        if ($backup.ExitCode -ne 0) { throw "Could not preserve divergent Aurum lane history before alignment." }
+        $reset = Invoke-GitBounded @("-C", $repo, "reset", "--hard", "refs/remotes/origin/main")
+        if ($reset.ExitCode -ne 0) {
+            Invoke-GitBounded @("-C", $repo, "reset", "--hard", $localHeadBeforeSync) | Out-Null
+            throw "Could not align divergent Aurum lane history after preserving a recovery ref."
+        }
+        $historyRecovery = 'backup-and-reset-to-origin-main'
+    }
+    else {
+        throw "Could not determine Aurum lane history relationship safely."
+    }
+}
 
 $deployer = Join-Path $repo "installer\deploy-aurum-live-to-pi.ps1"
 if (-not (Test-Path -LiteralPath $deployer -PathType Leaf)) { throw "Approved Aurum deployer is missing." }
@@ -171,6 +207,8 @@ if ($drift.Count -gt 0) {
             decision = "review-required"
             drift = $drift
             current_commit = $currentCommit
+            history_recovery = $historyRecovery
+            history_backup_ref = $historyBackupRef
             tests_passed = $false
             authorization_mutated = $false
             deployment_performed = $false
@@ -208,6 +246,8 @@ $authorizationScope = if ($authorizationMutated) { 'codelation-tree-hash-only' }
     decision = $decision
     drift = $drift
     current_commit = $currentCommit
+    history_recovery = $historyRecovery
+    history_backup_ref = $historyBackupRef
     tests_passed = $testsPassed
     authorization_mutated = $authorizationMutated
     authorization_scope = $authorizationScope
