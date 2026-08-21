@@ -1,5 +1,5 @@
 {
-  "cycle": 575,
+  "cycle": 576,
   "last_capability_build": {
     "capability": "aurum-field-v0-machine-native-storage",
     "implementation_commits": [
@@ -32,76 +32,40 @@
     "verified_at": 1786621820
   },
   "last_controller_ack": {
-    "action": "checkpoint-local-continue-independent-lanes-await-carrier",
-    "carrier_failures": [
-      {
-        "action": "continue-safe-independent-lanes-preserve-state",
-        "classification": "request-or-client-failure",
-        "endpoint": "https://arkmatx.com/aurum/index.php",
-        "error": "HTTPError",
-        "http_status": 409,
-        "limit_headers": {},
-        "ok": false,
-        "reason": "Conflict",
-        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
-        "time": 1787344641
-      },
-      {
-        "action": "continue-safe-independent-lanes-preserve-state",
-        "classification": "request-or-client-failure",
-        "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
-        "error": "HTTPError",
-        "http_status": 409,
-        "limit_headers": {},
-        "ok": false,
-        "reason": "Conflict",
-        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
-        "time": 1787344641
-      }
-    ],
-    "classification": "request-or-client-failure",
-    "error": "ControllerCarrierUnavailable",
-    "ok": false,
-    "time": 1787344641
+    "carrier_failures": [],
+    "endpoint": "https://arkmatx.com/aurum/index.php",
+    "ok": true,
+    "time": 1787344653
   },
   "last_controller_status": {
-    "action": "continue-safe-independent-lanes-preserve-state",
-    "all_carriers_failed": true,
-    "carrier_failures": [
-      {
-        "action": "continue-safe-independent-lanes-preserve-state",
-        "classification": "request-or-client-failure",
-        "endpoint": "https://arkmatx.com/aurum/index.php",
-        "error": "HTTPError",
-        "http_status": 409,
-        "limit_headers": {},
-        "ok": false,
-        "reason": "Conflict",
-        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
-        "time": 1787344641
-      },
-      {
-        "action": "continue-safe-independent-lanes-preserve-state",
-        "classification": "request-or-client-failure",
-        "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
-        "error": "HTTPError",
-        "http_status": 409,
-        "limit_headers": {},
-        "ok": false,
-        "reason": "Conflict",
-        "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
-        "time": 1787344641
-      }
+    "capabilities": [
+      "content_addressed_state",
+      "conversation_stream",
+      "human_projection",
+      "node_directory",
+      "node_enroll",
+      "node_heartbeat",
+      "prompt_ingest",
+      "uaf_emit",
+      "uaf_receive",
+      "uaf_store",
+      "work_lease",
+      "work_result",
+      "work_status"
     ],
-    "classification": "request-or-client-failure",
-    "endpoint": "https://madmorrigan.com/aurum-failover/index.php",
-    "error": "HTTPError",
-    "http_status": 409,
-    "limit_headers": {},
-    "ok": false,
-    "reason": "Conflict",
-    "response_body": "<script>document.cookie = \"humans_21909=1\"; document.location.reload(true)</script>",
-    "time": 1787344641
+    "carrier_failures": [],
+    "endpoint": "https://arkmatx.com/aurum/index.php",
+    "events": {
+      "merged": 2977,
+      "nodes": 1,
+      "outbox": 419,
+      "rejected": 0,
+      "work": 3
+    },
+    "node": "Aurum-Arkmatx",
+    "ok": true,
+    "status": "active-edge-web-node",
+    "time": 1787344653
   },
   "next": "enroll-bbpi4-arkmatx-and-verify-heartbeat",
   "observations": {
@@ -152,7 +116,7 @@
     }
   },
   "schema": 1,
-  "semantic_fingerprint": "8bed4605c64e07d1824845e3dbd00f24ef45a3222f7a47172e284fc430148be5",
+  "semantic_fingerprint": "26eace46b56d924e0fa48b61fa9cce9062148170a6b76984d3eac5b74a8f6e4e",
   "targets": {
     "Aurum-Morris": {
       "carriers": [
@@ -199,5 +163,5 @@
       "status": "unconfirmed"
     }
   },
-  "updated_at": 1787344641
+  "updated_at": 1787344653
 }
