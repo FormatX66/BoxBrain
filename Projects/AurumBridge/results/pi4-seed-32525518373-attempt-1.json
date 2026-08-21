@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_FAILURE",
+    "github_workflow_run":  32525518373,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-21T20:50:11.4595490Z",
+    "data":  {
+                 "transport":  "usb-c-ssh",
+                 "host_key_pretrusted":  true,
+                 "source_commit":  "dc2646c5b79ae6f2549dc461bd8e4bd97686a814",
+                 "reason":  "The bounded BBPI4 human-trait deployment failed (exit 127): env: ‘bash\\r’: No such file or directory | env: use -[v]S to pass options in shebang lines"
+             }
+}
