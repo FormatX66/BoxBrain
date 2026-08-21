@@ -226,6 +226,12 @@ def create_verification_evidence(
     missing = [marker for marker in required_markers if marker not in log]
     if missing:
         raise ValueError(f"verification log is missing markers: {missing}")
+    accelerator = execution_environment.removeprefix("qemu-uefi-")
+    accelerator_marker = f"AURUM_QEMU_ACCELERATION selected={accelerator}"
+    if accelerator_marker not in log:
+        raise ValueError(
+            f"verification log does not prove execution environment: {execution_environment}"
+        )
     return {
         "schema": "aurum-pc-verification-v1",
         "profile": profile,

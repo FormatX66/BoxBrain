@@ -76,7 +76,8 @@
     },
     "vm-topology-verification": {
       "architectures": ["x86_64"],
-      "execution_environment": "qemu-uefi-tcg",
+      "execution_environment": "qemu-uefi-capability-gated",
+      "allowed_execution_environments": ["qemu-uefi-kvm", "qemu-uefi-tcg"],
       "artifact_role": "topology-specific-verification-evidence"
     },
     "artifact-convergence": {

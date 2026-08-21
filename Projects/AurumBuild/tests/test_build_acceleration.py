@@ -48,14 +48,14 @@ def artifact() -> dict:
     }
 
 
-def evidence(profile: str) -> dict:
+def evidence(profile: str, execution_environment: str = "qemu-uefi-tcg") -> dict:
     item = artifact()
     return {
         "schema": "aurum-pc-verification-v1",
         "profile": profile,
         "work_type": "vm-topology-verification",
         "architecture": "x86_64",
-        "execution_environment": "qemu-uefi-tcg",
+        "execution_environment": execution_environment,
         "source_sha": item["source_sha"],
         "artifact_identity": item["artifact_identity"],
         "iso_sha256": item["iso_sha256"],
@@ -141,7 +141,10 @@ class BuildAccelerationTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         log = Path(temporary.name) / "qemu.log"
-        log.write_text("required-marker\n", encoding="utf-8")
+        log.write_text(
+            "required-marker\nAURUM_QEMU_ACCELERATION selected=kvm\n",
+            encoding="utf-8",
+        )
         item = create_verification_evidence(
             artifact=artifact(),
             profile="generic-uefi-install",
@@ -163,6 +166,23 @@ class BuildAccelerationTests(unittest.TestCase):
                 required_markers=["required-marker"],
                 duration_seconds=2,
                 execution_environment="unproven-fast-path",
+            )
+
+        with self.assertRaisesRegex(ValueError, "does not prove execution environment"):
+            create_verification_evidence(
+                artifact=artifact(),
+                profile="generic-uefi-install",
+                log_path=log,
+                required_markers=[],
+                duration_seconds=1,
+                execution_environment="qemu-uefi-tcg",
+            )
+
+    def test_unregistered_accelerator_cannot_enter_convergence(self) -> None:
+        generic = evidence("generic-uefi-install", "qemu-uefi-hvf")
+        with self.assertRaisesRegex(ValueError, "execution environment is incorrect"):
+            converge_verification(
+                artifact(), [generic, evidence("hopper-hp-topology-twin")]
             )
 
     def test_speculative_verifier_cannot_mutate_trusted_physical_state(self) -> None:
@@ -242,6 +262,7 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertEqual(pc.count("sh Projects/AurumPC/build-iso.sh"), 1)
         self.assertIn("needs: [build-image, generic-uefi-smoke, hp-twin-smoke]", pc)
         self.assertIn("needs.build-image.outputs.builder_image", pc)
+        self.assertEqual(pc.count("--privileged"), 1)
         self.assertIn("live_build_cache_identity", pc)
         self.assertIn("verify-pc-image.sh", build_script)
         self.assertIn("AURUM_PC_ISO_PROVENANCE verified=true", image_verifier)
