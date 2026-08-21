@@ -1,0 +1,22 @@
+name: Codelation Genetics Experimental
+
+on:
+  push:
+    branches:
+      - aurum/codelation-genetics-experimental
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run codelation genetics tests
+        run: python -m unittest discover -s generation_genetics -p 'test_*.py' -v
