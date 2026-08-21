@@ -1,0 +1,192 @@
+name: Aurum Parallel Research
+
+on:
+  push:
+    branches:
+      - aurum/parallel-research-control
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-parallel-research
+  cancel-in-progress: true
+
+jobs:
+  lane:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: stable-baseline
+            purpose: protected conventional reference
+            ref: main
+            install: python -m pip install -e controller
+            command: python -m unittest discover -s controller/tests -p 'test_*.py' -v
+            loc_paths: controller/src ui/lib
+          - name: stateweave
+            purpose: machine-native state representation
+            ref: stateweave-experimental
+            install: ':'
+            command: python -m unittest discover -s stateweave -p 'test_*.py' -v
+            loc_paths: stateweave
+          - name: adaptive-kernel
+            purpose: standalone adaptive kernel
+            ref: adaptive-kernel-experimental
+            install: ':'
+            command: python -m unittest discover -s adaptive_kernel -p 'test_*.py' -v
+            loc_paths: adaptive_kernel
+          - name: stateweave-kernel
+            purpose: StateWeave plus adaptive kernel fusion
+            ref: stateweave-adaptive-kernel
+            install: ':'
+            command: python -m unittest discover -s stateweave -p 'test_*.py' -v && python -m unittest discover -s stateweave_kernel -p 'test_*.py' -v
+            loc_paths: stateweave stateweave_kernel
+          - name: evolution-harness
+            purpose: evidence scoring and promotion guardrails
+            ref: aurum/evolution-harness-experimental
+            install: ':'
+            command: python -m unittest discover -s evolution_harness -p 'test_*.py' -v
+            loc_paths: evolution_harness
+          - name: gui-next
+            purpose: disposable human view over machine state
+            ref: aurum/gui-next-experimental
+            install: ':'
+            command: python -m unittest discover -s gui_experiment -p 'test_*.py' -v
+            loc_paths: gui_experiment
+          - name: driver-lab
+            purpose: confidence-scored simulated driver synthesis
+            ref: aurum/driver-lab-experimental
+            install: ':'
+            command: python -m unittest discover -s driver_lab -p 'test_*.py' -v
+            loc_paths: driver_lab
+          - name: codelation-genetics
+            purpose: machine-native pressure and next-seed inheritance
+            ref: aurum/codelation-genetics-experimental
+            install: ':'
+            command: python -m unittest discover -s generation_genetics -p 'test_*.py' -v
+            loc_paths: generation_genetics
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run lane
+        shell: bash
+        env:
+          LANE_NAME: ${{ matrix.name }}
+          LANE_PURPOSE: ${{ matrix.purpose }}
+          LANE_REF: ${{ matrix.ref }}
+          INSTALL_COMMAND: ${{ matrix.install }}
+          LANE_COMMAND: ${{ matrix.command }}
+          LOC_PATHS: ${{ matrix.loc_paths }}
+        run: |
+          set +e
+          started=$(date +%s)
+          : > lane-test.log
+          bash -lc "$INSTALL_COMMAND" >> lane-test.log 2>&1
+          install_code=$?
+          if [ "$install_code" -eq 0 ]; then
+            bash -lc "$LANE_COMMAND" >> lane-test.log 2>&1
+            test_code=$?
+          else
+            test_code=$install_code
+          fi
+          cat lane-test.log
+          finished=$(date +%s)
+          duration=$((finished-started))
+          sha=$(git rev-parse HEAD)
+          loc=0
+          for path in $LOC_PATHS; do
+            if [ -e "$path" ]; then
+              subtotal=$(find "$path" -type f \( -name '*.py' -o -name '*.dart' -o -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name '*.S' -o -name '*.s' \) -print0 | xargs -0 -r cat | wc -l)
+              loc=$((loc+subtotal))
+            fi
+          done
+          if [ "$test_code" -eq 0 ]; then status=pass; else status=fail; fi
+          python - <<PY
+          import json
+          with open('lane-result.json','w',encoding='utf-8') as f:
+              json.dump({
+                  'lane': '${LANE_NAME}',
+                  'purpose': '${LANE_PURPOSE}',
+                  'ref': '${LANE_REF}',
+                  'sha': '${sha}',
+                  'status': '${status}',
+                  'exit_code': ${test_code},
+                  'duration_seconds': ${duration},
+                  'targeted_loc': ${loc},
+              }, f, indent=2, sort_keys=True)
+          PY
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-${{ matrix.name }}
+          path: |
+            lane-result.json
+            lane-test.log
+          retention-days: 30
+
+  scoreboard:
+    name: Parallel research scoreboard
+    needs: lane
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: research-*
+          path: results
+
+      - name: Build scoreboard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob, json, os
+          rows=[]
+          for path in glob.glob('results/**/lane-result.json', recursive=True):
+              with open(path, encoding='utf-8') as f:
+                  rows.append(json.load(f))
+          rows.sort(key=lambda row: row['lane'])
+          lines=[
+              '# Aurum Parallel Research',
+              '',
+              'All research lanes are isolated from the stable baseline. This board reports test health only; it does not auto-promote experiments.',
+              '',
+              '| Lane | Status | Purpose | Runtime | Targeted LOC | Commit |',
+              '|---|---:|---|---:|---:|---|',
+          ]
+          for row in rows:
+              lines.append(
+                  f"| {row['lane']} | {row['status']} | {row['purpose']} | "
+                  f"{row['duration_seconds']}s | {row['targeted_loc']} | `{row['sha'][:10]}` |"
+              )
+          lines += [
+              '',
+              '## Promotion boundary',
+              '',
+              'No research lane may change the protected baseline directly. Cross-lane promotion requires explicit evidence through the evolution harness and the existing shared capability benchmark where applicable.',
+          ]
+          text='\n'.join(lines)+'\n'
+          open('AURUM_PARALLEL_RESEARCH.md','w',encoding='utf-8').write(text)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write(text)
+          print(text)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurum-parallel-research-scoreboard
+          path: AURUM_PARALLEL_RESEARCH.md
+          retention-days: 30
