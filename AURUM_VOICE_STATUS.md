@@ -6,11 +6,15 @@ This is the durable repository mirror for voice chats and other read-only assist
 
 **Machine-readable live source:** `https://aurum.arkmatx.com/voice-status.json`
 
+**No-secret static text source:** `https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.txt`
+
+**No-secret static JSON source:** `https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.json`
+
 **Repository fallback:** `FormatX66/BoxBrain/AURUM_VOICE_STATUS.md`
 
 ## Voice instruction
 
-When Bruce says **“Read Aurum Voice Status”**, read the live source when reachable. Otherwise read this repository file. Report only the evidence recorded here or in the live mirror. Do not upgrade a capability because a plan, manifest, workflow name, or package declaration exists.
+When Bruce says **“Read Aurum Voice Status”**, read the live source when reachable. If the Arkmatx host is unavailable, read the no-secret static text/JSON source or this repository file. Report only the evidence recorded there. Do not upgrade a capability because a plan, manifest, workflow name, or package declaration exists.
 
 ## Current plain status
 
@@ -60,12 +64,15 @@ A green manifest or documentation check is only **Defined**. A package listed in
 - Fixed the Windows-to-Linux installer line ending failure (`bash\r`) and re-proved the Pi seed successfully.
 - Added regression guards that prevent contract-only checks or stale pre-integration workflow runs from being reported as progress.
 - Updated the dashboard and live voice mirror to use the six-gate evidence standard.
+- Added no-secret static text, JSON, and browser-readable mirrors that do not depend on Arkmatx deployment credentials.
 
 ## Canonical source relationships
 
-- `Web/Aurum-Arkmatx/voice-status-snapshot.json` is the durable web fallback.
-- `Web/Aurum-Arkmatx/voice-status.php` adds current public GitHub workflow and commit evidence when available.
-- `Web/Aurum-Arkmatx/dashboard.html` consumes the JSON form of that same live mirror.
-- This file is the GitHub-readable fallback for voice chats that cannot reach the website.
+- `Web/Aurum-Arkmatx/voice-status-snapshot.json` is the durable dynamic-web fallback.
+- `Web/Aurum-Arkmatx/voice-status.php` adds current public GitHub workflow and commit evidence when the Arkmatx PHP host is available.
+- `Web/Aurum-Arkmatx/voice-status.txt` and `voice-status.json` are no-secret public static mirrors.
+- `Web/Aurum-Arkmatx/voice-status/index.html` is a browser-readable static view.
+- `Web/Aurum-Arkmatx/dashboard.html` consumes the JSON form of the same status model.
+- This file is the GitHub-readable fallback for voice chats using the GitHub connector.
 
 Last durable snapshot: **2026-08-21 20:54 UTC**.
