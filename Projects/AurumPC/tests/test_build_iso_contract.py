@@ -5,10 +5,12 @@ from pathlib import Path
 
 
 BUILD_SCRIPT = Path(__file__).parents[1] / "build-iso.sh"
+DIRECT_UEFI_BUILDER = Path(__file__).parents[1] / "build-direct-uefi-image.sh"
 BOOTSTRAP = Path(__file__).parents[1] / "aurum_bootstrap.py"
 WIFI_DIAG = Path(__file__).parents[1] / "aurum_wifi_diag.py"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
+DIRECT_UEFI_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-direct-uefi.sh"
 HP_TWIN = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-hp-physical-twin.sh"
 HP_TWIN_SPEC = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "hp-physical-twin-v1.json"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
@@ -74,6 +76,48 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_HP_TWIN_NVME_PRESERVED_OK", twin)
         self.assertIn("wifi-interface-missing", spec)
         self.assertIn("qemu-hp-physical-twin.sh", workflow)
+
+    def test_direct_uefi_seed_removes_grub_and_host_mount_state_from_primary_contract(self) -> None:
+        outer = BUILD_SCRIPT.read_text(encoding="utf-8")
+        builder = DIRECT_UEFI_BUILDER.read_text(encoding="utf-8")
+        smoke = DIRECT_UEFI_SMOKE.read_text(encoding="utf-8")
+        workflow = PC_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("build-direct-uefi-image.sh", outer)
+        self.assertIn("linuxx64.efi.stub", builder)
+        self.assertIn("EFI/BOOT/BOOTX64.EFI", builder)
+        self.assertIn("mklabel gpt", builder)
+        self.assertIn("mkpart ESP fat32", builder)
+        self.assertIn("AURUM_LIVE", builder)
+        self.assertIn("--add-section .linux", builder)
+        self.assertIn("--add-section .initrd", builder)
+        self.assertIn("live-media-path=/live", builder)
+
+        # Inspect executable shell lines rather than comments. Documentation may
+        # legitimately say "mount" while the construction path must never invoke it.
+        commands = [
+            line.strip()
+            for line in builder.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertFalse(any(line == "losetup" or line.startswith("losetup ") for line in commands))
+        self.assertFalse(any(line == "mount" or line.startswith("mount ") for line in commands))
+        self.assertFalse(any(line == "umount" or line.startswith("umount ") for line in commands))
+        self.assertIn("mcopy -i", builder)
+        self.assertIn("mkfs.ext4 -q -F -L AURUM_LIVE -d", builder)
+        self.assertIn("dd if=\"$ESP_IMAGE\"", builder)
+        self.assertIn("dd if=\"$DATA_IMAGE\"", builder)
+        self.assertIn("construction_contract=file-native-no-loop-no-mount", builder)
+        self.assertIn("mmd mcopy", outer)
+
+        self.assertIn("usb-storage,drive=seed,bootindex=1", smoke)
+        self.assertNotIn("-cdrom", smoke)
+        self.assertIn("AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK", smoke)
+
+        self.assertIn("systemd-boot-efi", workflow)
+        self.assertIn("Aurum-PC-v0.01-amd64-direct-uefi.img", workflow)
+        self.assertIn("qemu-pc-direct-uefi.sh", workflow)
+        self.assertIn("AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK", workflow)
 
 
 if __name__ == "__main__":

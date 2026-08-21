@@ -2,6 +2,13 @@ name: Aurum PC v0.01 Image
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/aurum-pc-v001.yml'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumTraits/**'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/Codelation/**'
   push:
     branches:
       - aurum/pc-v0.01
@@ -11,6 +18,7 @@ on:
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
+      - 'Projects/AurumTraits/**'
       - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
 
@@ -24,7 +32,7 @@ concurrency:
 jobs:
   build-and-boot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 90
     steps:
       - name: Check out Aurum PC branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -44,10 +52,19 @@ jobs:
             Projects/AurumPC/aurum_wifi_recovery.py \
             Projects/AurumPC/aurum_console.py \
             Projects/AurumPC/aurum_workspace.py \
-            Projects/AurumPC/aurum_installer.py
+            Projects/AurumPC/aurum_installer.py \
+            Projects/AurumPC/aurum_boot_state.py \
+            Projects/AurumTraits/aurum_traits.py \
+            Projects/AurumTraits/validate_traits.py \
+            Projects/Codelation/state_space.py
           sh -n Projects/AurumPC/build-iso.sh
+          sh -n Projects/AurumPC/build-direct-uefi-image.sh
+          bash -n Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
+          python3 Projects/AurumTraits/validate_traits.py
+          python3 Projects/AurumTraits/aurum_traits.py validate
+          python3 -m unittest discover -s Projects/AurumTraits/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
           grep -q 'install confirm ERASE-CODE' Projects/AurumPC/aurum_console.py
@@ -56,6 +73,11 @@ jobs:
           grep -q 'AURUM_WIFI_DIAG' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'recover_existing_wifi_driver' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'synchronize_clock' Projects/AurumPC/aurum_bootstrap.py
+          grep -q 'Projects/AurumTraits' Projects/AurumPC/build-iso.sh
+          grep -q 'firefox-esr' Projects/AurumPC/build-iso.sh
+          grep -q 'pcmanfm' Projects/AurumPC/build-iso.sh
+          grep -q 'mpv' Projects/AurumPC/build-iso.sh
+          grep -q 'libreoffice-writer' Projects/AurumPC/build-iso.sh
 
       - name: Install independent VM tooling
         shell: bash
@@ -65,7 +87,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
           docker info >/dev/null
 
-      - name: Build Aurum PC live ISO with Debian-native tooling
+      - name: Build independent Aurum PC boot artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -79,14 +101,35 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 live-build debian-archive-keyring debootstrap \
                 xorriso isolinux syslinux-common squashfs-tools \
-                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools \
+                parted e2fsprogs util-linux systemd-boot-efi binutils
               lb --version
-              sh Projects/AurumPC/build-iso.sh
+              AURUM_BUILD_DIRECT_UEFI=required sh Projects/AurumPC/build-iso.sh
+              squash=Projects/AurumPC/.build/binary/live/filesystem.squashfs
+              test -s "$squash"
+              unsquashfs -ll "$squash" > /tmp/aurum-squashfs-files.txt
+              grep -q /opt/aurum/traits/aurum_traits.py /tmp/aurum-squashfs-files.txt
+              grep -q /usr/local/bin/aurum-trait /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/web/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/files/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/media/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/write/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/intent/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/connect/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/recover/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /var/lib/aurum/Garden/Documents /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/firefox /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/pcmanfm /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/mpv /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/libreoffice /tmp/aurum-squashfs-files.txt
+              echo AURUM_PC_HUMAN_TRAITS_EMBEDDED
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
+          test -s dist/Aurum-PC-v0.01-amd64-direct-uefi.img
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          sha256sum -c dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
 
-      - name: Generic UEFI boot and install smoke test
+      - name: GRUB ISO UEFI boot and install smoke test
         shell: bash
         run: |
           set -euo pipefail
@@ -94,36 +137,52 @@ jobs:
             dist/Aurum-PC-v0.01-amd64.iso \
             aurum-pc-qemu.log
           grep -q 'AURUM_HARDWARE_PROFILE status=ready' aurum-pc-qemu.log
-          echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+          echo 'AURUM_PC_V001_GRUB_UEFI_BOOT_VERIFIED'
+
+      - name: Direct UEFI boot smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh \
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img \
+            aurum-pc-direct-uefi.log
+          grep -q 'AURUM_DIRECT_UEFI_GRUB_INDEPENDENT_OK' aurum-pc-direct-uefi.log
+          echo 'AURUM_PC_V001_DIRECT_UEFI_BOOT_VERIFIED'
 
       - name: HP physical-topology twin preflight
         shell: bash
         run: |
           set -euo pipefail
+          # qemu-hp-physical-twin.sh owns these acceptance checks internally and
+          # exits non-zero if boot, detailed hardware, Wi-Fi diagnostics, or
+          # NVMe preservation fails. Do not re-grep console-only summary markers
+          # from the raw VM log after a successful harness exit.
           bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
             dist/Aurum-PC-v0.01-amd64.iso \
             aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_NVME_PRESERVED_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' aurum-hp-physical-twin.log
-          grep -q 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' aurum-hp-physical-twin.log
           echo 'AURUM_HP_PHYSICAL_TWIN_PREFLIGHT_VERIFIED'
 
       - name: Record image metadata
         shell: bash
         run: |
           set -euo pipefail
-          ls -lh dist/Aurum-PC-v0.01-amd64.iso
+          ls -lh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img
           cat dist/Aurum-PC-v0.01-amd64.iso.sha256
+          cat dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
 
-      - name: Publish boot-verified ISO
+      - name: Publish boot-verified PC seeds
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Aurum-PC-v0.01-amd64
           path: |
             dist/Aurum-PC-v0.01-amd64.iso
             dist/Aurum-PC-v0.01-amd64.iso.sha256
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img
+            dist/Aurum-PC-v0.01-amd64-direct-uefi.img.sha256
             aurum-pc-qemu.log
+            aurum-pc-direct-uefi.log
             aurum-hp-physical-twin.log
             Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error

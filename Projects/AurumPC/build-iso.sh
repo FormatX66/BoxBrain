@@ -6,6 +6,8 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 BUILD_ROOT="$SCRIPT_DIR/.build"
 DIST="$REPO_ROOT/dist"
 IMAGE_NAME="Aurum-PC-v0.01-amd64.iso"
+DIRECT_UEFI_NAME="Aurum-PC-v0.01-amd64-direct-uefi.img"
+DIRECT_UEFI_MODE=${AURUM_BUILD_DIRECT_UEFI:-auto}
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "build-iso.sh must run as root (live-build uses chroot/mount operations)." >&2
@@ -19,16 +21,19 @@ if [ ! -d "$REPO_ROOT/Projects/Codelation" ]; then
   echo "Projects/Codelation is missing." >&2
   exit 2
 fi
+if [ ! -d "$REPO_ROOT/Projects/AurumTraits" ]; then
+  echo "Projects/AurumTraits is missing." >&2
+  exit 2
+fi
+case "$DIRECT_UEFI_MODE" in
+  auto|required|off) ;;
+  *) echo "AURUM_BUILD_DIRECT_UEFI must be auto, required, or off" >&2; exit 2 ;;
+esac
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$DIST"
 cd "$BUILD_ROOT"
 
-# Physical discovery is intentionally stateless at the root filesystem layer.
-# A raw reflash can leave an old persistence partition at the end of a USB
-# device; automatically mounting it as a root overlay can mix old /opt/aurum
-# code with a new ISO. Do not request live persistence until Aurum explicitly
-# provisions a versioned state-only volume.
 lb config \
   --mode debian \
   --distribution bookworm \
@@ -81,6 +86,19 @@ e2fsprogs
 util-linux
 grub-efi-amd64-bin
 grub2-common
+xdg-utils
+xserver-xorg
+xinit
+openbox
+dbus-x11
+fonts-dejavu-core
+firefox-esr
+pcmanfm
+mpv
+libreoffice-writer
+libreoffice-gtk3
+bluez
+alsa-utils
 EOF
 
 GRUB_FONT=/usr/share/grub/unicode.pf2
@@ -108,10 +126,29 @@ for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py 
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
-mkdir -p config/includes.chroot/usr/lib/aurum
+cp -a "$REPO_ROOT/Projects/AurumTraits" config/includes.chroot/opt/aurum/traits
+
+mkdir -p \
+  config/includes.chroot/usr/lib/aurum \
+  config/includes.chroot/usr/local/bin \
+  config/includes.chroot/var/lib/aurum/state \
+  config/includes.chroot/var/lib/aurum/workspace
 cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" config/includes.chroot/usr/lib/aurum/native-chain-state.json
 chmod 0644 config/includes.chroot/usr/lib/aurum/native-chain-state.json
-mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
+
+python3 "$REPO_ROOT/Projects/AurumTraits/validate_traits.py"
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" validate
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" build-all \
+  --output config/includes.chroot/usr/lib/aurum/traits
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" garden \
+  --root config/includes.chroot/var/lib/aurum
+
+cat > config/includes.chroot/usr/local/bin/aurum-trait <<'EOF'
+#!/bin/sh
+set -eu
+exec /usr/bin/python3 /opt/aurum/traits/aurum_traits.py "$@"
+EOF
+chmod 0755 config/includes.chroot/usr/local/bin/aurum-trait
 
 mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/systemd/network
 cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
@@ -205,7 +242,8 @@ printf '%s\n' 'aurum-pc' > config/includes.chroot/etc/hostname
 cat > config/includes.chroot/etc/motd <<'EOF'
 Aurum PC v0.01
 Linux is present only as the temporary hardware compatibility substrate.
-The exposed operator surface is the bounded Aurum console; no arbitrary shell is offered.
+The seed carries executable WEB, Garden/FILES, MEDIA, WRITE, INTENT, CONNECT and RECOVER trait bundles.
+The exposed operator surface remains bounded; trait providers launch without a shell.
 Physical discovery boots statelessly so stale USB persistence cannot replace the bundled runtime.
 EOF
 
@@ -214,7 +252,10 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /opt/aurum/*.py
+chmod 0755 /opt/aurum/traits/aurum_traits.py /opt/aurum/traits/validate_traits.py
+chmod 0755 /usr/local/bin/aurum-trait
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
+find /opt/aurum/traits/tests -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
@@ -231,4 +272,36 @@ cp "$ISO" "$DIST/$IMAGE_NAME"
   cd "$REPO_ROOT"
   sha256sum "dist/$IMAGE_NAME" > "dist/$IMAGE_NAME.sha256"
 )
+
+# The direct UEFI route is intentionally file-native: its ESP and ext4 live
+# filesystem are constructed as ordinary files and then assembled into GPT.
+# No loop devices, mounts, udev partition nodes, or host filesystem state are
+# prerequisites for this second boot path.
+DIRECT_AVAILABLE=true
+for tool in parted mkfs.vfat mkfs.ext4 mmd mcopy objcopy truncate sha256sum dd; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    DIRECT_AVAILABLE=false
+  fi
+done
+if [ ! -s /usr/lib/systemd/boot/efi/linuxx64.efi.stub ]; then
+  DIRECT_AVAILABLE=false
+fi
+
+if [ "$DIRECT_UEFI_MODE" = off ]; then
+  echo 'AURUM_DIRECT_UEFI_BUILD status=disabled'
+elif [ "$DIRECT_AVAILABLE" = true ]; then
+  sh "$SCRIPT_DIR/build-direct-uefi-image.sh" \
+    "$BUILD_ROOT/binary" \
+    "$DIST/$DIRECT_UEFI_NAME"
+  echo 'AURUM_DIRECT_UEFI_BUILD status=built construction=file-native'
+elif [ "$DIRECT_UEFI_MODE" = required ]; then
+  echo 'AURUM_DIRECT_UEFI_BUILD status=failed reason=builder-capability-missing' >&2
+  exit 1
+else
+  echo 'AURUM_DIRECT_UEFI_BUILD status=skipped reason=builder-capability-missing mode=auto'
+fi
+
 ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
+if [ -s "$DIST/$DIRECT_UEFI_NAME" ]; then
+  ls -lh "$DIST/$DIRECT_UEFI_NAME" "$DIST/$DIRECT_UEFI_NAME.sha256"
+fi

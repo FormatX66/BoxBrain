@@ -4,7 +4,13 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "seed"))
-from codelation_seed import SeedGraph, state_id  # noqa: E402
+from codelation_seed import (  # noqa: E402
+    HUMAN_TRAIT_BUILD_POLICY,
+    HUMAN_TRAIT_IDS,
+    HUMAN_TRAIT_SCHEMA,
+    SeedGraph,
+    state_id,
+)
 
 
 class SeedGraphTests(unittest.TestCase):
@@ -38,6 +44,23 @@ class SeedGraphTests(unittest.TestCase):
             model = Path(directory) / "seed.bin"
             graph.save(model)
             self.assertNotIn(secret, model.read_bytes())
+
+    def test_every_seed_declares_complete_human_trait_genome(self):
+        self.assertEqual("aurum-human-traits-v1", HUMAN_TRAIT_SCHEMA)
+        self.assertEqual(
+            {
+                "TR8:WEB",
+                "TR8:FILES",
+                "TR8:MEDIA",
+                "TR8:WRITE",
+                "TR8:INTENT",
+                "TR8:CONNECT",
+                "TR8:RECOVER",
+            },
+            set(HUMAN_TRAIT_IDS),
+        )
+        self.assertIn("all-traits-parallel", HUMAN_TRAIT_BUILD_POLICY)
+        self.assertIn("mature-in-stages", HUMAN_TRAIT_BUILD_POLICY)
 
 
 if __name__ == "__main__":
