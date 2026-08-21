@@ -6,34 +6,50 @@
 <meta name="theme-color" content="#080b10">
 <title>Aurum Command Center</title>
 <style>
-:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#0b1118;--border:#253246;--text:#eef3f8;--muted:#8fa0b2;--gold:#e0bd62;--green:#62d990;--blue:#79b7ff;--amber:#f0c76a;--purple:#cfa0ff;--red:#ff8a8a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 18% 0,#1b2738 0,transparent 36%),var(--bg);color:var(--text)}button,a{font:inherit}.wrap{width:min(1180px,94vw);margin:0 auto;padding:22px 0 64px}.top{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}.brand{display:flex;align-items:center;gap:14px}.orb{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff7cf 0,#d8b85b 22%,#6d5120 55%,#17140c 76%);box-shadow:0 0 34px #d9b65a55;flex:0 0 auto}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}.brand h1{font-size:clamp(25px,5vw,38px);line-height:1.05;margin:0;letter-spacing:-.035em}.brand small{display:block;color:var(--muted);margin-top:5px}.livebox{border:1px solid var(--border);background:#101720d9;border-radius:15px;padding:11px 13px;min-width:220px}.live-line{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:750}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px currentColor}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.tiny{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.btn{min-height:42px;border:1px solid #35465d;border-radius:11px;background:#17212d;color:var(--text);padding:9px 13px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn.primary{background:var(--gold);color:#171309;border-color:transparent}.btn:focus-visible,.card:focus-visible{outline:3px solid #e0bd62aa;outline-offset:2px}.summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}.metric{border:1px solid var(--border);border-radius:15px;background:#101720d9;padding:13px;min-width:0}.metric strong{font-size:22px;display:block;letter-spacing:-.03em}.metric span{font-size:11px;color:var(--muted)}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:10px;flex-wrap:wrap}.section h2{font-size:17px;margin:0}.section-note{font-size:11px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.card{appearance:none;text-align:left;color:inherit;width:100%;border:1px solid var(--border);border-radius:16px;background:#101720d9;padding:15px;min-width:0;cursor:pointer}.card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:10px}.card-icon{width:35px;height:35px;border-radius:10px;background:#1a2430;display:grid;place-items:center;font-size:17px}.pill{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:850;padding:5px 7px;border-radius:999px;white-space:nowrap}.pill.success{background:#173426;color:#8ce7b2}.pill.running{background:#162a43;color:#8fc4ff}.pill.waiting{background:#3a2d12;color:#f0c76a}.pill.experiment{background:#2c1e3a;color:#d5adff}.pill.failed{background:#401d23;color:#ff9da6}.pill.unknown{background:#202833;color:#aebdcb}.card h3{font-size:15px;margin:0 0 6px}.card p{font-size:12px;line-height:1.45;color:#9fb0c2;margin:0;min-height:52px}.evidence{margin-top:11px;font-size:10px;color:#74889d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.split{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.panel{border:1px solid var(--border);border-radius:16px;background:#101720d9;padding:15px;min-width:0}.list{display:flex;flex-direction:column}.row{display:grid;grid-template-columns:86px 11px minmax(0,1fr);gap:9px;padding:10px 0;border-bottom:1px solid #1f2b3b;align-items:start}.row:last-child{border-bottom:0}.time{font-size:11px;color:#7f93a7}.rowdot{width:7px;height:7px;border-radius:50%;background:#8ea0b4;margin-top:4px}.row b{display:block;font-size:12px;margin-bottom:2px}.row span{display:block;color:#8397aa;font-size:11px;line-height:1.4}.node{padding:10px 0;border-bottom:1px solid #1f2b3b}.node:last-child{border-bottom:0}.node-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.node b{font-size:12px}.node small{display:block;color:#7f93a7;margin-top:3px;line-height:1.35}.queue-item{padding:9px 0;border-bottom:1px solid #1f2b3b;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#aab9c8;white-space:pre-wrap}.queue-item:last-child{border-bottom:0}.detail{margin-top:12px;border:1px solid #3a4b61;border-radius:16px;background:#0c1219;padding:15px;display:none}.detail.show{display:block}.detail-top{display:flex;justify-content:space-between;gap:12px}.detail h3{margin:0 0 6px;font-size:17px}.detail p{margin:0;color:#9fb0c2;font-size:12px;line-height:1.5}.close{border:1px solid #35465d;background:#17212d;color:var(--text);border-radius:10px;width:42px;height:42px;cursor:pointer}.gate{border-left:3px solid var(--amber);padding:12px 14px;background:#17150f;border-radius:5px 13px 13px 5px}.gate b{font-size:12px}.gate p{font-size:11px;color:#aaa08a;line-height:1.45;margin:4px 0 0}.foot{margin-top:18px;color:#71869b;font-size:10px;line-height:1.5}.error{color:#ffaaa9}.hidden{display:none!important}@media(max-width:920px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.wrap{width:min(94vw,560px);padding-top:16px}.livebox{width:100%}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.split{grid-template-columns:1fr}.card p{min-height:0}.row{grid-template-columns:70px 9px minmax(0,1fr)}}@media(prefers-reduced-motion:no-preference){.dot.ok{animation:pulse 2.3s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #62d99018}}}
+:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#0b1118;--border:#253246;--text:#eef3f8;--muted:#8fa0b2;--gold:#e0bd62;--green:#62d990;--blue:#79b7ff;--amber:#f0c76a;--purple:#cfa0ff;--red:#ff8a8a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 18% 0,#1b2738 0,transparent 36%),var(--bg);color:var(--text)}button,a{font:inherit}.wrap{width:min(1220px,94vw);margin:0 auto;padding:22px 0 68px}.top{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}.brand{display:flex;align-items:center;gap:14px}.orb{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff7cf 0,#d8b85b 22%,#6d5120 55%,#17140c 76%);box-shadow:0 0 34px #d9b65a55;flex:0 0 auto}.eyebrow{font-size:11px;font-weight:850;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}.brand h1{font-size:clamp(25px,5vw,39px);line-height:1.05;margin:0;letter-spacing:-.035em}.brand small{display:block;color:var(--muted);margin-top:5px}.livebox{border:1px solid var(--border);background:#101720df;border-radius:15px;padding:11px 13px;min-width:250px}.live-line{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:780}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px currentColor}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.tiny{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.btn{min-height:42px;border:1px solid #35465d;border-radius:11px;background:#17212d;color:var(--text);padding:9px 13px;font-weight:760;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn.primary{background:var(--gold);color:#171309;border-color:transparent}.btn:focus-visible,.system-card:focus-visible{outline:3px solid #e0bd62aa;outline-offset:2px}.truth{border:1px solid #584b25;background:linear-gradient(90deg,#1b1810,#101720);border-radius:15px;padding:13px 15px;margin-bottom:16px}.truth b{font-size:12px}.truth p{font-size:11px;line-height:1.5;color:#b3a88c;margin:4px 0 0}.summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:18px}.metric{border:1px solid var(--border);border-radius:15px;background:#101720df;padding:13px;min-width:0}.metric strong{font-size:22px;display:block;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric span{font-size:11px;color:var(--muted)}.section{margin-top:24px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:10px;flex-wrap:wrap}.section h2{font-size:18px;margin:0}.section-note{font-size:11px;color:var(--muted)}.system-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.system-card{appearance:none;text-align:left;color:inherit;width:100%;border:1px solid var(--border);border-radius:16px;background:#101720df;padding:15px;min-width:0;cursor:pointer}.card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:10px}.card-icon{width:35px;height:35px;border-radius:10px;background:#1a2430;display:grid;place-items:center;font-size:17px}.pill{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:850;padding:5px 7px;border-radius:999px;white-space:nowrap}.pill.success{background:#173426;color:#8ce7b2}.pill.running{background:#162a43;color:#8fc4ff}.pill.waiting{background:#3a2d12;color:#f0c76a}.pill.experiment{background:#2c1e3a;color:#d5adff}.pill.failed{background:#401d23;color:#ff9da6}.pill.unknown{background:#202833;color:#aebdcb}.system-card h3{font-size:15px;margin:0 0 6px}.system-card p{font-size:12px;line-height:1.45;color:#9fb0c2;margin:0;min-height:52px}.evidence{margin-top:11px;font-size:10px;color:#74889d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.capability-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.capability{border:1px solid var(--border);border-radius:16px;background:#101720df;padding:15px;min-width:0}.capability-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.capability h3{font-size:15px;margin:0 0 3px}.trait-id{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#7f93a7}.stage-score{font:800 14px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gold);white-space:nowrap}.track{height:9px;background:#1c2734;border-radius:999px;overflow:hidden;margin:12px 0 10px}.fill{height:100%;background:linear-gradient(90deg,#a88739,#e0bd62);border-radius:999px}.stages{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin-bottom:12px}.stage{font-size:9px;color:#61768b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stage::before{content:'○';margin-right:3px}.stage.on{color:#9fdcb7}.stage.on::before{content:'●'}.cap-copy{font-size:11px;line-height:1.48;color:#9fb0c2;margin:0}.cap-next{margin-top:8px;padding-top:8px;border-top:1px solid #1f2b3b;font-size:10.5px;line-height:1.45;color:#7f93a7}.split{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.panel{border:1px solid var(--border);border-radius:16px;background:#101720df;padding:15px;min-width:0}.list{display:flex;flex-direction:column}.row{display:grid;grid-template-columns:88px 11px minmax(0,1fr);gap:9px;padding:10px 0;border-bottom:1px solid #1f2b3b;align-items:start}.row:last-child{border-bottom:0}.time{font-size:11px;color:#7f93a7}.rowdot{width:7px;height:7px;border-radius:50%;background:#8ea0b4;margin-top:4px}.row b{display:block;font-size:12px;margin-bottom:2px}.row span{display:block;color:#8397aa;font-size:11px;line-height:1.4}.node{padding:10px 0;border-bottom:1px solid #1f2b3b}.node:last-child{border-bottom:0}.node-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.node b{font-size:12px}.node small{display:block;color:#7f93a7;margin-top:3px;line-height:1.35}.gate{border-left:3px solid var(--amber);padding:12px 14px;background:#17150f;border-radius:5px 13px 13px 5px}.gate.ok{border-left-color:var(--green);background:#101a14}.gate b{font-size:12px}.gate p{font-size:11px;color:#aaa08a;line-height:1.45;margin:4px 0 0}.gate.ok p{color:#8fae9a}.standard-list{margin:0;padding-left:18px}.standard-list li{font-size:11px;line-height:1.5;color:#91a3b5;margin:5px 0}.mirror-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.mirror-item{border:1px solid #223044;border-radius:12px;background:#0c1219;padding:10px}.mirror-item b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#8295a8}.mirror-item span{display:block;font-size:12px;margin-top:4px}.detail{margin-top:12px;border:1px solid #3a4b61;border-radius:16px;background:#0c1219;padding:15px;display:none}.detail.show{display:block}.detail-top{display:flex;justify-content:space-between;gap:12px}.detail h3{margin:0 0 6px;font-size:17px}.detail p{margin:0;color:#9fb0c2;font-size:12px;line-height:1.5}.close{border:1px solid #35465d;background:#17212d;color:var(--text);border-radius:10px;width:42px;height:42px;cursor:pointer}.foot{margin-top:20px;color:#71869b;font-size:10px;line-height:1.55}.error{color:#ffaaa9}@media(max-width:1040px){.summary{grid-template-columns:repeat(3,minmax(0,1fr))}.system-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.wrap{width:min(94vw,600px);padding-top:16px}.livebox{width:100%}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.system-grid,.capability-grid,.split{grid-template-columns:1fr}.system-card p{min-height:0}.stages{grid-template-columns:repeat(3,minmax(0,1fr))}.mirror-grid{grid-template-columns:1fr}.row{grid-template-columns:72px 9px minmax(0,1fr)}}@media(prefers-reduced-motion:no-preference){.dot.ok{animation:pulse 2.3s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #62d99018}}}
 </style>
 </head>
 <body>
 <main class="wrap">
   <div class="top">
-    <div class="brand"><div class="orb" aria-hidden="true"></div><div><p class="eyebrow">Aurum / BoxBrain</p><h1>Command Center</h1><small>Live ArkmatX project and node status</small></div></div>
+    <div class="brand"><div class="orb" aria-hidden="true"></div><div><p class="eyebrow">Aurum / BoxBrain</p><h1>Command Center</h1><small>Evidence-driven system, seed, and human-capability status</small></div></div>
     <div class="livebox"><div class="live-line"><span id="liveDot" class="dot"></span><span id="liveText">Connecting…</span></div><div id="lastUpdated" class="tiny">No live data loaded yet.</div></div>
   </div>
 
   <div class="actions">
     <button id="refresh" type="button" class="btn primary">Refresh now</button>
     <a class="btn" href="./">Aurum portal</a>
+    <a class="btn" href="voice-status" target="_blank" rel="noopener">Voice status</a>
+    <a class="btn" href="https://github.com/FormatX66/BoxBrain/blob/main/AURUM_VOICE_STATUS.md" target="_blank" rel="noopener">Voice mirror file</a>
     <a class="btn" href="https://github.com/FormatX66/BoxBrain" target="_blank" rel="noopener">BoxBrain repo</a>
   </div>
 
+  <div class="truth"><b>Progress is proof, not activity.</b><p>A plan or manifest is only Defined. Workflow names and package declarations do not count as Seeded, Booted, or Used until the corresponding artifact, boot, and physical-use evidence exists.</p></div>
+
   <section class="summary" aria-label="Status summary">
-    <div class="metric"><strong id="mTracked">8</strong><span>tracked workstreams</span></div>
-    <div class="metric"><strong id="mSuccess">0</strong><span>verified / healthy</span></div>
-    <div class="metric"><strong id="mRunning">0</strong><span>actively progressing</span></div>
-    <div class="metric"><strong id="mAttention">0</strong><span>needs attention</span></div>
-    <div class="metric"><strong id="mNodes">0</strong><span>known live-edge nodes</span></div>
+    <div class="metric"><strong id="mCapabilities">7</strong><span>human capabilities</span></div>
+    <div class="metric"><strong id="mStage">—</strong><span>lowest evidence gate</span></div>
+    <div class="metric"><strong id="mVerified">0</strong><span>healthy system lanes</span></div>
+    <div class="metric"><strong id="mActive">0</strong><span>active workflows</span></div>
+    <div class="metric"><strong id="mNodes">0</strong><span>known edge nodes</span></div>
+    <div class="metric"><strong id="mAction">Checking</strong><span>human action</span></div>
   </section>
 
   <section class="section">
-    <div class="section-head"><div><p class="eyebrow">SYSTEMS</p><h2>Everything moving right now</h2></div><span class="section-note">Click a card for evidence</span></div>
-    <div id="systems" class="grid"></div>
+    <div class="section-head"><div><p class="eyebrow">SYSTEMS</p><h2>Build and physical lanes</h2></div><span class="section-note">Click a card for evidence</span></div>
+    <div id="systems" class="system-grid"></div>
     <div id="detail" class="detail" aria-live="polite"><div class="detail-top"><div><h3 id="detailTitle"></h3><p id="detailText"></p></div><button id="detailClose" class="close" type="button" aria-label="Close details">×</button></div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><div><p class="eyebrow">EVERYDAY HUMAN CAPABILITIES</p><h2>Web, Garden, media, writing, intent, connection, and recovery</h2></div><span id="capState" class="section-note">Loading voice mirror…</span></div>
+    <div id="capabilities" class="capability-grid"><div class="panel tiny">Waiting for the canonical status mirror.</div></div>
+  </section>
+
+  <section class="section split">
+    <article class="panel"><div class="section-head"><div><p class="eyebrow">EVIDENCE STANDARD</p><h2>How a trait earns progress</h2></div></div><ol id="truthStandard" class="standard-list"><li>Loading evidence rules…</li></ol></article>
+    <article class="panel"><div class="section-head"><div><p class="eyebrow">VOICE MIRROR</p><h2>Shared read-only status source</h2></div><span id="mirrorState" class="section-note">Loading…</span></div><p id="mirrorPlain" class="cap-copy">Waiting for the voice status source.</p><div id="mirrorEvidence" class="mirror-grid"></div></article>
   </section>
 
   <section class="section split">
@@ -42,107 +58,105 @@
   </section>
 
   <section class="section split">
-    <article class="panel"><div class="section-head"><div><p class="eyebrow">ACTIVE WORK</p><h2>Codex queue</h2></div><span id="queueState" class="section-note">Loading queue…</span></div><div id="queue" class="list"><div class="tiny">Waiting for queue data.</div></div></article>
-    <article class="panel"><p class="eyebrow">HUMAN GATE</p><h2 style="font-size:17px;margin:0 0 10px">What needs you</h2><div id="humanGate" class="gate"><b>Checking physical gates…</b><p>The dashboard will only mark a human gate when current evidence supports one.</p></div></article>
+    <article class="panel"><p class="eyebrow">HUMAN GATE</p><h2 style="font-size:17px;margin:0 0 10px">What needs Bruce</h2><div id="humanGate" class="gate"><b>Checking current evidence…</b><p>A human request appears only when the evidence supports a real physical or permission boundary.</p></div></article>
+    <article class="panel"><p class="eyebrow">NEXT GLOBAL PROOF</p><h2 style="font-size:17px;margin:0 0 10px">What moves every human trait</h2><div id="nextProof" class="gate"><b>Reading capability frontier…</b><p>The lowest shared evidence gate determines the next honest milestone.</p></div></article>
   </section>
 
-  <p class="foot">Read-only dashboard. GitHub data refreshes every 5 minutes; ArkmatX edge/node telemetry refreshes every 15 seconds. No GitHub token, hosting password, or device credential is stored in or sent by this page. Status is evidence-driven: unavailable evidence is shown as unknown rather than guessed.</p>
+  <p class="foot">Read-only dashboard. The human-capability section and voice page share the same server-side status mirror. GitHub evidence refreshes through a short public cache; edge telemetry refreshes separately. No GitHub token, hosting password, or device credential is stored in or sent by this page. Unknown evidence remains unknown.</p>
 </main>
 <script>
 (() => {
 'use strict';
 const REPO='FormatX66/BoxBrain';
 const API=`https://api.github.com/repos/${REPO}`;
-const RAW=`https://raw.githubusercontent.com/${REPO}/main`;
 const GITHUB_REFRESH=5*60*1000;
-const EDGE_REFRESH=15*1000;
+const EDGE_REFRESH=20*1000;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state={commits:[],runs:[],nodes:[],work:{},edge:null,repoOk:false,edgeOk:false,lastGitHub:0,lastEdge:0};
+const state={mirror:null,commits:[],runs:[],nodes:[],edge:null,mirrorOk:false,repoOk:false,edgeOk:false,lastMirror:0,lastGitHub:0,lastEdge:0};
 const SYSTEMS=[
- {id:'hopper',name:'Hopper / PC-01',icon:'▣',desc:'Physical PC seed, flash and proof lane.'},
- {id:'local',name:'Local Build Lane',icon:'↻',desc:'Local self-heal and divergent-history-safe build lane.'},
- {id:'pi4',name:'BBPI4 / Pi4',icon:'◉',desc:'Enrollment, heartbeat and AP/SSH route verification.'},
- {id:'ci',name:'CI + Controller',icon:'⚙',desc:'Hosted builds, event bridge, failsafe and continuous controller.'},
- {id:'seed',name:'Seed Pipeline',icon:'◆',desc:'PC/Pi seed generation, verification and flash pipeline.'},
- {id:'gui',name:'Hopper GUI',icon:'▤',desc:'Desktop loading, input and user-interface iteration.'},
+ {id:'human',name:'Human Capability Build',icon:'✦',desc:'Executable WEB, Garden, MEDIA, WRITE, INTENT, CONNECT, and RECOVER lanes.'},
+ {id:'pcseed',name:'PC Seed with Human Traits',icon:'▣',desc:'Updated x86 seed artifact, inspection, boot, and physical proof.'},
+ {id:'piseed',name:'Pi Seed with Human Traits',icon:'◉',desc:'Bounded BBPI4 deployment and verification over pretrusted USB-C SSH.'},
+ {id:'selfbuild',name:'Autonomous Build + Recovery',icon:'↻',desc:'Event continuation, local-lane self-heal, rollback, and controller work.'},
+ {id:'gui',name:'Aurum Human Surface',icon:'▤',desc:'Graphical shell, input, capability launching, and adaptive presentation.'},
  {id:'kernel',name:'Adaptive Kernel',icon:'◇',desc:'Independent adaptive-kernel experimental lane.'},
- {id:'weave',name:'StateWeave',icon:'⌘',desc:'Machine-native StateWeave and combined kernel experiment.'}
+ {id:'weave',name:'StateWeave',icon:'⌘',desc:'Machine-native state experiment and combined kernel lane.'},
+ {id:'mirror',name:'Dashboard + Voice Mirror',icon:'◫',desc:'One evidence source shared by the visual dashboard and voice chats.'}
 ];
-function directoryBase(){const p=location.pathname;return p.slice(0,p.lastIndexOf('/')+1)||'/'}
-function rel(path){return directoryBase()+path.replace(/^\//,'')}
+const STAGE_LABELS={defined:'Defined',executable:'Executable',tested:'Tested',seeded:'Seeded',booted:'Booted',used:'Used'};
+function base(){const p=location.pathname;return p.slice(0,p.lastIndexOf('/')+1)||'/'}
+function rel(path){return base()+String(path).replace(/^\//,'')}
 function formatTime(v){if(!v)return 'unknown';const d=new Date(v);if(Number.isNaN(d.getTime()))return 'unknown';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(d)}
 function ageSeconds(epoch){return Math.max(0,Math.floor(Date.now()/1000)-Number(epoch||0))}
-async function json(url){const r=await fetch(url,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return r.json()}
-async function text(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return r.text()}
-function latestRun(match){const ms=state.runs.filter(r=>match(String(r.name||r.display_title||r.path||'').toLowerCase()));return ms.sort((a,b)=>new Date(b.run_started_at||b.created_at)-new Date(a.run_started_at||a.created_at))[0]||null}
+async function json(url,github=false){const headers=github?{Accept:'application/vnd.github+json'}:{Accept:'application/json'};const r=await fetch(url,{cache:'no-store',headers});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return r.json()}
+function latestRun(match){return state.runs.filter(r=>match(String(r.name||''),r)).sort((a,b)=>new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at))[0]||null}
 function recentCommit(rx){return state.commits.find(c=>rx.test(String(c.commit?.message||'')))||null}
+function activeRun(r){return ['queued','in_progress','waiting','requested','pending'].includes(String(r?.status||''))}
 function fromRun(run,fallback='unknown'){
- if(!run)return {status:fallback,evidence:'No matching workflow run in current GitHub window.'};
- if(['queued','in_progress','waiting','requested','pending'].includes(run.status))return {status:'running',evidence:`${run.name}: ${run.status}`};
+ if(!run)return {status:fallback,evidence:'No matching workflow evidence is visible.'};
+ if(activeRun(run))return {status:'running',evidence:`${run.name}: ${run.status} · ${formatTime(run.updated_at||run.created_at)}`};
  if(run.conclusion==='success')return {status:'success',evidence:`${run.name}: success · ${formatTime(run.updated_at)}`};
  if(['failure','timed_out','startup_failure'].includes(run.conclusion))return {status:'failed',evidence:`${run.name}: ${run.conclusion} · ${formatTime(run.updated_at)}`};
- if(['cancelled','skipped','neutral','action_required','stale'].includes(run.conclusion))return {status:'waiting',evidence:`${run.name}: ${run.conclusion}`};
- return {status:fallback,evidence:`${run.name}: ${run.status||run.conclusion||'unknown'}`};
+ return {status:'waiting',evidence:`${run.name}: ${run.conclusion||run.status||'unknown'}`};
 }
-function classify(){
+function evidenceState(key){return state.mirror?.live_evidence?.[key]?.state||'pending'}
+function classifySystems(){
  const out={};
- const flash=recentCommit(/PC-01 flash receipt state=(FLASH_OK|ALREADY_COMPLETE)/i);
- out.hopper=flash?{status:'success',evidence:`${flash.commit.message.split('\n')[0]} · ${formatTime(flash.commit.author?.date)}`} : fromRun(latestRun(n=>n.includes('pc-01')||n.includes('hopper')),'waiting');
+ const min=minimumCapabilityStage();
+ const humanRun=latestRun(n=>n==='Aurum Human Capability Traits');
+ if(activeRun(humanRun))out.human=fromRun(humanRun,'running');
+ else if(min>=6)out.human={status:'success',evidence:'All seven capabilities have physical user-facing proof.'};
+ else if(min>=3)out.human={status:'running',evidence:`All seven traits are at least ${min}/6 evidence gates; next shared gate is ${nextStageLabel(min)}.`};
+ else out.human=fromRun(humanRun,'waiting');
+
+ const pcRun=latestRun((n,r)=>n==='Aurum PC v0.01 Image'&&String(r.head_branch||'')==='agent/aurum-direct-uefi-seed');
+ if(evidenceState('pc_seed_with_human_traits')==='success')out.pcseed={status:'success',evidence:'A post-integration PC seed artifact passed inspection and boot smoke tests.'};
+ else if(activeRun(pcRun))out.pcseed=fromRun(pcRun,'running');
+ else if(pcRun?.conclusion==='failure')out.pcseed=fromRun(pcRun,'failed');
+ else out.pcseed={status:'waiting',evidence:'Seed definition is wired; fresh verified artifact and boot proof are pending.'};
+
+ const piRun=latestRun(n=>n==='Aurum Dual Seed Lanes');
+ if(evidenceState('pi_seed_with_human_traits')==='success')out.piseed={status:'success',evidence:'A post-integration Pi seed reconciliation completed with the human trait payload.'};
+ else if(activeRun(piRun))out.piseed=fromRun(piRun,'running');
+ else if(piRun?.conclusion==='failure')out.piseed=fromRun(piRun,'failed');
+ else out.piseed={status:'waiting',evidence:'Bounded deployment is wired; fresh BBPI4 trait receipt is pending.'};
+
  const local=recentCommit(/local-lane repair validation/i);
- out.local=local?{status:'success',evidence:`${local.commit.message.split('\n')[0]} · ${formatTime(local.commit.author?.date)}`} : fromRun(latestRun(n=>n.includes('local-lane')||n.includes('self-heal')),'waiting');
- const onlinePi=state.nodes.find(n=>/bbpi4|pi4/i.test(`${n.name||''} ${n.node_id||''}`)&&ageSeconds(n.last_seen)<180);
- const probes=Object.values(state.work).filter(Boolean);
- const probeOpen=probes.some(p=>p.ap_ssh_open===true||p.status==='completed');
- if(onlinePi)out.pi4={status:'success',evidence:`${onlinePi.name||onlinePi.node_id} heartbeat seen ${ageSeconds(onlinePi.last_seen)}s ago.`};
- else if(probeOpen)out.pi4={status:'success',evidence:'ArkmatX edge reports a completed/open BBPI4 connectivity probe.'};
- else out.pi4=fromRun(latestRun(n=>n.includes('bbpi4')||n.includes('pi4')),'waiting');
- const active=state.runs.filter(r=>['queued','in_progress','waiting','requested','pending'].includes(r.status));
- const latestAny=state.runs.slice().sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at))[0];
- out.ci=active.length?{status:'running',evidence:`${active.length} GitHub workflow run${active.length===1?' is':'s are'} active.`}:fromRun(latestAny,'unknown');
- const seedRun=latestRun(n=>n.includes('dual seed')||n.includes('seed lane')||n.includes('usb flash')||n.includes('image'));
- out.seed=seedRun?fromRun(seedRun,'waiting'):(flash?{status:'success',evidence:'PC-01 flash receipt proves the current PC flash path.'}:{status:'waiting',evidence:'No recent seed workflow evidence found.'});
- const guiCommit=recentCommit(/\b(gui|trackpad|mouse|loading screen|hopper)\b/i);
- out.gui=guiCommit?{status:'running',evidence:`Recent UI-related commit: ${guiCommit.commit.message.split('\n')[0]}`}:{status:'waiting',evidence:'Tracked lane; no dedicated recent GUI run found in the current evidence window.'};
- const kernelRun=latestRun(n=>n.includes('adaptive kernel')||n.includes('experimental lane')||n.includes('experiment race'));
- out.kernel=kernelRun?{...fromRun(kernelRun,'experiment'),status:fromRun(kernelRun,'experiment').status==='success'?'experiment':fromRun(kernelRun,'experiment').status}:{status:'experiment',evidence:'Independent experimental lane; no matching hosted run in the current window.'};
- const weaveRun=latestRun(n=>n.includes('stateweave')||n.includes('state weave')||n.includes('experimental lane')||n.includes('experiment race'));
- out.weave=weaveRun?{...fromRun(weaveRun,'experiment'),status:fromRun(weaveRun,'experiment').status==='success'?'experiment':fromRun(weaveRun,'experiment').status}:{status:'experiment',evidence:'StateWeave remains an experiment until a matching verified run is visible.'};
+ const auto=latestRun(n=>/autonomous build|local-lane self-heal|event-driven continuation/i.test(n));
+ out.selfbuild=local?{status:'success',evidence:`${String(local.commit.message).split('\n')[0]} · ${formatTime(local.commit.author?.date)}`} : fromRun(auto,'unknown');
+ const guiCommit=recentCommit(/\b(gui|human surface|command center|dashboard|trackpad|mouse|loading screen)\b/i);
+ out.gui=guiCommit?{status:'running',evidence:`Recent human-surface work: ${String(guiCommit.commit.message).split('\n')[0]}`}:{status:'waiting',evidence:'No recent dedicated human-surface evidence in the current commit window.'};
+ const kernel=latestRun(n=>/adaptive kernel|experimental lane|experiment race/i.test(n));
+ out.kernel=kernel?{...fromRun(kernel,'experiment'),status:fromRun(kernel,'experiment').status==='success'?'experiment':fromRun(kernel,'experiment').status}:{status:'experiment',evidence:'Experimental lane; no matching recent run visible.'};
+ const weave=latestRun(n=>/stateweave|state weave|experimental lane|experiment race/i.test(n));
+ out.weave=weave?{...fromRun(weave,'experiment'),status:fromRun(weave,'experiment').status==='success'?'experiment':fromRun(weave,'experiment').status}:{status:'experiment',evidence:'Experimental lane; no matching recent run visible.'};
+ out.mirror=state.mirrorOk?{status:'success',evidence:`Shared mirror loaded from ${state.mirror.source||'current source'} · ${formatTime(state.mirror.generated_at_utc)}`}:{status:'failed',evidence:'Canonical voice status mirror is unavailable.'};
  return out;
 }
-function label(s){return {success:'Verified',running:'Running',waiting:'Waiting',experiment:'Experiment',failed:'Attention',unknown:'Unknown'}[s]||'Unknown'}
-function renderSystems(){const c=classify();const box=$('#systems');box.innerHTML='';SYSTEMS.forEach(sys=>{const v=c[sys.id]||{status:'unknown',evidence:'No evidence.'};const b=document.createElement('button');b.type='button';b.className='card';b.dataset.id=sys.id;b.innerHTML=`<div class="card-head"><div class="card-icon">${esc(sys.icon)}</div><span class="pill ${esc(v.status)}">${esc(label(v.status))}</span></div><h3>${esc(sys.name)}</h3><p>${esc(sys.desc)}</p><div class="evidence">${esc(v.evidence)}</div>`;b.addEventListener('click',()=>showDetail(sys,v));box.appendChild(b)});
- const vals=Object.values(c);$('#mSuccess').textContent=vals.filter(v=>v.status==='success').length;$('#mRunning').textContent=vals.filter(v=>v.status==='running').length;$('#mAttention').textContent=vals.filter(v=>['failed','waiting'].includes(v.status)).length;$('#mNodes').textContent=state.nodes.length;
- renderHumanGate(c);
-}
+function label(s){return {success:'Verified',running:'Building',waiting:'Pending proof',experiment:'Experiment',failed:'Attention',unknown:'Unknown'}[s]||'Unknown'}
+function renderSystems(){const classified=classifySystems();const box=$('#systems');box.innerHTML='';SYSTEMS.forEach(sys=>{const v=classified[sys.id]||{status:'unknown',evidence:'No evidence.'};const b=document.createElement('button');b.type='button';b.className='system-card';b.innerHTML=`<div class="card-head"><div class="card-icon">${esc(sys.icon)}</div><span class="pill ${esc(v.status)}">${esc(label(v.status))}</span></div><h3>${esc(sys.name)}</h3><p>${esc(sys.desc)}</p><div class="evidence">${esc(v.evidence)}</div>`;b.addEventListener('click',()=>showDetail(sys,v));box.appendChild(b)});const values=Object.values(classified);$('#mVerified').textContent=values.filter(v=>v.status==='success').length;renderHumanGate();}
 function showDetail(sys,v){$('#detailTitle').textContent=`${sys.name} — ${label(v.status)}`;$('#detailText').textContent=`${sys.desc} Evidence: ${v.evidence}`;$('#detail').classList.add('show');$('#detailClose').focus()}
-function renderHumanGate(c){const gate=$('#humanGate');if(c.pi4.status==='waiting'||c.pi4.status==='failed'){gate.innerHTML='<b>BBPI4 physical verification is the clearest current gate.</b><p>The edge has not yet produced fresh proof that the Pi4 route/heartbeat is healthy. Other independent lanes can continue without treating this as a global stop.</p>'}else if(c.hopper.status==='failed'){gate.innerHTML='<b>Hopper needs attention.</b><p>The most recent PC-01/Hopper evidence is a failed run. Inspect that lane before repeating physical work.</p>'}else{gate.innerHTML='<b>No confirmed human-only blocker right now.</b><p>Current evidence does not justify asking you to intervene. The dashboard will change this when a physical or permission gate is actually observed.</p>'}}
-function renderActivity(){const el=$('#activity');el.innerHTML='';if(!state.commits.length){el.innerHTML='<div class="tiny">No commit activity available.</div>';return}state.commits.slice(0,10).forEach(c=>{const d=c.commit?.author?.date;const msg=String(c.commit?.message||'Commit').split('\n')[0];const row=document.createElement('div');row.className='row';row.innerHTML=`<div class="time">${esc(formatTime(d))}</div><div class="rowdot"></div><div><b>${esc(msg)}</b><span>${esc(String(c.sha||'').slice(0,8))}</span></div>`;el.appendChild(row)})}
+function stageCount(cap){return Object.values(cap?.stages||{}).filter(Boolean).length}
+function minimumCapabilityStage(){const caps=state.mirror?.human_capabilities||[];return caps.length?Math.min(...caps.map(stageCount)):0}
+function nextStageLabel(count){return ['Defined','Executable','Tested','Seeded','Booted','Used','Complete'][Math.min(6,count)]||'Unknown'}
+function stageStatus(count){if(count>=6)return 'Physical proof';if(count===5)return 'Use proof pending';if(count===4)return 'Boot proof pending';if(count===3)return 'Seed proof pending';if(count===2)return 'Test proof pending';if(count===1)return 'Implementation pending';return 'Undefined'}
+function renderCapabilities(){const box=$('#capabilities');const caps=state.mirror?.human_capabilities||[];box.innerHTML='';if(!caps.length){box.innerHTML='<div class="panel tiny error">Capability mirror unavailable.</div>';$('#capState').textContent='Unavailable';return}caps.forEach(cap=>{const count=stageCount(cap);const article=document.createElement('article');article.className='capability';const stages=Object.entries(cap.stages||{}).map(([key,on])=>`<span class="stage ${on?'on':''}" title="${esc(STAGE_LABELS[key]||key)}">${esc(STAGE_LABELS[key]||key)}</span>`).join('');article.innerHTML=`<div class="capability-top"><div><h3>${esc(cap.name)}</h3><div class="trait-id">${esc(cap.id)}</div></div><div class="stage-score">${count}/6</div></div><div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="6" aria-valuenow="${count}" aria-label="${esc(cap.name)} evidence gates"><div class="fill" style="width:${(count/6)*100}%"></div></div><div class="stages">${stages}</div><p class="cap-copy"><b>${esc(stageStatus(count))}.</b> ${esc(cap.current||'')}</p><div class="cap-next"><b>Next proof:</b> ${esc(cap.next||'Unknown.')}</div>`;box.appendChild(article)});const min=minimumCapabilityStage();$('#mCapabilities').textContent=caps.length;$('#mStage').textContent=`${min}/6`;$('#capState').textContent=`Lowest shared gate: ${min}/6 · next ${nextStageLabel(min)}`;renderNextProof();}
+function renderTruth(){const list=$('#truthStandard');const rules=state.mirror?.truth_standard||[];list.innerHTML='';if(!rules.length){list.innerHTML='<li>Evidence rules unavailable.</li>';return}rules.forEach(rule=>{const li=document.createElement('li');li.textContent=rule;list.appendChild(li)})}
+function evidenceLabel(value){if(!value)return 'unknown';return String(value).replaceAll('-',' ')}
+function renderMirror(){const mirror=state.mirror;if(!mirror){$('#mirrorState').textContent='Unavailable';$('#mirrorPlain').textContent='The canonical voice mirror could not be loaded.';$('#mirrorEvidence').innerHTML='';return}$('#mirrorState').textContent=`${mirror.source||'mirror'} · ${formatTime(mirror.generated_at_utc)}`;$('#mirrorPlain').textContent=mirror.overall?.plain||'No plain status available.';const evidence=mirror.live_evidence||{};const items=[['Human trait workflow',evidence.human_trait_workflow?.state],['PC seed with traits',evidence.pc_seed_with_human_traits?.state],['Pi seed with traits',evidence.pi_seed_with_human_traits?.state]];$('#mirrorEvidence').innerHTML=items.map(([name,value])=>`<div class="mirror-item"><b>${esc(name)}</b><span>${esc(evidenceLabel(value))}</span></div>`).join('');}
+function renderHumanGate(){const gate=$('#humanGate');const action=state.mirror?.overall?.human_action||'Current human action is unknown because the voice mirror is unavailable.';const none=/^none\b/i.test(action);gate.className=`gate ${none?'ok':''}`;gate.innerHTML=`<b>${none?'No action needed from Bruce right now.':'Human action may be needed.'}</b><p>${esc(action)}</p>`;$('#mAction').textContent=none?'None':'Review';}
+function renderNextProof(){const gate=$('#nextProof');const min=minimumCapabilityStage();const text={0:'Define the missing traits.',1:'Implement executable Generation-0 behavior.',2:'Pass functional implementation tests.',3:'Produce and inspect a fresh seed artifact containing all seven traits.',4:'Boot the verified seed with every trait present.',5:'Prove physical user-facing use on an authorized machine.',6:'All shared gates are complete; continue refinement beside the known-good generation.'}[min]||'Read current evidence.';gate.className=`gate ${min>=6?'ok':''}`;gate.innerHTML=`<b>${esc(min>=6?'Shared human-capability proof complete.':`Next shared gate: ${nextStageLabel(min)}.`)}</b><p>${esc(text)}</p>`;}
+function renderActivity(){const el=$('#activity');el.innerHTML='';if(!state.commits.length){el.innerHTML='<div class="tiny">No commit activity available.</div>';return}state.commits.slice(0,12).forEach(c=>{const d=c.commit?.author?.date;const msg=String(c.commit?.message||'Commit').split('\n')[0];const row=document.createElement('div');row.className='row';row.innerHTML=`<div class="time">${esc(formatTime(d))}</div><div class="rowdot"></div><div><b>${esc(msg)}</b><span>${esc(String(c.sha||'').slice(0,8))}</span></div>`;el.appendChild(row)})}
 function renderNodes(){const el=$('#nodes');el.innerHTML='';if(!state.nodes.length){el.innerHTML='<div class="tiny">No enrolled node directory data is currently available.</div>';return}state.nodes.slice(0,12).forEach(n=>{const age=ageSeconds(n.last_seen);const row=document.createElement('div');row.className='node';row.innerHTML=`<div class="node-top"><b>${esc(n.name||n.node_id||'Node')}</b><span class="pill ${age<180?'success':'waiting'}">${age<180?'Online':'Seen'}</span></div><small>${esc(n.node_id||'unknown')} · ${esc(n.carrier||'unknown carrier')} · ${age}s ago</small>`;el.appendChild(row)})}
-function parseQueue(raw){const lines=raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let chosen=lines.filter(l=>/\bBB-\d+\b/i.test(l)||/^[-*]\s+\[[ xX]\]/.test(l));if(!chosen.length)chosen=lines.filter(l=>/^#{2,4}\s+/.test(l)||/^[-*]\s+/.test(l));return chosen.slice(0,8)}
-function renderQueue(lines){const el=$('#queue');el.innerHTML='';if(!lines.length){el.innerHTML='<div class="tiny">Active queue loaded, but no concise task rows were detected.</div>';return}lines.forEach(l=>{const d=document.createElement('div');d.className='queue-item';d.textContent=l.replace(/^#+\s*/, '').replace(/^[-*]\s*/, '');el.appendChild(d)})}
-async function refreshGitHub(){
- $('#repoState').textContent='Refreshing GitHub…';$('#queueState').textContent='Refreshing queue…';
- const [commits,runs,queue]=await Promise.allSettled([json(`${API}/commits?sha=main&per_page=30`),json(`${API}/actions/runs?branch=main&per_page=100`),text(`${RAW}/.codex/queue/QUEUE.md?t=${Date.now()}`)]);
- if(commits.status==='fulfilled'){state.commits=Array.isArray(commits.value)?commits.value:[];state.repoOk=true}else{state.repoOk=false}
- if(runs.status==='fulfilled'){state.runs=Array.isArray(runs.value.workflow_runs)?runs.value.workflow_runs:[]}
- if(queue.status==='fulfilled'){renderQueue(parseQueue(queue.value));$('#queueState').textContent='Git-backed active queue'}else{$('#queue').innerHTML='<div class="tiny error">Queue source unavailable.</div>';$('#queueState').textContent='Unavailable'}
- state.lastGitHub=Date.now();$('#repoState').textContent=state.repoOk?`${state.commits.length} recent commits · ${state.runs.length} workflow runs`:'GitHub unavailable';renderActivity();renderSystems();renderOverall();
-}
-async function refreshEdge(){
- const workIds=['bbpi4-bootstrap-v1','bbpi4-ap-probe-morris-v1','bbpi4-ap-probe-bruce-v1'];
- const jobs=[json(rel('status')),json(rel('nodes')),...workIds.map(id=>json(`${rel('work/status')}?id=${encodeURIComponent(id)}`))];
- const results=await Promise.allSettled(jobs);
- if(results[0].status==='fulfilled'){state.edge=results[0].value;state.edgeOk=true}else{state.edgeOk=false}
- if(results[1].status==='fulfilled'){state.nodes=Array.isArray(results[1].value.nodes)?results[1].value.nodes:[]}
- workIds.forEach((id,i)=>{state.work[id]=results[i+2].status==='fulfilled'?results[i+2].value:null});
- state.lastEdge=Date.now();$('#edgeState').textContent=state.edgeOk?`${state.edge.node||'Aurum-Arkmatx'} · ${state.nodes.length} nodes`:'Edge unavailable';renderNodes();renderSystems();renderOverall();
-}
-function renderOverall(){const dot=$('#liveDot'),txt=$('#liveText');dot.className='dot';if(state.repoOk&&state.edgeOk){dot.classList.add('ok');txt.textContent='Live data connected'}else if(state.repoOk||state.edgeOk){txt.textContent='Partial live data'}else{dot.classList.add('bad');txt.textContent='Live sources unavailable'}const latest=Math.max(state.lastGitHub,state.lastEdge);$('#lastUpdated').textContent=latest?`Last refresh ${formatTime(latest)} · GitHub 5m / edge 15s`:'No successful refresh yet.'}
-async function refreshAll(){const b=$('#refresh');b.disabled=true;b.textContent='Refreshing…';await Promise.allSettled([refreshGitHub(),refreshEdge()]);b.disabled=false;b.textContent='Refresh now'}
+async function refreshMirror(){try{state.mirror=await json(`${rel('voice-status.json')}?t=${Date.now()}`);state.mirrorOk=true;state.lastMirror=Date.now()}catch(err){state.mirrorOk=false}renderCapabilities();renderTruth();renderMirror();renderSystems();renderHumanGate();renderOverall()}
+async function refreshGitHub(){try{const [commits,runs]=await Promise.all([json(`${API}/commits?sha=main&per_page=40`,true),json(`${API}/actions/runs?per_page=100`,true)]);state.commits=Array.isArray(commits)?commits:[];state.runs=Array.isArray(runs.workflow_runs)?runs.workflow_runs:[];state.repoOk=true;state.lastGitHub=Date.now();$('#repoState').textContent=`${state.commits.length} commits · ${state.runs.length} workflow runs`}catch(err){state.repoOk=false;$('#repoState').textContent='GitHub unavailable'}$('#mActive').textContent=state.runs.filter(activeRun).length;renderActivity();renderSystems();renderOverall()}
+async function refreshEdge(){const results=await Promise.allSettled([json(rel('status')),json(rel('nodes'))]);if(results[0].status==='fulfilled'){state.edge=results[0].value;state.edgeOk=true}else{state.edgeOk=false}if(results[1].status==='fulfilled'){state.nodes=Array.isArray(results[1].value.nodes)?results[1].value.nodes:[]}state.lastEdge=Date.now();$('#edgeState').textContent=state.edgeOk?`${state.edge.node||'Aurum-Arkmatx'} · ${state.nodes.length} nodes`:'Edge unavailable';$('#mNodes').textContent=state.nodes.length;renderNodes();renderOverall()}
+function renderOverall(){const dot=$('#liveDot'),txt=$('#liveText');dot.className='dot';const healthy=[state.mirrorOk,state.repoOk,state.edgeOk].filter(Boolean).length;if(healthy===3){dot.classList.add('ok');txt.textContent='All evidence sources connected'}else if(healthy>0){txt.textContent='Partial evidence connected'}else{dot.classList.add('bad');txt.textContent='Evidence sources unavailable'}const latest=Math.max(state.lastMirror,state.lastGitHub,state.lastEdge);$('#lastUpdated').textContent=latest?`Last refresh ${formatTime(latest)} · mirror 2m cache / GitHub 5m / edge 20s`:'No successful refresh yet.'}
+async function refreshAll(){const b=$('#refresh');b.disabled=true;b.textContent='Refreshing…';await Promise.allSettled([refreshMirror(),refreshGitHub(),refreshEdge()]);b.disabled=false;b.textContent='Refresh now'}
 $('#detailClose').addEventListener('click',()=>$('#detail').classList.remove('show'));
 $('#refresh').addEventListener('click',refreshAll);
-refreshAll();setInterval(refreshGitHub,GITHUB_REFRESH);setInterval(refreshEdge,EDGE_REFRESH);
+refreshAll();setInterval(refreshMirror,GITHUB_REFRESH);setInterval(refreshGitHub,GITHUB_REFRESH);setInterval(refreshEdge,EDGE_REFRESH);
 })();
 </script>
 </body>
