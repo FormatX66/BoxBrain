@@ -76,6 +76,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("printf 'set_link hpeth off\\n' >&4", twin)
         self.assertIn("2026-04-27T19:50:12", twin)
         self.assertIn("AURUM_HP_TWIN_NVME_PRESERVED_OK", twin)
+        self.assertIn('tee -a "$LOG"', twin)
         self.assertIn("wifi-interface-missing", spec)
         self.assertIn("qemu-hp-physical-twin.sh", workflow)
 
