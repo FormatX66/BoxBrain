@@ -21,6 +21,10 @@ if [ ! -d "$REPO_ROOT/Projects/Codelation" ]; then
   echo "Projects/Codelation is missing." >&2
   exit 2
 fi
+if [ ! -d "$REPO_ROOT/Projects/AurumTraits" ]; then
+  echo "Projects/AurumTraits is missing." >&2
+  exit 2
+fi
 case "$DIRECT_UEFI_MODE" in
   auto|required|off) ;;
   *) echo "AURUM_BUILD_DIRECT_UEFI must be auto, required, or off" >&2; exit 2 ;;
@@ -82,6 +86,19 @@ e2fsprogs
 util-linux
 grub-efi-amd64-bin
 grub2-common
+xdg-utils
+xserver-xorg
+xinit
+openbox
+dbus-x11
+fonts-dejavu-core
+firefox-esr
+pcmanfm
+mpv
+libreoffice-writer
+libreoffice-gtk3
+bluez
+alsa-utils
 EOF
 
 GRUB_FONT=/usr/share/grub/unicode.pf2
@@ -109,10 +126,29 @@ for f in aurum_console.py aurum_bootstrap.py aurum_hardware.py aurum_network.py 
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
 cp -a "$REPO_ROOT/Projects/Codelation" config/includes.chroot/opt/aurum/codelation
-mkdir -p config/includes.chroot/usr/lib/aurum
+cp -a "$REPO_ROOT/Projects/AurumTraits" config/includes.chroot/opt/aurum/traits
+
+mkdir -p \
+  config/includes.chroot/usr/lib/aurum \
+  config/includes.chroot/usr/local/bin \
+  config/includes.chroot/var/lib/aurum/state \
+  config/includes.chroot/var/lib/aurum/workspace
 cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" config/includes.chroot/usr/lib/aurum/native-chain-state.json
 chmod 0644 config/includes.chroot/usr/lib/aurum/native-chain-state.json
-mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
+
+python3 "$REPO_ROOT/Projects/AurumTraits/validate_traits.py"
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" validate
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" build-all \
+  --output config/includes.chroot/usr/lib/aurum/traits
+python3 "$REPO_ROOT/Projects/AurumTraits/aurum_traits.py" garden \
+  --root config/includes.chroot/var/lib/aurum
+
+cat > config/includes.chroot/usr/local/bin/aurum-trait <<'EOF'
+#!/bin/sh
+set -eu
+exec /usr/bin/python3 /opt/aurum/traits/aurum_traits.py "$@"
+EOF
+chmod 0755 config/includes.chroot/usr/local/bin/aurum-trait
 
 mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/systemd/network
 cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
@@ -206,7 +242,8 @@ printf '%s\n' 'aurum-pc' > config/includes.chroot/etc/hostname
 cat > config/includes.chroot/etc/motd <<'EOF'
 Aurum PC v0.01
 Linux is present only as the temporary hardware compatibility substrate.
-The exposed operator surface is the bounded Aurum console; no arbitrary shell is offered.
+The seed carries executable WEB, Garden/FILES, MEDIA, WRITE, INTENT, CONNECT and RECOVER trait bundles.
+The exposed operator surface remains bounded; trait providers launch without a shell.
 Physical discovery boots statelessly so stale USB persistence cannot replace the bundled runtime.
 EOF
 
@@ -215,7 +252,10 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /opt/aurum/*.py
+chmod 0755 /opt/aurum/traits/aurum_traits.py /opt/aurum/traits/validate_traits.py
+chmod 0755 /usr/local/bin/aurum-trait
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
+find /opt/aurum/traits/tests -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
