@@ -1,7 +1,7 @@
 {
   "schema": "aurum-voice-status-v1",
   "project": "Aurum / BoxBrain",
-  "generated_at_utc": "2026-08-21T20:17:52Z",
+  "generated_at_utc": "2026-08-21T20:43:07Z",
   "source": "repository-snapshot",
   "truth_standard": [
     "Defined means the requirement and stable trait identity exist.",
@@ -101,11 +101,12 @@
     "Replaced contract-only trait lanes with artifact-producing parallel builds.",
     "Embedded runnable human capabilities into the active PC seed definition.",
     "Wired bounded human-trait deployment into Pi seed reconciliation.",
-    "Added guards preventing contract-only builds from being reported as implementation progress."
+    "Added guards preventing contract-only builds from being reported as implementation progress.",
+    "Made the dashboard and voice mirror reject workflow successes from pre-integration source commits."
   ],
   "evidence_thresholds": {
     "human_runtime_main_utc": "2026-08-21T20:06:27Z",
     "pc_seed_integration_utc": "2026-08-21T20:15:00Z",
-    "pi_seed_integration_utc": "2026-08-21T20:13:50Z"
+    "pi_seed_integration_utc": "2026-08-21T20:14:28Z"
   }
 }
