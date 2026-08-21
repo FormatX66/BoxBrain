@@ -85,3 +85,5 @@ jobs:
               pass
           print(json.dumps(snapshot, sort_keys=True))
           PY
+
+# Failsafe diagnostic refresh: 2026-08-21T17:26Z
