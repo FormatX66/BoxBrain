@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_FAILURE",
+    "github_workflow_run":  32522555501,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-21T20:36:12.4686191Z",
+    "data":  {
+                 "transport":  "usb-c-ssh",
+                 "host_key_pretrusted":  true,
+                 "source_commit":  "ea8e873edc2f2281037dfd8c20c30157dc748ac8",
+                 "reason":  "The bounded BBPI4 human-trait deployment failed."
+             }
+}
