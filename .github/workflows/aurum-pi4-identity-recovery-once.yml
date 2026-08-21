@@ -1,0 +1,217 @@
+name: Aurum Pi4 Identity Recovery Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi4-identity-recovery-once.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: aurum-pi4-identity-recovery-once
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 12
+    steps:
+      - name: Check out current Aurum control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run recovery regression contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python .\tests\test_pi4_identity_recovery_once.py
+          if ($LASTEXITCODE -ne 0) { throw "Pi4 identity recovery contract failed with exit code $LASTEXITCODE" }
+
+      - name: Recover only a missed verified Pi4 identity continuation
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $repo = $env:GITHUB_REPOSITORY
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          function Publish-RecoveryReceipt([string]$Outcome, [hashtable]$Data) {
+            $path = "Projects/AurumBridge/results/pi4-identity-recovery-$env:GITHUB_RUN_ID.json"
+            $receipt = [ordered]@{
+              schema = 'aurum-pi4-identity-recovery-v1'
+              outcome = $Outcome
+              github_workflow_run = [long]$env:GITHUB_RUN_ID
+              source_commit = $env:GITHUB_SHA
+              observed_at = (Get-Date).ToUniversalTime().ToString('o')
+              data = $Data
+            }
+            $json = $receipt | ConvertTo-Json -Depth 8
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+            $body = @{
+              message = "Record Pi4 identity recovery outcome=$Outcome [skip ci]"
+              content = $encoded
+              branch = 'main'
+            } | ConvertTo-Json -Depth 4
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              try {
+                Invoke-RestMethod -Method Put -Headers $headers -Uri "https://api.github.com/repos/$repo/contents/$path" -Body $body -ContentType 'application/json' | Out-Null
+                return
+              } catch {
+                if ($attempt -eq 3) { throw }
+                Start-Sleep -Seconds $attempt
+              }
+            }
+          }
+
+          function Get-ActiveWorkflowCount([string]$Workflow, [string]$Branch = 'main') {
+            $uri = "https://api.github.com/repos/$repo/actions/workflows/$Workflow/runs?branch=$Branch&per_page=20"
+            $runs = Invoke-RestMethod -Method Get -Headers $headers -Uri $uri
+            return @($runs.workflow_runs | Where-Object { $_.status -in @('queued','in_progress','waiting','requested','pending') }).Count
+          }
+
+          function Invoke-NativeCaptured([string]$Executable, [string[]]$Arguments) {
+            $previous = $ErrorActionPreference
+            $output = @()
+            $code = 1
+            try {
+              $ErrorActionPreference = 'Continue'
+              $output = @(& $Executable @Arguments 2>&1)
+              $code = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $previous
+            }
+            return [pscustomobject]@{ Output = $output; ExitCode = $code }
+          }
+
+          $activeDualSeed = Get-ActiveWorkflowCount 'aurum-dual-seed-lanes.yml'
+          if ($activeDualSeed -gt 0) {
+            Write-Host "AURUM_PI4_IDENTITY_RECOVERY action=deduplicated active_dual_seed=$activeDualSeed"
+            Publish-RecoveryReceipt 'DEDUPLICATED_ACTIVE_DUAL_SEED' @{ active_dual_seed = $activeDualSeed }
+            exit 0
+          }
+
+          $resultDir = Join-Path $env:GITHUB_WORKSPACE 'Projects\AurumBridge\results'
+          $candidates = @()
+          Get-ChildItem -LiteralPath $resultDir -Filter 'pi4-seed-*-attempt-*.json' -File -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Name -match '^pi4-seed-(\d+)-attempt-(\d+)\.json$') {
+              $candidates += [pscustomobject]@{ Run = [long]$Matches[1]; Attempt = [int]$Matches[2]; Path = $_.FullName }
+            }
+          }
+          $latest = $candidates | Sort-Object Run,Attempt -Descending | Select-Object -First 1
+          if (-not $latest) {
+            Publish-RecoveryReceipt 'WAITING' @{ reason = 'no-pi4-seed-receipt' }
+            Write-Host 'AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=no-pi4-seed-receipt'
+            exit 0
+          }
+          $seed = Get-Content -LiteralPath $latest.Path -Raw | ConvertFrom-Json
+          $data = $seed.data
+          $seedOk = (
+            [string]$seed.state -eq 'PI4_SEED_OK' -and
+            $data.aurum_live_verified -eq $true -and
+            $data.peer_self_test_verified -eq $true -and
+            $data.gold_seed_preserved -eq $true -and
+            $data.host_key_pretrusted -eq $true -and
+            [string]$data.architecture -eq 'arm64' -and
+            [string]$data.transport -eq 'usb-c-ssh'
+          )
+          if (-not $seedOk) {
+            Publish-RecoveryReceipt 'WAITING' @{ reason = 'latest-seed-not-strictly-verified'; seed_state = [string]$seed.state }
+            Write-Host 'AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=latest-seed-not-strictly-verified'
+            exit 0
+          }
+
+          $address = [string]$data.address
+          $user = if ($data.user) { [string]$data.user } else { 'kali' }
+          $expectedFingerprint = [string]$data.host_key_fingerprint
+          if ($address -notin @('10.12.194.1','10.42.194.1') -or [string]::IsNullOrWhiteSpace($expectedFingerprint)) {
+            Publish-RecoveryReceipt 'SAFETY_STOP' @{ reason = 'seed-route-or-fingerprint-invalid'; address = $address }
+            Write-Host 'AURUM_PI4_IDENTITY_RECOVERY outcome=SAFETY_STOP reason=seed-route-or-fingerprint-invalid'
+            exit 0
+          }
+
+          $keyCandidates = New-Object System.Collections.Generic.List[string]
+          if ($env:AURUM_PI_SSH_KEY) { $keyCandidates.Add($env:AURUM_PI_SSH_KEY) }
+          $keyCandidates.Add((Join-Path $HOME '.ssh\boxbrain_pi_ed25519'))
+          if (Test-Path -LiteralPath 'C:\Users' -PathType Container) {
+            Get-ChildItem -LiteralPath 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              $keyCandidates.Add((Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'))
+            }
+          }
+          $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) {
+            Publish-RecoveryReceipt 'WAITING' @{ reason = 'pi-ssh-key-missing'; address = $address }
+            Write-Host 'AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=pi-ssh-key-missing'
+            exit 0
+          }
+
+          $bin = if ($env:AURUM_OPENSSH_BIN) { $env:AURUM_OPENSSH_BIN } else { Join-Path $env:ProgramFiles 'Git\usr\bin' }
+          $ssh = Join-Path $bin 'ssh.exe'
+          $scp = Join-Path $bin 'scp.exe'
+          $keyscan = Join-Path $bin 'ssh-keyscan.exe'
+          $keygen = Join-Path $bin 'ssh-keygen.exe'
+          foreach ($tool in @($ssh,$scp,$keyscan,$keygen)) {
+            if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) {
+              Publish-RecoveryReceipt 'WAITING' @{ reason = 'ssh-toolchain-missing'; missing = $tool }
+              Write-Host "AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=ssh-toolchain-missing missing=$tool"
+              exit 0
+            }
+          }
+
+          $scan = Invoke-NativeCaptured $keyscan @('-T','4','-t','ed25519',$address)
+          $scanLine = $scan.Output | ForEach-Object { [string]$_ } | Where-Object { $_ -match '^\S+\s+ssh-ed25519\s+' } | Select-Object -First 1
+          if ($scan.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($scanLine)) {
+            Publish-RecoveryReceipt 'WAITING' @{ reason = 'usb-c-host-key-unreachable'; address = $address }
+            Write-Host "AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=usb-c-host-key-unreachable address=$address"
+            exit 0
+          }
+
+          $fingerprintFile = Join-Path $env:RUNNER_TEMP "aurum-pi4-hostkey-$env:GITHUB_RUN_ID.txt"
+          [IO.File]::WriteAllText($fingerprintFile, $scanLine + "`n", (New-Object Text.UTF8Encoding($false)))
+          try {
+            $fp = Invoke-NativeCaptured $keygen @('-lf',$fingerprintFile,'-E','sha256')
+            $fpText = ($fp.Output | ForEach-Object { [string]$_ }) -join ' '
+            $match = [regex]::Match($fpText, 'SHA256:[A-Za-z0-9+/=]+')
+            $observedFingerprint = if ($match.Success) { $match.Value.TrimEnd('=') } else { '' }
+            $normalizedExpected = $expectedFingerprint.TrimEnd('=')
+            if ($fp.ExitCode -ne 0 -or $observedFingerprint -ne $normalizedExpected) {
+              Publish-RecoveryReceipt 'SAFETY_STOP' @{ reason = 'host-key-fingerprint-mismatch'; address = $address; expected = $normalizedExpected; observed = $observedFingerprint }
+              Write-Host "AURUM_PI4_IDENTITY_RECOVERY outcome=SAFETY_STOP reason=host-key-fingerprint-mismatch address=$address"
+              exit 0
+            }
+
+            $deploy = Join-Path $env:GITHUB_WORKSPACE 'installer\deploy-aurum-live-to-pi.ps1'
+            $run = @(& $deploy -PiAddresses @($address) -PiUser $user -KeyPath $key -SshExecutable $ssh -ScpExecutable $scp -UserKnownHostsFile $fingerprintFile 2>&1)
+            $run | ForEach-Object { Write-Host ([string]$_) }
+            $text = ($run | ForEach-Object { [string]$_ }) -join "`n"
+
+            if ($text -match 'AURUM_ARKMATX_HEARTBEAT_VERIFIED\s+address=([^\s]+)\s+node_id=([^\s]+)') {
+              $nodeId = $Matches[2]
+              $activeMain = Get-ActiveWorkflowCount 'aurum-autobuild.yml'
+              $autobuildAction = 'deduplicated'
+              if ($activeMain -eq 0) {
+                $dispatchBody = @{ ref = 'main' } | ConvertTo-Json -Compress
+                Invoke-RestMethod -Method Post -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-autobuild.yml/dispatches" -Body $dispatchBody -ContentType 'application/json' | Out-Null
+                $autobuildAction = 'dispatched'
+              }
+              Publish-RecoveryReceipt 'HEARTBEAT_VERIFIED' @{ address = $address; node_id = $nodeId; host_key_fingerprint = $normalizedExpected; autobuild = $autobuildAction; active_main_before = $activeMain }
+              Write-Host "AURUM_PI4_IDENTITY_RECOVERY outcome=HEARTBEAT_VERIFIED node_id=$nodeId autobuild=$autobuildAction"
+              exit 0
+            }
+
+            $waitMatch = [regex]::Match($text, 'AURUM_ARKMATX_ENROLLMENT_WAITING\s+reason=([^\s]+)')
+            $reason = if ($waitMatch.Success) { $waitMatch.Groups[1].Value } else { 'heartbeat-verification-marker-missing' }
+            Publish-RecoveryReceipt 'WAITING' @{ reason = $reason; address = $address; host_key_fingerprint = $normalizedExpected }
+            Write-Host "AURUM_PI4_IDENTITY_RECOVERY outcome=WAITING reason=$reason address=$address"
+          } finally {
+            Remove-Item -LiteralPath $fingerprintFile -Force -ErrorAction SilentlyContinue
+          }
