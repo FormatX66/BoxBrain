@@ -8,19 +8,5 @@
   "allowed_actions": [
     "answer",
     "propose_mind_replacement"
-  ],
-  "seed_traits": {
-    "schema": "aurum-human-traits-v1",
-    "required_on_every_seed": true,
-    "build_policy": "all-traits-parallel; implementations-may-mature-in-stages",
-    "ids": [
-      "TR8:WEB",
-      "TR8:FILES",
-      "TR8:MEDIA",
-      "TR8:WRITE",
-      "TR8:INTENT",
-      "TR8:CONNECT",
-      "TR8:RECOVER"
-    ]
-  }
+  ]
 }
