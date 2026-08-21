@@ -1,0 +1,11 @@
+{
+  "active_main_before": 0,
+  "autobuild_action": "none",
+  "controller_time": 1787319424,
+  "fresh_node": null,
+  "github_workflow_run": 32487771433,
+  "observed_at": 1787319425,
+  "outcome": "NO_FRESH_HEARTBEAT",
+  "schema": "aurum-pi4-heartbeat-readback-v1",
+  "source_commit": "853ced7df85bc214a4f529c5d4e6fa9513883936"
+}
