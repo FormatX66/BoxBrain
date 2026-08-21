@@ -16,6 +16,18 @@ HEADER = struct.Struct(">8sB16sI")
 EDGE = struct.Struct(">16s16sII")
 ZERO_STATE = bytes(STATE_SIZE)
 
+HUMAN_TRAIT_SCHEMA = "aurum-human-traits-v1"
+HUMAN_TRAIT_BUILD_POLICY = "all-traits-parallel; implementations-may-mature-in-stages"
+HUMAN_TRAIT_IDS = (
+    "TR8:WEB",
+    "TR8:FILES",
+    "TR8:MEDIA",
+    "TR8:WRITE",
+    "TR8:INTENT",
+    "TR8:CONNECT",
+    "TR8:RECOVER",
+)
+
 
 def state_id(observation: bytes) -> bytes:
     return hashlib.blake2s(observation, digest_size=STATE_SIZE).digest()
@@ -96,11 +108,19 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("observation")
     summary = commands.add_parser("summary")
     summary.add_argument("--model", type=Path, default=Path("seed.bin"))
+    commands.add_parser("traits")
     return root
 
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.command == "traits":
+        print(
+            f"schema={HUMAN_TRAIT_SCHEMA} required_on_every_seed=true "
+            f"build_policy={HUMAN_TRAIT_BUILD_POLICY} traits={','.join(HUMAN_TRAIT_IDS)}"
+        )
+        return 0
+
     graph = SeedGraph.load(args.model)
     if args.command == "observe":
         current = state_id(args.observation.encode())
