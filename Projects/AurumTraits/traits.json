@@ -1,0 +1,87 @@
+{
+  "schema": "aurum-human-traits-v1",
+  "generation": 0,
+  "principle": "Stable machine semantic identity, adaptable human projection.",
+  "traits": [
+    {
+      "id": "TR8:WEB",
+      "name": "Web",
+      "human_aliases": ["web", "browser", "internet"],
+      "goal": "Browser-compatible web access without making a particular browser the permanent Aurum abstraction.",
+      "compatibility_providers": [
+        {"kind": "executable", "command": "chromium", "role": "graphical-browser"},
+        {"kind": "executable", "command": "chromium-browser", "role": "graphical-browser"},
+        {"kind": "executable", "command": "firefox", "role": "graphical-browser"},
+        {"kind": "executable", "command": "google-chrome", "role": "graphical-browser"}
+      ]
+    },
+    {
+      "id": "TR8:FILES",
+      "name": "Garden / Files",
+      "human_aliases": ["garden", "files", "documents", "my things"],
+      "goal": "Human-compatible storage projection over machine-native state, without exposing filesystem mechanics as the permanent user model.",
+      "compatibility_providers": [
+        {"kind": "executable", "command": "nautilus", "role": "graphical-file-projection"},
+        {"kind": "executable", "command": "thunar", "role": "graphical-file-projection"},
+        {"kind": "executable", "command": "pcmanfm", "role": "graphical-file-projection"},
+        {"kind": "executable", "command": "dolphin", "role": "graphical-file-projection"},
+        {"kind": "executable", "command": "xdg-open", "role": "projection-launcher"}
+      ]
+    },
+    {
+      "id": "TR8:MEDIA",
+      "name": "Media",
+      "human_aliases": ["media", "music", "photos", "pictures", "video", "movies"],
+      "media_kinds": ["audio", "image", "video"],
+      "goal": "Unified image, audio and video consumption trait with presentation chosen from the media and user intent.",
+      "compatibility_providers": [
+        {"kind": "executable", "command": "mpv", "role": "audio-video-player"},
+        {"kind": "executable", "command": "vlc", "role": "audio-video-player"},
+        {"kind": "executable", "command": "ffplay", "role": "audio-video-player"},
+        {"kind": "executable", "command": "xdg-open", "role": "media-handler"}
+      ]
+    },
+    {
+      "id": "TR8:WRITE",
+      "name": "Write",
+      "human_aliases": ["write", "document", "notes", "word processing"],
+      "goal": "Create and edit human text and documents while treating specific editor/application formats as compatibility projections.",
+      "compatibility_providers": [
+        {"kind": "executable", "command": "libreoffice", "role": "document-editor"},
+        {"kind": "executable", "command": "abiword", "role": "document-editor"},
+        {"kind": "executable", "command": "gedit", "role": "text-editor"},
+        {"kind": "executable", "command": "mousepad", "role": "text-editor"},
+        {"kind": "executable", "command": "kate", "role": "text-editor"}
+      ]
+    },
+    {
+      "id": "TR8:INTENT",
+      "name": "Intent",
+      "human_aliases": ["intent", "assistant", "help", "make it so"],
+      "goal": "Map user outcomes and preferred language onto stable Aurum capabilities and adaptive assistance.",
+      "compatibility_providers": [
+        {"kind": "internal", "command": "aurum-intent", "role": "intent-router"}
+      ]
+    },
+    {
+      "id": "TR8:CONNECT",
+      "name": "Connect",
+      "human_aliases": ["connect", "wifi", "bluetooth", "usb", "devices"],
+      "goal": "Express device and network connectivity as one capability across interchangeable transports.",
+      "compatibility_providers": [
+        {"kind": "executable", "command": "nmcli", "role": "network-control"},
+        {"kind": "executable", "command": "bluetoothctl", "role": "bluetooth-control"},
+        {"kind": "executable", "command": "lsusb", "role": "usb-observation"}
+      ]
+    },
+    {
+      "id": "TR8:RECOVER",
+      "name": "Recover",
+      "human_aliases": ["recover", "repair", "rollback", "fix this computer"],
+      "goal": "Diagnosis, rollback, repair and known-good restoration as a user-facing Aurum capability.",
+      "compatibility_providers": [
+        {"kind": "internal", "command": "aurum-recovery", "role": "known-good-recovery"}
+      ]
+    }
+  ]
+}
