@@ -133,6 +133,21 @@ def _write_receipt(state: Path, payload: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
+def _write_pointer_proof(state: Path, *, position: tuple[int, int], observed_at: str) -> None:
+    path = state / "pointer-motion.json"
+    payload = {
+        "schema": "aurum.pointer-motion.v1",
+        "status": "motion-observed",
+        "machine": "Hopper",
+        "position": [int(position[0]), int(position[1])],
+        "observed_at": observed_at,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temp, path)
+
+
 def _stop(_signum: int, _frame: object) -> None:
     global STOP_REQUESTED
     STOP_REQUESTED = True
@@ -152,6 +167,10 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     width, height = screen.get_size()
     pygame.display.set_caption("Aurum — Hopper")
+    # Fullscreen SDL on Hopper has intermittently hidden the platform cursor even
+    # while pointer events keep flowing. Render our own cursor from the same
+    # pointer coordinates so visibility never depends on the window-system cursor.
+    pygame.mouse.set_visible(False)
     scale = min(width / 1440.0, height / 900.0)
 
     def font(size: int, bold: bool = False):
@@ -188,6 +207,13 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         s = " ".join(str(value).split())
         return s if len(s) <= limit else s[: limit - 1] + "…"
 
+    def draw_cursor(position: tuple[int, int]) -> None:
+        x, y = int(position[0]), int(position[1])
+        s = max(10, int(15 * scale))
+        points = [(x, y), (x, y + s), (x + int(s * .32), y + int(s * .72)), (x + int(s * .62), y + int(s * 1.28)), (x + int(s * .82), y + int(s * 1.17)), (x + int(s * .52), y + int(s * .63)), (x + s, y + int(s * .63))]
+        pygame.draw.polygon(screen, (16, 18, 22), points)
+        pygame.draw.lines(screen, ink, True, points, max(1, int(2 * scale)))
+
     snap = snapshot(state, workspace, runtime)
     start = time.monotonic()
     stages = ["Machine", "Input", "Network", "Runtime", "Desktop"]
@@ -206,18 +232,20 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             dot(bx + i * int(90 * scale), by, color)
             lab = tiny.render(name, True, muted)
             screen.blit(lab, (bx + i * int(90 * scale) - lab.get_width() // 2, by + int(14 * scale)))
+        draw_cursor(pygame.mouse.get_pos())
         pygame.display.flip()
         pygame.event.pump()
         time.sleep(.03)
 
     _write_receipt(state, {
         "schema": SCHEMA,
-        "ui_version": "gen1-polished-v1",
+        "ui_version": "gen1-polished-v2",
         "status": "running",
         "pid": os.getpid(),
         "surface": "physical",
         "machine": "Hopper",
         "host_actuation": False,
+        "cursor": "aurum-software",
         "video_driver": os.environ.get("SDL_VIDEODRIVER", "auto"),
         "resolution": [width, height],
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -227,6 +255,8 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     tabs = ["Home", "Traits", "Build", "Hardware", "Field", "Settings"]
     selected, last_refresh = 0, 0.0
     clock = pygame.time.Clock()
+    pointer_motion_observed = False
+    pointer_motion_at: str | None = None
 
     def card(rect, label, value, note, color=gold):
         rounded(rect, panel, line)
@@ -255,6 +285,12 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                     selected = (selected - 1) % len(tabs)
                 elif event.key in (pygame.K_RIGHT, pygame.K_DOWN):
                     selected = (selected + 1) % len(tabs)
+            elif event.type == pygame.MOUSEMOTION:
+                if event.rel != (0, 0):
+                    if not pointer_motion_observed:
+                        pointer_motion_observed = True
+                        pointer_motion_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                        _write_pointer_proof(state, position=event.pos, observed_at=pointer_motion_at)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for i in range(len(tabs)):
                     r = pygame.Rect(int(13 * scale), int((126 + i * 62) * scale), rail_w - int(26 * scale), int(48 * scale))
@@ -296,12 +332,18 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             text("Hopper is alive.", hero.x + int(26 * scale), hero.y + int(43 * scale), title_font, ink)
             text("Physical desktop online · machine state flowing through Aurum", hero.x + int(28 * scale), hero.bottom - int(32 * scale), small, muted)
             logo(hero.right - int(78 * scale), hero.centery, int(35 * scale))
+            if pointer_motion_observed:
+                pointer_value, pointer_note, pointer_color = "Working", f"motion observed {pointer_motion_at or ''}", good
+            elif snap["trackpad_ok"]:
+                pointer_value, pointer_note, pointer_color = "Detected", "move on trackpad to verify motion", gold
+            else:
+                pointer_value, pointer_note, pointer_color = "Needs repair", f"{snap['touchpads']} touchpad · libinput {'ready' if snap['xorg_libinput'] else 'missing'}", bad
             items = [
                 ("Generation", "Gen1", f"head {snap['head_short']}", good),
                 ("Traits", f"{snap['traits_ready']} ready", f"{snap['traits_total']} registered · {snap['traits_planned']} to materialize", good),
                 ("Runtime", snap["runtime_status"], snap["runtime_schema"], good),
                 ("Network", "Online" if snap["online"] else "Offline", snap["hostname"], online_color),
-                ("Trackpad", "Ready" if snap["trackpad_ok"] else "Needs repair", f"{snap['touchpads']} touchpad · libinput {'ready' if snap['xorg_libinput'] else 'missing'}", good if snap["trackpad_ok"] else bad),
+                ("Trackpad", pointer_value, pointer_note, pointer_color),
                 ("Drivers", snap["driver"], f"{snap['driver_devices']} modeled devices", cyan),
             ]
             cols = 3 if cw > int(940 * scale) else 2
@@ -324,13 +366,13 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             rounded(box, panel, line, 22)
             text(tabs[selected], box.x + int(28 * scale), box.y + int(24 * scale), card_font, gold2)
             if tabs[selected] == "Hardware":
-                rows = [("Machine", snap["machine"]), ("Display", f"{width} × {height}"), ("Pointers", snap["pointers"]), ("Touchpads", snap["touchpads"]), ("Trackpad", "ready" if snap["trackpad_ok"] else "repair needed"), ("Xorg libinput", "ready" if snap["xorg_libinput"] else "missing"), ("Modeled devices", snap["driver_devices"])]
+                rows = [("Machine", snap["machine"]), ("Display", f"{width} × {height}"), ("Pointers", snap["pointers"]), ("Touchpads", snap["touchpads"]), ("Pointer motion", "observed" if pointer_motion_observed else "not yet observed"), ("Xorg libinput", "ready" if snap["xorg_libinput"] else "missing"), ("Modeled devices", snap["driver_devices"])]
             elif tabs[selected] == "Build":
                 rows = [("Branch", snap["branch"]), ("Head", snap["head"]), ("Runtime", snap["runtime_status"]), ("Autonomy", snap["autonomy"]), ("Generation", snap["generation"]), ("Next frontier", snap["next_gap"])]
             elif tabs[selected] == "Field":
                 rows = [("Driver lane", snap["driver"]), ("Observed devices", snap["driver_devices"]), ("Next gap", snap["next_gap"]), ("Mode", "continuous adaptive generation")]
             else:
-                rows = [("Aurum desktop", "Gen1 polished physical surface"), ("Refresh", "F5"), ("Recovery", "Ctrl+Alt+F1"), ("Return", "Ctrl+Alt+F2"), ("Authority", "bounded; no arbitrary shell")]
+                rows = [("Aurum desktop", "Gen1 polished physical surface"), ("Cursor", "Aurum software cursor"), ("Refresh", "F5"), ("Recovery", "Ctrl+Alt+F1"), ("Return", "Ctrl+Alt+F2"), ("Authority", "bounded; no arbitrary shell")]
             ry = box.y + int(82 * scale)
             for label, value in rows:
                 text(label, box.x + int(30 * scale), ry, small, muted)
@@ -340,15 +382,21 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
 
         footer_y = height - int(42 * scale)
         pygame.draw.line(screen, line, (cx, footer_y - int(12 * scale)), (width - margin, footer_y - int(12 * scale)))
-        input_color = good if snap["trackpad_ok"] else bad
+        if pointer_motion_observed:
+            input_color, input_text = good, "Trackpad motion verified"
+        elif snap["trackpad_ok"]:
+            input_color, input_text = gold, "Trackpad detected · move to verify"
+        else:
+            input_color, input_text = bad, "Trackpad repair needed"
         dot(cx + int(5 * scale), footer_y + int(2 * scale), input_color)
-        text("Trackpad ready" if snap["trackpad_ok"] else "Trackpad repair needed", cx + int(20 * scale), footer_y - int(6 * scale), small, input_color)
-        text("Ctrl+Alt+F1 recovery", cx + int(200 * scale), footer_y - int(6 * scale), small, muted)
+        text(input_text, cx + int(20 * scale), footer_y - int(6 * scale), small, input_color)
+        text("Ctrl+Alt+F1 recovery", cx + int(260 * scale), footer_y - int(6 * scale), small, muted)
 
+        draw_cursor(pygame.mouse.get_pos())
         pygame.display.flip()
         clock.tick(30)
 
-    _write_receipt(state, {"schema": SCHEMA, "ui_version": "gen1-polished-v1", "status": "stopped", "machine": "Hopper", "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+    _write_receipt(state, {"schema": SCHEMA, "ui_version": "gen1-polished-v2", "status": "stopped", "machine": "Hopper", "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
     pygame.quit()
     return 0
 
