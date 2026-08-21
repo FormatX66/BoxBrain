@@ -16,6 +16,7 @@ one metadata index; implementation details stay in the registered repository.
 | Security | Proposed | P1 | 0% | [Project index](Security/ProjectIndex.md) |
 | Research | Active reference work | P1 | Capability-based | [Project index](Research/ProjectIndex.md) |
 | Codelation | Experimental seed | P1 | Capability-based | [Project index](Codelation/ProjectIndex.md) |
+| StateWeave | Experimental machine-state language | P1 | Capability-based | [Experiment notes](StateWeave/README.md) |
 
 Completion values that use percentages are planning estimates, not release claims.
 Aurum-family work uses capability/evidence/frontier state instead of arbitrary
