@@ -22,6 +22,7 @@ BoxBrain/
 |-- docs/                  Product, architecture, security, and setup notes
 |-- installer/             Local setup and validation scripts
 |-- tests/                 Cross-component test notes
+|-- experiments/           Bounded experimental lanes and notes
 |-- Admin/                 Ecosystem roadmap, indexes, decisions, and changes
 |-- Architecture/          Cross-project architecture and integrations
 |-- Projects/              Project registry and dependency links
@@ -38,6 +39,7 @@ repositories.
 
 - [Repository index](Admin/RepositoryIndex.md)
 - [Project index](Projects/README.md)
+- [Experimental lanes](experiments/README.md)
 - [Master TODO](Admin/MasterTODO.md)
 - [Roadmap](Admin/Roadmap.md)
 - [Decision index](Admin/Decisions.md)
