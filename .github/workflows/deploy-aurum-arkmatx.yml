@@ -71,17 +71,46 @@ jobs:
           tar -C Web/Aurum-Arkmatx -czf /tmp/aurum-arkmatx.tgz .
           scp -P "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes /tmp/aurum-arkmatx.tgz "$USER@$HOST:/tmp/aurum-arkmatx.tgz"
           ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
-            "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -xzf /tmp/aurum-arkmatx.tgz -C '$REMOTE_PATH'; rm -f /tmp/aurum-arkmatx.tgz; php -l '$REMOTE_PATH/index.php'"
+            "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -xzf /tmp/aurum-arkmatx.tgz -C '$REMOTE_PATH'; rm -f /tmp/aurum-arkmatx.tgz; php -l '$REMOTE_PATH/index.php'; php -l '$REMOTE_PATH/voice-status.php'"
 
-      - name: Verify public node
+      - name: Verify public node, dashboard, and voice mirror
         env:
           URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
         run: |
           set -euo pipefail
           test -n "$URL"
-          body="$(curl --fail --silent --show-error --max-time 10 "${URL%/}/status")"
+          base="${URL%/}"
+
+          body="$(curl --fail --silent --show-error --max-time 10 "$base/status")"
           printf '%s' "$body" | grep -F 'Aurum-Arkmatx' >/dev/null
           printf '%s' "$body" | grep -F 'active-edge-web-node' >/dev/null
+
+          dashboard="$(curl --fail --silent --show-error --max-time 10 "$base/dashboard")"
+          printf '%s' "$dashboard" | grep -F 'Progress is proof, not activity.' >/dev/null
+          printf '%s' "$dashboard" | grep -F 'voice-status.json' >/dev/null
+
+          voice="$(curl --fail --silent --show-error --max-time 15 "$base/voice-status")"
+          printf '%s' "$voice" | grep -F 'AURUM VOICE STATUS' >/dev/null
+          printf '%s' "$voice" | grep -F 'Human capabilities:' >/dev/null
+
+          curl --fail --silent --show-error --max-time 15 "$base/voice-status.json" > /tmp/aurum-voice-status.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/aurum-voice-status.json').read_text())
+          assert payload['schema'] == 'aurum-voice-status-v1'
+          capabilities = payload['human_capabilities']
+          assert len(capabilities) == 7
+          expected = {'defined', 'executable', 'tested', 'seeded', 'booted', 'used'}
+          for capability in capabilities:
+              assert set(capability['stages']) == expected
+          print(
+              'AURUM_VOICE_MIRROR_OK '
+              f"source={payload.get('source')} "
+              f"capabilities={len(capabilities)}"
+          )
+          PY
 
       - name: Observe bounded BBPI4 AP probes
         env:
