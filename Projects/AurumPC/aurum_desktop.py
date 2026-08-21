@@ -41,40 +41,53 @@ def _head(workspace: Path) -> str:
 
 def _branch(workspace: Path) -> str:
     raw = _text(workspace / ".git" / "HEAD", "")
-    return raw.removeprefix("ref: refs/heads/") if raw.startswith("ref: refs/heads/") else "detached"
+    if raw.startswith("ref: refs/heads/"):
+        return raw.removeprefix("ref: refs/heads/").strip()
+    return "detached"
 
 
 def _online() -> bool:
     try:
-        rows = Path("/proc/net/route").read_text(encoding="utf-8", errors="replace").splitlines()[1:]
+        routes = Path("/proc/net/route").read_text(encoding="utf-8", errors="replace").splitlines()[1:]
     except OSError:
         return False
-    return any(len(row.split()) >= 4 and row.split()[1] == "00000000" for row in rows)
+    for line in routes:
+        fields = line.split()
+        if len(fields) >= 4 and fields[1] == "00000000":
+            try:
+                flags = int(fields[3], 16)
+            except ValueError:
+                continue
+            if flags & 1:
+                return True
+    return False
 
 
 def _traits(workspace: Path, runtime: Path) -> dict[str, Any]:
-    for path in (runtime / "aurum_traits.py", workspace / "Projects/AurumPC/aurum_traits.py"):
+    for path in (
+        runtime / "aurum_traits.py",
+        workspace / "Projects/AurumPC/aurum_traits.py",
+    ):
         if not path.is_file():
             continue
         try:
-            spec = importlib.util.spec_from_file_location(f"aurum_traits_{time.time_ns()}", path)
-            if spec is None or spec.loader is None:
-                continue
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            data = module.summary()
-            if isinstance(data, dict):
-                return data
+            spec = importlib.util.spec_from_file_location(f"aurum_traits_{os.getpid()}", path)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                result = module.summary()
+                if isinstance(result, dict):
+                    return result
         except Exception:
-            pass
+            continue
     return {"total": 0, "foundation_ready": 0, "planned": 0, "traits": []}
 
 
 def snapshot(state: Path, workspace: Path, runtime: Path) -> dict[str, Any]:
     input_state = _json(Path("/run/aurum-input-status.json"))
-    libinput = input_state.get("libinput") if isinstance(input_state.get("libinput"), dict) else {}
     touchpads = list(input_state.get("touchpads") or [])
     pointers = list(input_state.get("pointers") or [])
+    libinput = input_state.get("libinput") if isinstance(input_state.get("libinput"), dict) else {}
     runtime_state = _json(state / "runtime-update.json")
     autonomy = _json(state / "autonomy.json")
     driver = _json(state / "driver-lab/latest-cycle.json")
@@ -126,6 +139,8 @@ def _stop(_signum: int, _frame: object) -> None:
 
 
 def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
+    global STOP_REQUESTED
+    STOP_REQUESTED = False
     try:
         import pygame
     except Exception as exc:
@@ -174,8 +189,6 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         return s if len(s) <= limit else s[: limit - 1] + "…"
 
     snap = snapshot(state, workspace, runtime)
-
-    # Real graphical loading screen on VT2.
     start = time.monotonic()
     stages = ["Machine", "Input", "Network", "Runtime", "Desktop"]
     while time.monotonic() - start < 1.8 and not STOP_REQUESTED:
@@ -301,7 +314,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             text("Stable capabilities, adaptive implementation.", cx, cy, small, muted)
             traits = list(snap["traits"])
             cols, sy = (3 if cw > int(940 * scale) else 2), cy + int(42 * scale)
-            card_w, card_h = (cw - gap * ((3 if cw > int(940 * scale) else 2) - 1)) // cols, int(124 * scale)
+            card_w, card_h = (cw - gap * (cols - 1)) // cols, int(124 * scale)
             for i, trait in enumerate(traits):
                 row, col = divmod(i, cols)
                 stage = str(trait.get("stage") or "planned")
