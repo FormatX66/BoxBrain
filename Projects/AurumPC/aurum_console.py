@@ -270,6 +270,39 @@ def run_input(action: str) -> None:
         print(f"AURUM_INPUT status=failed detail={type(exc).__name__}:{exc}", flush=True)
 
 
+def run_sync() -> None:
+    """Reconcile Hopper from GitHub through runtime, input, and GUI in one command."""
+    try:
+        git_result = WORKSPACE.git_sync(authorize_network=True)
+        runtime_result = RUNTIME.apply()
+        input_result = input_status(apply_wake=True)
+        try:
+            GUI.stop()
+        except (GuiRuntimeError, OSError):
+            pass
+        gui_result = GUI.start()
+        payload = {
+            "schema": "aurum.sync.v1",
+            "status": "ready",
+            "git": git_result,
+            "runtime": runtime_result,
+            "input": {
+                "status": input_result.get("status"),
+                "touchpads": len(input_result.get("touchpads") or []),
+                "pointers": len(input_result.get("pointers") or []),
+                "libinput_available": bool(input_result.get("libinput_available")),
+            },
+            "gui": {
+                "status": gui_result.get("status"),
+                "physical_desktop": bool(gui_result.get("physical_desktop")),
+            },
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True), flush=True)
+        print("AURUM_SYNC status=ready", flush=True)
+    except (WorkspaceError, RuntimeUpdateError, GuiRuntimeError, OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"AURUM_SYNC status=failed detail={type(exc).__name__}:{exc}", flush=True)
+
+
 def run_wifi_setup() -> None:
     try:
         result = interactive_wifi_setup()
@@ -381,7 +414,7 @@ def run_install(confirmation_code: str) -> None:
 
 def command_help() -> None:
     print(
-        "status | hardware | network-status | wifi-setup | wifi-reconnect | input-status | input-recover | field | selftest | "
+        "sync | status | hardware | network-status | wifi-setup | wifi-reconnect | input-status | input-recover | field | selftest | "
         "seed | seed-status | self-build | self-build-status | self-build-cancel | "
         "git-status | git-sync authorize-network | git-auth | "
         "git-promote authorize-network confirm-push | runtime-status | runtime-sync | "
@@ -422,6 +455,8 @@ def main() -> int:
         command = tokens[0].lower() if tokens else "help"
         if command in {"help", "?"} and len(tokens) <= 1:
             command_help()
+        elif command == "sync" and len(tokens) == 1:
+            run_sync()
         elif command == "status" and len(tokens) == 1:
             show_status()
         elif command == "hardware" and len(tokens) == 1:
