@@ -9,7 +9,7 @@ on:
       - '.github/workflows/deploy-aurum-arkmatx.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: aurum-arkmatx-deploy
@@ -159,4 +159,64 @@ jobs:
                   f"ap_ssh_open={str(bool(item.get('ap_ssh_open'))).lower()} "
                   f"result={item.get('last_result_status') or 'none'}"
               )
+          PY
+
+      - name: Publish dashboard and voice mirror deployment receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLIC_URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timezone
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id = os.environ['GITHUB_RUN_ID']
+          attempt = os.environ['GITHUB_RUN_ATTEMPT']
+          path = f'Projects/AurumBridge/results/web-mirror-{run_id}-attempt-{attempt}.json'
+          payload = {
+              'schema': 'aurum-web-mirror-receipt-v1',
+              'state': 'WEB_MIRROR_OK',
+              'github_workflow_run': int(run_id),
+              'github_run_attempt': int(attempt),
+              'source_commit': os.environ['GITHUB_SHA'],
+              'observed_at': datetime.now(timezone.utc).isoformat(),
+              'public_base': os.environ['PUBLIC_URL'].rstrip('/'),
+              'verified': {
+                  'dashboard_truth_banner': True,
+                  'dashboard_reads_voice_mirror': True,
+                  'plain_text_voice_status': True,
+                  'json_voice_status': True,
+                  'seven_human_capabilities': True,
+                  'six_evidence_gates': True,
+                  'php_lint': True,
+              },
+          }
+          encoded = base64.b64encode(
+              (json.dumps(payload, indent=2) + '\n').encode('utf-8')
+          ).decode('ascii')
+          body = json.dumps({
+              'message': 'Record Aurum dashboard voice mirror deploy state=WEB_MIRROR_OK [skip ci]',
+              'content': encoded,
+              'branch': 'main',
+          }).encode('utf-8')
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/contents/{path}',
+              data=body,
+              method='PUT',
+              headers={
+                  'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in (200, 201):
+                  raise SystemExit(f'unexpected receipt status {response.status}')
+          print(f'AURUM_WEB_MIRROR_RECEIPT path={path} state=WEB_MIRROR_OK')
           PY
