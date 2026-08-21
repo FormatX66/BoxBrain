@@ -3,6 +3,8 @@
 Thanks for helping. Contributions can be code, testing, research, documentation, hardware observations, bug reports, or workflow ideas.
 
 For Aurum specifically, begin at [Projects/Aurum/START_HERE.md](Projects/Aurum/START_HERE.md).
+For the contributor build path and expected validation evidence, use the
+[Contributor build guide](CONTRIBUTOR_BUILD.md).
 
 ## Beginner path
 
