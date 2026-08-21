@@ -13,6 +13,7 @@ QEMU_ACCELERATION = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-acc
 HP_TWIN = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-hp-physical-twin.sh"
 HP_TWIN_SPEC = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "hp-physical-twin-v1.json"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
+HOPPER_PREPARE = REPOSITORY_ROOT / "installer" / "prepare-hopper-gui-input-test.sh"
 
 
 class BuildIsoContractTests(unittest.TestCase):
@@ -48,9 +49,30 @@ class BuildIsoContractTests(unittest.TestCase):
             "aurum_gui_runtime.py", "aurum_autonomy.py", "aurum_driver_synthesis.py", "pc01_autonomy_policy.json",
             "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
             "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",
+            "aurum_boot_screen.py", "aurum_input.py", "libinput-tools",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
+
+    def test_hopper_input_bootstrap_and_resume_policy_are_packaged(self) -> None:
+        script = BUILD_SCRIPT.read_text(encoding="utf-8")
+        for module in ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid"):
+            self.assertIn(f"modprobe {module}", script)
+        self.assertIn("aurum-input-bootstrap.service", script)
+        self.assertIn("--apply-wake-policy", script)
+        self.assertIn("system-sleep/aurum-input-wake", script)
+        self.assertIn('MatchIsTouchpad "on"', script)
+        self.assertIn('Option "Tapping" "on"', script)
+        self.assertIn("AURUM_BOOT_SCREEN=1", script)
+
+    def test_hopper_live_prepare_is_guarded_and_receipted(self) -> None:
+        script = HOPPER_PREPARE.read_text(encoding="utf-8")
+        self.assertIn("aurum/hopper-gui-input-test-20260821", script)
+        self.assertIn("status --porcelain", script)
+        self.assertIn("aurum_runtime_update.py\" apply", script)
+        self.assertIn("systemctl restart aurum-input-bootstrap.service", script)
+        self.assertIn("previous_head", script)
+        self.assertIn("ready-for-physical-test", script)
 
     def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")

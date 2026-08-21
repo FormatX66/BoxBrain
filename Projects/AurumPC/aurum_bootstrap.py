@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 import aurum_console
+from aurum_boot_screen import BootScreen
+from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
 from aurum_hardware import DEFAULT_PLAN, DEFAULT_PROFILE, capture_hardware_evidence, collect_hardware_profile
 from aurum_network import ensure_online, wireless_interfaces
 from aurum_time import synchronize_clock
@@ -18,6 +20,8 @@ from aurum_workspace import WorkspaceError
 
 STATE_DIR = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 ASSESSMENT = STATE_DIR / "first-boot-assessment.json"
+INPUT_STATUS = Path("/run/aurum-input-status.json")
+POLICY = Path(__file__).with_name("pc01_autonomy_policy.json")
 
 
 def _write_assessment(payload: dict[str, Any]) -> None:
@@ -35,7 +39,41 @@ def _autonomous_first_boot_enabled() -> bool:
     return _primary_console() and os.environ.get("AURUM_DISABLE_AUTONOMOUS_FIRST_BOOT", "0") != "1"
 
 
-def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
+def _json_file(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _input_summary() -> tuple[str, str]:
+    payload = _json_file(INPUT_STATUS)
+    pointers = len(payload.get("pointers") or [])
+    touchpads = len(payload.get("touchpads") or [])
+    wake = payload.get("wake_policy") if isinstance(payload.get("wake_policy"), dict) else {}
+    if payload.get("status") == "ready":
+        return "ready", f"{pointers} pointer(s), {touchpads} trackpad(s), wake {wake.get('status', 'observed')}"
+    if not payload:
+        return "degraded", "input bootstrap receipt unavailable"
+    return "degraded", f"{payload.get('status', 'unknown')}, {pointers} pointer(s)"
+
+
+def _start_gui() -> dict[str, Any]:
+    policy = _json_file(POLICY)
+    if policy.get("auto_gui_start") is not True:
+        return {"status": "skipped", "reason": "automatic-gui-disabled"}
+    try:
+        return GuiRuntime().start()
+    except (GuiRuntimeError, OSError) as exc:
+        return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+
+
+def _first_boot(
+    profile: dict[str, Any],
+    plan: dict[str, Any],
+    screen: BootScreen | None = None,
+) -> None:
     if not _autonomous_first_boot_enabled():
         print("AURUM_FIRST_BOOT status=delegated-or-disabled", flush=True)
         return
@@ -57,12 +95,20 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         },
     }
 
+    if screen:
+        screen.update("network", "active")
     print("AURUM_FIRST_BOOT stage=network status=starting", flush=True)
     try:
         network = ensure_online(interactive=True)
     except Exception as exc:
         network = {"status": "failed", "online": False, "detail": f"{type(exc).__name__}:{exc}"}
     assessment["network"] = network
+    if screen:
+        screen.update(
+            "network",
+            "ready" if network.get("online") else "degraded",
+            network.get("status"),
+        )
     print(
         "AURUM_FIRST_BOOT "
         f"stage=network status={network.get('status')} online={str(bool(network.get('online'))).lower()}",
@@ -90,17 +136,37 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
         assessment["clock"] = {"status": "offline-not-required-for-local-build", "synchronized": False}
         assessment["git_sync"] = {"status": "offline-bundled-source"}
 
+    if screen:
+        screen.update("workspace", "active")
     try:
         assessment["seed"] = aurum_console.WORKSPACE.seed()
     except WorkspaceError as exc:
         assessment["seed"] = {"status": "failed", "detail": str(exc)}
 
+    if screen:
+        screen.update("workspace", "ready" if assessment["seed"].get("status") != "failed" else "degraded")
+        screen.update("verification", "active")
     test_ok, test_detail = aurum_console.selftest()
     assessment["selftest"] = {"ok": test_ok, "detail": test_detail}
 
     # Local-first, resumable build is deliberately independent of Internet.
     # A missing Wi-Fi driver, DHCP, DNS, NTP, or GitHub must not stop it.
     assessment["self_build"] = aurum_console.BUILDS.start()
+    if screen:
+        screen.update("verification", "ready" if test_ok else "degraded", assessment["self_build"].get("status"))
+
+    if _primary_console():
+        if screen:
+            screen.update("desktop", "active")
+        assessment["gui"] = _start_gui()
+        desktop = assessment["gui"].get("desktop") if isinstance(assessment["gui"].get("desktop"), dict) else {}
+        physical = bool(assessment["gui"].get("physical_desktop") or desktop.get("status") == "running")
+        if screen:
+            screen.update(
+                "desktop",
+                "ready" if physical else "degraded",
+                "physical surface ready" if physical else assessment["gui"].get("status", "unavailable"),
+            )
     assessment["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _write_assessment(assessment)
     print(
@@ -112,10 +178,13 @@ def _first_boot(profile: dict[str, Any], plan: dict[str, Any]) -> None:
 
 
 def main() -> int:
+    screen = BootScreen(enabled=_primary_console())
     profile: dict[str, Any] = {}
     plan: dict[str, Any] = {}
+    screen.update("hardware", "active")
     try:
         profile, plan = capture_hardware_evidence()
+        screen.update("hardware", "ready", f"{len(profile['input_devices'])} input device(s)")
         print(
             "AURUM_HARDWARE_PROFILE "
             f"status=ready profile={DEFAULT_PROFILE} plan={DEFAULT_PLAN} "
@@ -126,6 +195,7 @@ def main() -> int:
             flush=True,
         )
     except Exception as exc:
+        screen.update("hardware", "degraded", type(exc).__name__)
         print(
             "AURUM_HARDWARE_PROFILE "
             f"status=degraded detail={json.dumps(type(exc).__name__ + ':' + str(exc))}",
@@ -148,8 +218,19 @@ def main() -> int:
             wifi_diag = diagnose_wifi()
             print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
 
+    input_state, input_detail = _input_summary()
+    screen.update("input", input_state, input_detail)
+
     if profile and plan:
-        _first_boot(profile, plan)
+        _first_boot(profile, plan, screen)
+    else:
+        for stage in ("network", "workspace", "verification", "desktop"):
+            screen.update(stage, "skipped", "hardware evidence unavailable")
+
+    screen.finish(
+        "ready" if screen.states["desktop"] == "ready" else "degraded",
+        "Hopper desktop is ready" if screen.states["desktop"] == "ready" else "Recovery console is available",
+    )
 
     # Force the bounded console hardware command to use the detailed read-only
     # provider.  The boot image is stateless during physical discovery so an

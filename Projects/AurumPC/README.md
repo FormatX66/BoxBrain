@@ -13,7 +13,7 @@ On a physical primary console Aurum automatically:
 5. verifies addressing, routing, DNS and GitHub TCP connectivity;
 6. refreshes only the allowlisted `FormatX66/BoxBrain` trunk when online;
 7. seeds Aurum state, runs its bounded self-test, and starts the resumable local-first self-build;
-8. returns to the bounded `aurum>` console.
+8. starts the machine-bound Hopper desktop when the installed receipt authorizes it, while keeping the bounded `aurum>` recovery console on `tty1`.
 
 The serial/QEMU console disables autonomous first boot so CI can drive deterministic verification without racing the physical-console build.
 
@@ -22,6 +22,8 @@ The serial/QEMU console disables autonomous first boot so CI can drive determini
 The original PC-01 physical sandbox is now **Hopper**. The name preserves the history of the machine as Grace's first real gaming PC while also giving a quiet nod to Grace Hopper. Its machine-bound autonomy policy verifies the installed NVMe serial/size before applying the persistent hostname `hopper`; the previous hostname is backed up in Aurum state.
 
 Hopper's first Aurum application is **Echo Rally**, a dependency-free Pong-like proof running through the loopback-only Aurum arcade runtime. Every fourth paddle return leaves a temporary echo well at that impact point. The wells gently bend later ball trajectories, so the arena literally remembers earlier play. The game exercises canvas rendering, frame timing, keyboard input, pointer/touch input, synthesized audio, pause/reset, solo AI and two-player control without exposing host actuation.
+
+The isolated [Hopper GUI, boot, and input test lane](HOPPER_GUI_INPUT_TEST.md) packages the next presentation profiles, a real-stage VT loading screen, and bounded mouse/trackpad wake handling without pulling in the StateWeave/adaptive-kernel experiment.
 
 ## Unattended PC-01 lane
 

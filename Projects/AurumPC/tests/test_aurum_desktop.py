@@ -48,12 +48,23 @@ class AurumDesktopTests(unittest.TestCase):
             (state / "driver-lab" / "latest-cycle.json").write_text(
                 json.dumps({"status": "cycle-complete", "devices": [{"id": "wifi"}]}), encoding="utf-8"
             )
+            input_state = root / "aurum-input-status.json"
+            input_state.write_text(
+                json.dumps({
+                    "status": "ready",
+                    "pointers": [{"kind": "mouse"}, {"kind": "touchpad"}],
+                    "touchpads": [{"kind": "touchpad"}],
+                    "wake_policy": {"status": "ready"},
+                }),
+                encoding="utf-8",
+            )
 
             with patch.object(desktop_module, "_online", return_value=True):
                 snapshot = desktop_module.collect_snapshot(
                     state_dir=state,
                     workspace=workspace,
                     runtime_root=runtime,
+                    input_state=input_state,
                 )
 
             self.assertEqual(snapshot["schema"], "aurum.desktop.v1")
@@ -65,6 +76,10 @@ class AurumDesktopTests(unittest.TestCase):
             self.assertTrue(snapshot["autonomy_unattended"])
             self.assertEqual(snapshot["seed_status"], "seeded")
             self.assertEqual(snapshot["driver_devices"], 1)
+            self.assertEqual(snapshot["branch"], "aurum/trunk-v0.01")
+            self.assertEqual(snapshot["pointer_devices"], 2)
+            self.assertEqual(snapshot["touchpad_devices"], 1)
+            self.assertEqual(snapshot["input_wake_status"], "ready")
             self.assertEqual(snapshot["next_gap"], "physical-desktop-proof")
             self.assertTrue(snapshot["online"])
 

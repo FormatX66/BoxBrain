@@ -80,6 +80,7 @@ cat > config/package-lists/aurum.list.chroot <<'EOF'
 live-boot
 systemd-sysv
 systemd-timesyncd
+udev
 python3
 python3-pygame
 iproute2
@@ -112,6 +113,7 @@ xserver-xorg
 xserver-xorg-input-libinput
 xinit
 x11-xserver-utils
+libinput-tools
 EOF
 
 GRUB_FONT=/usr/share/grub/unicode.pf2
@@ -134,7 +136,7 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_arcade.py aurum_autonomy.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_network.py aurum_runtime_update.py aurum_time.py aurum_traits.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_network.py aurum_runtime_update.py aurum_time.py aurum_traits.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
@@ -164,10 +166,62 @@ DHCP=yes
 IPv6AcceptRA=yes
 EOF
 
+# Hopper's touchpad and external mice share one deterministic libinput path.
+# Tapping remains a presentation choice; runtime power is handled separately.
+mkdir -p config/includes.chroot/etc/X11/xorg.conf.d
+cat > config/includes.chroot/etc/X11/xorg.conf.d/40-aurum-libinput.conf <<'EOF'
+Section "InputClass"
+    Identifier "Aurum libinput pointer"
+    MatchIsPointer "on"
+    Driver "libinput"
+    Option "AccelProfile" "adaptive"
+EndSection
+
+Section "InputClass"
+    Identifier "Aurum libinput touchpad"
+    MatchIsTouchpad "on"
+    Driver "libinput"
+    Option "Tapping" "on"
+    Option "DisableWhileTyping" "on"
+    Option "NaturalScrolling" "false"
+EndSection
+EOF
+
+cat > config/includes.chroot/etc/systemd/system/aurum-input-bootstrap.service <<'EOF'
+[Unit]
+Description=Aurum mouse and trackpad wake bootstrap
+After=systemd-udev-trigger.service
+Before=aurum-pc-console.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json || true'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Runtime power policy can be reset by suspend. Reapply only to classified
+# pointer devices after resume; the helper uses only the nearest bounded sysfs
+# ancestor that exposes each power-policy setting.
+mkdir -p config/includes.chroot/usr/lib/systemd/system-sleep
+cat > config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake <<'EOF'
+#!/bin/sh
+set -u
+if [ "${1:-}" = post ]; then
+  /usr/bin/python3 /opt/aurum/aurum_input.py \
+    --apply-wake-policy --write-state /run/aurum-input-status.json \
+    >/run/aurum-input-resume.log 2>&1 || true
+fi
+EOF
+chmod 0755 config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake
+
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-console.service <<'EOF'
 [Unit]
 Description=Aurum PC primary console
-After=local-fs.target systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service
+Wants=aurum-input-bootstrap.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
 
@@ -176,6 +230,7 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_bootstrap.py
 Environment=PYTHONUNBUFFERED=1
 Environment=AURUM_PRIMARY_CONSOLE=1
+Environment=AURUM_BOOT_SCREEN=1
 Environment=MALLOC_ARENA_MAX=2
 Nice=5
 IOSchedulingClass=best-effort
@@ -227,6 +282,7 @@ WantedBy=multi-user.target
 EOF
 
 mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
+ln -s ../aurum-input-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-input-bootstrap.service
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service
 ln -s /lib/systemd/system/systemd-networkd.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-networkd.service

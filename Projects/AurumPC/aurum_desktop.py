@@ -53,6 +53,13 @@ def _git_head(workspace: Path) -> str:
     return raw
 
 
+def _git_branch(workspace: Path) -> str:
+    raw = _text(workspace / ".git" / "HEAD", "")
+    if raw.startswith("ref: refs/heads/"):
+        return raw.removeprefix("ref: refs/heads/").strip()
+    return "detached"
+
+
 def _online() -> bool:
     try:
         routes = Path("/proc/net/route").read_text(encoding="utf-8", errors="replace").splitlines()[1:]
@@ -110,6 +117,7 @@ def collect_snapshot(
     state_dir: Path = DEFAULT_STATE,
     workspace: Path = DEFAULT_WORKSPACE,
     runtime_root: Path = DEFAULT_RUNTIME,
+    input_state: Path = Path("/run/aurum-input-status.json"),
 ) -> dict[str, Any]:
     autonomy = _json_file(state_dir / "autonomy.json")
     runtime = _json_file(state_dir / "runtime-update.json")
@@ -118,6 +126,8 @@ def collect_snapshot(
     if not seed and (state_dir / "seed.bin").is_file():
         seed = {"status": "seeded"}
     driver = _json_file(state_dir / "driver-lab" / "latest-cycle.json")
+    input_status = _json_file(input_state)
+    wake_policy = input_status.get("wake_policy") if isinstance(input_status.get("wake_policy"), dict) else {}
     chain = _json_file(runtime_root / "codelation" / "autobuild" / "native_chain_state.json")
     traits = _load_traits(workspace, runtime_root)
     head = _git_head(workspace)
@@ -128,7 +138,7 @@ def collect_snapshot(
         "online": _online(),
         "head": head,
         "head_short": head[:12] if head and head != "unknown" else "unknown",
-        "branch": "aurum/trunk-v0.01",
+        "branch": _git_branch(workspace),
         "runtime_schema": runtime.get("schema") or "unknown",
         "runtime_status": runtime.get("status") or "unknown",
         "autonomy_status": autonomy.get("status") or "unknown",
@@ -136,6 +146,10 @@ def collect_snapshot(
         "seed_status": seed.get("status") or seed.get("state") or "unknown",
         "driver_status": driver.get("status") or "ready",
         "driver_devices": len(driver.get("devices") or driver.get("queue") or []),
+        "input_status": input_status.get("status") or "unknown",
+        "pointer_devices": len(input_status.get("pointers") or []),
+        "touchpad_devices": len(input_status.get("touchpads") or []),
+        "input_wake_status": wake_policy.get("status") or "unknown",
         "completed_generations": chain.get("completed_generations"),
         "next_gap": chain.get("next_gap") or "continuous observation",
         "traits": list(traits.get("traits") or []),
@@ -229,6 +243,7 @@ def _render() -> int:
     tab_names = ["Home", "Traits", "Build", "Hardware", "Field", "Settings"]
     selected = 0
     last_refresh = 0.0
+    focus_gained = getattr(pygame, "WINDOWFOCUSGAINED", -1)
     snapshot = collect_snapshot()
     clock = pygame.time.Clock()
 
@@ -367,6 +382,9 @@ def _render() -> int:
                 ("Display", f"{width} × {height} fullscreen"),
                 ("Physical surface", "VT2 · pygame"),
                 ("Input route", os.environ.get("SDL_VIDEODRIVER", "auto")),
+                ("Pointer devices", snapshot["pointer_devices"]),
+                ("Trackpads", snapshot["touchpad_devices"]),
+                ("Wake policy", snapshot["input_wake_status"]),
                 ("Modeled devices", snapshot["driver_devices"]),
             ]
         elif tab == "Field":
@@ -420,6 +438,11 @@ def _render() -> int:
                     selected = (selected - 1) % len(tab_names)
                 elif event.key in (pygame.K_RIGHT, pygame.K_DOWN):
                     selected = (selected + 1) % len(tab_names)
+            if event.type == focus_gained:
+                snapshot = collect_snapshot()
+                last_refresh = now
+            if event.type == pygame.MOUSEWHEEL:
+                selected = (selected - event.y) % len(tab_names)
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
                 for i in range(len(tab_names)):

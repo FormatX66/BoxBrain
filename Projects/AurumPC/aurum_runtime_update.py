@@ -23,6 +23,7 @@ DEFAULT_MARKER = Path("/etc/aurum-installed.json")
 ALLOWLIST = (
     "aurum_arcade.py",
     "aurum_autonomy.py",
+    "aurum_boot_screen.py",
     "aurum_bootstrap.py",
     "aurum_console.py",
     "aurum_control_plane.py",
@@ -35,6 +36,7 @@ ALLOWLIST = (
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
+    "aurum_input.py",
     "aurum_installer.py",
     "aurum_network.py",
     "aurum_runtime_update.py",
@@ -220,6 +222,75 @@ class RuntimeUpdater:
             "physical_display": True,
         }
 
+    def _refresh_input(self) -> dict[str, Any]:
+        helper = self.target / "aurum_input.py"
+        if not helper.is_file():
+            return {"status": "skipped", "reason": "input-helper-not-installed"}
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(helper),
+                "--apply-wake-policy",
+                "--write-state",
+                "/run/aurum-input-status.json",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=15,
+        )
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            payload = {"status": "failed", "detail": result.stdout[-1200:]}
+        if not isinstance(payload, dict):
+            payload = {"status": "failed", "detail": "input helper returned non-object"}
+        payload["returncode"] = result.returncode
+        return payload
+
+    def _restart_gui(self, changed: list[str]) -> dict[str, Any]:
+        policy = _json_file(self.source / "pc01_autonomy_policy.json")
+        if policy.get("auto_gui_start") is not True:
+            return {"status": "skipped", "reason": "automatic-gui-disabled"}
+        gui_files = {
+            "aurum_desktop.py",
+            "aurum_desktop_runtime.py",
+            "aurum_gui_runtime.py",
+            "aurum_hopper_gui.py",
+            "aurum_input.py",
+        }
+        if not gui_files.intersection(changed):
+            return {"status": "skipped", "reason": "gui-runtime-unchanged"}
+        runtime = self.target / "aurum_gui_runtime.py"
+        if not runtime.is_file():
+            return {"status": "skipped", "reason": "gui-runtime-not-installed"}
+        stop = subprocess.run(
+            [sys.executable, str(runtime), "stop"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=15,
+        )
+        start = subprocess.run(
+            [sys.executable, str(runtime), "start"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=70,
+        )
+        try:
+            payload = json.loads(start.stdout.strip().splitlines()[-1]) if start.stdout.strip() else {}
+        except json.JSONDecodeError:
+            payload = {"status": "failed", "detail": start.stdout[-1600:]}
+        if not isinstance(payload, dict):
+            payload = {"status": "failed", "detail": "GUI runtime returned non-object"}
+        payload["stop_returncode"] = stop.returncode
+        payload["start_returncode"] = start.returncode
+        return payload
+
     def plan(self) -> dict[str, Any]:
         if not self.installed_marker.is_file():
             return {"schema": SCHEMA, "available": False, "reason": "not-installed-runtime", "files": []}
@@ -273,12 +344,14 @@ class RuntimeUpdater:
         changed = list(plan.get("changed") or [])
         if not changed:
             activation = self._launch_physical_echo()
+            input_activation = self._refresh_input()
             result = {
                 **plan,
                 "status": "current",
                 "reboot_required": False,
                 "identity": identity,
                 "physical_echo_activation": activation,
+                "input_activation": input_activation,
             }
             _atomic_json(self.state_dir / "runtime-update.json", result)
             return result
@@ -310,6 +383,8 @@ class RuntimeUpdater:
                     target.unlink(missing_ok=True)
             raise
         activation = self._launch_physical_echo()
+        input_activation = self._refresh_input()
+        gui_activation = self._restart_gui(applied)
         receipt = {
             "schema": SCHEMA,
             "status": "updated",
@@ -321,6 +396,8 @@ class RuntimeUpdater:
             "reboot_required": False,
             "identity": identity,
             "physical_echo_activation": activation,
+            "input_activation": input_activation,
+            "gui_activation": gui_activation,
         }
         _atomic_json(self.state_dir / "runtime-update.json", receipt)
         return receipt

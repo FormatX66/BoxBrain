@@ -47,7 +47,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(set(plan["changed"]), set(ALLOWLIST))
             self.assertFalse(plan["identity"]["authorized"])
 
-            with patch("aurum_runtime_update.os.geteuid", return_value=0):
+            with patch.object(runtime_module.os, "geteuid", return_value=0, create=True):
                 result = updater.apply()
             self.assertEqual(result["status"], "updated")
             self.assertFalse(result["reboot_required"])

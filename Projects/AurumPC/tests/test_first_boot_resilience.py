@@ -4,7 +4,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).parents[1]
 if str(ROOT) not in sys.path:
@@ -60,6 +60,27 @@ class FirstBootResilienceTests(unittest.TestCase):
         ):
             aurum_bootstrap._first_boot(self._profile(), self._plan())
         self.assertEqual(order, ["clock", "git"])
+
+    def test_primary_first_boot_starts_machine_bound_hopper_desktop(self) -> None:
+        screen = Mock()
+        with (
+            patch.object(aurum_bootstrap, "_autonomous_first_boot_enabled", return_value=True),
+            patch.object(aurum_bootstrap, "_primary_console", return_value=True),
+            patch.object(aurum_bootstrap, "wireless_interfaces", return_value=["wlan0"]),
+            patch.object(aurum_bootstrap, "ensure_online", return_value={"status": "offline", "online": False}),
+            patch.object(aurum_bootstrap.aurum_console.WORKSPACE, "seed", return_value={"status": "seeded"}),
+            patch.object(aurum_bootstrap.aurum_console, "selftest", return_value=(True, "ok")),
+            patch.object(aurum_bootstrap.aurum_console.BUILDS, "start", return_value={"status": "started"}),
+            patch.object(
+                aurum_bootstrap,
+                "_start_gui",
+                return_value={"status": "running", "physical_desktop": True},
+            ) as start_gui,
+            patch.object(aurum_bootstrap, "_write_assessment"),
+        ):
+            aurum_bootstrap._first_boot(self._profile(), self._plan(), screen)
+        start_gui.assert_called_once_with()
+        screen.update.assert_any_call("desktop", "ready", "physical surface ready")
 
     def test_wifi_recovery_targets_wireless_subclass_not_bound_ethernet(self) -> None:
         profile = {"pci_devices": [
