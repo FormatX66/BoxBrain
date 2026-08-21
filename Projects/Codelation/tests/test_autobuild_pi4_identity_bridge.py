@@ -143,6 +143,12 @@ class Pi4IdentityEventChainTests(unittest.TestCase):
         self.assertIn('bbpi4_identity_lane=dispatched', workflow)
         self.assertIn("workflow='aurum-autobuild.yml'", workflow)
 
+    def test_workflow_run_gate_accepts_repo_local_non_pr_completions_without_head_repository(self):
+        workflow = EVENT_BRIDGE.read_text(encoding='utf-8')
+        self.assertIn('github.event.repository.full_name == github.repository', workflow)
+        self.assertIn("github.event.workflow_run.event != 'pull_request'", workflow)
+        self.assertNotIn('github.event.workflow_run.head_repository.full_name == github.repository', workflow)
+
 
 if __name__ == '__main__':
     unittest.main()
