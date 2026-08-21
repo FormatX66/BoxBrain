@@ -1,77 +1,77 @@
 {
   "schema": "aurum-voice-status-v1",
   "project": "Aurum / BoxBrain",
-  "generated_at_utc": "2026-08-21T20:43:07Z",
+  "generated_at_utc": "2026-08-21T20:54:26Z",
   "source": "repository-snapshot",
   "truth_standard": [
     "Defined means the requirement and stable trait identity exist.",
     "Executable means runnable implementation code exists.",
     "Tested means functional tests passed against the implementation.",
-    "Seeded means a verified built seed artifact contains the capability.",
-    "Booted means that verified seed booted with the capability present.",
+    "Seeded means a verified seed instance or built artifact contains the capability.",
+    "Booted means a verified seed generation booted with the capability already present.",
     "Used means a physical user-facing operation was proven on an authorized machine."
   ],
   "overall": {
-    "state": "building",
-    "plain": "The seven everyday human capabilities now have executable Generation-0 runtimes and functional tests. Fresh seed-artifact, boot, and physical-use proofs are still pending.",
-    "human_action": "None right now. The next gates are automated build and verification work."
+    "state": "awaiting-boot-proof",
+    "plain": "All seven everyday human capabilities are Defined, Executable, Tested, and Seeded on BBPI4. Booting a generation that already contains them is the next shared evidence gate.",
+    "human_action": "None right now. PC seed construction and the next boot verification are automated build work."
   },
   "human_capabilities": [
     {
       "id": "TR8:WEB",
       "name": "Web browsing",
       "aliases": ["web", "browser", "internet"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Browser-launch runtime and provider selection are implemented and tested. Firefox ESR is wired into the PC seed definition, but a fresh verified seed artifact has not yet been recorded.",
-      "next": "Build the updated PC seed, inspect the artifact, boot it, and prove a webpage opens."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Browser-launch runtime and the WEB seed bundle are verified on BBPI4. Firefox ESR is wired into the PC seed definition, whose fresh artifact and boot proof are pending.",
+      "next": "Boot a generation that already contains WEB, then prove a webpage opens."
     },
     {
       "id": "TR8:FILES",
       "name": "Garden / Files",
       "aliases": ["garden", "files", "documents", "my things"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Garden materialization creates Documents, Photos, Music, Videos, Downloads, Projects, and Shared plots. PCManFM compatibility is wired into the PC seed definition; fresh seed proof is pending.",
-      "next": "Verify Garden inside a built seed, boot it, and open/save a real human file."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Garden and its Documents, Photos, Music, Videos, Downloads, Projects, and Shared plots are in the verified BBPI4 seed payload.",
+      "next": "Boot with Garden already present, then open and save a real human file."
     },
     {
       "id": "TR8:MEDIA",
       "name": "Music, photos, and video",
       "aliases": ["media", "music", "photos", "pictures", "video", "movies"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Unified media launch planning is executable and tested. MPV and audio foundations are wired into the PC seed definition; fresh artifact and playback proof are pending.",
-      "next": "Verify the player inside a built seed, boot it, and prove image, audio, and video playback."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Unified media launch behavior and its seed bundle are verified on BBPI4. MPV and audio foundations remain wired into the PC seed definition.",
+      "next": "Boot with MEDIA present, then prove image, audio, and video playback."
     },
     {
       "id": "TR8:WRITE",
       "name": "Writing and word processing",
       "aliases": ["write", "document", "notes", "word processing"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Document creation and editor launch planning are executable and tested. LibreOffice Writer is wired into the PC seed definition; fresh artifact proof is pending.",
-      "next": "Build and boot the updated seed, then create, edit, save, and reopen a document."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Document creation/editor behavior and the WRITE seed bundle are verified on BBPI4. LibreOffice Writer remains wired into the PC seed definition.",
+      "next": "Boot with WRITE present, then create, edit, save, and reopen a document."
     },
     {
       "id": "TR8:INTENT",
       "name": "Intent and assistance",
       "aliases": ["intent", "assistant", "help", "make it so"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Everyday language is mapped to stable Aurum trait identities by executable tested code. Seed and shell integration proof remain pending.",
-      "next": "Carry the runtime into a verified seed and prove a spoken or typed request opens the intended capability."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Everyday-language routing and the INTENT seed bundle are verified on BBPI4.",
+      "next": "Boot with INTENT present and prove a typed or spoken request opens the intended capability."
     },
     {
       "id": "TR8:CONNECT",
       "name": "Connectivity",
       "aliases": ["connect", "wifi", "bluetooth", "usb", "devices"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Network, Wi-Fi, Bluetooth, and USB provider probing is executable and tested. Aurum has separate physical connectivity evidence, but the new user-facing trait runtime has not yet received seed/use proof.",
-      "next": "Verify the trait inside a fresh seed and exercise network, USB, and Bluetooth through the human surface."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Connectivity probing and the CONNECT seed bundle are verified on BBPI4 over the pretrusted USB-C SSH route.",
+      "next": "Boot with CONNECT present and exercise network, USB, and Bluetooth through the human surface."
     },
     {
       "id": "TR8:RECOVER",
       "name": "Recovery",
       "aliases": ["recover", "repair", "rollback", "fix this computer"],
-      "stages": {"defined": true, "executable": true, "tested": true, "seeded": false, "booted": false, "used": false},
-      "current": "Read-only known-good and rollback inspection is executable and tested. Aurum has strong underlying recovery evidence, but the new user-facing recovery trait has not yet been proven inside a fresh seed.",
-      "next": "Embed and boot the trait, then prove a safe user-visible diagnosis and rollback path."
+      "stages": {"defined": true, "executable": true, "tested": true, "seeded": true, "booted": false, "used": false},
+      "current": "Read-only recovery inspection and the RECOVER seed bundle are verified on BBPI4; deployment preserved rollback and added no persistence.",
+      "next": "Boot with RECOVER present and prove a safe user-visible diagnosis and rollback path."
     }
   ],
   "system_milestones": [
@@ -81,19 +81,24 @@
       "detail": "Runtime, functional tests, seven parallel bundle builds, and complete seed payload assembly exist on main."
     },
     {
+      "name": "Pi human-trait seed",
+      "state": "verified-seeded",
+      "detail": "Run 32525836598 completed from source commit e7d7a8db after validating and deploying all seven bundles over pretrusted USB-C SSH with the gold seed preserved."
+    },
+    {
       "name": "PC seed integration definition",
       "state": "implemented-awaiting-proof",
       "detail": "The active PC seed branch includes Firefox ESR, PCManFM, MPV, LibreOffice Writer, Xorg/Openbox, Garden, and all seven trait bundles."
     },
     {
-      "name": "Pi seed integration definition",
-      "state": "implemented-awaiting-proof",
-      "detail": "The bounded Pi reconciliation path deploys and tests all seven bundles over the pretrusted USB-C SSH carrier with rollback and no new persistence."
+      "name": "Booted gate",
+      "state": "pending",
+      "detail": "The BBPI4 payload was added to an already-running seed. A generation must boot with the traits already present before Booted is earned."
     },
     {
-      "name": "Previous physical seed proofs",
-      "state": "verified-but-predates-traits",
-      "detail": "PC-01 FLASH_OK and Pi4 PI4_SEED_OK prove the older seed paths, not the newly integrated human capabilities."
+      "name": "Physical use gate",
+      "state": "pending",
+      "detail": "WEB, Garden, MEDIA, WRITE, INTENT, CONNECT, and RECOVER still need physical user-facing receipts."
     }
   ],
   "recent_updates": [
@@ -101,8 +106,9 @@
     "Replaced contract-only trait lanes with artifact-producing parallel builds.",
     "Embedded runnable human capabilities into the active PC seed definition.",
     "Wired bounded human-trait deployment into Pi seed reconciliation.",
-    "Added guards preventing contract-only builds from being reported as implementation progress.",
-    "Made the dashboard and voice mirror reject workflow successes from pre-integration source commits."
+    "Fixed the Windows-to-Linux bash carriage-return failure and re-proved the Pi seed successfully.",
+    "Added guards preventing contract-only or stale pre-integration runs from being reported as progress.",
+    "Updated the dashboard and live voice mirror to use the six-gate evidence standard."
   ],
   "evidence_thresholds": {
     "human_runtime_main_utc": "2026-08-21T20:06:27Z",
