@@ -24,9 +24,14 @@ concurrency:
 
 jobs:
   continue:
+    # workflow_run payloads can legitimately omit head_repository for some
+    # repository-local completion paths. Gate on the event's repository and
+    # reject PR-origin runs instead of silently skipping trusted push/dispatch
+    # completions when head_repository is absent.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.head_repository.full_name == github.repository
+      (github.event.repository.full_name == github.repository &&
+       github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     steps:
       - name: Capture completion evidence
