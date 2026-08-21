@@ -18,13 +18,20 @@ concurrency:
 
 jobs:
   seed-contract:
-    name: Complete seed trait contract
+    name: Executable seed trait runtime
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Validate every mandatory human trait is carried by the seed
+      - name: Validate complete trait manifest
         run: python3 Projects/AurumTraits/validate_traits.py
+      - name: Compile and validate executable runtime
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumTraits/aurum_traits.py
+          python3 Projects/AurumTraits/aurum_traits.py validate
+      - name: Run functional human-trait tests
+        run: python3 -m unittest discover -s Projects/AurumTraits/tests -v
 
   trait-builds:
     name: Build ${{ matrix.trait }}
@@ -41,21 +48,51 @@ jobs:
           - 'TR8:CONNECT'
           - 'TR8:RECOVER'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Validate staged trait implementation contract
-        run: python3 Projects/AurumTraits/validate_traits.py --trait '${{ matrix.trait }}'
-      - name: Record parallel trait build boundary
-        run: echo 'AURUM_TRAIT_BUILD trait=${{ matrix.trait }} stage=contract implementation=parallel'
+      - name: Build seed-ready trait bundle
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(printf '%s' '${{ matrix.trait }}' | cut -d: -f2 | tr '[:upper:]' '[:lower:]')"
+          python3 Projects/AurumTraits/aurum_traits.py build \
+            --trait '${{ matrix.trait }}' \
+            --output build/traits
+          python3 Projects/AurumTraits/aurum_traits.py verify-bundle \
+            --bundle "build/traits/$slug/bundle.json"
+          python3 Projects/AurumTraits/aurum_traits.py probe \
+            --trait '${{ matrix.trait }}' \
+            > "build/traits/$slug/provider-probe.json"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "AURUM_TRAIT_BUILD trait=${{ matrix.trait }} stage=compatibility-runtime artifact=build/traits/$slug"
+      - name: Exercise Garden projection
+        if: matrix.trait == 'TR8:FILES' || matrix.trait == 'TR8:WRITE'
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumTraits/aurum_traits.py garden --root build/garden-test
+          test -d build/garden-test/Garden/Documents
+          test -d build/garden-test/Garden/Photos
+          test -d build/garden-test/Garden/Music
+          test -d build/garden-test/Garden/Videos
+      - name: Publish trait implementation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurum-trait-${{ steps.build.outputs.slug }}
+          path: build/traits/${{ steps.build.outputs.slug }}
+          if-no-files-found: error
+          retention-days: 14
 
   all-traits:
-    name: All human trait lanes
+    name: Complete human capability seed payload
     if: always()
     needs: [seed-contract, trait-builds]
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: Require all parallel lanes
+      - uses: actions/checkout@v4
+      - name: Require every parallel implementation lane
         env:
           SEED_RESULT: ${{ needs.seed-contract.result }}
           TRAITS_RESULT: ${{ needs.trait-builds.result }}
@@ -63,4 +100,21 @@ jobs:
           set -euo pipefail
           test "$SEED_RESULT" = success
           test "$TRAITS_RESULT" = success
-          echo 'AURUM_HUMAN_TRAITS_OK complete_seed_contract=true parallel_builds=true'
+      - name: Assemble and verify complete seed payload
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumTraits/aurum_traits.py build-all --output build/aurum-human-traits
+          for bundle in build/aurum-human-traits/*/bundle.json; do
+            python3 Projects/AurumTraits/aurum_traits.py verify-bundle --bundle "$bundle"
+          done
+          test "$(find build/aurum-human-traits -name bundle.json | wc -l)" -eq 7
+          cp Projects/AurumTraits/aurum_traits.py build/aurum-human-traits/
+          cp Projects/AurumTraits/traits.json build/aurum-human-traits/
+          echo 'AURUM_HUMAN_TRAITS_OK complete_seed_runtime=true parallel_builds=true bundles=7'
+      - name: Publish complete human-trait seed payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurum-human-traits-seed-payload
+          path: build/aurum-human-traits
+          if-no-files-found: error
+          retention-days: 14
