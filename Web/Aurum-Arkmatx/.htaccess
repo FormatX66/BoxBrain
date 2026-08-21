@@ -2,6 +2,7 @@ RewriteEngine On
 
 # Shared-host-safe front controller routing. Preserve the original REQUEST_URI and
 # route directly to index.php instead of depending on PATH_INFO support.
+RewriteRule ^dashboard/?$ dashboard.html [L]
 RewriteRule ^status$ index.php [L,QSA]
 RewriteRule ^nodes$ index.php [L,QSA]
 RewriteRule ^events$ index.php [L,QSA]

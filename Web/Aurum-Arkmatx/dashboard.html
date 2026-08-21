@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b10">
+<title>Aurum Command Center</title>
+<style>
+:root{color-scheme:dark;--bg:#080b10;--panel:#101720;--panel2:#0b1118;--border:#253246;--text:#eef3f8;--muted:#8fa0b2;--gold:#e0bd62;--green:#62d990;--blue:#79b7ff;--amber:#f0c76a;--purple:#cfa0ff;--red:#ff8a8a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 18% 0,#1b2738 0,transparent 36%),var(--bg);color:var(--text)}button,a{font:inherit}.wrap{width:min(1180px,94vw);margin:0 auto;padding:22px 0 64px}.top{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}.brand{display:flex;align-items:center;gap:14px}.orb{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff7cf 0,#d8b85b 22%,#6d5120 55%,#17140c 76%);box-shadow:0 0 34px #d9b65a55;flex:0 0 auto}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}.brand h1{font-size:clamp(25px,5vw,38px);line-height:1.05;margin:0;letter-spacing:-.035em}.brand small{display:block;color:var(--muted);margin-top:5px}.livebox{border:1px solid var(--border);background:#101720d9;border-radius:15px;padding:11px 13px;min-width:220px}.live-line{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:750}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px currentColor}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.tiny{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}.btn{min-height:42px;border:1px solid #35465d;border-radius:11px;background:#17212d;color:var(--text);padding:9px 13px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn.primary{background:var(--gold);color:#171309;border-color:transparent}.btn:focus-visible,.card:focus-visible{outline:3px solid #e0bd62aa;outline-offset:2px}.summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}.metric{border:1px solid var(--border);border-radius:15px;background:#101720d9;padding:13px;min-width:0}.metric strong{font-size:22px;display:block;letter-spacing:-.03em}.metric span{font-size:11px;color:var(--muted)}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:10px;flex-wrap:wrap}.section h2{font-size:17px;margin:0}.section-note{font-size:11px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.card{appearance:none;text-align:left;color:inherit;width:100%;border:1px solid var(--border);border-radius:16px;background:#101720d9;padding:15px;min-width:0;cursor:pointer}.card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:10px}.card-icon{width:35px;height:35px;border-radius:10px;background:#1a2430;display:grid;place-items:center;font-size:17px}.pill{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:850;padding:5px 7px;border-radius:999px;white-space:nowrap}.pill.success{background:#173426;color:#8ce7b2}.pill.running{background:#162a43;color:#8fc4ff}.pill.waiting{background:#3a2d12;color:#f0c76a}.pill.experiment{background:#2c1e3a;color:#d5adff}.pill.failed{background:#401d23;color:#ff9da6}.pill.unknown{background:#202833;color:#aebdcb}.card h3{font-size:15px;margin:0 0 6px}.card p{font-size:12px;line-height:1.45;color:#9fb0c2;margin:0;min-height:52px}.evidence{margin-top:11px;font-size:10px;color:#74889d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.split{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.panel{border:1px solid var(--border);border-radius:16px;background:#101720d9;padding:15px;min-width:0}.list{display:flex;flex-direction:column}.row{display:grid;grid-template-columns:86px 11px minmax(0,1fr);gap:9px;padding:10px 0;border-bottom:1px solid #1f2b3b;align-items:start}.row:last-child{border-bottom:0}.time{font-size:11px;color:#7f93a7}.rowdot{width:7px;height:7px;border-radius:50%;background:#8ea0b4;margin-top:4px}.row b{display:block;font-size:12px;margin-bottom:2px}.row span{display:block;color:#8397aa;font-size:11px;line-height:1.4}.node{padding:10px 0;border-bottom:1px solid #1f2b3b}.node:last-child{border-bottom:0}.node-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.node b{font-size:12px}.node small{display:block;color:#7f93a7;margin-top:3px;line-height:1.35}.queue-item{padding:9px 0;border-bottom:1px solid #1f2b3b;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#aab9c8;white-space:pre-wrap}.queue-item:last-child{border-bottom:0}.detail{margin-top:12px;border:1px solid #3a4b61;border-radius:16px;background:#0c1219;padding:15px;display:none}.detail.show{display:block}.detail-top{display:flex;justify-content:space-between;gap:12px}.detail h3{margin:0 0 6px;font-size:17px}.detail p{margin:0;color:#9fb0c2;font-size:12px;line-height:1.5}.close{border:1px solid #35465d;background:#17212d;color:var(--text);border-radius:10px;width:42px;height:42px;cursor:pointer}.gate{border-left:3px solid var(--amber);padding:12px 14px;background:#17150f;border-radius:5px 13px 13px 5px}.gate b{font-size:12px}.gate p{font-size:11px;color:#aaa08a;line-height:1.45;margin:4px 0 0}.foot{margin-top:18px;color:#71869b;font-size:10px;line-height:1.5}.error{color:#ffaaa9}.hidden{display:none!important}@media(max-width:920px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.wrap{width:min(94vw,560px);padding-top:16px}.livebox{width:100%}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.split{grid-template-columns:1fr}.card p{min-height:0}.row{grid-template-columns:70px 9px minmax(0,1fr)}}@media(prefers-reduced-motion:no-preference){.dot.ok{animation:pulse 2.3s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 5px #62d99018}}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div class="brand"><div class="orb" aria-hidden="true"></div><div><p class="eyebrow">Aurum / BoxBrain</p><h1>Command Center</h1><small>Live ArkmatX project and node status</small></div></div>
+    <div class="livebox"><div class="live-line"><span id="liveDot" class="dot"></span><span id="liveText">Connecting…</span></div><div id="lastUpdated" class="tiny">No live data loaded yet.</div></div>
+  </div>
+
+  <div class="actions">
+    <button id="refresh" type="button" class="btn primary">Refresh now</button>
+    <a class="btn" href="./">Aurum portal</a>
+    <a class="btn" href="https://github.com/FormatX66/BoxBrain" target="_blank" rel="noopener">BoxBrain repo</a>
+  </div>
+
+  <section class="summary" aria-label="Status summary">
+    <div class="metric"><strong id="mTracked">8</strong><span>tracked workstreams</span></div>
+    <div class="metric"><strong id="mSuccess">0</strong><span>verified / healthy</span></div>
+    <div class="metric"><strong id="mRunning">0</strong><span>actively progressing</span></div>
+    <div class="metric"><strong id="mAttention">0</strong><span>needs attention</span></div>
+    <div class="metric"><strong id="mNodes">0</strong><span>known live-edge nodes</span></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><div><p class="eyebrow">SYSTEMS</p><h2>Everything moving right now</h2></div><span class="section-note">Click a card for evidence</span></div>
+    <div id="systems" class="grid"></div>
+    <div id="detail" class="detail" aria-live="polite"><div class="detail-top"><div><h3 id="detailTitle"></h3><p id="detailText"></p></div><button id="detailClose" class="close" type="button" aria-label="Close details">×</button></div></div>
+  </section>
+
+  <section class="section split">
+    <article class="panel"><div class="section-head"><div><p class="eyebrow">REPOSITORY</p><h2>Recent activity</h2></div><span id="repoState" class="section-note">Loading GitHub…</span></div><div id="activity" class="list"><div class="tiny">Waiting for repository data.</div></div></article>
+    <article class="panel"><div class="section-head"><div><p class="eyebrow">PHYSICAL EDGE</p><h2>Nodes</h2></div><span id="edgeState" class="section-note">Loading edge…</span></div><div id="nodes" class="list"><div class="tiny">Waiting for node directory.</div></div></article>
+  </section>
+
+  <section class="section split">
+    <article class="panel"><div class="section-head"><div><p class="eyebrow">ACTIVE WORK</p><h2>Codex queue</h2></div><span id="queueState" class="section-note">Loading queue…</span></div><div id="queue" class="list"><div class="tiny">Waiting for queue data.</div></div></article>
+    <article class="panel"><p class="eyebrow">HUMAN GATE</p><h2 style="font-size:17px;margin:0 0 10px">What needs you</h2><div id="humanGate" class="gate"><b>Checking physical gates…</b><p>The dashboard will only mark a human gate when current evidence supports one.</p></div></article>
+  </section>
+
+  <p class="foot">Read-only dashboard. GitHub data refreshes every 5 minutes; ArkmatX edge/node telemetry refreshes every 15 seconds. No GitHub token, hosting password, or device credential is stored in or sent by this page. Status is evidence-driven: unavailable evidence is shown as unknown rather than guessed.</p>
+</main>
+<script>
+(() => {
+'use strict';
+const REPO='FormatX66/BoxBrain';
+const API=`https://api.github.com/repos/${REPO}`;
+const RAW=`https://raw.githubusercontent.com/${REPO}/main`;
+const GITHUB_REFRESH=5*60*1000;
+const EDGE_REFRESH=15*1000;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const state={commits:[],runs:[],nodes:[],work:{},edge:null,repoOk:false,edgeOk:false,lastGitHub:0,lastEdge:0};
+const SYSTEMS=[
+ {id:'hopper',name:'Hopper / PC-01',icon:'▣',desc:'Physical PC seed, flash and proof lane.'},
+ {id:'local',name:'Local Build Lane',icon:'↻',desc:'Local self-heal and divergent-history-safe build lane.'},
+ {id:'pi4',name:'BBPI4 / Pi4',icon:'◉',desc:'Enrollment, heartbeat and AP/SSH route verification.'},
+ {id:'ci',name:'CI + Controller',icon:'⚙',desc:'Hosted builds, event bridge, failsafe and continuous controller.'},
+ {id:'seed',name:'Seed Pipeline',icon:'◆',desc:'PC/Pi seed generation, verification and flash pipeline.'},
+ {id:'gui',name:'Hopper GUI',icon:'▤',desc:'Desktop loading, input and user-interface iteration.'},
+ {id:'kernel',name:'Adaptive Kernel',icon:'◇',desc:'Independent adaptive-kernel experimental lane.'},
+ {id:'weave',name:'StateWeave',icon:'⌘',desc:'Machine-native StateWeave and combined kernel experiment.'}
+];
+function directoryBase(){const p=location.pathname;return p.slice(0,p.lastIndexOf('/')+1)||'/'}
+function rel(path){return directoryBase()+path.replace(/^\//,'')}
+function formatTime(v){if(!v)return 'unknown';const d=new Date(v);if(Number.isNaN(d.getTime()))return 'unknown';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(d)}
+function ageSeconds(epoch){return Math.max(0,Math.floor(Date.now()/1000)-Number(epoch||0))}
+async function json(url){const r=await fetch(url,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return r.json()}
+async function text(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return r.text()}
+function latestRun(match){const ms=state.runs.filter(r=>match(String(r.name||r.display_title||r.path||'').toLowerCase()));return ms.sort((a,b)=>new Date(b.run_started_at||b.created_at)-new Date(a.run_started_at||a.created_at))[0]||null}
+function recentCommit(rx){return state.commits.find(c=>rx.test(String(c.commit?.message||'')))||null}
+function fromRun(run,fallback='unknown'){
+ if(!run)return {status:fallback,evidence:'No matching workflow run in current GitHub window.'};
+ if(['queued','in_progress','waiting','requested','pending'].includes(run.status))return {status:'running',evidence:`${run.name}: ${run.status}`};
+ if(run.conclusion==='success')return {status:'success',evidence:`${run.name}: success · ${formatTime(run.updated_at)}`};
+ if(['failure','timed_out','startup_failure'].includes(run.conclusion))return {status:'failed',evidence:`${run.name}: ${run.conclusion} · ${formatTime(run.updated_at)}`};
+ if(['cancelled','skipped','neutral','action_required','stale'].includes(run.conclusion))return {status:'waiting',evidence:`${run.name}: ${run.conclusion}`};
+ return {status:fallback,evidence:`${run.name}: ${run.status||run.conclusion||'unknown'}`};
+}
+function classify(){
+ const out={};
+ const flash=recentCommit(/PC-01 flash receipt state=(FLASH_OK|ALREADY_COMPLETE)/i);
+ out.hopper=flash?{status:'success',evidence:`${flash.commit.message.split('\n')[0]} · ${formatTime(flash.commit.author?.date)}`} : fromRun(latestRun(n=>n.includes('pc-01')||n.includes('hopper')),'waiting');
+ const local=recentCommit(/local-lane repair validation/i);
+ out.local=local?{status:'success',evidence:`${local.commit.message.split('\n')[0]} · ${formatTime(local.commit.author?.date)}`} : fromRun(latestRun(n=>n.includes('local-lane')||n.includes('self-heal')),'waiting');
+ const onlinePi=state.nodes.find(n=>/bbpi4|pi4/i.test(`${n.name||''} ${n.node_id||''}`)&&ageSeconds(n.last_seen)<180);
+ const probes=Object.values(state.work).filter(Boolean);
+ const probeOpen=probes.some(p=>p.ap_ssh_open===true||p.status==='completed');
+ if(onlinePi)out.pi4={status:'success',evidence:`${onlinePi.name||onlinePi.node_id} heartbeat seen ${ageSeconds(onlinePi.last_seen)}s ago.`};
+ else if(probeOpen)out.pi4={status:'success',evidence:'ArkmatX edge reports a completed/open BBPI4 connectivity probe.'};
+ else out.pi4=fromRun(latestRun(n=>n.includes('bbpi4')||n.includes('pi4')),'waiting');
+ const active=state.runs.filter(r=>['queued','in_progress','waiting','requested','pending'].includes(r.status));
+ const latestAny=state.runs.slice().sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at))[0];
+ out.ci=active.length?{status:'running',evidence:`${active.length} GitHub workflow run${active.length===1?' is':'s are'} active.`}:fromRun(latestAny,'unknown');
+ const seedRun=latestRun(n=>n.includes('dual seed')||n.includes('seed lane')||n.includes('usb flash')||n.includes('image'));
+ out.seed=seedRun?fromRun(seedRun,'waiting'):(flash?{status:'success',evidence:'PC-01 flash receipt proves the current PC flash path.'}:{status:'waiting',evidence:'No recent seed workflow evidence found.'});
+ const guiCommit=recentCommit(/\b(gui|trackpad|mouse|loading screen|hopper)\b/i);
+ out.gui=guiCommit?{status:'running',evidence:`Recent UI-related commit: ${guiCommit.commit.message.split('\n')[0]}`}:{status:'waiting',evidence:'Tracked lane; no dedicated recent GUI run found in the current evidence window.'};
+ const kernelRun=latestRun(n=>n.includes('adaptive kernel')||n.includes('experimental lane')||n.includes('experiment race'));
+ out.kernel=kernelRun?{...fromRun(kernelRun,'experiment'),status:fromRun(kernelRun,'experiment').status==='success'?'experiment':fromRun(kernelRun,'experiment').status}:{status:'experiment',evidence:'Independent experimental lane; no matching hosted run in the current window.'};
+ const weaveRun=latestRun(n=>n.includes('stateweave')||n.includes('state weave')||n.includes('experimental lane')||n.includes('experiment race'));
+ out.weave=weaveRun?{...fromRun(weaveRun,'experiment'),status:fromRun(weaveRun,'experiment').status==='success'?'experiment':fromRun(weaveRun,'experiment').status}:{status:'experiment',evidence:'StateWeave remains an experiment until a matching verified run is visible.'};
+ return out;
+}
+function label(s){return {success:'Verified',running:'Running',waiting:'Waiting',experiment:'Experiment',failed:'Attention',unknown:'Unknown'}[s]||'Unknown'}
+function renderSystems(){const c=classify();const box=$('#systems');box.innerHTML='';SYSTEMS.forEach(sys=>{const v=c[sys.id]||{status:'unknown',evidence:'No evidence.'};const b=document.createElement('button');b.type='button';b.className='card';b.dataset.id=sys.id;b.innerHTML=`<div class="card-head"><div class="card-icon">${esc(sys.icon)}</div><span class="pill ${esc(v.status)}">${esc(label(v.status))}</span></div><h3>${esc(sys.name)}</h3><p>${esc(sys.desc)}</p><div class="evidence">${esc(v.evidence)}</div>`;b.addEventListener('click',()=>showDetail(sys,v));box.appendChild(b)});
+ const vals=Object.values(c);$('#mSuccess').textContent=vals.filter(v=>v.status==='success').length;$('#mRunning').textContent=vals.filter(v=>v.status==='running').length;$('#mAttention').textContent=vals.filter(v=>['failed','waiting'].includes(v.status)).length;$('#mNodes').textContent=state.nodes.length;
+ renderHumanGate(c);
+}
+function showDetail(sys,v){$('#detailTitle').textContent=`${sys.name} — ${label(v.status)}`;$('#detailText').textContent=`${sys.desc} Evidence: ${v.evidence}`;$('#detail').classList.add('show');$('#detailClose').focus()}
+function renderHumanGate(c){const gate=$('#humanGate');if(c.pi4.status==='waiting'||c.pi4.status==='failed'){gate.innerHTML='<b>BBPI4 physical verification is the clearest current gate.</b><p>The edge has not yet produced fresh proof that the Pi4 route/heartbeat is healthy. Other independent lanes can continue without treating this as a global stop.</p>'}else if(c.hopper.status==='failed'){gate.innerHTML='<b>Hopper needs attention.</b><p>The most recent PC-01/Hopper evidence is a failed run. Inspect that lane before repeating physical work.</p>'}else{gate.innerHTML='<b>No confirmed human-only blocker right now.</b><p>Current evidence does not justify asking you to intervene. The dashboard will change this when a physical or permission gate is actually observed.</p>'}}
+function renderActivity(){const el=$('#activity');el.innerHTML='';if(!state.commits.length){el.innerHTML='<div class="tiny">No commit activity available.</div>';return}state.commits.slice(0,10).forEach(c=>{const d=c.commit?.author?.date;const msg=String(c.commit?.message||'Commit').split('\n')[0];const row=document.createElement('div');row.className='row';row.innerHTML=`<div class="time">${esc(formatTime(d))}</div><div class="rowdot"></div><div><b>${esc(msg)}</b><span>${esc(String(c.sha||'').slice(0,8))}</span></div>`;el.appendChild(row)})}
+function renderNodes(){const el=$('#nodes');el.innerHTML='';if(!state.nodes.length){el.innerHTML='<div class="tiny">No enrolled node directory data is currently available.</div>';return}state.nodes.slice(0,12).forEach(n=>{const age=ageSeconds(n.last_seen);const row=document.createElement('div');row.className='node';row.innerHTML=`<div class="node-top"><b>${esc(n.name||n.node_id||'Node')}</b><span class="pill ${age<180?'success':'waiting'}">${age<180?'Online':'Seen'}</span></div><small>${esc(n.node_id||'unknown')} · ${esc(n.carrier||'unknown carrier')} · ${age}s ago</small>`;el.appendChild(row)})}
+function parseQueue(raw){const lines=raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let chosen=lines.filter(l=>/\bBB-\d+\b/i.test(l)||/^[-*]\s+\[[ xX]\]/.test(l));if(!chosen.length)chosen=lines.filter(l=>/^#{2,4}\s+/.test(l)||/^[-*]\s+/.test(l));return chosen.slice(0,8)}
+function renderQueue(lines){const el=$('#queue');el.innerHTML='';if(!lines.length){el.innerHTML='<div class="tiny">Active queue loaded, but no concise task rows were detected.</div>';return}lines.forEach(l=>{const d=document.createElement('div');d.className='queue-item';d.textContent=l.replace(/^#+\s*/, '').replace(/^[-*]\s*/, '');el.appendChild(d)})}
+async function refreshGitHub(){
+ $('#repoState').textContent='Refreshing GitHub…';$('#queueState').textContent='Refreshing queue…';
+ const [commits,runs,queue]=await Promise.allSettled([json(`${API}/commits?sha=main&per_page=30`),json(`${API}/actions/runs?branch=main&per_page=100`),text(`${RAW}/.codex/queue/QUEUE.md?t=${Date.now()}`)]);
+ if(commits.status==='fulfilled'){state.commits=Array.isArray(commits.value)?commits.value:[];state.repoOk=true}else{state.repoOk=false}
+ if(runs.status==='fulfilled'){state.runs=Array.isArray(runs.value.workflow_runs)?runs.value.workflow_runs:[]}
+ if(queue.status==='fulfilled'){renderQueue(parseQueue(queue.value));$('#queueState').textContent='Git-backed active queue'}else{$('#queue').innerHTML='<div class="tiny error">Queue source unavailable.</div>';$('#queueState').textContent='Unavailable'}
+ state.lastGitHub=Date.now();$('#repoState').textContent=state.repoOk?`${state.commits.length} recent commits · ${state.runs.length} workflow runs`:'GitHub unavailable';renderActivity();renderSystems();renderOverall();
+}
+async function refreshEdge(){
+ const workIds=['bbpi4-bootstrap-v1','bbpi4-ap-probe-morris-v1','bbpi4-ap-probe-bruce-v1'];
+ const jobs=[json(rel('status')),json(rel('nodes')),...workIds.map(id=>json(`${rel('work/status')}?id=${encodeURIComponent(id)}`))];
+ const results=await Promise.allSettled(jobs);
+ if(results[0].status==='fulfilled'){state.edge=results[0].value;state.edgeOk=true}else{state.edgeOk=false}
+ if(results[1].status==='fulfilled'){state.nodes=Array.isArray(results[1].value.nodes)?results[1].value.nodes:[]}
+ workIds.forEach((id,i)=>{state.work[id]=results[i+2].status==='fulfilled'?results[i+2].value:null});
+ state.lastEdge=Date.now();$('#edgeState').textContent=state.edgeOk?`${state.edge.node||'Aurum-Arkmatx'} · ${state.nodes.length} nodes`:'Edge unavailable';renderNodes();renderSystems();renderOverall();
+}
+function renderOverall(){const dot=$('#liveDot'),txt=$('#liveText');dot.className='dot';if(state.repoOk&&state.edgeOk){dot.classList.add('ok');txt.textContent='Live data connected'}else if(state.repoOk||state.edgeOk){txt.textContent='Partial live data'}else{dot.classList.add('bad');txt.textContent='Live sources unavailable'}const latest=Math.max(state.lastGitHub,state.lastEdge);$('#lastUpdated').textContent=latest?`Last refresh ${formatTime(latest)} · GitHub 5m / edge 15s`:'No successful refresh yet.'}
+async function refreshAll(){const b=$('#refresh');b.disabled=true;b.textContent='Refreshing…';await Promise.allSettled([refreshGitHub(),refreshEdge()]);b.disabled=false;b.textContent='Refresh now'}
+$('#detailClose').addEventListener('click',()=>$('#detail').classList.remove('show'));
+$('#refresh').addEventListener('click',refreshAll);
+refreshAll();setInterval(refreshGitHub,GITHUB_REFRESH);setInterval(refreshEdge,EDGE_REFRESH);
+})();
+</script>
+</body>
+</html>
