@@ -83,6 +83,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xorriso squashfs-tools
           mkdir -p extracted
           xorriso -osirrox on -indev dist/Aurum-PC-v0.01-amd64.iso \
             -extract /live/filesystem.squashfs extracted/filesystem.squashfs
