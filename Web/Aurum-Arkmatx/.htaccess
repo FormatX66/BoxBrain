@@ -1,8 +1,11 @@
 RewriteEngine On
 
 # Shared-host-safe front controller routing. Preserve the original REQUEST_URI and
-# route directly to index.php instead of depending on PATH_INFO support.
+# route directly to concrete handlers instead of depending on PATH_INFO support.
 RewriteRule ^dashboard/?$ dashboard.html [L]
+RewriteRule ^voice-status/?$ voice-status.php [L,QSA]
+RewriteRule ^voice-status\.txt$ voice-status.php [L,QSA]
+RewriteRule ^voice-status\.json$ voice-status.php?format=json [L,QSA]
 RewriteRule ^status$ index.php [L,QSA]
 RewriteRule ^nodes$ index.php [L,QSA]
 RewriteRule ^events$ index.php [L,QSA]
