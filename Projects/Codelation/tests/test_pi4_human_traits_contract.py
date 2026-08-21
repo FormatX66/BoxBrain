@@ -48,6 +48,14 @@ class Pi4HumanTraitContractTests(unittest.TestCase):
         self.assertIn("failed (exit $($run.ExitCode))", text)
         self.assertNotIn("${trait,,}", text)
 
+    def test_remote_installer_is_normalized_to_linux_line_endings(self):
+        text = DEPLOYER.read_text(encoding="utf-8")
+        self.assertIn('$remote.Replace("`r`n", "`n")', text)
+        self.assertIn("invalid bash\\r", text)
+        normalization = text.index('$remote = $remote.Replace("`r`n", "`n")')
+        write = text.index("[IO.File]::WriteAllText")
+        self.assertLess(normalization, write)
+
     def test_next_generation_is_verified_before_activation(self):
         text = DEPLOYER.read_text(encoding="utf-8")
         prepare = text.index("STEP=prepare-next-generation")
