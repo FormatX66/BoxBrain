@@ -310,6 +310,9 @@ existing_user_cron_entries=$user_cron_count
 existing_root_cron_entries=$root_cron_count
 unapproved_user_cron_changes=$user_cron_changed
 unapproved_root_cron_changes=$root_cron_changed
+matching_systemd_units=$new_units_count
+matching_user_cron=$user_cron_changed
+matching_root_cron=$root_cron_changed
 rollback=$ROLLBACK
 transfer_cleanup=$transfer_cleanup
 EOF
