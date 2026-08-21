@@ -1,0 +1,80 @@
+name: Aurum Hopper Trackpad Experimental
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - aurum/hopper-trackpad-experimental
+    paths:
+      - '.github/workflows/aurum-hopper-trackpad-experimental.yml'
+      - 'Projects/AurumPC/aurum_input.py'
+      - 'Projects/AurumPC/build-iso-trackpad.sh'
+      - 'Projects/AurumPC/tests/test_aurum_input.py'
+      - 'Projects/AurumPC/tests/test_trackpad_build_contract.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-hopper-trackpad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out trackpad experiment
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Validate input layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile Projects/AurumPC/aurum_input.py
+          sh -n Projects/AurumPC/build-iso-trackpad.sh
+          python3 -m unittest \
+            Projects.AurumPC.tests.test_aurum_input \
+            Projects.AurumPC.tests.test_trackpad_build_contract -v
+
+      - name: Build trackpad experimental ISO
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap \
+                xorriso isolinux syslinux-common squashfs-tools \
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+              sh Projects/AurumPC/build-iso-trackpad.sh
+            '
+          test -s dist/Aurum-PC-v0.01-trackpad-exp-amd64.iso
+          sha256sum -c dist/Aurum-PC-v0.01-trackpad-exp-amd64.iso.sha256
+
+      - name: Verify pointer stack is inside filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p extracted
+          xorriso -osirrox on -indev dist/Aurum-PC-v0.01-trackpad-exp-amd64.iso \
+            -extract /live/filesystem.squashfs extracted/filesystem.squashfs
+          unsquashfs -cat extracted/filesystem.squashfs /etc/X11/xorg.conf.d/40-aurum-libinput.conf | grep -q 'MatchIsTouchpad'
+          unsquashfs -cat extracted/filesystem.squashfs /etc/systemd/system/aurum-input-bootstrap.service | grep -q 'i2c_hid_acpi'
+          unsquashfs -cat extracted/filesystem.squashfs /opt/aurum/aurum_input.py | grep -q 'aurum.input.v1'
+          unsquashfs -ll extracted/filesystem.squashfs | grep -q '/usr/bin/libinput'
+
+      - name: Publish experimental ISO
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-PC-v0.01-trackpad-experimental
+          path: |
+            dist/Aurum-PC-v0.01-trackpad-exp-amd64.iso
+            dist/Aurum-PC-v0.01-trackpad-exp-amd64.iso.sha256
+          if-no-files-found: error
+          retention-days: 7
