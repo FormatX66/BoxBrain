@@ -84,8 +84,16 @@ class BootScreen:
             # A display aid must never become a boot dependency.
             return
 
+    def _diagnostics_visible(self) -> bool:
+        """Keep the normal boot clean; reveal VT detail only when recovery needs it."""
+        if os.environ.get("AURUM_SHOW_BOOT_DIAGNOSTICS", "0") == "1":
+            return True
+        if self.overall in {"degraded", "failed"}:
+            return True
+        return any(state in {"degraded", "failed"} for state in self.states.values())
+
     def render(self) -> None:
-        if not self.enabled:
+        if not self.enabled or not self._diagnostics_visible():
             return
         marks = {
             "pending": "·",
@@ -100,7 +108,7 @@ class BootScreen:
             "",
             "                         A U R U M",
             "",
-            "                 Waking Hopper · Gen 0 → Gen 1",
+            "                    Hopper recovery status",
             "",
         ]
         for name, label in STAGES:
@@ -109,7 +117,7 @@ class BootScreen:
         lines.extend(
             [
                 "",
-                "             Recovery console remains available on Ctrl+Alt+F1",
+                "             Recovery console: Ctrl+Alt+F1",
                 "" if self.overall == "starting" else f"                         {self.overall.upper()}",
             ]
         )
