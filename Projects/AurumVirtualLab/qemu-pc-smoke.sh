@@ -3,6 +3,11 @@ set -euo pipefail
 
 ISO=${1:?usage: qemu-pc-smoke.sh ISO LOG}
 LOG=${2:?usage: qemu-pc-smoke.sh ISO LOG}
+QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}
+case "$QEMU_ACCEL" in
+  kvm|tcg) ;;
+  *) echo "Unsupported Aurum QEMU accelerator: $QEMU_ACCEL" >&2; exit 2 ;;
+esac
 
 if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
   code=/usr/share/OVMF/OVMF_CODE.fd
@@ -24,6 +29,7 @@ truncate -s 10G "$installed_disk"
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
 : > "$LOG"
+echo "AURUM_QEMU_ACCELERATION selected=$QEMU_ACCEL" >> "$LOG"
 qemu_pid=
 
 cleanup() {
@@ -38,7 +44,7 @@ trap cleanup EXIT
 
 start_live_qemu() {
   timeout 900s qemu-system-x86_64 \
-    -machine q35,accel=tcg \
+    -machine "q35,accel=$QEMU_ACCEL" \
     -cpu qemu64 \
     -m 1024 \
     -smp 2 \
@@ -58,7 +64,7 @@ start_live_qemu() {
 start_installed_qemu() {
   printf '\n===== AURUM INSTALLED DISK BOOT =====\n' >> "$LOG"
   timeout 900s qemu-system-x86_64 \
-    -machine q35,accel=tcg \
+    -machine "q35,accel=$QEMU_ACCEL" \
     -cpu qemu64 \
     -m 1024 \
     -smp 2 \

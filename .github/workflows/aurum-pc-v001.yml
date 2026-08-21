@@ -55,6 +55,7 @@ jobs:
           sh -n Projects/AurumPC/build-iso.sh
           bash -n Projects/AurumBuild/verify-builder.sh
           bash -n Projects/AurumBuild/verify-pc-image.sh
+          bash -n Projects/AurumVirtualLab/qemu-acceleration.sh
           bash -n Projects/AurumVirtualLab/qemu-pc-smoke.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumBuild/tests -v
@@ -234,6 +235,7 @@ jobs:
             evidence/build-provider.json
           if-no-files-found: error
           retention-days: 2
+          compression-level: 0
 
   generic-uefi-smoke:
     needs: build-image
@@ -267,8 +269,12 @@ jobs:
           set -euo pipefail
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
           docker pull "$BUILDER_IMAGE"
+          source Projects/AurumVirtualLab/qemu-acceleration.sh
+          select_aurum_qemu_acceleration "$BUILDER_IMAGE"
           started="$(date +%s)"
-          docker run --rm -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
+          docker run --rm "${AURUM_QEMU_DOCKER_ARGS[@]}" \
+            -e AURUM_QEMU_ACCEL \
+            -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
             bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
               dist/Aurum-PC-v0.01-amd64.iso aurum-pc-qemu.log
           finished="$(date +%s)"
@@ -279,7 +285,9 @@ jobs:
             --required-marker 'AURUM_HARDWARE_PROFILE status=ready' \
             --required-marker 'AURUM_INSTALL_FINISHED status=passed' \
             --required-marker 'AURUM_SELF_BUILD_FINISHED status=passed' \
+            --required-marker "AURUM_QEMU_ACCELERATION selected=$AURUM_QEMU_ACCEL" \
             --duration-seconds "$((finished - started))" \
+            --execution-environment "$AURUM_QEMU_EXECUTION_ENVIRONMENT" \
             --output verification-generic.json
           builder_digest="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["builder_image"].split("@", 1)[1])')"
           build_config_hash="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["build_configuration_sha256"])')"
@@ -339,8 +347,12 @@ jobs:
           set -euo pipefail
           sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
           docker pull "$BUILDER_IMAGE"
+          source Projects/AurumVirtualLab/qemu-acceleration.sh
+          select_aurum_qemu_acceleration "$BUILDER_IMAGE"
           started="$(date +%s)"
-          docker run --rm -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
+          docker run --rm "${AURUM_QEMU_DOCKER_ARGS[@]}" \
+            -e AURUM_QEMU_ACCEL \
+            -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
             bash Projects/AurumVirtualLab/qemu-hp-physical-twin.sh \
               dist/Aurum-PC-v0.01-amd64.iso aurum-hp-physical-twin.log
           finished="$(date +%s)"
@@ -352,7 +364,9 @@ jobs:
             --required-marker 'AURUM_HP_TWIN_NVME_PRESERVED_OK' \
             --required-marker 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' \
             --required-marker 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' \
+            --required-marker "AURUM_QEMU_ACCELERATION selected=$AURUM_QEMU_ACCEL" \
             --duration-seconds "$((finished - started))" \
+            --execution-environment "$AURUM_QEMU_EXECUTION_ENVIRONMENT" \
             --output verification-hp.json
           builder_digest="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["builder_image"].split("@", 1)[1])')"
           build_config_hash="$(python3 -c 'import json; print(json.load(open("evidence/build-identity.json"))["build_configuration_sha256"])')"
@@ -451,6 +465,7 @@ jobs:
             Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
       - name: Record measured critical path after publication
         id: timing
         shell: bash

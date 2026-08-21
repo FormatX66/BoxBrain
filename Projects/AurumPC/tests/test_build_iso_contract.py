@@ -9,6 +9,7 @@ BOOTSTRAP = Path(__file__).parents[1] / "aurum_bootstrap.py"
 WIFI_DIAG = Path(__file__).parents[1] / "aurum_wifi_diag.py"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
+QEMU_ACCELERATION = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-acceleration.sh"
 HP_TWIN = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-hp-physical-twin.sh"
 HP_TWIN_SPEC = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "hp-physical-twin-v1.json"
 PC_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "aurum-pc-v001.yml"
@@ -27,12 +28,16 @@ class BuildIsoContractTests(unittest.TestCase):
 
     def test_qemu_runtime_gate_requires_on_machine_self_build(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
+        acceleration = QEMU_ACCELERATION.read_text(encoding="utf-8")
         workflow = PC_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("printf 'self-build\\n'", smoke)
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
         self.assertIn("wait_for_self_build 720", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
+        self.assertIn('QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}', smoke)
+        self.assertIn("-machine q35,accel=kvm", acceleration)
+        self.assertIn("AURUM_QEMU_ACCEL=tcg", acceleration)
         self.assertIn("Projects/AurumVirtualLab/qemu-pc-smoke.sh", workflow)
 
     def test_live_image_contains_guarded_recovery_and_autonomy_dependencies(self) -> None:

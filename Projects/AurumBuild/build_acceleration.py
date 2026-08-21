@@ -16,7 +16,6 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 BUILDER_INFRASTRUCTURE_PATHS = (
     ".github/workflows/aurum-builder.yml",
     "Projects/AurumBuild/Dockerfile.builder",
-    "Projects/AurumBuild/build_acceleration.py",
     "Projects/AurumBuild/packages.builder.txt",
     "Projects/AurumBuild/verify-builder.sh",
 )
@@ -31,11 +30,11 @@ DEPENDENCY_DEFINITION_PATHS = (
 MANDATORY_VM_PROFILES = {
     "generic-uefi-install": {
         "architecture": "x86_64",
-        "execution_environment": "qemu-uefi-tcg",
+        "execution_environments": ("qemu-uefi-kvm", "qemu-uefi-tcg"),
     },
     "hopper-hp-topology-twin": {
         "architecture": "x86_64",
-        "execution_environment": "qemu-uefi-tcg",
+        "execution_environments": ("qemu-uefi-kvm", "qemu-uefi-tcg"),
     },
 }
 OPTIMIZATION_ORDER = (
@@ -213,10 +212,16 @@ def create_verification_evidence(
     log_path: Path,
     required_markers: Sequence[str],
     duration_seconds: float,
+    execution_environment: str,
 ) -> dict[str, Any]:
     specification = MANDATORY_VM_PROFILES.get(profile)
     if specification is None:
         raise ValueError(f"unsupported mandatory VM profile: {profile}")
+    execution_environment = _require_text(execution_environment, "execution_environment")
+    if execution_environment not in specification["execution_environments"]:
+        raise ValueError(
+            f"unsupported execution environment for {profile}: {execution_environment}"
+        )
     log = log_path.read_text(encoding="utf-8", errors="replace")
     missing = [marker for marker in required_markers if marker not in log]
     if missing:
@@ -226,7 +231,7 @@ def create_verification_evidence(
         "profile": profile,
         "work_type": "vm-topology-verification",
         "architecture": specification["architecture"],
-        "execution_environment": specification["execution_environment"],
+        "execution_environment": execution_environment,
         "source_sha": artifact["source_sha"],
         "artifact_identity": artifact["artifact_identity"],
         "iso_sha256": artifact["iso_sha256"],
@@ -271,7 +276,7 @@ def converge_verification(
                 raise ValueError(f"{profile} does not match artifact {field}")
         if item.get("architecture") != expected["architecture"]:
             raise ValueError(f"{profile} architecture evidence is incorrect")
-        if item.get("execution_environment") != expected["execution_environment"]:
+        if item.get("execution_environment") not in expected["execution_environments"]:
             raise ValueError(f"{profile} execution environment is incorrect")
         if item.get("work_type") != "vm-topology-verification":
             raise ValueError(f"{profile} is not VM-topology verification")
@@ -410,6 +415,7 @@ def _parser() -> argparse.ArgumentParser:
     verification.add_argument("--log", type=Path, required=True)
     verification.add_argument("--required-marker", action="append", default=[])
     verification.add_argument("--duration-seconds", type=float, required=True)
+    verification.add_argument("--execution-environment", required=True)
     verification.add_argument("--output", type=Path, required=True)
 
     promote = subparsers.add_parser("promote")
@@ -482,6 +488,7 @@ def main() -> int:
             log_path=args.log,
             required_markers=args.required_marker,
             duration_seconds=args.duration_seconds,
+            execution_environment=args.execution_environment,
         )
         _write_json(args.output, value)
         print(json.dumps(value, sort_keys=True))

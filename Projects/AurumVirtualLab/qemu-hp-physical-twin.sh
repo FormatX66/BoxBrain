@@ -3,6 +3,11 @@ set -euo pipefail
 
 ISO=${1:?usage: qemu-hp-physical-twin.sh ISO LOG}
 LOG=${2:?usage: qemu-hp-physical-twin.sh ISO LOG}
+QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}
+case "$QEMU_ACCEL" in
+  kvm|tcg) ;;
+  *) echo "Unsupported Aurum QEMU accelerator: $QEMU_ACCEL" >&2; exit 2 ;;
+esac
 
 if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
   code=/usr/share/OVMF/OVMF_CODE.fd
@@ -51,6 +56,7 @@ mkfifo "$monitor.in" "$monitor.out"
 exec 4<>"$monitor.in"
 exec 5<>"$monitor.out"
 : > "$LOG"
+echo "AURUM_QEMU_ACCELERATION selected=$QEMU_ACCEL" >> "$LOG"
 qemu_pid=
 
 cleanup() {
@@ -89,7 +95,7 @@ wait_for_marker() {
 # detailed physical profile; this test matches topology and failure behavior,
 # not invented device identities.
 timeout 420s qemu-system-x86_64 \
-  -machine q35,accel=tcg \
+  -machine "q35,accel=$QEMU_ACCEL" \
   -cpu qemu64 \
   -m 7680 \
   -smp 4 \

@@ -16,6 +16,7 @@ from build_acceleration import (  # noqa: E402
     DEPENDENCY_DEFINITION_PATHS,
     compute_identities,
     converge_verification,
+    create_verification_evidence,
     select_proven_route,
     timing_evidence,
 )
@@ -136,6 +137,34 @@ class BuildAccelerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "verifier did not pass"):
             converge_verification(artifact(), [generic, hopper])
 
+    def test_proven_kvm_and_safe_tcg_fallback_are_both_valid_vm_evidence(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        log = Path(temporary.name) / "qemu.log"
+        log.write_text("required-marker\n", encoding="utf-8")
+        item = create_verification_evidence(
+            artifact=artifact(),
+            profile="generic-uefi-install",
+            log_path=log,
+            required_markers=["required-marker"],
+            duration_seconds=2,
+            execution_environment="qemu-uefi-kvm",
+        )
+        self.assertEqual(item["execution_environment"], "qemu-uefi-kvm")
+        promotion = converge_verification(
+            artifact(), [item, evidence("hopper-hp-topology-twin")]
+        )
+        self.assertEqual(promotion["promotion_state"], "verified")
+        with self.assertRaisesRegex(ValueError, "unsupported execution environment"):
+            create_verification_evidence(
+                artifact=artifact(),
+                profile="generic-uefi-install",
+                log_path=log,
+                required_markers=["required-marker"],
+                duration_seconds=2,
+                execution_environment="unproven-fast-path",
+            )
+
     def test_speculative_verifier_cannot_mutate_trusted_physical_state(self) -> None:
         generic = evidence("generic-uefi-install")
         hopper = evidence("hopper-hp-topology-twin")
@@ -204,6 +233,9 @@ class BuildAccelerationTests(unittest.TestCase):
         image_verifier = (REPOSITORY_ROOT / "Projects/AurumBuild/verify-pc-image.sh").read_text(
             encoding="utf-8"
         )
+        qemu_acceleration = (
+            REPOSITORY_ROOT / "Projects/AurumVirtualLab/qemu-acceleration.sh"
+        ).read_text(encoding="utf-8")
         self.assertIn("Projects/AurumBuild/Dockerfile.builder", builder)
         self.assertIn("packages: write", builder)
         self.assertNotIn("pull_request_target", builder)
@@ -219,6 +251,9 @@ class BuildAccelerationTests(unittest.TestCase):
         self.assertIn("source/image provenance mismatch", image_verifier)
         self.assertIn("bash -n Projects/AurumBuild/verify-pc-image.sh", pc)
         self.assertNotIn("AURUM_PC_READY version=0.01 arch=x86_64", image_verifier)
+        self.assertIn("--device /dev/kvm", qemu_acceleration)
+        self.assertIn("AURUM_QEMU_EXECUTION_ENVIRONMENT", pc)
+        self.assertIn("compression-level: 0", pc)
 
     def test_live_build_cache_is_copy_on_write_and_committed_only_after_checksum(self) -> None:
         script = (REPOSITORY_ROOT / "Projects/AurumPC/build-iso.sh").read_text(
