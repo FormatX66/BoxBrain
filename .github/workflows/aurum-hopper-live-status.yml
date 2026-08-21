@@ -1,6 +1,10 @@
 name: Aurum Hopper Live Status
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-hopper-live-status.yml'
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
