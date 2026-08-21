@@ -35,7 +35,28 @@ class Pi4HumanTraitContractTests(unittest.TestCase):
         self.assertIn("StrictHostKeyChecking=yes", text)
         self.assertIn("UserKnownHostsFile", text)
         self.assertIn("ROLLBACK_ROOT=/opt/boxbrain/rollback", text)
+        self.assertIn("AURUM_HUMAN_TRAIT_ROLLBACK restored=true", text)
         self.assertIn("persistence_added=0", text)
+
+    def test_trait_deployer_emits_actionable_remote_failure_evidence(self):
+        text = DEPLOYER.read_text(encoding="utf-8")
+        self.assertIn("AURUM_HUMAN_TRAIT_STEP_FAILED", text)
+        self.assertIn("STEP=functional-tests", text)
+        self.assertIn("STEP=build-seven-bundles", text)
+        self.assertIn("STEP=activate-next-generation", text)
+        self.assertIn("Get-NativeFailureDetail", text)
+        self.assertIn("failed (exit $($run.ExitCode))", text)
+        self.assertNotIn("${trait,,}", text)
+
+    def test_next_generation_is_verified_before_activation(self):
+        text = DEPLOYER.read_text(encoding="utf-8")
+        prepare = text.index("STEP=prepare-next-generation")
+        verify = text.index("STEP=verify-next-generation")
+        preserve = text.index("STEP=preserve-current-generation")
+        activate = text.index("STEP=activate-next-generation")
+        self.assertLess(prepare, verify)
+        self.assertLess(verify, preserve)
+        self.assertLess(preserve, activate)
 
     def test_trait_deployer_does_not_add_persistence_or_packages(self):
         lowered = DEPLOYER.read_text(encoding="utf-8").lower()
