@@ -1,0 +1,47 @@
+name: Aurum Experimental Lanes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/StateWeave/**'
+      - 'Projects/AdaptiveKernel/**'
+      - 'Projects/StateWeaveKernel/**'
+      - '.github/workflows/aurum-experimental-lanes.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-experimental-lanes-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stateweave:
+    name: StateWeave standalone
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test StateWeave generation 0
+        run: python -m unittest discover -s Projects/StateWeave/tests -p 'test_*.py' -v
+
+  adaptive-kernel:
+    name: Adaptive Kernel standalone
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Adaptive Kernel generation 0
+        run: python -m unittest discover -s Projects/AdaptiveKernel/tests -p 'test_*.py' -v
+
+  combined:
+    name: StateWeave plus Adaptive Kernel
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: []
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test combined generation 0
+        run: python -m unittest discover -s Projects/StateWeaveKernel/tests -p 'test_*.py' -v
