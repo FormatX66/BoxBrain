@@ -40,7 +40,6 @@ jobs:
     name: StateWeave plus Adaptive Kernel
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: []
     steps:
       - uses: actions/checkout@v4
       - name: Test combined generation 0
