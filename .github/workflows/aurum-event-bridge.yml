@@ -7,6 +7,7 @@ on:
       - Aurum PC Bridge
       - Aurum Virtual Hardware Lab
       - Validate Aurum Local-Lane Self-Heal
+      - Aurum Authorized Windows AP
       - Aurum PC-01 One-Time Verified Reflash
       - Aurum PC-01 Authorized USB Flash
       - Aurum Dual Seed Lanes
@@ -62,6 +63,29 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
               -f ref=main
             echo 'AURUM_EVENT local_lane_recovery=dispatched ref=main'
+          fi
+
+      - name: Resume BBPI4 identity heartbeat after verified seed
+        if: >-
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.name == 'Aurum Dual Seed Lanes' &&
+          github.event.workflow_run.conclusion == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='aurum-authorized-windows-ap.yml'
+          active="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=main&per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")] | length')"
+          if [ "$active" -gt 0 ]; then
+            echo "AURUM_EVENT bbpi4_identity_lane=active count=$active action=deduplicated"
+          else
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+              -f ref=main
+            echo 'AURUM_EVENT bbpi4_identity_lane=dispatched ref=main'
           fi
 
       - name: Resume trunk convergence immediately
