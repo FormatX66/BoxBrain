@@ -1,12 +1,12 @@
 {
     "schema_version":  1,
-    "request_id":  "aurum-bbpi4-morris-relay-20260812T200425Z",
-    "action":  "deploy",
+    "request_id":  "aurum-usbc-verify-20260815T192500Z",
+    "action":  "verify",
     "target":  "BBPI4",
     "address":  "192.168.0.194",
     "verified":  false,
     "status":  "AURUM_LOCAL_LANE_FAILED",
-    "error":  "Codelation source changed after local approval; reinstall the lane to review it.",
-    "started_at":  "2026-08-12T20:09:54.9055780+00:00",
-    "completed_at":  "2026-08-12T20:09:55.0065941+00:00"
+    "error":  "BBPI4 verification evidence is missing required marker: matching_systemd_units=0",
+    "started_at":  "2026-08-21T18:20:31.0646893+00:00",
+    "completed_at":  "2026-08-21T18:20:32.9436512+00:00"
 }
