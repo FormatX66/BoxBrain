@@ -1,0 +1,18 @@
+{
+    "schema":  "aurum-pc01-flash-receipt-v1",
+    "state":  "FLASH_FAILURE",
+    "github_workflow_run":  32520874545,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-21T20:26:36.3095555Z",
+    "data":  {
+                 "image_sha256":  "cc41f46c334c9db1256c11cddda1bffde6e5db45e47922720ec74260bd8e8bb7",
+                 "disk_model":  "SanDisk Cruzer Fit",
+                 "disk_number":  1,
+                 "removable_media":  true,
+                 "head":  "6c4a9cf548704e9e159eaea7a18ac3a1a36fb6a2",
+                 "reason":  "Exception calling \"Write\" with \"3\" argument(s): \"Access to the path is denied.\"",
+                 "disk_serial":  "4C530001061117108440"
+             }
+}
