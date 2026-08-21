@@ -9,6 +9,9 @@ on:
     paths:
       - '.github/workflows/aurum-autobuild.yml'
       - '.github/workflows/aurum-event-bridge.yml'
+      - '.github/workflows/aurum-human-traits.yml'
+      - 'Projects/AurumTraits/**'
+      - 'Projects/Aurum/GEN1_EVERYONE_OS_PLAN.md'
       - 'Projects/AurumBridge/aurum_autobuild_entry.py'
       - 'Projects/Codelation/autobuild_cycle.py'
       - 'Projects/Codelation/tests/test_autobuild_cycle.py'
@@ -58,6 +61,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s Projects/Codelation/tests -v
+
+      - name: Validate complete human trait seed contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumTraits/validate_traits.py
 
       - name: Commit state checkpoint
         id: checkpoint
