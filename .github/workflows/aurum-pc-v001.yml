@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
+      - 'Projects/AurumTraits/**'
       - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
   push:
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
       - 'Projects/AurumPC/**'
+      - 'Projects/AurumTraits/**'
       - 'Projects/AurumVirtualLab/**'
       - 'Projects/Codelation/**'
 
@@ -30,7 +32,7 @@ concurrency:
 jobs:
   build-and-boot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 70
+    timeout-minutes: 90
     steps:
       - name: Check out Aurum PC branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -52,12 +54,17 @@ jobs:
             Projects/AurumPC/aurum_workspace.py \
             Projects/AurumPC/aurum_installer.py \
             Projects/AurumPC/aurum_boot_state.py \
+            Projects/AurumTraits/aurum_traits.py \
+            Projects/AurumTraits/validate_traits.py \
             Projects/Codelation/state_space.py
           sh -n Projects/AurumPC/build-iso.sh
           sh -n Projects/AurumPC/build-direct-uefi-image.sh
           bash -n Projects/AurumVirtualLab/qemu-pc-direct-uefi.sh
           bash -n Projects/AurumVirtualLab/qemu-hp-physical-twin.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -v
+          python3 Projects/AurumTraits/validate_traits.py
+          python3 Projects/AurumTraits/aurum_traits.py validate
+          python3 -m unittest discover -s Projects/AurumTraits/tests -v
           grep -q 'git-sync authorize-network' Projects/AurumPC/aurum_console.py
           grep -q 'git-promote authorize-network confirm-push' Projects/AurumPC/aurum_console.py
           grep -q 'install confirm ERASE-CODE' Projects/AurumPC/aurum_console.py
@@ -66,6 +73,11 @@ jobs:
           grep -q 'AURUM_WIFI_DIAG' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'recover_existing_wifi_driver' Projects/AurumPC/aurum_bootstrap.py
           grep -q 'synchronize_clock' Projects/AurumPC/aurum_bootstrap.py
+          grep -q 'Projects/AurumTraits' Projects/AurumPC/build-iso.sh
+          grep -q 'firefox-esr' Projects/AurumPC/build-iso.sh
+          grep -q 'pcmanfm' Projects/AurumPC/build-iso.sh
+          grep -q 'mpv' Projects/AurumPC/build-iso.sh
+          grep -q 'libreoffice-writer' Projects/AurumPC/build-iso.sh
 
       - name: Install independent VM tooling
         shell: bash
@@ -93,6 +105,24 @@ jobs:
                 parted e2fsprogs util-linux systemd-boot-efi binutils
               lb --version
               AURUM_BUILD_DIRECT_UEFI=required sh Projects/AurumPC/build-iso.sh
+              squash=Projects/AurumPC/.build/binary/live/filesystem.squashfs
+              test -s "$squash"
+              unsquashfs -ll "$squash" > /tmp/aurum-squashfs-files.txt
+              grep -q /opt/aurum/traits/aurum_traits.py /tmp/aurum-squashfs-files.txt
+              grep -q /usr/local/bin/aurum-trait /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/web/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/files/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/media/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/write/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/intent/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/connect/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /usr/lib/aurum/traits/recover/bundle.json /tmp/aurum-squashfs-files.txt
+              grep -q /var/lib/aurum/Garden/Documents /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/firefox /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/pcmanfm /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/mpv /tmp/aurum-squashfs-files.txt
+              grep -q /usr/bin/libreoffice /tmp/aurum-squashfs-files.txt
+              echo AURUM_PC_HUMAN_TRAITS_EMBEDDED
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
           test -s dist/Aurum-PC-v0.01-amd64-direct-uefi.img
