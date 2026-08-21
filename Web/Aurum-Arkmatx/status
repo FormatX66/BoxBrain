@@ -1,0 +1,11 @@
+{
+  "node": "Aurum-Repository-Mirror",
+  "status": "read-only-static-status-mirror",
+  "events": 0,
+  "capabilities": [
+    "dashboard",
+    "voice_status_text",
+    "voice_status_json",
+    "repository_fallback"
+  ]
+}
