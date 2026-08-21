@@ -1,0 +1,51 @@
+AURUM VOICE STATUS
+As of: 2026-08-21T20:54:26Z
+Source: repository-static-mirror
+
+Plain status: All seven everyday human capabilities are Defined, Executable, Tested, and Seeded on BBPI4. Booting a generation that already contains them is the next shared evidence gate.
+Human action: None right now. PC seed construction and the next boot verification are automated build work.
+
+Evidence standard:
+- Defined means the requirement and stable trait identity exist.
+- Executable means runnable implementation code exists.
+- Tested means functional tests passed against the implementation.
+- Seeded means a verified seed instance or built artifact contains the capability.
+- Booted means a verified seed generation booted with the capability already present.
+- Used means a physical user-facing operation was proven on an authorized machine.
+
+Human capabilities:
+- Web browsing — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Browser-launch runtime and the WEB seed bundle are verified on BBPI4. Firefox ESR is wired into the PC seed definition, whose fresh artifact and boot proof are pending.
+  Next: Boot a generation that already contains WEB, then prove a webpage opens.
+- Garden / Files — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Garden and its Documents, Photos, Music, Videos, Downloads, Projects, and Shared plots are in the verified BBPI4 seed payload.
+  Next: Boot with Garden already present, then open and save a real human file.
+- Music, photos, and video — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Unified media launch behavior and its seed bundle are verified on BBPI4. MPV and audio foundations remain wired into the PC seed definition.
+  Next: Boot with MEDIA present, then prove image, audio, and video playback.
+- Writing and word processing — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Document creation/editor behavior and the WRITE seed bundle are verified on BBPI4. LibreOffice Writer remains wired into the PC seed definition.
+  Next: Boot with WRITE present, then create, edit, save, and reopen a document.
+- Intent and assistance — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Everyday-language routing and the INTENT seed bundle are verified on BBPI4.
+  Next: Boot with INTENT present and prove a typed or spoken request opens the intended capability.
+- Connectivity — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Connectivity probing and the CONNECT seed bundle are verified on BBPI4 over the pretrusted USB-C SSH route.
+  Next: Boot with CONNECT present and exercise network, USB, and Bluetooth through the human surface.
+- Recovery — 4/6. Complete: Defined, Executable, Tested, Seeded. Pending: Booted, Used.
+  Current: Read-only recovery inspection and the RECOVER seed bundle are verified on BBPI4; deployment preserved rollback and added no persistence.
+  Next: Boot with RECOVER present and prove a safe user-visible diagnosis and rollback path.
+
+Live build evidence:
+- Human trait workflow: verified; verified success yes.
+- PC seed with human traits: pending; verified success no.
+- Pi seed with human traits: success; run 32525836598; source e7d7a8db5d8552c3ab47b683a0da091625879f1b; verified success yes.
+
+System milestones:
+- Executable human-trait runtime [verified]: Runtime, functional tests, seven parallel bundle builds, and complete seed payload assembly exist on main.
+- Pi human-trait seed [verified-seeded]: Run 32525836598 completed after validating and deploying all seven bundles over pretrusted USB-C SSH with the gold seed preserved.
+- PC seed integration definition [implemented-awaiting-proof]: Firefox ESR, PCManFM, MPV, LibreOffice Writer, Xorg/Openbox, Garden, and all seven trait bundles are wired into the active PC seed branch.
+- Booted gate [pending]: The BBPI4 payload was added to an already-running seed. A generation must boot with the traits already present before Booted is earned.
+- Physical use gate [pending]: WEB, Garden, MEDIA, WRITE, INTENT, CONNECT, and RECOVER still need physical user-facing receipts.
+
+Voice cue: Read Aurum Voice Status, then answer from this evidence without upgrading a stage unless its proof is present.
