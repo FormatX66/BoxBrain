@@ -1,0 +1,13 @@
+{
+  "schema": "aurum-repository-integrity-diagnostic-v1",
+  "state": "FAILURE",
+  "validator_exit_code": 1,
+  "github_workflow_run": 32527231876,
+  "github_run_attempt": 2,
+  "source_commit": "970f38a0949fe53ef2916eb37d8823fc3978f450",
+  "observed_at": "2026-08-21T21:14:27.592001+00:00",
+  "output": [
+    "BoxBrain validation failed:",
+    "- Orphan Markdown file: docs/AURUM_COMMANDS.md"
+  ]
+}
