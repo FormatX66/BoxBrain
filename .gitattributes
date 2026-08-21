@@ -10,3 +10,4 @@ Projects/AurumBuild/**/*.sh text eol=lf
 Projects/AurumBuild/Dockerfile.builder text eol=lf
 Projects/AurumBuild/packages.builder.txt text eol=lf
 Projects/AurumKernel/*.sh text eol=lf
+Projects/AurumVirtualLab/*.sh text eol=lf

@@ -171,6 +171,9 @@ if [ "$nvme_before" != "$nvme_after" ]; then
 fi
 
 cat "$LOG"
+# These markers are the machine-readable verification result.  Preserve them
+# in the evidence log as well as stdout so the convergence receipt validates
+# the same durable file that is uploaded after the job.
 {
   echo 'AURUM_HP_TWIN_UEFI_USB_BOOT_OK'
   echo 'AURUM_HP_TWIN_NVME_PRESERVED_OK'
