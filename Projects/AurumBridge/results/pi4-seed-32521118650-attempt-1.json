@@ -1,0 +1,23 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_OK",
+    "github_workflow_run":  32521118650,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-21T20:35:08.3925370Z",
+    "data":  {
+                 "aurum_live_verified":  true,
+                 "source_commit":  "047573bccd41cacc5783ed828388366071644aa4",
+                 "architecture":  "arm64",
+                 "seed_sha256":  "2f5df773b71bf8ab39db9806d0bc49143cbf1b33cc180b724debb878817e0f33",
+                 "host_key_fingerprint":  "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
+                 "host_key_pretrusted":  true,
+                 "peer_self_test_verified":  true,
+                 "ssh_executable":  "C:\\Program Files\\Git\\usr\\bin\\ssh.exe",
+                 "address":  "10.12.194.1",
+                 "transport":  "usb-c-ssh",
+                 "gold_seed_preserved":  true,
+                 "user":  "kali"
+             }
+}
