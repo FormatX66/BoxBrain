@@ -14,9 +14,9 @@ $ErrorActionPreference = "Stop"
 
 # The BBPI4 gold seed is already installed. The live-graph deploy entry point now
 # performs an in-place reconciliation: it preserves the opaque seed and existing
-# approved runtime persistence, installs only the bounded dialogue/live-graph
-# files, and rejects only newly introduced persistence. Morri currently reaches
-# BBPI4 over USB SSH, so 10.12.194.1 is the first bounded route.
+# approved runtime persistence, installs only bounded Aurum files, and rejects
+# newly introduced persistence. Morri currently reaches BBPI4 over USB SSH, so
+# 10.12.194.1 is the first bounded route.
 $reconciler = Join-Path $PSScriptRoot "reconcile-existing-aurum-gold-seed-on-pi.ps1"
 if (-not (Test-Path -LiteralPath $reconciler -PathType Leaf)) {
     throw "The Aurum gold-seed reconciler is missing: $reconciler"
@@ -31,6 +31,16 @@ if ($SshExecutable) { $arguments.SshExecutable = $SshExecutable }
 if ($ScpExecutable) { $arguments.ScpExecutable = $ScpExecutable }
 if ($UserKnownHostsFile) { $arguments.UserKnownHostsFile = $UserKnownHostsFile }
 & $reconciler @arguments
+
+# The shared seed must carry executable human capabilities, not only trait names.
+# Reuse the exact same pretrusted carrier and bounded arguments to install the
+# seven tested Generation-0 trait bundles plus the Garden projection. This adds
+# no service, cron entry, or automatic package mutation on the physical Pi.
+$traitDeployer = Join-Path $PSScriptRoot "deploy-aurum-traits-to-pi.ps1"
+if (-not (Test-Path -LiteralPath $traitDeployer -PathType Leaf)) {
+    throw "The Aurum human-trait deployer is missing: $traitDeployer"
+}
+& $traitDeployer @arguments
 
 # A verified physical seed is only the prerequisite for the current frontier.
 # Once reconciliation succeeds, reuse the *same already-verified SSH carrier* to
