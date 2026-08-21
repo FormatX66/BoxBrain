@@ -1,0 +1,106 @@
+name: Aurum Hopper Live Status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-hopper-live-status
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    name: Mirror Hopper read-only status
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Read Hopper proof endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Web/Aurum-Arkmatx
+          out='Web/Aurum-Arkmatx/hopper-status.json'
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
+          observed="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          runner="$(hostname)"
+          endpoint=''
+          http=''
+          for host in hopper.local pc-01.local hopper pc-01; do
+            candidate="http://${host}:8767/proof"
+            code="$(curl -fsS --connect-timeout 2 --max-time 4 -o "$body" -w '%{http_code}' "$candidate" 2>/dev/null || true)"
+            if [ "$code" = '200' ] && python3 -m json.tool "$body" >/dev/null 2>&1; then
+              endpoint="$candidate"
+              http="$code"
+              break
+            fi
+          done
+
+          python3 - "$out" "$observed" "$runner" "$endpoint" "$http" "$body" <<'PY'
+          import json, sys
+          out, observed, runner, endpoint, http, body = sys.argv[1:]
+          proof = None
+          if endpoint:
+              try:
+                  proof = json.load(open(body, encoding='utf-8'))
+              except Exception:
+                  proof = None
+          payload = {
+              'schema': 'aurum.hopper.live-status.v1',
+              'observed_at': observed,
+              'runner_host': runner,
+              'reachable': bool(endpoint and proof),
+              'endpoint': endpoint or None,
+              'http_status': int(http) if http.isdigit() else None,
+              'proof': proof,
+          }
+          if isinstance(proof, dict):
+              machine = proof.get('machine') or {}
+              display = proof.get('display') or {}
+              echo = proof.get('echo') or {}
+              input_state = proof.get('input') or {}
+              payload['summary'] = {
+                  'machine': machine.get('display_name') or machine.get('hostname') or 'Hopper',
+                  'authorized_exact_hopper': machine.get('authorized_exact_hopper'),
+                  'display_status': display.get('status'),
+                  'physical_display': display.get('physical_display'),
+                  'echo_status': echo.get('status'),
+                  'echo_process_running': echo.get('process_running'),
+                  'keyboard_path_available': input_state.get('keyboard_path_available'),
+                  'pointer_path_available': input_state.get('pointer_path_available'),
+              }
+          else:
+              payload['summary'] = {'machine': 'Hopper', 'status': 'unreachable'}
+          with open(out, 'w', encoding='utf-8') as f:
+              json.dump(payload, f, indent=2, sort_keys=True)
+              f.write('\n')
+          PY
+          cat "$out"
+
+      - name: Commit live status snapshot when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-hopper-status[bot]'
+          git config user.email 'aurum-hopper-status@users.noreply.github.com'
+          git add -- Web/Aurum-Arkmatx/hopper-status.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Update Hopper live status [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+          exit 1
