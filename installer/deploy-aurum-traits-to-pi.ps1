@@ -220,6 +220,9 @@ printf '%s\n' \
   "persistence_added=0"
 '@
 
+# PowerShell here-strings use CRLF on Windows. Normalize before SCP so the
+# Linux shebang is exactly /usr/bin/env bash rather than the invalid bash\r.
+$remote = $remote.Replace("`r`n", "`n")
 $utf8NoBom = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($localRemoteScript, $remote, $utf8NoBom)
 try {
