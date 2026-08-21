@@ -2,7 +2,7 @@
 
 Shared-host-compatible Aurum edge node and read-only project status surface.
 
-Endpoints:
+Hosted endpoints when the Arkmatx PHP deployment is configured:
 
 - `GET /` or `/status` — node status
 - `GET /dashboard` — evidence-driven visual command center
@@ -10,16 +10,26 @@ Endpoints:
 - `GET /voice-status.json` — machine-readable form of the same live status
 - `POST /uaf` — receive Aurum UAF v0 frames
 
-The dashboard and voice endpoint use the same six-gate human-capability standard:
+No-secret repository mirrors, available even when the Arkmatx deployment secrets
+are not configured:
+
+- `voice-status.txt` — plain text suitable for voice assistants and raw fetches
+- `voice-status.json` — machine-readable six-gate status
+- `voice-status/index.html` — browser-readable static status view
+- `dashboard.html` — the dashboard source; it can consume the static JSON mirror
+- `status` and `nodes` — static read-only fallbacks for dashboard fetches
+
+The dashboard and all voice mirrors use the same six-gate human-capability standard:
 Defined → Executable → Tested → Seeded → Booted → Used.
 
-The durable repository fallback for assistants that cannot reach the website is
+The durable GitHub-connector fallback is
 [Aurum Voice Status](../../AURUM_VOICE_STATUS.md).
 
-Requirements: PHP 8+, HTTPS, and writable local storage under `state/`.
-No Python, cron, SSH, or persistent daemon is required for the web node itself.
-The voice mirror uses public GitHub evidence with a short `/tmp` cache and falls
-back to the checked-in status snapshot if outbound GitHub access is unavailable.
+Requirements for the dynamic node: PHP 8+, HTTPS, and writable local storage under
+`state/`. No Python, cron, SSH, or persistent daemon is required by the web node.
+The PHP voice mirror uses public GitHub evidence with a short `/tmp` cache and
+falls back to the checked-in snapshot when outbound GitHub access is unavailable.
 
-Deploy this directory to the desired arkmatx web root or subdirectory. The node
-identity remains `Aurum-Arkmatx` regardless of carrier.
+The static mirrors require no hosting password or deployment credential. Deploy
+this directory to the desired Arkmatx web root when credentials are restored; the
+node identity remains `Aurum-Arkmatx` regardless of carrier.
