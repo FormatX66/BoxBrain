@@ -70,6 +70,9 @@ jobs:
             3 { Write-Host 'AURUM_LOCAL_LANE_RECOVERY bounded-repair=skipped reason=broader-drift-review-required' }
             default { throw "Bounded Aurum local-lane repair failed with exit code $code" }
           }
+          # Handled bounded outcomes are policy decisions, not workflow failures.
+          # Clear the native process status so the authorized worker recovery below can continue.
+          exit 0
 
       - name: Locate authorized checkout and self-heal Aurum worker
         shell: powershell
