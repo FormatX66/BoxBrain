@@ -8,6 +8,9 @@ WEB = ROOT / "Web" / "Aurum-Arkmatx"
 DASHBOARD = WEB / "dashboard.html"
 VOICE = WEB / "voice-status.php"
 SNAPSHOT = WEB / "voice-status-snapshot.json"
+STATIC_JSON = WEB / "voice-status.json"
+STATIC_TEXT = WEB / "voice-status.txt"
+STATIC_VIEW = WEB / "voice-status" / "index.html"
 HTACCESS = WEB / ".htaccess"
 DEPLOY = ROOT / ".github" / "workflows" / "deploy-aurum-arkmatx.yml"
 REPO_MIRROR = ROOT / "AURUM_VOICE_STATUS.md"
@@ -54,6 +57,23 @@ class DashboardVoiceStatusContractTests(unittest.TestCase):
         self.assertIn("aurum_set_all_stage($payload, 'booted', true)", text)
         self.assertNotIn("Authorization: Bearer", text)
 
+    def test_no_secret_static_voice_mirrors_match_the_seeded_floor(self):
+        payload = json.loads(STATIC_JSON.read_text(encoding="utf-8"))
+        self.assertEqual("repository-static-mirror", payload["source"])
+        self.assertEqual("awaiting-boot-proof", payload["overall"]["state"])
+        self.assertEqual(7, len(payload["human_capabilities"]))
+        for capability in payload["human_capabilities"]:
+            self.assertTrue(capability["stages"]["seeded"])
+            self.assertFalse(capability["stages"]["booted"])
+            self.assertFalse(capability["stages"]["used"])
+        text = STATIC_TEXT.read_text(encoding="utf-8")
+        self.assertIn("AURUM VOICE STATUS", text)
+        self.assertIn("4/6", text)
+        self.assertIn("run 32525836598", text)
+        view = STATIC_VIEW.read_text(encoding="utf-8")
+        self.assertIn("../voice-status.txt", view)
+        self.assertIn("Read Aurum Voice Status", view)
+
     def test_stable_voice_routes_and_repository_fallback_exist(self):
         routes = HTACCESS.read_text(encoding="utf-8")
         self.assertIn("^voice-status/?$", routes)
@@ -64,8 +84,20 @@ class DashboardVoiceStatusContractTests(unittest.TestCase):
         self.assertIn("Defined, Executable, Tested, and Seeded on BBPI4", mirror)
         self.assertIn("4/6", mirror)
         self.assertIn("Deploying into an already-running seed earns", mirror)
+        self.assertIn("raw.githubusercontent.com", mirror)
 
-    def test_deployment_lints_verifies_and_receipts_both_surfaces(self):
+    def test_deployment_validates_static_mirrors_without_hosting_secrets(self):
+        text = DEPLOY.read_text(encoding="utf-8")
+        self.assertIn("Detect hosted deployment configuration", text)
+        self.assertIn("configured=false", text)
+        self.assertIn("Validate no-secret dashboard and voice mirrors", text)
+        self.assertIn("WEB_STATIC_MIRROR_OK", text)
+        self.assertIn("web-static-mirror-{run_id}-attempt-{attempt}.json", text)
+        self.assertIn("steps.config.outputs.configured == 'true'", text)
+        self.assertIn("steps.config.outputs.configured != 'true'", text)
+        self.assertNotIn("Missing $name", text)
+
+    def test_hosted_deployment_still_lints_verifies_and_receipts_both_surfaces(self):
         text = DEPLOY.read_text(encoding="utf-8")
         self.assertIn("php -l '$REMOTE_PATH/voice-status.php'", text)
         self.assertIn("$base/dashboard", text)
@@ -73,7 +105,7 @@ class DashboardVoiceStatusContractTests(unittest.TestCase):
         self.assertIn("$base/voice-status.json", text)
         self.assertIn("AURUM_VOICE_MIRROR_OK", text)
         self.assertIn("WEB_MIRROR_OK", text)
-        self.assertIn("web-mirror-$run_id-attempt-$attempt.json", text)
+        self.assertIn("web-mirror-{run_id}-attempt-{attempt}.json", text)
 
 
 if __name__ == "__main__":
