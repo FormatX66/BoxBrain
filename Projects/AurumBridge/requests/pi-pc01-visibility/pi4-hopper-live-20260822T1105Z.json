@@ -1,0 +1,16 @@
+{
+  "schema": "aurum-direct-pi-pc01-hopper-visibility-request-v1",
+  "created_at": "2026-08-22T11:05:00Z",
+  "purpose": "Fresh Pi4 to Hopper peer, service, and HDMI capture proof after Pi4 boot and AP/Wi-Fi recovery",
+  "read_only": true,
+  "requested_checks": [
+    "pi4-runner-alive",
+    "pi4-addresses",
+    "hopper-resolution",
+    "hopper-ping",
+    "hopper-services-8765-8768",
+    "usb-inventory",
+    "video-device-enumeration",
+    "single-hdmi-frame-if-available"
+  ]
+}
