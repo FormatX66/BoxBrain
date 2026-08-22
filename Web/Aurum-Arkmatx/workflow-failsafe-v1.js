@@ -1,4 +1,5 @@
-/* AURUM_WORKFLOW_FAILSAFE_V1_1_CANONICAL
+/* AURUM_WORKFLOW_FAILSAFE_V1_CANONICAL
+ * AURUM_WORKFLOW_FAILSAFE_V1_1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Surfaces durable Aurum Actions readback without turning workflow failures into human tasks.
  * Recent completed failures are enriched with live failed job/step names from GitHub Actions.
