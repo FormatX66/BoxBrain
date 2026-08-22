@@ -1,0 +1,330 @@
+{
+  "github_workflow_run": 32556588325,
+  "observed_at": 1787379461,
+  "schema": "aurum-failsafe-run-history-v1",
+  "source_commit": "0e3074bad15ed5da8c1cc110c6bf00bd95ed2e8f",
+  "workflows": {
+    "aurum-authorized-windows-ap.yml": {
+      "runs": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-21T21:08:18Z",
+          "event": "workflow_dispatch",
+          "head_sha": "27b455d9d8d3cb9e391891616272423d5272baad",
+          "id": 32527048313,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T21:09:49Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T20:58:46Z",
+          "event": "workflow_dispatch",
+          "head_sha": "a7f197fcc48c6812bde0987bb6ea29f019acc439",
+          "id": 32526267830,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:59:12Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-21T20:54:13Z",
+          "event": "workflow_dispatch",
+          "head_sha": "5b13be0d330cae95562ca38f511d0758042c4214",
+          "id": 32525894516,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:55:50Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T20:50:41Z",
+          "event": "workflow_dispatch",
+          "head_sha": "aa5243d2dd6ec5cd50919d5c50d0d2d0e224e195",
+          "id": 32525607071,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:51:25Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T20:41:08Z",
+          "event": "workflow_dispatch",
+          "head_sha": "d474e2908392c48585c27eec8c8fa9ce675e3dd3",
+          "id": 32524812575,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:41:43Z"
+        }
+      ]
+    },
+    "aurum-autobuild.yml": {
+      "runs": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T05:03:22Z",
+          "event": "workflow_dispatch",
+          "head_sha": "c85b81d87169fa446b0f91743ef5d0e4475badf5",
+          "id": 32553338286,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T05:03:32Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:58:18Z",
+          "event": "workflow_dispatch",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32553111122,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:58:29Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:48Z",
+          "event": "workflow_dispatch",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552863596,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:58Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:29Z",
+          "event": "workflow_dispatch",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552850627,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:41Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:08Z",
+          "event": "workflow_dispatch",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552834111,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:22Z"
+        }
+      ]
+    },
+    "aurum-boxbrain-hopper-route-test.yml": {
+      "runs": [
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-22T03:23:52Z",
+          "event": "push",
+          "head_sha": "85122f67a1bda880383c03186574f09207651474",
+          "id": 32548854553,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T03:25:36Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-22T03:23:45Z",
+          "event": "push",
+          "head_sha": "90dedb48e133c1c6cb61813770c27f5a94dc2f36",
+          "id": 32548849108,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T03:24:50Z"
+        }
+      ]
+    },
+    "aurum-dual-seed-lanes.yml": {
+      "runs": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-21T21:07:14Z",
+          "event": "push",
+          "head_sha": "6772fe99a59a9a543d15159ca123ab62f3dea47a",
+          "id": 32526963157,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T21:08:10Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-21T20:57:51Z",
+          "event": "push",
+          "head_sha": "135903665a79b70589eb6354b3b1ce1c752dd248",
+          "id": 32526192517,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:58:38Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-21T20:53:30Z",
+          "event": "push",
+          "head_sha": "e7d7a8db5d8552c3ab47b683a0da091625879f1b",
+          "id": 32525836598,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:54:39Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T20:49:38Z",
+          "event": "push",
+          "head_sha": "dc2646c5b79ae6f2549dc461bd8e4bd97686a814",
+          "id": 32525518373,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:50:22Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T20:40:20Z",
+          "event": "push",
+          "head_sha": "9cd673bfc6734533cca5bb2ea77f5cd1a79ea1fa",
+          "id": 32524743632,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T20:41:01Z"
+        }
+      ]
+    },
+    "aurum-event-bridge.yml": {
+      "runs": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T05:03:14Z",
+          "event": "workflow_run",
+          "head_sha": "c85b81d87169fa446b0f91743ef5d0e4475badf5",
+          "id": 32553333228,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T05:03:25Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:58:08Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32553104423,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:58:22Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:45Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552861503,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:58Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:42Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552859334,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:50Z"
+        },
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:19Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552843291,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:32Z"
+        }
+      ]
+    },
+    "aurum-pc01-flash-authorized.yml": {
+      "runs": [
+        {
+          "conclusion": "success",
+          "created_at": "2026-08-22T04:52:42Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552859349,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T05:03:12Z"
+        },
+        {
+          "conclusion": "cancelled",
+          "created_at": "2026-08-22T04:52:19Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552843295,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:52:43Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-22T04:51:59Z",
+          "event": "workflow_run",
+          "head_sha": "da9dc8951b86c9acc3ee255f2057020ced2dac85",
+          "id": 32552827303,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:58:07Z"
+        },
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-22T04:44:38Z",
+          "event": "workflow_run",
+          "head_sha": "08228a334d6702c06b555b873162c89d57bad44c",
+          "id": 32552500070,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:46:12Z"
+        },
+        {
+          "conclusion": "cancelled",
+          "created_at": "2026-08-22T04:44:28Z",
+          "event": "workflow_run",
+          "head_sha": "08228a334d6702c06b555b873162c89d57bad44c",
+          "id": 32552493144,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-22T04:44:39Z"
+        }
+      ]
+    },
+    "aurum-pi4-enrollment-diagnostic-once.yml": {
+      "runs": [
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T13:38:41Z",
+          "event": "push",
+          "head_sha": "cec08a1835c74ba1527fe7816a7c0d1292ea7a5c",
+          "id": 32487919920,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T13:38:55Z"
+        }
+      ]
+    },
+    "aurum-pi4-identity-recovery-once.yml": {
+      "runs": [
+        {
+          "conclusion": "failure",
+          "created_at": "2026-08-21T13:30:53Z",
+          "event": "push",
+          "head_sha": "1002c2f28d48559e0bc1cd0e41ec985b939f2eac",
+          "id": 32487237052,
+          "run_attempt": 1,
+          "status": "completed",
+          "updated_at": "2026-08-21T13:31:11Z"
+        }
+      ]
+    }
+  }
+}
