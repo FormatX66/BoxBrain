@@ -45,3 +45,20 @@ Aurum should always prefer propagation over installation:
 The long-term goal is that even first contact with new hardware can increasingly be seeded by another authorized Aurum node or trusted local transport, reducing dependence on manually prepared media further.
 
 This rule is architectural, not a Hopper-specific convenience.
+
+## Generation proof
+
+Every running-seed generation records its authorized repository, branch, commit
+and tree; source verification; staged file manifest; rollback location; applied
+hash proof; physical projection result; bounded GPT executor receipt; and the
+final `become_next_seed` decision. Hopper publishes a sanitized view of this
+receipt through its read-only self-debug status channel.
+
+`become_next_seed` is true only after installed runtime hashes, bounded GPT
+execution, system activation, and a real physical projection have all passed.
+The physical receipt distinguishes the primary HTML renderer from the automatic
+Pygame fallback instead of treating either path as implied success.
+
+An unavailable OpenAI credential may leave the model-call portion unproven, but
+it does not remove or weaken the local bounded executor. Experimental Aurum LLM
+adapter training remains outside this generation gate.

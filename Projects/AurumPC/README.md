@@ -35,6 +35,8 @@ The installed PC-01 sandbox has a machine-bound unattended policy keyed to its i
 
 The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
 
+Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`. Hopper's read-only self-debug channel exposes the landed commit and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, and `become_next_seed` proof without enabling remote shell control.
+
 ## Adaptive driver synthesis
 
 `aurum_driver_synthesis.py` builds a confidence-scored exact-device dossier from OS hardware metadata, modaliases, the currently proven bound driver and module hash/metadata, and repeated read-only controlled observations. It queues one non-critical target at a time and emits a candidate behavior contract. When the matching kernel build toolchain is available it may compile a non-binding shadow `.ko` carrier to prove the build path.

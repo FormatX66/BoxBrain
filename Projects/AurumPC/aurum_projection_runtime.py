@@ -227,7 +227,7 @@ class ProjectionRuntime:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=900,
+            timeout=300,
             env=env,
         )
         browser = _browser()

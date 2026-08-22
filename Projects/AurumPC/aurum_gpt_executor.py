@@ -157,8 +157,7 @@ def _receipt(operation: str, result: dict[str, Any], *, state_dir: Path = DEFAUL
     return payload
 
 
-def status_snapshot() -> dict[str, Any]:
-    state = DEFAULT_STATE
+def status_snapshot(state: Path = DEFAULT_STATE) -> dict[str, Any]:
     identity = _json_file(state / "machine-identity.json")
     runtime = _json_file(state / "runtime-update.json")
     desktop = _json_file(state / "desktop-ui.json")
@@ -175,13 +174,14 @@ def status_snapshot() -> dict[str, Any]:
     }
 
 
-def execute_control(action: str) -> dict[str, Any]:
+def execute_control(action: str, *, state_dir: Path | None = None) -> dict[str, Any]:
     action = str(action or "").strip().lower()
+    receipt_state = state_dir or DEFAULT_STATE
     if action not in CONTROL_ACTIONS:
         raise GptExecutorError(f"unsupported GPT control action: {action or '<empty>'}")
 
     if action == "status":
-        result = {"status": "observed", "state": status_snapshot()}
+        result = {"status": "observed", "state": status_snapshot(receipt_state)}
     elif action == "time-sync":
         module = _module("aurum_time")
         result = module.synchronize_clock(timeout_seconds=20)
@@ -220,7 +220,7 @@ def execute_control(action: str) -> dict[str, Any]:
 
     if not isinstance(result, dict):
         result = {"status": "completed", "value": result}
-    return _receipt(action, result)
+    return _receipt(action, result, state_dir=receipt_state)
 
 
 def read_workspace(relative_path: str, *, start_line: int = 1, end_line: int = 240) -> dict[str, Any]:
@@ -241,7 +241,7 @@ def read_workspace(relative_path: str, *, start_line: int = 1, end_line: int = 2
         "line_count": len(lines),
         "content": "\n".join(selected),
     }
-    return _receipt("workspace-read", result)
+    return _receipt("workspace-read", result, state_dir=DEFAULT_STATE)
 
 
 def replace_workspace(relative_path: str, before: str, after: str) -> dict[str, Any]:
@@ -281,7 +281,7 @@ def replace_workspace(relative_path: str, before: str, after: str) -> dict[str, 
             "backup": str(backup),
             "applied": False,
         }
-        return _receipt("workspace-replace", result)
+        return _receipt("workspace-replace", result, state_dir=DEFAULT_STATE)
 
     result = {
         "status": "changed",
@@ -292,7 +292,7 @@ def replace_workspace(relative_path: str, before: str, after: str) -> dict[str, 
         "runtime_apply_required": str(raw).startswith("Projects/AurumPC/"),
         "git_promoted": False,
     }
-    return _receipt("workspace-replace", result)
+    return _receipt("workspace-replace", result, state_dir=DEFAULT_STATE)
 
 
 def main() -> int:

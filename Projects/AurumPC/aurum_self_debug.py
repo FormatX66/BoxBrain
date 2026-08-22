@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import threading
 import time
 from http import HTTPStatus
@@ -17,7 +18,7 @@ from aurum_input import status as input_status
 from aurum_network import network_status
 from aurum_runtime_update import RuntimeUpdater, RuntimeUpdateError
 
-SCHEMA = "aurum.self-debug.v2"
+SCHEMA = "aurum.self-debug.v3"
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_PORT = 8768
@@ -47,6 +48,35 @@ class HopperSelfDebugger:
         self.gui = GuiRuntime(workspace=workspace, state_dir=state_dir)
         self.runtime = RuntimeUpdater(workspace=workspace, state_dir=state_dir)
 
+    def _git_identity(self) -> dict[str, Any]:
+        def run(*arguments: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ["git", *arguments],
+                cwd=self.workspace,
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=15,
+            )
+
+        try:
+            branch = run("branch", "--show-current")
+            head = run("rev-parse", "HEAD")
+            dirty = run("status", "--porcelain=v1")
+        except (OSError, subprocess.SubprocessError):
+            return {"verified": False, "reason": "git-inspection-failed"}
+        branch_value = branch.stdout.strip()
+        head_value = head.stdout.strip()
+        clean = dirty.returncode == 0 and not dirty.stdout.strip()
+        verified = bool(branch_value == "aurum/trunk-v0.01" and len(head_value) == 40 and clean)
+        return {
+            "verified": verified,
+            "branch": branch_value or None,
+            "head": head_value or None,
+            "clean": clean,
+        }
+
     def _collect(self) -> dict[str, Any]:
         inp = input_status(apply_wake=False)
         try:
@@ -63,6 +93,13 @@ class HopperSelfDebugger:
             "runtime": runtime,
             "network": network_status(),
             "self_build": _json(self.state_dir / "self-build-progress.json"),
+            "autonomy_receipt": _json(self.state_dir / "autonomy.json"),
+            "runtime_receipt": _json(self.state_dir / "runtime-update.json"),
+            "generation_receipt": _json(self.state_dir / "seed-generation.json"),
+            "gpt_receipt": _json(self.state_dir / "gpt-control" / "latest.json"),
+            "projection_receipt": _json(self.state_dir / "hopper-projection.json"),
+            "desktop_receipt": _json(self.state_dir / "desktop-ui.json"),
+            "source": self._git_identity(),
         }
 
     @staticmethod
@@ -85,7 +122,7 @@ class HopperSelfDebugger:
         runtime = state["runtime"]
         if runtime.get("status") == "failed":
             issues.append({"code": "RUNTIME_STATUS_FAILED", "severity": "red", "plain": "Aurum could not inspect the installed runtime."})
-        elif runtime.get("changes") or runtime.get("system_changed"):
+        elif runtime.get("changed") or runtime.get("system_changed"):
             issues.append({"code": "RUNTIME_UPDATE_PENDING", "severity": "amber", "plain": "A newer workspace state is ready to install."})
 
         if not state["network"].get("online"):
@@ -97,6 +134,14 @@ class HopperSelfDebugger:
     def status(self) -> dict[str, Any]:
         state = self._collect()
         issues = self._issues(state)
+        runtime_pending = bool(state["runtime"].get("changed") or state["runtime"].get("system_changed"))
+        generation = state["generation_receipt"]
+        if not generation:
+            runtime_generation = state["runtime_receipt"].get("generation")
+            generation = runtime_generation if isinstance(runtime_generation, dict) else {}
+        desktop = state["gui"].get("desktop") if isinstance(state["gui"].get("desktop"), dict) else {}
+        gpt_generation = (generation.get("prove") or {}).get("gpt") if isinstance(generation.get("prove"), dict) else {}
+        gpt_receipt = state["gpt_receipt"]
         payload = {
             "schema": SCHEMA,
             "machine": "Hopper",
@@ -112,12 +157,35 @@ class HopperSelfDebugger:
             "gui": {
                 "status": state["gui"].get("status"),
                 "physical_desktop": bool(state["gui"].get("physical_desktop")),
-                "desktop_status": (state["gui"].get("desktop") or {}).get("status"),
+                "desktop_status": desktop.get("status"),
+                "renderer": desktop.get("renderer"),
+                "html_primary": bool(desktop.get("renderer") == "html5" and desktop.get("primary") is True),
+                "pygame_fallback_available": desktop.get("fallback") == "pygame",
+                "projection_receipt": state["projection_receipt"],
+                "desktop_receipt": state["desktop_receipt"],
             },
             "runtime": {
                 "schema": state["runtime"].get("schema"),
-                "status": state["runtime"].get("status"),
-                "changes": bool(state["runtime"].get("changes") or state["runtime"].get("system_changed")),
+                "status": "pending" if runtime_pending else (state["runtime_receipt"].get("status") or "current"),
+                "changes": runtime_pending,
+                "receipt": state["runtime_receipt"],
+            },
+            "gpt": {
+                "status": gpt_generation.get("status") or ("receipted" if gpt_receipt else "unproven"),
+                "bounded_executor": bool(
+                    gpt_receipt.get("schema") == "aurum.gpt-control-receipt.gen1-direct-control"
+                    and gpt_receipt.get("direct_shell_contract") is False
+                ),
+                "operation": gpt_receipt.get("operation"),
+                "model_status": gpt_generation.get("model_status"),
+                "model_call_proven": bool(gpt_generation.get("model_call_proven")),
+                "raw_shell": False,
+            },
+            "generation": {
+                "source": state["source"],
+                "lifecycle": generation,
+                "become_next_seed": bool(generation.get("become_next_seed")),
+                "autonomy_cycle": state["autonomy_receipt"].get("generation"),
             },
             "network": {"online": bool(state["network"].get("online"))},
             "boundary": {

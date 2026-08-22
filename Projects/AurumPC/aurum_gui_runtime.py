@@ -237,7 +237,11 @@ class GuiRuntime:
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=35 if action == "start" else 8,
+                # First HTML projection may need to install the bounded local
+                # renderer set before it can claim VT2.  Keep the caller alive
+                # long enough to finish that one-time preparation and still
+                # fall back to Pygame deterministically if verification fails.
+                timeout=360 if action == "start" else 8,
             )
         except (OSError, subprocess.SubprocessError) as exc:
             return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}", "surface": "physical"}

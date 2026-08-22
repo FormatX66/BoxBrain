@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -31,7 +32,6 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             system_root = root / "system"
             state = root / "state"
             marker = root / "aurum-installed.json"
-            (workspace / ".git").mkdir(parents=True)
             source.mkdir(parents=True)
             target.mkdir()
             marker.write_text("{}\n", encoding="utf-8")
@@ -42,6 +42,12 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 asset = source / "runtime-assets" / relative
                 asset.parent.mkdir(parents=True, exist_ok=True)
                 asset.write_text(f"managed asset: {relative}\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-b", runtime_module.BRANCH], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.name", "Aurum Test"], cwd=workspace, check=True)
+            subprocess.run(["git", "config", "user.email", "aurum-test@example.invalid"], cwd=workspace, check=True)
+            subprocess.run(["git", "remote", "add", "origin", runtime_module.REPOSITORY], cwd=workspace, check=True)
+            subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+            subprocess.run(["git", "commit", "-m", "test generation"], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
 
             updater = RuntimeUpdater(
                 workspace=workspace,
@@ -56,15 +62,25 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(set(plan["system_changed"]), {name for name, _mode in SYSTEM_ASSETS})
             self.assertFalse(plan["identity"]["authorized"])
 
-            with patch.object(runtime_module.os, "geteuid", return_value=0, create=True):
+            with (
+                patch.object(runtime_module.os, "geteuid", return_value=0, create=True),
+                patch.object(updater, "_activate_system_integration", return_value={"status": "ready", "reason": "simulated-system-root"}),
+                patch.object(updater, "_restart_gui", return_value={
+                    "status": "running",
+                    "physical_desktop": True,
+                    "desktop": {"status": "running", "renderer": "html5", "primary": True},
+                }),
+                patch.object(updater, "_gpt_proof", return_value={"status": "passed", "model_call_proven": False}),
+            ):
                 result = updater.apply()
             self.assertEqual(result["status"], "updated")
             self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v4")
+            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v5")
             self.assertTrue(Path(receipt["backup"]).is_dir())
             self.assertEqual(receipt["system_activation"]["reason"], "simulated-system-root")
+            self.assertTrue(receipt["generation"]["become_next_seed"])
             for name in ALLOWLIST:
                 self.assertEqual((target / name).read_text(encoding="utf-8"), f"VALUE = {name!r}\n")
             for relative, mode in SYSTEM_ASSETS:

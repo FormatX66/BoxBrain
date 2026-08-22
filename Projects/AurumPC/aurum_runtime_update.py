@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import py_compile
@@ -15,7 +16,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum-pc-runtime-update-v4"
+SCHEMA = "aurum-pc-runtime-update-v5"
+GENERATION_SCHEMA = "aurum.seed-generation-receipt.v1"
+REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
+BRANCH = "aurum/trunk-v0.01"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_TARGET = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
@@ -44,6 +48,7 @@ ALLOWLIST = (
     "aurum_installer.py",
     "aurum_network.py",
     "aurum_runtime_update.py",
+    "aurum_self_debug.py",
     "aurum_time.py",
     "aurum_traits.py",
     "aurum_wifi_diag.py",
@@ -110,6 +115,56 @@ class RuntimeUpdater:
         self.installed_marker = installed_marker
         self.system_root = system_root
         self.asset_source = self.source / "runtime-assets"
+
+    def _git(self, *arguments: str, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=self.workspace,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+
+    def _source_identity(self) -> dict[str, Any]:
+        if not (self.workspace / ".git").is_dir():
+            return {"verified": False, "reason": "git-workspace-unavailable"}
+        origin = self._git("remote", "get-url", "origin")
+        branch = self._git("branch", "--show-current")
+        head = self._git("rev-parse", "HEAD")
+        tree = self._git("rev-parse", "HEAD^{tree}")
+        dirty = self._git("status", "--porcelain=v1")
+        origin_value = origin.stdout.strip()
+        branch_value = branch.stdout.strip()
+        head_value = head.stdout.strip()
+        tree_value = tree.stdout.strip()
+        exact_origin = bool(
+            origin.returncode == 0
+            and origin_value.rstrip("/").removesuffix(".git") == REPOSITORY.removesuffix(".git")
+        )
+        exact_branch = branch.returncode == 0 and branch_value == BRANCH
+        clean = dirty.returncode == 0 and not dirty.stdout.strip()
+        verified = bool(
+            exact_origin
+            and exact_branch
+            and clean
+            and head.returncode == 0
+            and re.fullmatch(r"[0-9a-f]{40}", head_value)
+            and tree.returncode == 0
+            and re.fullmatch(r"[0-9a-f]{40}", tree_value)
+        )
+        return {
+            "verified": verified,
+            "repository": origin_value,
+            "branch": branch_value,
+            "head": head_value or None,
+            "tree": tree_value or None,
+            "exact_origin": exact_origin,
+            "exact_branch": exact_branch,
+            "clean": clean,
+            "reason": "verified-authorized-source" if verified else "source-verification-failed",
+        }
 
     def _identity_plan(self) -> dict[str, Any]:
         policy = _json_file(self.source / "pc01_autonomy_policy.json")
@@ -294,7 +349,7 @@ class RuntimeUpdater:
             run("daemon-reload")
         enable = run("enable", "aurum-input-bootstrap.service", "aurum-pc-console.service")
         active = run("is-active", "--quiet", "aurum-input-bootstrap.service")
-        input_changed = "aurum_input.py" in changed or any(
+        input_changed = bool({"aurum_input.py", "aurum_self_debug.py"}.intersection(changed)) or any(
             name.endswith("aurum-input-bootstrap.service") or name.endswith("aurum-input-wake")
             for name in system_changed
         )
@@ -311,7 +366,9 @@ class RuntimeUpdater:
             "boot_screen_visible_on_next_boot": True,
         }
 
-    def _restart_gui(self, changed: list[str], system_changed: list[str]) -> dict[str, Any]:
+    def _restart_gui(
+        self, changed: list[str], system_changed: list[str], *, ensure_running: bool = False
+    ) -> dict[str, Any]:
         policy = _json_file(self.source / "pc01_autonomy_policy.json")
         if policy.get("auto_gui_start") is not True:
             return {"status": "skipped", "reason": "automatic-gui-disabled"}
@@ -319,30 +376,36 @@ class RuntimeUpdater:
             "aurum_desktop.py",
             "aurum_desktop_runtime.py",
             "aurum_gui_runtime.py",
+            "aurum_gpt_executor.py",
+            "aurum_gpt_trait.py",
             "aurum_hopper_gui.py",
             "aurum_input.py",
+            "aurum_projection_runtime.py",
+            "aurum_web_surface.py",
         }
         libinput_changed = "etc/X11/xorg.conf.d/40-aurum-libinput.conf" in system_changed
-        if not gui_files.intersection(changed) and not libinput_changed:
+        if not ensure_running and not gui_files.intersection(changed) and not libinput_changed:
             return {"status": "skipped", "reason": "gui-runtime-unchanged"}
         runtime = self.target / "aurum_gui_runtime.py"
         if not runtime.is_file():
             return {"status": "skipped", "reason": "gui-runtime-not-installed"}
-        stop = subprocess.run(
-            [sys.executable, str(runtime), "stop"],
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=15,
-        )
+        stop = None
+        if not ensure_running:
+            stop = subprocess.run(
+                [sys.executable, str(runtime), "stop"],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=15,
+            )
         start = subprocess.run(
             [sys.executable, str(runtime), "start"],
             check=False,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=70,
+            timeout=390,
         )
         try:
             payload = json.loads(start.stdout.strip().splitlines()[-1]) if start.stdout.strip() else {}
@@ -350,8 +413,9 @@ class RuntimeUpdater:
             payload = {"status": "failed", "detail": start.stdout[-1600:]}
         if not isinstance(payload, dict):
             payload = {"status": "failed", "detail": "GUI runtime returned non-object"}
-        payload["stop_returncode"] = stop.returncode
+        payload["stop_returncode"] = stop.returncode if stop is not None else None
         payload["start_returncode"] = start.returncode
+        payload["ensure_running"] = ensure_running
         return payload
 
     def plan(self) -> dict[str, Any]:
@@ -394,6 +458,7 @@ class RuntimeUpdater:
                     "changed": source_sha != target_sha or target_mode != mode,
                 }
             )
+        source_identity = self._source_identity()
         return {
             "schema": SCHEMA,
             "available": True,
@@ -405,9 +470,12 @@ class RuntimeUpdater:
             "system_files": system_files,
             "system_changed": [item["name"] for item in system_files if item["changed"]],
             "identity": self._identity_plan(),
+            "source": source_identity,
         }
 
-    def _validate_sources(self) -> None:
+    def _validate_sources(self, source_identity: dict[str, Any]) -> dict[str, Any]:
+        if not source_identity.get("verified"):
+            raise RuntimeUpdateError("generation source is not the clean authorized Aurum trunk")
         with tempfile.TemporaryDirectory(prefix="aurum-runtime-compile-") as temporary:
             output = Path(temporary)
             for name in ALLOWLIST:
@@ -420,6 +488,148 @@ class RuntimeUpdater:
             source = self.asset_source / relative
             if not source.is_file() or source.stat().st_size == 0:
                 raise RuntimeUpdateError(f"allowlisted system asset is empty or missing: {relative}")
+        return {
+            "status": "passed",
+            "source_verified": True,
+            "compiled_runtime_files": len(ALLOWLIST),
+            "verified_system_assets": len(SYSTEM_ASSETS),
+        }
+
+    def _stage_generation(
+        self,
+        *,
+        source_identity: dict[str, Any],
+        changed: list[str],
+        system_changed: list[str],
+    ) -> tuple[Path, dict[str, Any]]:
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        head = str(source_identity.get("head") or "unknown")
+        stage = self.state_dir / "generation-stage" / f"{stamp}-{head[:12]}-{os.getpid()}"
+        runtime_stage = stage / "runtime"
+        system_stage = stage / "system"
+        runtime_stage.mkdir(parents=True, mode=0o700, exist_ok=False)
+        staged_runtime: list[dict[str, Any]] = []
+        staged_system: list[dict[str, Any]] = []
+        for name in changed:
+            source = self.source / name
+            target = runtime_stage / name
+            shutil.copy2(source, target)
+            os.chmod(target, 0o700)
+            if _sha256(target) != _sha256(source):
+                raise RuntimeUpdateError(f"staged runtime hash verification failed for {name}")
+            staged_runtime.append({"name": name, "sha256": _sha256(target)})
+        for relative, mode in SYSTEM_ASSETS:
+            if relative not in system_changed:
+                continue
+            source = self.asset_source / relative
+            target = system_stage / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            os.chmod(target, mode)
+            if _sha256(target) != _sha256(source):
+                raise RuntimeUpdateError(f"staged system hash verification failed for {relative}")
+            staged_system.append({"name": relative, "sha256": _sha256(target), "mode": mode})
+        with tempfile.TemporaryDirectory(prefix="aurum-stage-compile-") as temporary:
+            output = Path(temporary)
+            for item in staged_runtime:
+                name = str(item["name"])
+                py_compile.compile(str(runtime_stage / name), cfile=str(output / f"{name}.pyc"), doraise=True)
+        manifest = {
+            "schema": "aurum.seed-generation-stage.v1",
+            "status": "verified",
+            "source": source_identity,
+            "runtime": staged_runtime,
+            "system": staged_system,
+            "staged_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        _atomic_json(stage / "manifest.json", manifest)
+        return stage, manifest
+
+    def _installed_hash_proof(self, plan: dict[str, Any]) -> dict[str, Any]:
+        mismatches: list[str] = []
+        for item in plan.get("files") or []:
+            target = self.target / str(item["name"])
+            if not target.is_file() or _sha256(target) != str(item["source_sha256"]):
+                mismatches.append(str(item["name"]))
+        for item in plan.get("system_files") or []:
+            target = self.system_root / str(item["name"])
+            if (
+                not target.is_file()
+                or _sha256(target) != str(item["source_sha256"])
+                or (target.stat().st_mode & 0o777) != int(item["mode"])
+            ):
+                mismatches.append(str(item["name"]))
+        return {
+            "status": "passed" if not mismatches else "failed",
+            "verified_runtime_files": len(plan.get("files") or []) - len([x for x in mismatches if "/" not in x]),
+            "verified_system_assets": len(plan.get("system_files") or []) - len([x for x in mismatches if "/" in x]),
+            "mismatches": mismatches,
+        }
+
+    def _gpt_proof(self) -> dict[str, Any]:
+        executor_path = self.target / "aurum_gpt_executor.py"
+        trait_path = self.target / "aurum_gpt_trait.py"
+        if not executor_path.is_file() or not trait_path.is_file():
+            return {"status": "failed", "reason": "installed-gpt-runtime-missing"}
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"aurum_generation_gpt_executor_{os.getpid()}_{time.time_ns()}", executor_path
+            )
+            if spec is None or spec.loader is None:
+                raise RuntimeUpdateError("installed GPT executor could not be loaded")
+            executor = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = executor
+            spec.loader.exec_module(executor)
+            executor.DEFAULT_STATE = self.state_dir
+            executor.DEFAULT_WORKSPACE = self.workspace
+            executor.DEFAULT_RUNTIME = self.target
+            catalog = executor.catalog()
+            receipt = executor.execute_control("status", state_dir=self.state_dir)
+
+            trait_spec = importlib.util.spec_from_file_location(
+                f"aurum_generation_gpt_trait_{os.getpid()}_{time.time_ns()}", trait_path
+            )
+            if trait_spec is None or trait_spec.loader is None:
+                raise RuntimeUpdateError("installed GPT trait could not be loaded")
+            trait = importlib.util.module_from_spec(trait_spec)
+            sys.modules[trait_spec.name] = trait
+            trait_spec.loader.exec_module(trait)
+            trait.DEFAULT_STATE = self.state_dir
+            trait.DEFAULT_WORKSPACE = self.workspace
+            trait.DEFAULT_RUNTIME = self.target
+            trait_status = trait.status()
+        except Exception as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        passed = bool(
+            catalog.get("direct_shell_contract") is False
+            and catalog.get("authority") == "aurum-policy-broker"
+            and receipt.get("schema") == "aurum.gpt-control-receipt.gen1-direct-control"
+            and (receipt.get("result") or {}).get("status") == "observed"
+            and trait_status.get("function_tools") is True
+            and trait_status.get("raw_shell") is False
+        )
+        return {
+            "status": "passed" if passed else "failed",
+            "bounded_executor_receipt": receipt,
+            "function_tools": bool(trait_status.get("function_tools")),
+            "raw_shell": bool(trait_status.get("raw_shell")),
+            "model_status": trait_status.get("status"),
+            "model_call_proven": False,
+        }
+
+    @staticmethod
+    def _physical_proof(gui: dict[str, Any]) -> dict[str, Any]:
+        desktop = gui.get("desktop") if isinstance(gui.get("desktop"), dict) else {}
+        renderer = desktop.get("renderer")
+        running = bool(gui.get("physical_desktop") and desktop.get("status") == "running")
+        return {
+            "status": "passed" if running else "failed",
+            "physical_desktop": running,
+            "renderer": renderer,
+            "html_primary": bool(running and renderer == "html5" and desktop.get("primary") is True),
+            "pygame_fallback": bool(running and renderer == "pygame-fallback"),
+            "detail": desktop,
+        }
 
     def apply(self) -> dict[str, Any]:
         plan = self.plan()
@@ -427,7 +637,8 @@ class RuntimeUpdater:
             return plan
         if os.geteuid() != 0:
             raise RuntimeUpdateError("installed runtime update requires the root-owned Aurum console")
-        self._validate_sources()
+        source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+        verification = self._validate_sources(source_identity)
         identity = self._apply_identity()
         changed = list(plan.get("changed") or [])
         system_changed = list(plan.get("system_changed") or [])
@@ -435,26 +646,58 @@ class RuntimeUpdater:
             activation = self._launch_physical_echo()
             input_activation = self._refresh_input()
             system_activation = self._activate_system_integration([], [])
+            gui_activation = self._restart_gui([], [], ensure_running=True)
+            installed_proof = self._installed_hash_proof(plan)
+            gpt_proof = self._gpt_proof()
+            physical_proof = self._physical_proof(gui_activation)
+            become_next_seed = bool(
+                installed_proof.get("status") == "passed"
+                and gpt_proof.get("status") == "passed"
+                and physical_proof.get("status") == "passed"
+                and system_activation.get("status") == "ready"
+            )
+            lifecycle = {
+                "schema": GENERATION_SCHEMA,
+                "source": source_identity,
+                "discover_pull": "verified-by-autonomy-receipt",
+                "verify": verification,
+                "stage": {"status": "not-required", "reason": "installed-hashes-current"},
+                "apply": {"status": "current", "changed": [], "system_changed": []},
+                "prove": {
+                    "runtime": installed_proof,
+                    "physical": physical_proof,
+                    "gpt": gpt_proof,
+                },
+                "become_next_seed": become_next_seed,
+            }
             result = {
                 **plan,
-                "status": "current",
+                "status": "current" if become_next_seed else "applied-not-proven",
                 "reboot_required": False,
                 "identity": identity,
                 "physical_echo_activation": activation,
                 "input_activation": input_activation,
                 "system_activation": system_activation,
+                "gui_activation": gui_activation,
+                "generation": lifecycle,
             }
             _atomic_json(self.state_dir / "runtime-update.json", result)
+            _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
             return result
         self.target.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        stage, stage_manifest = self._stage_generation(
+            source_identity=source_identity,
+            changed=changed,
+            system_changed=system_changed,
+        )
         backup = self.state_dir / "runtime-backup" / f"{stamp}-{os.getpid()}"
         backup.mkdir(parents=True, mode=0o700, exist_ok=False)
         applied: list[str] = []
         applied_system: list[str] = []
         try:
             for name in changed:
-                source = self.source / name
+                source = stage / "runtime" / name
                 target = self.target / name
                 if target.is_file():
                     shutil.copy2(target, backup / name)
@@ -468,7 +711,7 @@ class RuntimeUpdater:
             for relative, mode in SYSTEM_ASSETS:
                 if relative not in system_changed:
                     continue
-                source = self.asset_source / relative
+                source = stage / "system" / relative
                 target = self.system_root / relative
                 saved = backup / "system" / relative
                 if target.is_file():
@@ -502,9 +745,37 @@ class RuntimeUpdater:
         activation = self._launch_physical_echo()
         input_activation = self._refresh_input()
         gui_activation = self._restart_gui(applied, applied_system)
+        installed_proof = self._installed_hash_proof(plan)
+        gpt_proof = self._gpt_proof()
+        physical_proof = self._physical_proof(gui_activation)
+        become_next_seed = bool(
+            installed_proof.get("status") == "passed"
+            and gpt_proof.get("status") == "passed"
+            and physical_proof.get("status") == "passed"
+            and system_activation.get("status") == "ready"
+        )
+        lifecycle = {
+            "schema": GENERATION_SCHEMA,
+            "source": source_identity,
+            "discover_pull": "verified-by-autonomy-receipt",
+            "verify": verification,
+            "stage": {**stage_manifest, "path": str(stage)},
+            "apply": {
+                "status": "passed" if installed_proof.get("status") == "passed" else "failed",
+                "changed": applied,
+                "system_changed": applied_system,
+                "backup": str(backup),
+            },
+            "prove": {
+                "runtime": installed_proof,
+                "physical": physical_proof,
+                "gpt": gpt_proof,
+            },
+            "become_next_seed": become_next_seed,
+        }
         receipt = {
             "schema": SCHEMA,
-            "status": "updated",
+            "status": "updated" if become_next_seed else "applied-not-proven",
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
@@ -517,8 +788,11 @@ class RuntimeUpdater:
             "input_activation": input_activation,
             "system_activation": system_activation,
             "gui_activation": gui_activation,
+            "source": source_identity,
+            "generation": lifecycle,
         }
         _atomic_json(self.state_dir / "runtime-update.json", receipt)
+        _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
         return receipt
 
 

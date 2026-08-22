@@ -161,11 +161,42 @@ class AutonomyManager:
         fetched = _run(["git", "fetch", "--prune", "origin", BRANCH], cwd=self.workspace, timeout=180)
         if fetched.returncode != 0:
             return {"status": "failed", "phase": "fetch", "detail": fetched.stdout[-1500:], "before": before}
+        fetched_head_result = _run(["git", "rev-parse", "FETCH_HEAD"], cwd=self.workspace, timeout=20)
+        fetched_head = fetched_head_result.stdout.strip() if fetched_head_result.returncode == 0 else None
+        if not fetched_head:
+            return {"status": "failed", "phase": "verify", "reason": "fetched-head-unavailable", "before": before}
+        if before:
+            ancestry = _run(["git", "merge-base", "--is-ancestor", before, fetched_head], cwd=self.workspace, timeout=30)
+            if ancestry.returncode != 0:
+                return {
+                    "status": "refused",
+                    "phase": "verify",
+                    "reason": "non-fast-forward-generation",
+                    "before": before,
+                    "fetched_head": fetched_head,
+                }
         merged = _run(["git", "merge", "--ff-only", "FETCH_HEAD"], cwd=self.workspace, timeout=120)
         if merged.returncode != 0:
             return {"status": "failed", "phase": "merge", "detail": merged.stdout[-1500:], "before": before}
         after = self._git_head()
-        return {"status": "ready", "before": before, "head": after, "changed": before != after}
+        clean_after = _run(["git", "status", "--porcelain=v1"], cwd=self.workspace, timeout=30)
+        verified = bool(after == fetched_head and clean_after.returncode == 0 and not clean_after.stdout.strip())
+        return {
+            "status": "ready" if verified else "failed",
+            "phase": "verified" if verified else "verify",
+            "before": before,
+            "head": after,
+            "fetched_head": fetched_head,
+            "changed": before != after,
+            "verification": {
+                "passed": verified,
+                "exact_origin": True,
+                "exact_branch": True,
+                "fast_forward_only": True,
+                "head_matches_fetched": after == fetched_head,
+                "clean": clean_after.returncode == 0 and not clean_after.stdout.strip(),
+            },
+        }
 
     def _subprocess_json(self, script: Path, *arguments: str, timeout: int = 300) -> dict[str, Any]:
         if not script.is_file():
@@ -181,7 +212,7 @@ class AutonomyManager:
         return payload
 
     def _runtime_sync(self) -> dict[str, Any]:
-        return self._subprocess_json(self.source / "aurum_runtime_update.py", "apply", timeout=120)
+        return self._subprocess_json(self.source / "aurum_runtime_update.py", "apply", timeout=480)
 
     def _driver_cycle(self) -> dict[str, Any]:
         return self._subprocess_json(
@@ -259,6 +290,16 @@ class AutonomyManager:
             "self_build": self_build,
             "last_self_build_head": last_self_build_head,
             "gui": gui,
+            "generation": {
+                "schema": "aurum.seed-generation-cycle.v1",
+                "discover": {"status": "passed" if network.get("online") else "failed"},
+                "pull": {"status": git.get("status"), "changed": bool(git.get("changed"))},
+                "verify": git.get("verification") or {"passed": False, "reason": git.get("reason")},
+                "stage": ((runtime.get("generation") or {}).get("stage") if isinstance(runtime.get("generation"), dict) else None),
+                "apply": ((runtime.get("generation") or {}).get("apply") if isinstance(runtime.get("generation"), dict) else None),
+                "prove": ((runtime.get("generation") or {}).get("prove") if isinstance(runtime.get("generation"), dict) else None),
+                "become_next_seed": bool((runtime.get("generation") or {}).get("become_next_seed")) if isinstance(runtime.get("generation"), dict) else False,
+            },
             "next_cycle_seconds": int(self.policy.get("poll_interval_seconds") or 300),
             "unattended": True,
             "pushes_git": False,
