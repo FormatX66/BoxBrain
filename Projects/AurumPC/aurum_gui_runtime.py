@@ -50,7 +50,7 @@ class GuiRuntime:
         self.gui_script = workspace / "Projects" / "AurumPC" / "aurum_hopper_gui.py"
         self.arcade_script = workspace / "Projects" / "AurumPC" / "aurum_arcade.py"
         self.policy_path = workspace / "Projects" / "AurumPC" / "pc01_autonomy_policy.json"
-        self.desktop_runtime = runtime_root / "aurum_desktop_runtime.py"
+        self.desktop_runtime = runtime_root / "aurum_projection_runtime.py"
         self.desktop_script = runtime_root / "aurum_desktop.py"
         self.bootstrap_mind = workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json"
         self.pid_path = run_dir / "aurum-gui.pid"

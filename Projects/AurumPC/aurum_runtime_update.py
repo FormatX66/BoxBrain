@@ -38,6 +38,8 @@ ALLOWLIST = (
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
+    "aurum_projection_runtime.py",
+    "aurum_web_surface.py",
     "aurum_input.py",
     "aurum_installer.py",
     "aurum_network.py",
