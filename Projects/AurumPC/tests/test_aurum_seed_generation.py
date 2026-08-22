@@ -71,7 +71,7 @@ class AurumSeedGenerationTests(unittest.TestCase):
         self.assertTrue(adapter.is_dir())
         self.assertNotIn("AurumLLM", runtime_module.ALLOWLIST)
 
-    def test_stale_projection_cleanup_signals_only_recognized_launch_groups(self) -> None:
+    def test_stale_projection_cleanup_signals_only_recognized_launch_sessions(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             runtime = projection_module.ProjectionRuntime(
@@ -84,24 +84,45 @@ class AurumSeedGenerationTests(unittest.TestCase):
             runtime.run_dir.mkdir(parents=True)
             snapshots = [
                 {
-                    101: {"command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run", "group": 91},
-                    102: {"command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run", "group": 92},
+                    101: {
+                        "command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run",
+                        "group": 91,
+                        "session": 81,
+                        "state": "S",
+                    },
+                    102: {
+                        "command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run",
+                        "group": 92,
+                        "session": 81,
+                        "state": "S",
+                    },
                 },
-                {},
-                {},
-                {},
-                {},
             ]
+            members = {
+                80: {"command": "/usr/bin/openvt -c 2", "group": 80, "session": 81, "state": "S"},
+                101: snapshots[0][101],
+                102: snapshots[0][102],
+            }
             with (
                 patch.object(runtime, "_recognized_vt2_processes", side_effect=snapshots),
-                patch.object(runtime, "_signal_groups", return_value={}) as signal_groups,
+                patch.object(runtime, "_session_members", side_effect=[members, {}, {}, {}, {}]),
+                patch.object(runtime, "_signal_processes", return_value={}) as signal_processes,
             ):
                 result = runtime._clear_stale_vt2()
 
         self.assertEqual(result["status"], "cleared")
         self.assertEqual(result["groups"], [91, 92])
-        signal_groups.assert_any_call({91, 92}, signal.SIGTERM)
-        signal_groups.assert_any_call({91, 92}, signal.SIGKILL)
+        self.assertEqual(result["sessions"], [81])
+        signal_processes.assert_any_call({80, 101, 102}, signal.SIGTERM)
+        signal_processes.assert_any_call(set(), signal.SIGKILL)
+
+    def test_cleanup_blocks_only_for_a_surviving_vt2_x_server(self) -> None:
+        processes = {
+            80: {"command": "/usr/lib/xorg/Xorg :0 vt2 -nolisten tcp"},
+            81: {"command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run"},
+            82: {"command": "/usr/lib/xorg/Xorg :1 vt3 -nolisten tcp"},
+        }
+        self.assertEqual(projection_module.ProjectionRuntime._vt2_servers(processes), [80])
 
 
 if __name__ == "__main__":

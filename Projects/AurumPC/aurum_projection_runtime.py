@@ -123,14 +123,39 @@ class ProjectionRuntime:
     def _owned(self, pid: int) -> bool:
         return "aurum_web_surface.py" in self._cmdline(pid)
 
+    @staticmethod
+    def _process_state(pid: int) -> str | None:
+        try:
+            value = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+        try:
+            return value.rsplit(")", 1)[1].strip().split()[0]
+        except (IndexError, ValueError):
+            return None
+
+    def _process_record(self, pid: int) -> dict[str, Any] | None:
+        try:
+            group = os.getpgid(pid)
+            session = os.getsid(pid)
+        except (OSError, ProcessLookupError):
+            return None
+        return {
+            "command": self._cmdline(pid)[:500],
+            "group": group,
+            "session": session,
+            "state": self._process_state(pid),
+        }
+
     def _recognized_vt2_processes(self) -> dict[int, dict[str, Any]]:
-        """Return exact Aurum presentation clients and their launch groups.
+        """Return exact Aurum presentation clients and their launch sessions.
 
         ``openvt`` and ``xinit`` can outlive a child that was signalled by PID
-        and leave the rest of its VT2 launch tree behind.  The presentation
-        clients are started in their own sessions, so their process group is
-        the narrow ownership boundary that includes those wrappers and Xorg
-        without touching unrelated system processes.
+        and leave the rest of its VT2 launch tree behind.  Aurum starts each
+        presentation in a new session, although xinit may split that session
+        into multiple process groups.  The session is therefore the narrow
+        ownership boundary that includes the wrappers and Xorg without
+        touching unrelated system processes.
         """
         found: dict[int, dict[str, Any]] = {}
         try:
@@ -139,7 +164,7 @@ class ProjectionRuntime:
             return found
         surface = str(self.surface)
         desktop = str(self.desktop)
-        current_group = os.getpgrp()
+        current_session = os.getsid(0)
         for entry in entries:
             if not entry.name.isdigit():
                 continue
@@ -152,55 +177,94 @@ class ProjectionRuntime:
             aurum_client = surface in command or f"{desktop} run" in command
             if not aurum_client:
                 continue
-            try:
-                group = os.getpgid(pid)
-            except (OSError, ProcessLookupError):
+            record = self._process_record(pid)
+            if record is None:
                 continue
-            if group <= 1 or group == current_group:
+            if int(record["session"]) <= 1 or int(record["session"]) == current_session:
                 continue
-            found[pid] = {"command": command[:500], "group": group}
+            found[pid] = record
+        return found
+
+    def _session_members(self, sessions: set[int]) -> dict[int, dict[str, Any]]:
+        found: dict[int, dict[str, Any]] = {}
+        if not sessions:
+            return found
+        try:
+            entries = list(Path("/proc").iterdir())
+        except OSError:
+            return found
+        current_session = os.getsid(0)
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
+            pid = int(entry.name)
+            if pid <= 1 or pid == os.getpid():
+                continue
+            record = self._process_record(pid)
+            if record is None:
+                continue
+            session = int(record["session"])
+            if session in sessions and session != current_session:
+                found[pid] = record
         return found
 
     @staticmethod
-    def _signal_groups(groups: set[int], sig: signal.Signals) -> dict[int, str]:
+    def _signal_processes(pids: set[int], sig: signal.Signals) -> dict[int, str]:
         errors: dict[int, str] = {}
-        for group in sorted(groups):
+        for pid in sorted(pids, reverse=True):
             try:
-                os.killpg(group, sig)
+                os.kill(pid, sig)
             except ProcessLookupError:
                 pass
             except (OSError, PermissionError) as exc:
-                errors[group] = f"{type(exc).__name__}:{exc}"
+                errors[pid] = f"{type(exc).__name__}:{exc}"
         return errors
+
+    @staticmethod
+    def _vt2_servers(processes: dict[int, dict[str, Any]]) -> list[int]:
+        return sorted(
+            pid
+            for pid, item in processes.items()
+            if "vt2" in str(item.get("command") or "")
+            and ("Xorg" in str(item.get("command") or "") or "/X " in str(item.get("command") or ""))
+        )
 
     def _clear_stale_vt2(self) -> dict[str, Any]:
         before = self._recognized_vt2_processes()
         if not before:
             return {"status": "clear", "terminated": []}
         groups = {int(item["group"]) for item in before.values()}
-        errors = self._signal_groups(groups, signal.SIGTERM)
+        sessions = {int(item["session"]) for item in before.values()}
+        members = self._session_members(sessions)
+        errors = self._signal_processes(set(members), signal.SIGTERM)
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
-            remaining = self._recognized_vt2_processes()
+            remaining = self._session_members(sessions)
             if not remaining:
                 break
             time.sleep(0.15)
-        remaining = self._recognized_vt2_processes()
-        kill_groups = groups | {int(item["group"]) for item in remaining.values()}
-        errors.update(self._signal_groups(kill_groups, signal.SIGKILL))
+        remaining = self._session_members(sessions)
+        errors.update(self._signal_processes(set(remaining), signal.SIGKILL))
         kill_deadline = time.monotonic() + 3
-        while time.monotonic() < kill_deadline and self._recognized_vt2_processes():
+        while time.monotonic() < kill_deadline and self._session_members(sessions):
             time.sleep(0.1)
-        after = self._recognized_vt2_processes()
+        after = self._session_members(sessions)
+        remaining_servers = self._vt2_servers(after)
         self.pid_path.unlink(missing_ok=True)
         (self.run_dir / "aurum-desktop.pid").unlink(missing_ok=True)
         return {
-            "status": "cleared" if not after else "failed",
+            # A kill-pending client can remain in uninterruptible kernel state,
+            # but cannot present without an Aurum-session X server.  Only a
+            # surviving VT2 server keeps the display contested.
+            "status": "cleared" if not remaining_servers else "failed",
             "terminated": sorted(before),
             "groups": sorted(groups),
+            "sessions": sorted(sessions),
             "commands": [str(before[pid]["command"]) for pid in sorted(before)],
             "remaining": sorted(after),
-            "signal_errors": {str(group): detail for group, detail in sorted(errors.items())},
+            "remaining_states": {str(pid): after[pid].get("state") for pid in sorted(after)},
+            "remaining_vt2_servers": remaining_servers,
+            "signal_errors": {str(pid): detail for pid, detail in sorted(errors.items())},
         }
 
     def _log_tail(self) -> str:
