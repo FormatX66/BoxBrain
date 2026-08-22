@@ -1,0 +1,33 @@
+{
+  "schema": "aurum-llm-training-policy-v1",
+  "generation": "adapter-0",
+  "base_model": "Qwen/Qwen3.5-0.8B",
+  "method": "lora",
+  "training_data": {
+    "provenance_required": true,
+    "allowed_origins": [
+      "aurum-project-owned",
+      "verified-aurum-machine-trace",
+      "permissively-licensed-open-data"
+    ],
+    "forbidden_origins": [
+      "openai-output",
+      "chatgpt-output",
+      "private-user-conversation",
+      "secret-or-credential-material",
+      "unlicensed-scrape"
+    ],
+    "secret_scan_required": true,
+    "user_content_default": "exclude"
+  },
+  "promotion": {
+    "automatic": false,
+    "baseline_comparison_required": true,
+    "regression_reject": true,
+    "rollback_checkpoint_required": true
+  },
+  "authority": {
+    "model_is_authority": false,
+    "deterministic_verification_external_to_model": true
+  }
+}
