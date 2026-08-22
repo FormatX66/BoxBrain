@@ -36,6 +36,17 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertIn("user_content_captured = $false", collector)
         self.assertNotIn("systemctl enable", collector)
 
+    def test_recovery_survives_windows_runner_home_drift_without_weakening_ssh_identity(self) -> None:
+        workflow = RECOVERY.read_text(encoding="utf-8")
+
+        self.assertIn("$keyCandidates", workflow)
+        self.assertIn("Join-Path $env:USERPROFILE '.ssh\\boxbrain_pi_ed25519'", workflow)
+        self.assertIn("Get-ChildItem 'C:\\Users' -Directory", workflow)
+        self.assertIn("Split-Path -Parent $key", workflow)
+        self.assertIn("Join-Path $keyDirectory 'known_hosts'", workflow)
+        self.assertIn("The dedicated BBPI4 SSH key is unavailable", workflow)
+        self.assertIn("The pinned SSH known-hosts file is unavailable", workflow)
+
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
         self.assertIn("aurum-external-evidence-recovery.yml", workflow)
