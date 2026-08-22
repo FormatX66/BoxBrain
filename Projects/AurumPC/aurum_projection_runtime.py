@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+"""HTML-first physical projection runtime for Hopper.
+
+The primary human surface is the loopback Aurum HTML projection rendered in a
+sandboxed kiosk browser on VT2.  The existing Pygame desktop runtime remains an
+automatic fallback if the web renderer cannot be prepared or verified.
+"""
+from __future__ import annotations
+
+import argparse
+import grp
+import importlib.util
+import json
+import os
+import pwd
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+SCHEMA = "aurum.hopper-projection.gen1-html-primary"
+DEFAULT_POLICY = Path(__file__).with_name("pc01_autonomy_policy.json")
+DEFAULT_RECEIPT = Path("/etc/aurum-installed.json")
+DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
+DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
+DEFAULT_FALLBACK = Path("/opt/aurum/aurum_desktop_runtime.py")
+DEFAULT_DESKTOP = Path("/opt/aurum/aurum_desktop.py")
+DEFAULT_SURFACE = Path("/opt/aurum/aurum_web_surface.py")
+DEFAULT_URL = "http://127.0.0.1:8765/"
+UI_USER = "aurum-ui"
+
+
+def _json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _load(path: Path, prefix: str):
+    if not path.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location(f"{prefix}_{os.getpid()}_{time.time_ns()}", path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    except Exception:
+        return None
+
+
+def _browser() -> str | None:
+    configured = os.environ.get("AURUM_WEB_RENDERER", "").strip()
+    if configured and Path(configured).is_file():
+        return configured
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+class ProjectionRuntime:
+    def __init__(self, *, policy: Path, receipt: Path, state_dir: Path, run_dir: Path, desktop: Path) -> None:
+        self.policy_path = policy
+        self.receipt_path = receipt
+        self.state_dir = state_dir
+        self.run_dir = run_dir
+        self.desktop = desktop
+        self.surface = Path(os.environ.get("AURUM_WEB_SURFACE", str(DEFAULT_SURFACE)))
+        self.fallback = Path(os.environ.get("AURUM_PYGAME_RUNTIME", str(DEFAULT_FALLBACK)))
+        self.state_path = state_dir / "hopper-projection.json"
+        self.receipt = state_dir / "desktop-ui.json"
+        self.pid_path = run_dir / "aurum-web-surface.pid"
+        self.log_path = state_dir / "hopper-projection.log"
+
+    def _authorized(self) -> tuple[bool, str]:
+        fallback = _load(self.fallback, "aurum_desktop_runtime_auth")
+        if fallback is None:
+            return False, "fallback-runtime-unavailable"
+        try:
+            runtime = fallback.HopperDesktopRuntime(
+                policy_path=self.policy_path,
+                receipt_path=self.receipt_path,
+                state_dir=self.state_dir,
+                run_dir=self.run_dir,
+                desktop=self.desktop,
+            )
+            return runtime.authorization()
+        except Exception as exc:
+            return False, f"authorization-error:{type(exc).__name__}"
+
+    def _pid(self) -> int | None:
+        try:
+            pid = int(self.pid_path.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return None
+        return pid if pid > 1 else None
+
+    @staticmethod
+    def _cmdline(pid: int) -> str:
+        try:
+            return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+        except OSError:
+            return ""
+
+    def _owned(self, pid: int) -> bool:
+        return "aurum_web_surface.py" in self._cmdline(pid)
+
+    def _fallback_runtime(self):
+        module = _load(self.fallback, "aurum_desktop_runtime_fallback")
+        if module is None:
+            return None
+        return module.HopperDesktopRuntime(
+            policy_path=self.policy_path,
+            receipt_path=self.receipt_path,
+            state_dir=self.state_dir,
+            run_dir=self.run_dir,
+            desktop=self.desktop,
+        )
+
+    def status(self) -> dict[str, Any]:
+        authorized, reason = self._authorized()
+        pid = self._pid()
+        receipt = _json(self.receipt)
+        if pid and self._owned(pid) and receipt.get("status") == "running" and receipt.get("renderer") == "html5":
+            return {
+                "schema": SCHEMA,
+                "status": "running",
+                "authorized": authorized,
+                "authorization_reason": reason,
+                "machine": "Hopper",
+                "surface": "physical",
+                "renderer": "html5",
+                "primary": True,
+                "fallback": "pygame",
+                "pid": pid,
+                "vt": 2,
+                "desktop": receipt,
+            }
+        fallback = self._fallback_runtime()
+        if fallback is not None:
+            try:
+                current = fallback.status()
+            except Exception:
+                current = {}
+            if current.get("status") == "running":
+                return {
+                    "schema": SCHEMA,
+                    "status": "running",
+                    "authorized": authorized,
+                    "authorization_reason": reason,
+                    "machine": "Hopper",
+                    "surface": "physical",
+                    "renderer": "pygame-fallback",
+                    "primary": False,
+                    "fallback": "pygame",
+                    "vt": current.get("vt", 2),
+                    "desktop": current.get("desktop") or {},
+                }
+        return {
+            "schema": SCHEMA,
+            "status": "stopped",
+            "authorized": authorized,
+            "authorization_reason": reason,
+            "machine": "Hopper",
+            "surface": "physical",
+            "renderer": None,
+            "primary": False,
+            "fallback": "pygame",
+            "vt": 2,
+        }
+
+    def _ensure_ui_user(self) -> dict[str, Any]:
+        try:
+            account = pwd.getpwnam(UI_USER)
+            return {"status": "ready", "user": UI_USER, "uid": account.pw_uid, "created": False}
+        except KeyError:
+            pass
+        useradd = shutil.which("useradd")
+        if not useradd or os.geteuid() != 0:
+            return {"status": "missing", "reason": "useradd-or-root-unavailable"}
+        home = "/var/lib/aurum/ui"
+        result = subprocess.run(
+            [useradd, "--system", "--create-home", "--home-dir", home, "--shell", "/usr/sbin/nologin", UI_USER],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return {"status": "failed", "detail": result.stdout[-1000:]}
+        account = pwd.getpwnam(UI_USER)
+        return {"status": "ready", "user": UI_USER, "uid": account.pw_uid, "created": True}
+
+    def _ensure_dependencies(self) -> dict[str, Any]:
+        browser = _browser()
+        ready = bool(browser and shutil.which("xinit") and shutil.which("openvt") and shutil.which("xhost"))
+        if ready:
+            return {"status": "ready", "browser": browser, "installed": False}
+        policy = _json(self.policy_path)
+        if policy.get("install_local_display_dependencies") is not True:
+            return {"status": "missing", "reason": "dependency-install-disabled", "browser": browser}
+        apt = shutil.which("apt-get")
+        if not apt or os.geteuid() != 0:
+            return {"status": "missing", "reason": "apt-or-root-unavailable", "browser": browser}
+        env = dict(os.environ)
+        env["DEBIAN_FRONTEND"] = "noninteractive"
+        result = subprocess.run(
+            [apt, "install", "-y", "--no-install-recommends", "chromium", "xserver-xorg", "xinit", "x11-xserver-utils", "xserver-xorg-input-libinput", "kbd"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=900,
+            env=env,
+        )
+        browser = _browser()
+        ready = bool(result.returncode == 0 and browser and shutil.which("xinit") and shutil.which("openvt") and shutil.which("xhost"))
+        return {
+            "status": "ready" if ready else "failed",
+            "browser": browser,
+            "installed": True,
+            "detail": "" if ready else result.stdout[-1800:],
+        }
+
+    def _stop_web(self) -> None:
+        pid = self._pid()
+        if pid and self._owned(pid):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            deadline = time.monotonic() + 6
+            while time.monotonic() < deadline and self._owned(pid):
+                time.sleep(0.1)
+            if self._owned(pid):
+                os.kill(pid, signal.SIGKILL)
+        self.pid_path.unlink(missing_ok=True)
+
+    def _start_web(self) -> dict[str, Any] | None:
+        deps = self._ensure_dependencies()
+        user = self._ensure_ui_user()
+        if deps.get("status") != "ready" or user.get("status") != "ready" or not self.surface.is_file():
+            _atomic(self.state_path, {"schema": SCHEMA, "status": "web-unavailable", "dependencies": deps, "ui_user": user})
+            return None
+        self._stop_web()
+        openvt = shutil.which("openvt")
+        xinit = shutil.which("xinit")
+        env_tool = shutil.which("env") or "/usr/bin/env"
+        python = shutil.which("python3") or sys.executable
+        assert openvt and xinit
+        command = [
+            openvt, "-c", "2", "-s", "-f", "--",
+            xinit,
+            env_tool,
+            f"AURUM_STATE_DIR={self.state_dir}",
+            f"AURUM_RUN_DIR={self.run_dir}",
+            f"AURUM_WEB_RENDERER={deps.get('browser')}",
+            python, str(self.surface),
+            "--url", DEFAULT_URL,
+            "--state-dir", str(self.state_dir),
+            "--run-dir", str(self.run_dir),
+            "--ui-user", UI_USER,
+            "--", ":0", "vt2", "-nolisten", "tcp",
+        ]
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        log = self.log_path.open("ab", buffering=0)
+        try:
+            subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log, close_fds=True, start_new_session=True)
+        finally:
+            log.close()
+        deadline = time.monotonic() + 35
+        while time.monotonic() < deadline:
+            current = self.status()
+            if current.get("renderer") == "html5" and current.get("status") == "running":
+                current["dependencies"] = deps
+                current["ui_user"] = user
+                _atomic(self.state_path, current)
+                return current
+            receipt = _json(self.receipt)
+            if receipt.get("renderer") == "html5" and receipt.get("status") == "failed":
+                break
+            time.sleep(0.35)
+        self._stop_web()
+        return None
+
+    def start(self) -> dict[str, Any]:
+        authorized, reason = self._authorized()
+        if not authorized:
+            result = {"schema": SCHEMA, "status": "refused", "authorized": False, "reason": reason}
+            _atomic(self.state_path, result)
+            return result
+        if os.geteuid() != 0:
+            return {"schema": SCHEMA, "status": "failed", "reason": "root-owned-runtime-required"}
+        current = self.status()
+        if current.get("status") == "running" and current.get("renderer") == "html5":
+            return current
+        web = self._start_web()
+        if web is not None:
+            return web
+        fallback = self._fallback_runtime()
+        if fallback is None:
+            result = {"schema": SCHEMA, "status": "failed", "reason": "web-and-fallback-unavailable"}
+            _atomic(self.state_path, result)
+            return result
+        try:
+            fallback_result = fallback.start()
+        except Exception as exc:
+            fallback_result = {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        result = {
+            "schema": SCHEMA,
+            "status": fallback_result.get("status", "failed"),
+            "authorized": True,
+            "machine": "Hopper",
+            "surface": "physical",
+            "renderer": "pygame-fallback" if fallback_result.get("status") == "running" else None,
+            "primary": False,
+            "fallback": "pygame",
+            "fallback_result": fallback_result,
+        }
+        _atomic(self.state_path, result)
+        return result
+
+    def stop(self) -> dict[str, Any]:
+        self._stop_web()
+        fallback = self._fallback_runtime()
+        if fallback is not None:
+            try:
+                fallback.stop()
+            except Exception:
+                pass
+        result = self.status()
+        _atomic(self.state_path, result)
+        return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Hopper HTML-first physical projection manager")
+    parser.add_argument("command", choices=("status", "start", "stop"))
+    parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    parser.add_argument("--receipt", type=Path, default=DEFAULT_RECEIPT)
+    parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN)
+    parser.add_argument("--desktop", type=Path, default=DEFAULT_DESKTOP)
+    args = parser.parse_args()
+    runtime = ProjectionRuntime(policy=args.policy, receipt=args.receipt, state_dir=args.state_dir, run_dir=args.run_dir, desktop=args.desktop)
+    try:
+        if args.command == "start":
+            result = runtime.start()
+        elif args.command == "stop":
+            result = runtime.stop()
+        else:
+            result = runtime.status()
+    except Exception as exc:
+        result = {"schema": SCHEMA, "status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+    print(json.dumps(result, sort_keys=True))
+    return 0 if result.get("status") in {"running", "stopped", "refused"} else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
