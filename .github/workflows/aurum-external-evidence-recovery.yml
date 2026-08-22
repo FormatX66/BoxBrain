@@ -62,12 +62,31 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $key = Join-Path $HOME '.ssh\boxbrain_pi_ed25519'
-          $knownHosts = Join-Path $HOME '.ssh\known_hosts'
-          if (-not (Test-Path -LiteralPath $key -PathType Leaf)) {
+          $keyCandidates = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+            'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keyCandidates += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'
+          })
+          $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) {
             throw "The dedicated BBPI4 SSH key is unavailable to the authorized Windows runner."
           }
-          if (-not (Test-Path -LiteralPath $knownHosts -PathType Leaf)) {
+
+          $keyDirectory = Split-Path -Parent $key
+          $knownHostsCandidates = @(
+            (Join-Path $keyDirectory 'known_hosts'),
+            (Join-Path $env:USERPROFILE '.ssh\known_hosts'),
+            'C:\Users\Bruce\.ssh\known_hosts',
+            'C:\Users\bruce\.ssh\known_hosts'
+          )
+          $knownHostsCandidates += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Join-Path $_.FullName '.ssh\known_hosts'
+          })
+          $knownHosts = $knownHostsCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $knownHosts) {
             throw "The pinned SSH known-hosts file is unavailable to the authorized Windows runner."
           }
 
