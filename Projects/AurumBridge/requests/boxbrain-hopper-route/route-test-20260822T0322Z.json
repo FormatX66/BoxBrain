@@ -1,0 +1,6 @@
+{
+  "schema": "aurum-boxbrain-hopper-route-request-v1",
+  "id": "route-test-20260822T0322Z",
+  "mode": "read-only",
+  "purpose": "Prove GitHub to main PC to SSH BoxBrain Pi4 to Hopper route before Aurum seed/runtime delivery"
+}
