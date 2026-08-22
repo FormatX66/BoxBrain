@@ -8,6 +8,7 @@ automatic fallback if the web renderer cannot be prepared or verified.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import grp
 import importlib.util
 import json
@@ -87,6 +88,7 @@ class ProjectionRuntime:
         self.receipt = state_dir / "desktop-ui.json"
         self.pid_path = run_dir / "aurum-web-surface.pid"
         self.log_path = state_dir / "hopper-projection.log"
+        self.lock_path = run_dir / "aurum-projection.lock"
 
     def _authorized(self) -> tuple[bool, str]:
         fallback = _load(self.fallback, "aurum_desktop_runtime_auth")
@@ -120,6 +122,64 @@ class ProjectionRuntime:
 
     def _owned(self, pid: int) -> bool:
         return "aurum_web_surface.py" in self._cmdline(pid)
+
+    def _recognized_vt2_processes(self) -> dict[int, str]:
+        found: dict[int, str] = {}
+        try:
+            entries = list(Path("/proc").iterdir())
+        except OSError:
+            return found
+        surface = str(self.surface)
+        desktop = str(self.desktop)
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
+            pid = int(entry.name)
+            if pid <= 1 or pid == os.getpid():
+                continue
+            command = self._cmdline(pid)
+            if not command:
+                continue
+            aurum_client = surface in command or desktop in command
+            dedicated_server = "vt2" in command and ("Xorg" in command or "/X " in command)
+            if aurum_client or dedicated_server:
+                found[pid] = command[:300]
+        return found
+
+    def _clear_stale_vt2(self) -> dict[str, Any]:
+        before = self._recognized_vt2_processes()
+        if not before:
+            return {"status": "clear", "terminated": []}
+        for pid in before:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            remaining = self._recognized_vt2_processes()
+            if not remaining:
+                break
+            time.sleep(0.15)
+        remaining = self._recognized_vt2_processes()
+        for pid in remaining:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        self.pid_path.unlink(missing_ok=True)
+        (self.run_dir / "aurum-desktop.pid").unlink(missing_ok=True)
+        return {
+            "status": "cleared" if not self._recognized_vt2_processes() else "failed",
+            "terminated": sorted(before),
+            "commands": [before[pid] for pid in sorted(before)],
+        }
+
+    def _log_tail(self) -> str:
+        try:
+            return self.log_path.read_text(encoding="utf-8", errors="replace")[-2400:]
+        except OSError:
+            return ""
 
     def _fallback_runtime(self):
         module = _load(self.fallback, "aurum_desktop_runtime_fallback")
@@ -260,6 +320,15 @@ class ProjectionRuntime:
             _atomic(self.state_path, {"schema": SCHEMA, "status": "web-unavailable", "dependencies": deps, "ui_user": user})
             return None
         self._stop_web()
+        stale_cleanup = self._clear_stale_vt2()
+        if stale_cleanup.get("status") == "failed":
+            _atomic(self.state_path, {
+                "schema": SCHEMA,
+                "status": "web-unavailable",
+                "reason": "stale-vt2-owner-not-cleared",
+                "stale_cleanup": stale_cleanup,
+            })
+            return None
         openvt = shutil.which("openvt")
         xinit = shutil.which("xinit")
         env_tool = shutil.which("env") or "/usr/bin/env"
@@ -292,6 +361,7 @@ class ProjectionRuntime:
             if current.get("renderer") == "html5" and current.get("status") == "running":
                 current["dependencies"] = deps
                 current["ui_user"] = user
+                current["stale_cleanup"] = stale_cleanup
                 _atomic(self.state_path, current)
                 return current
             receipt = _json(self.receipt)
@@ -299,9 +369,18 @@ class ProjectionRuntime:
                 break
             time.sleep(0.35)
         self._stop_web()
+        _atomic(self.state_path, {
+            "schema": SCHEMA,
+            "status": "web-unavailable",
+            "reason": "html-launch-not-verified",
+            "dependencies": deps,
+            "ui_user": user,
+            "stale_cleanup": stale_cleanup,
+            "log_tail": self._log_tail(),
+        })
         return None
 
-    def start(self) -> dict[str, Any]:
+    def _start_locked(self) -> dict[str, Any]:
         authorized, reason = self._authorized()
         if not authorized:
             result = {"schema": SCHEMA, "status": "refused", "authorized": False, "reason": reason}
@@ -315,6 +394,7 @@ class ProjectionRuntime:
         web = self._start_web()
         if web is not None:
             return web
+        html_failure = _json(self.state_path)
         fallback = self._fallback_runtime()
         if fallback is None:
             result = {"schema": SCHEMA, "status": "failed", "reason": "web-and-fallback-unavailable"}
@@ -334,11 +414,28 @@ class ProjectionRuntime:
             "primary": False,
             "fallback": "pygame",
             "fallback_result": fallback_result,
+            "html_failure": html_failure,
         }
         _atomic(self.state_path, result)
         return result
 
-    def stop(self) -> dict[str, Any]:
+    def start(self) -> dict[str, Any]:
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+", encoding="utf-8") as lock:
+            try:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return {
+                    "schema": SCHEMA,
+                    "status": "busy",
+                    "reason": "projection-transition-in-progress",
+                    "machine": "Hopper",
+                    "surface": "physical",
+                    "fallback": "pygame",
+                }
+            return self._start_locked()
+
+    def _stop_locked(self) -> dict[str, Any]:
         self._stop_web()
         fallback = self._fallback_runtime()
         if fallback is not None:
@@ -349,6 +446,22 @@ class ProjectionRuntime:
         result = self.status()
         _atomic(self.state_path, result)
         return result
+
+    def stop(self) -> dict[str, Any]:
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+", encoding="utf-8") as lock:
+            try:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return {
+                    "schema": SCHEMA,
+                    "status": "busy",
+                    "reason": "projection-transition-in-progress",
+                    "machine": "Hopper",
+                    "surface": "physical",
+                    "fallback": "pygame",
+                }
+            return self._stop_locked()
 
 
 def main() -> int:

@@ -40,12 +40,17 @@ class AurumSeedGenerationTests(unittest.TestCase):
         runtime = RUNTIME_PATH.read_text(encoding="utf-8")
         autonomy = (ROOT / "aurum_autonomy.py").read_text(encoding="utf-8")
         health = (ROOT / "aurum_self_debug.py").read_text(encoding="utf-8")
+        projection = (ROOT / "aurum_projection_runtime.py").read_text(encoding="utf-8")
         for marker in ("discover_pull", '"verify"', '"stage"', '"apply"', '"prove"', '"become_next_seed"'):
             self.assertIn(marker, runtime)
         self.assertIn("fast_forward_only", autonomy)
         self.assertIn('runtime.get("changed")', health)
         self.assertIn('"html_primary"', health)
         self.assertIn('"bounded_executor"', health)
+        self.assertIn("generation-proof", health)
+        self.assertIn("aurum-projection.lock", projection)
+        self.assertIn("_clear_stale_vt2", projection)
+        self.assertIn("pygame-fallback", projection)
 
     def test_named_weaves_and_nonblocking_adapter_lane_are_preserved(self) -> None:
         lifecycle = (ROOT / "SEED_LIFECYCLE.md").read_text(encoding="utf-8")

@@ -71,16 +71,25 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                     "desktop": {"status": "running", "renderer": "html5", "primary": True},
                 }),
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed", "model_call_proven": False}),
+                patch.object(updater, "_system_proof", return_value={"status": "passed", "service": "test"}),
             ):
                 result = updater.apply()
+                finalized = updater.prove_current({
+                    "status": "running",
+                    "physical_desktop": True,
+                    "desktop": {"status": "running", "renderer": "html5", "primary": True},
+                })
             self.assertEqual(result["status"], "updated")
             self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
             self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v5")
             self.assertTrue(Path(receipt["backup"]).is_dir())
-            self.assertEqual(receipt["system_activation"]["reason"], "simulated-system-root")
+            self.assertEqual(result["system_activation"]["reason"], "simulated-system-root")
             self.assertTrue(receipt["generation"]["become_next_seed"])
+            self.assertEqual(finalized["status"], "current")
+            self.assertTrue(finalized["generation"]["become_next_seed"])
+            self.assertEqual(finalized["generation"]["stage"]["status"], "verified")
             for name in ALLOWLIST:
                 self.assertEqual((target / name).read_text(encoding="utf-8"), f"VALUE = {name!r}\n")
             for relative, mode in SYSTEM_ASSETS:

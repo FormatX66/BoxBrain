@@ -566,6 +566,24 @@ class RuntimeUpdater:
             "mismatches": mismatches,
         }
 
+    def _latest_verified_stage(self, source_identity: dict[str, Any]) -> dict[str, Any] | None:
+        root = self.state_dir / "generation-stage"
+        try:
+            manifests = sorted(root.glob("*/manifest.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+        except OSError:
+            return None
+        expected_head = source_identity.get("head")
+        for path in manifests:
+            manifest = _json_file(path)
+            source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
+            if (
+                manifest.get("schema") == "aurum.seed-generation-stage.v1"
+                and manifest.get("status") == "verified"
+                and source.get("head") == expected_head
+            ):
+                return {**manifest, "status": "verified-carried-forward", "path": str(path.parent)}
+        return None
+
     def _gpt_proof(self) -> dict[str, Any]:
         executor_path = self.target / "aurum_gpt_executor.py"
         trait_path = self.target / "aurum_gpt_trait.py"
@@ -631,6 +649,94 @@ class RuntimeUpdater:
             "detail": desktop,
         }
 
+    def _system_proof(self) -> dict[str, Any]:
+        if self.system_root.resolve() != Path("/"):
+            return {"status": "skipped", "reason": "simulated-system-root"}
+        systemctl = shutil.which("systemctl")
+        if not systemctl:
+            return {"status": "failed", "reason": "systemctl-unavailable"}
+        result = subprocess.run(
+            [systemctl, "is-active", "--quiet", "aurum-input-bootstrap.service"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=20,
+        )
+        return {
+            "status": "passed" if result.returncode == 0 else "failed",
+            "service": "aurum-input-bootstrap.service",
+            "returncode": result.returncode,
+        }
+
+    def prove_current(self, gui: dict[str, Any]) -> dict[str, Any]:
+        plan = self.plan()
+        if not plan.get("available"):
+            return plan
+        if plan.get("changed") or plan.get("system_changed"):
+            return {"schema": SCHEMA, "status": "pending", "reason": "runtime-apply-required"}
+        source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+        verification = self._validate_sources(source_identity)
+        runtime_proof = self._installed_hash_proof(plan)
+        physical_proof = self._physical_proof(gui)
+        gpt_proof = self._gpt_proof()
+        system_proof = self._system_proof()
+        previous = _json_file(self.state_dir / "runtime-update.json")
+        previous_generation = previous.get("generation") if isinstance(previous.get("generation"), dict) else {}
+        previous_source = previous_generation.get("source") if isinstance(previous_generation.get("source"), dict) else {}
+        stage = None
+        if previous_source.get("head") == source_identity.get("head"):
+            candidate = previous_generation.get("stage")
+            stage = candidate if isinstance(candidate, dict) else None
+        stage = stage or self._latest_verified_stage(source_identity) or {
+            "status": "not-required",
+            "reason": "installed-hashes-current",
+        }
+        become_next_seed = bool(
+            runtime_proof.get("status") == "passed"
+            and physical_proof.get("status") == "passed"
+            and gpt_proof.get("status") == "passed"
+            and system_proof.get("status") == "passed"
+        )
+        lifecycle = {
+            "schema": GENERATION_SCHEMA,
+            "source": source_identity,
+            "discover_pull": "verified-by-autonomy-receipt",
+            "verify": verification,
+            "stage": stage,
+            "apply": {
+                "status": "passed",
+                "changed": list(previous.get("changed") or []),
+                "system_changed": list(previous.get("system_changed") or []),
+                "backup": previous.get("backup"),
+                "installed_hashes_current": True,
+            },
+            "prove": {
+                "runtime": runtime_proof,
+                "physical": physical_proof,
+                "gpt": gpt_proof,
+                "system": system_proof,
+            },
+            "become_next_seed": become_next_seed,
+            "proved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        receipt = {
+            "schema": SCHEMA,
+            "status": "current" if become_next_seed else "applied-not-proven",
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "workspace": str(self.workspace),
+            "target": str(self.target),
+            "changed": list(previous.get("changed") or []),
+            "system_changed": list(previous.get("system_changed") or []),
+            "backup": previous.get("backup"),
+            "reboot_required": False,
+            "source": source_identity,
+            "generation": lifecycle,
+        }
+        _atomic_json(self.state_dir / "runtime-update.json", receipt)
+        _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
+        return receipt
+
     def apply(self) -> dict[str, Any]:
         plan = self.plan()
         if not plan.get("available"):
@@ -650,6 +756,7 @@ class RuntimeUpdater:
             installed_proof = self._installed_hash_proof(plan)
             gpt_proof = self._gpt_proof()
             physical_proof = self._physical_proof(gui_activation)
+            carried_stage = self._latest_verified_stage(source_identity)
             become_next_seed = bool(
                 installed_proof.get("status") == "passed"
                 and gpt_proof.get("status") == "passed"
@@ -661,7 +768,7 @@ class RuntimeUpdater:
                 "source": source_identity,
                 "discover_pull": "verified-by-autonomy-receipt",
                 "verify": verification,
-                "stage": {"status": "not-required", "reason": "installed-hashes-current"},
+                "stage": carried_stage or {"status": "not-required", "reason": "installed-hashes-current"},
                 "apply": {"status": "current", "changed": [], "system_changed": []},
                 "prove": {
                     "runtime": installed_proof,
@@ -673,6 +780,7 @@ class RuntimeUpdater:
             result = {
                 **plan,
                 "status": "current" if become_next_seed else "applied-not-proven",
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "reboot_required": False,
                 "identity": identity,
                 "physical_echo_activation": activation,
@@ -741,6 +849,41 @@ class RuntimeUpdater:
                 else:
                     target.unlink(missing_ok=True)
             raise
+        installed_before_activation = self._installed_hash_proof(plan)
+        interim_lifecycle = {
+            "schema": GENERATION_SCHEMA,
+            "source": source_identity,
+            "discover_pull": "verified-by-autonomy-receipt",
+            "verify": verification,
+            "stage": {**stage_manifest, "path": str(stage)},
+            "apply": {
+                "status": "passed" if installed_before_activation.get("status") == "passed" else "failed",
+                "changed": applied,
+                "system_changed": applied_system,
+                "backup": str(backup),
+            },
+            "prove": {
+                "runtime": installed_before_activation,
+                "physical": {"status": "pending"},
+                "gpt": {"status": "pending"},
+                "system": {"status": "pending"},
+            },
+            "become_next_seed": False,
+        }
+        _atomic_json(self.state_dir / "seed-generation.json", interim_lifecycle)
+        _atomic_json(self.state_dir / "runtime-update.json", {
+            "schema": SCHEMA,
+            "status": "applied-awaiting-proof",
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "workspace": str(self.workspace),
+            "target": str(self.target),
+            "changed": applied,
+            "system_changed": applied_system,
+            "backup": str(backup),
+            "reboot_required": False,
+            "source": source_identity,
+            "generation": interim_lifecycle,
+        })
         system_activation = self._activate_system_integration(applied, applied_system)
         activation = self._launch_physical_echo()
         input_activation = self._refresh_input()

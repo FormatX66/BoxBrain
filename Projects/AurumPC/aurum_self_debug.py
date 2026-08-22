@@ -222,6 +222,19 @@ class HopperSelfDebugger:
             except (GuiRuntimeError, OSError) as exc:
                 actions.append({"action": "gui-start", "status": "failed", "detail": type(exc).__name__})
 
+        generation = _json(self.state_dir / "seed-generation.json")
+        if not generation.get("become_next_seed"):
+            try:
+                gui_proof = self.gui.status()
+                finalized = self.runtime.prove_current(gui_proof)
+                actions.append({
+                    "action": "generation-proof",
+                    "status": finalized.get("status"),
+                    "become_next_seed": bool((finalized.get("generation") or {}).get("become_next_seed")),
+                })
+            except (RuntimeUpdateError, OSError, subprocess.SubprocessError) as exc:
+                actions.append({"action": "generation-proof", "status": "failed", "detail": type(exc).__name__})
+
         after = self.status()
         result = {
             **after,
