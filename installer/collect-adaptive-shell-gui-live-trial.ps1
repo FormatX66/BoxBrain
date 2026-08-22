@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [ValidateSet("10.12.194.1")]
+    [ValidateSet("10.12.194.1", "10.42.194.1", "bbpi4.local", "192.168.0.194")]
     [string]$PiAddress = "10.12.194.1",
     [ValidatePattern("^[a-z_][a-z0-9_-]{0,31}$")]
     [string]$PiUser = "kali",
@@ -92,7 +92,7 @@ if (
     $serviceState -ne 'active' -or
     $enabledState -eq 'enabled' -or
     $listener -notmatch '127\.0\.0\.1:8765' -or
-    $listener -match '0\.0\.0\.0:8765|10\.12\.194\.1:8765'
+    $listener -match '0\.0\.0\.0:8765|10\.12\.194\.1:8765|10\.42\.194\.1:8765|192\.168\.0\.194:8765'
 ) {
     throw "The live Aurum GUI did not satisfy its bounded runtime contract."
 }
