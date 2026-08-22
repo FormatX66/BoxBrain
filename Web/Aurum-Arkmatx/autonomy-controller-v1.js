@@ -6,7 +6,7 @@
 (()=>{'use strict';if(window.__aurumAutonomyControllerV1)return;window.__aurumAutonomyControllerV1=true;
 const STATE='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Codelation/autobuild/state.json';
 const REFRESH=2*60*1000,STALE=2*60*60*1000;
-const $=(s,r=document)=>r.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const $=(s,r=document)=>r.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const words=v=>String(v??'unknown').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
 const dt=v=>{const n=Number(v||0)*1000;return n?new Date(n):null};
 const age=v=>{const d=dt(v);if(!d)return null;return Math.max(0,Date.now()-d.getTime())};
