@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import signal
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -13,6 +16,13 @@ assert SPEC and SPEC.loader
 runtime_module = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = runtime_module
 SPEC.loader.exec_module(runtime_module)
+
+PROJECTION_PATH = ROOT / "aurum_projection_runtime.py"
+PROJECTION_SPEC = importlib.util.spec_from_file_location("aurum_seed_generation_projection", PROJECTION_PATH)
+assert PROJECTION_SPEC and PROJECTION_SPEC.loader
+projection_module = importlib.util.module_from_spec(PROJECTION_SPEC)
+sys.modules[PROJECTION_SPEC.name] = projection_module
+PROJECTION_SPEC.loader.exec_module(projection_module)
 
 
 class AurumSeedGenerationTests(unittest.TestCase):
@@ -60,6 +70,38 @@ class AurumSeedGenerationTests(unittest.TestCase):
         adapter = ROOT.parent / "AurumLLM" / "training"
         self.assertTrue(adapter.is_dir())
         self.assertNotIn("AurumLLM", runtime_module.ALLOWLIST)
+
+    def test_stale_projection_cleanup_signals_only_recognized_launch_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = projection_module.ProjectionRuntime(
+                policy=root / "policy.json",
+                receipt=root / "installed.json",
+                state_dir=root / "state",
+                run_dir=root / "run",
+                desktop=Path("/opt/aurum/aurum_desktop.py"),
+            )
+            runtime.run_dir.mkdir(parents=True)
+            snapshots = [
+                {
+                    101: {"command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run", "group": 91},
+                    102: {"command": "/usr/bin/python3 /opt/aurum/aurum_desktop.py run", "group": 92},
+                },
+                {},
+                {},
+                {},
+                {},
+            ]
+            with (
+                patch.object(runtime, "_recognized_vt2_processes", side_effect=snapshots),
+                patch.object(runtime, "_signal_groups", return_value={}) as signal_groups,
+            ):
+                result = runtime._clear_stale_vt2()
+
+        self.assertEqual(result["status"], "cleared")
+        self.assertEqual(result["groups"], [91, 92])
+        signal_groups.assert_any_call({91, 92}, signal.SIGTERM)
+        signal_groups.assert_any_call({91, 92}, signal.SIGKILL)
 
 
 if __name__ == "__main__":

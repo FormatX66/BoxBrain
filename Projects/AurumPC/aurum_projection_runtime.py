@@ -123,14 +123,23 @@ class ProjectionRuntime:
     def _owned(self, pid: int) -> bool:
         return "aurum_web_surface.py" in self._cmdline(pid)
 
-    def _recognized_vt2_processes(self) -> dict[int, str]:
-        found: dict[int, str] = {}
+    def _recognized_vt2_processes(self) -> dict[int, dict[str, Any]]:
+        """Return exact Aurum presentation clients and their launch groups.
+
+        ``openvt`` and ``xinit`` can outlive a child that was signalled by PID
+        and leave the rest of its VT2 launch tree behind.  The presentation
+        clients are started in their own sessions, so their process group is
+        the narrow ownership boundary that includes those wrappers and Xorg
+        without touching unrelated system processes.
+        """
+        found: dict[int, dict[str, Any]] = {}
         try:
             entries = list(Path("/proc").iterdir())
         except OSError:
             return found
         surface = str(self.surface)
         desktop = str(self.desktop)
+        current_group = os.getpgrp()
         for entry in entries:
             if not entry.name.isdigit():
                 continue
@@ -140,21 +149,36 @@ class ProjectionRuntime:
             command = self._cmdline(pid)
             if not command:
                 continue
-            aurum_client = surface in command or desktop in command
-            dedicated_server = "vt2" in command and ("Xorg" in command or "/X " in command)
-            if aurum_client or dedicated_server:
-                found[pid] = command[:300]
+            aurum_client = surface in command or f"{desktop} run" in command
+            if not aurum_client:
+                continue
+            try:
+                group = os.getpgid(pid)
+            except (OSError, ProcessLookupError):
+                continue
+            if group <= 1 or group == current_group:
+                continue
+            found[pid] = {"command": command[:500], "group": group}
         return found
+
+    @staticmethod
+    def _signal_groups(groups: set[int], sig: signal.Signals) -> dict[int, str]:
+        errors: dict[int, str] = {}
+        for group in sorted(groups):
+            try:
+                os.killpg(group, sig)
+            except ProcessLookupError:
+                pass
+            except (OSError, PermissionError) as exc:
+                errors[group] = f"{type(exc).__name__}:{exc}"
+        return errors
 
     def _clear_stale_vt2(self) -> dict[str, Any]:
         before = self._recognized_vt2_processes()
         if not before:
             return {"status": "clear", "terminated": []}
-        for pid in before:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+        groups = {int(item["group"]) for item in before.values()}
+        errors = self._signal_groups(groups, signal.SIGTERM)
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
             remaining = self._recognized_vt2_processes()
@@ -162,17 +186,21 @@ class ProjectionRuntime:
                 break
             time.sleep(0.15)
         remaining = self._recognized_vt2_processes()
-        for pid in remaining:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+        kill_groups = groups | {int(item["group"]) for item in remaining.values()}
+        errors.update(self._signal_groups(kill_groups, signal.SIGKILL))
+        kill_deadline = time.monotonic() + 3
+        while time.monotonic() < kill_deadline and self._recognized_vt2_processes():
+            time.sleep(0.1)
+        after = self._recognized_vt2_processes()
         self.pid_path.unlink(missing_ok=True)
         (self.run_dir / "aurum-desktop.pid").unlink(missing_ok=True)
         return {
-            "status": "cleared" if not self._recognized_vt2_processes() else "failed",
+            "status": "cleared" if not after else "failed",
             "terminated": sorted(before),
-            "commands": [before[pid] for pid in sorted(before)],
+            "groups": sorted(groups),
+            "commands": [str(before[pid]["command"]) for pid in sorted(before)],
+            "remaining": sorted(after),
+            "signal_errors": {str(group): detail for group, detail in sorted(errors.items())},
         }
 
     def _log_tail(self) -> str:
