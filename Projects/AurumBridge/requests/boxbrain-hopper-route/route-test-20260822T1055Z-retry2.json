@@ -1,0 +1,9 @@
+{
+  "schema": "aurum-boxbrain-hopper-route-request-v1",
+  "created_at": "2026-08-22T10:55:00Z",
+  "reason": "Second retry after main PC wake; allow Pi4 boot/power restoration time",
+  "prior_result": "BOXBRAIN_SSH_UNREACHABLE",
+  "requested_route": ["GitHub", "main-PC-runner", "SSH", "BoxBrain-Pi4", "LAN", "Hopper"],
+  "read_only": true,
+  "expected_proof": "Projects/AurumBridge/results/boxbrain-hopper-route-<run_id>.json"
+}
