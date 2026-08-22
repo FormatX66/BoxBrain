@@ -34,6 +34,7 @@ ALLOWLIST = (
     "aurum_driver_synthesis.py",
     "aurum_echo_native.py",
     "aurum_gpt_trait.py",
+    "aurum_gpt_executor.py",
     "aurum_gui_runtime.py",
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
