@@ -1,0 +1,60 @@
+﻿{
+    "schema":  "aurum.mainpc-hopper-direct-proof.gen1",
+    "state":  "HOPPER_REACHABLE_NO_SSH",
+    "observed_at":  "2026-08-22T15:18:04.1767186Z",
+    "runner_host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "resolved":  [
+                     {
+                         "name":  "hopper",
+                         "addresses":  [
+                                           "192.168.0.34"
+                                       ]
+                     },
+                     {
+                         "name":  "hopper.local",
+                         "addresses":  [
+                                           "192.168.0.34"
+                                       ]
+                     },
+                     {
+                         "name":  "pc-01",
+                         "addresses":  [
+
+                                       ]
+                     },
+                     {
+                         "name":  "pc-01.local",
+                         "addresses":  [
+
+                                       ]
+                     }
+                 ],
+    "attempts":  [
+                     {
+                         "address":  "192.168.0.34",
+                         "ping":  true,
+                         "ports":  {
+                                       "8765":  false,
+                                       "22":  false,
+                                       "8766":  false,
+                                       "8768":  true,
+                                       "8767":  false
+                                   },
+                         "ssh":  null
+                     },
+                     {
+                         "address":  "192.168.0.35",
+                         "ping":  false,
+                         "ports":  {
+                                       "8765":  false,
+                                       "22":  false,
+                                       "8766":  false,
+                                       "8768":  false,
+                                       "8767":  false
+                                   },
+                         "ssh":  null
+                     }
+                 ],
+    "read_only":  true
+}
