@@ -28,7 +28,7 @@ jobs:
               'Authorization': f'Bearer {token}',
               'Accept': 'application/vnd.github+json',
               'X-GitHub-Api-Version': '2022-11-28',
-              'User-Agent': 'Aurum-Failsafe-History-Readback/1.1',
+              'User-Agent': 'Aurum-Failsafe-History-Readback/1.2',
           }
           lanes = [
               ('aurum-autobuild.yml', 'main'),
@@ -43,6 +43,7 @@ jobs:
               ('aurum-boxbrain-hopper-route-test.yml', 'main'),
               ('aurum-pi4-reachability-diagnostic.yml', 'main'),
               ('aurum-pc01-flash-authorized.yml', 'main'),
+              ('aurum-hopper-echo-proof.yml', 'main'),
               ('ci.yml', 'main'),
           ]
           snapshot = {}
@@ -95,4 +96,4 @@ jobs:
           print(json.dumps(snapshot, sort_keys=True))
           PY
 
-# Failsafe diagnostic refresh: 2026-08-22T13:18Z
+# Failsafe run history includes Hopper Echo physical proof lane: 2026-08-22T22:46Z
