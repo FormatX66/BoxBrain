@@ -1,0 +1,37 @@
+name: Aurum Adaptive Evidence Verification
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - 'Projects/AurumPC/aurum_adaptive_verifier.py'
+      - 'Projects/AurumPC/aurum_autonomy_runtime.py'
+      - 'Projects/AurumPC/aurum_capability_graph.py'
+      - 'Projects/AurumPC/tests/test_aurum_adaptive_verifier.py'
+      - '.github/workflows/aurum-adaptive-evidence-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adaptive-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile adaptive verification core
+        run: |
+          python -m py_compile \
+            Projects/AurumPC/aurum_adaptive_verifier.py \
+            Projects/AurumPC/aurum_autonomy_runtime.py \
+            Projects/AurumPC/aurum_capability_graph.py
+      - name: Verify adaptive evidence semantics
+        run: |
+          python -m unittest \
+            Projects.AurumPC.tests.test_aurum_adaptive_verifier \
+            -v
