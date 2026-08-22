@@ -1,0 +1,45 @@
+﻿{
+    "schema":  "aurum-boxbrain-hopper-route-proof-v1",
+    "state":  "BOXBRAIN_SSH_UNREACHABLE",
+    "observed_at":  "2026-08-22T06:28:35.0884078Z",
+    "runner_host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "boxbrain_address":  null,
+    "route":  [
+                  "GitHub",
+                  "main-PC-runner",
+                  "SSH",
+                  "BoxBrain-Pi4",
+                  "LAN",
+                  "Hopper"
+              ],
+    "read_only":  true,
+    "hopper":  {
+                   "resolved":  false,
+                   "ping":  false,
+                   "self_debug_8768":  false,
+                   "echo_proof_8767":  false,
+                   "gui_8765":  false
+               },
+    "ssh_attempts":  [
+                         {
+                             "address":  "10.42.194.1",
+                             "host_key":  "unavailable",
+                             "keyscan_exit":  1,
+                             "ssh_exit":  null
+                         },
+                         {
+                             "address":  "10.12.194.1",
+                             "host_key":  "unavailable",
+                             "keyscan_exit":  1,
+                             "ssh_exit":  null
+                         },
+                         {
+                             "address":  "192.168.0.194",
+                             "host_key":  "unavailable",
+                             "keyscan_exit":  1,
+                             "ssh_exit":  null
+                         }
+                     ],
+    "remote_output":  null
+}
