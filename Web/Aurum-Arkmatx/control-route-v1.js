@@ -1,15 +1,16 @@
-/* AURUM_CONTROL_ROUTE_V1_CANONICAL
+/* AURUM_CONTROL_ROUTE_V1_1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Surfaces the read-only GitHub -> main PC -> BoxBrain Pi4 -> Hopper control path.
  * Route failures are Aurum/system work; this component never invents a human task.
+ * GitHub directory entries are resolved through raw download URLs before state parsing.
  */
 (() => {
   'use strict';
-  if (window.__aurumControlRouteV1) return;
-  window.__aurumControlRouteV1 = true;
+  if (window.__aurumControlRouteV11) return;
+  window.__aurumControlRouteV11 = true;
 
   const $ = (s, r = document) => r.querySelector(s);
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const API = 'https://api.github.com/repos/FormatX66/BoxBrain/contents';
   const REQUESTS = `${API}/Projects/AurumBridge/requests/boxbrain-hopper-route?ref=main`;
   const RESULTS = `${API}/Projects/AurumBridge/results?ref=main`;
@@ -37,6 +38,13 @@
     return r.json();
   }
 
+  async function rawJson(url) {
+    if (!url) throw new Error('GitHub raw download URL missing');
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
   function requestEpoch(request) {
     const id = String(request?.id || '');
     const m = id.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})Z/);
@@ -47,14 +55,14 @@
     const list = await json(REQUESTS);
     const files = Array.isArray(list) ? list.filter(x => x.type === 'file' && /^route-test-.*\.json$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name)) : [];
     if (!files.length) return null;
-    return json(files[0].url);
+    return rawJson(files[0].download_url);
   }
 
   async function latestResult() {
     const list = await json(RESULTS);
     const files = Array.isArray(list) ? list.filter(x => x.type === 'file' && /^boxbrain-hopper-route-\d+\.json$/i.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name)) : [];
     if (!files.length) return null;
-    const payload = await json(files[0].url);
+    const payload = await rawJson(files[0].download_url);
     return {name:files[0].name, payload};
   }
 
