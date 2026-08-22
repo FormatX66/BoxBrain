@@ -34,6 +34,14 @@ DEFAULT_URL = "http://127.0.0.1:8765/"
 UI_USER = "aurum-ui"
 
 
+def _boot_id() -> str | None:
+    try:
+        value = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return value or None
+
+
 def _json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -237,7 +245,7 @@ class ProjectionRuntime:
     def _clear_stale_vt2(self) -> dict[str, Any]:
         before = self._recognized_vt2_processes()
         if not before:
-            return {"status": "clear", "terminated": []}
+            return {"status": "cleared", "terminated": [], "boot_id": _boot_id()}
         groups = {int(item["group"]) for item in before.values()}
         sessions = {int(item["session"]) for item in before.values()}
         members = self._session_members(sessions)
@@ -268,6 +276,7 @@ class ProjectionRuntime:
             "status": status,
             "reason": reason,
             "reboot_required": bool(kernel_waits),
+            "boot_id": _boot_id(),
             "terminated": sorted(before),
             "groups": sorted(groups),
             "sessions": sorted(sessions),
@@ -337,6 +346,9 @@ class ProjectionRuntime:
                     "desktop": current.get("desktop") or {},
                 }
         last_attempt = _json(self.state_path)
+        html_failure = last_attempt.get("html_failure") if isinstance(last_attempt.get("html_failure"), dict) else {}
+        blocked_boot = last_attempt.get("boot_id") or html_failure.get("boot_id")
+        reboot_marked = bool(last_attempt.get("reboot_required") or html_failure.get("reboot_required"))
         return {
             "schema": SCHEMA,
             "status": "stopped",
@@ -348,10 +360,7 @@ class ProjectionRuntime:
             "primary": False,
             "fallback": "pygame",
             "vt": 2,
-            "reboot_required": bool(
-                last_attempt.get("reboot_required")
-                or (last_attempt.get("html_failure") or {}).get("reboot_required")
-            ),
+            "reboot_required": bool(reboot_marked and blocked_boot and blocked_boot == _boot_id()),
         }
 
     def _ensure_ui_user(self) -> dict[str, Any]:
@@ -441,6 +450,7 @@ class ProjectionRuntime:
                 "status": "web-unavailable",
                 "reason": reason,
                 "reboot_required": bool(stale_cleanup.get("reboot_required")),
+                "boot_id": stale_cleanup.get("boot_id"),
                 "stale_cleanup": stale_cleanup,
             })
             return None
@@ -526,6 +536,7 @@ class ProjectionRuntime:
                 },
                 "html_failure": html_failure,
                 "reboot_required": True,
+                "boot_id": html_failure.get("boot_id"),
             }
             _atomic(self.state_path, result)
             return result

@@ -83,7 +83,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertFalse(result["reboot_required"])
             self.assertEqual(set(result["changed"]), set(ALLOWLIST))
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
-            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-v5")
+            self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-seed")
             self.assertTrue(Path(receipt["backup"]).is_dir())
             self.assertEqual(result["system_activation"]["reason"], "simulated-system-root")
             self.assertTrue(receipt["generation"]["become_next_seed"])

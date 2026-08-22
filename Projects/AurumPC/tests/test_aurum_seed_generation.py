@@ -162,6 +162,45 @@ class AurumSeedGenerationTests(unittest.TestCase):
         self.assertEqual(result["fallback_result"]["status"], "skipped")
         fallback.assert_not_called()
 
+    def test_reboot_marker_expires_when_boot_identity_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = projection_module.ProjectionRuntime(
+                policy=root / "policy.json",
+                receipt=root / "installed.json",
+                state_dir=root / "state",
+                run_dir=root / "run",
+                desktop=Path("/opt/aurum/aurum_desktop.py"),
+            )
+            projection_module._atomic(
+                runtime.state_path,
+                {"status": "failed", "reboot_required": True, "boot_id": "previous-boot"},
+            )
+            with (
+                patch.object(projection_module, "_boot_id", return_value="current-boot"),
+                patch.object(runtime, "_authorized", return_value=(True, "authorized-hopper")),
+                patch.object(runtime, "_fallback_runtime", return_value=None),
+            ):
+                status = runtime.status()
+
+        self.assertEqual(status["status"], "stopped")
+        self.assertFalse(status["reboot_required"])
+
+    def test_empty_stale_set_is_a_verified_clear_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = projection_module.ProjectionRuntime(
+                policy=root / "policy.json",
+                receipt=root / "installed.json",
+                state_dir=root / "state",
+                run_dir=root / "run",
+                desktop=Path("/opt/aurum/aurum_desktop.py"),
+            )
+            with patch.object(runtime, "_recognized_vt2_processes", return_value={}):
+                result = runtime._clear_stale_vt2()
+
+        self.assertEqual(result["status"], "cleared")
+
 
 if __name__ == "__main__":
     unittest.main()

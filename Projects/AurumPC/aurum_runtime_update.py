@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum-pc-runtime-update-v5"
+SCHEMA = "aurum-pc-runtime-update-seed"
 GENERATION_SCHEMA = "aurum.seed-generation-receipt.v1"
 REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
 BRANCH = "aurum/trunk-v0.01"
