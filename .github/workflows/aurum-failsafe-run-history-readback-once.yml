@@ -37,6 +37,8 @@ jobs:
               'aurum-dual-seed-lanes.yml',
               'aurum-pi4-identity-recovery-once.yml',
               'aurum-pi4-enrollment-diagnostic-once.yml',
+              'aurum-boxbrain-hopper-route-test.yml',
+              'aurum-pc01-flash-authorized.yml',
           ]
           snapshot = {}
           for workflow in workflows:
@@ -86,4 +88,4 @@ jobs:
           print(json.dumps(snapshot, sort_keys=True))
           PY
 
-# Failsafe diagnostic refresh: 2026-08-21T17:26Z
+# Failsafe diagnostic refresh: 2026-08-22T06:15Z
