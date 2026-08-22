@@ -148,7 +148,7 @@ class PursuitLoopTests(unittest.TestCase):
         self.assertEqual(calls[:2], ["peer:a", "peer:b"])
         failed = history["paths"]["compute-remote-authorized|peer:a"]
         self.assertEqual(failed["failures"], 1)
-        self.assertIn("RuntimeError", checkpoint.get("last_receipt", {}).get("error", "") if checkpoint.get("last_node_id") == "peer:a" else "")
+        self.assertEqual(history["paths"]["compute-remote-authorized|peer:b"]["successes"], 1)
 
     def test_attempt_budget_is_bounded(self) -> None:
         mesh = graph_with(authorized_peer("peer:a"))
