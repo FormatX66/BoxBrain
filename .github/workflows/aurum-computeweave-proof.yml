@@ -1,0 +1,110 @@
+name: Aurum ComputeWeave Proof
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - 'Projects/Codelation/computeweave.py'
+      - 'Projects/Codelation/tests/test_computeweave.py'
+      - '.github/workflows/aurum-computeweave-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test ComputeWeave
+        run: |
+          python -m py_compile Projects/Codelation/computeweave.py
+          python -m unittest Projects.Codelation.tests.test_computeweave -v
+
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run single-point baseline
+        run: |
+          mkdir -p computeweave-baseline
+          python Projects/Codelation/computeweave.py baseline \
+            --node github-single-x64 \
+            --units 64 \
+            --rounds 120000 \
+            --out computeweave-baseline/baseline.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: computeweave-baseline
+          path: computeweave-baseline/baseline.json
+          if-no-files-found: error
+
+  distributed:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run ComputeWeave shard
+        run: |
+          mkdir -p computeweave-shard
+          python Projects/Codelation/computeweave.py shard \
+            --node github-worker-${{ matrix.shard }} \
+            --units 64 \
+            --rounds 120000 \
+            --shard-index ${{ matrix.shard }} \
+            --shard-count 4 \
+            --out computeweave-shard/shard-${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: computeweave-shard-${{ matrix.shard }}
+          path: computeweave-shard/shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  fan-in:
+    needs: [tests, baseline, distributed]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: computeweave-baseline
+          path: computeweave-baseline
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: computeweave-shard-*
+          path: computeweave-shards
+          merge-multiple: true
+      - name: Verify fan-in and measure speedup
+        run: |
+          mkdir -p computeweave-proof
+          python Projects/Codelation/computeweave.py merge \
+            --baseline computeweave-baseline/baseline.json \
+            --shards computeweave-shards \
+            --out computeweave-proof/proof.json
+          cat computeweave-proof/proof.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: computeweave-proof
+          path: computeweave-proof/proof.json
+          if-no-files-found: error
