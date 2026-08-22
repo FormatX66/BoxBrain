@@ -18,6 +18,12 @@ class BoxBrainHopperRouteWorkflowTests(unittest.TestCase):
         self.assertNotIn("@(& $keyscan -T 4 -t ed25519 $target 2>$null", text)
         self.assertIn("keyscan_exit=$scanExit", text)
 
+    def test_single_host_key_line_stays_array_shaped_under_strict_mode(self):
+        text = self.workflow
+        self.assertIn("$scanLines = @($scanLines)", text)
+        self.assertIn("if ($scanLines.Count -eq 0)", text)
+        self.assertIn("[string]$scanLines[0]", text)
+
     def test_host_identity_still_fails_closed(self):
         text = self.workflow
         self.assertIn("SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY", text)
