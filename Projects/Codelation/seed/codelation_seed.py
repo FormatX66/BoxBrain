@@ -89,6 +89,45 @@ class SeedGraph:
             return graph
 
 
+def _load_runtime_seed(path: Path) -> tuple[SeedGraph, dict[str, str] | None]:
+    """Load seed state without allowing an old/corrupt model to gate growth.
+
+    SeedGraph.load remains strict for diagnostics and tests.  The running seed
+    preserves incompatible state beside the original path, starts a compatible
+    graph, and emits a receipt so a state-model experiment can never stop the
+    Aurum generation lifecycle.
+    """
+    try:
+        return SeedGraph.load(path), None
+    except (OSError, ValueError, struct.error) as exc:
+        if not path.exists():
+            return SeedGraph(), {
+                "status": "recovered-fresh",
+                "reason": f"{type(exc).__name__}:{exc}",
+                "preserved": "none",
+            }
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        preserved = path.with_name(f"{path.name}.preserved-{stamp}")
+        counter = 1
+        while preserved.exists():
+            preserved = path.with_name(f"{path.name}.preserved-{stamp}-{counter}")
+            counter += 1
+        try:
+            os.replace(path, preserved)
+        except OSError as preserve_exc:
+            return SeedGraph(), {
+                "status": "recovered-in-memory",
+                "reason": f"{type(exc).__name__}:{exc}",
+                "preserve_error": f"{type(preserve_exc).__name__}:{preserve_exc}",
+                "preserved": "failed",
+            }
+        return SeedGraph(), {
+            "status": "recovered-compatible-state",
+            "reason": f"{type(exc).__name__}:{exc}",
+            "preserved": str(preserved),
+        }
+
+
 def short(identity: bytes | None) -> str:
     return "none" if identity is None else identity.hex()[:12]
 
@@ -315,7 +354,9 @@ def main() -> int:
                     pass
         return 0
 
-    graph = SeedGraph.load(args.model)
+    graph, recovery = _load_runtime_seed(args.model)
+    if recovery is not None:
+        print("AURUM_SEED_STATE_RECOVERY " + json.dumps(recovery, sort_keys=True))
     if args.command == "observe":
         current = state_id(args.observation.encode())
         prediction, correct = graph.observe(current)
