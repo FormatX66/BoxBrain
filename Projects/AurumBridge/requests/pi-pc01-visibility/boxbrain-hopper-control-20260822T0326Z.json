@@ -1,0 +1,6 @@
+{
+  "schema": "aurum-bbpi4-pc01-visibility-request-v1",
+  "id": "boxbrain-hopper-control-20260822T0326Z",
+  "action": "pi_pc01_visibility",
+  "purpose": "Read-only control test for main-PC runner to BoxBrain Pi4 while Hopper route proof is being tested"
+}
