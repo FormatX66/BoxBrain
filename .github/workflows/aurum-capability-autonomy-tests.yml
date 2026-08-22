@@ -6,9 +6,11 @@ on:
       - aurum/trunk-v0.01
     paths:
       - 'Projects/AurumPC/aurum_capability_graph.py'
+      - 'Projects/AurumPC/aurum_capability_mesh.py'
       - 'Projects/AurumPC/aurum_autonomy_runtime.py'
       - 'Projects/AurumPC/aurum_network_capabilities.py'
       - 'Projects/AurumPC/tests/test_aurum_capability_graph.py'
+      - 'Projects/AurumPC/tests/test_aurum_capability_mesh.py'
       - 'Projects/AurumPC/tests/test_aurum_autonomy_runtime.py'
       - '.github/workflows/aurum-capability-autonomy-tests.yml'
   workflow_dispatch:
@@ -30,11 +32,13 @@ jobs:
           python -m py_compile \
             Projects/AurumPC/aurum_hardware.py \
             Projects/AurumPC/aurum_capability_graph.py \
+            Projects/AurumPC/aurum_capability_mesh.py \
             Projects/AurumPC/aurum_network_capabilities.py \
             Projects/AurumPC/aurum_autonomy_runtime.py
       - name: Run focused autonomy tests
         run: |
           python -m unittest \
             Projects.AurumPC.tests.test_aurum_capability_graph \
+            Projects.AurumPC.tests.test_aurum_capability_mesh \
             Projects.AurumPC.tests.test_aurum_autonomy_runtime \
             -v
