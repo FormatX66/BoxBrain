@@ -74,6 +74,9 @@ jobs:
               } else {
                 @()
               }
+              # PowerShell unwraps a single output object from an if-expression. Re-wrap
+              # before Count/index use so one host-key line remains one array element.
+              $scanLines = @($scanLines)
             } finally {
               Remove-Item -LiteralPath $scanOut -Force -ErrorAction SilentlyContinue
               Remove-Item -LiteralPath $scanErr -Force -ErrorAction SilentlyContinue
