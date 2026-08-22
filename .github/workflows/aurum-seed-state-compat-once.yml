@@ -1,0 +1,74 @@
+name: Aurum Seed State Compatibility Repair
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/scripts/fix_codelation_seed_state_growth.py'
+      - '.github/workflows/aurum-seed-state-compat-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-seed-state-compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply compatibility repair
+        run: |
+          python .github/scripts/fix_codelation_seed_state_growth.py
+          python -m py_compile Projects/Codelation/seed/codelation_seed.py
+      - name: Prove incompatible state cannot gate seed growth
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          source = Path('Projects/Codelation/seed/codelation_seed.py')
+          spec = importlib.util.spec_from_file_location('codelation_seed_compat_test', source)
+          assert spec and spec.loader
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+
+          with tempfile.TemporaryDirectory() as directory:
+              path = Path(directory) / 'seed.bin'
+              path.write_bytes(b'NOTASEED-v999')
+              graph, receipt = module._load_runtime_seed(path)
+              assert isinstance(graph, module.SeedGraph)
+              assert receipt and receipt['status'] == 'recovered-compatible-state'
+              assert not path.exists()
+              preserved = Path(receipt['preserved'])
+              assert preserved.is_file()
+              graph.observe(module.state_id(b'aurum-x86-ready'))
+              graph.save(path)
+              loaded = module.SeedGraph.load(path)
+              assert isinstance(loaded, module.SeedGraph)
+          print('AURUM_SEED_STATE_COMPAT_OK')
+          PY
+      - name: Commit repaired seed source
+        run: |
+          if git diff --quiet -- Projects/Codelation/seed/codelation_seed.py; then
+            echo 'Seed compatibility already repaired.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Projects/Codelation/seed/codelation_seed.py
+          git commit -m 'Make seed-state evolution nonblocking [skip ci]'
+          git push origin HEAD:aurum/trunk-v0.01
