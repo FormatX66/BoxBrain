@@ -1,0 +1,55 @@
+name: Aurum GPT Direct Control Wiring
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/scripts/wire_gpt_executor_runtime.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wire executor into installed runtime
+        run: python .github/scripts/wire_gpt_executor_runtime.py
+      - name: Validate GPT direct-control sources
+        run: |
+          python -m py_compile \
+            Projects/AurumPC/aurum_gpt_trait.py \
+            Projects/AurumPC/aurum_gpt_executor.py \
+            Projects/AurumPC/aurum_runtime_update.py
+          python - <<'PY'
+          from pathlib import Path
+          runtime = Path('Projects/AurumPC/aurum_runtime_update.py').read_text(encoding='utf-8')
+          trait = Path('Projects/AurumPC/aurum_gpt_trait.py').read_text(encoding='utf-8')
+          executor = Path('Projects/AurumPC/aurum_gpt_executor.py').read_text(encoding='utf-8')
+          assert '"aurum_gpt_executor.py"' in runtime
+          assert 'aurum_workspace_replace' in trait
+          assert 'aurum_control' in trait
+          assert 'direct_shell_contract": False' in executor
+          assert 'rollback_on_validation_failure' in executor
+          PY
+      - name: Commit resident executor wiring
+        run: |
+          if git diff --quiet -- Projects/AurumPC/aurum_runtime_update.py; then
+            echo 'Runtime already contains GPT executor.'
+            exit 0
+          fi
+          git config user.name 'aurum-gpt-direct-control[bot]'
+          git config user.email 'aurum-gpt-direct-control[bot]@users.noreply.github.com'
+          git add Projects/AurumPC/aurum_runtime_update.py
+          git commit -m 'Make GPT direct executor resident on Hopper [skip ci]'
+          git push origin HEAD:aurum/trunk-v0.01
