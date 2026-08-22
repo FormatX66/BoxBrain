@@ -160,13 +160,30 @@ jobs:
           if (Test-Path -LiteralPath $sentinel) {
             $previous = $null
             try { $previous = Get-Content -LiteralPath $sentinel -Raw | ConvertFrom-Json } catch { $previous = $null }
+
+            # Stable proof is durable. Do not create repository churn when an upstream image
+            # workflow re-verifies the exact already-flashed seed within the freshness window.
+            # A real new flash still publishes FLASH_OK immediately; this only deduplicates
+            # idempotent ALREADY_COMPLETE heartbeat receipts.
+            $proofFreshnessHours = 6
+            $cutoff = [DateTimeOffset]::UtcNow.AddHours(-$proofFreshnessHours)
+            $recentCommits = @(Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/commits?per_page=100")
+            $recentStableProof = @($recentCommits | Where-Object {
+                $_.commit.message -match '^Record Aurum PC-01 flash receipt state=ALREADY_COMPLETE' -and
+                [DateTimeOffset]$_.commit.committer.date -ge $cutoff
+              } | Select-Object -First 1)
+            if ($recentStableProof.Count -gt 0) {
+              Write-Host "AURUM_FLASH_ALREADY_COMPLETE_NOOP head=$headSha image_sha256=$actual freshness_window_hours=$proofFreshnessHours latest_receipt=$($recentStableProof[0].sha)"
+              exit 0
+            }
+
             Publish-FlashReceipt 'ALREADY_COMPLETE' @{
               head = $headSha
               image_sha256 = $actual
               sentinel = $sentinel
               raw_readback_verified = if ($previous) { [bool]$previous.raw_readback_verified } else { $true }
             }
-            Write-Host "AURUM_FLASH_ALREADY_COMPLETE head=$headSha image_sha256=$actual"
+            Write-Host "AURUM_FLASH_ALREADY_COMPLETE head=$headSha image_sha256=$actual freshness_window_hours=$proofFreshnessHours"
             exit 0
           }
 
