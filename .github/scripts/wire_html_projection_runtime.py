@@ -2,6 +2,7 @@
 """Make HTML the primary Hopper human projection with Pygame fallback."""
 from pathlib import Path
 
+# Canonical Gen1 presentation: semantic Aurum state -> HTML projection -> human.
 runtime = Path("Projects/AurumPC/aurum_runtime_update.py")
 text = runtime.read_text(encoding="utf-8")
 needle = '    "aurum_hopper_gui.py",\n'
