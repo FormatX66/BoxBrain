@@ -1,13 +1,13 @@
-/* AURUM_CONTROL_ROUTE_V1_1_CANONICAL
+/* AURUM_CONTROL_ROUTE_V1_2_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Surfaces the read-only GitHub -> main PC -> BoxBrain Pi4 -> Hopper control path.
- * Route failures are Aurum/system work; this component never invents a human task.
+ * Route failures and aged proof requests are Aurum/system work; this component never invents a human task.
  * GitHub directory entries are resolved through raw download URLs before state parsing.
  */
 (() => {
   'use strict';
-  if (window.__aurumControlRouteV11) return;
-  window.__aurumControlRouteV11 = true;
+  if (window.__aurumControlRouteV12) return;
+  window.__aurumControlRouteV12 = true;
 
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,6 +15,8 @@
   const REQUESTS = `${API}/Projects/AurumBridge/requests/boxbrain-hopper-route?ref=main`;
   const RESULTS = `${API}/Projects/AurumBridge/results?ref=main`;
   const REFRESH = 60 * 1000;
+  const ROUTE_TEST_TIMEOUT_MS = 10 * 60 * 1000;
+  const STALL_AFTER_MS = 2 * ROUTE_TEST_TIMEOUT_MS;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -25,7 +27,7 @@
   `;
   document.head.appendChild(style);
 
-  let routeState = {phase:'checking', request:null, result:null, detail:'Checking control-route evidence…', checkedAt:0};
+  let routeState = {phase:'checking', request:null, result:null, detail:'Checking control-route evidence…', checkedAt:0, requestAgeMs:0, stallAfterMs:STALL_AFTER_MS};
 
   function publish() {
     window.__aurumControlRouteState = {...routeState};
@@ -49,6 +51,20 @@
     const id = String(request?.id || '');
     const m = id.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})Z/);
     return m ? Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) : 0;
+  }
+
+  function requestAgeMs(request) {
+    const at = requestEpoch(request);
+    return at ? Math.max(0, Date.now() - at) : 0;
+  }
+
+  function ageLabel(ms) {
+    if (!ms) return 'unknown';
+    const minutes = Math.floor(ms / 60000);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest ? `${hours}h ${rest}m` : `${hours}h`;
   }
 
   async function latestRequest() {
@@ -101,37 +117,42 @@
     const card = ensureCard();
     if (!card) return;
     const pill = $('.pill', card), evidence = $('.evidence', card), detail = $('.cr-detail', card);
+    const age = ageLabel(routeState.requestAgeMs);
     if (routeState.phase === 'checking') {
       pill.className='pill running'; pill.textContent='Running'; evidence.textContent='Checking latest route request and proof…';
     } else if (routeState.phase === 'proven') {
       pill.className='pill success'; pill.textContent='Verified'; evidence.textContent='GitHub → main PC → BBPI4 → Hopper read-only route proven.';
     } else if (routeState.phase === 'pending') {
-      pill.className='pill waiting'; pill.textContent='Waiting'; evidence.textContent='Read-only route proof requested; result not yet recorded · Aurum/system work, not your action.';
+      pill.className='pill waiting'; pill.textContent='Waiting'; evidence.textContent=`Read-only route proof requested ${age} ago; still inside the dispatch grace window · Aurum/system work, not your action.`;
+    } else if (routeState.phase === 'stalled') {
+      pill.className='pill failed'; pill.textContent='Attention'; evidence.textContent=`Route proof request is ${age} old with no recorded result — beyond twice the 10-minute route-test window · Aurum/system runner/dispatch diagnosis, not your action.`;
     } else if (routeState.phase === 'failed') {
       pill.className='pill failed'; pill.textContent='Attention'; evidence.textContent=`Route proof returned ${routeState.result?.state || 'an unresolved state'} · Aurum/system diagnosis, not your action.`;
     } else {
       pill.className='pill unknown'; pill.textContent='Unknown'; evidence.textContent='Control-route evidence is currently unreadable · no human task inferred.';
     }
     const r = routeState.result || {}, h = r.hopper || {}, request = routeState.request || {};
-    detail.innerHTML = `<div class="cr-path"><span class="cr-hop">GitHub</span><span class="cr-hop">main PC runner</span><span class="cr-hop">SSH</span><span class="cr-hop">BBPI4</span><span class="cr-hop">LAN</span><span class="cr-hop">Hopper</span></div><b>Latest request:</b> ${esc(request.id || 'none recorded')}<br><b>Mode:</b> ${esc(request.mode || 'read-only')}<br><b>Latest result:</b> ${esc(r.state || 'not recorded')}<br><b>Observed:</b> ${esc(r.observed_at || 'not yet')}<br><b>Hopper checks:</b> resolution ${esc(h.resolved ?? 'unknown')} · ping ${esc(h.ping ?? 'unknown')} · self-debug ${esc(h.self_debug_8768 ?? 'unknown')} · echo ${esc(h.echo_proof_8767 ?? 'unknown')} · GUI ${esc(h.gui_8765 ?? 'unknown')}<br><br><b>Ownership:</b> this is a read-only system proof. A missing or failed route remains Aurum/system work unless a separate verified physical gate explicitly names a human step.`;
+    detail.innerHTML = `<div class="cr-path"><span class="cr-hop">GitHub</span><span class="cr-hop">main PC runner</span><span class="cr-hop">SSH</span><span class="cr-hop">BBPI4</span><span class="cr-hop">LAN</span><span class="cr-hop">Hopper</span></div><b>Latest request:</b> ${esc(request.id || 'none recorded')}<br><b>Request age:</b> ${esc(age)}<br><b>Route-test window:</b> 10 min · mark stalled after 20 min without a result<br><b>Mode:</b> ${esc(request.mode || 'read-only')}<br><b>Latest result:</b> ${esc(r.state || 'not recorded')}<br><b>Observed:</b> ${esc(r.observed_at || 'not yet')}<br><b>Hopper checks:</b> resolution ${esc(h.resolved ?? 'unknown')} · ping ${esc(h.ping ?? 'unknown')} · self-debug ${esc(h.self_debug_8768 ?? 'unknown')} · echo ${esc(h.echo_proof_8767 ?? 'unknown')} · GUI ${esc(h.gui_8765 ?? 'unknown')}<br><br><b>Ownership:</b> this is a read-only system proof. A missing, aged, or failed route remains Aurum/system work unless a separate verified physical gate explicitly names a human step.`;
   }
 
   async function refresh() {
-    routeState = {phase:'checking', request:routeState.request, result:routeState.result, detail:'Checking control-route evidence…', checkedAt:Date.now()};
+    routeState = {phase:'checking', request:routeState.request, result:routeState.result, detail:'Checking control-route evidence…', checkedAt:Date.now(), requestAgeMs:routeState.requestAgeMs || 0, stallAfterMs:STALL_AFTER_MS};
     render(); publish();
     try {
       const [request, resultWrap] = await Promise.all([latestRequest(), latestResult()]);
       const result = resultWrap?.payload || null;
       const reqAt = requestEpoch(request);
       const resAt = result?.observed_at ? Date.parse(result.observed_at) : 0;
+      const ageMs = requestAgeMs(request);
+      const awaitingFreshResult = Boolean(request && (!result || (reqAt && (!resAt || resAt < reqAt))));
       let phase = 'pending';
       if (!request && !result) phase = 'unknown';
-      else if (request && (!result || (reqAt && (!resAt || resAt < reqAt)))) phase = 'pending';
+      else if (awaitingFreshResult) phase = reqAt && ageMs >= STALL_AFTER_MS ? 'stalled' : 'pending';
       else if (result?.state === 'BOXBRAIN_TO_HOPPER_ROUTE_PROVEN') phase = 'proven';
       else if (result) phase = 'failed';
-      routeState = {phase, request, result, resultName:resultWrap?.name || null, checkedAt:Date.now()};
+      routeState = {phase, request, result, resultName:resultWrap?.name || null, checkedAt:Date.now(), requestAgeMs:ageMs, stallAfterMs:STALL_AFTER_MS};
     } catch (e) {
-      routeState = {phase:'unknown', request:null, result:null, detail:e?.message || 'request failed', checkedAt:Date.now()};
+      routeState = {phase:'unknown', request:null, result:null, detail:e?.message || 'request failed', checkedAt:Date.now(), requestAgeMs:0, stallAfterMs:STALL_AFTER_MS};
     }
     render(); publish();
   }
