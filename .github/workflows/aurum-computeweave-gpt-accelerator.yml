@@ -1,0 +1,130 @@
+name: Aurum ComputeWeave GPT Accelerator
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - 'Projects/AurumPC/aurum_gpt_trait.py'
+      - 'Projects/AurumPC/aurum_gpt_executor.py'
+      - 'Projects/AurumPC/aurum_control_plane.py'
+      - 'Projects/AurumPC/aurum_runtime_update.py'
+      - 'Projects/AurumPC/aurum_desktop.py'
+      - 'Projects/AurumPC/tests/test_aurum_ai_control_plane.py'
+      - 'Projects/AurumPC/tests/test_aurum_gpt_executor.py'
+      - '.github/workflows/aurum-computeweave-gpt-accelerator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gpt-trait:
+    name: GPT trait / Responses function tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and verify direct-control trait contract
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_gpt_trait.py Projects/AurumPC/aurum_control_plane.py
+          python -m unittest Projects.AurumPC.tests.test_aurum_ai_control_plane -v
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('Projects/AurumPC/aurum_gpt_trait.py').read_text(encoding='utf-8')
+          for marker in ['function_call_output', 'aurum_control', 'aurum_workspace_read', 'aurum_workspace_replace', 'parallel_tool_calls']:
+              assert marker in text, marker
+          assert 'raw_shell": False' in text
+          PY
+
+  executor-safety:
+    name: GPT executor / safety + rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify bounded executor and rollback
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_gpt_executor.py
+          python -m unittest Projects.AurumPC.tests.test_aurum_gpt_executor -v
+
+  runtime-package:
+    name: Hopper runtime / resident packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify executor is resident and updater remains valid
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_runtime_update.py Projects/AurumPC/aurum_gpt_executor.py Projects/AurumPC/aurum_gpt_trait.py
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('Projects/AurumPC/aurum_runtime_update.py')
+          spec = importlib.util.spec_from_file_location('runtime_update_check', path)
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert 'aurum_gpt_executor.py' in module.ALLOWLIST
+          assert 'aurum_gpt_trait.py' in module.ALLOWLIST
+          print('resident GPT files:', 'aurum_gpt_trait.py', 'aurum_gpt_executor.py')
+          PY
+
+  hopper-surface:
+    name: Hopper surface / GPT target integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify GUI and control-plane integration contracts
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_desktop.py Projects/AurumPC/aurum_gui_runtime.py
+          python -m unittest Projects.AurumPC.tests.test_aurum_desktop Projects.AurumPC.tests.test_aurum_desktop_runtime -v
+          python - <<'PY'
+          from pathlib import Path
+          desktop = Path('Projects/AurumPC/aurum_desktop.py').read_text(encoding='utf-8')
+          assert 'Gen1 polished physical surface' in desktop
+          assert 'Unknown' in desktop
+          PY
+
+  fan-in:
+    name: ComputeWeave fan-in / ready for physical Hopper
+    needs: [gpt-trait, executor-safety, runtime-package, hopper-surface]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit convergence receipt
+        shell: bash
+        run: |
+          mkdir -p computeweave-gpt-proof
+          python - <<'PY'
+          import json, os, time
+          payload = {
+              'schema': 'aurum.computeweave-gpt-convergence.gen1-direct-control',
+              'status': 'verified',
+              'source_sha': os.environ.get('GITHUB_SHA'),
+              'lanes': ['gpt-trait','executor-safety','runtime-package','hopper-surface'],
+              'fan_in': 'all-required-lanes-passed',
+              'next_gate': 'physical-hopper-delivery-and-local-tool-proof',
+              'observed_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+          }
+          open('computeweave-gpt-proof/proof.json','w',encoding='utf-8').write(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(payload,indent=2,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurum-computeweave-gpt-proof
+          path: computeweave-gpt-proof/proof.json
+          if-no-files-found: error
