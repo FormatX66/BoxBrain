@@ -82,11 +82,11 @@
       evidence.textContent = 'Required evidence function unavailable · Aurum/system work, not your action';
     } else if (degraded) {
       pill.className = 'pill waiting';
-      pill.textContent = 'Degraded';
+      pill.textContent = 'Waiting';
       if (state.hostedVoice.ok === false && state.staticVoice.ok === true) {
-        evidence.textContent = 'Hosted voice route unavailable · repository mirror verified · Aurum/system work, not your action';
+        evidence.textContent = 'Evidence redundancy degraded · hosted voice route unavailable · repository mirror verified · Aurum/system work, not your action';
       } else if (state.hostedVoice.ok === true && state.staticVoice.ok === false) {
-        evidence.textContent = 'Hosted voice route verified · repository fallback unavailable · Aurum/system work, not your action';
+        evidence.textContent = 'Evidence redundancy degraded · hosted voice route verified · repository fallback unavailable · Aurum/system work, not your action';
       } else {
         evidence.textContent = 'Evidence redundancy degraded · primary truth remains readable · Aurum/system work, not your action';
       }
