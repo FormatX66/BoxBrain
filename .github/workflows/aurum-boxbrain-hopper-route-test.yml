@@ -1,0 +1,152 @@
+name: Aurum BoxBrain Hopper Route Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-boxbrain-hopper-route-test.yml'
+      - 'Projects/AurumBridge/requests/boxbrain-hopper-route/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-boxbrain-hopper-route-test
+  cancel-in-progress: false
+
+jobs:
+  route-test:
+    name: Main PC to BoxBrain Pi4 to Hopper read-only proof
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Traverse main PC to Pi4 and probe Hopper
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $root = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $root
+
+          $keyCandidates = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+            'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keyCandidates += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'
+          })
+          $key = $keyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) { throw 'Dedicated BoxBrain Pi4 SSH key was not found on the main-PC runner.' }
+
+          $ssh = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $keyscan = (Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $keygen = (Get-Command ssh-keygen.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $expectedFingerprint = 'SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY'
+          $targets = @('10.42.194.1','10.12.194.1','192.168.0.194')
+
+          $attempts = @()
+          $selected = $null
+          $remoteOutput = $null
+          foreach ($target in $targets) {
+            $scanLines = @(& $keyscan -T 4 -t ed25519 $target 2>$null | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+            if ($scanLines.Count -eq 0) {
+              $attempts += [ordered]@{ address=$target; host_key='unavailable'; ssh_exit=$null }
+              continue
+            }
+
+            $fingerprintFile = Join-Path $env:RUNNER_TEMP ("boxbrain-route-fingerprint-" + [Guid]::NewGuid().ToString('N'))
+            try {
+              [IO.File]::WriteAllLines($fingerprintFile, @([string]$scanLines[0]), [Text.Encoding]::ASCII)
+              $fpText = @(& $keygen -lf $fingerprintFile -E sha256 2>&1) -join ' '
+            } finally {
+              Remove-Item -LiteralPath $fingerprintFile -Force -ErrorAction SilentlyContinue
+            }
+            $fpMatch = [regex]::Match($fpText, 'SHA256:[A-Za-z0-9+/=]+')
+            if (-not $fpMatch.Success -or $fpMatch.Value -ne $expectedFingerprint) {
+              $attempts += [ordered]@{ address=$target; host_key='fingerprint-mismatch'; ssh_exit=$null }
+              continue
+            }
+
+            $knownHosts = Join-Path $env:RUNNER_TEMP ("boxbrain-route-knownhosts-" + [Guid]::NewGuid().ToString('N'))
+            [IO.File]::WriteAllLines($knownHosts, @([string]$scanLines[0]), [Text.Encoding]::ASCII)
+            try {
+              $remote = "echo AURUM_BOXBRAIN_HOPPER_ROUTE_TEST; echo '--- boxbrain host ---'; hostname; echo '--- boxbrain addresses ---'; ip -brief addr; echo '--- hopper resolution ---'; getent ahostsv4 hopper.local || true; getent ahostsv4 hopper || true; echo '--- hopper ping ---'; ping -c 2 hopper || ping -c 2 hopper.local || true; echo '--- hopper self-debug 8768 ---'; curl -sS --connect-timeout 2 --max-time 5 http://hopper:8768/status || curl -sS --connect-timeout 2 --max-time 5 http://hopper.local:8768/status || true; echo; echo '--- hopper echo proof 8767 ---'; curl -sS --connect-timeout 2 --max-time 5 http://hopper:8767/proof || curl -sS --connect-timeout 2 --max-time 5 http://hopper.local:8767/proof || true; echo; echo '--- hopper gui 8765 ---'; curl -sS --connect-timeout 2 --max-time 5 http://hopper:8765/ || curl -sS --connect-timeout 2 --max-time 5 http://hopper.local:8765/ || true; echo; echo '--- neighbors ---'; ip neigh"
+              $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@$target" $remote 2>&1)
+              $exit = $LASTEXITCODE
+            } finally {
+              Remove-Item -LiteralPath $knownHosts -Force -ErrorAction SilentlyContinue
+            }
+            $attempts += [ordered]@{ address=$target; host_key='verified'; ssh_exit=$exit }
+            if ($exit -eq 0) {
+              $selected = $target
+              $remoteOutput = $lines -join "`n"
+              break
+            }
+          }
+
+          $hopperResolved = $false
+          $hopperPing = $false
+          $selfDebug = $false
+          $echoProof = $false
+          $guiHttp = $false
+          if ($remoteOutput) {
+            $hopperResolved = $remoteOutput -match '(?m)^\s*(?:[0-9]{1,3}\.){3}[0-9]{1,3}\s+.*hopper'
+            $hopperPing = $remoteOutput -match '(?m)(?:1|2) received|0% packet loss'
+            $selfDebug = $remoteOutput -match 'aurum\.self-debug\.'
+            $echoProof = $remoteOutput -match 'echo|ECHO|aurum.*proof'
+            $guiHttp = $remoteOutput -match 'aurum|AURUM|<!DOCTYPE|<html'
+          }
+
+          $state = if (-not $selected) {
+            'BOXBRAIN_SSH_UNREACHABLE'
+          } elseif (-not $hopperResolved -and -not $hopperPing -and -not $selfDebug -and -not $echoProof -and -not $guiHttp) {
+            'BOXBRAIN_REACHED_HOPPER_NOT_PROVEN'
+          } else {
+            'BOXBRAIN_TO_HOPPER_ROUTE_PROVEN'
+          }
+
+          $result = [ordered]@{
+            schema = 'aurum-boxbrain-hopper-route-proof-v1'
+            state = $state
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            runner_host = $env:COMPUTERNAME
+            runner_name = $env:RUNNER_NAME
+            boxbrain_address = $selected
+            route = @('GitHub','main-PC-runner','SSH','BoxBrain-Pi4','LAN','Hopper')
+            read_only = $true
+            hopper = [ordered]@{
+              resolved = $hopperResolved
+              ping = $hopperPing
+              self_debug_8768 = $selfDebug
+              echo_proof_8767 = $echoProof
+              gui_8765 = $guiHttp
+            }
+            ssh_attempts = $attempts
+            remote_output = $remoteOutput
+          }
+
+          $resultDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+          $out = Join-Path $resultDir "boxbrain-hopper-route-$env:GITHUB_RUN_ID.json"
+          $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $out -Encoding UTF8
+          Get-Content -LiteralPath $out -Raw | Write-Host
+
+          git config user.name 'aurum-boxbrain-route[bot]'
+          git config user.email 'aurum-boxbrain-route@users.noreply.github.com'
+          git add -- $out
+          git commit -m 'Record BoxBrain to Hopper route proof [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish BoxBrain to Hopper route proof.' }
