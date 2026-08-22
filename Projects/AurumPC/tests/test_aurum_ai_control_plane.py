@@ -45,7 +45,7 @@ class AurumAIControlPlaneTests(unittest.TestCase):
         self.assertIn("CORE:CONTROL", {item["id"] for item in summary["resident_capabilities"]})
         self.assertTrue(module.trait("TRAIT:GPT")["resident"])
 
-    def test_gpt_trait_reports_full_scope_without_claiming_direct_execution(self) -> None:
+    def test_gpt_trait_reports_bounded_direct_execution_without_raw_shell(self) -> None:
         module = load("aurum_gpt_trait.py")
         with patch.object(module, "_api_key", return_value=None):
             current = module.status()
@@ -53,7 +53,13 @@ class AurumAIControlPlaneTests(unittest.TestCase):
         self.assertEqual(current["control_scope"], "all-os-domains")
         self.assertEqual(current["model_intent_scope"], "full")
         self.assertEqual(current["execution_authority"], "aurum-policy-broker")
-        self.assertFalse(current["host_actuation"])
+        self.assertEqual(current["host_actuation"], "bounded")
+        self.assertTrue(current["function_tools"])
+        self.assertTrue(current["workspace_read"])
+        self.assertTrue(current["workspace_exact_replace"])
+        self.assertFalse(current["raw_shell"])
+        self.assertFalse(current["git_push"])
+        self.assertEqual(current["status"], "api-key-required")
 
 
 if __name__ == "__main__":
