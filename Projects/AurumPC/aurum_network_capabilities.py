@@ -115,8 +115,6 @@ def _mdns_rows() -> list[dict[str, Any]]:
         fields = line.split(";")
         if len(fields) < 9:
             continue
-        # avahi-browse parseable resolved line:
-        # =;iface;proto;name;type;domain;host;address;port;txt
         try:
             port = int(fields[8])
         except ValueError:
@@ -210,6 +208,19 @@ def _infer_role(text: str, *, is_gateway: bool = False) -> tuple[str, set[str], 
     elif any(token in text for token in ("headset", "earbud", "headphone")):
         role = "headset"
         caps |= {"sense", "actuate", "acoustic-emit", "acoustic-receive"}
+        confidence = 0.78
+    elif any(token in text for token in ("watch", "wearable", "apple watch", "galaxy watch", "pixel watch", "fitbit", "garmin")):
+        role = "wearable"
+        caps |= {
+            "sense",
+            "presence-sense",
+            "proximity-sense",
+            "motion-sense",
+            "wellbeing-signal",
+            "alert-relay",
+            "radio",
+            "timing",
+        }
         confidence = 0.78
     elif any(token in text for token in ("tv", "television", "chromecast", "roku", "airplay", "dlna", "mediarenderer")):
         role = "display"
@@ -313,6 +324,7 @@ def build_discovery(
         if is_gateway:
             device["interface"] = device.get("interface") or gateway_interface
         label = device["names"][0] if device["names"] else ("Default gateway" if is_gateway else address)
+        human_safety = role == "wearable"
         nodes.append(
             {
                 "id": _node_id(address, device.get("mac")),
@@ -330,6 +342,9 @@ def build_discovery(
                     "services": device["services"],
                     "evidence": sorted(set(device["evidence"])),
                     "authorization": "unverified",
+                    "human_safety_signal": human_safety,
+                    "privacy_policy": "opt-in-local-minimize-raw-data" if human_safety else None,
+                    "medical_diagnosis": False if human_safety else None,
                 },
                 "safety": "observe-only",
                 "confidence": round(confidence, 3),
@@ -350,6 +365,9 @@ def build_discovery(
             "remote_command": False,
             "remote_configuration": False,
             "execution_authorized": False,
+            "human_safety_requires_opt_in": True,
+            "raw_health_data_minimized": True,
+            "medical_diagnosis": False,
         },
         "principle": "every reachable device is a potential capability node; capabilities remain hypotheses until measured",
     }
