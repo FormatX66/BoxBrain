@@ -1,0 +1,49 @@
+name: Apply Hopper Gen1 Named Surface
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/scripts/apply_hopper_gen1_identity.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply named-generation and ripple migration
+        run: python .github/scripts/apply_hopper_gen1_identity.py
+      - name: Verify source compiles and naming contract
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_desktop.py
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('Projects/AurumPC/aurum_desktop.py').read_text(encoding='utf-8')
+          assert 'Gen1 polished physical surface' in text
+          assert 'aurum.desktop.gen1-polished-physical-surface' in text
+          assert 'aurum-native-v2' not in text
+          assert 'Aurum Native GUI v2' not in text
+          assert 'ripples = (' in text
+          PY
+      - name: Commit migrated physical surface
+        run: |
+          if git diff --quiet -- Projects/AurumPC/aurum_desktop.py; then
+            echo 'No migration changes required.'
+            exit 0
+          fi
+          git config user.name 'aurum-generation-migration[bot]'
+          git config user.email 'aurum-generation-migration[bot]@users.noreply.github.com'
+          git add Projects/AurumPC/aurum_desktop.py
+          git commit -m 'Name Hopper surface Gen1 and radiate Wi-Fi ripples outward [skip ci]'
+          git push origin HEAD:aurum/trunk-v0.01
