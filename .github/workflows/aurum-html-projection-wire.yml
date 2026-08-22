@@ -1,0 +1,58 @@
+name: Wire Hopper HTML Projection
+
+on:
+  push:
+    branches: [aurum/trunk-v0.01]
+    paths:
+      - '.github/scripts/wire_html_projection_runtime.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wire HTML projection
+        run: python .github/scripts/wire_html_projection_runtime.py
+      - name: Verify projection contracts
+        run: |
+          python -m py_compile \
+            Projects/AurumPC/aurum_hopper_gui.py \
+            Projects/AurumPC/aurum_web_surface.py \
+            Projects/AurumPC/aurum_projection_runtime.py \
+            Projects/AurumPC/aurum_gui_runtime.py \
+            Projects/AurumPC/aurum_runtime_update.py
+          python - <<'PY'
+          from pathlib import Path
+          gui = Path('Projects/AurumPC/aurum_gui_runtime.py').read_text()
+          runtime = Path('Projects/AurumPC/aurum_runtime_update.py').read_text()
+          hopper = Path('Projects/AurumPC/aurum_hopper_gui.py').read_text()
+          projection = Path('Projects/AurumPC/aurum_projection_runtime.py').read_text()
+          assert 'aurum_projection_runtime.py' in gui
+          assert 'aurum_projection_runtime.py' in runtime
+          assert 'aurum_web_surface.py' in runtime
+          assert 'renderer": "html5"' in hopper or 'renderer\": \"html5\"' in hopper
+          assert 'pygame-fallback' in projection
+          assert '--no-sandbox' not in projection
+          assert '--no-sandbox' not in Path('Projects/AurumPC/aurum_web_surface.py').read_text()
+          PY
+      - name: Commit runtime wiring
+        run: |
+          if git diff --quiet -- Projects/AurumPC/aurum_gui_runtime.py Projects/AurumPC/aurum_runtime_update.py; then
+            echo 'Already wired.'
+            exit 0
+          fi
+          git config user.name 'aurum-html-projection[bot]'
+          git config user.email 'aurum-html-projection[bot]@users.noreply.github.com'
+          git add Projects/AurumPC/aurum_gui_runtime.py Projects/AurumPC/aurum_runtime_update.py
+          git commit -m 'Make HTML primary Hopper projection with Pygame fallback [skip ci]'
+          git push origin HEAD:aurum/trunk-v0.01
