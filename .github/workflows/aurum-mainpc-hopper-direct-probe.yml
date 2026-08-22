@@ -1,0 +1,80 @@
+name: Aurum Main PC to Hopper Direct Probe
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/workflows/aurum-mainpc-hopper-direct-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 1
+      - name: Discover Hopper without changing it
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'SilentlyContinue'
+          $names = @('hopper','hopper.local','pc-01','pc-01.local')
+          $known = @('192.168.0.35')
+          $addresses = New-Object System.Collections.Generic.HashSet[string]
+          $resolved = @()
+          foreach ($name in $names) {
+            try {
+              $ips = [System.Net.Dns]::GetHostAddresses($name) | Where-Object { $_.AddressFamily -eq 'InterNetwork' } | ForEach-Object { $_.IPAddressToString }
+              foreach ($ip in $ips) { [void]$addresses.Add($ip) }
+              $resolved += [pscustomobject]@{ name=$name; addresses=@($ips) }
+            } catch {
+              $resolved += [pscustomobject]@{ name=$name; addresses=@() }
+            }
+          }
+          foreach ($ip in $known) { [void]$addresses.Add($ip) }
+          $attempts = @()
+          foreach ($address in $addresses) {
+            $ping = Test-Connection -ComputerName $address -Count 1 -Quiet -ErrorAction SilentlyContinue
+            $ports = @{}
+            foreach ($port in @(22,8765,8766,8767,8768)) {
+              $ports["$port"] = [bool](Test-NetConnection -ComputerName $address -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)
+            }
+            $ssh = $null
+            if ($ports['22']) {
+              $out = & ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=accept-new $address 'printf "AURUM_HOPPER_ID "; hostname; test -f /var/lib/aurum/state/machine-identity.json && cat /var/lib/aurum/state/machine-identity.json || true' 2>&1
+              $ssh = [pscustomobject]@{ exit=$LASTEXITCODE; output=($out -join "`n") }
+            }
+            $attempts += [pscustomobject]@{ address=$address; ping=[bool]$ping; ports=$ports; ssh=$ssh }
+          }
+          $state = if ($attempts | Where-Object { $_.ssh -and $_.ssh.exit -eq 0 }) { 'HOPPER_SSH_VERIFIED' } elseif ($attempts | Where-Object { $_.ports.'8765' -or $_.ports.'8767' -or $_.ports.'8768' -or $_.ping }) { 'HOPPER_REACHABLE_NO_SSH' } else { 'HOPPER_NOT_REACHED' }
+          $payload = [ordered]@{
+            schema='aurum.mainpc-hopper-direct-proof.gen1'
+            state=$state
+            observed_at=(Get-Date).ToUniversalTime().ToString('o')
+            runner_host=$env:COMPUTERNAME
+            runner_name=$env:RUNNER_NAME
+            resolved=$resolved
+            attempts=$attempts
+            read_only=$true
+          }
+          New-Item -ItemType Directory -Force -Path Projects/AurumBridge/results | Out-Null
+          $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
+          $path = "Projects/AurumBridge/results/mainpc-hopper-direct-$stamp.json"
+          $payload | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $path
+          Write-Host "AURUM_HOPPER_DIRECT_STATE=$state"
+      - name: Record proof
+        shell: powershell
+        run: |
+          git config user.name 'aurum-mainpc-hopper[bot]'
+          git config user.email 'aurum-mainpc-hopper[bot]@users.noreply.github.com'
+          git add Projects/AurumBridge/results/mainpc-hopper-direct-*.json
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'Record direct main-PC to Hopper proof [skip ci]'
+            git push origin HEAD:aurum/trunk-v0.01
+          }
