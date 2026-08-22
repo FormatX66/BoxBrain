@@ -1,4 +1,4 @@
-# trigger-retry-2
+# trigger-retry-3
 name: Aurum Direct Pi PC-01 Visibility Probe
 
 on:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   probe:
-    name: Probe PC-01 and Hopper Echo from self-hosted Linux node
+    name: Probe PC-01, Hopper Echo, and HDMI capture from self-hosted Linux node
     runs-on: [self-hosted, Linux]
     timeout-minutes: 5
     steps:
@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: true
 
-      - name: Run read-only visibility and Echo proof probe and commit receipt
+      - name: Run read-only visibility, Echo, and capture proof probe and commit receipt
         shell: bash
         run: |
           set -u
@@ -39,6 +39,13 @@ jobs:
           hopper_resolve="$(getent ahostsv4 hopper.local 2>&1; getent ahostsv4 hopper 2>&1)"
           hopper_ping="$(ping -c 2 hopper 2>&1 || true)"
           neigh="$(ip neigh 2>&1 || true)"
+          usb_inventory="$(lsusb 2>&1 || true)"
+          video_devices="$(ls -l /dev/video* 2>&1 || true)"
+          if command -v v4l2-ctl >/dev/null 2>&1; then
+            v4l2_devices="$(v4l2-ctl --list-devices 2>&1 || true)"
+          else
+            v4l2_devices="v4l2-ctl unavailable"
+          fi
 
           proof1=""
           proof1_host=""
@@ -65,7 +72,7 @@ jobs:
           done
 
           port_state=""
-          for port in 8765 8766 8767; do
+          for port in 8765 8766 8767 8768; do
             if timeout 4 bash -c "</dev/tcp/hopper/$port" 2>/dev/null; then
               port_state+="hopper:${port}=open\n"
             else
@@ -74,11 +81,34 @@ jobs:
           done
 
           mkdir -p Projects/AurumBridge/results
+          capture_file="Projects/AurumBridge/results/hopper-hdmi-capture-${GITHUB_RUN_ID}.jpg"
+          capture_state="not-attempted"
+          capture_device=""
+          if command -v ffmpeg >/dev/null 2>&1; then
+            for candidate in /dev/video0 /dev/video1 /dev/video2 /dev/video3; do
+              [ -e "$candidate" ] || continue
+              if timeout 12 ffmpeg -hide_banner -loglevel error -f v4l2 -i "$candidate" -frames:v 1 -q:v 3 -y "$capture_file" >/tmp/aurum-capture.out 2>&1; then
+                capture_state="frame-captured"
+                capture_device="$candidate"
+                break
+              else
+                capture_state="video-device-present-frame-failed"
+                capture_device="$candidate"
+              fi
+            done
+          elif compgen -G '/dev/video*' >/dev/null; then
+            capture_state="video-device-present-ffmpeg-unavailable"
+          else
+            capture_state="no-video-device"
+          fi
+
           out="Projects/AurumBridge/results/direct-pi-pc01-hopper-visibility-${GITHUB_RUN_ID}.txt"
           {
-            echo "schema=aurum-direct-pi-pc01-hopper-visibility-v2"
+            echo "schema=aurum-direct-pi-pc01-hopper-visibility-v3"
             echo "host=$host"
             echo "observed_at=$observed"
+            echo "capture_state=$capture_state"
+            echo "capture_device=$capture_device"
             echo "--- addresses ---"
             printf '%s\n' "$addresses"
             echo "--- ping pc-01.local ---"
@@ -93,6 +123,12 @@ jobs:
             printf '%s\n' "$proof2"
             echo "--- bounded hopper service ports ---"
             printf '%b' "$port_state"
+            echo "--- usb inventory ---"
+            printf '%s\n' "$usb_inventory"
+            echo "--- video devices ---"
+            printf '%s\n' "$video_devices"
+            echo "--- v4l2 devices ---"
+            printf '%s\n' "$v4l2_devices"
             echo "--- ip neigh ---"
             printf '%s\n' "$neigh"
           } | tee "$out"
@@ -100,6 +136,9 @@ jobs:
           git config user.name 'aurum-direct-pi-probe[bot]'
           git config user.email 'aurum-direct-pi-probe@users.noreply.github.com'
           git add -- "$out"
-          git commit -m "Record direct Pi PC-01 and Hopper visibility probe [skip ci]"
+          if [ -s "$capture_file" ]; then
+            git add -- "$capture_file"
+          fi
+          git commit -m "Record direct Pi Hopper visibility and capture probe [skip ci]"
           git pull --rebase origin main
           git push origin HEAD:main
