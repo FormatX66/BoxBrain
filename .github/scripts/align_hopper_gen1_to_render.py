@@ -5,6 +5,7 @@ This migration changes presentation only. Every machine value remains measured
 from Hopper or explicitly unknown. It also keeps controls bounded to existing
 Aurum actions.
 """
+# Trigger: apply the approved render alignment to the current Gen1 surface.
 from pathlib import Path
 import re
 
@@ -134,15 +135,10 @@ replace_once(
     "search action",
 )
 
-# Search keyboard handling: text input is deliberately restricted to known
-# system surfaces, so it cannot become an arbitrary command field.
 old_key = '''            elif event.type == pygame.KEYDOWN:\n                ctrl = bool(event.mod & pygame.KMOD_CTRL)\n                alt = bool(event.mod & pygame.KMOD_ALT)\n                if ctrl and alt and event.key == pygame.K_F1:\n                    handle_action("recovery")\n                elif event.key == pygame.K_F5:\n                    handle_action("refresh")\n                elif event.key == pygame.K_F12:\n                    STOP_REQUESTED = True\n                elif pygame.K_1 <= event.key <= pygame.K_6:\n                    nav_click(event.key - pygame.K_1)'''
 new_key = '''            elif event.type == pygame.KEYDOWN:\n                ctrl = bool(event.mod & pygame.KMOD_CTRL)\n                alt = bool(event.mod & pygame.KMOD_ALT)\n                if search_active:\n                    if event.key == pygame.K_ESCAPE:\n                        search_active = False\n                        search_query = ""\n                        pygame.key.stop_text_input()\n                    elif event.key == pygame.K_BACKSPACE:\n                        search_query = search_query[:-1]\n                    elif event.key == pygame.K_RETURN:\n                        query = search_query.strip().casefold()\n                        destinations = [\n                            (("network", "wifi"), (5, "Network")),\n                            (("power", "battery"), (5, "Power")),\n                            (("time", "clock", "ntp"), (5, "Time")),\n                            (("recover", "recovery"), (5, "Recovery")),\n                            (("runtime", "update", "sync"), (2, "Runtime")),\n                            (("build",), (2, None)),\n                            (("hardware", "cpu", "memory", "gpu", "storage"), (3, None)),\n                            (("trait",), (1, None)),\n                            (("field",), (4, None)),\n                            (("setting",), (5, None)),\n                        ]\n                        found = None\n                        for words, destination in destinations:\n                            if any(word in query for word in words):\n                                found = destination\n                                break\n                        search_active = False\n                        pygame.key.stop_text_input()\n                        if found is None:\n                            toast = f"No bounded system match for {search_query!r}"\n                            toast_until = time.monotonic() + 3\n                        elif found[1] is None:\n                            nav_click(found[0])\n                        else:\n                            selected, detail_view = found\n                        search_query = ""\n                elif ctrl and alt and event.key == pygame.K_F1:\n                    handle_action("recovery")\n                elif event.key == pygame.K_F5:\n                    handle_action("refresh")\n                elif event.key == pygame.K_F12:\n                    STOP_REQUESTED = True\n                elif pygame.K_1 <= event.key <= pygame.K_6:\n                    nav_click(event.key - pygame.K_1)\n            elif event.type == pygame.TEXTINPUT and search_active:\n                if len(search_query) < 48:\n                    search_query += event.text'''
 replace_once(old_key, new_key, "search keyboard")
 
-# ---------------------------------------------------------------------------
-# Render-specific iconography and canopy.
-# ---------------------------------------------------------------------------
 if "def draw_nav_icon(" not in text:
     marker = "\n    def wifi_icon(cx: int, cy: int, strength: int | None):\n"
     helpers = r'''
@@ -178,7 +174,6 @@ if "def draw_nav_icon(" not in text:
                 pygame.draw.line(screen,color,(cx+int(dx*.65),cy+int(dy*.65)),(cx+dx,cy+dy),w)
 
     def circuit_canopy(rect):
-        # Botanical branch on the left side of the canopy.
         base=(rect.x+S(18), rect.bottom-S(10))
         tip=(rect.x+S(160), rect.y+S(8))
         pygame.draw.line(screen, gold, base, tip, max(1,S(2)))
@@ -187,7 +182,6 @@ if "def draw_nav_icon(" not in text:
             x=int(base[0]+(tip[0]-base[0])*t); y=int(base[1]+(tip[1]-base[1])*t)
             leaf(x-S(10),y-S(3),S(15),S(27),-55,gold_hi)
             if i not in {0,6}: leaf(x+S(10),y+S(2),S(13),S(24),45,gold)
-        # Circuit traces flow out to the right, echoing the approved render.
         start_x=rect.x+S(170)
         for i in range(5):
             yy=rect.y+S(18)+i*S(12)
@@ -220,9 +214,6 @@ if "def draw_nav_icon(" not in text:
         raise SystemExit("missing wifi helper marker")
     text = text.replace(marker, helpers + marker, 1)
 
-# ---------------------------------------------------------------------------
-# Replace the main shell/chrome. Detail pages below remain intact.
-# ---------------------------------------------------------------------------
 start = text.index("        click_targets.clear()\n        screen.fill(bg)\n")
 home = text.index("        if selected == 0:\n", start)
 new_chrome = r'''        click_targets.clear()
@@ -311,9 +302,6 @@ new_chrome = r'''        click_targets.clear()
 '''
 text = text[:start] + new_chrome + text[home:]
 
-# ---------------------------------------------------------------------------
-# Replace the whole Home dashboard with render-aligned cards.
-# ---------------------------------------------------------------------------
 pattern = re.compile(r'(?ms)^        if selected == 0:\n.*?^        else:\n            box = pygame\.Rect\(')
 match = pattern.search(text)
 if not match:
@@ -326,7 +314,6 @@ new_home = r'''        if selected == 0:
             runtime_activity=snap.get("runtime_activity") or {}
             hardware_labels=snap.get("hardware_labels") or {}
 
-            # RUNTIME STATUS
             r1=pygame.Rect(main_x,grid_top,card_w,row_h)
             card_shell(r1,"Runtime Status",fit(snap.get("runtime_status"),18),good if snap.get("runtime_status") not in {None,"unknown","failed"} else warn)
             medallion(r1.x+S(85),r1.y+S(112),S(48),teal_ring=True)
@@ -340,7 +327,6 @@ new_home = r'''        if selected == 0:
             text(f"Threads    {runtime_activity.get('threads') if runtime_activity.get('threads') is not None else '—'}",tx,r1.y+S(162),tiny,muted)
             button(pygame.Rect(r1.x+S(12),r1.bottom-S(40),r1.width-S(24),S(28)),"View Details","detail",(2,"Runtime"))
 
-            # NETWORK
             r2=pygame.Rect(r1.right+gap,grid_top,card_w,row_h)
             card_shell(r2,"Network","Connected" if wifi.get("connected") else "Offline",good if wifi.get("connected") else bad)
             wifi_icon(r2.x+S(74),r2.y+S(112),wifi.get("signal"))
@@ -355,7 +341,6 @@ new_home = r'''        if selected == 0:
             text(f"IP {wifi.get('ip') or 'Unknown'}",tx,r2.y+S(164),tiny,muted)
             button(pygame.Rect(r2.x+S(12),r2.bottom-S(40),r2.width-S(24),S(28)),"Network Settings","detail",(5,"Network"))
 
-            # POWER
             r3=pygame.Rect(r2.right+gap,grid_top,card_w,row_h)
             card_shell(r3,"Power",fit(battery.get("status"),18),good if battery.get("charging") else teal)
             medallion(r3.x+S(82),r3.y+S(111),S(50),int(bp) if bp is not None else None)
@@ -369,7 +354,6 @@ new_home = r'''        if selected == 0:
             text("Health",tx,r3.y+S(154),tiny,muted); text("Charging" if battery.get("charging") else fit(battery.get("status"),16),tx,r3.y+S(171),tiny,good if battery.get("charging") else muted)
             button(pygame.Rect(r3.x+S(12),r3.bottom-S(40),r3.width-S(24),S(28)),"Power & Battery","detail",(5,"Power"))
 
-            # TRAITS
             r4=pygame.Rect(r3.right+gap,grid_top,card_w,row_h)
             card_shell(r4,"Traits",f"{snap['traits_ready']} ready" if snap["traits_total"] else "No evidence",teal if snap["traits_total"] else muted)
             pygame.draw.line(screen,gold,(r4.x+S(50),r4.y+S(165)),(r4.x+S(112),r4.y+S(67)),max(1,S(2)))
@@ -384,8 +368,6 @@ new_home = r'''        if selected == 0:
             button(pygame.Rect(r4.x+S(12),r4.bottom-S(40),r4.width-S(24),S(28)),"Manage Traits","nav",1)
 
             row2=grid_top+row_h+gap
-
-            # BUILD STATUS
             r5=pygame.Rect(main_x,row2,card_w,row_h)
             card_shell(r5,"Build Status",fit(snap.get("runtime_status"),18),good if snap.get("runtime_status") not in {None,"unknown","failed"} else warn)
             medallion(r5.x+S(82),r5.y+S(112),S(46),teal_ring=True)
@@ -397,7 +379,6 @@ new_home = r'''        if selected == 0:
             text("Head",tx,r5.y+S(148),tiny,muted); text(fit(snap.get("head_short"),18),tx,r5.y+S(165),tiny,ink)
             button(pygame.Rect(r5.x+S(12),r5.bottom-S(40),r5.width-S(24),S(28)),"Build Details","detail",(2,"Runtime"))
 
-            # HARDWARE
             r6=pygame.Rect(r5.right+gap,row2,card_w,row_h)
             metrics=[("CPU",snap.get("cpu_percent"),hardware_labels.get("cpu_model")),("Memory",snap.get("memory_percent"),_human_bytes(hardware_labels.get("memory_total_bytes"))),("Storage",snap.get("storage_percent"),_human_bytes(hardware_labels.get("storage_total_bytes"))),("GPU",snap.get("gpu_percent"),hardware_labels.get("gpu_model"))]
             card_shell(r6,"Hardware",f"{sum(v is not None for _,v,_ in metrics)}/4 live",teal)
@@ -411,7 +392,6 @@ new_home = r'''        if selected == 0:
                 yy+=S(31)
             button(pygame.Rect(r6.x+S(12),r6.bottom-S(40),r6.width-S(24),S(28)),"Hardware Monitor","nav",3)
 
-            # INPUTS
             r7=pygame.Rect(r6.right+gap,row2,card_w,row_h)
             card_shell(r7,"Inputs","Pointer verified" if pointer_motion_observed else "Detected",good if pointer_motion_observed else warn)
             pad=pygame.Rect(r7.x+S(25),r7.y+S(65),S(116),S(84)); rounded(pad,(8,12,15),teal,10,1)
@@ -420,7 +400,6 @@ new_home = r'''        if selected == 0:
             text("Keyboard",r7.x+S(165),r7.y+S(120),small,ink); text(f"{snap.get('keyboards')} detected" if snap.get("keyboards") else "Unknown",r7.x+S(165),r7.y+S(142),tiny,muted)
             button(pygame.Rect(r7.x+S(12),r7.bottom-S(40),r7.width-S(24),S(28)),"Input Settings","detail",(5,"Recovery"),accent=teal)
 
-            # SYSTEM TOOLS
             r8=pygame.Rect(r7.right+gap,row2,card_w,row_h)
             card_shell(r8,"System Tools","Bounded actions",teal)
             tools=[("Update & Sync",(2,"Runtime")),("Recovery",(5,"Recovery")),("Time Server",(5,"Time")),("Network",(5,"Network"))]
@@ -432,7 +411,6 @@ new_home = r'''        if selected == 0:
                 text(label_name,rr.x+S(36),rr.y+S(7),tiny,ink); text("›",rr.right-S(16),rr.y+S(4),small,gold_hi)
                 add_target(rr,"detail",target); yy+=S(32)
 
-            # QUICK ACTIONS
             qa_y=row2+row_h+gap
             qa_h=S(86)
             qa=pygame.Rect(main_x,qa_y,main_w,qa_h); rounded(qa,(5,8,10),gold_dim,12,1)
@@ -444,7 +422,6 @@ new_home = r'''        if selected == 0:
                 rounded(br,(8,11,13),teal if action=="refresh" else gold_dim,10,1)
                 text(label_name,br.x+S(18),br.y+S(15),small,ink); add_target(br,action)
 
-            # BOTTOM DOCK — every item is a real navigation target.
             dock_w=S(560); dock_h=S(58); dock=pygame.Rect(width//2-dock_w//2,height-S(72),dock_w,dock_h)
             rounded(dock,(6,8,10),gold_dim,18,1)
             slots=[("Home",0),("Field",4),("Traits",1),("Build",2),("Hardware",3),("Settings",5)]
@@ -460,7 +437,6 @@ new_home = r'''        if selected == 0:
             box = pygame.Rect('''
 text = text[:match.start()] + new_home + text[match.end():]
 
-# Footer on Home would overlap the render-style dock. Keep it for detail pages only.
 text = text.replace(
     '        footer_y = height - S(27)\n        text(\n            "AURUM OS · LIVE VALUES ARE MEASURED; MISSING VALUES ARE SHOWN AS UNKNOWN.",\n            S(18),\n            footer_y,\n            tiny,\n            teal,\n        )',
     '        if selected != 0:\n            footer_y = height - S(27)\n            text(\n                "AURUM OS · LIVE VALUES ARE MEASURED; MISSING VALUES ARE SHOWN AS UNKNOWN.",\n                S(18),\n                footer_y,\n                tiny,\n                teal,\n            )',
