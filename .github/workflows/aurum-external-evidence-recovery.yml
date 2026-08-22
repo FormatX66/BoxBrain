@@ -91,14 +91,25 @@ jobs:
           }
 
           $collector = Join-Path $env:GITHUB_WORKSPACE 'installer\collect-adaptive-shell-gui-live-trial.ps1'
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
-            -PiAddress '10.12.194.1' `
-            -KeyPath $key `
-            -KnownHostsPath $knownHosts `
-            -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
-            -TimeToLiveSeconds 1200
-          if ($LASTEXITCODE -ne 0) {
-            throw "The bounded GUI evidence collector failed with exit code $LASTEXITCODE."
+          $approvedRoutes = @('10.12.194.1', '10.42.194.1', 'bbpi4.local', '192.168.0.194')
+          $selectedRoute = $null
+          foreach ($route in $approvedRoutes) {
+            Write-Host "AURUM_EXTERNAL_EVIDENCE route_probe=$route"
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
+              -PiAddress $route `
+              -KeyPath $key `
+              -KnownHostsPath $knownHosts `
+              -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
+              -TimeToLiveSeconds 1200
+            $collectorExitCode = $LASTEXITCODE
+            if ($collectorExitCode -eq 0) {
+              $selectedRoute = $route
+              break
+            }
+            Write-Host "AURUM_EXTERNAL_EVIDENCE route_failed=$route exit_code=$collectorExitCode"
+          }
+          if (-not $selectedRoute) {
+            throw 'The bounded GUI evidence collector could not reach BBPI4 on any preapproved strict-SSH route.'
           }
 
           $path = Join-Path $env:GITHUB_WORKSPACE 'Projects\Codelation\autobuild\external_evidence\adaptive_shell_gui_live_trial.json'
@@ -109,21 +120,22 @@ jobs:
             [string]$evidence.kind -ne 'adaptive-shell-gui-live-trial' -or
             $evidence.verified -ne $true -or
             [string]$evidence.node_id -ne 'cff5511ddbb6bf14' -or
-            [string]$evidence.route -ne '10.12.194.1' -or
+            $approvedRoutes -notcontains [string]$evidence.route -or
+            [string]$evidence.route -ne [string]$selectedRoute -or
             $evidence.authority_granted -ne $false -or
             $evidence.persistent_service_enabled -ne $false -or
             [int64]$evidence.observed_at -gt $now -or
             [int64]$evidence.observed_at -lt ($now - 180) -or
             [int64]$evidence.expires_at -le $now
           ) {
-            throw 'Fresh GUI evidence failed its identity, freshness, or authority contract.'
+            throw 'Fresh GUI evidence failed its identity, freshness, route, or authority contract.'
           }
           foreach ($name in @('packages_installed','persistent_service_enabled','raw_disk_changed','firmware_changed','bootloader_changed','security_reduced')) {
             if ($evidence.safety.$name -ne $false) {
               throw "Fresh GUI evidence crossed the bounded safety contract: $name"
             }
           }
-          Write-Host "AURUM_EXTERNAL_EVIDENCE_VERIFIED node_id=$($evidence.node_id) expires_at=$($evidence.expires_at) authority=false"
+          Write-Host "AURUM_EXTERNAL_EVIDENCE_VERIFIED node_id=$($evidence.node_id) route=$selectedRoute expires_at=$($evidence.expires_at) authority=false"
 
       - name: Publish only fresh evidence to Aurum trunk
         shell: powershell
