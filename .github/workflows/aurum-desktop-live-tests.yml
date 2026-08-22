@@ -1,0 +1,34 @@
+name: Aurum Hopper Live GUI Verification
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - 'Projects/AurumPC/aurum_desktop.py'
+      - 'Projects/AurumPC/aurum_time.py'
+      - 'Projects/AurumPC/tests/test_aurum_desktop_v2.py'
+      - '.github/workflows/aurum-desktop-live-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile desktop and time evidence layer
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_desktop.py Projects/AurumPC/aurum_time.py
+      - name: Verify clicks telemetry and NTP contracts
+        run: |
+          python -m unittest Projects.AurumPC.tests.test_aurum_desktop_v2 -v
+      - name: Verify existing Aurum source contracts
+        run: |
+          python -m unittest Projects.AurumPC.tests.test_ci_source_contracts -v
