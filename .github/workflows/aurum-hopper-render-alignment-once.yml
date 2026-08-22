@@ -1,0 +1,66 @@
+name: Apply Hopper Gen1 Render Alignment
+
+on:
+  push:
+    branches:
+      - aurum/trunk-v0.01
+    paths:
+      - '.github/scripts/align_hopper_gen1_to_render.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum/trunk-v0.01
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply approved render alignment
+        run: python .github/scripts/align_hopper_gen1_to_render.py
+      - name: Validate Hopper surface
+        run: |
+          python -m py_compile Projects/AurumPC/aurum_desktop.py
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('Projects/AurumPC/aurum_desktop.py').read_text(encoding='utf-8')
+          required=[
+              'circuit_canopy',
+              'Search Aurum OS',
+              'Runtime Status',
+              'Build Status',
+              'System Tools',
+              'runtime_activity',
+              'hardware_labels',
+              'BOTTOM DOCK',
+              'GENERATION_NAME',
+          ]
+          for marker in required:
+              assert marker in text, marker
+          assert '("CPU",32)' not in text
+          assert '("Memory",68)' not in text
+          assert '("Storage",46)' not in text
+          assert '("GPU",24)' not in text
+          PY
+      - name: Run focused desktop tests
+        run: |
+          python -m unittest Projects.AurumPC.tests.test_aurum_desktop_live -v || \
+          python -m unittest discover -s Projects/AurumPC/tests -p 'test_aurum_desktop*.py' -v
+      - name: Commit render-aligned Hopper surface
+        run: |
+          if git diff --quiet -- Projects/AurumPC/aurum_desktop.py; then
+            echo 'No surface changes required.'
+            exit 0
+          fi
+          git config user.name 'aurum-hopper-surface[bot]'
+          git config user.email 'aurum-hopper-surface[bot]@users.noreply.github.com'
+          git add Projects/AurumPC/aurum_desktop.py
+          git commit -m 'Align Hopper Gen1 physical surface to approved render [skip ci]'
+          git push origin HEAD:aurum/trunk-v0.01
