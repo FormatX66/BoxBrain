@@ -22,7 +22,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum.desktop.v2"
+SCHEMA = "aurum.desktop.gen1-polished-physical-surface"
+GENERATION_NAME = "Gen1 polished physical surface"
 STOP_REQUESTED = False
 
 
@@ -624,20 +625,25 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             )
 
     def wifi_icon(cx: int, cy: int, strength: int | None):
-        value = strength if strength is not None else -1
-        for i, radius in enumerate((S(24), S(17), S(10))):
-            color = teal_hi if value >= (i + 1) * 25 else gold_dim
-            pygame.draw.arc(
-                screen,
-                color,
-                pygame.Rect(cx - radius, cy - radius, radius * 2, radius * 2),
-                math.pi * 1.15,
-                math.pi * 1.85,
-                max(1, S(2)),
-            )
+        level = 0 if strength is None else max(0, min(3, math.ceil(max(0, strength) / 34)))
+        source_y = cy + S(3)
         pygame.draw.circle(
-            screen, teal_hi if value >= 0 else gold_dim, (cx, cy + S(13)), S(3)
+            screen,
+            teal_hi if level else gold_dim,
+            (cx, source_y),
+            max(2, S(3)),
         )
+        # Pond-ripple geometry: each ring shares the same source and expands
+        # outward.  Inner-to-outer illumination makes signal direction honest.
+        ripples = (
+            (S(10), S(4)),
+            (S(18), S(7)),
+            (S(27), S(11)),
+        )
+        for index, (rx, ry) in enumerate(ripples, start=1):
+            color = teal_hi if level >= index else gold_dim
+            rect = pygame.Rect(cx - rx, source_y - ry, rx * 2, ry * 2)
+            pygame.draw.ellipse(screen, color, rect, width=max(1, S(2)))
 
     def battery_icon(x: int, y: int, percent: int | None, charging: bool):
         w, h = S(38), S(18)
@@ -700,7 +706,8 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         state,
         {
             "schema": SCHEMA,
-            "ui_version": "aurum-native-v2",
+            "generation_name": GENERATION_NAME,
+            "ui_identity": "gen1-polished-physical-surface",
             "status": "running",
             "pid": os.getpid(),
             "surface": "physical",
@@ -1304,7 +1311,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                 ] or [("Traits", "No trait evidence reported")]
             else:
                 rows = [
-                    ("Aurum desktop", "Native GUI v2"),
+                    ("Aurum desktop", "Gen1 polished physical surface"),
                     ("Machine", snap["machine"]),
                     ("Runtime", snap["runtime_status"]),
                     ("Network route", "online" if snap["online"] else "offline"),
@@ -1400,7 +1407,8 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         state,
         {
             "schema": SCHEMA,
-            "ui_version": "aurum-native-v2",
+            "generation_name": GENERATION_NAME,
+            "ui_identity": "gen1-polished-physical-surface",
             "status": "stopped",
             "machine": "Hopper",
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
