@@ -1,5 +1,6 @@
 /* AURUM_NATIVE_FRONTIER_V1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
+ * Native state format: aurum-native-chain-resume-v1.
  * Reads the verified Aurum trunk checkpoint and makes the existing self-build card
  * report the actual native frontier instead of inferring progress from runner activity.
  */
@@ -9,7 +10,7 @@ const REFRESH=5*60*1000;
 const state={chain:null,ok:false,updated:0};
 const words=v=>String(v??'unknown').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
 function decode(v){const raw=atob(String(v||'').replace(/\s+/g,''));try{return decodeURIComponent([...raw].map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))}catch{return raw}}
-function schema(c){return c?.schema||c?._checkpoint?.schema||''}
+function valid(c){return Number.isInteger(c?.completed_generations)&&Array.isArray(c?.generations)&&c.generations.length>0}
 function latestGap(c){const g=Array.isArray(c?.generations)?c.generations:[];return g.length?g[g.length-1]?.gap:null}
 function frontier(c){
   const generation=Number(c?.completed_generations||0);
@@ -49,7 +50,7 @@ async function refresh(){
   try{
     const r=await fetch(API,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(String(r.status));
     const envelope=await r.json();const chain=JSON.parse(decode(envelope.content));
-    if(schema(chain)!=='aurum-native-chain-resume-v1')throw new Error('schema');
+    if(!valid(chain))throw new Error('native-checkpoint-shape');
     state.chain=chain;state.ok=true;state.updated=Date.now();apply();
   }catch(_){state.ok=false}
 }
