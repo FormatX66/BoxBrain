@@ -1,0 +1,12 @@
+{
+  "schema": "aurum-pi-hopper-peer-proof-request-v1",
+  "created_at": "2026-08-22T07:12:00-04:00",
+  "intent": "Prove Pi4 is independently powered, reachable as a self-hosted Linux node, can observe Hopper over LAN/USB paths, and can enumerate Hopper HDMI capture hardware without changing either machine.",
+  "read_only": true,
+  "expected_paths": [
+    "GitHub -> Pi4 self-hosted Linux runner",
+    "Pi4 -> Hopper LAN/USB visibility",
+    "Hopper HDMI -> Pi4 capture"
+  ],
+  "notes": "Pi4 now has independent power plus a separate USB connection to Hopper. Preserve both machines; no reboot or configuration changes."
+}
