@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""GPT trait — OpenAI reasoning bridge for Aurum on Hopper.
+"""GPT trait — direct, policy-mediated reasoning and control on Hopper.
 
-GPT may reason about and request changes across the whole Aurum OS. Aurum's
-control plane remains the authority for authorization, execution, verification,
-and rollback. The model therefore gains full OS scope without raw shell access
-becoming the operating-system contract.
+GPT can reason across the Aurum OS and may use a bounded set of local tools.
+Aurum remains the execution authority: no raw shell is exposed, source edits are
+restricted to Aurum workspace roots, validation is mandatory, failed edits roll
+back, and every action returns a durable receipt to the model.
 """
 from __future__ import annotations
 
@@ -19,21 +19,23 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "aurum.trait.gpt.v1"
+SCHEMA = "aurum.trait.gpt.gen1-direct-control"
 API_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = os.environ.get("AURUM_GPT_MODEL", "gpt-5.6-sol")
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_KEY_FILE = Path(os.environ.get("AURUM_OPENAI_KEY_FILE", "/run/credentials/aurum-gpt/openai_api_key"))
+MAX_TOOL_ROUNDS = 8
 
 SYSTEM_TEXT = (
-    "You are GPT operating as a reasoning trait inside Aurum on Hopper. You may reason about "
-    "and request changes across every Aurum OS domain, including appearance, interaction, traits, "
-    "builds, runtime, kernel, devices, transport, storage, identity, permissions, recovery, and power. "
-    "Aurum's control plane owns authorization, execution, verification, and rollback. Do not claim an "
-    "action happened unless Aurum reports that it happened. Prefer machine-first capability design, "
-    "reversible changes, concise operator guidance, and explicit blockers."
+    "You are GPT operating directly inside Aurum on Hopper. You may reason about every Aurum OS "
+    "domain. When the operator asks for a local observation or a change, use the provided Aurum "
+    "tools instead of inventing commands. Aurum owns authorization, execution, verification, "
+    "rollback, and receipts. Never claim an action succeeded unless a returned receipt proves it. "
+    "For source work, read the relevant source first, make small exact replacements, let Aurum "
+    "validate them, then use runtime-sync and gui-restart when appropriate. Do not seek or request "
+    "raw shell access. Prefer reversible, evidence-producing changes and keep unknowns explicit."
 )
 
 
@@ -75,27 +77,39 @@ def _api_key() -> str | None:
     return value or None
 
 
-def _control_catalog() -> dict[str, Any]:
+def _load_local_module(filename: str, module_prefix: str):
     candidates = (
-        DEFAULT_RUNTIME / "aurum_control_plane.py",
-        DEFAULT_WORKSPACE / "Projects" / "AurumPC" / "aurum_control_plane.py",
-        Path(__file__).with_name("aurum_control_plane.py"),
+        DEFAULT_RUNTIME / filename,
+        DEFAULT_WORKSPACE / "Projects" / "AurumPC" / filename,
+        Path(__file__).with_name(filename),
     )
     for path in candidates:
         if not path.is_file():
             continue
         try:
-            spec = importlib.util.spec_from_file_location(f"aurum_control_plane_{os.getpid()}_{time.time_ns()}", path)
+            spec = importlib.util.spec_from_file_location(
+                f"{module_prefix}_{os.getpid()}_{time.time_ns()}", path
+            )
             if spec is None or spec.loader is None:
                 continue
             module = importlib.util.module_from_spec(spec)
             sys.modules[spec.name] = module
             spec.loader.exec_module(module)
-            value = module.catalog()
-            if isinstance(value, dict) and value.get("schema") == "aurum.control-plane.v1":
-                return value
+            return module
         except Exception:
             continue
+    return None
+
+
+def _control_catalog() -> dict[str, Any]:
+    module = _load_local_module("aurum_control_plane.py", "aurum_control_plane")
+    if module is not None:
+        try:
+            value = module.catalog()
+            if isinstance(value, dict):
+                return value
+        except Exception:
+            pass
     return {
         "schema": "aurum.control-plane.v1",
         "scope": "all-os-domains",
@@ -105,11 +119,25 @@ def _control_catalog() -> dict[str, Any]:
     }
 
 
-def local_context(state_dir: Path = DEFAULT_STATE, workspace: Path = DEFAULT_WORKSPACE) -> dict[str, Any]:
+def _executor():
+    return _load_local_module("aurum_gpt_executor.py", "aurum_gpt_executor")
+
+
+def local_context(
+    state_dir: Path = DEFAULT_STATE,
+    workspace: Path = DEFAULT_WORKSPACE,
+) -> dict[str, Any]:
     autonomy = _json_file(state_dir / "autonomy.json")
     runtime = _json_file(state_dir / "runtime-update.json")
     identity = _json_file(state_dir / "machine-identity.json")
     desktop = _json_file(state_dir / "desktop-ui.json")
+    executor = _executor()
+    executor_catalog = None
+    if executor is not None:
+        try:
+            executor_catalog = executor.catalog()
+        except Exception:
+            executor_catalog = None
     return {
         "machine": identity.get("display_name") or "Hopper",
         "hostname": identity.get("hostname") or "hopper",
@@ -119,26 +147,103 @@ def local_context(state_dir: Path = DEFAULT_STATE, workspace: Path = DEFAULT_WOR
         "runtime_status": runtime.get("status") or "unknown",
         "runtime_schema": runtime.get("schema") or "unknown",
         "desktop_status": desktop.get("status") or "unknown",
+        "desktop_generation": desktop.get("generation_name") or "unknown",
         "physical_surface": desktop.get("surface") or "unknown",
         "control_plane": _control_catalog(),
+        "direct_executor": executor_catalog,
     }
+
+
+def _tools(executor) -> list[dict[str, Any]]:
+    if executor is None:
+        return []
+    catalog = executor.catalog()
+    actions = list(catalog.get("control_actions") or [])
+    return [
+        {
+            "type": "function",
+            "name": "aurum_control",
+            "description": (
+                "Execute one named, bounded Aurum control action on Hopper and return its receipt. "
+                "No arbitrary shell command is available."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": actions},
+                },
+                "required": ["action"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+        {
+            "type": "function",
+            "name": "aurum_workspace_read",
+            "description": (
+                "Read a bounded line range from an allowed Aurum source file in Hopper's workspace."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "start_line": {"type": "integer", "minimum": 1},
+                    "end_line": {"type": "integer", "minimum": 1},
+                },
+                "required": ["path", "start_line", "end_line"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+        {
+            "type": "function",
+            "name": "aurum_workspace_replace",
+            "description": (
+                "Make one exact bounded replacement in an allowed Aurum source file. Aurum validates "
+                "the changed file and rolls it back automatically if validation fails."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "before": {"type": "string"},
+                    "after": {"type": "string"},
+                },
+                "required": ["path", "before", "after"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+    ]
 
 
 def status() -> dict[str, Any]:
     control = _control_catalog()
+    executor = _executor()
+    key = _api_key()
+    if executor is None:
+        direct = "executor-required"
+    elif not key:
+        direct = "api-key-required"
+    else:
+        direct = "ready"
     return {
         "schema": SCHEMA,
         "trait": "GPT",
-        "status": "ready-for-api-key" if _api_key() else "key-required",
+        "status": direct,
         "model": DEFAULT_MODEL,
         "endpoint": API_URL,
         "responses_api": True,
+        "function_tools": bool(executor),
         "local_context": local_context(),
         "model_intent_scope": control.get("model_intent_scope"),
         "control_scope": control.get("scope"),
         "execution_authority": control.get("execution_authority"),
-        "host_actuation": False,
-        "build_broker": "control-plane-planning-ready-executor-pending",
+        "host_actuation": "bounded" if executor else False,
+        "workspace_read": bool(executor),
+        "workspace_exact_replace": bool(executor),
+        "raw_shell": False,
+        "git_push": False,
         "key_persisted_by_trait": False,
     }
 
@@ -156,7 +261,84 @@ def _extract_text(payload: dict[str, Any]) -> str:
     return text.strip() if isinstance(text, str) else ""
 
 
-def ask(prompt: str, *, model: str = DEFAULT_MODEL, timeout: int = 180) -> dict[str, Any]:
+def _function_calls(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    calls: list[dict[str, Any]] = []
+    for item in payload.get("output") or []:
+        if isinstance(item, dict) and item.get("type") == "function_call":
+            calls.append(item)
+    return calls
+
+
+def _post(body: dict[str, Any], *, key: str, timeout: int) -> dict[str, Any]:
+    request = urllib.request.Request(
+        API_URL,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "User-Agent": "Aurum-GPT-Gen1-Direct-Control",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read(4_000_000).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read(8192).decode("utf-8", "replace")
+        raise GptTraitError(f"OpenAI HTTP {exc.code}: {detail[:2000]}") from exc
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        raise GptTraitError(
+            f"OpenAI request failed: {type(exc).__name__}:{exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise GptTraitError("OpenAI response was not an object")
+    return payload
+
+
+def _dispatch(executor, call: dict[str, Any]) -> dict[str, Any]:
+    name = str(call.get("name") or "")
+    try:
+        arguments = json.loads(str(call.get("arguments") or "{}"))
+    except json.JSONDecodeError as exc:
+        raise GptTraitError(f"invalid tool arguments for {name}: {exc}") from exc
+    if not isinstance(arguments, dict):
+        raise GptTraitError(f"tool arguments for {name} were not an object")
+    try:
+        if name == "aurum_control":
+            return executor.execute_control(str(arguments.get("action") or ""))
+        if name == "aurum_workspace_read":
+            return executor.read_workspace(
+                str(arguments.get("path") or ""),
+                start_line=int(arguments.get("start_line") or 1),
+                end_line=int(arguments.get("end_line") or 1),
+            )
+        if name == "aurum_workspace_replace":
+            return executor.replace_workspace(
+                str(arguments.get("path") or ""),
+                str(arguments.get("before") or ""),
+                str(arguments.get("after") or ""),
+            )
+    except Exception as exc:
+        return {
+            "schema": "aurum.gpt-tool-error.gen1-direct-control",
+            "tool": name,
+            "status": "failed",
+            "detail": f"{type(exc).__name__}:{exc}",
+        }
+    return {
+        "schema": "aurum.gpt-tool-error.gen1-direct-control",
+        "tool": name,
+        "status": "failed",
+        "detail": "unsupported tool",
+    }
+
+
+def ask(
+    prompt: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    timeout: int = 180,
+) -> dict[str, Any]:
     key = _api_key()
     if not key:
         raise GptTraitError("OPENAI_API_KEY is not available to the GPT trait")
@@ -166,57 +348,75 @@ def ask(prompt: str, *, model: str = DEFAULT_MODEL, timeout: int = 180) -> dict[
     if len(clean) > 24000:
         raise GptTraitError("prompt exceeds GPT trait input bound")
 
+    executor = _executor()
+    tools = _tools(executor)
     context = local_context()
-    body = json.dumps(
-        {
-            "model": model,
-            "instructions": SYSTEM_TEXT,
-            "input": (
-                "Verified local Aurum context:\n"
-                + json.dumps(context, sort_keys=True)
-                + "\n\nOperator request:\n"
-                + clean
-            ),
-        }
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        API_URL,
-        data=body,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "User-Agent": "Aurum-GPT-Trait/1",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read(2_000_000).decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read(4096).decode("utf-8", "replace")
-        raise GptTraitError(f"OpenAI HTTP {exc.code}: {detail[:1200]}") from exc
-    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
-        raise GptTraitError(f"OpenAI request failed: {type(exc).__name__}:{exc}") from exc
-
-    text = _extract_text(payload)
-    if not text:
-        raise GptTraitError("OpenAI response contained no output text")
-    return {
-        "schema": SCHEMA,
-        "trait": "GPT",
-        "status": "completed",
-        "model": payload.get("model") or model,
-        "response_id": payload.get("id"),
-        "text": text,
-        "control_scope": "all-os-domains",
-        "host_actuation": False,
-        "build_broker": "control-plane-planning-ready-executor-pending",
-        "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    body: dict[str, Any] = {
+        "model": model,
+        "instructions": SYSTEM_TEXT,
+        "input": (
+            "Verified local Aurum context:\n"
+            + json.dumps(context, sort_keys=True)
+            + "\n\nOperator request:\n"
+            + clean
+        ),
     }
+    if tools:
+        body["tools"] = tools
+        body["tool_choice"] = "auto"
+        body["parallel_tool_calls"] = False
+
+    tool_receipts: list[dict[str, Any]] = []
+    payload = _post(body, key=key, timeout=timeout)
+    for _round in range(MAX_TOOL_ROUNDS):
+        calls = _function_calls(payload)
+        if not calls:
+            text = _extract_text(payload)
+            if not text:
+                raise GptTraitError("OpenAI response contained no final output text")
+            return {
+                "schema": SCHEMA,
+                "trait": "GPT",
+                "status": "completed",
+                "model": payload.get("model") or model,
+                "response_id": payload.get("id"),
+                "text": text,
+                "control_scope": "all-os-domains",
+                "host_actuation": "bounded" if executor else False,
+                "tool_receipts": tool_receipts,
+                "raw_shell": False,
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        if executor is None:
+            raise GptTraitError("model requested a tool but the Aurum executor is unavailable")
+        outputs: list[dict[str, Any]] = []
+        for call in calls:
+            receipt = _dispatch(executor, call)
+            tool_receipts.append(receipt)
+            call_id = call.get("call_id")
+            if not call_id:
+                raise GptTraitError("OpenAI function call did not include call_id")
+            outputs.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": call_id,
+                    "output": json.dumps(receipt, sort_keys=True),
+                }
+            )
+        follow: dict[str, Any] = {
+            "model": model,
+            "previous_response_id": payload.get("id"),
+            "input": outputs,
+            "tools": tools,
+            "tool_choice": "auto",
+            "parallel_tool_calls": False,
+        }
+        payload = _post(follow, key=key, timeout=timeout)
+    raise GptTraitError("GPT direct-control tool loop exceeded bounded round limit")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Aurum GPT reasoning trait")
+    parser = argparse.ArgumentParser(description="Aurum GPT direct-control trait")
     parser.add_argument("command", choices=("status", "ask", "build-plan"))
     parser.add_argument("prompt", nargs="*")
     parser.add_argument("--model", default=DEFAULT_MODEL)
@@ -232,13 +432,19 @@ def main() -> int:
             prompt = " ".join(args.prompt).strip()
             if args.command == "build-plan":
                 prompt = (
-                    "Prepare the next Aurum control-plane implementation plan for this request. "
-                    "Use any OS domain required, but separate model intent from operations the Aurum "
-                    "executor must authorize, execute, verify, and receipt. Request: " + prompt
+                    "Inspect local Aurum state and prepare or execute the bounded implementation steps "
+                    "needed for this request. Use Aurum tools when action is appropriate and report "
+                    "receipts rather than assumptions. Request: "
+                    + prompt
                 )
             result = ask(prompt, model=args.model)
     except GptTraitError as exc:
-        result = {"schema": SCHEMA, "trait": "GPT", "status": "failed", "detail": str(exc)}
+        result = {
+            "schema": SCHEMA,
+            "trait": "GPT",
+            "status": "failed",
+            "detail": str(exc),
+        }
         print(json.dumps(result, sort_keys=True))
         return 1
     print(json.dumps(result, sort_keys=True))
