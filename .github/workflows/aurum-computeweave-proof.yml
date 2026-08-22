@@ -6,7 +6,9 @@ on:
       - aurum/trunk-v0.01
     paths:
       - 'Projects/Codelation/computeweave.py'
+      - 'Projects/Codelation/computeweave_physical.py'
       - 'Projects/Codelation/tests/test_computeweave.py'
+      - 'Projects/Codelation/tests/test_computeweave_physical.py'
       - '.github/workflows/aurum-computeweave-proof.yml'
   workflow_dispatch:
 
@@ -24,8 +26,8 @@ jobs:
           python-version: '3.12'
       - name: Compile and test ComputeWeave
         run: |
-          python -m py_compile Projects/Codelation/computeweave.py
-          python -m unittest Projects.Codelation.tests.test_computeweave -v
+          python -m py_compile Projects/Codelation/computeweave.py Projects/Codelation/computeweave_physical.py
+          python -m unittest Projects.Codelation.tests.test_computeweave Projects.Codelation.tests.test_computeweave_physical -v
 
   baseline:
     runs-on: ubuntu-latest
