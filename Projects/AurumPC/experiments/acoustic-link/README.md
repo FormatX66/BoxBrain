@@ -52,6 +52,48 @@ falls below threshold.
 The initial probe defaults to 12-20 kHz at a 48 kHz sample rate, but those are merely
 experimental bounds.
 
+## Opportunistic transducer scavenging
+
+Aurum must not conclude that the acoustic lane is unavailable merely because the current
+machine lacks a usable local speaker or microphone.
+
+Instead, ask a more general question:
+
+> What authorized nearby hardware can convert machine state into sound, or sound back into
+> machine state?
+
+Candidate transducers may include:
+
+- paired Bluetooth headsets and earbuds
+- paired phones or tablets that expose microphone/speaker capability
+- Bluetooth speakers and soundbars
+- TVs and monitors with audio output
+- another laptop or desktop
+- car audio or other known paired audio systems
+- USB audio adapters or conference speakers
+
+The device's intended human role is irrelevant. Aurum should rank endpoints by the capability
+needed for the current state transition:
+
+- **TX-capable**: can emit the chosen carrier clearly
+- **RX-capable**: can capture the chosen carrier with useful SNR
+- **duplex-capable**: can transmit and receive for acknowledgement/negotiation
+- **availability**: currently powered, connected, and accessible
+- **channel quality**: measured SNR / distortion / latency
+- **trust**: already paired, explicitly authorized, or otherwise within the user's approved
+  device set
+
+Aurum may discover nearby devices, but it must not silently commandeer unknown third-party
+phones, headsets, speakers, or microphones. Discovery is not authorization.
+
+This allows a fallback chain such as:
+
+`local speaker/mic -> paired headset -> paired phone -> nearby approved speaker/mic -> no acoustic path`
+
+The chain should be dynamic. If a borrowed headset produces a cleaner 18.2 kHz path than the
+laptop's own speakers, Aurum should prefer the headset. If the headset disappears, recalibrate
+and choose another transducer.
+
 ## Timing
 
 Timing is part of the experiment, not a cosmetic metric.
@@ -65,13 +107,22 @@ Record:
 - T4: acknowledgement begins
 - T5: acknowledgement decoded
 
-That separates scheduler/queue delay from physical acoustic propagation and processing delay.
+For borrowed Bluetooth transducers, also record:
+
+- TD0: endpoint discovery begins
+- TD1: candidate endpoint found
+- TD2: authorized endpoint connected/selected
+- TD3: audio path becomes usable
+
+That separates discovery/pairing latency from the actual acoustic channel and from scheduler
+or queue delay.
 
 ## Safety / trust boundary
 
 - Keep calibration tones short and low amplitude.
 - The prototype caps generated amplitude at 25% full scale.
 - Acoustic discovery does not imply authorization.
+- Bluetooth discovery does not imply permission to connect or use a device.
 - A recorded sound can be replayed, so future command-bearing messages must use
   challenge/response or another authenticated freshness mechanism.
 - Never treat "heard a valid SOS pattern" as permission to perform destructive actions.
@@ -101,5 +152,7 @@ encoding.
 - **Executable:** WAV generation and channel-ranking prototype runs.
 - **Tested (synthetic):** generated SOS WAV is correctly ranked at its injected carrier.
 - **Physical acoustic proof:** pending.
+- **Borrowed Bluetooth transducer discovery:** pending.
+- **Borrowed authorized transducer acoustic proof:** pending.
 - **Adaptive two-node acknowledgement:** pending.
 - **Authenticated command channel:** future experiment, not yet authorized.
