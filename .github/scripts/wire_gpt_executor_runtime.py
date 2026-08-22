@@ -2,6 +2,7 @@
 """Make the Gen1 GPT executor a resident Hopper runtime component."""
 from pathlib import Path
 
+# Triggered after the wiring workflow became resident.
 path = Path("Projects/AurumPC/aurum_runtime_update.py")
 text = path.read_text(encoding="utf-8")
 needle = '    "aurum_gpt_trait.py",\n'
