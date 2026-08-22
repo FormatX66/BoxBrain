@@ -1,0 +1,126 @@
+name: Aurum Pi4 Reachability Diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-pi4-reachability-diagnostic.yml'
+      - 'Projects/AurumBridge/requests/pi4-reachability/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi4-reachability-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Discover current Pi4 route from main PC
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Diagnose bounded local Pi4 reachability
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $observed = (Get-Date).ToUniversalTime().ToString('o')
+
+          $names = @('BBPI4','bbpi4.local','boxbrain','boxbrain.local')
+          $known = @('10.42.194.1','10.12.194.1','192.168.0.194')
+          $resolved = @()
+          foreach ($name in $names) {
+            try {
+              $rows = @(Resolve-DnsName -Name $name -Type A -ErrorAction Stop)
+              foreach ($row in $rows) {
+                if ($row.IPAddress) {
+                  $resolved += [ordered]@{ name=$name; address=[string]$row.IPAddress }
+                }
+              }
+            } catch {
+              $resolved += [ordered]@{ name=$name; address=$null; error=$_.Exception.Message }
+            }
+          }
+
+          $candidates = @($known)
+          $candidates += @($resolved | Where-Object { $_.address } | ForEach-Object { $_.address })
+          $candidates = @($candidates | Sort-Object -Unique)
+
+          $attempts = @()
+          $keyscan = (Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+          foreach ($address in $candidates) {
+            $ping = Test-Connection -ComputerName $address -Count 1 -Quiet -ErrorAction SilentlyContinue
+            $tcp22 = $false
+            try {
+              $tcp22 = Test-NetConnection -ComputerName $address -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue
+            } catch {}
+            $hostKey = 'not-tested'
+            if ($keyscan) {
+              $scanOut = Join-Path $env:RUNNER_TEMP ("pi4-diag-keyscan-" + [Guid]::NewGuid().ToString('N') + '.txt')
+              $scanErr = "$scanOut.err"
+              try {
+                $p = Start-Process -FilePath $keyscan -ArgumentList @('-T','3','-t','ed25519',$address) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scanOut -RedirectStandardError $scanErr
+                $lines = if (Test-Path $scanOut) { @(Get-Content $scanOut | Where-Object { $_ -and -not $_.StartsWith('#') }) } else { @() }
+                if ($lines.Count -gt 0) { $hostKey = 'present' } else { $hostKey = 'unavailable' }
+              } finally {
+                Remove-Item $scanOut,$scanErr -Force -ErrorAction SilentlyContinue
+              }
+            }
+            $attempts += [ordered]@{ address=$address; ping=[bool]$ping; tcp22=[bool]$tcp22; host_key=$hostKey }
+          }
+
+          $adapters = @(Get-NetIPConfiguration | ForEach-Object {
+            [ordered]@{
+              interface_alias=$_.InterfaceAlias
+              interface_index=$_.InterfaceIndex
+              ipv4=@($_.IPv4Address | ForEach-Object { $_.IPv4Address })
+              gateway=@($_.IPv4DefaultGateway | ForEach-Object { $_.NextHop })
+              dns=@($_.DNSServer.ServerAddresses)
+            }
+          })
+          $routes = @(Get-NetRoute -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
+            $_.DestinationPrefix -match '^(0\.0\.0\.0/0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)'
+          } | Select-Object DestinationPrefix,NextHop,InterfaceAlias,RouteMetric)
+          $neighbors = @(Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
+            $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)'
+          } | Select-Object IPAddress,LinkLayerAddress,State,InterfaceAlias)
+
+          $reachable = @($attempts | Where-Object { $_.tcp22 -or $_.host_key -eq 'present' })
+          $state = if ($reachable.Count -gt 0) { 'PI4_ROUTE_FOUND' } elseif (@($attempts | Where-Object { $_.ping }).Count -gt 0) { 'PI4_IP_RESPONDS_SSH_NOT_FOUND' } else { 'PI4_NOT_ON_MAIN_PC_ROUTE' }
+
+          $result = [ordered]@{
+            schema='aurum-pi4-reachability-diagnostic-v1'
+            state=$state
+            observed_at=$observed
+            runner_host=$env:COMPUTERNAME
+            runner_name=$env:RUNNER_NAME
+            names=$resolved
+            attempts=$attempts
+            adapters=$adapters
+            routes=$routes
+            neighbors=$neighbors
+            read_only=$true
+          }
+
+          $dir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $out = Join-Path $dir "pi4-reachability-$env:GITHUB_RUN_ID.json"
+          $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $out -Encoding UTF8
+          Get-Content -LiteralPath $out -Raw | Write-Host
+
+          git config user.name 'aurum-pi4-diagnostic[bot]'
+          git config user.email 'aurum-pi4-diagnostic@users.noreply.github.com'
+          git add -- $out
+          git commit -m 'Record Pi4 reachability diagnostic [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
