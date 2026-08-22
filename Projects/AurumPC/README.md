@@ -2,6 +2,10 @@
 
 Aurum PC is the removable-media x86_64 bring-up environment for Aurum. Linux is used only as a temporary hardware compatibility substrate; the operator surface remains the bounded `aurum>` console.
 
+## Seed lifecycle
+
+Aurum follows the canonical rule **Boot once. Grow continuously.** The initial seed is bootstrap infrastructure; established Aurum nodes do not require rebuilt or reflashed boot media for normal generation updates. The running seed discovers, pulls, verifies, stages, applies, proves, and becomes the next seed. Boot media is reserved for first seeding or true recovery conditions. See [SEED_LIFECYCLE.md](SEED_LIFECYCLE.md).
+
 ## First boot
 
 On a physical primary console Aurum automatically:
