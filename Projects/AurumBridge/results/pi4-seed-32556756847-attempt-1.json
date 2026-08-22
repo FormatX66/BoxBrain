@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "PI4_SEED_FAILURE",
+    "github_workflow_run":  32556756847,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-22T06:27:27.5886855Z",
+    "data":  {
+                 "transport":  "usb-c-ssh",
+                 "host_key_pretrusted":  true,
+                 "source_commit":  "4ab7a1d84b3602fecd4e16b865cab44f32448836",
+                 "reason":  "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
+             }
+}
