@@ -60,9 +60,26 @@ jobs:
           $selected = $null
           $remoteOutput = $null
           foreach ($target in $targets) {
-            $scanLines = @(& $keyscan -T 4 -t ed25519 $target 2>$null | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+            # Windows PowerShell 5.1 promotes native stderr to NativeCommandError when
+            # ErrorActionPreference=Stop. ssh-keyscan writes its harmless SSH banner to
+            # stderr, so capture stdout/stderr through Start-Process and keep the later
+            # fingerprint check as the fail-closed identity gate.
+            $scanOut = Join-Path $env:RUNNER_TEMP ("boxbrain-route-keyscan-out-" + [Guid]::NewGuid().ToString('N') + '.txt')
+            $scanErr = Join-Path $env:RUNNER_TEMP ("boxbrain-route-keyscan-err-" + [Guid]::NewGuid().ToString('N') + '.txt')
+            try {
+              $scanProcess = Start-Process -FilePath $keyscan -ArgumentList @('-T','4','-t','ed25519',$target) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scanOut -RedirectStandardError $scanErr
+              $scanExit = [int]$scanProcess.ExitCode
+              $scanLines = if (Test-Path -LiteralPath $scanOut) {
+                @(Get-Content -LiteralPath $scanOut | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+              } else {
+                @()
+              }
+            } finally {
+              Remove-Item -LiteralPath $scanOut -Force -ErrorAction SilentlyContinue
+              Remove-Item -LiteralPath $scanErr -Force -ErrorAction SilentlyContinue
+            }
             if ($scanLines.Count -eq 0) {
-              $attempts += [ordered]@{ address=$target; host_key='unavailable'; ssh_exit=$null }
+              $attempts += [ordered]@{ address=$target; host_key='unavailable'; keyscan_exit=$scanExit; ssh_exit=$null }
               continue
             }
 
@@ -75,7 +92,7 @@ jobs:
             }
             $fpMatch = [regex]::Match($fpText, 'SHA256:[A-Za-z0-9+/=]+')
             if (-not $fpMatch.Success -or $fpMatch.Value -ne $expectedFingerprint) {
-              $attempts += [ordered]@{ address=$target; host_key='fingerprint-mismatch'; ssh_exit=$null }
+              $attempts += [ordered]@{ address=$target; host_key='fingerprint-mismatch'; keyscan_exit=$scanExit; ssh_exit=$null }
               continue
             }
 
@@ -88,7 +105,7 @@ jobs:
             } finally {
               Remove-Item -LiteralPath $knownHosts -Force -ErrorAction SilentlyContinue
             }
-            $attempts += [ordered]@{ address=$target; host_key='verified'; ssh_exit=$exit }
+            $attempts += [ordered]@{ address=$target; host_key='verified'; keyscan_exit=$scanExit; ssh_exit=$exit }
             if ($exit -eq 0) {
               $selected = $target
               $remoteOutput = $lines -join "`n"
