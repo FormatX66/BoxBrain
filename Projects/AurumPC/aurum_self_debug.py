@@ -114,10 +114,18 @@ class HopperSelfDebugger:
             issues.append({"code": "INPUT_DEGRADED", "severity": "amber", "plain": "Pointer path is present but degraded."})
 
         gui = state["gui"]
+        desktop = gui.get("desktop") if isinstance(gui.get("desktop"), dict) else {}
         if gui.get("status") != "running":
             issues.append({"code": "GUI_NOT_RUNNING", "severity": "red", "plain": "Aurum GUI service is not running."})
         elif not gui.get("physical_desktop"):
-            issues.append({"code": "DESKTOP_NOT_PRESENTING", "severity": "red", "plain": "GUI service is alive but the physical Hopper desktop is not presenting."})
+            if desktop.get("reboot_required"):
+                issues.append({
+                    "code": "DESKTOP_KERNEL_WAIT_REBOOT_REQUIRED",
+                    "severity": "red",
+                    "plain": "Aurum display clients are stuck in kernel wait; a normal Hopper reboot is required before physical proof can resume.",
+                })
+            else:
+                issues.append({"code": "DESKTOP_NOT_PRESENTING", "severity": "red", "plain": "GUI service is alive but the physical Hopper desktop is not presenting."})
 
         runtime = state["runtime"]
         if runtime.get("status") == "failed":

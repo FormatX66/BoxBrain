@@ -646,6 +646,7 @@ class RuntimeUpdater:
             "renderer": renderer,
             "html_primary": bool(running and renderer == "html5" and desktop.get("primary") is True),
             "pygame_fallback": bool(running and renderer == "pygame-fallback"),
+            "reboot_required": bool(desktop.get("reboot_required")),
             "detail": desktop,
         }
 
@@ -729,7 +730,7 @@ class RuntimeUpdater:
             "changed": list(previous.get("changed") or []),
             "system_changed": list(previous.get("system_changed") or []),
             "backup": previous.get("backup"),
-            "reboot_required": False,
+            "reboot_required": bool(physical_proof.get("reboot_required")),
             "source": source_identity,
             "generation": lifecycle,
         }
@@ -781,7 +782,7 @@ class RuntimeUpdater:
                 **plan,
                 "status": "current" if become_next_seed else "applied-not-proven",
                 "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "reboot_required": False,
+                "reboot_required": bool(physical_proof.get("reboot_required")),
                 "identity": identity,
                 "physical_echo_activation": activation,
                 "input_activation": input_activation,
@@ -925,7 +926,7 @@ class RuntimeUpdater:
             "changed": applied,
             "system_changed": applied_system,
             "backup": str(backup),
-            "reboot_required": False,
+            "reboot_required": bool(physical_proof.get("reboot_required")),
             "identity": identity,
             "physical_echo_activation": activation,
             "input_activation": input_activation,

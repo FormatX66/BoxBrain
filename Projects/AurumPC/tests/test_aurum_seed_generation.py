@@ -124,6 +124,44 @@ class AurumSeedGenerationTests(unittest.TestCase):
         }
         self.assertEqual(projection_module.ProjectionRuntime._vt2_servers(processes), [80])
 
+    def test_physical_proof_carries_reboot_requirement_without_passing(self) -> None:
+        proof = runtime_module.RuntimeUpdater._physical_proof(
+            {
+                "physical_desktop": False,
+                "desktop": {"status": "stopped", "renderer": None, "reboot_required": True},
+            }
+        )
+        self.assertEqual(proof["status"], "failed")
+        self.assertTrue(proof["reboot_required"])
+
+    def test_kernel_wait_skips_pygame_to_prevent_process_storm(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = projection_module.ProjectionRuntime(
+                policy=root / "policy.json",
+                receipt=root / "installed.json",
+                state_dir=root / "state",
+                run_dir=root / "run",
+                desktop=Path("/opt/aurum/aurum_desktop.py"),
+            )
+            projection_module._atomic(
+                runtime.state_path,
+                {"status": "web-unavailable", "reboot_required": True},
+            )
+            with (
+                patch.object(projection_module.os, "geteuid", return_value=0),
+                patch.object(runtime, "_authorized", return_value=(True, "authorized-hopper")),
+                patch.object(runtime, "status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_start_web", return_value=None),
+                patch.object(runtime, "_fallback_runtime") as fallback,
+            ):
+                result = runtime._start_locked()
+
+        self.assertEqual(result["status"], "failed")
+        self.assertTrue(result["reboot_required"])
+        self.assertEqual(result["fallback_result"]["status"], "skipped")
+        fallback.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

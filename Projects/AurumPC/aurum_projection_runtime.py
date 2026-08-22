@@ -140,11 +140,16 @@ class ProjectionRuntime:
             session = os.getsid(pid)
         except (OSError, ProcessLookupError):
             return None
+        try:
+            wait_channel = Path(f"/proc/{pid}/wchan").read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            wait_channel = ""
         return {
             "command": self._cmdline(pid)[:500],
             "group": group,
             "session": session,
             "state": self._process_state(pid),
+            "wait_channel": wait_channel or None,
         }
 
     def _recognized_vt2_processes(self) -> dict[int, dict[str, Any]]:
@@ -250,19 +255,26 @@ class ProjectionRuntime:
             time.sleep(0.1)
         after = self._session_members(sessions)
         remaining_servers = self._vt2_servers(after)
+        kernel_waits = sorted(pid for pid, item in after.items() if item.get("state") == "D")
         self.pid_path.unlink(missing_ok=True)
         (self.run_dir / "aurum-desktop.pid").unlink(missing_ok=True)
+        status = "failed" if remaining_servers else ("blocked" if kernel_waits else "cleared")
+        reason = None
+        if remaining_servers:
+            reason = "vt2-server-survived-cleanup"
+        elif kernel_waits:
+            reason = "aurum-display-clients-in-uninterruptible-kernel-wait"
         return {
-            # A kill-pending client can remain in uninterruptible kernel state,
-            # but cannot present without an Aurum-session X server.  Only a
-            # surviving VT2 server keeps the display contested.
-            "status": "cleared" if not remaining_servers else "failed",
+            "status": status,
+            "reason": reason,
+            "reboot_required": bool(kernel_waits),
             "terminated": sorted(before),
             "groups": sorted(groups),
             "sessions": sorted(sessions),
             "commands": [str(before[pid]["command"]) for pid in sorted(before)],
             "remaining": sorted(after),
             "remaining_states": {str(pid): after[pid].get("state") for pid in sorted(after)},
+            "remaining_wait_channels": {str(pid): after[pid].get("wait_channel") for pid in sorted(after)},
             "remaining_vt2_servers": remaining_servers,
             "signal_errors": {str(pid): detail for pid, detail in sorted(errors.items())},
         }
@@ -324,6 +336,7 @@ class ProjectionRuntime:
                     "vt": current.get("vt", 2),
                     "desktop": current.get("desktop") or {},
                 }
+        last_attempt = _json(self.state_path)
         return {
             "schema": SCHEMA,
             "status": "stopped",
@@ -335,6 +348,10 @@ class ProjectionRuntime:
             "primary": False,
             "fallback": "pygame",
             "vt": 2,
+            "reboot_required": bool(
+                last_attempt.get("reboot_required")
+                or (last_attempt.get("html_failure") or {}).get("reboot_required")
+            ),
         }
 
     def _ensure_ui_user(self) -> dict[str, Any]:
@@ -413,11 +430,17 @@ class ProjectionRuntime:
             return None
         self._stop_web()
         stale_cleanup = self._clear_stale_vt2()
-        if stale_cleanup.get("status") == "failed":
+        if stale_cleanup.get("status") != "cleared":
+            reason = (
+                "kernel-display-waits-require-reboot"
+                if stale_cleanup.get("reboot_required")
+                else "stale-vt2-owner-not-cleared"
+            )
             _atomic(self.state_path, {
                 "schema": SCHEMA,
                 "status": "web-unavailable",
-                "reason": "stale-vt2-owner-not-cleared",
+                "reason": reason,
+                "reboot_required": bool(stale_cleanup.get("reboot_required")),
                 "stale_cleanup": stale_cleanup,
             })
             return None
@@ -487,6 +510,25 @@ class ProjectionRuntime:
         if web is not None:
             return web
         html_failure = _json(self.state_path)
+        if html_failure.get("reboot_required"):
+            result = {
+                "schema": SCHEMA,
+                "status": "failed",
+                "authorized": True,
+                "machine": "Hopper",
+                "surface": "physical",
+                "renderer": None,
+                "primary": False,
+                "fallback": "pygame",
+                "fallback_result": {
+                    "status": "skipped",
+                    "reason": "kernel-display-waits-require-reboot",
+                },
+                "html_failure": html_failure,
+                "reboot_required": True,
+            }
+            _atomic(self.state_path, result)
+            return result
         fallback = self._fallback_runtime()
         if fallback is None:
             result = {"schema": SCHEMA, "status": "failed", "reason": "web-and-fallback-unavailable"}
