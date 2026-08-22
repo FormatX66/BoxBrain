@@ -1,0 +1,14 @@
+{
+  "schema": "aurum-pi-hopper-peer-proof-request-v1",
+  "created_at": "2026-08-22T11:01:00Z",
+  "intent": "Prove Pi4 direct visibility of Hopper and HDMI capture path after Pi4 boot; use result as first evidence for reciprocal Pi4-Hopper peer recovery.",
+  "read_only": true,
+  "requested_checks": [
+    "pi-runner-online",
+    "hopper-name-resolution",
+    "hopper-ping",
+    "hopper-services-8765-8768",
+    "hdmi-capture-device-enumeration",
+    "single-frame-capture-if-available"
+  ]
+}
