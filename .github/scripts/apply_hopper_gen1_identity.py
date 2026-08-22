@@ -3,6 +3,7 @@
 from pathlib import Path
 import re
 
+# Migration trigger: generation naming is now the canonical Aurum-facing identity.
 path = Path("Projects/AurumPC/aurum_desktop.py")
 text = path.read_text(encoding="utf-8")
 
