@@ -8,6 +8,12 @@ ROOT = Path(__file__).resolve().parents[3]
 RECOVERY = ROOT / ".github" / "workflows" / "aurum-external-evidence-recovery.yml"
 AUTOBUILD = ROOT / ".github" / "workflows" / "aurum-autobuild.yml"
 COLLECTOR = ROOT / "installer" / "collect-adaptive-shell-gui-live-trial.ps1"
+APPROVED_ROUTES = (
+    "10.12.194.1",
+    "10.42.194.1",
+    "bbpi4.local",
+    "192.168.0.194",
+)
 
 
 class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
@@ -46,6 +52,21 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertIn("Join-Path $keyDirectory 'known_hosts'", workflow)
         self.assertIn("The dedicated BBPI4 SSH key is unavailable", workflow)
         self.assertIn("The pinned SSH known-hosts file is unavailable", workflow)
+
+    def test_recovery_falls_back_only_across_preapproved_bbpi4_ssh_routes(self) -> None:
+        workflow = RECOVERY.read_text(encoding="utf-8")
+        collector = COLLECTOR.read_text(encoding="utf-8")
+
+        for route in APPROVED_ROUTES:
+            self.assertIn(route, workflow)
+            self.assertIn(route, collector)
+        self.assertIn("foreach ($route in $approvedRoutes)", workflow)
+        self.assertIn("$approvedRoutes -notcontains [string]$evidence.route", workflow)
+        self.assertIn("[ValidateSet(", collector)
+        self.assertIn("StrictHostKeyChecking=yes", collector)
+        self.assertNotIn("StrictHostKeyChecking=no", collector)
+        self.assertNotIn("ssh-keyscan", workflow)
+        self.assertNotIn("ssh-keyscan", collector)
 
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
