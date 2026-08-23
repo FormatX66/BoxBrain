@@ -27,6 +27,10 @@ class HopperRecoveryIsoContractTests(unittest.TestCase):
         self.assertIn("xorriso", builder)
         self.assertIn("SIGNED_KERNEL_PROVEN", builder)
         self.assertIn("refusing a Secure Boot recovery image", builder)
+        self.assertIn("kernel_path=/live/vmlinuz", builder)
+        self.assertIn("initrd_path=/live/initrd.img", builder)
+        self.assertNotIn("kernel_candidates=", builder)
+        self.assertIn("source /boot/grub/config.cfg", grub)
 
     def test_recovery_is_machine_commit_and_path_bound(self) -> None:
         recovery = RECOVERY.read_text(encoding="utf-8")

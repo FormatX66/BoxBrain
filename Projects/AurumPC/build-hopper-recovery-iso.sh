@@ -34,18 +34,12 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-kernel_candidates=$(xorriso -indev "$source_iso" \
-    -find /live -type f -name 'vmlinuz*' -exec echo -- -end 2>/dev/null \
-    | sed -n "s|^'\(/live/vmlinuz[^']*\)'$|\1|p")
-kernel_path=$(printf '%s\n' "$kernel_candidates" \
-    | awk '/^\/live\/vmlinuz-/{candidate=$0} END{print candidate}')
-[ -n "$kernel_path" ] || kernel_path=/live/vmlinuz
-echo "$kernel_path" | grep -Eq '^/live/vmlinuz[-A-Za-z0-9.+_]*$' \
-    || { echo "source live kernel path is unsafe" >&2; exit 2; }
-kernel_suffix=${kernel_path#/live/vmlinuz}
-initrd_path=/live/initrd.img$kernel_suffix
-echo "$initrd_path" | grep -Eq '^/live/initrd\.img[-A-Za-z0-9.+_]*$' \
-    || { echo "source live initrd path is unsafe" >&2; exit 2; }
+# Debian Live publishes versioned Rock Ridge hard-link aliases whose directory
+# records have no data length of their own.  Replaying and overlaying the ISO can
+# leave firmware GRUB unable to load those aliases even though Linux userspace
+# resolves them.  Boot the primary ISO extents directly instead.
+kernel_path=/live/vmlinuz
+initrd_path=/live/initrd.img
 
 xorriso -osirrox on -indev "$source_iso" \
     -extract "$kernel_path" "$build_root/source-vmlinuz" \
