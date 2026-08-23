@@ -62,3 +62,15 @@ Pygame fallback instead of treating either path as implied success.
 An unavailable OpenAI credential may leave the model-call portion unproven, but
 it does not remove or weaken the local bounded executor. Experimental Aurum LLM
 adapter training remains outside this generation gate.
+
+## Machine-sealed GPT credential
+
+Hopper creates a root-owned credential receiver and publishes only its public
+key and fingerprint through the read-only self-debug proof. The authorized
+operator seals the existing OpenAI key to that exact receiver. Git carries only
+the ciphertext envelope; Hopper decrypts it into a root-only file under `/run`.
+
+The HTML projection never asks for, receives, stores, or returns the key. A
+reboot recreates the runtime credential from the same target-bound envelope,
+and proof reports only readiness, hashes, and the model-call result. The key
+value is never source, UI, receipt, or log data.

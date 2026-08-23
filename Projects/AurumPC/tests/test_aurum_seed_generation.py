@@ -50,6 +50,7 @@ class AurumSeedGenerationTests(unittest.TestCase):
         runtime = RUNTIME_PATH.read_text(encoding="utf-8")
         autonomy = (ROOT / "aurum_autonomy.py").read_text(encoding="utf-8")
         health = (ROOT / "aurum_self_debug.py").read_text(encoding="utf-8")
+        credential = (ROOT / "aurum_credential_bootstrap.py").read_text(encoding="utf-8")
         projection = (ROOT / "aurum_projection_runtime.py").read_text(encoding="utf-8")
         for marker in ("discover_pull", '"verify"', '"stage"', '"apply"', '"prove"', '"become_next_seed"'):
             self.assertIn(marker, runtime)
@@ -58,6 +59,9 @@ class AurumSeedGenerationTests(unittest.TestCase):
         self.assertIn('"html_primary"', health)
         self.assertIn('"bounded_executor"', health)
         self.assertIn("generation-proof", health)
+        self.assertIn("credential_status", health)
+        self.assertIn("machine-sealed", credential)
+        self.assertIn("plaintext_in_git", credential)
         self.assertIn("aurum-projection.lock", projection)
         self.assertIn("_clear_stale_vt2", projection)
         self.assertIn("pygame-fallback", projection)

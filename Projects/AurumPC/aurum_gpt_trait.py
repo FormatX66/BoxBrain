@@ -73,7 +73,20 @@ def _api_key() -> str | None:
     try:
         value = DEFAULT_KEY_FILE.read_text(encoding="utf-8").strip()
     except OSError:
-        return None
+        value = ""
+    if value:
+        return value
+    bootstrap = _load_local_module("aurum_credential_bootstrap.py", "aurum_credential_bootstrap")
+    if bootstrap is not None:
+        try:
+            bootstrap.install(
+                workspace=DEFAULT_WORKSPACE,
+                runtime_key=DEFAULT_KEY_FILE,
+                state_dir=DEFAULT_STATE,
+            )
+            value = DEFAULT_KEY_FILE.read_text(encoding="utf-8").strip()
+        except Exception:
+            value = ""
     return value or None
 
 
@@ -245,6 +258,12 @@ def status() -> dict[str, Any]:
         "raw_shell": False,
         "git_push": False,
         "key_persisted_by_trait": False,
+        "browser_credential": False,
+        "credential_source": (
+            "environment"
+            if os.environ.get("OPENAI_API_KEY", "").strip()
+            else ("machine-sealed-runtime" if key else "unavailable")
+        ),
     }
 
 
@@ -293,6 +312,43 @@ def _post(body: dict[str, Any], *, key: str, timeout: int) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise GptTraitError("OpenAI response was not an object")
     return payload
+
+
+def model_probe(*, model: str = DEFAULT_MODEL, timeout: int = 60) -> dict[str, Any]:
+    """Prove the remote model path without giving the model any local tools."""
+    key = _api_key()
+    if not key:
+        return {
+            "schema": SCHEMA,
+            "status": "unproven",
+            "model": model,
+            "reason": "api-key-required",
+            "model_call_proven": False,
+            "tools_offered": False,
+        }
+    marker = "AURUM_HOPPER_MODEL_READY"
+    payload = _post(
+        {
+            "model": model,
+            "instructions": f"Return exactly {marker} and nothing else.",
+            "input": "Prove the bounded Aurum model path.",
+            "reasoning": {"effort": "none"},
+            "max_output_tokens": 64,
+        },
+        key=key,
+        timeout=timeout,
+    )
+    exact = _extract_text(payload) == marker
+    return {
+        "schema": SCHEMA,
+        "status": "passed" if exact else "failed",
+        "model": payload.get("model") or model,
+        "response_id": payload.get("id"),
+        "model_call_proven": exact,
+        "tools_offered": False,
+        "raw_shell": False,
+        "proven_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
 
 
 def _dispatch(executor, call: dict[str, Any]) -> dict[str, Any]:

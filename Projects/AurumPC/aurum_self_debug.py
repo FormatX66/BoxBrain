@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
+from aurum_credential_bootstrap import status as credential_status
 from aurum_input import status as input_status
 from aurum_network import network_status
 from aurum_runtime_update import RuntimeUpdater, RuntimeUpdateError
@@ -97,6 +98,10 @@ class HopperSelfDebugger:
             "runtime_receipt": _json(self.state_dir / "runtime-update.json"),
             "generation_receipt": _json(self.state_dir / "seed-generation.json"),
             "gpt_receipt": _json(self.state_dir / "gpt-control" / "latest.json"),
+            "credential": credential_status(
+                workspace=self.workspace,
+                state_dir=self.state_dir,
+            ),
             "projection_receipt": _json(self.state_dir / "hopper-projection.json"),
             "desktop_receipt": _json(self.state_dir / "desktop-ui.json"),
             "source": self._git_identity(),
@@ -189,6 +194,7 @@ class HopperSelfDebugger:
                 "model_call_proven": bool(gpt_generation.get("model_call_proven")),
                 "raw_shell": False,
             },
+            "credential": state["credential"],
             "generation": {
                 "source": state["source"],
                 "lifecycle": generation,

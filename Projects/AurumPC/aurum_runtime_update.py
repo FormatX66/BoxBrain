@@ -32,6 +32,7 @@ ALLOWLIST = (
     "aurum_bootstrap.py",
     "aurum_console.py",
     "aurum_control_plane.py",
+    "aurum_credential_bootstrap.py",
     "aurum_desktop.py",
     "aurum_desktop_runtime.py",
     "aurum_display_runtime.py",
@@ -618,6 +619,11 @@ class RuntimeUpdater:
             trait.DEFAULT_WORKSPACE = self.workspace
             trait.DEFAULT_RUNTIME = self.target
             trait_status = trait.status()
+            model_probe = trait.model_probe() if trait_status.get("status") == "ready" else {
+                "status": "unproven",
+                "model_call_proven": False,
+                "reason": trait_status.get("status"),
+            }
         except Exception as exc:
             return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
         passed = bool(
@@ -634,7 +640,8 @@ class RuntimeUpdater:
             "function_tools": bool(trait_status.get("function_tools")),
             "raw_shell": bool(trait_status.get("raw_shell")),
             "model_status": trait_status.get("status"),
-            "model_call_proven": False,
+            "model_call_proven": bool(model_probe.get("model_call_proven")),
+            "model_probe": model_probe,
         }
 
     @staticmethod

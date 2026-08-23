@@ -34,9 +34,10 @@ class AurumGptTraitTests(unittest.TestCase):
                 result = module.status()
             encoded = json.dumps(result)
             self.assertEqual(result["trait"], "GPT")
-            self.assertEqual(result["status"], "ready-for-api-key")
-            self.assertFalse(result["host_actuation"])
+            self.assertEqual(result["status"], "ready")
+            self.assertEqual(result["host_actuation"], "bounded")
             self.assertFalse(result["key_persisted_by_trait"])
+            self.assertFalse(result["browser_credential"])
             self.assertNotIn("sk-test-secret", encoded)
 
     def test_extract_text_reads_responses_message_shape(self) -> None:
@@ -49,6 +50,33 @@ class AurumGptTraitTests(unittest.TestCase):
             ]
         }
         self.assertEqual(module._extract_text(payload), "hello Hopper")
+
+    def test_model_probe_offers_no_tools_and_returns_only_proof_metadata(self) -> None:
+        captured = {}
+
+        def fake_post(body, *, key, timeout):
+            captured.update(body)
+            self.assertEqual(key, "sk-test-secret")
+            self.assertGreater(timeout, 0)
+            return {
+                "id": "resp_test",
+                "model": "gpt-5.6-sol",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "AURUM_HOPPER_MODEL_READY"}],
+                    }
+                ],
+            }
+
+        with patch.object(module, "_api_key", return_value="sk-test-secret"), patch.object(
+            module, "_post", side_effect=fake_post
+        ):
+            result = module.model_probe()
+        self.assertTrue(result["model_call_proven"])
+        self.assertFalse(result["tools_offered"])
+        self.assertNotIn("tools", captured)
+        self.assertNotIn("sk-test-secret", json.dumps(result))
 
 
 if __name__ == "__main__":
