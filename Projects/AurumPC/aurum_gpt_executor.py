@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Bounded direct-control executor for GPT inside Aurum on Hopper.
 
-GPT may inspect and edit Aurum source, but it does not receive a raw shell.
-Every action is a named capability with bounded arguments, local authorization,
-validation, rollback where applicable, and a durable receipt.
+GPT may inspect Aurum source, but the running machine never edits the tracked
+seed workspace for an appearance experiment. Live appearance changes are
+written to reboot-ephemeral runtime state instead. Every action is a named
+capability with bounded arguments, local authorization, and a durable receipt.
 """
 from __future__ import annotations
 
 import importlib.util
 import json
 import os
-import py_compile
 import sys
 import time
 from pathlib import Path
@@ -21,6 +21,7 @@ RECEIPT_SCHEMA = "aurum.gpt-control-receipt.gen1-direct-control"
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
 DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
+DEFAULT_APPEARANCE = Path(os.environ.get("AURUM_APPEARANCE_STATE", "/run/aurum/appearance.json"))
 
 CONTROL_ACTIONS = (
     "status",
@@ -40,7 +41,16 @@ EDITABLE_ROOTS = (
 )
 EDITABLE_SUFFIXES = {".py", ".json", ".md"}
 MAX_READ_LINES = 500
-MAX_REPLACEMENT_CHARS = 32000
+
+APPEARANCE_THEMES = {
+    "default": {"background_start": "#050706", "background_end": "#070b09"},
+    "midnight": {"background_start": "#050711", "background_end": "#090d1b"},
+    "forest": {"background_start": "#06110c", "background_end": "#0a1a12"},
+    "ocean": {"background_start": "#050f18", "background_end": "#071a26"},
+    "ember": {"background_start": "#160b07", "background_end": "#241108"},
+    "violet": {"background_start": "#100819", "background_end": "#1b0d29"},
+    "aurum": {"background_start": "#151006", "background_end": "#211807"},
+}
 
 
 class GptExecutorError(RuntimeError):
@@ -54,13 +64,19 @@ def catalog() -> dict[str, Any]:
         "authority": "aurum-policy-broker",
         "direct_shell_contract": False,
         "control_actions": list(CONTROL_ACTIONS),
+        "appearance": {
+            "preview": True,
+            "themes": list(APPEARANCE_THEMES),
+            "tracked_source_modified": False,
+            "resets_on_reboot": True,
+        },
         "workspace": {
             "read": True,
-            "exact_replace": True,
+            "exact_replace": False,
+            "mutation": False,
             "editable_roots": [str(path) for path in EDITABLE_ROOTS],
             "editable_suffixes": sorted(EDITABLE_SUFFIXES),
-            "validation": "required",
-            "rollback_on_validation_failure": True,
+            "promotion": "verified-next-seed-only",
             "git_push": False,
         },
     }
@@ -113,25 +129,6 @@ def _safe_workspace_path(relative_path: str) -> tuple[Path, Path]:
     return raw, target
 
 
-def _validate(path: Path) -> dict[str, Any]:
-    suffix = path.suffix.lower()
-    if suffix == ".py":
-        try:
-            py_compile.compile(str(path), doraise=True)
-        except py_compile.PyCompileError as exc:
-            return {"verified": False, "validator": "py_compile", "detail": str(exc)}
-        return {"verified": True, "validator": "py_compile"}
-    if suffix == ".json":
-        try:
-            json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            return {"verified": False, "validator": "json", "detail": str(exc)}
-        return {"verified": True, "validator": "json"}
-    if suffix == ".md":
-        return {"verified": True, "validator": "text"}
-    return {"verified": False, "validator": "unsupported"}
-
-
 def _receipt(operation: str, result: dict[str, Any], *, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
     payload = {
         "schema": RECEIPT_SCHEMA,
@@ -172,6 +169,60 @@ def status_snapshot(state: Path = DEFAULT_STATE) -> dict[str, Any]:
         "autonomy": autonomy.get("status") or "unknown",
         "input": input_state.get("status") or "unknown",
     }
+
+
+def appearance_snapshot(*, appearance_path: Path | None = None) -> dict[str, Any]:
+    """Return only a valid reboot-ephemeral appearance preview."""
+    path = appearance_path or DEFAULT_APPEARANCE
+    value = _json_file(path)
+    theme = str(value.get("theme") or "default")
+    if value.get("schema") != "aurum.appearance-preview.v1" or theme not in APPEARANCE_THEMES:
+        theme = "default"
+        active = False
+    else:
+        active = theme != "default"
+    return {
+        "schema": "aurum.appearance-preview.v1",
+        "status": "active" if active else "default",
+        "theme": theme,
+        **APPEARANCE_THEMES[theme],
+        "temporary": True,
+        "resets_on_reboot": True,
+        "tracked_source_modified": False,
+    }
+
+
+def set_appearance(
+    theme: str,
+    *,
+    appearance_path: Path | None = None,
+    state_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Apply a bounded live theme without touching the Git workspace."""
+    selected = str(theme or "").strip().lower()
+    if selected not in APPEARANCE_THEMES:
+        raise GptExecutorError(f"unsupported appearance theme: {selected or '<empty>'}")
+    path = appearance_path or DEFAULT_APPEARANCE
+    if selected == "default":
+        path.unlink(missing_ok=True)
+    else:
+        payload = {
+            "schema": "aurum.appearance-preview.v1",
+            "theme": selected,
+            **APPEARANCE_THEMES[selected],
+            "temporary": True,
+            "resets_on_reboot": True,
+            "tracked_source_modified": False,
+            "applied_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    result = appearance_snapshot(appearance_path=path)
+    result["status"] = "reset" if selected == "default" else "previewing"
+    return _receipt("appearance-preview", result, state_dir=state_dir or DEFAULT_STATE)
 
 
 def execute_control(action: str, *, state_dir: Path | None = None) -> dict[str, Any]:
@@ -245,54 +296,11 @@ def read_workspace(relative_path: str, *, start_line: int = 1, end_line: int = 2
 
 
 def replace_workspace(relative_path: str, before: str, after: str) -> dict[str, Any]:
-    raw, target = _safe_workspace_path(relative_path)
-    if not target.is_file():
-        raise GptExecutorError(f"workspace file does not exist: {raw}")
-    before = str(before)
-    after = str(after)
-    if not before:
-        raise GptExecutorError("exact replacement requires non-empty before text")
-    if len(before) > MAX_REPLACEMENT_CHARS or len(after) > MAX_REPLACEMENT_CHARS:
-        raise GptExecutorError("workspace replacement exceeds bounded edit size")
-    original = target.read_text(encoding="utf-8")
-    matches = original.count(before)
-    if matches != 1:
-        raise GptExecutorError(f"exact replacement expected one match, found {matches}")
-
-    backup_root = DEFAULT_STATE / "gpt-control" / "rollback"
-    backup_root.mkdir(parents=True, exist_ok=True)
-    backup_name = f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{time.time_ns() % 1_000_000_000:09d}-{raw.name}"
-    backup = backup_root / backup_name
-    backup.write_text(original, encoding="utf-8")
-
-    updated = original.replace(before, after, 1)
-    temporary = target.with_name(f".{target.name}.{os.getpid()}.gpt.tmp")
-    temporary.write_text(updated, encoding="utf-8")
-    os.replace(temporary, target)
-    validation = _validate(target)
-    if not validation.get("verified"):
-        rollback_temp = target.with_name(f".{target.name}.{os.getpid()}.rollback.tmp")
-        rollback_temp.write_text(original, encoding="utf-8")
-        os.replace(rollback_temp, target)
-        result = {
-            "status": "rolled-back",
-            "path": str(raw),
-            "validation": validation,
-            "backup": str(backup),
-            "applied": False,
-        }
-        return _receipt("workspace-replace", result, state_dir=DEFAULT_STATE)
-
-    result = {
-        "status": "changed",
-        "path": str(raw),
-        "validation": validation,
-        "backup": str(backup),
-        "applied": True,
-        "runtime_apply_required": str(raw).startswith("Projects/AurumPC/"),
-        "git_promoted": False,
-    }
-    return _receipt("workspace-replace", result, state_dir=DEFAULT_STATE)
+    del relative_path, before, after
+    raise GptExecutorError(
+        "tracked seed source is immutable at runtime; use a temporary bounded control "
+        "or promote a verified next seed"
+    )
 
 
 def main() -> int:

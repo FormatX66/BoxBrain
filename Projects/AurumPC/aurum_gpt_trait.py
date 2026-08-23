@@ -2,9 +2,9 @@
 """GPT trait — direct, policy-mediated reasoning and control on Hopper.
 
 GPT can reason across the Aurum OS and may use a bounded set of local tools.
-Aurum remains the execution authority: no raw shell is exposed, source edits are
-restricted to Aurum workspace roots, validation is mandatory, failed edits roll
-back, and every action returns a durable receipt to the model.
+Aurum remains the execution authority: no raw shell is exposed, tracked seed
+source is read-only at runtime, temporary UI choices live outside Git, and every
+action returns a durable receipt to the model.
 """
 from __future__ import annotations
 
@@ -33,9 +33,11 @@ SYSTEM_TEXT = (
     "domain. When the operator asks for a local observation or a change, use the provided Aurum "
     "tools instead of inventing commands. Aurum owns authorization, execution, verification, "
     "rollback, and receipts. Never claim an action succeeded unless a returned receipt proves it. "
-    "For source work, read the relevant source first, make small exact replacements, let Aurum "
-    "validate them, then use runtime-sync and gui-restart when appropriate. Do not seek or request "
-    "raw shell access. Prefer reversible, evidence-producing changes and keep unknowns explicit."
+    "Use the appearance preview tool for requested color or theme experiments; it changes only "
+    "reboot-ephemeral runtime state and never tracked seed source. Tracked source is read-only on "
+    "the running machine and permanent changes must arrive through a verified next seed. Do not "
+    "seek or request raw shell access. Prefer reversible, evidence-producing changes and keep "
+    "unknowns explicit."
 )
 
 
@@ -210,19 +212,20 @@ def _tools(executor) -> list[dict[str, Any]]:
         },
         {
             "type": "function",
-            "name": "aurum_workspace_replace",
+            "name": "aurum_appearance_preview",
             "description": (
-                "Make one exact bounded replacement in an allowed Aurum source file. Aurum validates "
-                "the changed file and rolls it back automatically if validation fails."
+                "Temporarily preview one bounded Aurum background theme. This changes runtime "
+                "state only, never Git, and resets on reboot. Use default to reset it now."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string"},
-                    "before": {"type": "string"},
-                    "after": {"type": "string"},
+                    "theme": {
+                        "type": "string",
+                        "enum": list((catalog.get("appearance") or {}).get("themes") or ["default"]),
+                    },
                 },
-                "required": ["path", "before", "after"],
+                "required": ["theme"],
                 "additionalProperties": False,
             },
             "strict": True,
@@ -254,7 +257,9 @@ def status() -> dict[str, Any]:
         "execution_authority": control.get("execution_authority"),
         "host_actuation": "bounded" if executor else False,
         "workspace_read": bool(executor),
-        "workspace_exact_replace": bool(executor),
+        "workspace_exact_replace": False,
+        "appearance_preview": bool(executor),
+        "appearance_resets_on_reboot": True,
         "raw_shell": False,
         "git_push": False,
         "key_persisted_by_trait": False,
@@ -368,12 +373,8 @@ def _dispatch(executor, call: dict[str, Any]) -> dict[str, Any]:
                 start_line=int(arguments.get("start_line") or 1),
                 end_line=int(arguments.get("end_line") or 1),
             )
-        if name == "aurum_workspace_replace":
-            return executor.replace_workspace(
-                str(arguments.get("path") or ""),
-                str(arguments.get("before") or ""),
-                str(arguments.get("after") or ""),
-            )
+        if name == "aurum_appearance_preview":
+            return executor.set_appearance(str(arguments.get("theme") or ""))
     except Exception as exc:
         return {
             "schema": "aurum.gpt-tool-error.gen1-direct-control",

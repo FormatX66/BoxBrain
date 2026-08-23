@@ -19,6 +19,21 @@ SPEC.loader.exec_module(module)
 
 
 class AurumGptTraitTests(unittest.TestCase):
+    def test_tools_offer_temporary_appearance_not_workspace_mutation(self) -> None:
+        class Executor:
+            @staticmethod
+            def catalog():
+                return {
+                    "control_actions": ["status"],
+                    "appearance": {"themes": ["default", "ocean"]},
+                }
+
+        tools = module._tools(Executor())
+        names = [tool["name"] for tool in tools]
+        self.assertIn("aurum_workspace_read", names)
+        self.assertIn("aurum_appearance_preview", names)
+        self.assertNotIn("aurum_workspace_replace", names)
+
     def test_status_never_persists_or_exposes_key(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -36,6 +51,9 @@ class AurumGptTraitTests(unittest.TestCase):
             self.assertEqual(result["trait"], "GPT")
             self.assertEqual(result["status"], "ready")
             self.assertEqual(result["host_actuation"], "bounded")
+            self.assertFalse(result["workspace_exact_replace"])
+            self.assertTrue(result["appearance_preview"])
+            self.assertTrue(result["appearance_resets_on_reboot"])
             self.assertFalse(result["key_persisted_by_trait"])
             self.assertFalse(result["browser_credential"])
             self.assertNotIn("sk-test-secret", encoded)

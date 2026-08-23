@@ -46,6 +46,18 @@ The long-term goal is that even first contact with new hardware can increasingly
 
 This rule is architectural, not a Hopper-specific convenience.
 
+## Runtime state is not seed source
+
+The running seed's tracked workspace is immutable during ordinary interaction.
+Temporary presentation choices, including GPT-requested color and theme previews,
+live in bounded runtime state outside Git. They can be reset immediately, reset
+automatically on reboot, and never make the seed workspace dirty.
+
+Permanent presentation changes are promoted only as a verified next seed. A
+runtime experiment must therefore never block discover, pull, verify, stage, or
+apply. Resident GPT retains bounded control and receipts, but it cannot directly
+replace tracked seed source or push Git.
+
 ## Generation proof
 
 Every running-seed generation records its authorized repository, branch, commit
