@@ -1,0 +1,30 @@
+{
+  "schema": "aurum.identity.selection.v2",
+  "asset_id": "aurum-native-seven-leaf-logo",
+  "status": "selected",
+  "scope": "Aurum Native GUI",
+  "selected_asset": "aurum-seven-leaf-logo-matrix.jpeg",
+  "source_sha256": "633f14213af2cda495100cc61167d03bbbcf2d781f9ff72a0d8d18e87afbbb6c",
+  "source_geometry": {
+    "width": 1254,
+    "height": 1254
+  },
+  "identity_invariants": [
+    "gold capital A",
+    "teal circuit-style u",
+    "seven gold leaves growing from the Au junction",
+    "three gold circuit decision nodes",
+    "black field",
+    "gold and teal visual system"
+  ],
+  "gui_lockups": {
+    "laptop_primary": "horizontal wordmark",
+    "compact_presence": "rounded app icon"
+  },
+  "production_constraints": [
+    "preserve the unmodified matrix as geometry and color authority",
+    "use the horizontal wordmark lockup on landscape laptop surfaces",
+    "use the compact icon only for genuinely compact UI placements",
+    "verify served bytes against source_sha256 before projection"
+  ]
+}
