@@ -94,8 +94,10 @@ def arm_trial(slot: str, *, commit: str) -> dict[str, Any]:
         raise GuardianError("candidate slot is already active")
     if not _slot_runtime(slot).is_dir():
         raise GuardianError("candidate runtime is missing")
+    if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit.lower()):
+        raise GuardianError("candidate commit must be a full immutable SHA")
     state["trial"] = slot
-    state["trial_commit"] = commit
+    state["trial_commit"] = commit.lower()
     state["trial_boots"] = 0
     state["previous_active"] = state["active"]
     state["active"] = slot
@@ -128,7 +130,11 @@ def preflight() -> dict[str, Any]:
     state = load_state()
     trial = state.get("trial")
     if not trial:
-        if ACTIVE_LINK.resolve() != _slot_runtime(state["active"]).resolve():
+        try:
+            current = ACTIVE_LINK.resolve(strict=True)
+        except OSError:
+            current = None
+        if current != _slot_runtime(state["active"]).resolve():
             switch_active(state["active"])
         return {"status": "steady", **state}
     state["trial_boots"] = int(state.get("trial_boots") or 0) + 1
@@ -185,7 +191,9 @@ def health_check() -> dict[str, Any]:
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Aurum germ slot guardian")
-    p.add_argument("command", choices=("status", "initialize", "preflight", "health-check", "rollback"))
+    p.add_argument("command", choices=("status", "initialize", "arm-trial", "preflight", "health-check", "rollback"))
+    p.add_argument("--slot", choices=("A", "B"))
+    p.add_argument("--commit")
     p.add_argument("--reason", default="operator-request")
     return p
 
@@ -197,6 +205,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = load_state()
         elif args.command == "initialize":
             result = initialize()
+        elif args.command == "arm-trial":
+            if not args.slot or not args.commit:
+                raise GuardianError("arm-trial requires --slot and --commit")
+            result = arm_trial(args.slot, commit=args.commit)
         elif args.command == "preflight":
             result = preflight()
         elif args.command == "health-check":
