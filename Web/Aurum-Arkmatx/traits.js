@@ -44,7 +44,7 @@
     </div>
     <div class="trait-panel">
       <div id="traitGrid" class="trait-grid"><div class="trait-loading">Reading current build evidence…</div></div>
-      <div class="trait-note">Bars measure evidence maturity in four equal gates: Defined → Implementation → Build lane → Verified. They are not schedule estimates.</div>
+      <div class="trait-note">Bars measure evidence maturity in four equal gates: Defined → Implementation → Build lane → Verified. Defined means the trait or architecture is explicitly accepted; Built requires implementation evidence. They are not schedule estimates.</div>
     </div>`;
   rootSection.insertAdjacentElement('afterend', section);
 
@@ -73,6 +73,13 @@
       impl:()=>hasCommit(/seed|flash/i),
       lane:()=>hasRun(/seed|flash|image/i),
       verified:()=>flashVerified()||hasSuccess(/seed|flash/i)
+    },
+    {
+      name:'Recovery Guardian',
+      desc:'A/B seed slots, Last Known Good, State Guardian, snapshots, health gates and deterministic rollback that preserve the last proven state.',
+      impl:()=>hasCommit(/implement(?:ed|ation)?.*(state guardian|last known good|a\/b seed|rollback)|state guardian (?:runtime|watchdog|implementation)|last known good (?:metadata|pointer)|mutation journal|automatic rollback/i),
+      lane:()=>hasRun(/recovery guardian implementation|seed recovery|state guardian|last known good|rollback verification/i),
+      verified:()=>hasSuccess(/recovery guardian implementation|seed recovery|state guardian|last known good|rollback verification/i)
     },
     {
       name:'Adaptive Kernel',
