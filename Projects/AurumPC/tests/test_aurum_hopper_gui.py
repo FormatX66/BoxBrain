@@ -26,7 +26,7 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("Pygame fallback", page)
         self.assertIn("HTML5 living surface", page)
         self.assertIn("AinWeave · StateWeave · ComputeWeave", page)
-        self.assertEqual(page.count("data-aurum-logo"), 4)
+        self.assertEqual(page.count("data-aurum-logo"), 5)
         self.assertIn("logo-crop--landscape", page)
         self.assertIn("aurum-seven-leaf-logo.jpeg", page)
         self.assertIn("prefers-reduced-motion", page)
@@ -34,6 +34,24 @@ class HopperGuiTests(unittest.TestCase):
         self.assertNotIn("bootstrapKey", page)
         self.assertNotIn("body.api_key", page)
         self.assertNotIn("/api/actuate", page)
+
+    def test_html5_browser_is_bounded_and_has_landscape_controls(self) -> None:
+        page = hopper.PAGE
+        self.assertIn('data-nav="browser"', page)
+        self.assertIn('id="web-browser"', page)
+        self.assertIn('id="web-address"', page)
+        self.assertIn('id="web-back"', page)
+        self.assertIn('id="web-forward"', page)
+        self.assertIn('id="web-reload"', page)
+        self.assertIn('sandbox="allow-forms allow-scripts"', page)
+        self.assertIn('referrerpolicy="no-referrer"', page)
+        self.assertIn("normalizeWebTarget", page)
+        self.assertIn("target.protocol!=='https:'", page)
+        self.assertIn("privateWebHost", page)
+        self.assertIn("No Aurum proxy", page)
+        self.assertIn('frame_source_policy = "https:"', MODULE_PATH.read_text(encoding="utf-8"))
+        self.assertNotIn("allow-same-origin", page)
+        self.assertNotIn("allow-top-navigation", page)
 
     def test_server_source_rejects_browser_credential_bootstrap(self) -> None:
         source = MODULE_PATH.read_text(encoding="utf-8")

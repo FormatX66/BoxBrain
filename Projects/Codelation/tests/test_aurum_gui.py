@@ -90,6 +90,7 @@ class AurumGuiTests(unittest.TestCase):
         self.assertIn("consumeKeyBootstrap", page)
         self.assertIn("No dialogue request has been sent", page)
         self.assertIn("default-src 'none'", headers["content-security-policy"])
+        self.assertIn("frame-src 'none'", headers["content-security-policy"])
         self.assertEqual(headers["x-frame-options"], "DENY")
         self.assertEqual(headers["cache-control"], "no-store, max-age=0")
 

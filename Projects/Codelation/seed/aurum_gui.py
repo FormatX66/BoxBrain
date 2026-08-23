@@ -714,6 +714,7 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
     """Serve the static shell and a two-endpoint dialogue API."""
 
     server: AurumGuiServer
+    frame_source_policy = "'none'"
 
     def log_message(self, format: str, *args: object) -> None:
         # Avoid request-path and dialogue-related logs. Lifecycle logging happens
@@ -736,6 +737,7 @@ class AurumGuiHandler(BaseHTTPRequestHandler):
                 "default-src 'none'; "
                 f"style-src 'nonce-{nonce}'; script-src 'nonce-{nonce}'; "
                 "connect-src 'self'; img-src 'self' data:; "
+                f"frame-src {self.frame_source_policy}; "
                 "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
             )
 
