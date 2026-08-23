@@ -1,18 +1,21 @@
-/* AURUM_EVIDENCE_HEALTH_V1_2_CANONICAL
+/* AURUM_EVIDENCE_HEALTH_V1_3_CANONICAL
+ * AURUM_EVIDENCE_HEALTH_V1_2_CANONICAL compatibility marker.
  * AURUM_EVIDENCE_HEALTH_V1_1_CANONICAL compatibility marker.
  * Canonical website owner: FormatX66/ClusterSites.
- * Separates transport/readability from freshness so an old voice mirror is never
- * presented as current operator truth merely because the JSON still loads.
- * Evidence-source problems are Aurum/system work and never invent a human task.
+ * Separates transport/readability from freshness and hosted-mirror deployment configuration.
+ * Voice/action evidence uses a six-hour operator-action window.
+ * A missing BoxBrain hosted-mirror configuration is Aurum/system work and never invents a human task.
  */
 (() => {
   'use strict';
-  if (window.__aurumEvidenceHealthV12) return;
-  window.__aurumEvidenceHealthV12 = true;
+  if (window.__aurumEvidenceHealthV13) return;
+  window.__aurumEvidenceHealthV13 = true;
 
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const STATIC_VOICE = 'https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.json';
+  const REPO = 'FormatX66/BoxBrain';
+  const STATIC_VOICE = `https://raw.githubusercontent.com/${REPO}/main/Web/Aurum-Arkmatx/voice-status.json`;
+  const RESULTS = `https://api.github.com/repos/${REPO}/contents/Projects/AurumBridge/results?ref=main`;
   const VOICE_FRESH_MS = 6 * 60 * 60 * 1000;
 
   const style = document.createElement('style');
@@ -27,6 +30,7 @@
   let state = {
     hostedVoice: {ok:null, fresh:null, detail:'Checking hosted voice endpoint…'},
     staticVoice: {ok:null, fresh:null, detail:'Checking repository voice mirror…'},
+    hostedDeploy: {ok:null, configured:null, detail:'Checking BoxBrain hosted-mirror deployment lane…'},
     edge: {ok:null, detail:'Checking edge status…'},
     checkedAt: 0,
   };
@@ -45,7 +49,7 @@
     card.innerHTML = `
       <div class="card-head"><div class="card-icon">◈</div><span class="pill unknown">Unknown</span></div>
       <h3>Evidence Sources</h3>
-      <p>Health, redundancy, and freshness of the read-only sources that feed capability, node, and action truth into this command center.</p>
+      <p>Health, redundancy, freshness, and publication configuration of the read-only sources that feed capability, node, and action truth into this command center.</p>
       <div class="evidence">Checking dashboard evidence channels…</div>
       <div class="eh-hint">Tap to expand source health →</div>
       <div class="eh-detail"></div>`;
@@ -90,15 +94,28 @@
     };
   }
 
+  async function json(url) {
+    const r = await fetch(url, {cache:'no-store', headers:{Accept:'application/vnd.github+json'}});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  function deploymentReceiptRank(name) {
+    const m = String(name || '').match(/^web(-static)?-mirror-(\d+)(?:-attempt-(\d+))?\.json$/i);
+    if (!m) return null;
+    return {run:Number(m[2]), attempt:Number(m[3] || 0), static:Boolean(m[1])};
+  }
+
   function render() {
     const card = ensureCard();
     if (!card) return;
-    const checks = [state.hostedVoice, state.staticVoice, state.edge];
+    const checks = [state.hostedVoice, state.staticVoice, state.hostedDeploy, state.edge];
     const pending = checks.some(x => x.ok === null);
     const voiceReadable = state.hostedVoice.ok === true || state.staticVoice.ok === true;
     const voiceFresh = (state.hostedVoice.ok === true && state.hostedVoice.fresh === true) || (state.staticVoice.ok === true && state.staticVoice.fresh === true);
+    const hostedLaneUnconfigured = state.hostedDeploy.ok === true && state.hostedDeploy.configured === false;
     const hardFailure = state.edge.ok === false || (!pending && !voiceReadable);
-    const degraded = !pending && !hardFailure && (checks.some(x => x.ok === false) || !voiceFresh);
+    const degraded = !pending && !hardFailure && (checks.some(x => x.ok === false) || !voiceFresh || hostedLaneUnconfigured);
     const pill = $('.pill', card);
     const evidence = $('.evidence', card);
     const detail = $('.eh-detail', card);
@@ -106,7 +123,7 @@
     if (pending) {
       pill.className = 'pill running';
       pill.textContent = 'Running';
-      evidence.textContent = 'Checking evidence readability and freshness…';
+      evidence.textContent = 'Checking evidence readability, freshness, and publication configuration…';
     } else if (hardFailure) {
       pill.className = 'pill failed';
       pill.textContent = 'Attention';
@@ -116,6 +133,8 @@
       pill.textContent = 'Waiting';
       if (!voiceFresh && voiceReadable) {
         evidence.textContent = 'Voice evidence is readable but stale · current action/capability truth may lag · Aurum/system work, not your action';
+      } else if (hostedLaneUnconfigured && state.staticVoice.ok === true) {
+        evidence.textContent = 'Evidence redundancy degraded · BoxBrain hosted mirror lane is not configured · repository mirror remains readable · Aurum/system work, not your action';
       } else if (state.hostedVoice.ok === false && state.staticVoice.ok === true) {
         evidence.textContent = 'Evidence redundancy degraded · hosted voice route unavailable · repository mirror fresh/readable · Aurum/system work, not your action';
       } else if (state.hostedVoice.ok === true && state.staticVoice.ok === false) {
@@ -126,10 +145,17 @@
     } else {
       pill.className = 'pill success';
       pill.textContent = 'Verified';
-      evidence.textContent = 'Voice evidence is fresh/readable and edge status is readable.';
+      evidence.textContent = 'Voice evidence is fresh/readable, publication lane is configured, and edge status is readable.';
     }
 
-    detail.innerHTML = `<b>Hosted voice endpoint:</b> ${esc(state.hostedVoice.detail)}<br><b>Repository voice mirror:</b> ${esc(state.staticVoice.detail)}<br><b>Edge status:</b> ${esc(state.edge.detail)}<br><br>Voice/action evidence older than six hours remains readable history but is not treated as current operator truth. Stale or unavailable evidence never creates a human task by itself.`;
+    detail.innerHTML =
+      `<b>Hosted voice endpoint:</b> ${esc(state.hostedVoice.detail)}` +
+      `<br><b>Repository voice mirror:</b> ${esc(state.staticVoice.detail)}` +
+      `<br><b>BoxBrain hosted mirror lane:</b> ${esc(state.hostedDeploy.detail)}` +
+      `<br><b>Edge status:</b> ${esc(state.edge.detail)}` +
+      `<br><br>Voice/action evidence older than six hours remains readable history but is not treated as current operator truth. ` +
+      `A missing hosted-mirror configuration is a system/deployment condition, not a request for credentials from you. ` +
+      `Stale or unavailable evidence never creates a human task by itself.`;
   }
 
   async function checkHostedVoice() {
@@ -152,6 +178,46 @@
     }
   }
 
+  async function checkHostedDeploy() {
+    try {
+      const list = await json(RESULTS);
+      const receipts = Array.isArray(list)
+        ? list.map(meta => ({meta, rank: meta?.type === 'file' ? deploymentReceiptRank(meta.name) : null}))
+            .filter(x => x.rank)
+            .sort((a,b) => (b.rank.run - a.rank.run) || (b.rank.attempt - a.rank.attempt))
+        : [];
+      if (!receipts.length) throw new Error('no deployment receipt');
+      const latest = receipts[0];
+      const payload = await json(latest.meta.download_url);
+      if (payload?.schema === 'aurum-web-static-mirror-receipt-v1' && payload?.hosted_deployment?.configured === false) {
+        const missing = Array.isArray(payload.hosted_deployment.missing) ? payload.hosted_deployment.missing.filter(Boolean) : [];
+        state.hostedDeploy = {
+          ok:true,
+          configured:false,
+          receipt:latest.meta.name,
+          observedAt:payload.observed_at || null,
+          missing,
+          detail:`not configured in BoxBrain hosted-mirror workflow · ${missing.length ? `${missing.length} required settings absent` : 'required settings absent'} · receipt ${latest.meta.name}`,
+        };
+        return;
+      }
+      if (payload?.schema === 'aurum-web-mirror-receipt-v1' && payload?.state === 'WEB_MIRROR_OK') {
+        state.hostedDeploy = {
+          ok:true,
+          configured:true,
+          receipt:latest.meta.name,
+          observedAt:payload.observed_at || null,
+          missing:[],
+          detail:`configured and last verified by ${latest.meta.name}`,
+        };
+        return;
+      }
+      throw new Error('unrecognized deployment receipt');
+    } catch (e) {
+      state.hostedDeploy = {ok:false, configured:null, detail:`configuration evidence unavailable · ${e?.message || 'request failed'}`};
+    }
+  }
+
   async function checkEdge() {
     try {
       const r = await fetch('/aurum/index.php', {cache:'no-store'});
@@ -168,9 +234,10 @@
     ensureCard();
     state.hostedVoice = {ok:null, fresh:null, detail:'Checking hosted voice endpoint…'};
     state.staticVoice = {ok:null, fresh:null, detail:'Checking repository voice mirror…'};
+    state.hostedDeploy = {ok:null, configured:null, detail:'Checking BoxBrain hosted-mirror deployment lane…'};
     state.edge = {ok:null, detail:'Checking edge status…'};
     render();
-    await Promise.all([checkHostedVoice(), checkStaticVoice(), checkEdge()]);
+    await Promise.all([checkHostedVoice(), checkStaticVoice(), checkHostedDeploy(), checkEdge()]);
     state.checkedAt = Date.now();
     render();
   }
