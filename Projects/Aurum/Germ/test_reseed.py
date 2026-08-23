@@ -48,6 +48,12 @@ class ReseedGermTests(unittest.TestCase):
             with self.assertRaises(reseed.GermError):
                 reseed.load_manifest(path)
 
+    def test_invalid_ref_is_refused(self) -> None:
+        for ref in ("--upload-pack=evil", "../main", "main//bad", "refs/heads/x.lock"):
+            with self.subTest(ref=ref):
+                with self.assertRaises(reseed.GermError):
+                    reseed.validate_ref(ref)
+
     def test_stage_requires_explicit_network_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             with self.assertRaises(reseed.GermError):
