@@ -73,27 +73,31 @@ $serviceState = (Invoke-GuiTrial -Command 'sudo -n systemctl is-active aurum-gui
 $enabledState = (Invoke-GuiTrial -Command 'sudo -n systemctl is-enabled aurum-gui.service' -AllowFailure).Output
 $listener = (Invoke-GuiTrial -Command "ss -ltnH 'sport = :8765'").Output
 
-if (
-    [string]$deployment.schema -ne 'aurum-bbpi4-console-evidence-v1' -or
-    [string]$deployment.node_id -ne [string]$node.node_id -or
-    $start -notmatch '(?m)^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$' -or
-    $moduleHash -ne $expectedModuleHash -or
-    $compatibleGuiSchemas -notcontains $guiSchema -or
-    [string]$selfStatus.gui_schema -ne $guiSchema -or
-    [string]$apiStatus.console.identity -ne 'BBPI4/Aurum' -or
-    $apiStatus.authority.host_actuation -ne $false -or
-    $apiStatus.authority.api_key_persisted -ne $false -or
-    $apiStatus.interface.safe_layout_available -ne $true -or
-    $apiStatus.proof_view.present -ne $true -or
-    $pageHash -notmatch '^[0-9a-f]{64}$' -or
-    $statusHash -notmatch '^[0-9a-f]{64}$' -or
-    $headers -notmatch '(?im)^HTTP/\S+ 200\s' -or
-    $headers -notmatch '(?im)^Content-Type:\s*text/html' -or
-    $serviceState -ne 'active' -or
-    $enabledState -eq 'enabled' -or
-    $listener -notmatch '127\.0\.0\.1:8765' -or
-    $listener -match '0\.0\.0\.0:8765|10\.12\.194\.1:8765|10\.42\.194\.1:8765|192\.168\.0\.194:8765'
-) {
+$runtimeContract = [ordered]@{
+    deployment_schema = ([string]$deployment.schema -eq 'aurum-bbpi4-console-evidence-v1')
+    node_identity = ([string]$deployment.node_id -eq [string]$node.node_id)
+    start_transient = ($start -match '(?m)^AURUM_GUI_READY address=127\.0\.0\.1 port=8765 transient=true$')
+    module_hash = ($moduleHash -eq $expectedModuleHash)
+    gui_schema = ($compatibleGuiSchemas -contains $guiSchema)
+    self_status_schema = ([string]$selfStatus.gui_schema -eq $guiSchema)
+    console_identity = ([string]$apiStatus.console.identity -eq 'BBPI4/Aurum')
+    host_actuation = ($apiStatus.authority.host_actuation -eq $false)
+    api_key_persistence = ($apiStatus.authority.api_key_persisted -eq $false)
+    safe_layout = ($apiStatus.interface.safe_layout_available -eq $true)
+    proof_view = ($apiStatus.proof_view.present -eq $true)
+    page_hash = ($pageHash -match '^[0-9a-f]{64}$')
+    status_hash = ($statusHash -match '^[0-9a-f]{64}$')
+    http_status = ($headers -match '(?im)^HTTP/\S+ 200\s')
+    content_type = ($headers -match '(?im)^Content-Type:\s*text/html')
+    service_active = ($serviceState -eq 'active')
+    service_not_enabled = ($enabledState -ne 'enabled')
+    loopback_listener = ($listener -match '127\.0\.0\.1:8765')
+    no_nonloopback_listener = ($listener -notmatch '0\.0\.0\.0:8765|10\.12\.194\.1:8765|10\.42\.194\.1:8765|192\.168\.0\.194:8765')
+}
+$failed = @($runtimeContract.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+if ($failed.Count -gt 0) {
+    $listenerSummary = ($listener -replace '\s+', ' ').Trim()
+    Write-Host "AURUM_GUI_CONTRACT_MISMATCH route=$PiAddress failed=$($failed -join ',') gui_schema=$guiSchema self_gui_schema=$([string]$selfStatus.gui_schema) service_state=$serviceState enabled_state=$enabledState listener=$listenerSummary authority=false content_free=true"
     throw "The live Aurum GUI did not satisfy its bounded runtime contract."
 }
 
