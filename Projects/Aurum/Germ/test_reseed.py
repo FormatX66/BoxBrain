@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import bridge
 import reseed
 
 
@@ -18,6 +19,8 @@ class ReseedGermTests(unittest.TestCase):
         self.assertTrue(manifest["policy"]["candidate_only_staging"])
         self.assertFalse(manifest["policy"]["live_overwrite_allowed"])
         self.assertTrue(manifest["policy"]["promotion_requires_health_evidence"])
+        self.assertIn("x86_64", manifest["platforms"])
+        self.assertIn("arm64", manifest["platforms"])
 
     def test_unknown_schema_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -36,6 +39,7 @@ class ReseedGermTests(unittest.TestCase):
                         "germ_protocol": reseed.GERM_PROTOCOL,
                         "repository": "https://example.invalid/not-aurum.git",
                         "required_paths": ["x"],
+                        "platforms": {"x86_64": {}},
                         "policy": {
                             "candidate_only_staging": True,
                             "live_overwrite_allowed": False,
@@ -59,11 +63,12 @@ class ReseedGermTests(unittest.TestCase):
             with self.assertRaises(reseed.GermError):
                 reseed.stage(ref="main", state_root=Path(td), authorize_network=False)
 
-    def test_plan_never_claims_promotion(self) -> None:
+    def test_plan_preserves_lkg_until_postboot_health(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             payload = reseed.plan("main", Path(td))
-            self.assertIn("live-overwrite", payload["this_tool_does_not_perform"])
-            self.assertIn("candidate-promotion", payload["this_tool_does_not_perform"])
+            self.assertFalse(payload["live_overwrite"])
+            self.assertTrue(payload["lkg_preserved_until_postboot_health"])
+            self.assertEqual(payload["flow"][-1], "promote-or-rollback")
 
     def test_candidate_verification_records_immutable_commit(self) -> None:
         source_manifest = json.loads(Path(__file__).with_name("GENETICS.json").read_text(encoding="utf-8"))
@@ -84,6 +89,33 @@ class ReseedGermTests(unittest.TestCase):
             subprocess.run(["git", "commit", "-q", "-m", "fixture"], cwd=root, check=True)
             verified = reseed.verify_candidate(root)
             self.assertRegex(verified["commit"], r"^[0-9a-f]{40}$")
+
+    def test_legacy_console_patch_is_bounded_and_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            console = Path(td) / "aurum_console.py"
+            console.write_text(
+                "import json\n"
+                "from aurum_workspace import AurumWorkspace, WorkspaceError\n"
+                "def command_help():\n"
+                "    print(\n"
+                "        \"install confirm ERASE-CODE | reboot | poweroff | help\",\n"
+                "    )\n"
+                "def main():\n"
+                "    while True:\n"
+                "        tokens=[]\n"
+                "        command='x'\n"
+                "        elif_marker = False\n"
+                "        elif command == \"reboot\" and len(tokens) == 1:\n"
+                "            pass\n",
+                encoding="utf-8",
+            )
+            first = bridge.patch_console_file(console)
+            second = bridge.patch_console_file(console)
+            text = console.read_text(encoding="utf-8")
+            self.assertEqual(first["status"], "patched")
+            self.assertEqual(second["status"], "already-patched")
+            self.assertIn("from aurum_germ import handle_reseed", text)
+            self.assertIn('command == "reseed"', text)
 
 
 if __name__ == "__main__":
