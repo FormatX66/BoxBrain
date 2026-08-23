@@ -189,12 +189,20 @@ def health_check() -> dict[str, Any]:
     return {"status": "promoted", **state}
 
 
+def _request_reboot() -> None:
+    try:
+        subprocess.run(["/bin/systemctl", "reboot"], check=False, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Aurum germ slot guardian")
     p.add_argument("command", choices=("status", "initialize", "arm-trial", "preflight", "health-check", "rollback"))
     p.add_argument("--slot", choices=("A", "B"))
     p.add_argument("--commit")
     p.add_argument("--reason", default="operator-request")
+    p.add_argument("--reboot-on-rollback", action="store_true")
     return p
 
 
@@ -214,11 +222,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "health-check":
             result = health_check()
         else:
-            result = rollback(args.reason)
+            result = {"status": "rollback", **rollback(args.reason)}
     except GuardianError as exc:
         print(json.dumps({"status": "refused", "detail": str(exc)}, indent=2, sort_keys=True))
         return 2
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+    if args.reboot_on_rollback and result.get("status") == "rollback":
+        _request_reboot()
     return 0
 
 
