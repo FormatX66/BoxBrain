@@ -15,7 +15,6 @@ import hashlib
 import json
 import os
 import shutil
-import stat
 import time
 from pathlib import Path
 from typing import Any, Sequence
@@ -25,10 +24,12 @@ GERM_FILES = (
     "reseed.py",
     "guardian.py",
     "bridge.py",
-    "platform.py",
-    "network.py",
-    "tinyseed.py",
     "germ_console.py",
+    "machine.py",
+    "network.py",
+    "installer.py",
+    "tinyseed.py",
+    "bootstrap_console.py",
 )
 
 
@@ -106,7 +107,6 @@ def _install_units(root: Path) -> None:
         "Before=aurum-pc-console.service\n\n"
         "[Service]\n"
         "Type=oneshot\n"
-        "Environment=AURUM_GUARDIAN_AUTO_REBOOT=1\n"
         "ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py preflight --reboot-on-rollback\n\n"
         "[Install]\n"
         "WantedBy=multi-user.target\n",
@@ -117,11 +117,9 @@ def _install_units(root: Path) -> None:
     health.write_text(
         "[Unit]\n"
         "Description=Aurum protected germ candidate health gate\n"
-        "After=aurum-pc-console.service\n"
-        "Requires=aurum-germ-preflight.service\n\n"
+        "After=aurum-germ-preflight.service\n\n"
         "[Service]\n"
         "Type=oneshot\n"
-        "Environment=AURUM_GUARDIAN_AUTO_REBOOT=1\n"
         "ExecStartPre=/bin/sleep 8\n"
         "ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py health-check --reboot-on-rollback\n\n"
         "[Install]\n"
