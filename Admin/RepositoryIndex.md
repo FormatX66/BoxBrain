@@ -25,6 +25,7 @@ These are projects/subsystems in the BoxBrain repository rather than separate re
 - [Pi4 second-seed dual-boot plan](../Projects/Aurum/PI4_SECOND_SEED_DUAL_BOOT_PLAN.md)
 - [Universal PC/Pi seed drive](../Projects/Aurum/UNIVERSAL_PC_PI_SEED_DRIVE.md)
 - [Seed recovery architecture](../docs/architecture/SEED_RECOVERY_ARCHITECTURE.md)
+- [Genetics and reseed germ architecture](../docs/architecture/RESEED_GENETICS_ARCHITECTURE.md)
 - [Execution preflight policy](../Projects/AurumBridge/EXECUTION_PREFLIGHT_POLICY.md)
 - [Observability policy](../Projects/AurumBridge/OBSERVABILITY_POLICY.md)
 
