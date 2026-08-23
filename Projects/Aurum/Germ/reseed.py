@@ -11,9 +11,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -25,6 +25,7 @@ REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
 DEFAULT_REF = "main"
 DEFAULT_STATE_ROOT = Path("/var/lib/aurum/germ")
 MANIFEST_RELATIVE = Path("Projects/Aurum/Germ/GENETICS.json")
+SAFE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,127}")
 
 
 class GermError(RuntimeError):
@@ -56,6 +57,12 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+def validate_ref(ref: str) -> str:
+    if not SAFE_REF.fullmatch(ref) or ".." in ref or "//" in ref or ref.endswith(("/", ".lock")):
+        raise GermError("requested genetics ref is invalid")
+    return ref
+
+
 def load_manifest(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -64,7 +71,7 @@ def load_manifest(path: Path) -> dict[str, Any]:
     if payload.get("schema") != SCHEMA:
         raise GermError(f"unsupported genetics schema: {payload.get('schema')!r}")
     protocol = payload.get("germ_protocol")
-    if not isinstance(protocol, int) or protocol > GERM_PROTOCOL:
+    if not isinstance(protocol, int) or protocol < 1 or protocol > GERM_PROTOCOL:
         raise GermError(
             f"genetics require germ protocol {protocol!r}; this germ supports {GERM_PROTOCOL}"
         )
@@ -78,8 +85,8 @@ def load_manifest(path: Path) -> dict[str, Any]:
     if policy.get("promotion_requires_health_evidence") is not True:
         raise GermError("genetics do not require health evidence before promotion")
     required = payload.get("required_paths")
-    if not isinstance(required, list) or not required:
-        raise GermError("genetics required_paths are missing")
+    if not isinstance(required, list) or not required or not all(isinstance(item, str) and item for item in required):
+        raise GermError("genetics required_paths are missing or invalid")
     return payload
 
 
@@ -98,6 +105,7 @@ def verify_candidate(candidate: Path) -> dict[str, Any]:
 def stage(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, Any]:
     if not authorize_network:
         raise GermError("network genetics access requires --authorize-network")
+    ref = validate_ref(ref)
     state_root.mkdir(parents=True, exist_ok=True)
     candidates = state_root / "candidates"
     receipts = state_root / "receipts"
@@ -155,6 +163,7 @@ def status(state_root: Path) -> dict[str, Any]:
 
 
 def plan(ref: str, state_root: Path) -> dict[str, Any]:
+    ref = validate_ref(ref)
     return {
         "schema": "aurum-reseed-plan-v1",
         "requested_ref": ref,
