@@ -349,7 +349,9 @@ class RuntimeUpdater:
             run("daemon-reload")
         enable = run("enable", "aurum-input-bootstrap.service", "aurum-pc-console.service")
         active = run("is-active", "--quiet", "aurum-input-bootstrap.service")
-        input_changed = bool({"aurum_input.py", "aurum_self_debug.py"}.intersection(changed)) or any(
+        input_changed = bool(
+            {"aurum_input.py", "aurum_runtime_update.py", "aurum_self_debug.py"}.intersection(changed)
+        ) or any(
             name.endswith("aurum-input-bootstrap.service") or name.endswith("aurum-input-wake")
             for name in system_changed
         )

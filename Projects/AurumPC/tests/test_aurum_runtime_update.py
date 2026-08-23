@@ -120,6 +120,22 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
         self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
         self.assertTrue(result["boot_screen_visible_on_next_boot"])
 
+    def test_system_integration_restarts_monitor_when_updater_schema_changes(self) -> None:
+        updater = RuntimeUpdater(system_root=Path("/"))
+
+        def completed(arguments, **_kwargs):
+            return CompletedProcess(arguments, 0, stdout="")
+
+        with (
+            patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
+            patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+        ):
+            result = updater._activate_system_integration(["aurum_runtime_update.py"], [])
+
+        self.assertEqual(result["status"], "ready")
+        invocations = [call.args[0][1:] for call in runner.call_args_list]
+        self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
+
     def test_plan_refuses_when_not_installed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
