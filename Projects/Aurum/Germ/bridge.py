@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""Install the protected Reseed Germ into an older Aurum installation.
+
+The compatibility bridge is intentionally designed to run from external Tiny
+Seed/recovery media while the target Aurum root is offline. It converts the
+single legacy /opt/aurum runtime into slot A, installs the independent germ and
+guardian outside the adaptive slot, and adds a bounded `reseed` command to the
+legacy Aurum console. It never fetches current genetics and never promotes a
+candidate; those are later germ operations.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import stat
+import time
+from pathlib import Path
+from typing import Any, Sequence
+
+GERM_FILES = (
+    "GENETICS.json",
+    "reseed.py",
+    "guardian.py",
+    "bridge.py",
+    "platform.py",
+    "network.py",
+    "tinyseed.py",
+    "germ_console.py",
+)
+
+
+class BridgeError(RuntimeError):
+    pass
+
+
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def patch_console_file(path: Path) -> dict[str, Any]:
+    """Add the germ command to a compatible bounded Aurum console.
+
+    Anchor checks make this fail closed instead of attempting a fuzzy patch on
+    an unknown future console.
+    """
+    text = path.read_text(encoding="utf-8")
+    if "from aurum_germ import handle_reseed" in text:
+        return {"status": "already-patched", "sha256": _sha256(path)}
+
+    import_anchor = "from aurum_workspace import AurumWorkspace, WorkspaceError\n"
+    help_anchor = '        "install confirm ERASE-CODE | reboot | poweroff | help",\n'
+    reboot_anchor = '        elif command == "reboot" and len(tokens) == 1:\n'
+    if import_anchor not in text or help_anchor not in text or reboot_anchor not in text:
+        raise BridgeError("legacy Aurum console does not match the safe germ bridge anchors")
+
+    text = text.replace(
+        import_anchor,
+        import_anchor + "from aurum_germ import handle_reseed\n",
+        1,
+    )
+    text = text.replace(
+        help_anchor,
+        '        "install confirm ERASE-CODE | reseed status | reseed current authorize-network | "\n'
+        '        "reseed commit SHA authorize-network | reseed rollback confirm | reboot | poweroff | help",\n',
+        1,
+    )
+    text = text.replace(
+        reboot_anchor,
+        '        elif command == "reseed" and len(tokens) >= 1:\n'
+        '            print(json.dumps(handle_reseed(tokens[1:]), indent=2, sort_keys=True), flush=True)\n'
+        + reboot_anchor,
+        1,
+    )
+    temporary = path.with_name(f".{path.name}.germ-patch.tmp")
+    temporary.write_text(text, encoding="utf-8")
+    os.chmod(temporary, path.stat().st_mode & 0o777)
+    os.replace(temporary, path)
+    return {"status": "patched", "sha256": _sha256(path)}
+
+
+def _install_units(root: Path) -> None:
+    systemd = root / "etc/systemd/system"
+    wants = systemd / "multi-user.target.wants"
+    systemd.mkdir(parents=True, exist_ok=True)
+    wants.mkdir(parents=True, exist_ok=True)
+
+    preflight = systemd / "aurum-germ-preflight.service"
+    preflight.write_text(
+        "[Unit]\n"
+        "Description=Aurum protected germ preflight\n"
+        "After=local-fs.target\n"
+        "Before=aurum-pc-console.service\n\n"
+        "[Service]\n"
+        "Type=oneshot\n"
+        "Environment=AURUM_GUARDIAN_AUTO_REBOOT=1\n"
+        "ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py preflight --reboot-on-rollback\n\n"
+        "[Install]\n"
+        "WantedBy=multi-user.target\n",
+        encoding="utf-8",
+    )
+
+    health = systemd / "aurum-germ-health.service"
+    health.write_text(
+        "[Unit]\n"
+        "Description=Aurum protected germ candidate health gate\n"
+        "After=aurum-pc-console.service\n"
+        "Requires=aurum-germ-preflight.service\n\n"
+        "[Service]\n"
+        "Type=oneshot\n"
+        "Environment=AURUM_GUARDIAN_AUTO_REBOOT=1\n"
+        "ExecStartPre=/bin/sleep 8\n"
+        "ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py health-check --reboot-on-rollback\n\n"
+        "[Install]\n"
+        "WantedBy=multi-user.target\n",
+        encoding="utf-8",
+    )
+
+    for unit in (preflight.name, health.name):
+        link = wants / unit
+        try:
+            link.unlink()
+        except FileNotFoundError:
+            pass
+        link.symlink_to(Path("../") / unit)
+
+
+def _install_wrapper(root: Path) -> None:
+    wrapper = root / "usr/sbin/aurum-reseed"
+    wrapper.parent.mkdir(parents=True, exist_ok=True)
+    wrapper.write_text(
+        "#!/bin/sh\nexec /usr/bin/python3 /usr/lib/aurum/germ/reseed.py \"$@\"\n",
+        encoding="utf-8",
+    )
+    os.chmod(wrapper, 0o755)
+
+
+def _copy_germ(root: Path, source: Path) -> dict[str, str]:
+    target = root / "usr/lib/aurum/germ"
+    target.mkdir(parents=True, exist_ok=True)
+    hashes: dict[str, str] = {}
+    for name in GERM_FILES:
+        src = source / name
+        if not src.is_file():
+            raise BridgeError(f"Tiny Seed germ payload is incomplete: {name}")
+        dst = target / name
+        shutil.copy2(src, dst)
+        if dst.suffix == ".py":
+            os.chmod(dst, 0o755)
+        hashes[name] = _sha256(dst)
+    return hashes
+
+
+def install(root: Path, *, source_dir: Path | None = None) -> dict[str, Any]:
+    if os.geteuid() != 0:
+        raise BridgeError("germ bridge requires root")
+    root = root.resolve()
+    source = (source_dir or Path(__file__).resolve().parent).resolve()
+    if not (root / "etc/aurum-installed.json").is_file():
+        raise BridgeError("target is not an installed Aurum root")
+
+    runtime_path = root / "opt/aurum"
+    slots_root = root / "var/lib/aurum/slots"
+    germ_root = root / "var/lib/aurum/germ"
+    state_file = germ_root / "slots.json"
+
+    if runtime_path.is_symlink() and state_file.is_file():
+        hashes = _copy_germ(root, source)
+        _install_units(root)
+        _install_wrapper(root)
+        return {
+            "schema": "aurum-pre-germ-bridge-v1",
+            "status": "already-bridged-refreshed-germ",
+            "root": str(root),
+            "germ_hashes": hashes,
+            "live_phenotype_replaced": False,
+        }
+
+    if not runtime_path.is_dir() or runtime_path.is_symlink():
+        raise BridgeError("legacy /opt/aurum runtime is missing or has an unknown layout")
+    console = runtime_path / "aurum_console.py"
+    if not console.is_file():
+        raise BridgeError("legacy Aurum console is missing")
+
+    original_console_hash = _sha256(console)
+    backup_root = root / "var/lib/aurum/germ/backups"
+    backup_root.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(console, backup_root / f"aurum_console.{original_console_hash}.py")
+
+    slot_a = slots_root / "A/opt/aurum"
+    slot_b = slots_root / "B/opt/aurum"
+    if slot_a.exists() or slot_b.exists():
+        raise BridgeError("slot directories already exist but /opt/aurum is not germ-managed")
+    slot_a.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(runtime_path), str(slot_a))
+    runtime_path.symlink_to("/var/lib/aurum/slots/A/opt/aurum")
+
+    hashes = _copy_germ(root, source)
+    shutil.copy2(source / "germ_console.py", slot_a / "aurum_germ.py")
+    os.chmod(slot_a / "aurum_germ.py", 0o755)
+    patch = patch_console_file(slot_a / "aurum_console.py")
+
+    state = {
+        "schema": "aurum-germ-slots-v1",
+        "active": "A",
+        "lkg": "A",
+        "trial": None,
+        "trial_boots": 0,
+        "quarantined": [],
+        "last_result": "pre-germ-bridge-installed",
+        "legacy_console_sha256": original_console_hash,
+        "updated_at_unix": int(time.time()),
+    }
+    _atomic_json(state_file, state)
+    _install_units(root)
+    _install_wrapper(root)
+
+    receipt = {
+        "schema": "aurum-pre-germ-bridge-receipt-v1",
+        "status": "installed",
+        "root": str(root),
+        "active_slot": "A",
+        "lkg_slot": "A",
+        "legacy_console_sha256": original_console_hash,
+        "patched_console": patch,
+        "germ_hashes": hashes,
+        "live_overwrite_allowed": False,
+        "current_organism_preserved_as_slot_a": True,
+        "installed_at_unix": int(time.time()),
+    }
+    _atomic_json(germ_root / "bridge-receipt.json", receipt)
+    return receipt
+
+
+def parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="Install the Aurum pre-germ compatibility bridge")
+    p.add_argument("command", choices=("install",))
+    p.add_argument("--root", type=Path, required=True, help="mounted installed Aurum root")
+    return p
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    try:
+        result = install(args.root)
+    except BridgeError as exc:
+        print(json.dumps({"status": "refused", "detail": str(exc)}, indent=2, sort_keys=True))
+        return 2
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
