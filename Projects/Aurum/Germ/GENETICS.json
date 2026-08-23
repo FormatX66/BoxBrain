@@ -10,9 +10,12 @@
     "Projects/Aurum/Germ/reseed.py",
     "Projects/Aurum/Germ/guardian.py",
     "Projects/Aurum/Germ/bridge.py",
-    "Projects/Aurum/Germ/platform.py",
+    "Projects/Aurum/Germ/germ_console.py",
+    "Projects/Aurum/Germ/machine.py",
     "Projects/Aurum/Germ/network.py",
+    "Projects/Aurum/Germ/installer.py",
     "Projects/Aurum/Germ/tinyseed.py",
+    "Projects/Aurum/Germ/bootstrap_console.py",
     "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
     "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md",
     "docs/architecture/TINY_SEED_BOOT_MEDIUM.md"
