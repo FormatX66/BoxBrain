@@ -2,7 +2,7 @@
 set -eu
 
 usage() {
-    echo "usage: $0 SOURCE_KALI_ISO OUTPUT_ISO EXPECTED_HOPPER_HEAD" >&2
+    echo "usage: $0 SOURCE_LIVE_ISO OUTPUT_ISO EXPECTED_HOPPER_HEAD" >&2
     exit 2
 }
 
@@ -33,6 +33,71 @@ cleanup() {
     esac
 }
 trap cleanup EXIT HUP INT TERM
+
+kernel_candidates=$(xorriso -indev "$source_iso" \
+    -find /live -type f -name 'vmlinuz*' -exec echo -- -end 2>/dev/null \
+    | sed -n "s|^'\(/live/vmlinuz[^']*\)'$|\1|p")
+kernel_path=$(printf '%s\n' "$kernel_candidates" \
+    | awk '/^\/live\/vmlinuz-/{candidate=$0} END{print candidate}')
+[ -n "$kernel_path" ] || kernel_path=/live/vmlinuz
+echo "$kernel_path" | grep -Eq '^/live/vmlinuz[-A-Za-z0-9.+_]*$' \
+    || { echo "source live kernel path is unsafe" >&2; exit 2; }
+kernel_suffix=${kernel_path#/live/vmlinuz}
+initrd_path=/live/initrd.img$kernel_suffix
+echo "$initrd_path" | grep -Eq '^/live/initrd\.img[-A-Za-z0-9.+_]*$' \
+    || { echo "source live initrd path is unsafe" >&2; exit 2; }
+
+xorriso -osirrox on -indev "$source_iso" \
+    -extract "$kernel_path" "$build_root/source-vmlinuz" \
+    -extract "$initrd_path" "$build_root/source-initrd.img" \
+    -end >/dev/null
+
+python3 - "$build_root/source-vmlinuz" "$kernel_path" <<'PY'
+from pathlib import Path
+import struct
+import sys
+
+path = Path(sys.argv[1])
+label = sys.argv[2]
+data = path.read_bytes()
+if len(data) < 0x40 or data[:2] != b"MZ":
+    raise SystemExit(f"source live kernel is not a signed EFI-loadable image: {label}")
+pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+if pe_offset + 24 > len(data) or data[pe_offset:pe_offset + 4] != b"PE\0\0":
+    raise SystemExit(f"source live kernel has no PE header: {label}")
+optional = pe_offset + 24
+magic = struct.unpack_from("<H", data, optional)[0]
+if magic == 0x20B:
+    directories = optional + 112
+elif magic == 0x10B:
+    directories = optional + 96
+else:
+    raise SystemExit(f"source live kernel has an unknown PE format: {label}")
+certificate_offset, certificate_size = struct.unpack_from(
+    "<II", data, directories + (4 * 8)
+)
+if (
+    certificate_offset == 0
+    or certificate_size < 8
+    or certificate_offset + certificate_size > len(data)
+):
+    raise SystemExit(
+        f"source live kernel is unsigned; refusing a Secure Boot recovery image: {label}"
+    )
+print(
+    "SIGNED_KERNEL_PROVEN "
+    f"path={label} certificate_bytes={certificate_size}"
+)
+PY
+
+sed \
+    -e "s|@KERNEL_LIVE@|$kernel_path|g" \
+    -e "s|@INITRD_LIVE@|$initrd_path|g" \
+    "$script_dir/recovery-assets/grub.cfg" >"$build_root/grub.cfg"
+sed \
+    -e "s|@KERNEL_LIVE@|$kernel_path|g" \
+    -e "s|@INITRD_LIVE@|$initrd_path|g" \
+    "$script_dir/recovery-assets/isolinux.cfg" >"$build_root/isolinux.cfg"
 
 overlay=$build_root/overlay
 mkdir -p \
@@ -89,8 +154,8 @@ xorriso \
     -overwrite on \
     -map "$build_root/filesystem.aurum-recovery.squashfs" /live/filesystem.aurum-recovery.squashfs \
     -map "$build_root/filesystem.module" /live/filesystem.module \
-    -map "$script_dir/recovery-assets/grub.cfg" /boot/grub/grub.cfg \
-    -map "$script_dir/recovery-assets/isolinux.cfg" /isolinux/isolinux.cfg \
+    -map "$build_root/grub.cfg" /boot/grub/grub.cfg \
+    -map "$build_root/isolinux.cfg" /isolinux/isolinux.cfg \
     -volid AURUM_HOPPER_RECOVERY \
     -commit \
     -end

@@ -46,6 +46,9 @@ installed receipt plus physical internal-drive identity, mounts read-only for
 preflight, and refuses any unlisted or staged change. Before restoring the
 allowlisted paths from the current commit, it saves a binary patch and receipts
 under `/var/lib/aurum/state/recovery/`. It then proves Git clean and powers off.
+The builder discovers the source image's exact kernel/initrd pair and refuses to
+produce UEFI recovery media unless the kernel carries an embedded Secure Boot
+signature.
 
 This path is not a normal generation mechanism. Once the obstruction is
 removed, Hopper returns to `current seed -> discover -> pull -> verify -> stage

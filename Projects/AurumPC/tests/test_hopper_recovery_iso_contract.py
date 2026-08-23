@@ -18,11 +18,15 @@ class HopperRecoveryIsoContractTests(unittest.TestCase):
         for text in (grub, isolinux):
             self.assertIn("aurum_hopper_recovery=1", text)
             self.assertIn("systemd.unit=aurum-hopper-seed-recovery.target", text)
+            self.assertIn("@KERNEL_LIVE@", text)
+            self.assertIn("@INITRD_LIVE@", text)
             self.assertNotIn("installer", text.lower())
         self.assertIn("filesystem.aurum-recovery.squashfs", builder)
         self.assertIn("filesystem.module", builder)
         self.assertIn("refusing to overwrite", builder)
         self.assertIn("xorriso", builder)
+        self.assertIn("SIGNED_KERNEL_PROVEN", builder)
+        self.assertIn("refusing a Secure Boot recovery image", builder)
 
     def test_recovery_is_machine_commit_and_path_bound(self) -> None:
         recovery = RECOVERY.read_text(encoding="utf-8")
