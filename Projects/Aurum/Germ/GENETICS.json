@@ -1,0 +1,28 @@
+{
+  "schema": "aurum-genetics-v1",
+  "germ_protocol": 1,
+  "repository": "https://github.com/FormatX66/BoxBrain.git",
+  "default_trusted_ref": "main",
+  "genetics_root": "Projects/Aurum",
+  "stable_bootstrap": "Projects/Aurum/Germ/reseed.py",
+  "required_paths": [
+    "Projects/Aurum/Germ/GENETICS.json",
+    "Projects/Aurum/Germ/reseed.py",
+    "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
+    "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md"
+  ],
+  "policy": {
+    "candidate_only_staging": true,
+    "live_overwrite_allowed": false,
+    "resolve_immutable_commit_before_growth": true,
+    "preserve_current_viable_organism": true,
+    "promotion_requires_health_evidence": true,
+    "record_receipts": true
+  },
+  "compatibility": {
+    "stable_paths_must_not_be_repurposed": true,
+    "unknown_schema_action": "refuse",
+    "unknown_protocol_action": "refuse-and-request-newer-germ",
+    "pre_germ_seed_recovery": "external-germ-or-tested-compatibility-bridge"
+  }
+}
