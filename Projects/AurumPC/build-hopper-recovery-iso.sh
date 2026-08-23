@@ -96,10 +96,10 @@ xorriso \
     -end
 
 xorriso -indev "$output_iso" \
-    -find /live/filesystem.aurum-recovery.squashfs -exec lsdl \
-    -find /live/filesystem.module -exec lsdl \
-    -find /boot/grub/grub.cfg -exec lsdl \
-    -find /isolinux/isolinux.cfg -exec lsdl \
+    -find /live/filesystem.aurum-recovery.squashfs -exec lsdl -- \
+    -find /live/filesystem.module -exec lsdl -- \
+    -find /boot/grub/grub.cfg -exec lsdl -- \
+    -find /isolinux/isolinux.cfg -exec lsdl -- \
     -end
 
 output_sha256=$(sha256sum "$output_iso" | awk '{print $1}')
