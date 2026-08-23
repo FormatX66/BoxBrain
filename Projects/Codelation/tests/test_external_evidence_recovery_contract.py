@@ -68,6 +68,38 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertNotIn("ssh-keyscan", workflow)
         self.assertNotIn("ssh-keyscan", collector)
 
+    def test_runtime_contract_failure_reports_content_free_reason_codes(self) -> None:
+        collector = COLLECTOR.read_text(encoding="utf-8")
+
+        self.assertIn("AURUM_GUI_CONTRACT_MISMATCH", collector)
+        self.assertIn("content_free=true", collector)
+        self.assertIn("$runtimeContract = [ordered]@{", collector)
+        self.assertIn("$failed = @($runtimeContract.GetEnumerator()", collector)
+        for reason in (
+            "deployment_schema",
+            "node_identity",
+            "start_transient",
+            "module_hash",
+            "gui_schema",
+            "self_status_schema",
+            "console_identity",
+            "host_actuation",
+            "api_key_persistence",
+            "safe_layout",
+            "proof_view",
+            "page_hash",
+            "status_hash",
+            "http_status",
+            "content_type",
+            "service_active",
+            "service_not_enabled",
+            "loopback_listener",
+            "no_nonloopback_listener",
+        ):
+            self.assertIn(reason, collector)
+        self.assertNotIn("api_status_payload=", collector)
+        self.assertNotIn("api_key=", collector)
+
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
         self.assertIn("aurum-external-evidence-recovery.yml", workflow)
