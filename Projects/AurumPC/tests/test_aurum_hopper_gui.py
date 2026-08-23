@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import sys
 import unittest
 from pathlib import Path
@@ -23,6 +24,11 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("receipts visible", page)
         self.assertIn("tool_receipts", page)
         self.assertIn("Pygame fallback", page)
+        self.assertIn("HTML5 living surface", page)
+        self.assertIn("AinWeave · StateWeave · ComputeWeave", page)
+        self.assertEqual(page.count("data-aurum-mark"), 4)
+        self.assertIn("renderLivingMarks", page)
+        self.assertIn("prefers-reduced-motion", page)
         self.assertNotIn('id="apiKey"', page)
         self.assertNotIn("bootstrapKey", page)
         self.assertNotIn("body.api_key", page)
@@ -34,6 +40,13 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("machine-sealed runtime credential", source)
         self.assertIn('{"prompt", "model"}', source)
         self.assertNotIn('issubset({"prompt", "api_key", "model"})', source)
+
+    def test_personal_mark_is_checksum_sealed_before_html5_projection(self) -> None:
+        mark = MODULE_PATH.parents[1] / "Codelation" / "assets" / "identity" / "bruce-aurum-personal-logo-selected.png"
+        payload = hopper._verified_logo_bytes(mark)
+        self.assertIsNotNone(payload)
+        self.assertEqual(hashlib.sha256(payload or b"").hexdigest(), hopper.LOGO_SHA256)
+        self.assertIn('"scope": "bruce-hopper-personal"', MODULE_PATH.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

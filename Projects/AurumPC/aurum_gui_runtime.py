@@ -191,6 +191,7 @@ class GuiRuntime:
                 "loopback_only": bool((payload.get("transport") or {}).get("loopback_only")),
                 "dialogue_only": bool((payload.get("authority") or {}).get("dialogue_only")),
                 "host_actuation": bool((payload.get("authority") or {}).get("host_actuation")),
+                "identity_mark": ((payload.get("hopper") or {}).get("projection") or {}).get("identity_mark"),
             },
         }
 

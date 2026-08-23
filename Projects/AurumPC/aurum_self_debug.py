@@ -155,6 +155,7 @@ class HopperSelfDebugger:
         desktop = state["gui"].get("desktop") if isinstance(state["gui"].get("desktop"), dict) else {}
         gpt_generation = (generation.get("prove") or {}).get("gpt") if isinstance(generation.get("prove"), dict) else {}
         gpt_receipt = state["gpt_receipt"]
+        gui_probe = state["gui"].get("probe") if isinstance(state["gui"].get("probe"), dict) else {}
         payload = {
             "schema": SCHEMA,
             "machine": "Hopper",
@@ -174,6 +175,7 @@ class HopperSelfDebugger:
                 "renderer": desktop.get("renderer"),
                 "html_primary": bool(desktop.get("renderer") == "html5" and desktop.get("primary") is True),
                 "pygame_fallback_available": desktop.get("fallback") == "pygame",
+                "identity_mark": gui_probe.get("identity_mark"),
                 "projection_receipt": state["projection_receipt"],
                 "desktop_receipt": state["desktop_receipt"],
             },
