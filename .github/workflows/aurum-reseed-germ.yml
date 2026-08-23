@@ -1,0 +1,39 @@
+name: Aurum Reseed Germ
+
+on:
+  push:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'docs/architecture/RESEED_GENETICS_ARCHITECTURE.md'
+      - 'docs/architecture/SEED_RECOVERY_ARCHITECTURE.md'
+      - '.github/workflows/aurum-reseed-germ.yml'
+  pull_request:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'docs/architecture/RESEED_GENETICS_ARCHITECTURE.md'
+      - 'docs/architecture/SEED_RECOVERY_ARCHITECTURE.md'
+      - '.github/workflows/aurum-reseed-germ.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  germ-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile stable germ
+        run: python3 -m py_compile Projects/Aurum/Germ/reseed.py Projects/Aurum/Germ/test_reseed.py
+      - name: Validate genetics manifest
+        run: python3 -m json.tool Projects/Aurum/Germ/GENETICS.json >/dev/null
+      - name: Run germ safety tests
+        working-directory: Projects/Aurum/Germ
+        run: python3 -m unittest -v test_reseed.py
+      - name: Verify architecture invariants are present
+        run: |
+          grep -Fq 'Git stores the genetics. Seeds carry the germ.' docs/architecture/RESEED_GENETICS_ARCHITECTURE.md
+          grep -Fq 'Any viable germ-bearing seed must be able to regrow directly into the current trusted genetics' docs/architecture/SEED_RECOVERY_ARCHITECTURE.md
+          grep -Fq '"live_overwrite_allowed": false' Projects/Aurum/Germ/GENETICS.json
+          grep -Fq '"promotion_requires_health_evidence": true' Projects/Aurum/Germ/GENETICS.json
