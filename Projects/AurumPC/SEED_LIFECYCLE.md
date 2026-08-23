@@ -36,6 +36,13 @@ Boot media is **not** part of the normal update path for Hopper or any establish
 
 GUI changes, GPT integration, AinWeave growth, StateWeave, ComputeWeave, drivers, local LLM updates, autonomy changes, and future generations must grow through the running seed unless a true recovery condition exists.
 
+When a true recovery condition exists, recovery media must be one-shot,
+machine-bound, and narrower than an installer. It must identify the installed
+machine and current seed before writing, preserve the displaced state as
+evidence, change only an explicit allowlist, prove the recovered state, and
+leave the next boot on the normal running-seed path. A recovery image must not
+silently become recurring update media.
+
 ## Design consequence
 
 Aurum should always prefer propagation over installation:

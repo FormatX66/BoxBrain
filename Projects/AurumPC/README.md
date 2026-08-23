@@ -37,6 +37,21 @@ The unattended lane never pushes Git and does not automatically reboot. Its stat
 
 Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`. Hopper's read-only self-debug channel exposes the landed commit and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, and `become_next_seed` proof without enabling remote shell control.
 
+## One-shot seed recovery
+
+`build-hopper-recovery-iso.sh` produces a true-recovery image for a specific
+Hopper commit and exact worktree-only path set. The image uses a small live
+overlay, boots directly into a noninteractive recovery target, proves the
+installed receipt plus physical internal-drive identity, mounts read-only for
+preflight, and refuses any unlisted or staged change. Before restoring the
+allowlisted paths from the current commit, it saves a binary patch and receipts
+under `/var/lib/aurum/state/recovery/`. It then proves Git clean and powers off.
+
+This path is not a normal generation mechanism. Once the obstruction is
+removed, Hopper returns to `current seed -> discover -> pull -> verify -> stage
+-> apply -> prove -> become next seed` and the Pi returns to its normal BoxBrain
+USB role on its next boot.
+
 ## Adaptive driver synthesis
 
 `aurum_driver_synthesis.py` builds a confidence-scored exact-device dossier from OS hardware metadata, modaliases, the currently proven bound driver and module hash/metadata, and repeated read-only controlled observations. It queues one non-critical target at a time and emits a candidate behavior contract. When the matching kernel build toolchain is available it may compile a non-binding shadow `.ko` carrier to prove the build path.

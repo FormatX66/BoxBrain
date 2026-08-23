@@ -1,0 +1,5 @@
+[Unit]
+Description=Aurum Hopper one-shot recovery target
+Requires=basic.target aurum-hopper-seed-recovery.service
+After=basic.target aurum-hopper-seed-recovery.service
+AllowIsolate=yes

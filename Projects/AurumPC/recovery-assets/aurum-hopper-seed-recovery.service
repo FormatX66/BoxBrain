@@ -1,0 +1,20 @@
+[Unit]
+Description=Aurum Hopper bounded one-shot seed recovery
+Documentation=file:/usr/local/sbin/aurum-seed-recovery
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+Before=aurum-hopper-seed-recovery.target
+ConditionKernelCommandLine=aurum_hopper_recovery=1
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/aurum-seed-recovery --execute --poweroff
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/run
+RestrictAddressFamilies=AF_UNIX
