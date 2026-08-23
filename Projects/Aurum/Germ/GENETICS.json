@@ -8,9 +8,31 @@
   "required_paths": [
     "Projects/Aurum/Germ/GENETICS.json",
     "Projects/Aurum/Germ/reseed.py",
+    "Projects/Aurum/Germ/guardian.py",
+    "Projects/Aurum/Germ/bridge.py",
+    "Projects/Aurum/Germ/platform.py",
+    "Projects/Aurum/Germ/network.py",
+    "Projects/Aurum/Germ/tinyseed.py",
     "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
-    "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md"
+    "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md",
+    "docs/architecture/TINY_SEED_BOOT_MEDIUM.md"
   ],
+  "platforms": {
+    "x86_64": {
+      "source_ref": "aurum/trunk-v0.01",
+      "runtime_root": "Projects/AurumPC",
+      "codelation_root": "Projects/Codelation",
+      "growth_adapter": "python-runtime-slot-v1",
+      "local_ab_slots": true
+    },
+    "arm64": {
+      "source_ref": "aurum/pi3-v0.01",
+      "runtime_root": "Projects/AurumPi3",
+      "codelation_root": "Projects/Codelation",
+      "growth_adapter": "external-germ-platform-v1",
+      "local_ab_slots": false
+    }
+  },
   "policy": {
     "candidate_only_staging": true,
     "live_overwrite_allowed": false,
