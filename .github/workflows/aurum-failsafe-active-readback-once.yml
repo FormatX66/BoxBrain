@@ -70,6 +70,7 @@ jobs:
           receipt = {
               'schema': 'aurum-failsafe-active-readback-v2',
               'github_workflow_run': int(os.environ['GITHUB_RUN_ID']),
+              'github_run_attempt': int(os.environ.get('GITHUB_RUN_ATTEMPT') or 1),
               'source_commit': os.environ['GITHUB_SHA'],
               'observed_at': int(time.time()),
               'workflows': snapshot,
@@ -80,7 +81,8 @@ jobs:
               'content': base64.b64encode(raw).decode('ascii'),
               'branch': 'main',
           }).encode('utf-8')
-          path = f"Projects/AurumBridge/results/failsafe-active-readback-{os.environ['GITHUB_RUN_ID']}.json"
+          attempt = os.environ.get('GITHUB_RUN_ATTEMPT') or '1'
+          path = f"Projects/AurumBridge/results/failsafe-active-readback-{os.environ['GITHUB_RUN_ID']}-attempt-{attempt}.json"
           req = urllib.request.Request(
               f'https://api.github.com/repos/{repo}/contents/{path}',
               data=body,
