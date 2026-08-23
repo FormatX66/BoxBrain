@@ -1,4 +1,5 @@
 #Requires -Version 5.1
+# Recovery failures emit content-free reason codes so the event-driven failsafe can repair the exact contract gap.
 [CmdletBinding()]
 param(
     [ValidateSet("10.12.194.1", "10.42.194.1", "bbpi4.local", "192.168.0.194")]
