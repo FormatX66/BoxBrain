@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-failsafe-run-history-readback-once.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -74,6 +75,7 @@ jobs:
           receipt = {
               'schema': 'aurum-failsafe-run-history-v2',
               'github_workflow_run': int(os.environ['GITHUB_RUN_ID']),
+              'github_workflow_attempt': int(os.environ.get('GITHUB_RUN_ATTEMPT', '1')),
               'source_commit': os.environ['GITHUB_SHA'],
               'observed_at': int(time.time()),
               'workflows': snapshot,
@@ -84,7 +86,7 @@ jobs:
               'content': base64.b64encode(raw).decode('ascii'),
               'branch': 'main',
           }).encode('utf-8')
-          path = f"Projects/AurumBridge/results/failsafe-run-history-{os.environ['GITHUB_RUN_ID']}.json"
+          path = f"Projects/AurumBridge/results/failsafe-run-history-{os.environ['GITHUB_RUN_ID']}-attempt-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}.json"
           req = urllib.request.Request(
               f'https://api.github.com/repos/{repo}/contents/{path}',
               data=body,
