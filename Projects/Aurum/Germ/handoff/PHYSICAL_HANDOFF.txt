@@ -9,7 +9,7 @@ Human-only boundary before destructive work:
 
 Prepared Windows handoff tools:
 - List-TinySeed-Candidates-Windows.ps1 — read-only USB discovery. It reports serial, disk number, size, boot/system/read-only state, can exclude known protected recovery serials, and marks a unique eligible device SAFE_TO_PREFLIGHT_ONLY. It never writes media.
-- Flash-TinySeed-Windows.ps1 — checksum-pinned, exact-serial flasher. Run without -Write first. It refuses non-USB, boot/system, read-only, ambiguous, too-small, identity-changed, or checksum-mismatched targets. Only after dry-run proof and explicit confirmation may -Write be used. A full image-length raw readback SHA-256 must pass before the media is considered ready to boot.
+- Flash-TinySeed-Windows.ps1 — checksum-pinned, exact-serial flasher. When run from the BoxBrain checkout it automatically loads the canonical protected-media registry and refuses a protected recovery serial even if it was selected explicitly. Run without -Write first. It also refuses non-USB, boot/system, read-only, ambiguous, too-small, identity-changed, or checksum-mismatched targets. Only after dry-run proof and explicit confirmation may -Write be used. A full image-length raw readback SHA-256 must pass before the media is considered ready to boot.
 
 Required order on each physical target:
 1. Verify the release state is READY_TO_FLASH and record the expected artifact SHA-256.
