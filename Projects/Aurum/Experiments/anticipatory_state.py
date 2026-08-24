@@ -20,6 +20,9 @@ class CandidateIntent:
     ram_mb: int
     storage_write_mb: int = 0
     privacy_cost: float = 0.0
+    reuse_value: float = 0.0
+    learning_value: float = 0.0
+    avoided_future_error_value: float = 0.0
 
     def validate(self) -> None:
         if not self.name:
@@ -28,8 +31,17 @@ class CandidateIntent:
             raise ValueError("probability must be between 0 and 1")
         if self.human_value < 0 or self.latency_saved_ms < 0:
             raise ValueError("value and latency saved must be non-negative")
-        if self.cpu_cost < 0 or self.ram_mb < 0 or self.storage_write_mb < 0 or self.privacy_cost < 0:
-            raise ValueError("resource/privacy costs must be non-negative")
+        for value in (
+            self.cpu_cost,
+            self.ram_mb,
+            self.storage_write_mb,
+            self.privacy_cost,
+            self.reuse_value,
+            self.learning_value,
+            self.avoided_future_error_value,
+        ):
+            if value < 0:
+                raise ValueError("resource/privacy/compound values must be non-negative")
 
 
 @dataclass(frozen=True)
@@ -66,9 +78,26 @@ class SpeculationPolicy:
             raise ValueError("minimum_score must be non-negative")
 
 
+def value_components(intent: CandidateIntent) -> dict[str, float]:
+    """Separate immediate and compounding expected value.
+
+    Reuse/learning/error-avoidance value may survive even when the exact predicted
+    branch does not become the next active branch. This is the mechanism by which
+    apparently wasteful speculation can compound into later efficiency.
+    """
+    intent.validate()
+    immediate = intent.probability * intent.human_value * (1.0 + intent.latency_saved_ms / 1000.0)
+    compound = intent.reuse_value + intent.learning_value + intent.avoided_future_error_value
+    return {
+        "immediate": immediate,
+        "compound": compound,
+        "total": immediate + compound,
+    }
+
+
 def expected_preparation_value(intent: CandidateIntent) -> float:
     intent.validate()
-    benefit = intent.probability * intent.human_value * (1.0 + intent.latency_saved_ms / 1000.0)
+    benefit = value_components(intent)["total"]
     cost = 1.0 + intent.cpu_cost + intent.ram_mb / 1024.0 + intent.storage_write_mb / 512.0 + intent.privacy_cost
     return benefit / cost
 
@@ -109,6 +138,7 @@ def build_speculative_plan(
 
     for intent in ranked:
         score = expected_preparation_value(intent)
+        components = value_components(intent)
         reason = None
         if score < policy.minimum_score:
             reason = "insufficient-future-value"
@@ -125,6 +155,8 @@ def build_speculative_plan(
             "intent": intent.name,
             "score": round(score, 6),
             "probability": intent.probability,
+            "immediate_value": round(components["immediate"], 6),
+            "compound_value": round(components["compound"], 6),
             "prepare_only": True,
             "action_allowed": False,
         }
@@ -148,8 +180,9 @@ def build_speculative_plan(
     cpu_used = cpu_budget - cpu_left
     ram_used = ram_budget - ram_left
     return {
-        "schema": "aurum-anticipatory-state-plan-v1",
+        "schema": "aurum-anticipatory-state-plan-v2",
         "mode": "anticipating-not-interfering",
+        "efficiency_horizon": "immediate-plus-compounding",
         "policy": {
             "idle_cpu_target": policy.idle_cpu_target,
             "reclaimable_ram_target": policy.reclaimable_ram_target,
