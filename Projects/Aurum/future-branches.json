@@ -1,5 +1,5 @@
 {
-  "schema": "aurum-future-branch-state-v8",
+  "schema": "aurum-future-branch-state-v9",
   "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate both prediction and execution quality from what actually happens.",
   "policy": {
     "lookahead_depth": "adaptive-to-boundary",
@@ -20,7 +20,7 @@
     "preserve_completed_work_across_partial_outcomes": true,
     "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
   },
-  "current_program": "Aurum Tiny Seed is verified READY_TO_FLASH from source 8da49de37cde7ab318ba22dc2ad75729ae21e39f. That release includes the actionable Wi-Fi retry/join/resume correction learned from the first physical Crayola run. The handoff correctly invalidated the older USB discovery receipt when release identity changed; a new zero-authority read-only discovery request for the current release has been issued, so the physical lane is stopped at WAIT_FRESH_USB_DISCOVERY with write authority false and no destructive action performed.",
+  "current_program": "Aurum Tiny Seed is verified READY_TO_FLASH from source 8da49de37cde7ab318ba22dc2ad75729ae21e39f. A fresh read-only discovery bound to that exact release found one unique non-system, non-protected 61.5 GB SanDisk USB candidate. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT, write authority is false, no destructive action has occurred, and the next gate is explicit guarded-flash authorization. The current release also includes the actionable Wi-Fi retry/join/resume correction learned from the first physical Crayola READY-plus-offline-regrow run.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -38,29 +38,35 @@
       "state": "release-or-device-evidence-changes-before-physical-action",
       "prediction": "exact",
       "execution": "complete",
-      "proof": "the live field had this branch ranked and fresh read-only rediscovery prepared; a prior current-release discovery returned NO_ELIGIBLE_USB with zero devices and the physical state collapsed safely before authorization"
+      "proof": "the live field had this branch ranked and fresh read-only rediscovery prepared; stale evidence was discarded before authorization"
     },
     {
       "state": "physical-boot-success-with-offline-regrow",
       "prediction": "partial",
       "execution": "partial",
-      "proof": "the Crayola x86 Tiny Seed physically reached READY on Hopper, preserved the existing germ as slot A, installed the bridge on /dev/nvme0n1p2, then reported regrow.status=deferred-offline. The prior field separately predicted boot success and setup/network failure but not this mixed outcome; current seed logic now keeps retry/join/resume actionable without repeating completed work."
+      "proof": "the Crayola x86 Tiny Seed physically reached READY on Hopper, preserved the existing germ as slot A, installed the bridge on /dev/nvme0n1p2, then reported regrow.status=deferred-offline; current seed logic now keeps retry/join/resume actionable without repeating completed work"
+    },
+    {
+      "state": "fresh-current-release-usb-discovery-resolves",
+      "prediction": "exact",
+      "execution": "boundary-correct",
+      "proof": "the leading branch and read-only request were prepared before the Windows runner returned one unique eligible current-release-bound USB; preflight advanced to READY_FOR_GUARDED_FLASH_PREFLIGHT and stopped at explicit destructive authority"
     }
   ],
   "likely_user_inputs": [
     {
       "rank": 1,
-      "input_family": "physical-media-boundary",
-      "examples": ["ok I'll plug the USB in", "the USB is connected", "which drive do you need", "I unplugged it"],
-      "prepared_response": "The current release is already READY_TO_FLASH. Re-run zero-authority discovery after insertion and do not ask for write authorization until a unique candidate is proven against source 8da49de37cde7ab318ba22dc2ad75729ae21e39f.",
-      "action_if_safe": "When media is physically present, use read-only discovery immediately, preserve protected recovery media, bind evidence to the current release, and stop again before destructive authority."
+      "input_family": "explicit-guarded-flash-authorization",
+      "examples": ["go ahead and flash the test USB", "authorize the flash", "use that USB"],
+      "prepared_response": "The current release and a unique eligible test USB are proven. A new one-shot authorization must be explicitly bound to this exact release, image hash and discovery receipt; the expired older request cannot be reused.",
+      "action_if_safe": "After explicit authority only, perform the guarded dry-run/live identity reproof, refuse boot/system/protected media, verify artifact checksum, write only the exact candidate, then require full raw readback before calling the media ready to boot."
     },
     {
       "rank": 2,
-      "input_family": "physical-handoff",
-      "examples": ["ready to flash?", "which USB", "let's flash it"],
-      "prepared_response": "READY_TO_FLASH is verified, but current-release device identity must be freshly proven before any guarded write authorization can be meaningful.",
-      "action_if_safe": "Keep artifact identity, checksum, protected-media refusal, dry-run preflight and readback verification prepared; never reuse stale device evidence or expired authority."
+      "input_family": "physical-media-change-before-flash",
+      "examples": ["I unplugged it", "I moved the USB", "a different drive is connected"],
+      "prepared_response": "Any physical-device change invalidates the candidate assumption. Re-run zero-authority discovery and never reuse the prior disk number or identity evidence.",
+      "action_if_safe": "Discard stale media identity and repeat read-only discovery; keep write authority false until a unique current-release candidate is proven again."
     },
     {
       "rank": 3,
@@ -87,7 +93,7 @@
       "rank": 6,
       "input_family": "status-or-so",
       "examples": ["so?", "how's it going?", "what's the status now?"],
-      "prepared_response": "Report verified READY_TO_FLASH separately from physical proof; note that the first Crayola run reached READY and preserved/bridged Hopper but deferred regrow offline; report the current release-bound discovery/preflight state without inventing a USB candidate.",
+      "prepared_response": "Report READY_TO_FLASH separately from physical proof; report that a unique current-release-bound USB is now safe for guarded preflight but has zero write authority; name explicit authorization as the next real boundary.",
       "action_if_safe": "Read live handoff, USB discovery and preflight evidence together; invalidate or refresh anything whose provenance or physical identity changed before reporting."
     },
     {
@@ -101,52 +107,52 @@
       "rank": 8,
       "input_family": "future-branch-self-audit",
       "examples": ["did it predict that?", "was that branch warm?", "what did predictions actually save?"],
-      "prepared_response": "Score honestly: Tiny Seed publication was exact; seed-method pivot was a miss; stale prepared-state invalidation was partial; the release/device-evidence-change branch was exact; the Crayola READY-plus-offline-regrow outcome was only partial because the hybrid state was not explicit.",
+      "prepared_response": "Score honestly: publication was exact; seed-method pivot was a miss; stale prepared-state invalidation was partial; release/device-evidence change was exact; Crayola READY-plus-offline-regrow was partial; the latest current-release USB discovery was exact and boundary-correct.",
       "action_if_safe": "Persist calibration and re-rank without inflating partial or post-hoc matches."
     }
   ],
   "likely_machine_outcomes": [
     {
       "rank": 1,
-      "state": "fresh-current-release-usb-discovery-resolves",
-      "prepared": ["read-only discovery request bound to 8da49de37cde7ab318ba22dc2ad75729ae21e39f", "protected-media registry", "system/boot-disk refusal", "serial hashing", "zero write authority"],
-      "next": "if exactly one eligible device exists, persist preflight-only evidence then stop at explicit guarded-flash authority; if none or multiple exist, remain non-destructive"
+      "state": "explicit-authorization-arrives-for-current-candidate",
+      "prepared": ["current release source and x86 hash", "fresh discovery receipt", "candidate model/size/serial hash", "protected-media registry", "guarded flasher", "dry-run preflight", "live identity reproof", "full raw readback"],
+      "next": "validate a fresh one-shot request against exact provenance, then execute only the guarded path and stop if any live identity differs"
     },
     {
       "rank": 2,
-      "state": "no-usb-remains-attached",
-      "prepared": ["WAIT_USB_MEDIA fallback state", "zero write authority", "no stale-candidate reuse"],
-      "next": "do nothing destructive; continue independent software/experiment work until physical media exists"
+      "state": "media-identity-changes-before-authorized-write",
+      "prepared": ["fail-closed provenance and live-identity checks", "read-only rediscovery", "zero stale-candidate reuse"],
+      "next": "invalidate authorization/preflight as needed and return to read-only discovery without writing"
     },
     {
       "rank": 3,
-      "state": "eligible-test-usb-appears",
-      "prepared": ["current release provenance binding", "protected recovery refusal", "dry-run guarded preflight", "identity reproof immediately before write"],
-      "next": "stop at explicit one-shot destructive authority before flashing"
-    },
-    {
-      "rank": 4,
       "state": "x86-physical-flash-readback-passes-after-explicit-authority",
       "prepared": ["verified x86 artifact checksum", "current release provenance binding", "unique USB identity targeting", "dry-run preflight", "system-disk refusal", "identity recheck immediately before write", "full raw readback hash", "boot-proof collection"],
       "next": "physical Hopper boot and Tiny Seed ready/boot-proof evidence"
     },
     {
-      "rank": 5,
+      "rank": 4,
       "state": "physical-ready-with-network-available",
       "prepared": ["READY console", "single-existing-install detection", "bridge preserving Gen0 as slot A/LKG", "Wi-Fi retry/rescan", "post-install Join Wi-Fi", "resume regrow against existing root", "inactive slot B", "health gates"],
       "next": "arm trial only after current genetics regrow succeeds, then require protected reboot and fresh health evidence"
     },
     {
-      "rank": 6,
+      "rank": 5,
       "state": "physical-ready-but-network-deferred-again",
       "prepared": ["preserve completed bridge/install", "explicit offline state", "Join Wi-Fi now", "regrow resume without target reselection", "aurum-triage"],
       "next": "repair only network/regrow boundary; do not repeat destructive install work or disturb LKG"
     },
     {
-      "rank": 7,
+      "rank": 6,
       "state": "physical-boot-or-setup-failure",
       "prepared": ["GRUB serial evidence", "safe/verbose boot", "aurum-triage", "NetworkManager evidence", "failure playbook", "preserved recovery media"],
       "next": "classify exact failure, repair candidate only, retain LKG and compare carrier-pivot cost if the failure is method-specific"
+    },
+    {
+      "rank": 7,
+      "state": "healthy-regrow-arms-trial",
+      "prepared": ["Gen0 slot A/LKG preservation", "inactive slot B regrow", "boot proof", "selftest and critical-service gates", "Guardian quarantine/rollback"],
+      "next": "reboot trial only at the physical boundary; promote only on fresh health proof, otherwise roll back automatically"
     },
     {
       "rank": 8,
@@ -159,7 +165,7 @@
     "prediction_score_classes": ["exact", "partial", "miss"],
     "execution_score_classes": ["complete", "prepared", "partial", "miss", "boundary-correct"],
     "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. Prepared state that no longer matches canonical provenance or live physical reality is invalid, not warm. Mixed success/defer outcomes must be represented explicitly to earn exact credit.",
-    "latest_resolved_sample": "Crayola physical READY plus offline-deferred regrow = partial prediction + partial execution; current network flow now preserves progress and supports retry/join/resume",
+    "latest_resolved_sample": "current-release USB discovery resolved to one unique eligible candidate = exact prediction + boundary-correct execution; physical lane is READY_FOR_GUARDED_FLASH_PREFLIGHT with zero write authority",
     "metrics": ["prediction_accuracy", "execution_completeness", "useful_hit_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
   },
   "real_boundaries": [
