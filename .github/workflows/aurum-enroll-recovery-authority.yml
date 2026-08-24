@@ -1,0 +1,55 @@
+name: Aurum Enroll Recovery Authority
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-recovery-authority-enrollment
+  cancel-in-progress: false
+
+jobs:
+  enroll:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+
+      - name: Derive public recovery authority from protected secret
+        shell: bash
+        env:
+          PRIVATE_KEY: ${{ secrets.AURUM_RECOVERY_ED25519_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo 'AURUM_RECOVERY_AUTHORITY_WAIT reason=secret-not-enrolled'
+            exit 2
+          fi
+          key="$RUNNER_TEMP/recovery-private.pem"
+          umask 077
+          printf '%s\n' "$PRIVATE_KEY" > "$key"
+          openssl pkey -in "$key" -pubout -out Projects/Aurum/Recovery/authority-public.pem
+          openssl pkey -pubin -in Projects/Aurum/Recovery/authority-public.pem -text -noout >/dev/null
+          rm -f "$key"
+          echo 'AURUM_RECOVERY_AUTHORITY_DERIVED algorithm=Ed25519'
+
+      - name: Publish public authority only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-recovery-authority[bot]'
+          git config user.email 'aurum-recovery-authority@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/authority-public.pem
+          if git diff --cached --quiet; then
+            echo 'AURUM_RECOVERY_AUTHORITY_OK state=unchanged'
+            exit 0
+          fi
+          git commit -m 'Enroll Aurum recovery public authority'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_RECOVERY_AUTHORITY_OK state=published-public-key'
