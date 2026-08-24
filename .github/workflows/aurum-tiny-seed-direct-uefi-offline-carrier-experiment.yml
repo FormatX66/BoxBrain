@@ -1,0 +1,155 @@
+name: Aurum Tiny Seed direct UEFI offline-carrier experiment
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
+      - '.github/workflows/aurum-tiny-seed-direct-uefi-offline-carrier-experiment.yml'
+  push:
+    branches:
+      - experiment/tinyseed-direct-uefi-offline-carrier-20260824
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
+      - '.github/workflows/aurum-tiny-seed-direct-uefi-offline-carrier-experiment.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-direct-uefi-offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out current experimental carrier branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Compile and unit-test protected germ including offline carrier
+        run: |
+          python3 -m py_compile Projects/Aurum/Germ/*.py
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_carrier test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed)
+
+      - name: Install host verification tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
+
+      - name: Build current x86 payload and independent direct UEFI carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap xorriso isolinux \
+                syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
+                dosfstools mtools ca-certificates parted e2fsprogs util-linux \
+                systemd-boot-efi binutils git
+              sh Projects/Aurum/Germ/build-x86-tinyseed.sh
+              sh Projects/Aurum/Germ/build-direct-uefi-tinyseed.sh \
+                Projects/Aurum/Germ/.build-x86/binary \
+                dist/Aurum-TinySeed-amd64-direct-uefi.img
+
+              # Verify the raw GPT image itself contains the current protected
+              # offline carrier, not merely that the source live-build tree did.
+              start_mib=$(parted -sm dist/Aurum-TinySeed-amd64-direct-uefi.img unit MiB print | awk -F: '$1 == "2" {gsub("MiB", "", $2); print int($2)}')
+              test -n "$start_mib"
+              dd if=dist/Aurum-TinySeed-amd64-direct-uefi.img of=/tmp/direct-data.img bs=1M skip="$start_mib" status=none
+              debugfs -R "dump /live/filesystem.squashfs /tmp/direct.squashfs" /tmp/direct-data.img >/tmp/debugfs.log 2>&1
+              test -s /tmp/direct.squashfs
+              unsquashfs -ll /tmp/direct.squashfs | tee /tmp/direct-payload.log >/dev/null
+              grep -q "usr/lib/aurum/germ/carrier.py" /tmp/direct-payload.log
+              grep -q "usr/lib/aurum/carrier/carrier.json" /tmp/direct-payload.log
+              rm -rf /tmp/direct-carrier-root
+              unsquashfs -f -d /tmp/direct-carrier-root /tmp/direct.squashfs \
+                usr/lib/aurum/germ/carrier.py \
+                usr/lib/aurum/carrier >/dev/null
+              python3 /tmp/direct-carrier-root/usr/lib/aurum/germ/carrier.py verify \
+                --root /tmp/direct-carrier-root/usr/lib/aurum/carrier \
+                --architecture x86_64
+              echo AURUM_TINYSEED_DIRECT_UEFI_OFFLINE_CARRIER_OK
+            '
+          test -s dist/Aurum-TinySeed-amd64-direct-uefi.img
+          sha256sum -c dist/Aurum-TinySeed-amd64-direct-uefi.img.sha256
+          parted -s dist/Aurum-TinySeed-amd64-direct-uefi.img unit MiB print | tee tinyseed-direct-uefi-layout.log
+          grep -q 'AURUM_LIVE' tinyseed-direct-uefi-layout.log
+          grep -q 'ESP' tinyseed-direct-uefi-layout.log
+
+      - name: Direct UEFI removable-media boot smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS.fd
+          else
+            echo 'No matching OVMF CODE/VARS pair found' >&2
+            exit 1
+          fi
+          cp "$OVMF_VARS" "$RUNNER_TEMP/OVMF_VARS.fd"
+          set +e
+          timeout 150 qemu-system-x86_64 \
+            -machine q35 -m 1024 -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file="$RUNNER_TEMP/OVMF_VARS.fd" \
+            -device qemu-xhci,id=xhci \
+            -drive if=none,id=seed,file=dist/Aurum-TinySeed-amd64-direct-uefi.img,format=raw,readonly=on \
+            -device usb-storage,drive=seed,bootindex=1 \
+            -boot strict=on \
+            -nic user,model=e1000 \
+            -display none -serial file:tinyseed-direct-uefi.log -no-reboot
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            cat tinyseed-direct-uefi.log 2>/dev/null || true
+            exit "$rc"
+          fi
+          missing=0
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-direct-uefi.log || missing=1
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-direct-uefi.log || missing=1
+          grep -q 'AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true' tinyseed-direct-uefi.log || missing=1
+          if [ "$missing" -ne 0 ]; then
+            echo 'Direct UEFI offline-capable fallback boot markers missing; serial evidence follows' >&2
+            cat tinyseed-direct-uefi.log 2>/dev/null || true
+            exit 1
+          fi
+          echo 'AURUM_TINYSEED_DIRECT_UEFI_OFFLINE_BOOT_VERIFIED'
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-direct-UEFI-offline-diagnostics
+          path: |
+            tinyseed-direct-uefi.log
+            tinyseed-direct-uefi-layout.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish experimental offline-capable fallback only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-amd64-direct-UEFI-offline-experimental
+          path: |
+            dist/Aurum-TinySeed-amd64-direct-uefi.img
+            dist/Aurum-TinySeed-amd64-direct-uefi.img.sha256
+            tinyseed-direct-uefi.log
+            tinyseed-direct-uefi-layout.log
+          if-no-files-found: error
+          retention-days: 14
