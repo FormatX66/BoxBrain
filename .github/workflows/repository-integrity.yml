@@ -15,13 +15,56 @@ on:
       - '.github/workflows/repository-integrity.yml'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: repository-integrity-mirror
+  cancel-in-progress: true
 
 jobs:
   repository-integrity:
     runs-on: ubuntu-24.04
+    timeout-minutes: 8
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Run canonical repository validator
-        run: python3 Admin/validate_repository.py
+        with:
+          ref: main
+
+      - name: Run canonical repository validator and preserve exact output
+        id: validate
+        shell: bash
+        run: |
+          set +e
+          python3 Admin/validate_repository.py > "$RUNNER_TEMP/integrity.txt" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/integrity.txt"
+          {
+            echo 'Repository Integrity Mirror'
+            echo
+            cat "$RUNNER_TEMP/integrity.txt"
+          } > Admin/repository-integrity-latest.txt
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Publish changed diagnostic receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'repository-integrity-mirror[bot]'
+          git config user.email 'repository-integrity-mirror@users.noreply.github.com'
+          git add Admin/repository-integrity-latest.txt
+          if git diff --cached --quiet; then
+            echo 'REPOSITORY_INTEGRITY_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record repository integrity diagnostic [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'REPOSITORY_INTEGRITY_RECEIPT published=true'
+
+      - name: Enforce validator result
+        if: always()
+        shell: bash
+        run: |
+          test '${{ steps.validate.outputs.rc }}' = '0'
