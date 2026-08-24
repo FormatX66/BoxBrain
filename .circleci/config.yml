@@ -70,6 +70,35 @@ jobs:
           name: Test seed recovery branch manifest
           command: python -m unittest discover -s installer/tests -p 'test_future_branch_recovery.py' -v
 
+  germ-safety:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Require recovery crypto verifier
+          command: openssl version
+      - run:
+          name: Compile protected Germ
+          command: python -m py_compile Projects/Aurum/Germ/*.py
+      - run:
+          name: Run protected Germ safety contract
+          command: |
+            cd Projects/Aurum/Germ
+            python -m unittest -v \
+              test_reseed \
+              test_guardian \
+              test_proof \
+              test_rollback_drill \
+              test_recovery_control \
+              test_recovery_poller \
+              test_physical_handoff_preflight \
+              test_tinyseed
+      - run:
+          name: Validate current genetics manifest
+          command: python -c "import sys; from pathlib import Path; sys.path.insert(0, str(Path('Projects/Aurum/Germ').resolve())); import reseed; verified = reseed.verify_candidate(Path('.').resolve()); print('AURUM_GERM_CONTRACT_OK commit=' + verified['commit'])"
+
 workflows:
   boxbrain-circleci:
     jobs:
@@ -77,3 +106,4 @@ workflows:
       - codelation
       - backend
       - future-branch-projects
+      - germ-safety
