@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-pi3-identity-request-v1",
+  "request_id": "pi3-strict-alias-continuity-20260824-1347",
+  "mode": "passive-usb-endpoint-plus-existing-trust-continuity",
+  "trusted_aliases": [
+    "aurum-pi3.local",
+    "aurum-pi3",
+    "raspberrypi.local",
+    "raspberrypi"
+  ],
+  "active_network_scan": false,
+  "persistent_trust_change_allowed": false,
+  "mutation_allowed": false,
+  "promotion_allowed": false,
+  "write_authority": false,
+  "purpose": "Attempt to prove whether a bounded TCP/22 endpoint already visible on a USB-like host link is the historical Pi3 by reusing existing strict SSH alias trust and auth without adding a host key, scanning an address range, or mutating either machine."
+}
