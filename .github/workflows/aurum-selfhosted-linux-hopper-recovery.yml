@@ -1,0 +1,153 @@
+name: Aurum Self-hosted Linux Hopper Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-selfhosted-linux-hopper-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-selfhosted-linux-hopper-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Recover directly on Hopper or through local BoxBrain Pi HID
+        shell: bash
+        run: |
+          set -uo pipefail
+          root="$GITHUB_WORKSPACE"
+          result_dir="$root/Projects/AurumBridge/results"
+          mkdir -p "$result_dir"
+          result="$result_dir/hopper-selfhosted-linux-recovery-latest.json"
+          before="$result_dir/hopper-selfhosted-kvm-before.jpg"
+          after="$result_dir/hopper-selfhosted-kvm-after.jpg"
+          rm -f "$before" "$after"
+
+          host="$(hostname 2>/dev/null || true)"
+          arch="$(uname -m 2>/dev/null || true)"
+          direct_workspace=false
+          direct_repair=not-attempted
+          direct_detail=''
+          hid_socket=false
+          hid_keyboard_ready=false
+          hid_vt_switch_sent=false
+          video_before=false
+          video_after=false
+
+          W=/var/lib/aurum/workspace/BoxBrain
+          if [ -d "$W/.git" ] && [ -f /opt/aurum/aurum_bootstrap.py ]; then
+            direct_workspace=true
+            run_repair() {
+              set -eu
+              cd "$W"
+              test "$(git remote get-url origin | sed 's#\.git$##')" = 'https://github.com/FormatX66/BoxBrain'
+              test "$(git branch --show-current)" = 'aurum/trunk-v0.01'
+              git fetch --prune origin aurum/trunk-v0.01
+              git show FETCH_HEAD:Projects/AurumPC/aurum_sync_recovery.py | env AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state python3 -
+              cd "$W"
+              env AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state AURUM_RUNTIME_ROOT=/opt/aurum python3 Projects/AurumPC/aurum_runtime_update.py apply
+              if command -v systemctl >/dev/null 2>&1; then systemctl restart aurum-pc-console.service || true; fi
+            }
+            tmp="$(mktemp)"
+            if [ "$(id -u)" -eq 0 ]; then
+              if run_repair >"$tmp" 2>&1; then direct_repair=completed; else direct_repair=failed; fi
+            elif sudo -n true >/dev/null 2>&1; then
+              if sudo -n bash -c "$(declare -f run_repair); W='$W'; run_repair" >"$tmp" 2>&1; then direct_repair=completed; else direct_repair=failed; fi
+            else
+              direct_repair=no-existing-root-authority
+            fi
+            direct_detail="$(tail -c 3000 "$tmp" 2>/dev/null | tr '\n' ' ' | sed 's/[[:cntrl:]]/ /g')"
+            rm -f "$tmp"
+          fi
+
+          if [ -S /run/boxbrain-hid-kvm/control.sock ]; then
+            hid_socket=true
+            if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o "$before" 2>/dev/null && [ -s "$before" ]; then video_before=true; else rm -f "$before"; fi
+            hid_out="$(python3 - <<'PY'
+          import json, socket, time
+          path='/run/boxbrain-hid-kvm/control.sock'
+          def req(payload):
+              wire=(json.dumps(payload,separators=(',',':'))+'\n').encode()
+              with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:
+                  s.settimeout(3); s.connect(path); s.sendall(wire)
+                  out=b''
+                  while not out.endswith(b'\n'):
+                      chunk=s.recv(4096)
+                      if not chunk: break
+                      out += chunk
+              obj=json.loads(out.decode())
+              if not obj.get('ok'): raise RuntimeError(obj)
+              return obj
+          status=req({'action':'status'})
+          ready=bool(status.get('status',{}).get('keyboard_ready'))
+          print('keyboard_ready='+str(ready).lower())
+          if ready:
+              req({'action':'release'})
+              for chord in (('ControlLeft','AltLeft','F2'),('AltLeft','F2')):
+                  for code in chord: req({'action':'key','code':code,'down':True})
+                  time.sleep(0.18)
+                  for code in reversed(chord): req({'action':'key','code':code,'down':False})
+                  req({'action':'release'})
+                  time.sleep(0.8)
+              print('vt_switch_sent=true')
+          PY
+          )" || true
+            printf '%s\n' "$hid_out"
+            case "$hid_out" in *keyboard_ready=true*) hid_keyboard_ready=true;; esac
+            case "$hid_out" in *vt_switch_sent=true*) hid_vt_switch_sent=true;; esac
+            sleep 3
+            if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o "$after" 2>/dev/null && [ -s "$after" ]; then video_after=true; else rm -f "$after"; fi
+          fi
+
+          python3 - "$result" "$host" "$arch" "$direct_workspace" "$direct_repair" "$direct_detail" "$hid_socket" "$hid_keyboard_ready" "$hid_vt_switch_sent" "$video_before" "$video_after" <<'PY'
+          import json, sys, datetime as dt
+          (path,host,arch,direct_workspace,direct_repair,direct_detail,hid_socket,hid_ready,hid_sent,video_before,video_after)=sys.argv[1:]
+          b=lambda x: x.lower()=='true'
+          payload={
+            'schema':'aurum.hopper.selfhosted-linux-recovery.v1',
+            'observed_at':dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'),
+            'runner_host':host,
+            'architecture':arch,
+            'direct_hopper_workspace':b(direct_workspace),
+            'direct_repair':direct_repair,
+            'direct_detail':direct_detail,
+            'pi_hid_socket':b(hid_socket),
+            'pi_hid_keyboard_ready':b(hid_ready),
+            'pi_hid_vt_switch_sent':b(hid_sent),
+            'video_before':b(video_before),
+            'video_after':b(video_after),
+            'local_changes_preservation_required':True,
+            'destructive_media_write':False,
+            'new_authority_granted':False,
+          }
+          open(path,'w',encoding='utf-8').write(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(payload,sort_keys=True))
+          PY
+
+          git config user.name 'aurum-linux-recovery[bot]'
+          git config user.email 'aurum-linux-recovery@users.noreply.github.com'
+          git add -- "$result"
+          [ -f "$before" ] && git add -- "$before"
+          [ -f "$after" ] && git add -- "$after"
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record self-hosted Linux Hopper recovery evidence [skip ci]'
+            for attempt in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && exit 0
+              sleep $((attempt * 2))
+            done
+            exit 1
+          fi
