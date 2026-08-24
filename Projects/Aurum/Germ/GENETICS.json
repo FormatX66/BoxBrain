@@ -20,6 +20,8 @@
     "Projects/Aurum/Germ/rollback_drill.py",
     "Projects/Aurum/Germ/recovery_control.py",
     "Projects/Aurum/Germ/recovery_poller.py",
+    "Projects/Aurum/Germ/triage.py",
+    "Projects/Aurum/Germ/FAILURE_PLAYBOOK.md",
     "Projects/Aurum/Recovery/trusted-refs.json",
     "Projects/Aurum/completion-plan.json",
     "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
