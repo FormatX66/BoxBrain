@@ -73,7 +73,7 @@ jobs:
         run: python -m unittest discover -s Projects/AdaptiveKernel/tests -v
       - name: Test combined StateWeave + kernel bridge
         run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v
-      - name: Test Aurum Future Branch prediction, routing, availability, surprise reserve, and Reality Gap
+      - name: Test Aurum Future Branch prediction, routing, availability, surprise, Reality Gap, stacked gaps, and unattended precompute
         run: |
           cd Projects/Aurum/Experiments
           python -m unittest test_future_branch -v
@@ -85,6 +85,8 @@ jobs:
           python -m unittest test_human_availability -v
           python -m unittest test_surprise_budget -v
           python -m unittest test_reality_gap -v
+          python -m unittest test_gap_stack -v
+          python -m unittest test_unattended_precompute -v
       - name: Test seed recovery branch manifest
         run: python -m unittest discover -s installer/tests -p 'test_future_branch_recovery.py' -v
       - name: Test Tiny Seed physical preflight states
