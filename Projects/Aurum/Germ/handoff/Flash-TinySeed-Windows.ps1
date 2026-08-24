@@ -307,61 +307,43 @@ Dismount-TargetVolumes $diskNumber
 $bufferSize = 4MB
 $buffer = New-Object byte[] $bufferSize
 $maxIoRetries = 8
-$source = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-$target = $null
+$ddPath = 'C:\Program Files\Git\usr\bin\dd.exe'
+if (-not (Test-Path -LiteralPath $ddPath)) { Fail 'raw-writer-dd-missing' }
+
+# Re-prove and re-lock the exact target immediately before handing the remaining
+# image bytes to the low-level writer. Sector zero was already reread above.
+$live = Get-ReverifiedTarget
+$diskNumber = [int]$live.Number
+Dismount-TargetVolumes $diskNumber
+$ddImagePath = $image.FullName.Replace('\', '/')
+$ddDevicePath = "//./PhysicalDrive$diskNumber"
+$previousArgConversion = $env:MSYS2_ARG_CONV_EXCL
 try {
-    [int64]$written = 512
-    [void]$source.Seek($written, [IO.SeekOrigin]::Begin)
-    while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
-        $attempt = 0
-        while ($true) {
-            try {
-                if ($null -eq $target) {
-                    $live = Get-ReverifiedTarget
-                    $diskNumber = [int]$live.Number
-                    Dismount-TargetVolumes $diskNumber
-                    $physicalPath = "\\.\PhysicalDrive$diskNumber"
-                    $target = New-Object IO.FileStream(
-                        $physicalPath,
-                        [IO.FileMode]::Open,
-                        [IO.FileAccess]::Write,
-                        [IO.FileShare]::ReadWrite,
-                        $bufferSize,
-                        [IO.FileOptions]::WriteThrough
-                    )
-                    [void]$target.Seek($written, [IO.SeekOrigin]::Begin)
-                }
-                $target.Write($buffer, 0, $read)
-                $written += $read
-                break
-            } catch [IO.IOException] {
-                if ($null -ne $target) {
-                    try { $target.Dispose() } catch { }
-                    $target = $null
-                }
-                $attempt += 1
-                if ($attempt -gt $maxIoRetries) {
-                    Fail "device-write-retry-exhausted offset=$written error=$($_.Exception.Message)"
-                }
-                Write-Host "AURUM_TINYSEED_FLASH_IO_RETRY phase=write offset=$written attempt=$attempt"
-                Start-Sleep -Seconds 3
-            }
-        }
-    }
-    if ($null -ne $target) {
-        try {
-            $target.Flush($true)
-        } catch [IO.IOException] {
-            # WriteThrough was used for every block. A reset during the final
-            # flush is resolved by the authoritative full raw readback below.
-            Write-Host 'AURUM_TINYSEED_FLASH_IO_RETRY phase=final-flush action=verify-by-full-readback'
-            Start-Sleep -Seconds 3
-        }
-    }
+    $env:MSYS2_ARG_CONV_EXCL = '*'
+    $ddArguments = @(
+        "if=$ddImagePath",
+        "of=$ddDevicePath",
+        'bs=4M',
+        'skip=512',
+        'seek=512',
+        'iflag=fullblock,skip_bytes',
+        'oflag=seek_bytes',
+        'conv=notrunc,fsync',
+        'status=progress'
+    )
+    $ddOutput = & $ddPath @ddArguments 2>&1
+    $ddExit = $LASTEXITCODE
+    foreach ($line in @($ddOutput)) { Write-Host ([string]$line) }
 } finally {
-    if ($null -ne $target) { try { $target.Dispose() } catch { } }
-    $source.Dispose()
+    if ($null -eq $previousArgConversion) {
+        Remove-Item Env:MSYS2_ARG_CONV_EXCL -ErrorAction SilentlyContinue
+    } else {
+        $env:MSYS2_ARG_CONV_EXCL = $previousArgConversion
+    }
 }
+if ($ddExit -ne 0) { Fail "raw-writer-dd-failed exit=$ddExit" }
+Write-Host "AURUM_TINYSEED_FLASH_RAW_WRITE_OK writer=dd bytes=$([int64]$image.Length - 512)"
+Start-Sleep -Seconds 3
 
 # Full image-length readback hash. This is deliberately slower than a spot check
 # because READY_TO_BOOT should mean the bytes written were actually re-read.
