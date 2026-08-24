@@ -76,9 +76,19 @@ jobs:
             -boot d -display none -serial file:tinyseed-uefi.log -no-reboot
           rc=$?
           set -e
-          test "$rc" -eq 0 -o "$rc" -eq 124
-          grep -q 'AURUM_TINYSEED_READY' tinyseed-uefi.log
-          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-uefi.log
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            echo "UEFI QEMU exited unexpectedly rc=$rc" >&2
+            cat tinyseed-uefi.log 2>/dev/null || true
+            exit 1
+          fi
+          missing=0
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-uefi.log || missing=1
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-uefi.log || missing=1
+          if [ "$missing" -ne 0 ]; then
+            echo 'UEFI boot smoke markers missing; serial evidence follows' >&2
+            cat tinyseed-uefi.log 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Legacy BIOS boot smoke
         shell: bash
@@ -91,9 +101,19 @@ jobs:
             -boot d -display none -serial file:tinyseed-bios.log -no-reboot
           rc=$?
           set -e
-          test "$rc" -eq 0 -o "$rc" -eq 124
-          grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log
-          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-bios.log
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            echo "BIOS QEMU exited unexpectedly rc=$rc" >&2
+            cat tinyseed-bios.log 2>/dev/null || true
+            exit 1
+          fi
+          missing=0
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log || missing=1
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-bios.log || missing=1
+          if [ "$missing" -ne 0 ]; then
+            echo 'BIOS boot smoke markers missing; serial evidence follows' >&2
+            cat tinyseed-bios.log 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Inspect recovery and failure-prep payload
         shell: bash
@@ -103,6 +123,17 @@ jobs:
           xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name aurum-triage.service -print | grep -q aurum-triage.service
           xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name recovery_poller.py -print | grep -q recovery_poller.py
           echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
+
+      - name: Upload boot diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-amd64-diagnostics
+          path: |
+            tinyseed-uefi.log
+            tinyseed-bios.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Publish Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
