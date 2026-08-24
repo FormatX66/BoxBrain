@@ -47,11 +47,7 @@ mount "$ROOT_PART" "$ROOT_MNT"
 mkdir -p "$BOOT_MNT"
 mount "$BOOT_PART" "$BOOT_MNT"
 
-# Add the tiny package set in the real ARM64 root using qemu-user-static.
 install -m 0755 "$QEMU_STATIC" "$ROOT_MNT/usr/bin/qemu-aarch64-static"
-# Raspberry Pi OS may ship /etc/resolv.conf as a symlink into /run. Replace it
-# while offline-building so the ARM chroot has deterministic DNS; NetworkManager
-# is free to manage the file after the resulting Tiny Seed boots.
 rm -f "$ROOT_MNT/etc/resolv.conf"
 printf '%s\n' 'nameserver 1.1.1.1' > "$ROOT_MNT/etc/resolv.conf"
 for rel in dev proc sys run; do mkdir -p "$ROOT_MNT/$rel"; done
@@ -75,7 +71,7 @@ rm -f "$ROOT_MNT/usr/bin/qemu-aarch64-static"
 
 GERM_DST="$ROOT_MNT/usr/lib/aurum/germ"
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py; do
   install -m 0755 "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0644 "$GERM_DST/GENETICS.json"
@@ -157,7 +153,19 @@ ExecStart=/bin/sh -c 'test -s /usr/lib/aurum/germ/GENETICS.json && echo AURUM_TI
 [Install]
 WantedBy=multi-user.target
 EOF
-for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service; do
+cat > "$SYSTEMD/aurum-boot-proof.service" <<'EOF'
+[Unit]
+Description=Aurum non-secret boot proof receipt
+After=local-fs.target aurum-germ-preflight.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/proof.py
+StandardOutput=journal+console
+StandardError=journal+console
+[Install]
+WantedBy=multi-user.target
+EOF
+for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -sfn "../$unit" "$WANTS/$unit"
 done
 ln -sfn /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
