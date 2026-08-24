@@ -64,6 +64,33 @@ class HidKvmTests(unittest.TestCase):
         with self.assertRaises(HidKvmError):
             state.handle({"action": "pointer", "dx": 128, "dy": 0, "wheel": 0, "buttons": 0})
 
+    def test_busy_mouse_does_not_block_bounded_keyboard_text(self) -> None:
+        writes: list[tuple[Path, bytes]] = []
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            keyboard = root / "hidg0"
+            mouse = root / "hidg1"
+
+            def writer(path: Path, report: bytes) -> None:
+                if path == mouse:
+                    raise HidKvmError("The mouse endpoint stayed busy.")
+                writes.append((path, report))
+
+            state = HidKvmState(
+                keyboard=keyboard,
+                mouse=mouse,
+                audit=root / "hid-kvm.jsonl",
+                writer=writer,
+            )
+            result = state.handle({"action": "text", "text": "status\n"})
+
+            self.assertTrue(result["ok"])
+            self.assertTrue(writes)
+            self.assertTrue(all(path == keyboard for path, _report in writes))
+            self.assertEqual(writes[-1][1], b"\0" * 8)
+            audit = (root / "hid-kvm.jsonl").read_text(encoding="utf-8")
+            self.assertIn('"pointer_included":false', audit)
+
     def test_local_http_surface_requires_csrf_for_input(self) -> None:
         class FakeClient:
             def __init__(self) -> None:
