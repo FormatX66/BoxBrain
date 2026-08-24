@@ -16,7 +16,11 @@ on:
           - previous
           - specific
       ref:
-        description: '40-character trusted commit; required only for specific'
+        description: 'Exact 40-character genetics commit; specific only'
+        required: false
+        type: string
+      platform_commit:
+        description: 'Exact 40-character platform-source commit; specific only'
         required: false
         type: string
       reboot:
@@ -48,6 +52,7 @@ jobs:
           NODE_ID: ${{ inputs.node_id }}
           TARGET: ${{ inputs.target }}
           REF: ${{ inputs.ref }}
+          PLATFORM_COMMIT: ${{ inputs.platform_commit }}
           REBOOT: ${{ inputs.reboot }}
         run: |
           set -euo pipefail
@@ -58,6 +63,7 @@ jobs:
           node = os.environ['NODE_ID'].strip()
           target = os.environ['TARGET'].strip()
           ref = os.environ.get('REF', '').strip().lower()
+          platform = os.environ.get('PLATFORM_COMMIT', '').strip().lower()
           reboot = os.environ['REBOOT'].lower() == 'true'
           if len(node) < 8 or len(node) > 128:
               raise SystemExit('invalid node_id')
@@ -65,14 +71,19 @@ jobs:
               raise SystemExit('invalid target')
 
           trust = json.loads(Path('Projects/Aurum/Recovery/trusted-refs.json').read_text())
-          trusted = {str(x).lower() for x in trust.get('specific_commits', [])}
+          trusted = {
+              (str(x.get('genetics_commit') or '').lower(), str(x.get('platform_commit') or '').lower())
+              for x in trust.get('specific_states', []) if isinstance(x, dict)
+          }
           if target == 'specific':
               if not re.fullmatch(r'[0-9a-f]{40}', ref):
-                  raise SystemExit('specific recovery requires immutable 40-character commit')
-              if ref not in trusted:
-                  raise SystemExit('specific recovery commit is not enrolled in trusted-refs.json')
-          elif ref:
-              raise SystemExit('ref is only allowed for target=specific')
+                  raise SystemExit('specific recovery requires immutable 40-character genetics commit')
+              if not re.fullmatch(r'[0-9a-f]{40}', platform):
+                  raise SystemExit('specific recovery requires immutable 40-character platform commit')
+              if (ref, platform) not in trusted:
+                  raise SystemExit('specific genetics/platform state pair is not enrolled in trusted-refs.json')
+          elif ref or platform:
+              raise SystemExit('ref/platform_commit are only allowed for target=specific')
 
           now = int(time.time())
           payload = {
@@ -83,6 +94,7 @@ jobs:
               'expires_at_unix': now + 900,
               'target': target,
               'ref': ref if target == 'specific' else None,
+              'platform_commit': platform if target == 'specific' else None,
               'reboot': reboot,
           }
           canonical = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
