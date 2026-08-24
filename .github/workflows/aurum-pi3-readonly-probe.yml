@@ -25,7 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Probe known Pi3 names plus passive USB topology and collect read-only receipt
+      - name: Collect privacy-bounded Pi3 topology and strict-SSH evidence
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -43,16 +43,11 @@ jobs:
           }
 
           foreach ($target in $knownTargets) {
-            $targetSpecs += [ordered]@{
-              label = $target
-              endpoint = $target
-              source = 'known-name'
-            }
+            $targetSpecs += [ordered]@{ label = $target; endpoint = $target; source = 'known-name' }
           }
 
-          # Future Branch topology-first rule: if a dedicated Pi is attached over USB,
-          # do not assume its hostname is still one of the historical names. Observe only
-          # already-present Windows adapter/neighbor state; never sweep an address range.
+          # Observe only host state that Windows already has. No address-range sweep,
+          # DHCP change, route change, driver change, firmware change, or target write.
           $usbLikeAdapters = @(
             Get-NetAdapter -ErrorAction SilentlyContinue |
               Where-Object {
@@ -117,11 +112,7 @@ jobs:
               }
               $label = "usb-neighbor:$($hash.Substring(0,12))"
               if (-not ($targetSpecs | Where-Object { $_.endpoint -eq $endpoint })) {
-                $targetSpecs += [ordered]@{
-                  label = $label
-                  endpoint = $endpoint
-                  source = 'passive-usb-neighbor'
-                }
+                $targetSpecs += [ordered]@{ label = $label; endpoint = $endpoint; source = 'passive-usb-neighbor' }
                 $topology.passive_neighbor_candidates++
               }
             }
@@ -142,6 +133,7 @@ jobs:
               target_name = $label
               target_source = $source
               tcp22_reachable = $reachable
+              ssh_probe_state = if ($reachable) { 'strict-identity-unverified' } else { 'not-reachable' }
               ssh_batch_mode = $false
               pi3_model_match = $false
             }
@@ -159,8 +151,26 @@ jobs:
           '@
               $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
               $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
-              $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $target $remoteCommand 2>$null)
-              if ($LASTEXITCODE -eq 0 -and $lines.Count -ge 7) {
+
+              # Host-key or auth rejection is expected evidence, not a workflow crash.
+              # Keep strict host checking: an unknown identity must never become formal
+              # physical proof merely because a TCP endpoint answered on port 22.
+              $previousPreference = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              $lines = @()
+              $sshExitCode = 255
+              try {
+                $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $target $remoteCommand 2>$null)
+                $sshExitCode = $LASTEXITCODE
+              } catch {
+                $lines = @()
+                if ($null -ne $LASTEXITCODE) { $sshExitCode = $LASTEXITCODE }
+              } finally {
+                $ErrorActionPreference = $previousPreference
+              }
+
+              if ($sshExitCode -eq 0 -and $lines.Count -ge 7) {
+                $attempt.ssh_probe_state = 'strict-batch-verified'
                 $attempt.ssh_batch_mode = $true
                 $model = [string]$lines[0]
                 $arch = ([string]$lines[1]).Trim().ToLowerInvariant()
@@ -180,6 +190,7 @@ jobs:
                     captured_at = [DateTime]::UtcNow.ToString('o')
                     hostname = $label
                     discovery_source = $source
+                    identity_verification = 'strict-ssh-known-host-and-batch-auth'
                     model = $model
                     arch = $arch
                     kernel = $kernel
@@ -212,7 +223,7 @@ jobs:
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
             runner_name = $env:RUNNER_NAME
             request_id = $requestId
-            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } elseif ($anyTcp22) { 'NO_VERIFIED_PI3_RECEIPT' } else { 'NO_REACHABLE_PI3_RECEIPT' }
+            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } elseif ($anyTcp22) { 'REACHABLE_IDENTITY_UNVERIFIED' } else { 'NO_REACHABLE_PI3_RECEIPT' }
             mutation_allowed = $false
             promotion_allowed = $false
             write_authority = $false
