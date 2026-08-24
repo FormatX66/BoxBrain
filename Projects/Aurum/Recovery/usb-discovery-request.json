@@ -1,10 +1,10 @@
 {
   "schema": "aurum-usb-discovery-request-v1",
-  "request_id": "tinyseed-current-release-reread-20260824-2118",
+  "request_id": "tinyseed-hold-resolver-fixed-rebuild-20260824-2148",
   "mode": "read-only",
-  "purpose": "Re-enumerate currently attached USB media against the exact current verified Tiny Seed handoff after the hardened pre-execution evaluator correctly refused stale release-bound discovery evidence.",
+  "purpose": "Fail closed on physical Tiny Seed preparation while the resolver-ordering fix merged to main is being rebuilt and reverified into a same-source handoff.",
   "write_authority": false,
   "required_release_state": "READY_TO_FLASH",
-  "required_release_source_commit": "5494c1788da8683f3e50cd9f614ef85fb4af6944",
-  "reason": "The canonical handoff is READY_TO_FLASH at source commit 5494c1788da8683f3e50cd9f614ef85fb4af6944 while the prior discovery request was bound to an older release. Refresh privacy-safe, read-only USB identity evidence for the exact current release. No media selection authority, write authority, or destructive action is granted."
+  "required_release_source_commit": "0000000000000000000000000000000000000000",
+  "reason": "The previously verified release remains historical proof, but a concrete resolver-ordering defect has since been fixed on main. Do not re-bind physical USB preparation to the older release while the corrected x86/Pi artifacts and combined handoff are being reverified. The automatic release-to-USB refresh will replace this sentinel with the exact new verified source commit when that handoff is published. No media selection authority, write authority, or destructive action is granted."
 }
