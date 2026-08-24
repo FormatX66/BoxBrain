@@ -1,0 +1,7 @@
+{
+  "schema": "aurum-runner-inventory-request-v1",
+  "request_id": "runner-label-routing-20260824-1349",
+  "purpose": "Inventory registered self-hosted runner names, status, busy state and labels so Pi3 physical probes can target the workstation that actually owns the attached experimental hardware without mutating runner configuration.",
+  "runner_configuration_change_allowed": false,
+  "secret_contents_requested": false
+}
