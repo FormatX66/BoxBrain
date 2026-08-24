@@ -1,0 +1,37 @@
+{
+  "schema": "aurum-future-branch-calibration-v1",
+  "purpose": "Measure whether Future Branch actually predicts useful next states and reduces user waiting instead of merely describing proactive behavior.",
+  "score_classes": {
+    "exact": "The actual next input/state was explicitly represented by a prior ranked branch family.",
+    "partial": "A neighboring broader family existed, but the important specific branch was not prepared explicitly.",
+    "miss": "No materially useful prior branch represented the actual next input/state."
+  },
+  "events": [
+    {
+      "event": "future-branch-meta-audit-001",
+      "actual_family": "future-branch-self-audit",
+      "nearest_prior_family": "why-or-correction",
+      "score": "partial",
+      "reason": "The prior field anticipated a correction that something should have been prepared, but did not explicitly anticipate the user checking whether the prediction check itself had been predicted.",
+      "correction": "Promote self-audit/meta-verification to a first-class likely-input branch and measure future exact/partial/miss behavior."
+    }
+  ],
+  "metrics": {
+    "exact": 0,
+    "partial": 1,
+    "miss": 0,
+    "total_scored": 1,
+    "exact_hit_rate": 0.0,
+    "partial_hit_rate": 1.0,
+    "miss_rate": 0.0
+  },
+  "future_metrics": [
+    "prepared_action_hit_rate",
+    "user_turns_avoided",
+    "estimated_wait_time_saved",
+    "speculative_compute_cost",
+    "speculative_storage_cost",
+    "branches_discarded",
+    "assumptions_corrected_before_user_impact"
+  ]
+}
