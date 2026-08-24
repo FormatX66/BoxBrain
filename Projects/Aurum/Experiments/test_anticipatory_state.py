@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from anticipatory_state import CandidateIntent, ResourceBudget, build_speculative_plan
+from anticipatory_state import (
+    CandidateIntent,
+    ResourceBudget,
+    SpeculationPolicy,
+    build_speculative_plan,
+)
 
 
 class AnticipatoryStateTests(unittest.TestCase):
@@ -57,6 +62,31 @@ class AnticipatoryStateTests(unittest.TestCase):
             self.budget(),
         )
         self.assertEqual(plan["held"][0]["held_reason"], "storage-write-budget")
+
+    def test_usefully_full_policy_keeps_foreground_headroom(self):
+        policy = SpeculationPolicy(idle_cpu_target=0.9, reclaimable_ram_target=0.8, minimum_score=0.01)
+        plan = build_speculative_plan(
+            [
+                CandidateIntent("a", 0.9, 5.0, 5000, 0.2, 256),
+                CandidateIntent("b", 0.8, 4.0, 4000, 0.2, 256),
+            ],
+            self.budget(),
+            policy,
+        )
+        self.assertLessEqual(plan["utilization"]["speculative_cpu_used"], 0.63)
+        self.assertLessEqual(plan["utilization"]["reclaimable_ram_used_mb"], 819)
+        self.assertEqual(plan["policy"]["idle_cpu_target"], 0.9)
+        self.assertEqual(plan["policy"]["reclaimable_ram_target"], 0.8)
+
+    def test_low_value_junk_is_not_used_just_to_fill_resources(self):
+        policy = SpeculationPolicy(minimum_score=0.5)
+        plan = build_speculative_plan(
+            [CandidateIntent("junk-future", 0.01, 0.1, 1, 0.01, 1)],
+            self.budget(),
+            policy,
+        )
+        self.assertEqual(plan["prepared"], [])
+        self.assertEqual(plan["held"][0]["held_reason"], "insufficient-future-value")
 
 
 if __name__ == "__main__":
