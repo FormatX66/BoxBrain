@@ -22,11 +22,9 @@
 - Pi workflow requires a reproducible, checksum-pinned Raspberry Pi OS Lite ARM64 base and compressed-image verification.
 - The current x86 source branch input bootstrap was decoupled from an uninitialized Git workspace so seed-local input startup no longer depends on `/var/lib/aurum/workspace/BoxBrain` existing.
 - The prior x86 recovery-payload verifier mismatch was corrected by inspecting `/live/filesystem.squashfs` rather than only the outer ISO filesystem; boot gates were not weakened.
-- Source commit `82aa2ffe979b0c3a4e18b502ed116559945e32b5` now has same-revision published x86 and Pi Tiny Seed artifacts in the latest verified handoff.
-- x86 artifact `Aurum-TinySeed-amd64.iso` passed build, UEFI boot smoke, legacy BIOS boot smoke, boot-proof marker, recovery-payload inspection and publication. Verified SHA-256: `5801b6ce9becec8f2d55744b3666a12ec214cbf326dca61db20b1fa5eb01ad33`.
-- Pi artifact `Aurum-TinySeed-Pi-arm64.img.xz` passed build, integrity and static recovery-payload verification and publication. Verified SHA-256: `926f7d9e3acd1d159a4f6129fee1ef1b5289c3104ba1952ffb08ef1331d49645`.
-- The combined handoff reverified both artifact hashes from the same source revision and persisted `Projects/Aurum/Release/latest-tinyseed-handoff.json` with state `READY_TO_FLASH`.
-- `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The next gate is explicit physical flash/readback followed by real hardware boot proof.
+- **Canonical current artifact identity, source commit, hashes, workflow runs, gate results, next gate, and handoff state live only in `Projects/Aurum/Release/latest-tinyseed-handoff.json`.** Read that file for the current values instead of duplicating them here.
+- A handoff may report `READY_TO_FLASH` only after same-revision x86 and Pi artifacts are published and their hashes are reverified by the combined handoff.
+- `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The physical-flash/readback, hardware boot, and forced-rollback gates remain independent evidence.
 
 ## Physical evidence already known
 
@@ -37,8 +35,9 @@
 
 ## Unresolved frontier
 
-1. Flash the x86 Tiny Seed artifact to a **different explicitly identified test USB** using the guarded dry-run-first handoff path; require full raw readback verification before declaring the media ready to boot.
-2. Physical Hopper proof:
+1. Read `Projects/Aurum/Release/latest-tinyseed-handoff.json` and require state `READY_TO_FLASH` before physical media work.
+2. Flash the current x86 Tiny Seed artifact to a **different explicitly identified test USB** using the guarded dry-run-first handoff path; require full raw readback verification before declaring the media ready to boot.
+3. Physical Hopper proof:
    - boot Tiny Seed;
    - collect Tiny Seed ready + boot-proof evidence;
    - connect network through the setup surface;
@@ -48,10 +47,10 @@
    - reboot trial;
    - require fresh selftest + critical-service + physical desktop + input evidence;
    - promote on proof or automatically roll back to Gen0.
-3. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
-4. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
-5. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
+4. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
+5. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
+6. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
 
 ## State classification
 
-**READY_TO_FLASH / awaiting physical proof** — same-revision x86 and Pi artifacts are published and hash-reverified by the combined handoff. The next boundary is physical media selection and explicit destructive write authority; no claim of physical boot, promotion, or rollback proof has been made yet.
+The canonical classification is the `state` plus `next_gate` in `Projects/Aurum/Release/latest-tinyseed-handoff.json`. Prose in this file intentionally does not duplicate mutable artifact hashes or source revisions.
