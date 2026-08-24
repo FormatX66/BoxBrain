@@ -256,6 +256,8 @@ class AurumWorkspace:
         origin = self._git("remote", "get-url", "origin").stdout.strip()
         if origin.rstrip("/").removesuffix(".git") != self.repository.removesuffix(".git"):
             raise WorkspaceError("Workspace origin is outside the Aurum BoxBrain allowlist")
+        branch = self._git("branch", "--show-current").stdout.strip()
+        head = self._git("rev-parse", "HEAD").stdout.strip()
         changes = [line for line in self._git("status", "--porcelain=v1").stdout.splitlines() if line]
         checkpoint = None
         if changes:
