@@ -4,8 +4,8 @@
   "release": {
     "state": "READY_TO_FLASH",
     "source_commit": "7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f",
-    "x86_artifact": null,
-    "x86_sha256": null
+    "x86_artifact": "Aurum-TinySeed-amd64.iso",
+    "x86_sha256": "35bf11282156c9d931011fa6a8243b515219fb79bef96a33c51d7c6b86661ebb"
   },
   "usb_discovery": {
     "request_id": "tinyseed-offline-carrier-release-reread-20260824-2036",
