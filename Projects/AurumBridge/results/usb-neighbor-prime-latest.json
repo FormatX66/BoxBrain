@@ -1,0 +1,1604 @@
+﻿{
+    "schema":  "aurum.boxbrain.usb-neighbor-prime.v1",
+    "observed_at":  "2026-08-24T21:45:14.4152391Z",
+    "runner":  "LAPTOP-EBD8CG8P",
+    "read_only_probe":  true,
+    "destructive_media_write":  false,
+    "new_authority_granted":  false,
+    "adapters":  [
+                     {
+                         "Name":  "Ethernet 2",
+                         "InterfaceDescription":  "Realtek USB GbE Family Controller #2",
+                         "Status":  "Up",
+                         "ifIndex":  12,
+                         "MacAddress":  "00-E0-4C-68-13-36",
+                         "LinkSpeed":  "100 Mbps"
+                     },
+                     {
+                         "Name":  "vEthernet (WSL (Hyper-V firewall))",
+                         "InterfaceDescription":  "Hyper-V Virtual Ethernet Adapter #2",
+                         "Status":  "Up",
+                         "ifIndex":  67,
+                         "MacAddress":  "00-15-5D-F1-81-37",
+                         "LinkSpeed":  "10 Gbps"
+                     },
+                     {
+                         "Name":  "vEthernet (Default Switch)",
+                         "InterfaceDescription":  "Hyper-V Virtual Ethernet Adapter",
+                         "Status":  "Up",
+                         "ifIndex":  31,
+                         "MacAddress":  "00-15-5D-85-E4-30",
+                         "LinkSpeed":  "10 Gbps"
+                     }
+                 ],
+    "probes":  [
+                   {
+                       "interface":  "Ethernet 2",
+                       "ifindex":  12,
+                       "target":  "ff02::1%12",
+                       "exit_code":  1,
+                       "response":  "\nPinging ff02::1%12 with 32 bytes of data:\nRequest timed out.\n\nPing statistics for ff02::1%12:\n    Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),"
+                   },
+                   {
+                       "interface":  "vEthernet (WSL (Hyper-V firewall))",
+                       "ifindex":  67,
+                       "target":  "ff02::1%67",
+                       "exit_code":  1,
+                       "response":  "\nPinging ff02::1%67 with 32 bytes of data:\nRequest timed out.\n\nPing statistics for ff02::1%67:\n    Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),"
+                   },
+                   {
+                       "interface":  "vEthernet (Default Switch)",
+                       "ifindex":  31,
+                       "target":  "ff02::1%31",
+                       "exit_code":  1,
+                       "response":  "\nPinging ff02::1%31 with 32 bytes of data:\nRequest timed out.\n\nPing statistics for ff02::1%31:\n    Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),"
+                   }
+               ],
+    "neighbors_before":  [
+                             {
+                                 "IPAddress":  "ff05::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6ec2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-C2"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6eaa",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-AA"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6e77",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6e12",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-12"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6c44",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6b09",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6B-09"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a7c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a45",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a04",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-04"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:68c5",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6762",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-62"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:673b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:671b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:65bb",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-65-BB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64d1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64ab",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6499",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6482",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6274",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:61a2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:619b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:60c8",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:60b1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-B1"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6067",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-67"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ff37:8046",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-37-80-46"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-01-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::fb",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::16",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "ff02::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-01"
+                             },
+                             {
+                                 "IPAddress":  "ff05::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6ec2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-C2"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6eaa",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-AA"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6e77",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6e12",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-12"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6c44",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6b09",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6B-09"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a7c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a45",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a04",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-04"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:68c5",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6762",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-62"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:673b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:671b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:65bb",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-65-BB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64d1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64ab",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6499",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6482",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6274",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:61a2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:619b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:60c8",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:60b1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-B1"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6067",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-67"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ff80:fbae",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-80-FB-AE"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ff7e:504c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-7E-50-4C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ff7a:ba96",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-7A-BA-96"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-01-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::fb",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::16",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "ff02::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-01"
+                             },
+                             {
+                                 "IPAddress":  "ff05::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffd0:bba5",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-D0-BB-A5"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6e77",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6c44",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a7c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6a45",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:68c5",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:673b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:671b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64d1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:64ab",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6499",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6482",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:6274",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:61a2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:619b",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ffb6:60c8",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:ff69:c06c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-FF-69-C0-6C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:3",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-01-00-03"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1:2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-01-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::fb",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "ff02::16",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "ff02::c",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-0C"
+                             },
+                             {
+                                 "IPAddress":  "ff02::2",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "ff02::1",
+                                 "AddressFamily":  23,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "33-33-00-00-00-01"
+                             },
+                             {
+                                 "IPAddress":  "239.255.255.250",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.251",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.22",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.2",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "172.17.95.255",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                             },
+                             {
+                                 "IPAddress":  "172.17.82.97",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  67,
+                                 "State":  4,
+                                 "LinkLayerAddress":  "00-15-5D-B6-64-99"
+                             },
+                             {
+                                 "IPAddress":  "255.255.255.255",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                             },
+                             {
+                                 "IPAddress":  "239.255.255.250",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.251",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.22",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.2",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "192.168.111.255",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  31,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                             },
+                             {
+                                 "IPAddress":  "255.255.255.255",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                             },
+                             {
+                                 "IPAddress":  "239.255.255.250",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.252",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-FC"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.251",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.22",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-16"
+                             },
+                             {
+                                 "IPAddress":  "224.0.0.2",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "01-00-5E-00-00-02"
+                             },
+                             {
+                                 "IPAddress":  "169.254.255.255",
+                                 "AddressFamily":  2,
+                                 "InterfaceIndex":  12,
+                                 "State":  6,
+                                 "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                             }
+                         ],
+    "neighbors_after":  [
+                            {
+                                "IPAddress":  "ff05::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6ec2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-C2"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6eaa",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-AA"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6e77",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6e12",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-12"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6c44",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6b09",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6B-09"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a7c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a45",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a04",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-04"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:68c5",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6762",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-62"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:673b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:671b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:65bb",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-65-BB"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64d1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64ab",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6499",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6482",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6274",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:61a2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:619b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:60c8",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:60b1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-B1"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6067",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-67"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ff37:8046",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-37-80-46"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-01-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::fb",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "ff02::16",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "ff02::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-01"
+                            },
+                            {
+                                "IPAddress":  "ff05::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6ec2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-C2"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6eaa",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-AA"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6e77",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6e12",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-12"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6c44",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6b09",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6B-09"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a7c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a45",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a04",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-04"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:68c5",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6762",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-62"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:673b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:671b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:65bb",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-65-BB"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64d1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64ab",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6499",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6482",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6274",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:61a2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:619b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:60c8",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:60b1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-B1"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6067",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-67"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ff80:fbae",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-80-FB-AE"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ff7e:504c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-7E-50-4C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ff7a:ba96",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-7A-BA-96"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-01-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::fb",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "ff02::16",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "ff02::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-01"
+                            },
+                            {
+                                "IPAddress":  "ff05::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffd0:bba5",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-D0-BB-A5"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6e77",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6E-77"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6c44",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6C-44"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a7c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-7C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6a45",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-6A-45"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:68c5",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-68-C5"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:673b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-3B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:671b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-67-1B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64d1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-D1"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:64ab",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6499",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6482",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-64-82"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:6274",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-62-74"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:61a2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-A2"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:619b",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-61-9B"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ffb6:60c8",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-B6-60-C8"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:ff69:c06c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-FF-69-C0-6C"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:3",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-01-00-03"
+                            },
+                            {
+                                "IPAddress":  "ff02::1:2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-01-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::fb",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "ff02::16",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "ff02::c",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-0C"
+                            },
+                            {
+                                "IPAddress":  "ff02::2",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "ff02::1",
+                                "AddressFamily":  23,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "33-33-00-00-00-01"
+                            },
+                            {
+                                "IPAddress":  "239.255.255.250",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.251",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.22",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.2",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "172.17.95.255",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  6,
+                                "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                            },
+                            {
+                                "IPAddress":  "172.17.82.97",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  67,
+                                "State":  4,
+                                "LinkLayerAddress":  "00-15-5D-B6-64-99"
+                            },
+                            {
+                                "IPAddress":  "255.255.255.255",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                            },
+                            {
+                                "IPAddress":  "239.255.255.250",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.251",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.22",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.2",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "192.168.111.255",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  31,
+                                "State":  6,
+                                "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                            },
+                            {
+                                "IPAddress":  "255.255.255.255",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                            },
+                            {
+                                "IPAddress":  "239.255.255.250",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-7F-FF-FA"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.252",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-FC"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.251",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-FB"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.22",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-16"
+                            },
+                            {
+                                "IPAddress":  "224.0.0.2",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "01-00-5E-00-00-02"
+                            },
+                            {
+                                "IPAddress":  "169.254.255.255",
+                                "AddressFamily":  2,
+                                "InterfaceIndex":  12,
+                                "State":  6,
+                                "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                            }
+                        ],
+    "newly_observed_neighbors":  [
+
+                                 ]
+}
