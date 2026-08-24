@@ -16,6 +16,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [Tiny Seed boot medium architecture](../../docs/architecture/TINY_SEED_BOOT_MEDIUM.md)
 - [Operator completion contract](OPERATOR_CONTRACT.md)
 - [Universal PC/Pi seed-drive north star](UNIVERSAL_PC_PI_SEED_DRIVE.md)
+- [Reseed Germ / Tiny Seed evidence status](Germ/STATUS.md)
 - [Stable germ genetics manifest](Germ/GENETICS.json)
 - [Stable reseed/regrowth implementation](Germ/reseed.py)
 - [Protected A/B Guardian](Germ/guardian.py)
