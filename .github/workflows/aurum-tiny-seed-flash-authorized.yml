@@ -1,0 +1,298 @@
+name: Aurum Tiny Seed Authorized USB Flash
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed_sha:
+        description: 'Exact 40-character Tiny Seed source commit whose combined handoff passed'
+        required: true
+        type: string
+      test_usb_serial:
+        description: 'Exact serial of the sacrificial/test USB to overwrite'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type FLASH_TINY_SEED_TEST_USB to authorize overwriting only that serial'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: aurum-tiny-seed-authorized-usb-flash
+  cancel-in-progress: false
+
+jobs:
+  flash:
+    name: Flash explicitly selected Tiny Seed test USB
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 60
+    steps:
+      - name: Check out safety policy
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Resolve verified handoff, flash exact USB, raw-readback verify, publish receipt
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEED_SHA_INPUT: ${{ inputs.seed_sha }}
+          TEST_USB_SERIAL_INPUT: ${{ inputs.test_usb_serial }}
+          CONFIRMATION_INPUT: ${{ inputs.confirmation }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $repo = $env:GITHUB_REPOSITORY
+          $seedSha = ([string]$env:SEED_SHA_INPUT).Trim().ToLowerInvariant()
+          $requestedSerial = ([string]$env:TEST_USB_SERIAL_INPUT).Trim()
+          $confirmation = ([string]$env:CONFIRMATION_INPUT).Trim()
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          function Publish-Receipt([string]$State, [hashtable]$Data) {
+            $attempt = if ($env:GITHUB_RUN_ATTEMPT) { $env:GITHUB_RUN_ATTEMPT } else { '1' }
+            $path = "Projects/AurumBridge/results/tinyseed-flash-$env:GITHUB_RUN_ID-attempt-$attempt.json"
+            $receipt = [ordered]@{
+              schema = 'aurum-tinyseed-flash-receipt-v1'
+              state = $State
+              github_workflow_run = [long]$env:GITHUB_RUN_ID
+              github_run_attempt = [int]$attempt
+              host = $env:COMPUTERNAME
+              runner_name = $env:RUNNER_NAME
+              observed_at = (Get-Date).ToUniversalTime().ToString('o')
+              data = $Data
+            }
+            $json = $receipt | ConvertTo-Json -Depth 10
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+            $body = @{
+              message = "Record Tiny Seed USB flash receipt state=$State [skip ci]"
+              content = $encoded
+              branch = 'main'
+            } | ConvertTo-Json -Depth 4
+            try {
+              Invoke-RestMethod -Method Put -Headers $headers -Uri "https://api.github.com/repos/$repo/contents/$path" -Body $body -ContentType 'application/json' | Out-Null
+              Write-Host "AURUM_TINYSEED_FLASH_RECEIPT state=$State path=$path"
+            } catch {
+              Write-Warning "AURUM_TINYSEED_FLASH_RECEIPT_PUBLISH_FAILED state=$State error=$($_.Exception.Message)"
+            }
+          }
+
+          if ($seedSha -notmatch '^[0-9a-f]{40}$') {
+            Publish-Receipt 'REFUSED' @{ reason = 'invalid-seed-sha'; seed_sha = $seedSha }
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=invalid-seed-sha'
+          }
+          if ([string]::IsNullOrWhiteSpace($requestedSerial)) {
+            Publish-Receipt 'REFUSED' @{ reason = 'missing-test-usb-serial'; seed_sha = $seedSha }
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=missing-test-usb-serial'
+          }
+          if ($confirmation -ne 'FLASH_TINY_SEED_TEST_USB') {
+            Publish-Receipt 'REFUSED' @{ reason = 'explicit-confirmation-missing'; seed_sha = $seedSha; requested_serial = $requestedSerial }
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=explicit-confirmation-missing'
+          }
+
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            Publish-Receipt 'WAITING' @{ reason = 'runner-not-elevated'; seed_sha = $seedSha; requested_serial = $requestedSerial }
+            Write-Host 'AURUM_TINYSEED_FLASH_WAITING reason=runner-not-elevated'
+            exit 0
+          }
+
+          $protectedPath = Join-Path $env:GITHUB_WORKSPACE 'Projects\Aurum\Recovery\protected-media.json'
+          if (-not (Test-Path -LiteralPath $protectedPath)) {
+            Publish-Receipt 'REFUSED' @{ reason = 'protected-media-registry-missing'; seed_sha = $seedSha }
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=protected-media-registry-missing'
+          }
+          $protected = Get-Content -LiteralPath $protectedPath -Raw | ConvertFrom-Json
+          if ([string]$protected.schema -ne 'aurum-protected-media-v1') {
+            Publish-Receipt 'REFUSED' @{ reason = 'protected-media-registry-invalid'; seed_sha = $seedSha }
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=protected-media-registry-invalid'
+          }
+          $protectedMatch = @($protected.devices | Where-Object {
+            [bool]$_.protected -and ([string]$_.serial).Trim() -eq $requestedSerial
+          })
+          if ($protectedMatch.Count -gt 0) {
+            Publish-Receipt 'REFUSED' @{
+              reason = 'requested-usb-is-protected-recovery-media'
+              seed_sha = $seedSha
+              requested_serial = $requestedSerial
+              protected_reason = [string]$protectedMatch[0].reason
+            }
+            Write-Host "AURUM_TINYSEED_FLASH_REFUSED reason=requested-usb-is-protected-recovery-media serial=$requestedSerial"
+            exit 0
+          }
+
+          # Only a successful combined handoff for this exact source SHA can authorize the bytes.
+          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?status=success&per_page=100"
+          $run = @($runs.workflow_runs | Where-Object {
+            $_.conclusion -eq 'success' -and ([string]$_.head_sha).ToLowerInvariant() -eq $seedSha
+          } | Sort-Object id -Descending | Select-Object -First 1)
+          if ($run.Count -ne 1) {
+            Publish-Receipt 'WAITING' @{ reason = 'no-successful-combined-handoff-for-exact-sha'; seed_sha = $seedSha; requested_serial = $requestedSerial }
+            Write-Host "AURUM_TINYSEED_FLASH_WAITING reason=no-successful-combined-handoff-for-exact-sha seed_sha=$seedSha"
+            exit 0
+          }
+          $handoffRunId = [long]$run[0].id
+
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
+          $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
+          if ($artifact.Count -ne 1) {
+            Publish-Receipt 'INTEGRITY_FAILURE' @{ reason = 'combined-handoff-artifact-missing'; seed_sha = $seedSha; handoff_run = $handoffRunId }
+            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=combined-handoff-artifact-missing'
+          }
+          $artifactId = [long]$artifact[0].id
+          $cacheRoot = Join-Path $env:ProgramData "Aurum\cache\tinyseed-$seedSha-$artifactId"
+          $expanded = Join-Path $cacheRoot 'expanded'
+          New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $expanded -Force | Out-Null
+          $zip = Join-Path $cacheRoot 'handoff.zip'
+          if (-not (Test-Path -LiteralPath $zip)) {
+            Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$artifactId/zip" -OutFile $zip
+          }
+          Expand-Archive -LiteralPath $zip -DestinationPath $expanded -Force
+
+          $manifestFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
+          $image = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
+          $shaFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
+          if (-not $manifestFile -or -not $image -or -not $shaFile) {
+            Publish-Receipt 'INTEGRITY_FAILURE' @{ reason = 'handoff-packet-incomplete'; seed_sha = $seedSha; handoff_run = $handoffRunId; artifact_id = $artifactId }
+            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-packet-incomplete'
+          }
+
+          $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
+          if ([string]$manifest.schema -ne 'aurum-tinyseed-handoff-v1' -or [string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $seedSha) {
+            Publish-Receipt 'INTEGRITY_FAILURE' @{ reason = 'handoff-manifest-does-not-authorize-exact-sha'; seed_sha = $seedSha; handoff_run = $handoffRunId }
+            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-manifest-does-not-authorize-exact-sha'
+          }
+          foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
+            if ([string]$manifest.gates.$gate -ne 'passed') {
+              Publish-Receipt 'INTEGRITY_FAILURE' @{ reason = "required-handoff-gate-not-passed:$gate"; seed_sha = $seedSha; handoff_run = $handoffRunId }
+              throw "AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=required-handoff-gate-not-passed gate=$gate"
+            }
+          }
+
+          $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifestExpected = ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant()
+          if ($actual -ne $expected -or $actual -ne $manifestExpected) {
+            Publish-Receipt 'INTEGRITY_FAILURE' @{ reason = 'handoff-image-checksum-mismatch'; seed_sha = $seedSha; expected = $expected; manifest_expected = $manifestExpected; actual = $actual }
+            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-image-checksum-mismatch'
+          }
+
+          $matches = @(Get-Disk | Where-Object { ([string]$_.SerialNumber).Trim() -eq $requestedSerial })
+          if ($matches.Count -ne 1) {
+            Publish-Receipt 'WAITING' @{ reason = 'exact-test-usb-not-uniquely-present'; seed_sha = $seedSha; requested_serial = $requestedSerial; count = $matches.Count }
+            Write-Host "AURUM_TINYSEED_FLASH_WAITING reason=exact-test-usb-not-uniquely-present serial=$requestedSerial count=$($matches.Count)"
+            exit 0
+          }
+          $disk = $matches[0]
+          if ($disk.BusType -ne 'USB' -or [bool]$disk.IsBoot -or [bool]$disk.IsSystem -or [bool]$disk.IsReadOnly -or [int64]$disk.Size -le [int64]$image.Length) {
+            Publish-Receipt 'REFUSED' @{
+              reason = 'selected-device-failed-safe-usb-preflight'; seed_sha = $seedSha; requested_serial = $requestedSerial
+              bus = [string]$disk.BusType; is_boot = [bool]$disk.IsBoot; is_system = [bool]$disk.IsSystem; is_read_only = [bool]$disk.IsReadOnly
+              disk_size = [int64]$disk.Size; image_size = [int64]$image.Length
+            }
+            Write-Host 'AURUM_TINYSEED_FLASH_REFUSED reason=selected-device-failed-safe-usb-preflight'
+            exit 0
+          }
+
+          $diskNumber = [int]$disk.Number
+          $expectedSize = [int64]$disk.Size
+          $expectedModel = [string]$disk.FriendlyName
+          $physicalPath = "\\.\PhysicalDrive$diskNumber"
+          $driveLetters = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue | Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
+          $offlined = $false
+          try {
+            try {
+              Set-Disk -Number $diskNumber -IsOffline $true -ErrorAction Stop
+              $offlined = $true
+              Write-Host "AURUM_TINYSEED_FLASH_PREP mode=disk-offline disk=$diskNumber"
+            } catch {
+              Write-Host "AURUM_TINYSEED_FLASH_PREP mode=removable-dismount disk=$diskNumber"
+              foreach ($letter in $driveLetters) {
+                & mountvol "$letter`:" /P | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "volume-dismount-failed drive=$letter exit=$LASTEXITCODE" }
+              }
+
+              # Before using diskpart clean, re-prove the exact destructive target identity.
+              $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+              if ($live.BusType -ne 'USB' -or [bool]$live.IsBoot -or [bool]$live.IsSystem -or ([string]$live.SerialNumber).Trim() -ne $requestedSerial -or [int64]$live.Size -ne $expectedSize) {
+                throw 'target-identity-changed-before-clean'
+              }
+              $diskpartScript = Join-Path $env:RUNNER_TEMP "aurum-tinyseed-clean-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT.txt"
+              @("select disk $diskNumber", 'clean', 'exit') | Set-Content -LiteralPath $diskpartScript -Encoding ASCII
+              & diskpart /s $diskpartScript | Out-Host
+              if ($LASTEXITCODE -ne 0) { throw "diskpart-clean-failed exit=$LASTEXITCODE" }
+            }
+
+            # Re-prove identity immediately before opening the raw device.
+            $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+            if ($live.BusType -ne 'USB' -or [bool]$live.IsBoot -or [bool]$live.IsSystem -or ([string]$live.SerialNumber).Trim() -ne $requestedSerial -or [int64]$live.Size -ne $expectedSize) {
+              throw 'target-identity-changed-before-write'
+            }
+
+            $src = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+            try {
+              $dst = New-Object IO.FileStream($physicalPath, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite, 4194304, [IO.FileOptions]::WriteThrough)
+              try {
+                $buffer = New-Object byte[] 4194304
+                while (($read = $src.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                  $dst.Write($buffer, 0, $read)
+                }
+                $dst.Flush($true)
+              } finally { $dst.Dispose() }
+            } finally { $src.Dispose() }
+
+            Start-Sleep -Seconds 2
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try {
+              $raw = New-Object IO.FileStream($physicalPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite, 4194304, [IO.FileOptions]::SequentialScan)
+              try {
+                [int64]$remaining = [int64]$image.Length
+                $buffer = New-Object byte[] 4194304
+                while ($remaining -gt 0) {
+                  $want = [int][Math]::Min([int64]$buffer.Length, $remaining)
+                  $read = $raw.Read($buffer, 0, $want)
+                  if ($read -le 0) { throw "short-raw-readback remaining=$remaining" }
+                  [void]$sha.TransformBlock($buffer, 0, $read, $null, 0)
+                  $remaining -= $read
+                }
+                [void]$sha.TransformFinalBlock([byte[]]::new(0), 0, 0)
+              } finally { $raw.Dispose() }
+              $readback = ([BitConverter]::ToString($sha.Hash)).Replace('-', '').ToLowerInvariant()
+            } finally { $sha.Dispose() }
+
+            if ($readback -ne $actual) {
+              Publish-Receipt 'VERIFY_FAILURE' @{ reason = 'raw-readback-sha256-mismatch'; seed_sha = $seedSha; requested_serial = $requestedSerial; expected = $actual; readback = $readback; disk_number = $diskNumber }
+              throw "AURUM_TINYSEED_FLASH_VERIFY_FAILURE expected=$actual readback=$readback"
+            }
+
+            Publish-Receipt 'FLASH_OK' @{
+              authorization = 'workflow-dispatch-exact-sha-exact-serial-exact-confirmation'
+              repository = $repo
+              seed_sha = $seedSha
+              handoff_run = $handoffRunId
+              artifact_id = $artifactId
+              image = $image.Name
+              image_sha256 = $actual
+              raw_readback_verified = $true
+              disk_number = $diskNumber
+              disk_serial = $requestedSerial
+              disk_model = $expectedModel
+              disk_size = $expectedSize
+              flashed_at = (Get-Date).ToUniversalTime().ToString('o')
+              next_gate = 'physical-boot-and-boot-proof'
+            }
+            Write-Host "AURUM_TINYSEED_FLASH_OK seed_sha=$seedSha serial=$requestedSerial image_sha256=$actual raw_readback_verified=true"
+          } finally {
+            if ($offlined) {
+              try { Set-Disk -Number $diskNumber -IsOffline $false -ErrorAction Stop } catch { Write-Warning "Could not return flashed USB disk online: $($_.Exception.Message)" }
+            }
+          }
