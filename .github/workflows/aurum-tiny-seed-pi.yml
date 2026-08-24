@@ -1,0 +1,53 @@
+name: Aurum Tiny Seed Pi ARM64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - '.github/workflows/aurum-tiny-seed-pi.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-pi-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-static-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Compile and unit-test germ
+        run: |
+          python3 -m py_compile Projects/Aurum/Germ/*.py
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian)
+
+      - name: Install ARM image tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            qemu-user-static curl xz-utils rsync util-linux dosfstools e2fsprogs
+
+      - name: Build Pi Tiny Seed
+        run: sudo sh Projects/Aurum/Germ/build-pi-tinyseed.sh
+
+      - name: Verify compressed image
+        run: |
+          test -s dist/Aurum-TinySeed-Pi-arm64.img.xz
+          sha256sum -c dist/Aurum-TinySeed-Pi-arm64.img.xz.sha256
+          xz -t dist/Aurum-TinySeed-Pi-arm64.img.xz
+
+      - name: Publish Pi Tiny Seed
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-Pi-arm64
+          path: |
+            dist/Aurum-TinySeed-Pi-arm64.img.xz
+            dist/Aurum-TinySeed-Pi-arm64.img.xz.sha256
+          if-no-files-found: error
+          retention-days: 30
