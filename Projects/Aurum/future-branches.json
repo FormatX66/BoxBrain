@@ -21,7 +21,7 @@
       "state": "tinyseed-artifacts-pass-and-publish",
       "prediction": "exact",
       "execution": "boundary-correct",
-      "proof": "same-revision x86 and Pi artifacts published from cc016ddf86444ab3e992ec07187802900dca7b56; combined handoff reverified hashes and persisted READY_TO_FLASH"
+      "proof": "same-revision x86 and Pi artifacts published from 82aa2ffe979b0c3a4e18b502ed116559945e32b5; combined handoff reverified hashes and persisted READY_TO_FLASH"
     }
   ],
   "likely_user_inputs": [
@@ -29,8 +29,8 @@
       "rank": 1,
       "input_family": "physical-handoff",
       "examples": ["ok what do I need to do", "ready to flash?", "which USB", "let's flash it"],
-      "prepared_response": "State that READY_TO_FLASH is verified, protect the existing 64 GB Gen0 recovery USB, identify a different non-system test USB by serial, run the guarded flasher in dry-run mode first, then request explicit destructive-write authority only after preflight proves the target and checksum.",
-      "action_if_safe": "Provide the exact artifact identity, checksum and guarded preflight path; stop before the destructive write until the user supplies/identifies physical media and authorizes it."
+      "prepared_response": "State that READY_TO_FLASH is verified, protect recovery media, identify a different non-system test USB by serial, run the guarded flasher in dry-run mode first, then request explicit destructive-write authority only after preflight proves the target and checksum.",
+      "action_if_safe": "Provide the exact artifact identity, checksum and guarded preflight path; auto-load the canonical protected-media registry when available; stop before the destructive write until the user supplies/identifies physical media and authorizes that exact serial."
     },
     {
       "rank": 2,
@@ -79,7 +79,7 @@
     {
       "rank": 1,
       "state": "x86-physical-flash-readback-passes",
-      "prepared": ["verified x86 artifact checksum", "unique USB serial targeting", "dry-run preflight", "system-disk refusal", "identity recheck before write", "full raw readback hash", "boot-proof collection"],
+      "prepared": ["verified x86 artifact checksum", "unique USB serial targeting", "protected-media refusal", "dry-run preflight", "system-disk refusal", "identity recheck before write", "full raw readback hash", "boot-proof collection"],
       "next": "physical Hopper boot and Tiny Seed ready/boot-proof evidence"
     },
     {
