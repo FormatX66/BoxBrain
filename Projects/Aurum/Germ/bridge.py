@@ -138,7 +138,7 @@ def _install_units(root: Path) -> dict[str, Any]:
             "[Unit]\n"
             "Description=Restore the Aurum installed resolver link\n"
             "After=local-fs.target\n"
-            "Before=NetworkManager.service systemd-resolved.service aurum-pc-console.service\n\n"
+            "Before=NetworkManager.service aurum-pc-console.service\n\n"
             "[Service]\n"
             "Type=oneshot\n"
             "ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf\n\n"
