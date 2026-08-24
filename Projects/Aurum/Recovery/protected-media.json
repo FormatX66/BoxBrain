@@ -1,0 +1,13 @@
+{
+  "schema": "aurum-protected-media-v1",
+  "devices": [
+    {
+      "serial": "4C530001061117108440",
+      "model": "SanDisk Cruzer Fit",
+      "size_bytes": 15664676864,
+      "reason": "Previously raw-readback-verified PC-01 Aurum seed media; preserve unless explicitly retired from this registry.",
+      "evidence_commit": "f2e80968a72af890d591b1081248b6799cf6caaf",
+      "protected": true
+    }
+  ]
+}
