@@ -1,33 +1,73 @@
 ﻿{
     "schema":  "aurum-pi3-read-only-probe-result-v1",
-    "observed_at_utc":  "2026-08-24T17:07:12.8824500Z",
+    "observed_at_utc":  "2026-08-24T17:29:56.4421393Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
     "request_id":  "pi3-readonly-20260824-1239",
     "state":  "NO_REACHABLE_PI3_RECEIPT",
     "mutation_allowed":  false,
     "promotion_allowed":  false,
     "write_authority":  false,
+    "topology":  {
+                     "method":  "known-names-plus-passive-usb-neighbors",
+                     "active_network_scan":  false,
+                     "usb_like_adapter_count":  3,
+                     "usb_like_adapters":  [
+                                               {
+                                                   "name":  "vEthernet (BoxBrain-Pi-USB)",
+                                                   "description":  "Hyper-V Virtual Ethernet Adapter #3",
+                                                   "status":  "Disconnected",
+                                                   "ipv4_address_count":  0,
+                                                   "neighbor_count":  0
+                                               },
+                                               {
+                                                   "name":  "Ethernet 2",
+                                                   "description":  "Realtek USB GbE Family Controller #2",
+                                                   "status":  "Up",
+                                                   "ipv4_address_count":  0,
+                                                   "neighbor_count":  1
+                                               },
+                                               {
+                                                   "name":  "Ethernet 4",
+                                                   "description":  "Realtek USB GbE Family Controller",
+                                                   "status":  "Disconnected",
+                                                   "ipv4_address_count":  1,
+                                                   "neighbor_count":  0
+                                               }
+                                           ],
+                     "passive_neighbor_candidates":  1
+                 },
     "attempts":  [
                      {
                          "target_name":  "aurum-pi3.local",
+                         "target_source":  "known-name",
                          "tcp22_reachable":  false,
                          "ssh_batch_mode":  false,
                          "pi3_model_match":  false
                      },
                      {
                          "target_name":  "aurum-pi3",
+                         "target_source":  "known-name",
                          "tcp22_reachable":  false,
                          "ssh_batch_mode":  false,
                          "pi3_model_match":  false
                      },
                      {
                          "target_name":  "raspberrypi.local",
+                         "target_source":  "known-name",
                          "tcp22_reachable":  false,
                          "ssh_batch_mode":  false,
                          "pi3_model_match":  false
                      },
                      {
                          "target_name":  "raspberrypi",
+                         "target_source":  "known-name",
+                         "tcp22_reachable":  false,
+                         "ssh_batch_mode":  false,
+                         "pi3_model_match":  false
+                     },
+                     {
+                         "target_name":  "usb-neighbor:2caa72506a3c",
+                         "target_source":  "passive-usb-neighbor",
                          "tcp22_reachable":  false,
                          "ssh_batch_mode":  false,
                          "pi3_model_match":  false
