@@ -1,0 +1,50 @@
+{
+  "schema": "aurum.dynamic-recovery-run-status.v1",
+  "observed_at": "2026-08-24T21:09:04.880099Z",
+  "latest": {
+    "conclusion": "",
+    "createdAt": "2026-08-24T21:07:55Z",
+    "databaseId": 32777802714,
+    "event": "workflow_dispatch",
+    "headSha": "6b567e940401871ed0483727a8741e29a14da27a",
+    "startedAt": "2026-08-24T21:07:55Z",
+    "status": "queued",
+    "updatedAt": "2026-08-24T21:08:56Z",
+    "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777802714"
+  },
+  "recent": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-08-24T21:07:55Z",
+      "databaseId": 32777802714,
+      "event": "workflow_dispatch",
+      "headSha": "6b567e940401871ed0483727a8741e29a14da27a",
+      "startedAt": "2026-08-24T21:07:55Z",
+      "status": "queued",
+      "updatedAt": "2026-08-24T21:08:56Z",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777802714"
+    },
+    {
+      "conclusion": "cancelled",
+      "createdAt": "2026-08-24T21:06:30Z",
+      "databaseId": 32777669808,
+      "event": "workflow_dispatch",
+      "headSha": "96ab55e290a4453be94fbc0f7021a6399ee3d74e",
+      "startedAt": "2026-08-24T21:06:30Z",
+      "status": "completed",
+      "updatedAt": "2026-08-24T21:07:57Z",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777669808"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-08-24T21:05:15Z",
+      "databaseId": 32777550507,
+      "event": "push",
+      "headSha": "c79d1f7bf982bf312089647936aa914b6c4ee0cc",
+      "startedAt": "2026-08-24T21:05:15Z",
+      "status": "completed",
+      "updatedAt": "2026-08-24T21:08:56Z",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777550507"
+    }
+  ]
+}
