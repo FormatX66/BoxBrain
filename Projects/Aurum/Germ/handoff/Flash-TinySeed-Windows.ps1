@@ -80,90 +80,165 @@ if (-not $Write) {
 $diskNumber = [int]$disk.Number
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
 $expectedSize = [int64]$disk.Size
+$expectedModel = [string]$disk.FriendlyName
 
-# Re-prove identity immediately before any destructive operation.
-$live = Get-Disk -Number $diskNumber -ErrorAction Stop
-if (
-    ([string]$live.SerialNumber).Trim() -ne $serial -or
-    [int64]$live.Size -ne $expectedSize -or
-    $live.BusType -ne 'USB' -or
-    [bool]$live.IsBoot -or
-    [bool]$live.IsSystem
-) {
-    Fail 'target-identity-changed-before-write'
-}
-if ($protected.ContainsKey(([string]$live.SerialNumber).Trim())) {
-    Fail 'target-became-protected-before-write'
+function Get-ReverifiedTarget {
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    do {
+        $usbDisks = @(Get-Disk -ErrorAction SilentlyContinue | Where-Object { $_.BusType -eq 'USB' })
+        $liveMatches = @($usbDisks | Where-Object { ([string]$_.SerialNumber).Trim() -eq $serial })
+        if ($usbDisks.Count -gt 1) { Fail "usb-selection-became-ambiguous count=$($usbDisks.Count)" }
+        if ($liveMatches.Count -gt 1) { Fail "disk-serial-not-unique count=$($liveMatches.Count)" }
+        if ($liveMatches.Count -eq 1 -and -not [bool]$liveMatches[0].IsOffline) { break }
+        Start-Sleep -Seconds 2
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    if ($liveMatches.Count -ne 1) { Fail "target-not-present-after-io-reset count=$($liveMatches.Count)" }
+    $candidate = $liveMatches[0]
+    if ([bool]$candidate.IsOffline) { Fail 'target-remained-offline-after-io-reset' }
+    if (
+        [int64]$candidate.Size -ne $expectedSize -or
+        [string]$candidate.FriendlyName -ne $expectedModel -or
+        $candidate.BusType -ne 'USB' -or
+        [bool]$candidate.IsBoot -or
+        [bool]$candidate.IsSystem -or
+        [bool]$candidate.IsReadOnly
+    ) {
+        Fail 'target-identity-changed-before-io'
+    }
+    if ($protected.ContainsKey(([string]$candidate.SerialNumber).Trim())) {
+        Fail 'target-became-protected-before-io'
+    }
+    return $candidate
 }
 
-$letters = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue |
-    Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
-foreach ($letter in $letters) {
-    & mountvol "$letter`:" /P | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail "volume-dismount-failed drive=$letter" }
-}
-
-try {
-    Set-Disk -Number $diskNumber -IsOffline $true -ErrorAction Stop
-} catch {
-    # Windows refuses offline for some removable devices. Identity was already
-    # re-proven and volumes were dismounted, so continue only for that known case.
-    if ($_.Exception.Message -notmatch '(?i)(removable media cannot be set to offline|not supported)') {
-        throw
+function Dismount-TargetVolumes([int]$Number) {
+    $letters = @(Get-Partition -DiskNumber $Number -ErrorAction SilentlyContinue |
+        Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
+    foreach ($letter in $letters) {
+        & mountvol "$letter`:" /P | Out-Null
+        if ($LASTEXITCODE -ne 0) { Fail "volume-dismount-failed drive=$letter" }
     }
 }
+
+# Re-prove identity immediately before the first destructive operation. Keep
+# removable media online: some USB firmware re-enumerates after sector zero
+# changes and reports a transient ERROR_NOT_READY if Windows was asked to
+# offline it. Every reopen below repeats the same physical identity proof.
+$live = Get-ReverifiedTarget
+$diskNumber = [int]$live.Number
+$physicalPath = "\\.\PhysicalDrive$diskNumber"
+Dismount-TargetVolumes $diskNumber
 
 $bufferSize = 4MB
 $buffer = New-Object byte[] $bufferSize
+$maxIoRetries = 8
 $source = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+$target = $null
 try {
-    $target = New-Object IO.FileStream(
-        $physicalPath,
-        [IO.FileMode]::Open,
-        [IO.FileAccess]::Write,
-        [IO.FileShare]::ReadWrite,
-        $bufferSize,
-        [IO.FileOptions]::WriteThrough
-    )
-    try {
-        while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $target.Write($buffer, 0, $read)
+    [int64]$written = 0
+    while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+        $attempt = 0
+        while ($true) {
+            try {
+                if ($null -eq $target) {
+                    $live = Get-ReverifiedTarget
+                    $diskNumber = [int]$live.Number
+                    Dismount-TargetVolumes $diskNumber
+                    $physicalPath = "\\.\PhysicalDrive$diskNumber"
+                    $target = New-Object IO.FileStream(
+                        $physicalPath,
+                        [IO.FileMode]::Open,
+                        [IO.FileAccess]::Write,
+                        [IO.FileShare]::ReadWrite,
+                        $bufferSize,
+                        [IO.FileOptions]::WriteThrough
+                    )
+                    [void]$target.Seek($written, [IO.SeekOrigin]::Begin)
+                }
+                $target.Write($buffer, 0, $read)
+                $written += $read
+                break
+            } catch [IO.IOException] {
+                if ($null -ne $target) {
+                    try { $target.Dispose() } catch { }
+                    $target = $null
+                }
+                $attempt += 1
+                if ($attempt -gt $maxIoRetries) {
+                    Fail "device-write-retry-exhausted offset=$written error=$($_.Exception.Message)"
+                }
+                Write-Host "AURUM_TINYSEED_FLASH_IO_RETRY phase=write offset=$written attempt=$attempt"
+                Start-Sleep -Seconds 3
+            }
         }
-        $target.Flush($true)
-    } finally {
-        $target.Dispose()
+    }
+    if ($null -ne $target) {
+        try {
+            $target.Flush($true)
+        } catch [IO.IOException] {
+            # WriteThrough was used for every block. A reset during the final
+            # flush is resolved by the authoritative full raw readback below.
+            Write-Host 'AURUM_TINYSEED_FLASH_IO_RETRY phase=final-flush action=verify-by-full-readback'
+            Start-Sleep -Seconds 3
+        }
     }
 } finally {
+    if ($null -ne $target) { try { $target.Dispose() } catch { } }
     $source.Dispose()
 }
 
 # Full image-length readback hash. This is deliberately slower than a spot check
 # because READY_TO_BOOT should mean the bytes written were actually re-read.
 $sha = [Security.Cryptography.SHA256]::Create()
+$reader = $null
 try {
-    $reader = New-Object IO.FileStream(
-        $physicalPath,
-        [IO.FileMode]::Open,
-        [IO.FileAccess]::Read,
-        [IO.FileShare]::ReadWrite,
-        $bufferSize,
-        [IO.FileOptions]::SequentialScan
-    )
-    try {
-        $remaining = [int64]$image.Length
-        while ($remaining -gt 0) {
-            $want = [int][Math]::Min([int64]$buffer.Length, $remaining)
-            $read = $reader.Read($buffer, 0, $want)
-            if ($read -le 0) { Fail 'unexpected-end-of-device-during-readback' }
-            [void]$sha.TransformBlock($buffer, 0, $read, $null, 0)
-            $remaining -= $read
+    [int64]$verified = 0
+    [int64]$remaining = [int64]$image.Length
+    while ($remaining -gt 0) {
+        $attempt = 0
+        while ($true) {
+            try {
+                if ($null -eq $reader) {
+                    $live = Get-ReverifiedTarget
+                    $diskNumber = [int]$live.Number
+                    Dismount-TargetVolumes $diskNumber
+                    $physicalPath = "\\.\PhysicalDrive$diskNumber"
+                    $reader = New-Object IO.FileStream(
+                        $physicalPath,
+                        [IO.FileMode]::Open,
+                        [IO.FileAccess]::Read,
+                        [IO.FileShare]::ReadWrite,
+                        $bufferSize,
+                        [IO.FileOptions]::SequentialScan
+                    )
+                    [void]$reader.Seek($verified, [IO.SeekOrigin]::Begin)
+                }
+                $want = [int][Math]::Min([int64]$buffer.Length, $remaining)
+                $read = $reader.Read($buffer, 0, $want)
+                if ($read -le 0) { Fail 'unexpected-end-of-device-during-readback' }
+                [void]$sha.TransformBlock($buffer, 0, $read, $null, 0)
+                $verified += $read
+                $remaining -= $read
+                break
+            } catch [IO.IOException] {
+                if ($null -ne $reader) {
+                    try { $reader.Dispose() } catch { }
+                    $reader = $null
+                }
+                $attempt += 1
+                if ($attempt -gt $maxIoRetries) {
+                    Fail "device-readback-retry-exhausted offset=$verified error=$($_.Exception.Message)"
+                }
+                Write-Host "AURUM_TINYSEED_FLASH_IO_RETRY phase=readback offset=$verified attempt=$attempt"
+                Start-Sleep -Seconds 3
+            }
         }
-        [void]$sha.TransformFinalBlock([byte[]]::new(0), 0, 0)
-        $readback = ([BitConverter]::ToString($sha.Hash)).Replace('-', '').ToLowerInvariant()
-    } finally {
-        $reader.Dispose()
     }
+    [void]$sha.TransformFinalBlock([byte[]]::new(0), 0, 0)
+    $readback = ([BitConverter]::ToString($sha.Hash)).Replace('-', '').ToLowerInvariant()
 } finally {
+    if ($null -ne $reader) { try { $reader.Dispose() } catch { } }
     $sha.Dispose()
 }
 
