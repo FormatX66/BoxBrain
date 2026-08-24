@@ -58,6 +58,13 @@ def gap_preparation_profile(gaps: list[GapExposure]) -> dict:
     """Translate stacked uncertainty into preparation behavior only."""
     score = stacked_gap_score(gaps)
     active = sorted(g.kind.value for g in gaps if g.effective >= 0.15)
+    active_kinds = {g.kind for g in gaps if g.effective >= 0.15}
+    meaning_uncertain = bool(
+        active_kinds & {GapKind.CONTEXT, GapKind.HUMAN_INTERPRETATION}
+    )
+    mechanism_uncertain = bool(
+        active_kinds & {GapKind.TOPOLOGY, GapKind.CAPABILITY}
+    )
     if score >= 0.80:
         lookahead = "to-boundary"
     elif score >= 0.60:
@@ -71,8 +78,13 @@ def gap_preparation_profile(gaps: list[GapExposure]) -> dict:
         "processing_multiplier": round(1.0 + 2.0 * score, 3),
         "lookahead": lookahead,
         "active_gaps": active,
-        "cross_check_context_and_topology": any(g.kind in {GapKind.CONTEXT, GapKind.TOPOLOGY} and g.effective >= 0.15 for g in gaps),
-        "require_capability_probe": any(g.kind == GapKind.CAPABILITY and g.effective >= 0.15 for g in gaps),
+        "cross_check_context_and_topology": bool(
+            active_kinds & {GapKind.CONTEXT, GapKind.TOPOLOGY}
+        ),
+        "translate_operator_label_to_outcome": meaning_uncertain,
+        "probe_live_capabilities_before_new_mechanism": mechanism_uncertain,
+        "prefer_proven_capability_reuse": meaning_uncertain and mechanism_uncertain,
+        "require_capability_probe": GapKind.CAPABILITY in active_kinds,
         "require_runtime_probe": any(g.kind == GapKind.RUNTIME and g.effective >= 0.15 for g in gaps),
         "require_independent_verification": any(g.kind in {GapKind.EVIDENCE, GapKind.RECOVERY_PROOF} and g.effective >= 0.15 for g in gaps),
         "revalidate_before_effect": any(g.kind in {GapKind.FRESHNESS, GapKind.CONCURRENCY} and g.effective >= 0.15 for g in gaps),

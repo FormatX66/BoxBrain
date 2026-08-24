@@ -145,25 +145,38 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 0
+    },
+    {
+      "event": "future-branch-usb-gateway-topology-miss-011",
+      "actual_family": "reuse-attached-pi-as-usb-network-gateway",
+      "nearest_prior_family": null,
+      "prediction": "miss",
+      "execution": "partial",
+      "reason": "The operator used 'AP' as shorthand for giving Hopper network access through the attached Pi. The initial response anchored on the named Wi-Fi access-point mechanism and inspected its isolation policy instead of first probing the live topology. After the operator clarified the outcome, live evidence showed BBPI4 already had Wi-Fi upstream, a carrier-up shared usb0 connection, NetworkManager DHCP/NAT, and Hopper leased at 10.12.194.5. The required USB Wi-Fi-adapter behavior already existed; the missed topology-first probe cost an avoidable correction turn.",
+      "correction": "Translate shorthand to the required outcome, then inspect live links, routes, sharing/NAT state and connected capabilities before proposing or building a mechanism. When an attached verified capability already satisfies the outcome, reuse it and provide only the remaining operator action.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 10,
-    "prediction_accuracy_weighted": 0.6,
-    "execution_completeness_weighted": 0.85,
-    "useful_hit_rate": 0.3,
+    "events": 11,
+    "prediction_accuracy_weighted": 0.545455,
+    "execution_completeness_weighted": 0.818182,
+    "useful_hit_rate": 0.272727,
     "exact_predictions": 4,
     "partial_predictions": 4,
-    "miss_predictions": 2,
+    "miss_predictions": 3,
     "execution_complete_or_boundary_correct": 8,
     "execution_prepared": 0,
-    "execution_partial": 1,
+    "execution_partial": 2,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
-    "assumptions_corrected_before_user_impact": 7
+    "assumptions_corrected_before_user_impact": 7,
+    "assumptions_corrected_after_user_prompt": 1
   },
-  "interpretation": "Future Branch now has three exact useful hits plus a meaningful physical partial hit. The newest sample is especially clean: the current-release USB rediscovery branch was ranked first and prepared before the runner result arrived, then the safe work advanced automatically to the explicit destructive-authority boundary. The Crayola hybrid READY-plus-offline outcome remains partial rather than being retroactively inflated, and its gap has already been converted into actionable network retry/join/resume behavior.",
+  "interpretation": "Future Branch has three exact useful hits, a meaningful physical partial hit, and a new topology-first miss. The USB-gateway miss is not inflated after the fact: the system anchored on the operator's word 'AP' and failed to inspect the already working shared USB path until corrected. That failure now drives explicit preparation signals to translate labels into outcomes, probe live topology and capabilities, and prefer verified reuse before inventing a new mechanism.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",

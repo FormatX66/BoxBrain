@@ -160,6 +160,9 @@ No speculative branch may silently become production state.
 When operating Aurum or any multi-step project:
 
 - do not stop at the current command boundary;
+- translate operator shorthand into the required outcome before committing to the named mechanism;
+- inspect fresh live topology and proven capabilities before designing a new path, especially when attached devices or bridges may already satisfy the outcome;
+- prefer reusing a verified active capability over materializing a second mechanism, while preserving the same authority and safety boundaries;
 - predict the top few likely next user inputs, not merely “pass” or “fail”;
 - predict the top few likely machine outcomes, including partial, ambiguous, stalled, and unexpected states;
 - predict likely checks of the prediction system itself;

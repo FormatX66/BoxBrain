@@ -43,6 +43,17 @@ class GapStackTests(unittest.TestCase):
         self.assertEqual(profile["lookahead"], "normal")
         self.assertLess(profile["processing_multiplier"], 1.2)
 
+    def test_operator_shorthand_probes_topology_before_inventing_mechanism(self):
+        profile = gap_preparation_profile([
+            GapExposure(GapKind.HUMAN_INTERPRETATION, 0.7, 0.4),
+            GapExposure(GapKind.TOPOLOGY, 0.65, 0.3),
+            GapExposure(GapKind.CAPABILITY, 0.55, 0.4),
+        ])
+        self.assertTrue(profile["translate_operator_label_to_outcome"])
+        self.assertTrue(profile["probe_live_capabilities_before_new_mechanism"])
+        self.assertTrue(profile["prefer_proven_capability_reuse"])
+        self.assertTrue(profile["require_capability_probe"])
+
 
 if __name__ == "__main__":
     unittest.main()
