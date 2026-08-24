@@ -3,9 +3,9 @@
   "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
   "release": {
     "state": "READY_TO_FLASH",
-    "source_commit": "776075f9f8fbe592b40dc127deb90606c0ce0481",
+    "source_commit": "468f02e0a64e222a9e693c793d68c756df720309",
     "x86_artifact": "Aurum-TinySeed-amd64.iso",
-    "x86_sha256": "cd9926bdc44a7ac6efbcf02cce73e338c0b3c306ef2cb07e066661daab65b2ed"
+    "x86_sha256": "59f65b1161484ba583f9cbc02758b5edb4fdbc7a085b29ba6cc6e3d898e8b6c9"
   },
   "usb_discovery": {
     "request_id": "tinyseed-crayola-reread-20260824-0733",
