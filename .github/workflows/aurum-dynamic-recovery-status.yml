@@ -1,0 +1,53 @@
+name: Aurum Dynamic Recovery Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-dynamic-recovery-status.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+      - name: Record newest dynamic recovery run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AurumBridge/results
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-boxbrain-dynamic-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/runs.json
+          python3 - <<'PY'
+          import json, pathlib, datetime as dt
+          runs=json.load(open('/tmp/runs.json',encoding='utf-8'))
+          payload={
+            'schema':'aurum.dynamic-recovery-run-status.v1',
+            'observed_at':dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'),
+            'latest':runs[0] if runs else None,
+            'recent':runs,
+          }
+          p=pathlib.Path('Projects/AurumBridge/results/hopper-dynamic-recovery-run-status.json')
+          p.write_text(json.dumps(payload,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(payload,sort_keys=True))
+          PY
+          git config user.name 'aurum-dynamic-status[bot]'
+          git config user.email 'aurum-dynamic-status@users.noreply.github.com'
+          git add Projects/AurumBridge/results/hopper-dynamic-recovery-run-status.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record dynamic Hopper recovery run status [skip ci]'
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((i*2))
+          done
+          exit 1
