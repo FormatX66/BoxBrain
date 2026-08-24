@@ -1,6 +1,6 @@
 {
   "schema": "aurum-pi3-probe-request-v1",
-  "request_id": "pi3-readonly-20260824-1142",
+  "request_id": "pi3-readonly-20260824-1239",
   "mode": "known-name-read-only",
   "targets": [
     "aurum-pi3.local",
@@ -11,5 +11,5 @@
   "mutation_allowed": false,
   "promotion_allowed": false,
   "write_authority": false,
-  "purpose": "Collect a real Pi3 receipt and live reachability evidence without changing boot, network, firmware, drivers, kernel state, or LKG."
+  "purpose": "Retry collection of a real Pi3 receipt and live reachability evidence after the prior request produced no persisted receipt; keep the probe strictly read-only and do not change boot, network, firmware, drivers, kernel state, or LKG."
 }
