@@ -1,0 +1,336 @@
+﻿{
+    "schema":  "aurum-pi4-reachability-diagnostic-v1",
+    "state":  "PI4_ROUTE_FOUND",
+    "observed_at":  "2026-08-24T11:15:29.1578315Z",
+    "runner_host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "names":  [
+                  {
+                      "name":  "BBPI4",
+                      "address":  null,
+                      "error":  "BBPI4 : The filename, directory name, or volume label syntax is incorrect"
+                  },
+                  {
+                      "name":  "bbpi4.local",
+                      "address":  null,
+                      "error":  "bbpi4.local : DNS name does not exist"
+                  },
+                  {
+                      "name":  "boxbrain",
+                      "address":  "192.168.0.194"
+                  },
+                  {
+                      "name":  "boxbrain.local",
+                      "address":  "192.168.0.194"
+                  }
+              ],
+    "attempts":  [
+                     {
+                         "address":  "10.12.194.1",
+                         "ping":  false,
+                         "tcp22":  false,
+                         "host_key":  "not-tested"
+                     },
+                     {
+                         "address":  "10.42.194.1",
+                         "ping":  false,
+                         "tcp22":  false,
+                         "host_key":  "not-tested"
+                     },
+                     {
+                         "address":  "192.168.0.194",
+                         "ping":  true,
+                         "tcp22":  true,
+                         "host_key":  "not-tested"
+                     }
+                 ],
+    "adapters":  [
+                     {
+                         "interface_alias":  "Ethernet 2",
+                         "interface_index":  12,
+                         "ipv4":  [
+                                      "169.254.129.121"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "fec0:0:0:ffff::1",
+                                     "fec0:0:0:ffff::2",
+                                     "fec0:0:0:ffff::3"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "vEthernet (Default Switch)",
+                         "interface_index":  31,
+                         "ipv4":  [
+                                      "192.168.96.1"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "fec0:0:0:ffff::1",
+                                     "fec0:0:0:ffff::2",
+                                     "fec0:0:0:ffff::3"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "vEthernet (WSL (Hyper-V firewall))",
+                         "interface_index":  67,
+                         "ipv4":  [
+                                      "172.17.80.1"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "fec0:0:0:ffff::1",
+                                     "fec0:0:0:ffff::2",
+                                     "fec0:0:0:ffff::3"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "Wi-Fi",
+                         "interface_index":  26,
+                         "ipv4":  [
+                                      "192.168.0.222"
+                                  ],
+                         "gateway":  [
+                                         "192.168.0.1"
+                                     ],
+                         "dns":  [
+                                     "192.168.0.1"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "vEthernet (BoxBrain-Pi-USB)",
+                         "interface_index":  16,
+                         "ipv4":  [
+                                      "169.254.248.250"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "10.12.194.1"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "Ethernet 4",
+                         "interface_index":  8,
+                         "ipv4":  [
+                                      "192.168.137.1",
+                                      "169.254.58.51"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "fec0:0:0:ffff::1",
+                                     "fec0:0:0:ffff::2",
+                                     "fec0:0:0:ffff::3"
+                                 ]
+                     },
+                     {
+                         "interface_alias":  "Bluetooth Network Connection",
+                         "interface_index":  10,
+                         "ipv4":  [
+                                      "169.254.2.96"
+                                  ],
+                         "gateway":  [
+
+                                     ],
+                         "dns":  [
+                                     "fec0:0:0:ffff::1",
+                                     "fec0:0:0:ffff::2",
+                                     "fec0:0:0:ffff::3"
+                                 ]
+                     }
+                 ],
+    "routes":  [
+                   {
+                       "DestinationPrefix":  "192.168.111.255/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (Default Switch)",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "192.168.96.1/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (Default Switch)",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "192.168.96.0/20",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (Default Switch)",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "192.168.0.255/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "Wi-Fi",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "192.168.0.222/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "Wi-Fi",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "192.168.0.0/24",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "Wi-Fi",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "172.17.95.255/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (WSL (Hyper-V firewall))",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "172.17.80.1/32",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (WSL (Hyper-V firewall))",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "172.17.80.0/20",
+                       "NextHop":  "0.0.0.0",
+                       "InterfaceAlias":  "vEthernet (WSL (Hyper-V firewall))",
+                       "RouteMetric":  256
+                   },
+                   {
+                       "DestinationPrefix":  "0.0.0.0/0",
+                       "NextHop":  "192.168.0.1",
+                       "InterfaceAlias":  "Wi-Fi",
+                       "RouteMetric":  0
+                   }
+               ],
+    "neighbors":  [
+                      {
+                          "IPAddress":  "172.17.95.255",
+                          "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF",
+                          "State":  6,
+                          "InterfaceAlias":  "vEthernet (WSL (Hyper-V firewall))"
+                      },
+                      {
+                          "IPAddress":  "172.17.82.97",
+                          "LinkLayerAddress":  "00-15-5D-B6-67-62",
+                          "State":  4,
+                          "InterfaceAlias":  "vEthernet (WSL (Hyper-V firewall))"
+                      },
+                      {
+                          "IPAddress":  "192.168.111.255",
+                          "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF",
+                          "State":  6,
+                          "InterfaceAlias":  "vEthernet (Default Switch)"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.255",
+                          "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF",
+                          "State":  6,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.252",
+                          "LinkLayerAddress":  "74-D6-37-F3-21-82",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.241",
+                          "LinkLayerAddress":  "48-43-DD-C4-E4-A4",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.240",
+                          "LinkLayerAddress":  "3C-78-95-AD-09-75",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.194",
+                          "LinkLayerAddress":  "88-A2-9E-FE-41-8C",
+                          "State":  5,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.191",
+                          "LinkLayerAddress":  "6C-15-DB-6B-EE-CE",
+                          "State":  5,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.173",
+                          "LinkLayerAddress":  "EC-B5-FA-99-78-AF",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.143",
+                          "LinkLayerAddress":  "5C-BA-EF-F9-5C-E3",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.52",
+                          "LinkLayerAddress":  "0C-91-60-ED-00-12",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.51",
+                          "LinkLayerAddress":  "00-00-00-00-00-00",
+                          "State":  0,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.41",
+                          "LinkLayerAddress":  "D2-2C-4E-11-76-3E",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.35",
+                          "LinkLayerAddress":  "00-00-00-00-00-00",
+                          "State":  0,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.34",
+                          "LinkLayerAddress":  "00-00-00-00-00-00",
+                          "State":  0,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.19",
+                          "LinkLayerAddress":  "C4-CB-76-8B-38-D7",
+                          "State":  0,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.17",
+                          "LinkLayerAddress":  "68-DB-F5-DC-22-12",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.16",
+                          "LinkLayerAddress":  "08-84-9D-7E-50-4C",
+                          "State":  4,
+                          "InterfaceAlias":  "Wi-Fi"
+                      },
+                      {
+                          "IPAddress":  "192.168.0.1",
+                          "LinkLayerAddress":  "40-ED-00-47-E0-30",
+                          "State":  5,
+                          "InterfaceAlias":  "Wi-Fi"
+                      }
+                  ],
+    "read_only":  true
+}
