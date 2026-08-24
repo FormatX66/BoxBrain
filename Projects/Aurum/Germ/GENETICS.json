@@ -16,6 +16,12 @@
     "Projects/Aurum/Germ/installer.py",
     "Projects/Aurum/Germ/tinyseed.py",
     "Projects/Aurum/Germ/bootstrap_console.py",
+    "Projects/Aurum/Germ/proof.py",
+    "Projects/Aurum/Germ/rollback_drill.py",
+    "Projects/Aurum/Germ/recovery_control.py",
+    "Projects/Aurum/Germ/recovery_poller.py",
+    "Projects/Aurum/Recovery/trusted-refs.json",
+    "Projects/Aurum/completion-plan.json",
     "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
     "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md",
     "docs/architecture/TINY_SEED_BOOT_MEDIUM.md"
