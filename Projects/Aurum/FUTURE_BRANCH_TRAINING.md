@@ -32,6 +32,12 @@ Do not use these as bragging. They are latency/compute cues and calibration evid
 
 Trivial surface features such as spelling mistakes, punctuation, or wording quirks do not count as meaningful Future Branch wins.
 
+### Avoid the observer effect
+
+During natural calibration, do not normally reveal a specific prediction **before** the human supplies the next intent, because doing so can steer the human toward or away from that branch and corrupt the training evidence.
+
+Prefer confidence feedback immediately **after** the branch resolves. Reveal a prediction early only when the information itself is useful for a decision, safety, consent, cost, or latency expectation.
+
 ## Adaptive depth
 
 Lookahead depth is not fixed at one or two steps. Two is the normal minimum preparation horizon, not a hard ceiling.
@@ -52,8 +58,9 @@ Forky, uncertain, expensive, or privacy-sensitive branches remain shallow even w
 2. Ask a calibration question only when the expected information gain is worth the interruption.
 3. Re-rank branches from the answer.
 4. Prepare deeper on high-confidence linear branches.
-5. Give lightweight confidence feedback when it helps the human estimate likely latency.
-6. Score whether the prediction was useful and whether the implied work was actually prepared/executed.
-7. Reduce question frequency as the model becomes better calibrated.
+5. Let natural user intent resolve the branch when possible without exposing predictions first.
+6. Give lightweight confidence feedback after resolution when it helps the human estimate likely latency.
+7. Score whether the prediction was useful and whether the implied work was actually prepared/executed.
+8. Reduce question frequency as the model becomes better calibrated.
 
 The goal is not to predict the user's wording. The goal is to predict enough of the user's **intent and next useful state** that the machine can reduce waiting while remaining non-interfering.
