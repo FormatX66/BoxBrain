@@ -1,4 +1,5 @@
 name: Aurum Tiny Seed Flash Contract
+# Changes to this contract intentionally self-trigger so destructive-route safety is re-proven.
 
 on:
   workflow_dispatch:
