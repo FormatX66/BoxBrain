@@ -1,6 +1,6 @@
 ﻿{
     "schema":  "aurum.boxbrain.usb-link-recovery.v1",
-    "observed_at":  "2026-08-24T21:19:04.3312485Z",
+    "observed_at":  "2026-08-24T21:48:59.9673981Z",
     "runner":  "LAPTOP-EBD8CG8P",
     "pnp":  [
                 {
@@ -41,7 +41,7 @@
                          "Status":  "Up",
                          "ifIndex":  26,
                          "MacAddress":  "28-11-A8-37-1D-97",
-                         "LinkSpeed":  "961 Mbps"
+                         "LinkSpeed":  "865 Mbps"
                      },
                      {
                          "Name":  "vEthernet (BoxBrain-Pi-USB)",
@@ -418,6 +418,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  67,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  67,
@@ -635,6 +642,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  16,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  16,
@@ -831,6 +845,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  31,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  31,
@@ -885,6 +906,20 @@
                           "InterfaceIndex":  31,
                           "State":  6,
                           "LinkLayerAddress":  "33-33-FF-80-FB-AE"
+                      },
+                      {
+                          "IPAddress":  "ff02::1:ff7e:504c",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  31,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-7E-50-4C"
+                      },
+                      {
+                          "IPAddress":  "ff02::1:ff7a:ba96",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  31,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-7A-BA-96"
                       },
                       {
                           "IPAddress":  "ff02::1:2",
@@ -1011,6 +1046,13 @@
                           "InterfaceIndex":  8,
                           "State":  6,
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                      },
+                      {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  8,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
                       },
                       {
                           "IPAddress":  "ff02::1:ffb6:6482",
@@ -1158,6 +1200,13 @@
                           "InterfaceIndex":  12,
                           "State":  6,
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                      },
+                      {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  12,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
                       },
                       {
                           "IPAddress":  "ff02::1:ffb6:6482",
@@ -1370,6 +1419,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  11,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  11,
@@ -1566,6 +1622,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  10,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  10,
@@ -1760,6 +1823,13 @@
                           "InterfaceIndex":  14,
                           "State":  6,
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
+                      },
+                      {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  14,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
                       },
                       {
                           "IPAddress":  "ff02::1:ffb6:6482",
@@ -1986,6 +2056,13 @@
                           "LinkLayerAddress":  "33-33-FF-B6-64-AB"
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  26,
+                          "State":  6,
+                          "LinkLayerAddress":  "33-33-FF-B6-64-99"
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  26,
@@ -2175,32 +2252,11 @@
                           "LinkLayerAddress":  "3C-78-95-AD-09-75"
                       },
                       {
-                          "IPAddress":  "fe80::ad5b:e2af:fe07:143e",
-                          "AddressFamily":  23,
-                          "InterfaceIndex":  26,
-                          "State":  4,
-                          "LinkLayerAddress":  "D2-2C-4E-11-76-3E"
-                      },
-                      {
                           "IPAddress":  "fe80::42ed:ff:fe47:e030",
                           "AddressFamily":  23,
                           "InterfaceIndex":  26,
-                          "State":  2,
+                          "State":  4,
                           "LinkLayerAddress":  "40-ED-00-47-E0-30"
-                      },
-                      {
-                          "IPAddress":  "fe80::3368:f089:6017:93f9",
-                          "AddressFamily":  23,
-                          "InterfaceIndex":  26,
-                          "State":  4,
-                          "LinkLayerAddress":  "C4-CB-76-8B-38-D7"
-                      },
-                      {
-                          "IPAddress":  "fe80::e91:92ff:fe55:8cbe",
-                          "AddressFamily":  23,
-                          "InterfaceIndex":  26,
-                          "State":  4,
-                          "LinkLayerAddress":  "0C-91-92-55-8C-BE"
                       },
                       {
                           "IPAddress":  "fe80::a84:9dff:fe7e:504c",
@@ -2215,13 +2271,6 @@
                           "InterfaceIndex":  26,
                           "State":  4,
                           "LinkLayerAddress":  "88-A2-9E-FE-41-8C"
-                      },
-                      {
-                          "IPAddress":  "fd3f:8948:e0f2:6c9d:e91:92ff:fe55:8cbe",
-                          "AddressFamily":  23,
-                          "InterfaceIndex":  26,
-                          "State":  4,
-                          "LinkLayerAddress":  "0C-91-92-55-8C-BE"
                       },
                       {
                           "IPAddress":  "fd3f:8948:e0f2:6c9d:a84:9dff:fe7e:504c",
@@ -2350,6 +2399,13 @@
                           "LinkLayerAddress":  ""
                       },
                       {
+                          "IPAddress":  "ff02::1:ffb6:6499",
+                          "AddressFamily":  23,
+                          "InterfaceIndex":  1,
+                          "State":  6,
+                          "LinkLayerAddress":  ""
+                      },
+                      {
                           "IPAddress":  "ff02::1:ffb6:6482",
                           "AddressFamily":  23,
                           "InterfaceIndex":  1,
@@ -2460,6 +2516,13 @@
                           "InterfaceIndex":  67,
                           "State":  6,
                           "LinkLayerAddress":  "FF-FF-FF-FF-FF-FF"
+                      },
+                      {
+                          "IPAddress":  "172.17.82.97",
+                          "AddressFamily":  2,
+                          "InterfaceIndex":  67,
+                          "State":  4,
+                          "LinkLayerAddress":  "00-15-5D-B6-64-99"
                       },
                       {
                           "IPAddress":  "239.255.255.250",
@@ -2825,28 +2888,7 @@
                          "marker":  false
                      },
                      {
-                         "host":  "fe80::ad5b:e2af:fe07:143e%26",
-                         "source":  "neighbor",
-                         "host_key":  false,
-                         "auth":  false,
-                         "marker":  false
-                     },
-                     {
                          "host":  "fe80::42ed:ff:fe47:e030%26",
-                         "source":  "neighbor",
-                         "host_key":  false,
-                         "auth":  false,
-                         "marker":  false
-                     },
-                     {
-                         "host":  "fe80::3368:f089:6017:93f9%26",
-                         "source":  "neighbor",
-                         "host_key":  false,
-                         "auth":  false,
-                         "marker":  false
-                     },
-                     {
-                         "host":  "fe80::e91:92ff:fe55:8cbe%26",
                          "source":  "neighbor",
                          "host_key":  false,
                          "auth":  false,
@@ -2867,13 +2909,6 @@
                          "marker":  false
                      },
                      {
-                         "host":  "fd3f:8948:e0f2:6c9d:e91:92ff:fe55:8cbe",
-                         "source":  "neighbor",
-                         "host_key":  false,
-                         "auth":  false,
-                         "marker":  false
-                     },
-                     {
                          "host":  "fd3f:8948:e0f2:6c9d:a84:9dff:fe7e:504c",
                          "source":  "neighbor",
                          "host_key":  false,
@@ -2882,6 +2917,13 @@
                      },
                      {
                          "host":  "172.17.95.255",
+                         "source":  "neighbor",
+                         "host_key":  false,
+                         "auth":  false,
+                         "marker":  false
+                     },
+                     {
+                         "host":  "172.17.82.97",
                          "source":  "neighbor",
                          "host_key":  false,
                          "auth":  false,
