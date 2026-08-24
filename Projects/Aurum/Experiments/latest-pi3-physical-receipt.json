@@ -1,6 +1,6 @@
 ﻿{
     "schema":  "aurum-pi3-read-only-probe-result-v1",
-    "observed_at_utc":  "2026-08-24T18:03:16.4655680Z",
+    "observed_at_utc":  "2026-08-24T18:09:11.9797705Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
     "request_id":  "pi3-readonly-linkdiag-20260824-1335",
     "state":  "NO_REACHABLE_PI3_RECEIPT",
