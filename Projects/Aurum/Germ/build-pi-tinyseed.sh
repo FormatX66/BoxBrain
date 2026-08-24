@@ -49,6 +49,10 @@ mount "$BOOT_PART" "$BOOT_MNT"
 
 # Add the tiny package set in the real ARM64 root using qemu-user-static.
 install -m 0755 "$QEMU_STATIC" "$ROOT_MNT/usr/bin/qemu-aarch64-static"
+# Raspberry Pi OS may ship /etc/resolv.conf as a symlink into /run. Replace it
+# while offline-building so the ARM chroot has deterministic DNS; NetworkManager
+# is free to manage the file after the resulting Tiny Seed boots.
+rm -f "$ROOT_MNT/etc/resolv.conf"
 printf '%s\n' 'nameserver 1.1.1.1' > "$ROOT_MNT/etc/resolv.conf"
 for rel in dev proc sys run; do mkdir -p "$ROOT_MNT/$rel"; done
 mount --bind /dev "$ROOT_MNT/dev"
