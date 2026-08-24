@@ -12,6 +12,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 
 - [North-star generational architecture](NORTH_STAR_GENERATIONAL_ARCHITECTURE.md)
 - [Future Branch anticipatory operating principle](FUTURE_BRANCH.md)
+- [Future Branch human calibration and depth policy](FUTURE_BRANCH_TRAINING.md)
 - [Genetics and Reseed Germ architecture](../../docs/architecture/RESEED_GENETICS_ARCHITECTURE.md)
 - [Mandatory seed recovery architecture](../../docs/architecture/SEED_RECOVERY_ARCHITECTURE.md)
 - [Tiny Seed boot medium architecture](../../docs/architecture/TINY_SEED_BOOT_MEDIUM.md)
@@ -49,4 +50,4 @@ The intended human setup surface is deliberately small: **boot Tiny Seed -> conn
 
 Aurum may record heartbeat/telemetry as evidence, but only a change in capability, gate, verified state, or unresolved frontier counts as progress and may trigger an immediate continuation build.
 
-Future Branch applies to that process: prepare the most useful likely success/failure/recovery branches ahead of time, execute only when real prerequisites and permissions are satisfied, and use actual outcomes to correct assumptions before the user reaches the next boundary.
+Future Branch applies to that process as a ranked field rather than a pass/fail tree: predict likely human inputs and machine states, ask calibration questions when they buy enough information, prepare/execute high-value safe branches ahead of time, deepen highly probable linear branches several steps when justified, stop at real boundaries, and use actual outcomes to correct assumptions before the user reaches the next boundary.
