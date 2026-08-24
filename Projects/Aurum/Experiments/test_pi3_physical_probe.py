@@ -50,11 +50,16 @@ class Pi3PhysicalProbeTests(unittest.TestCase):
             trial["kernel_plan"]["reason"],
             "unsupported-or-insufficient-hardware",
         )
+        self.assertEqual(trial["before"]["state"]["arch"], "armv7l")
+        self.assertEqual(trial["before"]["state"]["ram_mb"], 927)
         self.assertFalse(trial["kernel_plan"]["promotion_allowed"])
         self.assertFalse(trial["promotion_allowed"])
         self.assertEqual(trial["rollback_target"], "pi3-current-observed")
         self.assertIn("probe-mesh-read-only", trial["future_branch_next"])
-        self.assertEqual(trial["before"]["state"]["arch"] if "arch" in trial["before"]["state"] else self.sample()["arch"], "armv7l")
+        self.assertIn(
+            "keep-adaptive-kernel-held-on-current-arch",
+            trial["future_branch_next"],
+        )
 
     def test_aarch64_pi3_receipt_can_stage_candidate_without_promotion(self):
         receipt = self.sample()
@@ -62,6 +67,11 @@ class Pi3PhysicalProbeTests(unittest.TestCase):
         trial = build_observe_only_trial(receipt)
         self.assertEqual(trial["kernel_plan"]["action"], "stage-candidate")
         self.assertEqual(trial["kernel_plan"]["candidate"], "arm64-small")
+        self.assertEqual(trial["before"]["state"]["arch"], "aarch64")
+        self.assertIn(
+            "stage-adaptive-kernel-candidate-observe-only",
+            trial["future_branch_next"],
+        )
         self.assertFalse(trial["kernel_plan"]["promotion_allowed"])
         self.assertFalse(trial["promotion_allowed"])
 
