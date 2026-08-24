@@ -12,6 +12,7 @@
 - x86 Tiny Seed media builder and GitHub Actions build/UEFI+BIOS smoke workflow exist.
 - Raspberry Pi ARM64 Tiny Seed image builder and GitHub Actions static build/verification workflow exist.
 - A guarded Windows flash path verifies image checksum, requires unique USB serial identity and explicit confirmation, refuses boot/system disks, re-proves identity immediately before write, and performs a full image-length raw readback hash.
+- An isolated direct-UEFI fallback carrier experiment exists on draft PR #76. It reuses the protected Tiny Seed germ/live payload but constructs a raw GPT USB image with a FAT ESP and `EFI/BOOT/BOOTX64.EFI`, independent of the ISO-hybrid/GRUB carrier.
 
 ## Evidence currently established in repository
 
@@ -25,6 +26,7 @@
 - **Canonical current artifact identity, source commit, hashes, workflow runs, gate results, next gate, and handoff state live only in `Projects/Aurum/Release/latest-tinyseed-handoff.json`.** Read that file for the current values instead of duplicating them here.
 - A handoff may report `READY_TO_FLASH` only after same-revision x86 and Pi artifacts are published and their hashes are reverified by the combined handoff.
 - `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The physical-flash/readback, hardware boot, and forced-rollback gates remain independent evidence.
+- The direct-UEFI fallback experiment on PR #76 passed its protected Germ tests, raw-image checksum/layout checks, and OVMF removable-media boot gate with Tiny Seed ready, boot-proof, and network-ready markers. GitHub Actions run `32764228310` published the experimental artifact `Aurum-TinySeed-amd64-direct-UEFI-experimental` with artifact digest `sha256:1a95b8ea8107e62f04ca9aaa87e7b64666428909894264eb87bb2657aac39089`. This is **experimental Passed + Published** evidence only; it does not change the canonical release or claim physical proof.
 
 ## Physical evidence already known
 
@@ -50,7 +52,8 @@
    - promote on proof or automatically roll back to Gen0.
 4. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
 5. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
-6. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
+6. Keep the direct-UEFI fallback carrier warm but isolated. Promote it toward physical testing only if Hopper evidence shows the canonical ISO-hybrid carrier has higher expected total cost or a carrier-specific failure; do not pivot merely because the fallback now passes virtually.
+7. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
 
 ## State classification
 
