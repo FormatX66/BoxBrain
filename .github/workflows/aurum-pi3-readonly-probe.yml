@@ -246,6 +246,9 @@ jobs:
             receipt = $receipt
           }
           $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
+          # Strict SSH rejection is expected evidence. Do not let its native exit
+          # code leak through the PowerShell action wrapper after the receipt lands.
+          $global:LASTEXITCODE = 0
           Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) usb_like_adapters=$($topology.usb_like_adapter_count) passive_neighbors=$($topology.passive_neighbor_candidates) write_authority=false mutation_allowed=false"
 
       - name: Persist privacy-bounded Pi3 evidence receipt
