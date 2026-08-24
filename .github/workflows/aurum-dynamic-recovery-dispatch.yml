@@ -1,0 +1,41 @@
+name: Aurum Dynamic Recovery Dispatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumBridge/requests/hopper-recovery-path-request.json'
+      - '.github/workflows/aurum-dynamic-recovery-dispatch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Validate and dispatch dynamic connected-Pi recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          p=json.load(open('Projects/AurumBridge/requests/hopper-recovery-path-request.json',encoding='utf-8'))
+          assert p['schema']=='aurum.hopper.recovery-path-request.v1'
+          assert p['mode']=='probe-and-use-existing-authority-only'
+          assert p['grant_new_authority'] is False
+          assert p['allow_destructive_media_write'] is False
+          assert p['physical_hid_authorized'] is True
+          assert p['physical_hid_confirmation']=='OPEN_HOPPER_KVM_CONSOLE'
+          print('AURUM_DYNAMIC_RECOVERY_REQUEST_VALID')
+          PY
+          gh workflow run aurum-boxbrain-dynamic-hopper-recovery.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo AURUM_DYNAMIC_RECOVERY_DISPATCHED
