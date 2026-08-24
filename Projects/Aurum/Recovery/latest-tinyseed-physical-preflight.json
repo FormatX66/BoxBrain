@@ -8,14 +8,15 @@
     "x86_sha256": "cd9926bdc44a7ac6efbcf02cce73e338c0b3c306ef2cb07e066661daab65b2ed"
   },
   "usb_discovery": {
-    "request_id": "tinyseed-ready-to-flash-20260824-02",
-    "observed_at_utc": "2026-08-24T11:11:26.5335587Z",
+    "request_id": "tinyseed-crayola-reread-20260824-0733",
+    "observed_at_utc": "2026-08-24T11:33:53.9820329Z",
     "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
     "eligible_count": 1,
     "candidate": {
-      "model": "SanDisk Portable SSD",
-      "size_bytes": 1000204140544,
-      "serial_sha256": "26cec5f4ded82d4764184bfe5d9b534ad787b94f3d661abcbd4120b627d7c652",
+      "disk_number": 2,
+      "model": "USB SanDisk 3.2 Gen",
+      "size_bytes": 61524148224,
+      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
       "is_boot": false,
       "is_system": false,
       "is_read_only": false,
