@@ -1,0 +1,28 @@
+name: Aurum Recovery Queue Priority
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-recovery-queue-priority.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prioritize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Cancel redundant queued recovery runs and dispatch USB path
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for id in 32777801978 32777802714 32777803699; do
+            gh run cancel "$id" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
+          done
+          gh workflow run aurum-boxbrain-usb-link-recovery.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo AURUM_USB_RECOVERY_PRIORITY_DISPATCHED
