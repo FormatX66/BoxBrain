@@ -17,6 +17,32 @@ Do not use this anti-pattern:
 prompt -> action -> error -> retry -> repeat
 ```
 
+## Future Branch decision layer
+
+When more than one materially different next state/action remains plausible,
+apply the [Future Branch architecture](FutureBranch.md) inside the state-first
+loop instead of prematurely choosing one path:
+
+```text
+observed state -> plausible futures -> evidence/risk/reversibility/authority
+               -> keep safe branches warm
+               -> promote one OR wait for more evidence
+               -> execute through existing gates -> verify
+               -> collapse / rollback / quarantine
+```
+
+Future Branch is mandatory when uncertainty materially affects the next action,
+recovery path, diagnosis, user intent, transport, deployment, kernel/driver
+candidate, or other consequential state transition. For trivial deterministic
+work, do not manufacture branches just to satisfy the pattern.
+
+Core rule: **anticipate aggressively; commit conservatively.** Preparation of a
+safe/reversible future is not execution. Ambiguous ties wait. Failed candidates
+are quarantined rather than replayed. Last Known Good remains an explicit
+protected branch during speculative system mutations. Existing safety,
+identity, permission, privacy, emergency-stop, and destructive-action gates
+remain authoritative over any branch ranking.
+
 ## Mandatory pre-action gate
 
 Before doing meaningful work, answer internally and proportionally:
