@@ -14,6 +14,30 @@ import tinyseed
 
 
 class TinySeedNetworkTests(unittest.TestCase):
+    def test_link_without_dns_is_not_online(self) -> None:
+        with (
+            mock.patch.object(network, "_networkmanager_connected", return_value=True),
+            mock.patch.object(network, "_repository_addresses", return_value=[]),
+            mock.patch.object(network, "_repository_tcp_ready") as tcp_ready,
+        ):
+            observed = network.connectivity()
+        self.assertTrue(observed["link_connected"])
+        self.assertFalse(observed["resolver_ready"])
+        self.assertFalse(observed["repository_tcp_443"])
+        self.assertFalse(observed["online"])
+        tcp_ready.assert_not_called()
+
+    def test_dns_and_repository_route_are_required_for_online(self) -> None:
+        with (
+            mock.patch.object(network, "_networkmanager_connected", return_value=True),
+            mock.patch.object(network, "_repository_addresses", return_value=["192.0.2.10"]),
+            mock.patch.object(network, "_repository_tcp_ready", return_value=True),
+        ):
+            observed = network.connectivity()
+        self.assertTrue(observed["resolver_ready"])
+        self.assertTrue(observed["repository_tcp_443"])
+        self.assertTrue(observed["online"])
+
     def test_network_failure_requires_explicit_offline_choice(self) -> None:
         with (
             mock.patch.object(network, "status", side_effect=network.NetworkError("not ready")),

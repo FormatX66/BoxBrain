@@ -7,7 +7,9 @@ nmcli and are never written by this module.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
+import socket
 import shutil
 import subprocess
 import time
@@ -42,12 +44,67 @@ def _nmcli() -> str:
     return path
 
 
-def online() -> bool:
+def _networkmanager_connected() -> bool:
     nmcli = shutil.which("nmcli")
-    if nmcli:
-        result = _run([nmcli, "-t", "-f", "STATE", "general"], timeout=10, check=False)
-        return result.returncode == 0 and result.stdout.strip().lower() in {"connected", "connected (global)", "connected (site)"}
+    if not nmcli:
+        return False
+    result = _run([nmcli, "-t", "-f", "STATE", "general"], timeout=10, check=False)
+    return result.returncode == 0 and result.stdout.strip().lower() in {
+        "connected",
+        "connected (global)",
+        "connected (site)",
+    }
+
+
+def _repository_addresses() -> list[str]:
+    """Resolve the allowlisted genetics host through the system resolver."""
+    getent = shutil.which("getent")
+    if not getent:
+        return []
+    try:
+        result = _run([getent, "ahostsv4", "github.com"], timeout=8, check=False)
+    except NetworkError:
+        return []
+    if result.returncode != 0:
+        return []
+    addresses: list[str] = []
+    for line in result.stdout.splitlines():
+        value = line.split(maxsplit=1)[0] if line.strip() else ""
+        try:
+            address = ipaddress.ip_address(value)
+        except ValueError:
+            continue
+        if address.version == 4 and not address.is_unspecified and value not in addresses:
+            addresses.append(value)
+    return addresses
+
+
+def _repository_tcp_ready(addresses: list[str]) -> bool:
+    """Prove a route to the HTTPS endpoint without trusting link state alone."""
+    for address in addresses[:4]:
+        try:
+            with socket.create_connection((address, 443), timeout=4):
+                return True
+        except OSError:
+            continue
     return False
+
+
+def connectivity() -> dict[str, Any]:
+    """Return end-to-end readiness for fetching Aurum's allowlisted genetics."""
+    link_connected = _networkmanager_connected()
+    addresses = _repository_addresses() if link_connected else []
+    repository_tcp_443 = _repository_tcp_ready(addresses) if addresses else False
+    return {
+        "link_connected": link_connected,
+        "resolver_ready": bool(addresses),
+        "repository_tcp_443": repository_tcp_443,
+        "online": bool(link_connected and addresses and repository_tcp_443),
+    }
+
+
+def online() -> bool:
+    return bool(connectivity()["online"])
 
 
 def wait_online(timeout: float = 20.0, interval: float = 0.5) -> bool:
@@ -68,7 +125,7 @@ def status() -> dict[str, Any]:
         parts = line.split(":", 3)
         if len(parts) == 4:
             devices.append({"device": parts[0], "type": parts[1], "state": parts[2], "connection": parts[3]})
-    return {"schema": "aurum-tinyseed-network-v1", "online": online(), "devices": devices}
+    return {"schema": "aurum-tinyseed-network-v1", **connectivity(), "devices": devices}
 
 
 def wifi_scan() -> list[dict[str, Any]]:

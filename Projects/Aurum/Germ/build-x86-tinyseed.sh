@@ -49,6 +49,7 @@ git
 ca-certificates
 openssl
 network-manager
+systemd-resolved
 iproute2
 iputils-ping
 iw
@@ -178,6 +179,13 @@ exec /usr/bin/python3 /usr/lib/aurum/germ/triage.py "$@"
 EOF
 chmod 0755 config/includes.chroot/usr/sbin/aurum-reseed config/includes.chroot/usr/sbin/aurum-rollback-drill config/includes.chroot/usr/sbin/aurum-recovery-poll config/includes.chroot/usr/sbin/aurum-triage
 
+mkdir -p config/includes.chroot/etc/NetworkManager/conf.d
+cat > config/includes.chroot/etc/NetworkManager/conf.d/10-aurum-resolved.conf <<'EOF'
+[main]
+dns=systemd-resolved
+rc-manager=symlink
+EOF
+
 SYSTEMD=config/includes.chroot/etc/systemd/system
 WANTS=$SYSTEMD/multi-user.target.wants
 TIMERS=$SYSTEMD/timers.target.wants
@@ -218,8 +226,8 @@ EOF
 cat > "$SYSTEMD/aurum-tinyseed.service" <<'EOF'
 [Unit]
 Description=Aurum Tiny Seed setup
-After=NetworkManager.service aurum-germ-preflight.service
-Wants=NetworkManager.service
+After=NetworkManager.service systemd-resolved.service aurum-germ-preflight.service
+Wants=NetworkManager.service systemd-resolved.service
 Conflicts=getty@tty1.service
 OnFailure=aurum-triage.service
 [Service]
@@ -287,6 +295,7 @@ for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinysee
 done
 ln -s "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
 ln -s /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
+ln -s /lib/systemd/system/systemd-resolved.service "$WANTS/systemd-resolved.service"
 ln -s /dev/null "$SYSTEMD/getty@tty1.service"
 
 mkdir -p config/includes.chroot/etc
@@ -302,6 +311,7 @@ cat > config/hooks/live/010-tinyseed.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed /usr/sbin/aurum-rollback-drill /usr/sbin/aurum-recovery-poll /usr/sbin/aurum-triage
+ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-tinyseed.hook.chroot
 

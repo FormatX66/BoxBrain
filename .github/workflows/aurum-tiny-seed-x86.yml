@@ -128,12 +128,19 @@ jobs:
             etc/systemd/system/aurum-triage.service \
             usr/lib/aurum/germ/recovery_poller.py \
             etc/systemd/system/aurum-recovery-poll.timer \
+            etc/NetworkManager/conf.d/10-aurum-resolved.conf \
+            etc/systemd/system/multi-user.target.wants/systemd-resolved.service \
+            usr/lib/systemd/systemd-resolved \
             usr/sbin/aurum-triage; do
             if ! grep -Fq "$expected" tinyseed-payload.log; then
               echo "Tiny Seed payload missing expected path: $expected" >&2
               exit 1
             fi
           done
+          if ! grep -Eq 'etc/resolv\.conf -> /run/systemd/resolve/stub-resolv\.conf$' tinyseed-payload.log; then
+            echo 'Tiny Seed resolver link does not target the live systemd-resolved stub' >&2
+            exit 1
+          fi
           echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
 
       - name: Upload boot diagnostics on failure
