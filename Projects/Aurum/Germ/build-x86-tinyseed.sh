@@ -99,7 +99,7 @@ EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
@@ -185,7 +185,19 @@ ExecStart=/bin/sh -c 'test -s /usr/lib/aurum/germ/GENETICS.json && test -x /usr/
 [Install]
 WantedBy=multi-user.target
 EOF
-for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service; do
+cat > "$SYSTEMD/aurum-boot-proof.service" <<'EOF'
+[Unit]
+Description=Aurum non-secret boot proof receipt
+After=local-fs.target aurum-germ-preflight.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/proof.py
+StandardOutput=journal+console
+StandardError=journal+console
+[Install]
+WantedBy=multi-user.target
+EOF
+for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -s "../$unit" "$WANTS/$unit"
 done
 ln -s /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
