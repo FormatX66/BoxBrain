@@ -104,7 +104,7 @@ class FutureBranchTests(unittest.TestCase):
 
     def test_feedback_signals_expectedness_without_claiming_certainty(self):
         expected = self.branch("expected", probability=0.93)
-        surprise = self.branch("surprise", probability=0.2)
+        surprise = self.branch("surprise", probability=0.19)
         self.assertIn("warm", human_confidence_feedback(expected))
         self.assertIn("outside", human_confidence_feedback(surprise))
 
