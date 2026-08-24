@@ -1,0 +1,27 @@
+name: Repository Integrity Mirror
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Admin/validate_repository.py'
+      - 'Projects/**'
+      - 'README.md'
+      - 'START_HERE.md'
+      - 'PROJECTS.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - '.github/workflows/repository-integrity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  repository-integrity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run canonical repository validator
+        run: python3 Admin/validate_repository.py
