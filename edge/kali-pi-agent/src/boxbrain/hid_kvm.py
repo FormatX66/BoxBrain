@@ -218,14 +218,15 @@ class HidKvmState:
         keys = sorted(self.keys)
         return bytes([self.modifiers, 0, *keys, *([0] * (6 - len(keys)))])
 
-    def _release(self, reason: str) -> None:
+    def _release(self, reason: str, *, include_pointer: bool = True) -> None:
         self.modifiers = 0
         self.keys.clear()
-        self.buttons = 0
         self.writer(self.keyboard, b"\0" * 8)
-        self.writer(self.mouse, b"\0" * 4)
+        if include_pointer:
+            self.buttons = 0
+            self.writer(self.mouse, b"\0" * 4)
         self.last_activity = time.monotonic()
-        self._audit("release", reason=reason)
+        self._audit("release", reason=reason, pointer_included=include_pointer)
 
     def _type_character(self, character: str) -> None:
         try:
@@ -312,7 +313,10 @@ class HidKvmState:
                     reports = [_TEXT_KEYS[character] for character in text]
                 except KeyError as error:
                     raise HidKvmError("Text contains a character unsupported by the US keyboard map.") from error
-                self._release("text-start")
+                # Text input depends only on the keyboard endpoint. A host can
+                # leave an unused mouse endpoint busy; that must not prevent a
+                # bounded keyboard command from being released and typed.
+                self._release("text-start", include_pointer=False)
                 for modifier, usage in reports:
                     self.writer(self.keyboard, bytes([modifier, 0, usage, 0, 0, 0, 0, 0]))
                     self.writer(self.keyboard, b"\0" * 8)
