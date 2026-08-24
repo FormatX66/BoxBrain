@@ -1,0 +1,29 @@
+{
+  "schema": "aurum-tinyseed-flash-request-v1",
+  "state": "AUTHORIZED_ONCE",
+  "request_id": "tinyseed-crayola-flash-20260824-0735",
+  "authorized_at_utc": "2026-08-24T11:35:00Z",
+  "expires_at_utc": "2026-08-24T12:20:00Z",
+  "write_authority": true,
+  "confirmation": "FLASH_TINY_SEED_TEST_USB",
+  "purpose": "Overwrite only the explicitly authorized clean Crayola USB test drive with the verified Aurum Tiny Seed x86 image.",
+  "seed_sha": "776075f9f8fbe592b40dc127deb90606c0ce0481",
+  "image_sha256": "cd9926bdc44a7ac6efbcf02cce73e338c0b3c306ef2cb07e066661daab65b2ed",
+  "discovery_request_id": "tinyseed-crayola-reread-20260824-0733",
+  "usb": {
+    "model": "USB SanDisk 3.2 Gen",
+    "size_bytes": 61524148224,
+    "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5"
+  },
+  "invariants": {
+    "must_match_live_serial_hash": true,
+    "must_match_live_model_and_size": true,
+    "must_not_be_boot_or_system": true,
+    "must_not_be_read_only": true,
+    "must_not_be_protected_media": true,
+    "must_reprove_identity_immediately_before_write": true,
+    "must_verify_exact_handoff_and_image_hash": true,
+    "must_full_raw_readback_verify": true,
+    "preserve_hopper_existing_recovery_media": true
+  }
+}
