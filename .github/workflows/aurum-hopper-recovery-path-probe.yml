@@ -96,16 +96,21 @@ jobs:
             fi
           fi
           '@
+            # Windows PowerShell promotes native stderr to an ErrorRecord when
+            # ErrorActionPreference=Stop. An unreachable candidate is expected
+            # branch evidence, not a fatal script error, so capture the native
+            # result under Continue and rank the remaining addresses.
+            $savedErrorAction = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
             $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no "kali@$target" $remote 2>&1)
-            if ($LASTEXITCODE -eq 0) { $selected = $target; $output = $lines; break }
+            $sshExit = $LASTEXITCODE
+            $ErrorActionPreference = $savedErrorAction
+            if ($sshExit -eq 0) { $selected = $target; $output = $lines; break }
           }
 
           $kv = @{}
           $terminalReason = $null
           if (-not $selected) {
-            # Unreachable BoxBrain is a legitimate terminal recovery outcome, not
-            # missing evidence. Persist it so the Future Branch pre-execution gate
-            # can fail closed or release the smallest manual boundary explicitly.
             $terminalReason = 'boxbrain-unreachable'
             $kv['hopper_candidate'] = $null
             $kv['hopper_resolved'] = 'false'
