@@ -1,0 +1,152 @@
+name: Aurum BoxBrain USB Link Recovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-boxbrain-usb-link-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Discover USB IPv4 IPv6 and serial Pi paths
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          Set-StrictMode -Version Latest
+          $root=$env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $ssh=(Get-Command ssh.exe -ErrorAction Stop).Source
+          $keyscan=(Get-Command ssh-keyscan.exe -ErrorAction Stop).Source
+          $keys=@((Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519','C:\Users\bruce\.ssh\boxbrain_pi_ed25519')
+          $keys += @(Get-ChildItem C:\Users -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519' })
+          $key=$keys | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
+          if(-not $key){throw 'Dedicated BoxBrain Pi SSH key unavailable.'}
+
+          $pnp=@(Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.FriendlyName -match 'Raspberry|RNDIS|CDC|USB.*Ethernet|Ethernet.*USB|Serial|Gadget|Linux' } | Select-Object Status,Class,FriendlyName,InstanceId)
+          $adapters=@(Get-NetAdapter -ErrorAction SilentlyContinue | Select-Object Name,InterfaceDescription,Status,ifIndex,MacAddress,LinkSpeed)
+          $ips=@(Get-NetIPAddress -ErrorAction SilentlyContinue | Where-Object {$_.AddressFamily -in @('IPv4','IPv6')} | Select-Object IPAddress,AddressFamily,PrefixLength,InterfaceIndex,InterfaceAlias)
+          $neighbors=@(Get-NetNeighbor -ErrorAction SilentlyContinue | Where-Object {$_.State -ne 'Unreachable'} | Select-Object IPAddress,AddressFamily,InterfaceIndex,State,LinkLayerAddress)
+          $serial=@(Get-CimInstance Win32_SerialPort -ErrorAction SilentlyContinue | Select-Object DeviceID,Name,Description,PNPDeviceID)
+
+          $candidates=[System.Collections.Generic.List[object]]::new()
+          foreach($n in $neighbors){
+            $addr=[string]$n.IPAddress
+            if($addr -and $addr -notmatch '^(127\.|224\.|239\.|255\.|::1$|ff)'){
+              $host=$addr
+              if($addr -match '^fe80:' -and $addr -notmatch '%'){$host="$addr%$($n.InterfaceIndex)"}
+              $candidates.Add([pscustomobject]@{Host=$host;Source='neighbor'})
+            }
+          }
+          foreach($x in $ips){
+            $addr=[string]$x.IPAddress
+            if($x.AddressFamily -eq 'IPv4' -and $addr -match '^(\d+\.\d+\.\d+)\.\d+$'){
+              foreach($s in 1,2,5,194){$candidates.Add([pscustomobject]@{Host="$($Matches[1]).$s";Source='local-subnet-common'})}
+            }
+          }
+          foreach($h in @('boxbrain.local','bbpi4.local','aurum-pi4.local','boxbrain','bbpi4','10.42.194.1','10.12.194.1','192.168.0.194')){$candidates.Add([pscustomobject]@{Host=$h;Source='known-name'})}
+          $seen=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+          $attempts=@(); $selected=$null; $known=$null
+          foreach($c in $candidates){
+            if(-not $seen.Add([string]$c.Host)){continue}
+            $host=[string]$c.Host
+            $scan=Join-Path $env:RUNNER_TEMP ('usbpi-'+[Guid]::NewGuid().ToString('N')+'.txt')
+            $err=$scan+'.err'
+            $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
+            $proc=Start-Process -FilePath $keyscan -ArgumentList @('-T','2','-t','ed25519',$host) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scan -RedirectStandardError $err
+            $ErrorActionPreference=$saved
+            Remove-Item $err -Force -ErrorAction SilentlyContinue
+            $lines=@((Get-Content $scan -ErrorAction SilentlyContinue)|Where-Object{$_ -and -not ([string]$_).StartsWith('#')})
+            if($lines.Count -eq 0){$attempts += [ordered]@{host=$host;source=$c.Source;host_key=$false;auth=$false;marker=$false};Remove-Item $scan -Force -ErrorAction SilentlyContinue;continue}
+            $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
+            $out=@(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$scan" "kali@$host" "sh -c 'printf BOXBRAIN_AUTH_OK:; hostname; if [ -S /run/boxbrain-hid-kvm/control.sock ] || systemctl cat boxbrain-hid-kvm.service >/dev/null 2>&1; then echo BOXBRAIN_PI_MARKER_OK; fi'" 2>&1)-join "`n"
+            $exit=$LASTEXITCODE;$ErrorActionPreference=$saved
+            $marker=($out -match 'BOXBRAIN_AUTH_OK:' -and $out -match 'BOXBRAIN_PI_MARKER_OK')
+            $attempts += [ordered]@{host=$host;source=$c.Source;host_key=$true;auth=($exit -eq 0);marker=$marker}
+            if($exit -eq 0 -and $marker){$selected=$host;$known=$scan;break}
+            Remove-Item $scan -Force -ErrorAction SilentlyContinue
+          }
+
+          $serialEvidence=@()
+          foreach($port in $serial){
+            $entry=[ordered]@{device=[string]$port.DeviceID;name=[string]$port.Name;opened=$false;sample=''}
+            try{
+              $sp=[System.IO.Ports.SerialPort]::new([string]$port.DeviceID,115200,'None',8,'One')
+              $sp.ReadTimeout=500;$sp.WriteTimeout=500;$sp.Open();$entry.opened=$true;$sp.Write("`r`n");Start-Sleep -Milliseconds 400
+              try{$sample=$sp.ReadExisting()}catch{$sample=''}
+              $entry.sample=([string]$sample -replace '[^\x09\x0A\x0D\x20-\x7E]','').Substring(0,[Math]::Min(500,([string]($sample -replace '[^\x09\x0A\x0D\x20-\x7E]','')).Length))
+              $sp.Close()
+            }catch{}
+            $serialEvidence += $entry
+          }
+
+          $remote=@();$remoteExit=99
+          if($selected -and $known){
+            $script=@'
+          set -u
+          echo "pi_host=$(hostname)"
+          if [ ! -S /run/boxbrain-hid-kvm/control.sock ]; then sudo -n systemctl start boxbrain-hid-kvm.service >/dev/null 2>&1 || true; sleep 1; fi
+          H=""
+          for h in hopper hopper.local pc-01 pc-01.local 10.12.194.5; do if getent ahostsv4 "$h" >/dev/null 2>&1 || [ "$h" = 10.12.194.5 ]; then H="$h"; break; fi; done
+          echo "hopper_candidate=$H"
+          echo remote_repair=unavailable
+          if [ -n "$H" ] && timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null; then
+            KH=$(mktemp); timeout 4 ssh-keyscan -T 2 -t ed25519 "$H" >"$KH" 2>/dev/null || true
+            for U in root aurum debian; do
+              if [ -s "$KH" ] && timeout 6 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" 'printf AURUM_REMOTE_AUTH_OK' 2>/dev/null | grep -q AURUM_REMOTE_AUTH_OK; then
+                CMD='set -eu; W=/var/lib/aurum/workspace/BoxBrain; cd "$W"; git fetch --prune origin aurum/trunk-v0.01; git show FETCH_HEAD:Projects/AurumPC/aurum_sync_recovery.py | AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state python3 -; AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state AURUM_RUNTIME_ROOT=/opt/aurum python3 "$W/Projects/AurumPC/aurum_runtime_update.py" apply; systemctl restart aurum-pc-console.service || true'
+                if [ "$U" = root ]; then timeout 180 ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "$CMD" >/tmp/aurum-usb-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed; else Q=$(printf %s "$CMD"|sed "s/'/'\\''/g"); timeout 180 ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "sudo -n sh -c '$Q'" >/tmp/aurum-usb-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed; fi
+                tail -c 1800 /tmp/aurum-usb-repair 2>/dev/null | tr '\n' ' ' | sed 's/^/remote_repair_detail=/' || true; echo; break
+              fi
+            done
+            rm -f "$KH"
+          fi
+          if [ -S /run/boxbrain-hid-kvm/control.sock ]; then
+            python3 - <<'PY'
+          import json,socket,time
+          p='/run/boxbrain-hid-kvm/control.sock'
+          def q(o):
+              with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:
+                  s.settimeout(3);s.connect(p);s.sendall((json.dumps(o,separators=(',',':'))+'\n').encode());d=b''
+                  while not d.endswith(b'\n'):
+                      c=s.recv(4096)
+                      if not c:break
+                      d+=c
+              r=json.loads(d.decode())
+              if not r.get('ok'):raise RuntimeError(r)
+              return r
+          st=q({'action':'status'});ready=bool(st.get('status',{}).get('keyboard_ready'));print('hid_keyboard_ready='+str(ready).lower())
+          if ready:
+              q({'action':'release'})
+              for chord in (('ControlLeft','AltLeft','F2'),('AltLeft','F2')):
+                  for k in chord:q({'action':'key','code':k,'down':True})
+                  time.sleep(.18)
+                  for k in reversed(chord):q({'action':'key','code':k,'down':False})
+                  q({'action':'release'});time.sleep(.8)
+              print('hid_vt_switch_sent=true')
+          PY
+          else echo hid_keyboard_ready=false; fi
+          '@
+            $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
+            $remote=@(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known" "kali@$selected" $script 2>&1)
+            $remoteExit=$LASTEXITCODE;$ErrorActionPreference=$saved
+            Remove-Item $known -Force -ErrorAction SilentlyContinue
+          }
+
+          $text=$remote -join "`n"
+          $payload=[ordered]@{schema='aurum.boxbrain.usb-link-recovery.v1';observed_at=(Get-Date).ToUniversalTime().ToString('o');runner=$env:COMPUTERNAME;pnp=$pnp;adapters=$adapters;addresses=$ips;neighbors=$neighbors;serial_ports=$serialEvidence;selected_pi=$selected;attempts=$attempts;pi_authenticated=[bool]$selected;hopper_candidate=if($text -match 'hopper_candidate=([^\r\n]+)'){$Matches[1]}else{$null};remote_repair=if($text -match 'remote_repair=completed'){'completed'}elseif($text -match 'remote_repair=failed'){'failed'}else{'unavailable'};hid_keyboard_ready=($text -match 'hid_keyboard_ready=true');hid_vt_switch_sent=($text -match 'hid_vt_switch_sent=true');destructive_media_write=$false;new_authority_granted=$false;output=$text}
+          $dir=Join-Path $root 'Projects\AurumBridge\results';New-Item -ItemType Directory $dir -Force|Out-Null;$out=Join-Path $dir 'hopper-usb-link-recovery-latest.json';$payload|ConvertTo-Json -Depth 12|Set-Content $out -Encoding UTF8;Get-Content $out -Raw|Write-Host
+          git config user.name 'aurum-usb-recovery[bot]';git config user.email 'aurum-usb-recovery@users.noreply.github.com';git add -- $out
+          if(-not (git diff --cached --quiet)){git commit -m 'Record BoxBrain USB link Hopper recovery evidence [skip ci]';for($i=1;$i -le 3;$i++){git pull --rebase origin main;git push origin HEAD:main;if($LASTEXITCODE -eq 0){break};Start-Sleep -Seconds (2*$i)};if($LASTEXITCODE -ne 0){throw 'Failed to publish USB recovery evidence.'}}
