@@ -1,9 +1,8 @@
 {
   "authorization": {
-    "authorization_state": "EXPIRED",
+    "authorization_state": "NONE",
     "destructive_action_allowed": false,
-    "expires_at_utc": "2026-08-24T12:20:00+00:00",
-    "request_id": "tinyseed-crayola-flash-20260824-0739",
+    "request_id": null,
     "request_write_authority": false
   },
   "destructive_action_allowed": false,
@@ -18,20 +17,21 @@
     "preserve_hopper_existing_recovery_media": true,
     "reprove_raw_usb_identity_before_write": true
   },
-  "next_gate": "fresh-current-release-read-only-usb-discovery",
+  "next_gate": "fresh-read-only-usb-discovery",
   "physical_boot_proven": false,
-  "preflight_state": "REFUSE_DISCOVERY_RELEASE",
+  "preflight_state": "WAIT_USB_DISCOVERY",
   "release": {
-    "source_commit": "5494c1788da8683f3e50cd9f614ef85fb4af6944",
+    "source_commit": "b582d70605d93f8be12df7e261336839c260fb1e",
     "state": "READY_TO_FLASH",
     "x86_artifact": "Aurum-TinySeed-amd64.iso",
-    "x86_sha256": "7e367ea7d95ccc3705ddfbb16b632a091cddf7de3a18741f10e364952ae92d26"
+    "x86_sha256": "1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4"
   },
-  "release_source_commit": "5494c1788da8683f3e50cd9f614ef85fb4af6944",
+  "release_source_commit": "b582d70605d93f8be12df7e261336839c260fb1e",
   "release_state": "READY_TO_FLASH",
   "schema": "aurum-tinyseed-physical-preflight-v2",
-  "state": "REFUSE_DISCOVERY_RELEASE",
+  "stale_reason": "release-identity-changed",
+  "state": "WAIT_USB_DISCOVERY",
   "write_authority": false,
   "x86_artifact": "Aurum-TinySeed-amd64.iso",
-  "x86_sha256": "7e367ea7d95ccc3705ddfbb16b632a091cddf7de3a18741f10e364952ae92d26"
+  "x86_sha256": "1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4"
 }
