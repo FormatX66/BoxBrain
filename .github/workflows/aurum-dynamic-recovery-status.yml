@@ -20,22 +20,26 @@ jobs:
           ref: main
           fetch-depth: 2
           persist-credentials: true
-      - name: Record newest dynamic recovery run
+      - name: Record recovery run states
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p Projects/AurumBridge/results
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-boxbrain-dynamic-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/runs.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-boxbrain-dynamic-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/dynamic.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-selfhosted-linux-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/linux.json
           python3 - <<'PY'
           import json, pathlib, datetime as dt
-          runs=json.load(open('/tmp/runs.json',encoding='utf-8'))
+          dynamic=json.load(open('/tmp/dynamic.json',encoding='utf-8'))
+          linux=json.load(open('/tmp/linux.json',encoding='utf-8'))
           payload={
-            'schema':'aurum.dynamic-recovery-run-status.v1',
+            'schema':'aurum.recovery-run-status.v2',
             'observed_at':dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'),
-            'latest':runs[0] if runs else None,
-            'recent':runs,
+            'dynamic_latest':dynamic[0] if dynamic else None,
+            'linux_latest':linux[0] if linux else None,
+            'dynamic_recent':dynamic,
+            'linux_recent':linux,
           }
           p=pathlib.Path('Projects/AurumBridge/results/hopper-dynamic-recovery-run-status.json')
           p.write_text(json.dumps(payload,indent=2)+'\n',encoding='utf-8')
@@ -45,7 +49,7 @@ jobs:
           git config user.email 'aurum-dynamic-status@users.noreply.github.com'
           git add Projects/AurumBridge/results/hopper-dynamic-recovery-run-status.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Record dynamic Hopper recovery run status [skip ci]'
+          git commit -m 'Record Hopper recovery lane status [skip ci]'
           for i in 1 2 3; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((i*2))
