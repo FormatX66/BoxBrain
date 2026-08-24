@@ -17,13 +17,13 @@ concurrency:
 jobs:
   probe:
     runs-on: [self-hosted, Windows, X64, aurum-elevated]
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           fetch-depth: 2
           persist-credentials: true
-      - name: Probe safe recovery paths through BoxBrain Pi4
+      - name: Probe and use any already-authorized Hopper SSH recovery path
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -55,20 +55,46 @@ jobs:
           if [ -z "$H" ]; then echo "hopper_resolved=false"; exit 0; fi
           echo "hopper_resolved=true"
           if timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null; then echo "ssh_port_22=open"; else echo "ssh_port_22=closed"; fi
-          if command -v ssh-keyscan >/dev/null 2>&1; then
-            if timeout 4 ssh-keyscan -T 2 -t ed25519 "$H" >/tmp/aurum-hopper-keyscan 2>/dev/null && [ -s /tmp/aurum-hopper-keyscan ]; then
-              echo "ssh_host_key=present"
-            else
-              echo "ssh_host_key=unavailable"
-            fi
-            rm -f /tmp/aurum-hopper-keyscan
-          fi
           for spec in 8768/status 8767/proof 8765/api/status; do
             port="${spec%%/*}"; path="/${spec#*/}"
             code="$(curl -sS --connect-timeout 2 --max-time 4 -o /tmp/aurum-probe-body -w '%{http_code}' "http://$H:$port$path" 2>/dev/null || true)"
             echo "http_${port}=${code:-000}"
           done
           rm -f /tmp/aurum-probe-body
+
+          echo "remote_repair=unavailable"
+          if timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null && command -v ssh >/dev/null 2>&1; then
+            KH="$(mktemp)"
+            trap 'rm -f "$KH"' EXIT
+            if timeout 4 ssh-keyscan -T 2 -t ed25519 "$H" >"$KH" 2>/dev/null && [ -s "$KH" ]; then
+              echo "ssh_host_key=present"
+              for U in root aurum debian; do
+                if timeout 6 ssh -o BatchMode=yes -o ConnectTimeout=4 -o IdentitiesOnly=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" 'printf AURUM_REMOTE_AUTH_OK' 2>/dev/null | grep -q AURUM_REMOTE_AUTH_OK; then
+                  echo "ssh_authorized_user=$U"
+                  REMOTE='set -eu; W=/var/lib/aurum/workspace/BoxBrain; cd "$W"; test "$(git remote get-url origin | sed "s#\.git$##")" = "https://github.com/FormatX66/BoxBrain"; test "$(git branch --show-current)" = "aurum/trunk-v0.01"; git fetch --prune origin aurum/trunk-v0.01; git show FETCH_HEAD:Projects/AurumPC/aurum_sync_recovery.py | python3 -; python3 Projects/AurumPC/aurum_runtime_update.py apply; if command -v systemctl >/dev/null 2>&1; then systemctl restart aurum-pc-console.service || true; fi'
+                  if [ "$U" = root ]; then
+                    if timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "$REMOTE" >/tmp/aurum-remote-repair 2>&1; then
+                      echo "remote_repair=completed"
+                    else
+                      echo "remote_repair=failed"
+                    fi
+                  else
+                    if timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "sudo -n sh -c $(printf %s "$REMOTE" | sed "s/'/'\\''/g" | awk '{printf "\047%s\047", $0}')" >/tmp/aurum-remote-repair 2>&1; then
+                      echo "remote_repair=completed"
+                    else
+                      echo "remote_repair=failed"
+                    fi
+                  fi
+                  tail -c 1800 /tmp/aurum-remote-repair 2>/dev/null | tr '\n' ' ' | sed 's/^/remote_repair_detail=/'
+                  echo
+                  rm -f /tmp/aurum-remote-repair
+                  break
+                fi
+              done
+            else
+              echo "ssh_host_key=unavailable"
+            fi
+          fi
           '@
             $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no "kali@$target" $remote 2>&1)
             if ($LASTEXITCODE -eq 0) { $selected = $target; $output = $lines; break }
@@ -79,7 +105,7 @@ jobs:
             if ($line -match '^([^=]+)=(.*)$') { $kv[$Matches[1]] = $Matches[2] }
           }
           $payload = [ordered]@{
-            schema = 'aurum.hopper.recovery-path-probe.v1'
+            schema = 'aurum.hopper.recovery-path-probe.v2'
             observed_at = (Get-Date).ToUniversalTime().ToString('o')
             runner_host = $env:COMPUTERNAME
             boxbrain_address = $selected
@@ -87,10 +113,13 @@ jobs:
             hopper_resolved = ($kv['hopper_resolved'] -eq 'true')
             ssh_port_22 = $kv['ssh_port_22']
             ssh_host_key = $kv['ssh_host_key']
+            ssh_authorized_user = $kv['ssh_authorized_user']
             self_debug_8768 = $kv['http_8768']
             echo_proof_8767 = $kv['http_8767']
             gui_8765 = $kv['http_8765']
-            read_only = $true
+            remote_repair = $kv['remote_repair']
+            read_only_probe = $true
+            mutation_if_authorized = 'checkpoint-first-sync-runtime-reload'
           }
           $dir = Join-Path $root 'Projects\AurumBridge\results'
           New-Item -ItemType Directory -Path $dir -Force | Out-Null
