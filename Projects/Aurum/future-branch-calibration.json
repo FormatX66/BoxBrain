@@ -73,25 +73,37 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-seed-method-pivot-005",
+      "actual_family": "consider-switching-seed-carrier-method",
+      "nearest_prior_family": null,
+      "prediction": "miss",
+      "execution": "complete",
+      "reason": "The repository already contained a universal-carrier architecture describing a purpose-built disk-image alternative to the amd64 ISO-hybrid, but the live Future Branch field had not ranked 'switch seed methods' as a likely response to repeated x86 carrier friction. Existing knowledge is not equivalent to an active prediction.",
+      "correction": "Promote method/tool/carrier replacement as a first-class branch whenever repeated friction suggests the current mechanism itself may be the wrong abstraction; compare expected total cost of continuing versus pivoting.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 4,
-    "prediction_accuracy_weighted": 0.5,
-    "execution_completeness_weighted": 0.75,
-    "useful_hit_rate": 0.25,
+    "events": 5,
+    "prediction_accuracy_weighted": 0.4,
+    "execution_completeness_weighted": 0.8,
+    "useful_hit_rate": 0.2,
     "exact_predictions": 1,
     "partial_predictions": 2,
-    "miss_predictions": 1,
-    "execution_complete_or_boundary_correct": 3,
+    "miss_predictions": 2,
+    "execution_complete_or_boundary_correct": 4,
     "execution_prepared": 0,
     "execution_partial": 0,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
-    "assumptions_corrected_before_user_impact": 4
+    "assumptions_corrected_before_user_impact": 5
   },
-  "interpretation": "Early samples show prediction is ahead of useful anticipation quality and natural-world coverage is still immature. The priority is to learn from ordinary work, convert high-ranked futures into prepared or executed state, and avoid gaming metrics with trivial wording or typo predictions.",
+  "interpretation": "Early samples show execution is improving faster than prediction coverage. Natural-world prediction remains immature, especially around strategy pivots where the system knows alternatives but fails to rank them as becoming relevant. Future Branch should model not only outcomes inside the current method but also the possibility that the method, tool, carrier, or abstraction itself should change.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
