@@ -57,7 +57,7 @@ jobs:
                 live-build debian-archive-keyring debootstrap xorriso isolinux \
                 syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
                 dosfstools mtools ca-certificates parted e2fsprogs util-linux \
-                systemd-boot-efi binutils git
+                systemd-boot-efi binutils git python3
               sh Projects/Aurum/Germ/build-x86-tinyseed.sh
               sh Projects/Aurum/Germ/build-direct-uefi-tinyseed.sh \
                 Projects/Aurum/Germ/.build-x86/binary \
