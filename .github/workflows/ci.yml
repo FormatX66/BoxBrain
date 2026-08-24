@@ -75,12 +75,13 @@ jobs:
         run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v
       - name: Test Aurum Future Branch prediction and calibration
         run: |
-          python -m unittest Projects.Aurum.Experiments.test_future_branch -v
-          python -m unittest Projects.Aurum.Experiments.test_future_branch_benchmark -v
-          python -m unittest Projects.Aurum.Experiments.test_future_branch_calibrator -v
-          python -m unittest Projects.Aurum.Experiments.test_anticipatory_state -v
+          cd Projects/Aurum/Experiments
+          python -m unittest test_future_branch -v
+          python -m unittest test_future_branch_benchmark -v
+          python -m unittest test_future_branch_calibrator -v
+          python -m unittest test_anticipatory_state -v
       - name: Test seed recovery branch manifest
-        run: python -m unittest installer.tests.test_future_branch_recovery -v
+        run: python -m unittest discover -s installer/tests -p 'test_future_branch_recovery.py' -v
 
   aurum-windows-worker:
     name: Aurum Windows worker
