@@ -22,9 +22,9 @@
 - Pi workflow requires a reproducible, checksum-pinned Raspberry Pi OS Lite ARM64 base and compressed-image verification.
 - The current x86 source branch input bootstrap was decoupled from an uninitialized Git workspace so seed-local input startup no longer depends on `/var/lib/aurum/workspace/BoxBrain` existing.
 - The prior x86 recovery-payload verifier mismatch was corrected by inspecting `/live/filesystem.squashfs` rather than only the outer ISO filesystem; boot gates were not weakened.
-- Source commit `cc016ddf86444ab3e992ec07187802900dca7b56` now has same-revision published x86 and Pi Tiny Seed artifacts.
-- x86 artifact `Aurum-TinySeed-amd64.iso` passed build, UEFI boot smoke, legacy BIOS boot smoke, boot-proof marker, recovery-payload inspection and publication. Verified SHA-256: `cd79720c01455125bd766ae321c5e924a4dc2fe7edf8d63739c2c5cd4f47bc87`.
-- Pi artifact `Aurum-TinySeed-Pi-arm64.img.xz` passed build, integrity and static recovery-payload verification and publication. Verified SHA-256: `34c19cee54f781c1eac741b6f414447ac2d9d18bbceda214b56eb693e22f451d`.
+- Source commit `82aa2ffe979b0c3a4e18b502ed116559945e32b5` now has same-revision published x86 and Pi Tiny Seed artifacts in the latest verified handoff.
+- x86 artifact `Aurum-TinySeed-amd64.iso` passed build, UEFI boot smoke, legacy BIOS boot smoke, boot-proof marker, recovery-payload inspection and publication. Verified SHA-256: `5801b6ce9becec8f2d55744b3666a12ec214cbf326dca61db20b1fa5eb01ad33`.
+- Pi artifact `Aurum-TinySeed-Pi-arm64.img.xz` passed build, integrity and static recovery-payload verification and publication. Verified SHA-256: `926f7d9e3acd1d159a4f6129fee1ef1b5289c3104ba1952ffb08ef1331d49645`.
 - The combined handoff reverified both artifact hashes from the same source revision and persisted `Projects/Aurum/Release/latest-tinyseed-handoff.json` with state `READY_TO_FLASH`.
 - `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The next gate is explicit physical flash/readback followed by real hardware boot proof.
 
