@@ -61,6 +61,16 @@ jobs:
           cd Projects/Aurum/Experiments
           python3 -m unittest -v test_future_branch
 
+  future-branch-feasibility:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test speculative information-value gate
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_speculative_feasibility
+
   future-branch-calibration:
     runs-on: ubuntu-24.04
     steps:
