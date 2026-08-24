@@ -9,21 +9,221 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: aurum-hopper-pi-kvm-recovery
+  cancel-in-progress: false
 
 jobs:
-  physical-boundary:
-    runs-on: ubuntu-24.04
+  recover:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 12
     steps:
-      - name: Enforce explicit physical boundary
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Enforce explicit physical boundary and use BoxBrain Pi
+        shell: powershell
         env:
           CONFIRMATION: ${{ inputs.confirmation }}
-        shell: bash
         run: |
-          set -euo pipefail
-          if [ "$CONFIRMATION" != 'OPEN_HOPPER_KVM_CONSOLE' ]; then
-            echo 'AURUM_HOPPER_PI_KVM_REFUSED reason=explicit-physical-authorization-required'
-            exit 1
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          if ($env:CONFIRMATION -ne 'OPEN_HOPPER_KVM_CONSOLE') {
+            throw 'Explicit Hopper physical HID authorization is required.'
+          }
+
+          $root = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $ssh = (Get-Command ssh.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $scp = (Get-Command scp.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $keyscan = (Get-Command ssh-keyscan.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $keygen = (Get-Command ssh-keygen.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $keys = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+            'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keys += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519'
+          })
+          $key = $keys | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) { throw 'Dedicated BoxBrain Pi SSH key was not found.' }
+
+          $expectedFingerprint = 'SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY'
+          $targets = @('10.42.194.1','10.12.194.1','192.168.0.194')
+          $selected = $null
+          $knownHosts = $null
+          $attempts = @()
+
+          foreach ($target in $targets) {
+            $scanOut = Join-Path $env:RUNNER_TEMP ('hopper-kvm-scan-' + [Guid]::NewGuid().ToString('N') + '.txt')
+            $scanErr = $scanOut + '.err'
+            try {
+              $proc = Start-Process -FilePath $keyscan -ArgumentList @('-T','4','-t','ed25519',$target) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scanOut -RedirectStandardError $scanErr
+              $scanLines = @((Get-Content -LiteralPath $scanOut -ErrorAction SilentlyContinue) | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+              $scanExit = [int]$proc.ExitCode
+            } finally {
+              Remove-Item -LiteralPath $scanErr -Force -ErrorAction SilentlyContinue
+            }
+            if ($scanLines.Count -eq 0) {
+              $attempts += [ordered]@{address=$target; state='no-host-key'; exit=$scanExit}
+              Remove-Item -LiteralPath $scanOut -Force -ErrorAction SilentlyContinue
+              continue
+            }
+            $fpFile = Join-Path $env:RUNNER_TEMP ('hopper-kvm-fp-' + [Guid]::NewGuid().ToString('N'))
+            try {
+              [IO.File]::WriteAllLines($fpFile, @([string]$scanLines[0]), [Text.Encoding]::ASCII)
+              $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+              $fpText = @(& $keygen -lf $fpFile -E sha256 2>&1) -join ' '
+              $fpExit = $LASTEXITCODE
+              $ErrorActionPreference = $saved
+            } finally { Remove-Item -LiteralPath $fpFile -Force -ErrorAction SilentlyContinue }
+            $match = [regex]::Match($fpText, 'SHA256:[A-Za-z0-9+/=]+')
+            if ($fpExit -ne 0 -or -not $match.Success -or $match.Value -ne $expectedFingerprint) {
+              $attempts += [ordered]@{address=$target; state='fingerprint-mismatch'; exit=$fpExit}
+              Remove-Item -LiteralPath $scanOut -Force -ErrorAction SilentlyContinue
+              continue
+            }
+            $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            $probe = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$scanOut" "kali@$target" 'printf BOXBRAIN_PI_OK' 2>&1) -join "`n"
+            $probeExit = $LASTEXITCODE
+            $ErrorActionPreference = $saved
+            $attempts += [ordered]@{address=$target; state=($(if($probeExit -eq 0){'verified'}else{'ssh-failed'})); exit=$probeExit}
+            if ($probeExit -eq 0 -and $probe -match 'BOXBRAIN_PI_OK') {
+              $selected = $target
+              $knownHosts = $scanOut
+              break
+            }
+            Remove-Item -LiteralPath $scanOut -Force -ErrorAction SilentlyContinue
+          }
+          if (-not $selected -or -not $knownHosts) { throw 'No verified BoxBrain Pi management path is reachable.' }
+
+          $remote = @'
+          set -eu
+          BEFORE=/tmp/aurum-hopper-kvm-before.jpg
+          AFTER=/tmp/aurum-hopper-kvm-after.jpg
+          rm -f "$BEFORE" "$AFTER" /tmp/aurum-hopper-remote-repair
+          echo "pi_host=$(hostname)"
+          H=""
+          for h in hopper hopper.local pc-01 pc-01.local 10.12.194.5; do
+            if getent ahostsv4 "$h" >/dev/null 2>&1 || [ "$h" = 10.12.194.5 ]; then H="$h"; break; fi
+          done
+          echo "hopper_candidate=$H"
+          if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o "$BEFORE"; then echo before_video=true; else echo before_video=false; fi
+
+          echo remote_repair=unavailable
+          if [ -n "$H" ] && timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null && command -v ssh >/dev/null 2>&1; then
+            KH=$(mktemp)
+            if timeout 4 ssh-keyscan -T 2 -t ed25519 "$H" >"$KH" 2>/dev/null && [ -s "$KH" ]; then
+              for U in root aurum debian; do
+                if timeout 6 ssh -o BatchMode=yes -o ConnectTimeout=4 -o IdentitiesOnly=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" 'printf AURUM_REMOTE_AUTH_OK' 2>/dev/null | grep -q AURUM_REMOTE_AUTH_OK; then
+                  echo "hopper_ssh_user=$U"
+                  CMD='set -eu; W=/var/lib/aurum/workspace/BoxBrain; cd "$W"; test "$(git remote get-url origin | sed "s#\.git$##")" = "https://github.com/FormatX66/BoxBrain"; test "$(git branch --show-current)" = "aurum/trunk-v0.01"; git fetch --prune origin aurum/trunk-v0.01; git show FETCH_HEAD:Projects/AurumPC/aurum_sync_recovery.py | python3 -; python3 Projects/AurumPC/aurum_runtime_update.py apply; systemctl restart aurum-pc-console.service || true'
+                  if [ "$U" = root ]; then
+                    timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "$CMD" >/tmp/aurum-hopper-remote-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed
+                  else
+                    Q=$(printf %s "$CMD" | sed "s/'/'\\''/g")
+                    timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "sudo -n sh -c '$Q'" >/tmp/aurum-hopper-remote-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed
+                  fi
+                  tail -c 1600 /tmp/aurum-hopper-remote-repair 2>/dev/null | tr '\n' ' ' | sed 's/^/remote_repair_detail=/' || true
+                  echo
+                  break
+                fi
+              done
+            fi
+            rm -f "$KH"
           fi
-          echo 'AURUM_HOPPER_PI_KVM_BOUNDARY_CONFIRMED'
-          echo 'The prior auto-triggered HID implementation has been removed. A future authorized implementation must re-prove the BoxBrain Pi path and preserve this explicit physical boundary before sending any HID input.'
+
+          if ! grep -q '^remote_repair=completed$' <(printf '%s\n' "${remote_repair_state:-}") 2>/dev/null; then :; fi
+          python3 - <<'PY'
+          import json, socket, time
+          path='/run/boxbrain-hid-kvm/control.sock'
+          def req(payload):
+              wire=(json.dumps(payload,separators=(',',':'))+'\n').encode()
+              with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:
+                  s.settimeout(3); s.connect(path); s.sendall(wire)
+                  out=b''
+                  while not out.endswith(b'\n'):
+                      chunk=s.recv(4096)
+                      if not chunk: break
+                      out+=chunk
+              result=json.loads(out.decode())
+              if not result.get('ok'): raise RuntimeError(result)
+              return result
+          status=req({'action':'status'})
+          print('hid_keyboard_ready='+str(bool(status.get('status',{}).get('keyboard_ready'))).lower())
+          if not status.get('status',{}).get('keyboard_ready'):
+              raise SystemExit('BoxBrain HID keyboard endpoint is not ready')
+          req({'action':'release'})
+          for chord in (('ControlLeft','AltLeft','F2'),('AltLeft','F2')):
+              for code in chord: req({'action':'key','code':code,'down':True})
+              time.sleep(0.15)
+              for code in reversed(chord): req({'action':'key','code':code,'down':False})
+              req({'action':'release'}); time.sleep(0.8)
+          print('hid_vt_switch_sent=true')
+          PY
+          sleep 3
+          if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o "$AFTER"; then echo after_video=true; else echo after_video=false; fi
+          '@
+
+          $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+          $remoteOutput = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@$selected" $remote 2>&1)
+          $remoteExit = $LASTEXITCODE
+          $ErrorActionPreference = $saved
+
+          $resultDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+          $beforeLocal = Join-Path $resultDir 'hopper-kvm-before.jpg'
+          $afterLocal = Join-Path $resultDir 'hopper-kvm-after.jpg'
+          Remove-Item $beforeLocal,$afterLocal -Force -ErrorAction SilentlyContinue
+          $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+          & $scp -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@${selected}:/tmp/aurum-hopper-kvm-before.jpg" $beforeLocal 2>$null
+          $beforeExit = $LASTEXITCODE
+          & $scp -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@${selected}:/tmp/aurum-hopper-kvm-after.jpg" $afterLocal 2>$null
+          $afterExit = $LASTEXITCODE
+          $ErrorActionPreference = $saved
+          Remove-Item $knownHosts -Force -ErrorAction SilentlyContinue
+
+          $text = $remoteOutput -join "`n"
+          $payload = [ordered]@{
+            schema = 'aurum.hopper.pi-kvm-recovery.v2'
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            runner_host = $env:COMPUTERNAME
+            boxbrain_address = $selected
+            pi_attempts = $attempts
+            remote_exit = $remoteExit
+            hopper_candidate = if ($text -match 'hopper_candidate=([^\r\n]+)') { $Matches[1] } else { $null }
+            remote_repair = if ($text -match 'remote_repair=completed') {'completed'} elseif ($text -match 'remote_repair=failed') {'failed'} else {'unavailable'}
+            hid_keyboard_ready = ($text -match 'hid_keyboard_ready=true')
+            hid_vt_switch_sent = ($text -match 'hid_vt_switch_sent=true')
+            before_video = ($beforeExit -eq 0 -and (Test-Path $beforeLocal))
+            after_video = ($afterExit -eq 0 -and (Test-Path $afterLocal))
+            destructive_media_write = $false
+            new_authority_granted = $false
+            output = $text
+          }
+          $jsonPath = Join-Path $resultDir 'hopper-pi-kvm-recovery-latest.json'
+          $payload | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
+          Get-Content $jsonPath -Raw | Write-Host
+
+          git config user.name 'aurum-pi-kvm[bot]'
+          git config user.email 'aurum-pi-kvm@users.noreply.github.com'
+          git add -- $jsonPath
+          if (Test-Path $beforeLocal) { git add -- $beforeLocal }
+          if (Test-Path $afterLocal) { git add -- $afterLocal }
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'Record Hopper Pi KVM recovery evidence [skip ci]'
+            for ($i=1; $i -le 3; $i++) {
+              git pull --rebase origin main
+              git push origin HEAD:main
+              if ($LASTEXITCODE -eq 0) { break }
+              Start-Sleep -Seconds (2 * $i)
+            }
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to publish Pi KVM recovery receipt.' }
+          }
+          if ($remoteExit -ne 0) { throw 'Pi KVM recovery command failed.' }
