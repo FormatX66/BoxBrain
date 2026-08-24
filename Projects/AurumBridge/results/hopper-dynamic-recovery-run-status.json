@@ -1,15 +1,15 @@
 {
-  "schema": "aurum.recovery-run-status.v2",
-  "observed_at": "2026-08-24T21:09:55.132968Z",
+  "schema": "aurum.recovery-run-status.v3",
+  "observed_at": "2026-08-24T21:12:31.150473Z",
   "dynamic_latest": {
-    "conclusion": "",
+    "conclusion": "cancelled",
     "createdAt": "2026-08-24T21:07:55Z",
     "databaseId": 32777802714,
     "event": "workflow_dispatch",
     "headSha": "6b567e940401871ed0483727a8741e29a14da27a",
     "startedAt": "2026-08-24T21:07:55Z",
-    "status": "queued",
-    "updatedAt": "2026-08-24T21:08:56Z",
+    "status": "completed",
+    "updatedAt": "2026-08-24T21:11:45Z",
     "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777802714"
   },
   "linux_latest": {
@@ -23,16 +23,27 @@
     "updatedAt": "2026-08-24T21:03:13Z",
     "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777359732"
   },
+  "usb_latest": {
+    "conclusion": "failure",
+    "createdAt": "2026-08-24T21:11:29Z",
+    "databaseId": 32778134360,
+    "event": "workflow_dispatch",
+    "headSha": "4879973eee33bdb909ad17389e8a72217229802e",
+    "startedAt": "2026-08-24T21:11:29Z",
+    "status": "completed",
+    "updatedAt": "2026-08-24T21:12:27Z",
+    "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32778134360"
+  },
   "dynamic_recent": [
     {
-      "conclusion": "",
+      "conclusion": "cancelled",
       "createdAt": "2026-08-24T21:07:55Z",
       "databaseId": 32777802714,
       "event": "workflow_dispatch",
       "headSha": "6b567e940401871ed0483727a8741e29a14da27a",
       "startedAt": "2026-08-24T21:07:55Z",
-      "status": "queued",
-      "updatedAt": "2026-08-24T21:08:56Z",
+      "status": "completed",
+      "updatedAt": "2026-08-24T21:11:45Z",
       "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777802714"
     },
     {
@@ -69,6 +80,19 @@
       "status": "queued",
       "updatedAt": "2026-08-24T21:03:13Z",
       "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777359732"
+    }
+  ],
+  "usb_recent": [
+    {
+      "conclusion": "failure",
+      "createdAt": "2026-08-24T21:11:29Z",
+      "databaseId": 32778134360,
+      "event": "workflow_dispatch",
+      "headSha": "4879973eee33bdb909ad17389e8a72217229802e",
+      "startedAt": "2026-08-24T21:11:29Z",
+      "status": "completed",
+      "updatedAt": "2026-08-24T21:12:27Z",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32778134360"
     }
   ]
 }
