@@ -15,7 +15,7 @@ from typing import Any
 STATEWEAVE_SCHEMA = "aurum-stateweave-v0"
 KERNEL_PLAN_SCHEMA = "aurum-adaptive-kernel-plan-v0"
 COMBINED_SCHEMA = "aurum-stateweave-kernel-trial-v0"
-RECOVERY_REQUEST_SCHEMA = "aurum-recovery-request-v0"
+RECOVERY_REQUEST_SCHEMA = "aurum-recovery-request-v1"
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -107,16 +107,44 @@ def validate_recovery_request(
     *,
     signature_verified: bool,
     trusted_refs: set[str],
+    now_unix: int,
+    seen_nonces: set[str],
+    max_validity_seconds: int = 300,
+    max_future_skew_seconds: int = 30,
 ) -> dict[str, Any]:
-    """Validate the non-cryptographic recovery contract after signature verification.
+    """Validate a signed recovery-control envelope after external signature proof.
 
-    Cryptographic verification is intentionally external to this experiment. This function
-    fails closed unless a caller has already established signature_verified=True.
+    Cryptographic signature verification remains intentionally external to this
+    experiment, but a caller must prove it happened. This contract then fails
+    closed on stale/future-dated envelopes, overlong validity windows, replayed
+    nonces, unsupported targets, and untrusted specific refs. It never permits
+    promotion and always preserves LKG.
     """
     if request.get("schema") != RECOVERY_REQUEST_SCHEMA:
         raise ValueError("unknown recovery request schema")
     if not signature_verified:
         raise PermissionError("recovery request signature not verified")
+    if max_validity_seconds <= 0 or max_future_skew_seconds < 0:
+        raise ValueError("invalid recovery freshness policy")
+
+    issued = request.get("issued_at_unix")
+    expires = request.get("expires_at_unix")
+    nonce = request.get("nonce")
+    if not isinstance(issued, int) or not isinstance(expires, int):
+        raise ValueError("recovery request requires integer issued/expires times")
+    if not isinstance(nonce, str) or not nonce.strip():
+        raise ValueError("recovery request nonce required")
+    nonce = nonce.strip()
+    if expires < issued:
+        raise ValueError("recovery request expires before issue time")
+    if expires - issued > max_validity_seconds:
+        raise PermissionError("recovery request validity window too long")
+    if issued > now_unix + max_future_skew_seconds:
+        raise PermissionError("recovery request issued too far in future")
+    if now_unix > expires:
+        raise PermissionError("recovery request expired")
+    if nonce in seen_nonces:
+        raise PermissionError("recovery request replay detected")
 
     target = request.get("target")
     if target not in {"previous", "last-known-good", "specific"}:
@@ -134,6 +162,11 @@ def validate_recovery_request(
         "accepted": True,
         "target": target,
         "ref": ref,
+        "nonce": nonce,
+        "issued_at_unix": issued,
+        "expires_at_unix": expires,
+        "freshness_checked": True,
+        "replay_checked": True,
         "preserve_lkg": True,
         "promotion_allowed": False,
     }
