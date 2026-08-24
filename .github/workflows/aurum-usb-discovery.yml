@@ -3,6 +3,7 @@ name: Aurum Read-Only USB Discovery
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'Projects/Aurum/Recovery/usb-discovery-request.json'
       - 'Projects/Aurum/Germ/handoff/List-TinySeed-Candidates-Windows.ps1'
@@ -85,11 +86,18 @@ jobs:
           if (Test-Path -LiteralPath 'Projects/Aurum/Recovery/usb-discovery-request.json') {
             $request = Get-Content -LiteralPath 'Projects/Aurum/Recovery/usb-discovery-request.json' -Raw | ConvertFrom-Json
           }
+          $release = Get-Content -LiteralPath 'Projects/Aurum/Release/latest-tinyseed-handoff.json' -Raw | ConvertFrom-Json
+          $requestRelease = if ($request) { ([string]$request.required_release_source_commit).Trim().ToLowerInvariant() } else { '' }
+          $releaseSource = ([string]$release.source_commit).Trim().ToLowerInvariant()
+          $requestIsReadOnly = $request -and [string]$request.schema -eq 'aurum-usb-discovery-request-v1' -and [string]$request.mode -eq 'read-only' -and -not [bool]$request.write_authority
+          $releaseRequestMatch = $requestIsReadOnly -and $requestRelease -eq $releaseSource -and [string]$release.state -eq 'READY_TO_FLASH'
           $result = [ordered]@{
             schema = 'aurum-read-only-usb-discovery-v1'
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
             runner_name = $env:RUNNER_NAME
             request_id = if ($request) { [string]$request.request_id } else { $null }
+            release_source_commit = $releaseSource
+            release_request_match = $releaseRequestMatch
             write_authority = $false
             device_count = $devices.Count
             eligible_count = $eligible.Count
@@ -97,7 +105,27 @@ jobs:
             devices = $devices
           }
           $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'Projects/Aurum/Recovery/latest-usb-discovery.json' -Encoding utf8
-          Write-Host "AURUM_USB_DISCOVERY_RESULT eligible=$($eligible.Count) state=$($result.selection_state) write_authority=false"
+          Write-Host "AURUM_USB_DISCOVERY_RESULT eligible=$($eligible.Count) state=$($result.selection_state) release_request_match=$releaseRequestMatch write_authority=false"
+
+      - name: Collapse exact release and discovery into guarded preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $arguments = @(
+            'Projects/Aurum/Germ/physical_handoff_preflight.py',
+            '--release', 'Projects/Aurum/Release/latest-tinyseed-handoff.json',
+            '--discovery', 'Projects/Aurum/Recovery/latest-usb-discovery.json',
+            '--flash-request', 'Projects/Aurum/Recovery/tinyseed-flash-request.json',
+            '--preexecution-recovery', 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
+          )
+          $json = & python @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_PREFLIGHT_FAILED reason=evaluator' }
+          $json | Set-Content -LiteralPath 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json' -Encoding utf8
+          $preflight = $json | ConvertFrom-Json
+          if ([bool]$preflight.write_authority -or [bool]$preflight.destructive_action_allowed) {
+            throw 'AURUM_USB_PREFLIGHT_FAILED reason=evaluator-granted-authority'
+          }
+          Write-Host "AURUM_USB_PREFLIGHT_RESULT state=$($preflight.preflight_state) write_authority=false destructive_action_allowed=false"
 
       - name: Persist privacy-safe discovery receipt
         shell: powershell
@@ -105,7 +133,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           git config user.name 'aurum-usb-discovery[bot]'
           git config user.email 'aurum-usb-discovery@users.noreply.github.com'
-          git add Projects/Aurum/Recovery/latest-usb-discovery.json
+          git add Projects/Aurum/Recovery/latest-usb-discovery.json Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) {
             Write-Host 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'

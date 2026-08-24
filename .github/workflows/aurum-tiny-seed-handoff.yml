@@ -159,7 +159,11 @@ jobs:
           # boundary instead of leaving a stale READY status visible.
           python3 - <<'PY'
           import json
+          import sys
           from pathlib import Path
+
+          sys.path.insert(0, str(Path("Projects/Aurum/Germ").resolve()))
+          from physical_handoff_preflight import evaluate_physical_preflight
 
           release_path = Path("Projects/Aurum/Release/latest-tinyseed-handoff.json")
           preflight_path = Path("Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json")
@@ -174,20 +178,9 @@ jobs:
                   or recorded.get("x86_sha256") != x86.get("sha256")
               )
               if changed:
-                  recorded.update({
-                      "state": release.get("state"),
-                      "source_commit": release.get("source_commit"),
-                      "x86_artifact": x86.get("name"),
-                      "x86_sha256": x86.get("sha256"),
-                  })
-                  preflight["release"] = recorded
-                  preflight["state"] = "WAIT_FRESH_USB_DISCOVERY"
-                  preflight["write_authority"] = False
-                  preflight["destructive_action_performed"] = False
+                  preflight = evaluate_physical_preflight(release, None, None)
                   preflight["next_gate"] = "fresh-read-only-usb-discovery"
                   preflight["stale_reason"] = "release-identity-changed"
-                  if isinstance(preflight.get("usb_discovery"), dict):
-                      preflight["usb_discovery"]["valid_for_current_release"] = False
                   preflight_path.write_text(
                       json.dumps(preflight, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8",

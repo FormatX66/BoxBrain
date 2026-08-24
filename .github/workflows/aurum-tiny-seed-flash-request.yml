@@ -44,7 +44,11 @@ jobs:
           if ([string]$request.state -ne 'AUTHORIZED_ONCE') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-not-authorized' }
           if (-not [bool]$request.write_authority) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=write-authority-false' }
           if ([string]$request.confirmation -ne 'FLASH_TINY_SEED_TEST_USB') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=confirmation' }
-          if ([string]$preflight.state -ne 'READY_FOR_GUARDED_FLASH_PREFLIGHT') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-not-ready' }
+          if ([string]$preflight.schema -ne 'aurum-tinyseed-physical-preflight-v2') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-schema' }
+          if ([string]$preflight.state -ne 'READY_FOR_GUARDED_FLASH_PREFLIGHT' -or [string]$preflight.preflight_state -ne [string]$preflight.state) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-not-ready' }
+          if ([bool]$preflight.write_authority -or [bool]$preflight.destructive_action_allowed -or [bool]$preflight.usb_discovery.write_authority) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-smuggled-authority' }
+          if ([string]$preflight.release.state -ne 'READY_TO_FLASH' -or [int]$preflight.usb_discovery.eligible_count -ne 1 -or [string]$preflight.usb_discovery.selection_state -ne 'UNIQUE_SAFE_TO_PREFLIGHT_ONLY') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-invariants' }
+          if ([string]$preflight.preexecution_recovery.required_schema -ne 'aurum.hopper.recovery-path-probe.v2' -or -not [bool]$preflight.preexecution_recovery.manual_handoff_released) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preexecution-recovery-not-released' }
 
           $now = [DateTime]::UtcNow
           $expires = [DateTime]::Parse([string]$request.expires_at_utc).ToUniversalTime()
@@ -63,8 +67,14 @@ jobs:
           if (([string]$preflight.release.source_commit).ToLowerInvariant() -ne $seedSha -or ([string]$preflight.release.x86_sha256).ToLowerInvariant() -ne $imageSha) {
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=release-does-not-match-preflight'
           }
+          if (-not [bool]$preflight.usb_discovery.release_request_match -or ([string]$preflight.usb_discovery.release_source_commit).ToLowerInvariant() -ne $seedSha -or -not [bool]$preflight.usb_discovery.candidate.eligible_for_preflight_only) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=discovery-release-binding'
+          }
           if ([string]$preflight.usb_discovery.request_id -ne $discoveryId -or [string]$preflight.usb_discovery.candidate.model -ne $modelWanted -or [int64]$preflight.usb_discovery.candidate.size_bytes -ne $sizeWanted -or ([string]$preflight.usb_discovery.candidate.serial_sha256).ToLowerInvariant() -ne $serialHashWanted) {
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=usb-does-not-match-preflight'
+          }
+          if ([bool]$preflight.usb_discovery.candidate.is_boot -or [bool]$preflight.usb_discovery.candidate.is_system -or [bool]$preflight.usb_discovery.candidate.is_read_only -or [bool]$preflight.usb_discovery.candidate.protected) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-candidate-unsafe'
           }
 
           function Get-SerialHash([string]$Serial) {
