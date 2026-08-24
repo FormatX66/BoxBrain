@@ -74,9 +74,15 @@ EOF
 
 # Keep the normal unattended path first, but carry a prepared safe/verbose
 # fallback for real hardware that blanks the display or hides an early failure.
+# Mirror GRUB to the serial port as well as the display so UEFI boot failures
+# preserve bootloader evidence before Linux is alive. This does not change the
+# kernel boot gate; it only makes the pre-kernel path observable.
 for grub_dir in grub-pc grub-efi; do
   mkdir -p "config/bootloaders/$grub_dir"
   cat > "config/bootloaders/$grub_dir/grub.cfg" <<'EOF'
+serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1
+terminal_input console serial
+terminal_output console serial
 set default=0
 set timeout=3
 menuentry "Aurum Tiny Seed" {
