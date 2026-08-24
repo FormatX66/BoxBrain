@@ -1,0 +1,186 @@
+name: Aurum Tiny Seed One-Shot Flash Request
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/Aurum/Recovery/tinyseed-flash-request.json'
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: aurum-tinyseed-one-shot-flash-request
+  cancel-in-progress: false
+
+jobs:
+  flash:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 60
+    steps:
+      - name: Check out guarded flash tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate authorization, resolve exact local target, flash, and verify
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $requestPath = 'Projects/Aurum/Recovery/tinyseed-flash-request.json'
+          $preflightPath = 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+          $protectedPath = 'Projects/Aurum/Recovery/protected-media.json'
+          $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
+          $preflight = Get-Content -LiteralPath $preflightPath -Raw | ConvertFrom-Json
+          $protected = Get-Content -LiteralPath $protectedPath -Raw | ConvertFrom-Json
+
+          if ([string]$request.schema -ne 'aurum-tinyseed-flash-request-v1') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-schema' }
+          if ([string]$request.state -ne 'AUTHORIZED_ONCE') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-not-authorized' }
+          if (-not [bool]$request.write_authority) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=write-authority-false' }
+          if ([string]$request.confirmation -ne 'FLASH_TINY_SEED_TEST_USB') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=confirmation' }
+          if ([string]$preflight.state -ne 'READY_FOR_GUARDED_FLASH_PREFLIGHT') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=preflight-not-ready' }
+
+          $now = [DateTime]::UtcNow
+          $expires = [DateTime]::Parse([string]$request.expires_at_utc).ToUniversalTime()
+          if ($now -gt $expires) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-expired' }
+
+          $seedSha = ([string]$request.seed_sha).Trim().ToLowerInvariant()
+          $imageSha = ([string]$request.image_sha256).Trim().ToLowerInvariant()
+          $serialHashWanted = ([string]$request.usb.serial_sha256).Trim().ToLowerInvariant()
+          $modelWanted = [string]$request.usb.model
+          $sizeWanted = [int64]$request.usb.size_bytes
+          $discoveryId = [string]$request.discovery_request_id
+
+          if ($seedSha -notmatch '^[0-9a-f]{40}$' -or $imageSha -notmatch '^[0-9a-f]{64}$' -or $serialHashWanted -notmatch '^[0-9a-f]{64}$') {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-identity-format'
+          }
+          if (([string]$preflight.release.source_commit).ToLowerInvariant() -ne $seedSha -or ([string]$preflight.release.x86_sha256).ToLowerInvariant() -ne $imageSha) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=release-does-not-match-preflight'
+          }
+          if ([string]$preflight.usb_discovery.request_id -ne $discoveryId -or [string]$preflight.usb_discovery.candidate.model -ne $modelWanted -or [int64]$preflight.usb_discovery.candidate.size_bytes -ne $sizeWanted -or ([string]$preflight.usb_discovery.candidate.serial_sha256).ToLowerInvariant() -ne $serialHashWanted) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=usb-does-not-match-preflight'
+          }
+
+          function Get-SerialHash([string]$Serial) {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($Serial)
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
+            finally { $sha.Dispose() }
+          }
+
+          $candidateRows = @()
+          foreach ($disk in @(Get-Disk | Where-Object { $_.BusType -eq 'USB' })) {
+            $rawSerial = ([string]$disk.SerialNumber).Trim()
+            if (-not $rawSerial) { continue }
+            $candidateRows += [pscustomobject]@{
+              disk = $disk
+              raw_serial = $rawSerial
+              serial_sha256 = Get-SerialHash $rawSerial
+            }
+          }
+          $matches = @($candidateRows | Where-Object { $_.serial_sha256 -eq $serialHashWanted })
+          if ($matches.Count -ne 1) { throw "AURUM_TINYSEED_FLASH_REFUSED reason=hashed-target-not-unique count=$($matches.Count)" }
+          $row = $matches[0]
+          $disk = $row.disk
+          $rawSerial = [string]$row.raw_serial
+          if ([string]$disk.FriendlyName -ne $modelWanted -or [int64]$disk.Size -ne $sizeWanted -or [bool]$disk.IsBoot -or [bool]$disk.IsSystem -or [bool]$disk.IsReadOnly) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=live-target-does-not-match-authorized-device'
+          }
+          if (@($protected.devices | Where-Object { [bool]$_.protected -and ([string]$_.serial).Trim() -eq $rawSerial }).Count -gt 0) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=target-protected'
+          }
+
+          $sentinelRoot = Join-Path $env:ProgramData 'Aurum\TinySeedFlash\consumed'
+          New-Item -ItemType Directory -Path $sentinelRoot -Force | Out-Null
+          $requestId = [string]$request.request_id
+          if ($requestId -notmatch '^[A-Za-z0-9._-]{1,96}$') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-id' }
+          $sentinel = Join-Path $sentinelRoot "$requestId.json"
+          if (Test-Path -LiteralPath $sentinel) {
+            Write-Host "AURUM_TINYSEED_FLASH_ALREADY_CONSUMED request_id=$requestId"
+            exit 0
+          }
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $repo = $env:GITHUB_REPOSITORY
+          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?status=success&per_page=100"
+          $run = @($runs.workflow_runs | Where-Object { $_.conclusion -eq 'success' -and ([string]$_.head_sha).ToLowerInvariant() -eq $seedSha } | Sort-Object id -Descending | Select-Object -First 1)
+          if ($run.Count -ne 1) { throw 'AURUM_TINYSEED_FLASH_WAITING reason=no-successful-handoff-for-exact-sha' }
+          $handoffRunId = [long]$run[0].id
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
+          $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
+          if ($artifact.Count -ne 1) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-artifact-missing' }
+
+          $cacheRoot = Join-Path $env:RUNNER_TEMP "aurum-tinyseed-request-$requestId"
+          if (Test-Path -LiteralPath $cacheRoot) { Remove-Item -LiteralPath $cacheRoot -Recurse -Force }
+          New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+          $zip = Join-Path $cacheRoot 'handoff.zip'
+          Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$([long]$artifact[0].id)/zip" -OutFile $zip
+          $expanded = Join-Path $cacheRoot 'expanded'
+          Expand-Archive -LiteralPath $zip -DestinationPath $expanded -Force
+
+          $manifestFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
+          $image = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
+          $shaFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
+          if (-not $manifestFile -or -not $image -or -not $shaFile) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-packet-incomplete' }
+          $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
+          if ([string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $seedSha) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=manifest' }
+          foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
+            if ([string]$manifest.gates.$gate -ne 'passed') { throw "AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=gate-$gate" }
+          }
+          $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $imageSha -or $actual -ne $imageSha -or ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant() -ne $imageSha) {
+            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=image-sha'
+          }
+
+          # Re-prove exact local identity immediately before the destructive helper call.
+          $live = Get-Disk -Number ([int]$disk.Number) -ErrorAction Stop
+          if ($live.BusType -ne 'USB' -or [bool]$live.IsBoot -or [bool]$live.IsSystem -or [bool]$live.IsReadOnly -or [int64]$live.Size -ne $sizeWanted -or (Get-SerialHash (([string]$live.SerialNumber).Trim())) -ne $serialHashWanted) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=target-identity-changed-before-helper'
+          }
+
+          $confirm = "FLASH_TINYSEED_$($imageSha.Substring(0,8).ToUpperInvariant())"
+          $script = 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
+          $childOutput = & pwsh -NoProfile -File $script -ImagePath $image.FullName -ChecksumPath $shaFile.FullName -DiskSerial $rawSerial -ConfirmText $confirm -Write 2>&1
+          $childExit = $LASTEXITCODE
+          foreach ($line in @($childOutput)) { Write-Host (([string]$line).Replace($rawSerial, '<redacted-serial>')) }
+          if ($childExit -ne 0) { throw "AURUM_TINYSEED_FLASH_FAILED helper_exit=$childExit" }
+
+          $proof = [ordered]@{
+            schema = 'aurum-tinyseed-flash-request-receipt-v1'
+            state = 'READY_TO_BOOT'
+            request_id = $requestId
+            source_commit = $seedSha
+            image_sha256 = $imageSha
+            handoff_run_id = $handoffRunId
+            device = [ordered]@{
+              disk_number = [int]$disk.Number
+              model = $modelWanted
+              size_bytes = $sizeWanted
+              serial_sha256 = $serialHashWanted
+            }
+            raw_readback_verified = $true
+            write_authority_consumed = $true
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+          }
+          $proofJson = $proof | ConvertTo-Json -Depth 8
+          $proofJson | Set-Content -LiteralPath $sentinel -Encoding utf8
+          $receiptPath = 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
+          $proofJson | Set-Content -LiteralPath $receiptPath -Encoding utf8
+          git config user.name 'aurum-tinyseed-flash[bot]'
+          git config user.email 'aurum-tinyseed-flash@users.noreply.github.com'
+          git add -- $receiptPath
+          git commit -m 'Record verified Tiny Seed flash receipt [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
