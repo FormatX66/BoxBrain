@@ -27,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_triage)
 
       - name: Install ARM image tooling
         run: |
@@ -44,7 +44,7 @@ jobs:
           (cd dist && sha256sum -c Aurum-TinySeed-Pi-arm64.img.xz.sha256)
           xz -t dist/Aurum-TinySeed-Pi-arm64.img.xz
 
-      - name: Inspect embedded recovery and boot-proof payload
+      - name: Inspect embedded recovery and failure-prep payload
         shell: bash
         run: |
           set -euo pipefail
@@ -70,16 +70,21 @@ jobs:
           test -x "$root/usr/lib/aurum/germ/rollback_drill.py"
           test -x "$root/usr/lib/aurum/germ/recovery_control.py"
           test -x "$root/usr/lib/aurum/germ/recovery_poller.py"
+          test -x "$root/usr/lib/aurum/germ/triage.py"
           test -x "$root/usr/sbin/aurum-rollback-drill"
           test -x "$root/usr/sbin/aurum-recovery-poll"
+          test -x "$root/usr/sbin/aurum-triage"
           test -x "$root/usr/bin/openssl"
           test -f "$root/etc/aurum/recovery-trusted-refs.json"
           test -f "$root/etc/systemd/system/aurum-boot-proof.service"
           test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-boot-proof.service"
+          test -f "$root/etc/systemd/system/aurum-triage.service"
+          grep -q 'OnFailure=aurum-triage.service' "$root/etc/systemd/system/aurum-tinyseed.service"
           test -f "$root/etc/systemd/system/aurum-recovery-poll.timer"
           test -L "$root/etc/systemd/system/timers.target.wants/aurum-recovery-poll.timer"
           grep -q 'aurum.tinyseed=1' "$boot/cmdline.txt"
-          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded'
+          grep -q 'systemd.show_status=yes' "$boot/cmdline.aurum-safe.txt"
+          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded triage=embedded safe-cmdline=prepared'
 
       - name: Publish Pi Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
