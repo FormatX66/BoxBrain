@@ -45,9 +45,9 @@ jobs:
           foreach($n in $neighbors){
             $addr=[string]$n.IPAddress
             if($addr -and $addr -notmatch '^(127\.|224\.|239\.|255\.|::1$|ff)'){
-              $host=$addr
-              if($addr -match '^fe80:' -and $addr -notmatch '%'){$host="$addr%$($n.InterfaceIndex)"}
-              $candidates.Add([pscustomobject]@{Host=$host;Source='neighbor'})
+              $targetHost=$addr
+              if($addr -match '^fe80:' -and $addr -notmatch '%'){$targetHost="$addr%$($n.InterfaceIndex)"}
+              $candidates.Add([pscustomobject]@{Host=$targetHost;Source='neighbor'})
             }
           }
           foreach($x in $ips){
@@ -61,21 +61,21 @@ jobs:
           $attempts=@(); $selected=$null; $known=$null
           foreach($c in $candidates){
             if(-not $seen.Add([string]$c.Host)){continue}
-            $host=[string]$c.Host
+            $targetHost=[string]$c.Host
             $scan=Join-Path $env:RUNNER_TEMP ('usbpi-'+[Guid]::NewGuid().ToString('N')+'.txt')
             $err=$scan+'.err'
             $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
-            $proc=Start-Process -FilePath $keyscan -ArgumentList @('-T','2','-t','ed25519',$host) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scan -RedirectStandardError $err
+            $proc=Start-Process -FilePath $keyscan -ArgumentList @('-T','2','-t','ed25519',$targetHost) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scan -RedirectStandardError $err
             $ErrorActionPreference=$saved
             Remove-Item $err -Force -ErrorAction SilentlyContinue
             $lines=@((Get-Content $scan -ErrorAction SilentlyContinue)|Where-Object{$_ -and -not ([string]$_).StartsWith('#')})
-            if($lines.Count -eq 0){$attempts += [ordered]@{host=$host;source=$c.Source;host_key=$false;auth=$false;marker=$false};Remove-Item $scan -Force -ErrorAction SilentlyContinue;continue}
+            if($lines.Count -eq 0){$attempts += [ordered]@{host=$targetHost;source=$c.Source;host_key=$false;auth=$false;marker=$false};Remove-Item $scan -Force -ErrorAction SilentlyContinue;continue}
             $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
-            $out=@(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$scan" "kali@$host" "sh -c 'printf BOXBRAIN_AUTH_OK:; hostname; if [ -S /run/boxbrain-hid-kvm/control.sock ] || systemctl cat boxbrain-hid-kvm.service >/dev/null 2>&1; then echo BOXBRAIN_PI_MARKER_OK; fi'" 2>&1)-join "`n"
+            $out=@(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$scan" "kali@$targetHost" "sh -c 'printf BOXBRAIN_AUTH_OK:; hostname; if [ -S /run/boxbrain-hid-kvm/control.sock ] || systemctl cat boxbrain-hid-kvm.service >/dev/null 2>&1; then echo BOXBRAIN_PI_MARKER_OK; fi'" 2>&1)-join "`n"
             $exit=$LASTEXITCODE;$ErrorActionPreference=$saved
             $marker=($out -match 'BOXBRAIN_AUTH_OK:' -and $out -match 'BOXBRAIN_PI_MARKER_OK')
-            $attempts += [ordered]@{host=$host;source=$c.Source;host_key=$true;auth=($exit -eq 0);marker=$marker}
-            if($exit -eq 0 -and $marker){$selected=$host;$known=$scan;break}
+            $attempts += [ordered]@{host=$targetHost;source=$c.Source;host_key=$true;auth=($exit -eq 0);marker=$marker}
+            if($exit -eq 0 -and $marker){$selected=$targetHost;$known=$scan;break}
             Remove-Item $scan -Force -ErrorAction SilentlyContinue
           }
 
