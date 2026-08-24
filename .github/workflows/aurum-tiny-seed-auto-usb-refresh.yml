@@ -1,13 +1,14 @@
 name: Aurum Tiny Seed Auto USB Refresh
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+  workflow_run:
+    workflows:
+      - 'Aurum Tiny Seed Handoff'
+    types: [completed]
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -27,6 +28,7 @@ jobs:
           persist-credentials: true
 
       - name: Bind a zero-authority discovery request to the verified release
+        id: bind
         shell: bash
         run: |
           set -euo pipefail
@@ -75,7 +77,7 @@ jobs:
           print(f'AURUM_AUTO_USB_REFRESH prepared=true source={source}')
           PY
 
-      - name: Persist request and let read-only discovery workflow consume it
+      - name: Persist zero-authority request without waking unrelated CI
         shell: bash
         run: |
           set -euo pipefail
@@ -86,7 +88,7 @@ jobs:
             echo 'AURUM_AUTO_USB_REFRESH request_unchanged=true'
             exit 0
           fi
-          git commit -m 'Refresh USB discovery for verified Tiny Seed release'
+          git commit -m 'Refresh USB discovery for verified Tiny Seed release [skip ci]'
           for i in 1 2 3; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
@@ -97,3 +99,12 @@ jobs:
           done
           echo 'AURUM_AUTO_USB_REFRESH push-failed' >&2
           exit 1
+
+      - name: Explicitly dispatch read-only USB discovery
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run aurum-usb-discovery.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'AURUM_AUTO_USB_REFRESH discovery_dispatched=true write_authority=false'
