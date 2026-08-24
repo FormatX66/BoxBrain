@@ -256,12 +256,39 @@ class AurumWorkspace:
         origin = self._git("remote", "get-url", "origin").stdout.strip()
         if origin.rstrip("/").removesuffix(".git") != self.repository.removesuffix(".git"):
             raise WorkspaceError("Workspace origin is outside the Aurum BoxBrain allowlist")
-        changes = self._git("status", "--porcelain=v1").stdout.strip()
+        changes = [line for line in self._git("status", "--porcelain=v1").stdout.splitlines() if line]
+        checkpoint = None
         if changes:
-            raise WorkspaceError("Workspace has local changes; refusing to overwrite or merge them")
+            stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+            checkpoint = f"aurum-auto-checkpoint-{stamp}"
+            self._git("stash", "push", "-u", "-m", checkpoint)
+            _atomic_json(
+                self.state_dir / "last-workspace-checkpoint.json",
+                {
+                    "schema": "aurum-workspace-checkpoint-v1",
+                    "at": stamp,
+                    "repository": origin,
+                    "branch": branch,
+                    "head_before_sync": head,
+                    "checkpoint": checkpoint,
+                    "changes": changes,
+                    "preserved": True,
+                    "reapplied": False,
+                },
+            )
         self._git("fetch", "--prune", "origin", self.branch)
         self._git("merge", "--ff-only", "FETCH_HEAD")
-        return {"status": "fast-forwarded", **self.git_status()}
+        result = {"status": "fast-forwarded", **self.git_status()}
+        if checkpoint is not None:
+            result.update(
+                {
+                    "status": "fast-forwarded-with-checkpoint",
+                    "checkpoint": checkpoint,
+                    "checkpoint_preserved": True,
+                    "checkpoint_reapplied": False,
+                }
+            )
+        return result
 
     def git_auth(self, token: str) -> dict[str, Any]:
         if not self.repository_ready:
