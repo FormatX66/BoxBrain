@@ -1,0 +1,213 @@
+name: Aurum BoxBrain Dynamic Hopper Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-boxbrain-dynamic-hopper-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-boxbrain-dynamic-hopper-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Discover existing Pi authority and recover Hopper
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $ssh = (Get-Command ssh.exe -ErrorAction Stop).Source
+          $scp = (Get-Command scp.exe -ErrorAction Stop).Source
+          $keyscan = (Get-Command ssh-keyscan.exe -ErrorAction Stop).Source
+          $keys = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+            'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keys += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519' })
+          $key = $keys | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) { throw 'Dedicated BoxBrain Pi key unavailable on the authorized runner.' }
+
+          $candidateSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+          @('boxbrain.local','bbpi4.local','aurum-pi4.local','boxbrain','bbpi4','10.42.194.1','10.12.194.1','192.168.0.194') | ForEach-Object { [void]$candidateSet.Add($_) }
+          Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.IPAddress -and $_.IPAddress -notmatch '^(0\.|127\.|224\.|239\.|255\.)') { [void]$candidateSet.Add([string]$_.IPAddress) }
+          }
+          Get-NetRoute -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.NextHop -and $_.NextHop -notin @('0.0.0.0','255.255.255.255')) { [void]$candidateSet.Add([string]$_.NextHop) }
+          }
+          Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notmatch '^127\.' } | ForEach-Object {
+            $ip = [string]$_.IPAddress
+            if ($ip -match '^(\d+\.\d+\.\d+)\.\d+$') {
+              foreach ($suffix in 1,2,5,194) { [void]$candidateSet.Add("$($Matches[1]).$suffix") }
+            }
+          }
+
+          $attempts = @()
+          $selected = $null
+          $knownHosts = $null
+          foreach ($candidate in $candidateSet) {
+            $scanOut = Join-Path $env:RUNNER_TEMP ('boxbrain-dyn-scan-' + [Guid]::NewGuid().ToString('N') + '.txt')
+            $scanErr = $scanOut + '.err'
+            $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            $proc = Start-Process -FilePath $keyscan -ArgumentList @('-T','2','-t','ed25519',$candidate) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $scanOut -RedirectStandardError $scanErr
+            $ErrorActionPreference = $saved
+            Remove-Item $scanErr -Force -ErrorAction SilentlyContinue
+            $lines = @((Get-Content $scanOut -ErrorAction SilentlyContinue) | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+            if ($lines.Count -eq 0) {
+              $attempts += [ordered]@{candidate=$candidate; host_key=$false; auth=$false; pi_marker=$false}
+              Remove-Item $scanOut -Force -ErrorAction SilentlyContinue
+              continue
+            }
+            $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            $probe = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$scanOut" "kali@$candidate" "sh -c 'printf BOXBRAIN_AUTH_OK:; hostname; if [ -S /run/boxbrain-hid-kvm/control.sock ] || systemctl cat boxbrain-hid-kvm.service >/dev/null 2>&1; then echo BOXBRAIN_PI_MARKER_OK; fi'" 2>&1) -join "`n"
+            $exit = $LASTEXITCODE
+            $ErrorActionPreference = $saved
+            $marker = ($probe -match 'BOXBRAIN_AUTH_OK:' -and $probe -match 'BOXBRAIN_PI_MARKER_OK')
+            $attempts += [ordered]@{candidate=$candidate; host_key=$true; auth=($exit -eq 0); pi_marker=$marker}
+            if ($exit -eq 0 -and $marker) { $selected=$candidate; $knownHosts=$scanOut; break }
+            Remove-Item $scanOut -Force -ErrorAction SilentlyContinue
+          }
+
+          $resultDir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $resultDir -Force | Out-Null
+          $beforeLocal = Join-Path $resultDir 'hopper-dynamic-kvm-before.jpg'
+          $afterLocal = Join-Path $resultDir 'hopper-dynamic-kvm-after.jpg'
+          Remove-Item $beforeLocal,$afterLocal -Force -ErrorAction SilentlyContinue
+          $remoteOutput = @()
+          $remoteExit = 99
+
+          if ($selected -and $knownHosts) {
+            $remote = @'
+          set -u
+          echo "pi_host=$(hostname)"
+          if [ ! -S /run/boxbrain-hid-kvm/control.sock ]; then
+            sudo -n systemctl start boxbrain-hid-kvm.service >/dev/null 2>&1 || true
+            sleep 1
+          fi
+          H=""
+          for h in hopper hopper.local pc-01 pc-01.local 10.12.194.5; do
+            if getent ahostsv4 "$h" >/dev/null 2>&1 || [ "$h" = 10.12.194.5 ]; then H="$h"; break; fi
+          done
+          echo "hopper_candidate=$H"
+          echo remote_repair=unavailable
+          if [ -n "$H" ] && timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null && command -v ssh >/dev/null 2>&1; then
+            KH=$(mktemp)
+            if timeout 4 ssh-keyscan -T 2 -t ed25519 "$H" >"$KH" 2>/dev/null && [ -s "$KH" ]; then
+              for U in root aurum debian; do
+                if timeout 6 ssh -o BatchMode=yes -o ConnectTimeout=4 -o IdentitiesOnly=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" 'printf AURUM_REMOTE_AUTH_OK' 2>/dev/null | grep -q AURUM_REMOTE_AUTH_OK; then
+                  echo "hopper_ssh_user=$U"
+                  CMD='set -eu; W=/var/lib/aurum/workspace/BoxBrain; cd "$W"; test "$(git remote get-url origin | sed "s#\.git$##")" = "https://github.com/FormatX66/BoxBrain"; test "$(git branch --show-current)" = "aurum/trunk-v0.01"; git fetch --prune origin aurum/trunk-v0.01; git show FETCH_HEAD:Projects/AurumPC/aurum_sync_recovery.py | AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state python3 -; AURUM_GIT_WORKSPACE="$W" AURUM_STATE_DIR=/var/lib/aurum/state AURUM_RUNTIME_ROOT=/opt/aurum python3 "$W/Projects/AurumPC/aurum_runtime_update.py" apply; systemctl restart aurum-pc-console.service || true'
+                  if [ "$U" = root ]; then
+                    timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "$CMD" >/tmp/aurum-dynamic-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed
+                  else
+                    Q=$(printf %s "$CMD" | sed "s/'/'\\''/g")
+                    timeout 180 ssh -o BatchMode=yes -o ConnectTimeout=4 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KH" "$U@$H" "sudo -n sh -c '$Q'" >/tmp/aurum-dynamic-repair 2>&1 && echo remote_repair=completed || echo remote_repair=failed
+                  fi
+                  tail -c 1800 /tmp/aurum-dynamic-repair 2>/dev/null | tr '\n' ' ' | sed 's/^/remote_repair_detail=/' || true
+                  echo
+                  break
+                fi
+              done
+            fi
+            rm -f "$KH"
+          fi
+
+          if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o /tmp/hopper-dyn-before.jpg 2>/dev/null; then echo video_before=true; else echo video_before=false; fi
+          if [ -S /run/boxbrain-hid-kvm/control.sock ]; then
+            python3 - <<'PY'
+          import json, socket, time
+          p='/run/boxbrain-hid-kvm/control.sock'
+          def req(o):
+              with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:
+                  s.settimeout(3); s.connect(p); s.sendall((json.dumps(o,separators=(',',':'))+'\n').encode()); data=b''
+                  while not data.endswith(b'\n'):
+                      c=s.recv(4096)
+                      if not c: break
+                      data+=c
+              r=json.loads(data.decode())
+              if not r.get('ok'): raise RuntimeError(r)
+              return r
+          st=req({'action':'status'}); ready=bool(st.get('status',{}).get('keyboard_ready'))
+          print('hid_keyboard_ready='+str(ready).lower())
+          if ready:
+              req({'action':'release'})
+              for chord in (('ControlLeft','AltLeft','F2'),('AltLeft','F2')):
+                  for k in chord: req({'action':'key','code':k,'down':True})
+                  time.sleep(.18)
+                  for k in reversed(chord): req({'action':'key','code':k,'down':False})
+                  req({'action':'release'}); time.sleep(.8)
+              print('hid_vt_switch_sent=true')
+          PY
+          else
+            echo hid_keyboard_ready=false
+          fi
+          sleep 3
+          if curl -fsS --max-time 5 http://127.0.0.1:8082/snapshot -o /tmp/hopper-dyn-after.jpg 2>/dev/null; then echo video_after=true; else echo video_after=false; fi
+          '@
+            $saved = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            $remoteOutput = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@$selected" $remote 2>&1)
+            $remoteExit = $LASTEXITCODE
+            & $scp -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@${selected}:/tmp/hopper-dyn-before.jpg" $beforeLocal 2>$null
+            $beforeExit = $LASTEXITCODE
+            & $scp -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@${selected}:/tmp/hopper-dyn-after.jpg" $afterLocal 2>$null
+            $afterExit = $LASTEXITCODE
+            $ErrorActionPreference = $saved
+            Remove-Item $knownHosts -Force -ErrorAction SilentlyContinue
+          } else {
+            $beforeExit=1; $afterExit=1
+          }
+
+          $text = $remoteOutput -join "`n"
+          $payload = [ordered]@{
+            schema='aurum.boxbrain.dynamic-hopper-recovery.v1'
+            observed_at=(Get-Date).ToUniversalTime().ToString('o')
+            runner_host=$env:COMPUTERNAME
+            selected_pi=$selected
+            discovery_attempts=$attempts
+            pi_authenticated=[bool]$selected
+            hopper_candidate=if($text -match 'hopper_candidate=([^\r\n]+)'){$Matches[1]}else{$null}
+            remote_repair=if($text -match 'remote_repair=completed'){'completed'}elseif($text -match 'remote_repair=failed'){'failed'}else{'unavailable'}
+            hid_keyboard_ready=($text -match 'hid_keyboard_ready=true')
+            hid_vt_switch_sent=($text -match 'hid_vt_switch_sent=true')
+            video_before=($beforeExit -eq 0 -and (Test-Path $beforeLocal))
+            video_after=($afterExit -eq 0 -and (Test-Path $afterLocal))
+            destructive_media_write=$false
+            new_authority_granted=$false
+            output=$text
+          }
+          $out=Join-Path $resultDir 'hopper-dynamic-recovery-latest.json'
+          $payload | ConvertTo-Json -Depth 10 | Set-Content $out -Encoding UTF8
+          Get-Content $out -Raw | Write-Host
+
+          git config user.name 'aurum-dynamic-recovery[bot]'
+          git config user.email 'aurum-dynamic-recovery@users.noreply.github.com'
+          git add -- $out
+          if(Test-Path $beforeLocal){git add -- $beforeLocal}
+          if(Test-Path $afterLocal){git add -- $afterLocal}
+          if(-not (git diff --cached --quiet)){
+            git commit -m 'Record dynamic BoxBrain Hopper recovery evidence [skip ci]'
+            for($i=1;$i -le 3;$i++){
+              git pull --rebase origin main
+              git push origin HEAD:main
+              if($LASTEXITCODE -eq 0){break}
+              Start-Sleep -Seconds (2*$i)
+            }
+            if($LASTEXITCODE -ne 0){throw 'Failed to publish dynamic recovery evidence.'}
+          }
