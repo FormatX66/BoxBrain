@@ -32,7 +32,7 @@ jobs:
       - name: Install VM tooling
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf xorriso squashfs-tools
 
       - name: Build minimal Tiny Seed ISO
         run: |
@@ -119,9 +119,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name triage.py -print | grep -q triage.py
-          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name aurum-triage.service -print | grep -q aurum-triage.service
-          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name recovery_poller.py -print | grep -q recovery_poller.py
+          squashfs="$RUNNER_TEMP/tinyseed-filesystem.squashfs"
+          xorriso -osirrox on -indev dist/Aurum-TinySeed-amd64.iso \
+            -extract /live/filesystem.squashfs "$squashfs"
+          unsquashfs -ll "$squashfs" | tee tinyseed-payload.log >/dev/null
+          for expected in \
+            usr/lib/aurum/germ/triage.py \
+            etc/systemd/system/aurum-triage.service \
+            usr/lib/aurum/germ/recovery_poller.py \
+            etc/systemd/system/aurum-recovery-poll.timer \
+            usr/sbin/aurum-triage; do
+            if ! grep -Fq "$expected" tinyseed-payload.log; then
+              echo "Tiny Seed payload missing expected path: $expected" >&2
+              exit 1
+            fi
+          done
           echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
 
       - name: Upload boot diagnostics on failure
@@ -132,6 +144,7 @@ jobs:
           path: |
             tinyseed-uefi.log
             tinyseed-bios.log
+            tinyseed-payload.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -144,5 +157,6 @@ jobs:
             dist/Aurum-TinySeed-amd64.iso.sha256
             tinyseed-uefi.log
             tinyseed-bios.log
+            tinyseed-payload.log
           if-no-files-found: error
           retention-days: 30
