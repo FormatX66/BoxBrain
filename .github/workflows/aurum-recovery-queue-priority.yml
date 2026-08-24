@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-recovery-queue-priority.yml'
+      - '.github/workflows/aurum-boxbrain-usb-link-recovery.yml'
   workflow_dispatch:
 
 permissions:
