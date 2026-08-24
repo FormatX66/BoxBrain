@@ -20,6 +20,7 @@ SLOTS_ROOT = Path("/var/lib/aurum/slots")
 ACTIVE_LINK = Path("/opt/aurum")
 STATE_FILE = STATE_ROOT / "slots.json"
 MAX_TRIAL_BOOTS = 2
+PHYSICAL_HEALTH_TIMEOUT = 150
 
 
 class GuardianError(RuntimeError):
@@ -103,11 +104,12 @@ def arm_trial(slot: str, *, commit: str) -> dict[str, Any]:
         raise GuardianError("candidate runtime is missing")
     if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit.lower()):
         raise GuardianError("candidate commit must be a full immutable SHA")
-    # Deliberately do NOT switch /opt/aurum here. The current running phenotype
-    # remains untouched until the next boot preflight activates the trial.
+    # Do not switch /opt/aurum here. The current phenotype remains untouched
+    # until the next boot preflight activates the trial.
     state["trial"] = slot
     state["trial_commit"] = commit.lower()
     state["trial_boots"] = 0
+    state["trial_armed_at_unix"] = int(time.time())
     state["previous_active"] = state["active"]
     state["last_result"] = "trial-armed-for-next-boot"
     save_state(state)
@@ -149,9 +151,9 @@ def preflight() -> dict[str, Any]:
     if state["trial_boots"] > MAX_TRIAL_BOOTS:
         return {"status": "rollback", **rollback("trial-boot-limit")}
 
-    # Trial activation is a boot-boundary operation, not a live mutation.
     switch_active(trial)
     state["active"] = trial
+    state["trial_boot_started_at_unix"] = int(time.time())
     state["last_result"] = "trial-booting"
     save_state(state)
     return {"status": "trial", **state}
@@ -181,42 +183,119 @@ def _candidate_selftest(slot: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout.strip()[-1000:]
 
 
-def _service_health() -> tuple[bool, list[str]]:
-    """Check only critical units that exist on this phenotype.
-
-    Missing optional/new units are not failures on older LKG substrates. A unit
-    that exists and is failed is evidence against candidate promotion.
-    """
+def _unit_state(unit: str, *, mode: str) -> str | None:
     systemctl = Path("/bin/systemctl")
     if not systemctl.exists():
-        return True, ["systemd-unavailable-skip"]
+        return None
+    loaded = subprocess.run(
+        [str(systemctl), "show", unit, "--property=LoadState", "--value"],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+        timeout=10,
+    ).stdout.strip()
+    if loaded in {"", "not-found"}:
+        return None
+    result = subprocess.run(
+        [str(systemctl), mode, unit],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+        timeout=10,
+    )
+    return result.stdout.strip() or "unknown"
+
+
+def _service_health() -> tuple[bool, list[str]]:
     evidence: list[str] = []
     healthy = True
-    for unit in ("aurum-pc-console.service", "aurum-input-bootstrap.service"):
-        exists = subprocess.run(
-            [str(systemctl), "show", unit, "--property=LoadState", "--value"],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
-            timeout=10,
-        )
-        load_state = exists.stdout.strip()
-        if load_state in {"not-found", ""}:
+
+    # One of these launchers should exist on an x86 phenotype. If it exists it
+    # must actually be active, not merely "not failed".
+    launcher_seen = False
+    for unit in ("aurum-pc-console.service", "aurum-tinyseed.service"):
+        state = _unit_state(unit, mode="is-active")
+        if state is None:
             continue
-        failed = subprocess.run(
-            [str(systemctl), "is-failed", unit],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
-            timeout=10,
-        )
-        state = failed.stdout.strip() or "unknown"
+        launcher_seen = True
         evidence.append(f"{unit}:{state}")
-        if state == "failed":
+        if state != "active":
             healthy = False
+
+    # Input bootstrap may be absent on older LKGs, but if present it may not be
+    # in a hard failed state.
+    input_failed = _unit_state("aurum-input-bootstrap.service", mode="is-failed")
+    if input_failed is not None:
+        evidence.append(f"aurum-input-bootstrap.service:{input_failed}")
+        if input_failed == "failed":
+            healthy = False
+
+    if not launcher_seen:
+        evidence.append("launcher-unit:unavailable")
     return healthy, evidence
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _x86_physical_health(slot: str, state: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    """Require fresh first-boot evidence for rich x86 candidates.
+
+    The recent Hopper regression proved that a unit test alone is insufficient:
+    the console can be alive while the physical desktop/input path is broken.
+    A rich candidate containing aurum_bootstrap.py must therefore produce a
+    fresh first-boot assessment and ready input receipt before promotion.
+    """
+    runtime = _slot_runtime(slot)
+    if not (runtime / "aurum_bootstrap.py").is_file():
+        return True, {"required": False, "reason": "minimal-bootstrap-or-non-x86-runtime"}
+
+    assessment = Path("/var/lib/aurum/state/first-boot-assessment.json")
+    input_receipt = Path("/run/aurum-input-status.json")
+    not_before = int(state.get("trial_boot_started_at_unix") or state.get("trial_armed_at_unix") or 0)
+    deadline = time.monotonic() + PHYSICAL_HEALTH_TIMEOUT
+    latest: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        try:
+            fresh = int(assessment.stat().st_mtime) >= not_before
+        except OSError:
+            fresh = False
+        latest = _read_json(assessment) if fresh else {}
+        gui = latest.get("gui") if isinstance(latest.get("gui"), dict) else {}
+        desktop = gui.get("desktop") if isinstance(gui.get("desktop"), dict) else {}
+        selftest = latest.get("selftest") if isinstance(latest.get("selftest"), dict) else {}
+        inp = _read_json(input_receipt)
+        physical = bool(gui.get("physical_desktop") or desktop.get("status") == "running")
+        input_ready = inp.get("status") == "ready"
+        if latest and selftest.get("ok") is True and physical and input_ready:
+            return True, {
+                "required": True,
+                "assessment": str(assessment),
+                "selftest": True,
+                "physical_desktop": True,
+                "input": "ready",
+                "gui_status": gui.get("status"),
+            }
+        # A fresh completed assessment with explicit failed GUI/selftest does
+        # not need to consume the rest of the timeout.
+        if latest.get("finished_at") and (selftest.get("ok") is False or gui.get("status") == "failed"):
+            break
+        time.sleep(2)
+
+    return False, {
+        "required": True,
+        "assessment": str(assessment),
+        "latest": latest,
+        "input": _read_json(input_receipt),
+        "reason": "fresh-physical-health-evidence-not-proven",
+    }
 
 
 def health_check() -> dict[str, Any]:
@@ -229,13 +308,20 @@ def health_check() -> dict[str, Any]:
 
     ok, detail = _candidate_selftest(trial)
     services_ok, service_evidence = _service_health()
-    if not ok or not services_ok:
-        reason = "candidate-selftest-failed" if not ok else "candidate-critical-service-failed"
+    physical_ok, physical_evidence = _x86_physical_health(trial, state)
+    if not ok or not services_ok or not physical_ok:
+        if not ok:
+            reason = "candidate-selftest-failed"
+        elif not services_ok:
+            reason = "candidate-critical-service-failed"
+        else:
+            reason = "candidate-physical-health-unproven"
         rolled = rollback(reason)
         return {
             "status": "rollback",
             "health_detail": detail,
             "service_evidence": service_evidence,
+            "physical_evidence": physical_evidence,
             **rolled,
         }
     state["lkg"] = trial
@@ -246,6 +332,7 @@ def health_check() -> dict[str, Any]:
     state["last_result"] = "candidate-promoted-healthy"
     state["last_health_detail"] = detail
     state["last_service_evidence"] = service_evidence
+    state["last_physical_evidence"] = physical_evidence
     save_state(state)
     return {"status": "promoted", **state}
 
