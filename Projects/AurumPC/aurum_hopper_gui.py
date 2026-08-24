@@ -26,8 +26,10 @@ DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/w
 DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 SEED_DIR = DEFAULT_WORKSPACE / "Projects" / "Codelation" / "seed"
 GUI_PATH = SEED_DIR / "aurum_gui.py"
+RUNTIME_SEED_DIR = DEFAULT_RUNTIME / "codelation" / "seed"
+RUNTIME_GUI_PATH = RUNTIME_SEED_DIR / "aurum_gui.py"
 SCHEMA = "aurum.hopper-projection.gen1-html"
-LOGO_PATH = (
+WORKSPACE_LOGO_PATH = (
     DEFAULT_WORKSPACE
     / "Projects"
     / "Codelation"
@@ -35,18 +37,22 @@ LOGO_PATH = (
     / "identity"
     / "aurum-seven-leaf-logo-matrix.jpeg"
 )
+RUNTIME_LOGO_PATH = DEFAULT_RUNTIME / "codelation" / "assets" / "identity" / "aurum-seven-leaf-logo-matrix.jpeg"
+LOGO_PATH = WORKSPACE_LOGO_PATH
 LOGO_SHA256 = "633f14213af2cda495100cc61167d03bbbcf2d781f9ff72a0d8d18e87afbbb6c"
 
 
-def _verified_logo_bytes(path: Path = LOGO_PATH) -> bytes | None:
+def _verified_logo_bytes(path: Path | None = None) -> bytes | None:
     """Return the selected identity mark only when its geometry authority matches."""
-    try:
-        payload = path.read_bytes()
-    except OSError:
-        return None
-    if hashlib.sha256(payload).hexdigest() != LOGO_SHA256:
-        return None
-    return payload
+    candidates = (path,) if path is not None else (RUNTIME_LOGO_PATH, WORKSPACE_LOGO_PATH)
+    for candidate in candidates:
+        try:
+            payload = candidate.read_bytes()
+        except OSError:
+            continue
+        if hashlib.sha256(payload).hexdigest() == LOGO_SHA256:
+            return payload
+    return None
 
 
 def _load_path(path: Path, prefix: str):
@@ -67,13 +73,16 @@ def _load_path(path: Path, prefix: str):
 
 
 def _load_gui():
-    seed_text = str(SEED_DIR)
-    if seed_text not in sys.path:
-        sys.path.insert(0, seed_text)
-    module = _load_path(GUI_PATH, "aurum_hopper_gui_base")
-    if module is None:
-        raise RuntimeError(f"Aurum GUI source unavailable: {GUI_PATH}")
-    return module
+    for path in (RUNTIME_GUI_PATH, GUI_PATH):
+        seed_text = str(path.parent)
+        if seed_text not in sys.path:
+            sys.path.insert(0, seed_text)
+        module = _load_path(path, "aurum_hopper_gui_base")
+        if module is not None:
+            return module
+    raise RuntimeError(
+        f"Aurum GUI source unavailable: {RUNTIME_GUI_PATH} or {GUI_PATH}"
+    )
 
 
 def _load_runtime_module(filename: str, prefix: str):

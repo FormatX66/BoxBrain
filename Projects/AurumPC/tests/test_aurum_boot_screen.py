@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from Projects.AurumPC.aurum_boot_screen import BootScreen
 
@@ -28,16 +30,17 @@ class AurumBootScreenTests(unittest.TestCase):
     def test_enabled_screen_renders_branded_hopper_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = io.StringIO()
-            screen = BootScreen(
-                output=output,
-                state_path=Path(temporary) / "boot-screen.json",
-                enabled=True,
-            )
-            screen.update("desktop", "active")
-            screen.finish("ready", "Hopper desktop is ready")
+            with patch.dict(os.environ, {"AURUM_SHOW_BOOT_DIAGNOSTICS": "1"}):
+                screen = BootScreen(
+                    output=output,
+                    state_path=Path(temporary) / "boot-screen.json",
+                    enabled=True,
+                )
+                screen.update("desktop", "active")
+                screen.finish("ready", "Hopper desktop is ready")
             rendered = output.getvalue()
             self.assertIn("A U R U M", rendered)
-            self.assertIn("Waking Hopper", rendered)
+            self.assertIn("Hopper recovery status", rendered)
             self.assertIn("READY", rendered)
 
 

@@ -36,7 +36,7 @@ class AurumCISourceContractTests(unittest.TestCase):
             ("Projects/AurumPC/pc01_autonomy_policy.json", r'"auto_local_echo_display": false'),
             ("Projects/AurumPC/aurum_arcade.py", r"Every fourth return leaves a temporary echo well"),
             ("Projects/AurumPC/aurum_gui_runtime.py", r"aurum_arcade\.py"),
-            ("Projects/AurumPC/aurum_gui_runtime.py", r"aurum_desktop_runtime\.py"),
+            ("Projects/AurumPC/aurum_gui_runtime.py", r"aurum_projection_runtime\.py"),
             ("Projects/AurumPC/aurum_runtime_update.py", r"aurum_desktop\.py"),
             ("Projects/AurumPC/aurum_runtime_update.py", r"aurum_traits\.py"),
             ("Projects/AurumPC/aurum_runtime_update.py", r"aurum_gpt_trait\.py"),

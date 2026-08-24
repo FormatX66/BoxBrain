@@ -113,10 +113,24 @@ def network_status(interface: str | None = None) -> dict[str, Any]:
         except OSError:
             pass
 
+    active_interface = interface
+    if active_interface is None:
+        route_fields = route.split()
+        if "dev" in route_fields:
+            position = route_fields.index("dev") + 1
+            if position < len(route_fields):
+                active_interface = route_fields[position]
     addresses = _addresses(interface)
+    active_addresses = [
+        value.split(":", 1)[1]
+        for value in addresses
+        if active_interface and value.startswith(f"{active_interface}:")
+    ]
+    active_ip = active_addresses[0] if active_addresses else None
     return {
         "wireless_interfaces": wireless_interfaces(),
-        "interface": interface,
+        "interface": active_interface,
+        "ip": active_ip,
         "addresses": addresses,
         "default_routes": default_routes,
         "route_probe": route,

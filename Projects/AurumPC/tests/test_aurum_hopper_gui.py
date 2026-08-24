@@ -58,6 +58,9 @@ class HopperGuiTests(unittest.TestCase):
 
     def test_server_source_rejects_browser_credential_bootstrap(self) -> None:
         source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn("RUNTIME_GUI_PATH", source)
+        self.assertIn("RUNTIME_LOGO_PATH", source)
+        self.assertLess(source.index("RUNTIME_GUI_PATH, GUI_PATH"), source.index("Aurum GUI source unavailable"))
         self.assertIn('request_path == "/api/key-bootstrap"', source)
         self.assertIn("machine-sealed runtime credential", source)
         self.assertIn('{"prompt", "model"}', source)

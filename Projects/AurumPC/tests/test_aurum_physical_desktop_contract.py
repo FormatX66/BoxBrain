@@ -37,7 +37,7 @@ class AurumPhysicalDesktopContractTests(unittest.TestCase):
         self.assertGreater(running, display)
         self.assertIn("pygame.FULLSCREEN", desktop)
         self.assertIn("Ctrl+Alt+F1", desktop)
-        self.assertIn('"host_actuation": False', desktop)
+        self.assertIn('"host_actuation": "bounded-confirmed-actions"', desktop)
 
     def test_gui_start_calls_physical_desktop_runtime(self) -> None:
         gui = GUI_RUNTIME.read_text(encoding="utf-8")

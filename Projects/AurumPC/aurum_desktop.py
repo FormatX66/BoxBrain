@@ -365,8 +365,13 @@ def _current_vt() -> str | None:
     return value or None
 
 
-def snapshot(state: Path, workspace: Path, runtime: Path) -> dict[str, Any]:
-    input_state = _json(Path("/run/aurum-input-status.json"))
+def snapshot(
+    state: Path,
+    workspace: Path,
+    runtime: Path,
+    input_state_path: Path = Path("/run/aurum-input-status.json"),
+) -> dict[str, Any]:
+    input_state = _json(input_state_path)
     touchpads = list(input_state.get("touchpads") or [])
     pointers = list(input_state.get("pointers") or [])
     keyboards = list(input_state.get("keyboards") or [])
@@ -396,6 +401,7 @@ def snapshot(state: Path, workspace: Path, runtime: Path) -> dict[str, Any]:
         generation = None
 
     return {
+        "schema": "aurum.desktop.v1",
         "machine": identity.get("display_name") or "Hopper",
         "hostname": identity.get("hostname") or _text(Path("/etc/hostname"), "hopper"),
         "online": _online(),
@@ -428,6 +434,32 @@ def snapshot(state: Path, workspace: Path, runtime: Path) -> dict[str, Any]:
         "power_profile": _power_profile(),
         "time": _time_status(workspace, runtime),
         "vt": _current_vt(),
+    }
+
+
+def collect_snapshot(
+    *,
+    state_dir: Path,
+    workspace: Path,
+    runtime_root: Path,
+    input_state: Path = Path("/run/aurum-input-status.json"),
+) -> dict[str, Any]:
+    """Preserve the read-only Gen1 evidence API used by recovery diagnostics."""
+    value = snapshot(state_dir, workspace, runtime_root, input_state)
+    autonomy = _json(state_dir / "autonomy.json")
+    driver = _json(state_dir / "driver-lab/latest-cycle.json")
+    inputs = _json(input_state)
+    return {
+        **value,
+        "autonomy_status": value["autonomy"],
+        "autonomy_unattended": bool(autonomy.get("unattended")),
+        "seed_status": "seeded" if (state_dir / "seed.bin").is_file() else "missing",
+        "driver_devices": len(driver.get("devices") or [])
+        if isinstance(driver.get("devices"), list)
+        else value["driver_devices"],
+        "pointer_devices": value["pointers"],
+        "touchpad_devices": value["touchpads"],
+        "input_wake_status": (inputs.get("wake_policy") or {}).get("status") or "unknown",
     }
 
 

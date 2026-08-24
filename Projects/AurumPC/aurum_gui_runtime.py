@@ -45,14 +45,35 @@ class GuiRuntime:
         self.runtime_root = runtime_root
         self.port = port
         self.arcade_port = arcade_port
-        self.seed_dir = workspace / "Projects" / "Codelation" / "seed"
+        runtime_sources = {
+            "seed_dir": runtime_root / "codelation" / "seed",
+            "gui_script": runtime_root / "aurum_hopper_gui.py",
+            "arcade_script": runtime_root / "aurum_arcade.py",
+            "policy_path": runtime_root / "pc01_autonomy_policy.json",
+            "bootstrap_mind": runtime_root / "codelation" / "mind" / "bootstrap_mind.json",
+        }
+        workspace_sources = {
+            "seed_dir": workspace / "Projects" / "Codelation" / "seed",
+            "gui_script": workspace / "Projects" / "AurumPC" / "aurum_hopper_gui.py",
+            "arcade_script": workspace / "Projects" / "AurumPC" / "aurum_arcade.py",
+            "policy_path": workspace / "Projects" / "AurumPC" / "pc01_autonomy_policy.json",
+            "bootstrap_mind": workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json",
+        }
+        runtime_complete = all(
+            path.is_file()
+            for name, path in runtime_sources.items()
+            if name != "seed_dir"
+        ) and (runtime_sources["seed_dir"] / "aurum_gui.py").is_file()
+        sources = runtime_sources if runtime_complete else workspace_sources
+        self.source_mode = "installed-runtime" if runtime_complete else "git-workspace"
+        self.seed_dir = sources["seed_dir"]
         self.base_gui_script = self.seed_dir / "aurum_gui.py"
-        self.gui_script = workspace / "Projects" / "AurumPC" / "aurum_hopper_gui.py"
-        self.arcade_script = workspace / "Projects" / "AurumPC" / "aurum_arcade.py"
-        self.policy_path = workspace / "Projects" / "AurumPC" / "pc01_autonomy_policy.json"
+        self.gui_script = sources["gui_script"]
+        self.arcade_script = sources["arcade_script"]
+        self.policy_path = sources["policy_path"]
         self.desktop_runtime = runtime_root / "aurum_projection_runtime.py"
         self.desktop_script = runtime_root / "aurum_desktop.py"
-        self.bootstrap_mind = workspace / "Projects" / "Codelation" / "mind" / "bootstrap_mind.json"
+        self.bootstrap_mind = sources["bootstrap_mind"]
         self.pid_path = run_dir / "aurum-gui.pid"
         self.log_path = run_dir / "aurum-gui.log"
         self.arcade_pid_path = run_dir / "aurum-arcade.pid"
@@ -256,7 +277,7 @@ class GuiRuntime:
         return payload
 
     def prepare(self) -> None:
-        if not (self.workspace / ".git").is_dir():
+        if self.source_mode == "git-workspace" and not (self.workspace / ".git").is_dir():
             raise GuiRuntimeError("Git workspace is not initialized")
         if not self.base_gui_script.is_file() or not self.gui_script.is_file() or not self.bootstrap_mind.is_file():
             raise GuiRuntimeError("Aurum GUI source is incomplete")
@@ -284,6 +305,7 @@ class GuiRuntime:
             "loopback_only": True,
             "probe": gui["probe"],
             "root": str(self.root),
+            "source_mode": self.source_mode,
             "arcade": arcade,
             "desktop": desktop,
             "physical_desktop": desktop.get("status") == "running",

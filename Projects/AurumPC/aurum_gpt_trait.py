@@ -83,6 +83,7 @@ def _api_key() -> str | None:
         try:
             bootstrap.install(
                 workspace=DEFAULT_WORKSPACE,
+                runtime_root=DEFAULT_RUNTIME,
                 runtime_key=DEFAULT_KEY_FILE,
                 state_dir=DEFAULT_STATE,
             )

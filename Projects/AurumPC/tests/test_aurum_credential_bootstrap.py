@@ -26,8 +26,9 @@ class AurumCredentialBootstrapTests(unittest.TestCase):
     def test_receiver_seals_key_to_runtime_without_exposing_plaintext(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            workspace = root / "workspace"
-            envelope_path = workspace / module.ENVELOPE_RELATIVE
+            workspace = root / "missing-workspace"
+            runtime_root = root / "runtime"
+            envelope_path = runtime_root / "credentials" / module.ENVELOPE_RELATIVE.name
             envelope_path.parent.mkdir(parents=True)
             private_root = root / "private"
             runtime_key = root / "run" / "openai_api_key"
@@ -35,6 +36,7 @@ class AurumCredentialBootstrapTests(unittest.TestCase):
 
             waiting = module.install(
                 workspace=workspace,
+                runtime_root=runtime_root,
                 private_root=private_root,
                 runtime_key=runtime_key,
                 state_dir=state_dir,
@@ -80,6 +82,7 @@ class AurumCredentialBootstrapTests(unittest.TestCase):
 
             ready = module.install(
                 workspace=workspace,
+                runtime_root=runtime_root,
                 private_root=private_root,
                 runtime_key=runtime_key,
                 state_dir=state_dir,

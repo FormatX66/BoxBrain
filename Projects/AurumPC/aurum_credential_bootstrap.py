@@ -26,6 +26,7 @@ MACHINE = "hopper"
 PURPOSE = "openai-api"
 ALGORITHM = "rsa-oaep-sha256"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
+DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_PRIVATE_ROOT = Path(os.environ.get("AURUM_CREDENTIAL_ROOT", "/var/lib/aurum/credentials"))
 DEFAULT_RUNTIME_KEY = Path(
     os.environ.get("AURUM_OPENAI_KEY_FILE", "/run/credentials/aurum-gpt/openai_api_key")
@@ -186,12 +187,15 @@ def _runtime_key_valid(path: Path) -> bool:
 def install(
     *,
     workspace: Path = DEFAULT_WORKSPACE,
+    runtime_root: Path = DEFAULT_RUNTIME,
     private_root: Path = DEFAULT_PRIVATE_ROOT,
     runtime_key: Path = DEFAULT_RUNTIME_KEY,
     state_dir: Path = DEFAULT_STATE,
 ) -> dict[str, Any]:
     receiver = ensure_receiver(private_root)
-    envelope_path = workspace / ENVELOPE_RELATIVE
+    workspace_envelope = workspace / ENVELOPE_RELATIVE
+    runtime_envelope = runtime_root / "credentials" / ENVELOPE_RELATIVE.name
+    envelope_path = runtime_envelope if runtime_envelope.is_file() else workspace_envelope
     envelope = _envelope(envelope_path)
     base = {
         "schema": SCHEMA,
