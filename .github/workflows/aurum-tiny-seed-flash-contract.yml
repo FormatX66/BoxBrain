@@ -1,0 +1,56 @@
+name: Aurum Tiny Seed Flash Contract
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
+      - '.github/workflows/aurum-tiny-seed-flash-windows.yml'
+      - '.github/workflows/aurum-tiny-seed-flash-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-contract:
+    runs-on: windows-2025
+    timeout-minutes: 8
+    steps:
+      - name: Check out flash tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Parse guarded flasher without executing it
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = (Resolve-Path 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1').Path
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'PowerShell parser rejected Tiny Seed flasher'
+          }
+
+      - name: Assert destructive gates remain explicit
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script = Get-Content 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1' -Raw
+          $workflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-windows.yml' -Raw
+          $requiredScript = @(
+            '[switch]$Write',
+            'AURUM_TINYSEED_FLASH_DRY_RUN',
+            'disk-serial-not-unique',
+            'target-is-boot-or-system',
+            'target-identity-changed-before-write',
+            'raw-readback-mismatch',
+            'raw_readback_verified=true'
+          )
+          foreach ($needle in $requiredScript) {
+            if (-not $script.Contains($needle)) { throw "missing flasher safety invariant: $needle" }
+          }
+          if (-not $workflow.Contains('default: false')) { throw 'flash workflow must default write=false' }
+          if (-not $workflow.Contains('READY_TO_FLASH')) { throw 'flash workflow must require READY_TO_FLASH manifest' }
+          if (-not $workflow.Contains('source-commit-mismatch')) { throw 'flash workflow must pin source commit' }
+          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true raw_readback=true'
