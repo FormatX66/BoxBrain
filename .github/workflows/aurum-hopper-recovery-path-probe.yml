@@ -99,11 +99,26 @@ jobs:
             $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no "kali@$target" $remote 2>&1)
             if ($LASTEXITCODE -eq 0) { $selected = $target; $output = $lines; break }
           }
-          if (-not $selected) { throw 'Could not reach BoxBrain Pi4.' }
+
           $kv = @{}
-          foreach ($line in $output) {
-            if ($line -match '^([^=]+)=(.*)$') { $kv[$Matches[1]] = $Matches[2] }
+          $terminalReason = $null
+          if (-not $selected) {
+            # Unreachable BoxBrain is a legitimate terminal recovery outcome, not
+            # missing evidence. Persist it so the Future Branch pre-execution gate
+            # can fail closed or release the smallest manual boundary explicitly.
+            $terminalReason = 'boxbrain-unreachable'
+            $kv['hopper_candidate'] = $null
+            $kv['hopper_resolved'] = 'false'
+            $kv['remote_repair'] = 'unavailable'
+          } else {
+            foreach ($line in $output) {
+              if ($line -match '^([^=]+)=(.*)$') { $kv[$Matches[1]] = $Matches[2] }
+            }
+            if ($kv['remote_repair'] -eq 'completed') { $terminalReason = 'remote-repair-completed' }
+            elseif ($kv['remote_repair'] -eq 'failed') { $terminalReason = 'remote-repair-failed' }
+            else { $terminalReason = 'authorized-recovery-unavailable' }
           }
+
           $payload = [ordered]@{
             schema = 'aurum.hopper.recovery-path-probe.v2'
             observed_at = (Get-Date).ToUniversalTime().ToString('o')
@@ -118,6 +133,7 @@ jobs:
             echo_proof_8767 = $kv['http_8767']
             gui_8765 = $kv['http_8765']
             remote_repair = $kv['remote_repair']
+            terminal_reason = $terminalReason
             read_only_probe = $true
             mutation_if_authorized = 'checkpoint-first-sync-runtime-reload'
           }
