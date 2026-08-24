@@ -109,17 +109,29 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-live-device-change-008",
+      "actual_family": "release-or-device-evidence-changes-before-physical-action",
+      "nearest_prior_family": "release-or-device-evidence-changes-before-physical-action",
+      "prediction": "exact",
+      "execution": "complete",
+      "reason": "The live branch field explicitly ranked release/device evidence changing before physical action and had fresh read-only USB rediscovery prepared. After the canonical Tiny Seed handoff advanced to source commit 6744b920a27453a480e2795e2251b0c9cdd3a917, the old USB receipt was invalidated. A new zero-authority discovery was issued automatically and the Windows runner reported NO_ELIGIBLE_USB with zero USB devices, so the physical state was collapsed to WAIT_USB_MEDIA before any authorization or write.",
+      "correction": "No branch-class correction required. Keep live-media presence and release provenance as mandatory preconditions before asking for destructive authority; retain repeatable read-only discovery as cheap preparation.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 0
     }
   ],
   "metrics": {
-    "events": 7,
-    "prediction_accuracy_weighted": 0.5,
-    "execution_completeness_weighted": 0.857143,
-    "useful_hit_rate": 0.142857,
-    "exact_predictions": 2,
+    "events": 8,
+    "prediction_accuracy_weighted": 0.5625,
+    "execution_completeness_weighted": 0.875,
+    "useful_hit_rate": 0.25,
+    "exact_predictions": 3,
     "partial_predictions": 3,
     "miss_predictions": 2,
-    "execution_complete_or_boundary_correct": 6,
+    "execution_complete_or_boundary_correct": 7,
     "execution_prepared": 0,
     "execution_partial": 0,
     "execution_miss": 1,
@@ -127,7 +139,7 @@
     "estimated_wait_seconds_saved": 0,
     "assumptions_corrected_before_user_impact": 6
   },
-  "interpretation": "Future Branch has one exact useful hit and a growing set of useful self-corrections. The latest natural-world sample exposed a new class: prepared work can become invalid when canonical provenance changes. The fix now invalidates stale physical preflight automatically before a later action can consume it. The useful-hit fraction is lower only because the denominator gained a partial sample; execution discipline improved to six of seven complete or boundary-correct outcomes.",
+  "interpretation": "Future Branch now has two exact useful hits and a growing set of useful self-corrections. The newest natural-world sample is important because the predicted provenance/device-change branch actually resolved without a user prompt: stale physical evidence was rejected, a fresh read-only discovery ran, and the system discovered there is currently no eligible USB attached before asking for destructive authority. Execution discipline is seven of eight complete or boundary-correct outcomes.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
