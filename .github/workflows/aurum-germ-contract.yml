@@ -35,7 +35,8 @@ jobs:
             test_proof \
             test_rollback_drill \
             test_recovery_control \
-            test_physical_handoff_preflight
+            test_physical_handoff_preflight \
+            test_tinyseed
 
       - name: Validate current genetics manifest
         run: |

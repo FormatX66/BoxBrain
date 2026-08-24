@@ -40,49 +40,76 @@ def _title(step: str, subtitle: str) -> None:
 
 
 def _network_step() -> bool:
-    _title("1 · NETWORK", "Aurum uses the network only to fetch trusted genetics.")
-    try:
-        current = network.status()
-    except network.NetworkError as exc:
-        print(f"Network service is unavailable: {exc}")
-        return False
-    if current.get("online"):
-        print("✓ Network already connected. Nothing to do.")
-        return True
+    while True:
+        _title("1 · NETWORK", "Join Wi-Fi now so Aurum can regrow current trusted genetics.")
+        try:
+            current = network.status()
+        except network.NetworkError as exc:
+            print(f"Network service is not ready: {exc}")
+            if _retry_or_offline():
+                continue
+            return False
+        if current.get("online"):
+            print("✓ Network already connected. Nothing to do.")
+            return True
 
-    try:
-        choices = network.wifi_scan()
-    except network.NetworkError as exc:
-        print(f"No automatic network path: {exc}")
-        return False
-    if not choices:
-        print("No Wi-Fi networks found. Ethernet may still come up automatically.")
-        return False
+        try:
+            choices = network.wifi_scan()
+        except network.NetworkError as exc:
+            print(f"Wi-Fi scan failed: {exc}")
+            if _retry_or_offline():
+                continue
+            return False
+        if not choices:
+            print("No Wi-Fi networks found. Connect Ethernet or rescan.")
+            if _retry_or_offline():
+                continue
+            return False
 
-    print("Choose Wi-Fi:\n")
-    for index, item in enumerate(choices[:12], start=1):
-        lock = "🔒" if item["security"] != "open" else "  "
-        print(f"  {index:>2}. {lock} {item['ssid'][:36]:<36} {item['signal']:>3}%")
-    print("   0. Continue offline")
-    raw = input("\nWi-Fi number: ").strip()
-    try:
-        selected = int(raw)
-    except ValueError:
-        return False
-    if selected == 0:
-        return False
-    if selected < 1 or selected > min(12, len(choices)):
-        return False
-    item = choices[selected - 1]
-    password = None
-    if item["security"] != "open":
-        password = getpass.getpass(f"Password for {item['ssid']}: ")
-    try:
-        result = network.wifi_connect(str(item["ssid"]), password)
-    finally:
+        print("Choose Wi-Fi:\n")
+        for index, item in enumerate(choices[:12], start=1):
+            lock = "🔒" if item["security"] != "open" else "  "
+            print(f"  {index:>2}. {lock} {item['ssid'][:36]:<36} {item['signal']:>3}%")
+        print("   R. Rescan")
+        print("   O. Continue offline")
+        raw = input("\nWi-Fi number: ").strip().lower()
+        if raw in {"r", "rescan", "retry"}:
+            continue
+        if raw in {"o", "offline"}:
+            return False
+        try:
+            selected = int(raw)
+        except ValueError:
+            continue
+        if selected < 1 or selected > min(12, len(choices)):
+            continue
+        item = choices[selected - 1]
         password = None
-    print(f"✓ {result.get('status')} — {item['ssid']}")
-    return network.online()
+        if item["security"] != "open":
+            password = getpass.getpass(f"Password for {item['ssid']}: ")
+        try:
+            result = network.wifi_connect(str(item["ssid"]), password)
+        except network.NetworkError as exc:
+            print(f"Wi-Fi did not connect: {exc}")
+            input("\nPress Enter to rescan. ")
+            continue
+        finally:
+            password = None
+        if network.wait_online():
+            print(f"✓ {result.get('status')} — {item['ssid']}")
+            return True
+        print("Wi-Fi associated, but no usable network route is ready yet.")
+        input("\nPress Enter to rescan. ")
+
+
+def _retry_or_offline() -> bool:
+    """Return True to retry; offline continuation must always be explicit."""
+    while True:
+        raw = input("\n[R] Rescan / retry   [O] Continue offline: ").strip().lower()
+        if raw in {"r", "rescan", "retry", ""}:
+            return True
+        if raw in {"o", "offline"}:
+            return False
 
 
 def _run(args: list[str], *, check: bool = True, timeout: int = 60) -> subprocess.CompletedProcess[str]:
@@ -244,6 +271,39 @@ def _chroot_regrow(root: Path) -> dict[str, Any]:
             _run(["umount", "-l", str(target)], check=False, timeout=20)
 
 
+def _regrow_installed_root(device: str) -> dict[str, Any]:
+    """Resume regrowth after networking becomes available post-install."""
+    with tempfile.TemporaryDirectory(prefix="aurum-regrow-") as td:
+        root = Path(td) / "root"
+        root.mkdir()
+        _run(["mount", device, str(root)], timeout=20)
+        try:
+            result = _chroot_regrow(root)
+            _run(["sync"], check=False)
+            return result
+        finally:
+            _run(["umount", str(root)], check=False, timeout=30)
+
+
+def _finish_offline(result: dict[str, Any], root_device: str) -> bool:
+    """Keep the live console actionable until the operator joins or defers."""
+    while True:
+        _title("NETWORK NEEDED", "The protected germ is safe. Current Aurum still needs networking to regrow.")
+        print(f"Prepared root: {root_device}\n")
+        print("  1. Join Wi-Fi now (recommended)")
+        print("  2. Leave the germ prepared and finish after the next boot")
+        raw = input("\nChoose: ").strip().lower()
+        if raw in {"2", "later", "offline"}:
+            return False
+        if raw not in {"1", "join", "wifi", "wi-fi"}:
+            continue
+        if not _network_step():
+            continue
+        _title("GROWING AURUM", "Networking is ready. Growing current genetics beside the protected germ.")
+        result["regrow"] = _regrow_installed_root(root_device)
+        return True
+
+
 def _repair_existing(entry: dict[str, Any], *, online: bool) -> dict[str, Any]:
     device = str(entry["device"])
     with tempfile.TemporaryDirectory(prefix="aurum-repair-") as td:
@@ -349,6 +409,7 @@ def main() -> int:
     try:
         if action == "repair" and selected_existing:
             result = _repair_existing(selected_existing, online=online)
+            root_device = str(selected_existing["device"])
         else:
             assert selected_target is not None
             result = installer.install(
@@ -357,10 +418,24 @@ def main() -> int:
                 model=detected.get("model"),
                 regrow_current=online,
             )
+            root_device = str(result.get("root_device") or "")
     except (bridge.BridgeError, installer.InstallError, network.NetworkError, RuntimeError) as exc:
         _title("STOPPED SAFELY", "Tiny Seed refused to continue rather than guess.")
         print(str(exc))
         return 2
+
+    regrow = result.get("regrow") if isinstance(result, dict) else None
+    if isinstance(regrow, dict) and regrow.get("status") in {"deferred", "deferred-offline"}:
+        if not root_device:
+            _title("STOPPED SAFELY", "The protected germ is installed, but its root identity was not preserved.")
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 2
+        try:
+            online = _finish_offline(result, root_device)
+        except (network.NetworkError, RuntimeError) as exc:
+            _title("STOPPED SAFELY", "The protected germ is unchanged; online regrowth did not complete.")
+            print(str(exc))
+            return 2
 
     _title("READY", "Aurum has a protected germ and a recovery path.")
     print(json.dumps(result, indent=2, sort_keys=True))

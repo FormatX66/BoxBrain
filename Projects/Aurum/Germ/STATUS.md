@@ -7,7 +7,7 @@
 - `guardian.py` preserves LKG, activates trials only at a boot boundary, requires health evidence, quarantines failures, and rolls back deterministically.
 - `bridge.py` converts a compatible pre-germ installed Aurum runtime into slot A without replacing it and installs the protected germ outside the adaptive slot.
 - The Aurum console bridge exposes bounded `reseed status`, `reseed current authorize-network`, `reseed commit <SHA> authorize-network`, and confirmed rollback operations.
-- `tinyseed.py` implements the common three-step external setup surface: Network -> Machine -> Go. A single detected existing Aurum installation is automatically treated as Repair/Reseed; destructive target ambiguity stops safely.
+- `tinyseed.py` implements the common three-step external setup surface: Network -> Machine -> Go. Wi-Fi scan/service failures remain on an actionable retry screen, offline continuation is explicit, and an offline install can join Wi-Fi and resume regrowth before leaving the live console. A single detected existing Aurum installation is automatically treated as Repair/Reseed; destructive target ambiguity stops safely.
 - Fresh Tiny Seed installs carry a minimal bootstrap LKG. If current genetics were not grown before first boot, installed bootstrap mode obtains networking and finishes regrowth rather than requiring a conventional package/update flow.
 - x86 Tiny Seed media builder and GitHub Actions build/UEFI+BIOS smoke workflow exist.
 - Raspberry Pi ARM64 Tiny Seed image builder and GitHub Actions static build/verification workflow exist.
@@ -32,6 +32,7 @@
 - Hopper Gen0 built-in selftest passed and its local seed is healthy.
 - Hopper Gen0 Git workspace is intentionally not initialized.
 - The existing 64 GB Gen0 recovery USB remains the physical fallback and must **not** be overwritten during Tiny Seed testing.
+- On 2026-08-24, the separate Crayola x86 Tiny Seed physically reached the `READY` console on Hopper, preserved the existing germ as slot A, installed the bridge on `/dev/nvme0n1p2`, and reported `regrow.status=deferred-offline`. This proves the user-visible boot/install boundary, but it does not replace the pending formal boot-proof marker or Guardian rollback proof.
 
 ## Unresolved frontier
 

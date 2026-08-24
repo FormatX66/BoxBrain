@@ -27,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_triage)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_triage test_tinyseed)
 
       - name: Install ARM image tooling
         run: |

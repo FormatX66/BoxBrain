@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import time
 from typing import Any
 
 
@@ -47,6 +48,16 @@ def online() -> bool:
         result = _run([nmcli, "-t", "-f", "STATE", "general"], timeout=10, check=False)
         return result.returncode == 0 and result.stdout.strip().lower() in {"connected", "connected (global)", "connected (site)"}
     return False
+
+
+def wait_online(timeout: float = 20.0, interval: float = 0.5) -> bool:
+    """Allow NetworkManager's connectivity state to settle after association."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if online():
+            return True
+        time.sleep(interval)
+    return online()
 
 
 def status() -> dict[str, Any]:

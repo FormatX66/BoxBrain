@@ -304,7 +304,13 @@ def _install_x86(target: dict[str, Any], *, regrow_current: bool) -> dict[str, A
                 _run(["umount", str(efi)], check=False)
             _run(["umount", str(root)], check=False)
     _run(["blockdev", "--flushbufs", device], check=False)
-    return {"status": "installed", "device": device, "platform": "x86_64", "regrow": regrow}
+    return {
+        "status": "installed",
+        "device": device,
+        "root_device": str(p3),
+        "platform": "x86_64",
+        "regrow": regrow,
+    }
 
 
 def _install_pi(target: dict[str, Any], *, regrow_current: bool) -> dict[str, Any]:
@@ -360,7 +366,13 @@ def _install_pi(target: dict[str, Any], *, regrow_current: bool) -> dict[str, An
                 _run(["umount", str(boot)], check=False)
             _run(["umount", str(root)], check=False)
     _run(["blockdev", "--flushbufs", device], check=False)
-    return {"status": "installed", "device": device, "platform": "arm64-pi", "regrow": regrow}
+    return {
+        "status": "installed",
+        "device": device,
+        "root_device": str(p2),
+        "platform": "arm64-pi",
+        "regrow": regrow,
+    }
 
 
 def install(confirmation_code: str, *, architecture: str, model: str | None, regrow_current: bool = True) -> dict[str, Any]:
