@@ -1,0 +1,99 @@
+name: Aurum Tiny Seed Auto USB Refresh
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-tiny-seed-auto-usb-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh-request:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out current control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind a zero-authority discovery request to the verified release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          release_path = Path('Projects/Aurum/Release/latest-tinyseed-handoff.json')
+          request_path = Path('Projects/Aurum/Recovery/usb-discovery-request.json')
+          release = json.loads(release_path.read_text(encoding='utf-8-sig'))
+          if release.get('state') != 'READY_TO_FLASH':
+              raise SystemExit('AURUM_AUTO_USB_REFRESH_REFUSED reason=release-not-ready')
+          source = str(release.get('source_commit') or '').strip().lower()
+          if not source:
+              raise SystemExit('AURUM_AUTO_USB_REFRESH_REFUSED reason=missing-source-commit')
+
+          current = None
+          if request_path.is_file():
+              try:
+                  current = json.loads(request_path.read_text(encoding='utf-8-sig'))
+              except Exception:
+                  current = None
+          if (
+              isinstance(current, dict)
+              and current.get('schema') == 'aurum-usb-discovery-request-v1'
+              and current.get('mode') == 'read-only'
+              and current.get('write_authority') is False
+              and str(current.get('required_release_source_commit') or '').strip().lower() == source
+          ):
+              print(f'AURUM_AUTO_USB_REFRESH unchanged=true source={source}')
+              raise SystemExit(0)
+
+          run_id = os.environ.get('GITHUB_RUN_ID', 'manual')
+          payload = {
+              'schema': 'aurum-usb-discovery-request-v1',
+              'request_id': f'tinyseed-auto-release-{source[:12]}-{run_id}',
+              'mode': 'read-only',
+              'purpose': 'Automatically refresh privacy-safe USB identity evidence after a newly verified Tiny Seed handoff so physical preparation stays current without granting media-selection or write authority.',
+              'write_authority': False,
+              'required_release_state': 'READY_TO_FLASH',
+              'required_release_source_commit': source,
+              'reason': 'A new canonical READY_TO_FLASH release invalidates older release-bound physical evidence. Re-enumerate USB media read-only against this exact release and stop before any destructive authority boundary.',
+          }
+          request_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(f'AURUM_AUTO_USB_REFRESH prepared=true source={source}')
+          PY
+
+      - name: Persist request and let read-only discovery workflow consume it
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-release-preflight[bot]'
+          git config user.email 'aurum-release-preflight@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/usb-discovery-request.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_AUTO_USB_REFRESH request_unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Refresh USB discovery for verified Tiny Seed release'
+          for i in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo 'AURUM_AUTO_USB_REFRESH persisted=true'
+              exit 0
+            fi
+            sleep $((2*i))
+          done
+          echo 'AURUM_AUTO_USB_REFRESH push-failed' >&2
+          exit 1
