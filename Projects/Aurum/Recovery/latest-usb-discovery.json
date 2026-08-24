@@ -1,6 +1,6 @@
 ﻿{
     "schema":  "aurum-read-only-usb-discovery-v1",
-    "observed_at_utc":  "2026-08-24T16:38:49.7682397Z",
+    "observed_at_utc":  "2026-08-24T16:50:34.7620508Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
     "request_id":  "tinyseed-current-release-reread-20260824-1237",
     "write_authority":  false,
