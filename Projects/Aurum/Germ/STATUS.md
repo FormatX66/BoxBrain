@@ -20,6 +20,9 @@
 - x86 workflow requires both UEFI and legacy BIOS QEMU boot markers before publishing the artifact.
 - Pi workflow requires a reproducible, checksum-pinned Raspberry Pi OS Lite ARM64 base and compressed-image verification.
 - The current x86 source branch input bootstrap was decoupled from an uninitialized Git workspace so seed-local input startup no longer depends on `/var/lib/aurum/workspace/BoxBrain` existing.
+- x86 workflow run `32689874198` on source `5c012a616229f2760d7455191eadde759438d12b` passed both UEFI and legacy BIOS boot smoke gates. It then failed the recovery/failure-prep inspection gate before publication.
+- That inspection failure was a verifier-layer mismatch: germ/recovery files are intentionally staged into the live root and therefore reside inside `/live/filesystem.squashfs`, while the prior gate searched only the outer ISO filesystem. The gate now extracts and inspects the squashfs without weakening any required payload check, and writes an inspectable payload listing for future diagnostics.
+- The Pi Tiny Seed workflow passed on the same earlier source revision. This status change intentionally touches the shared Germ path so both x86 and Pi workflows rerun from one current source revision, preserving the same-revision combined-handoff requirement.
 
 ## Physical evidence already known
 
@@ -30,9 +33,10 @@
 
 ## Unresolved frontier
 
-1. Obtain successful current CI results for the germ contract and both Tiny Seed build workflows.
-2. Flash the x86 Tiny Seed artifact to a different test USB.
-3. Physical Hopper proof:
+1. Obtain successful same-revision current CI results for the germ contract and both Tiny Seed build workflows, including x86 recovery-payload inspection and artifact publication.
+2. Require the combined handoff to reverify both same-source artifacts and persist `READY_TO_FLASH`; do not infer readiness from individual workflow success.
+3. Flash the x86 Tiny Seed artifact to a different test USB only after the combined handoff is proven ready.
+4. Physical Hopper proof:
    - boot Tiny Seed;
    - connect network through the setup surface;
    - detect the one existing Gen0 installation and choose Repair/Reseed automatically;
@@ -41,9 +45,9 @@
    - reboot trial;
    - require fresh selftest + critical-service + physical desktop + input evidence;
    - promote on proof or automatically roll back to Gen0.
-4. Physical Raspberry Pi proof. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
-5. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
+5. Physical Raspberry Pi proof. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
+6. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
 
 ## State classification
 
-**waiting for build/physical proof** — implementation has advanced; it must not be labeled physically verified until CI and hardware evidence are recorded.
+**waiting for same-revision build/publication and physical proof** — x86 UEFI+BIOS boot smoke has been demonstrated on the prior revision, but current artifacts and combined handoff must still pass and publish before any `READY_TO_FLASH` claim.
