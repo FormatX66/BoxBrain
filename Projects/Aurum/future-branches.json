@@ -1,6 +1,6 @@
 {
-  "schema": "aurum-future-branch-state-v2",
-  "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate prediction quality from what actually happens.",
+  "schema": "aurum-future-branch-state-v3",
+  "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate both prediction and execution quality from what actually happens.",
   "policy": {
     "lookahead_depth": 2,
     "binary_pass_fail_only": false,
@@ -8,6 +8,9 @@
     "prepare_dependency_blocked_followup": true,
     "wait_at_physical_destructive_preference_or_credential_boundary": true,
     "score_predictions_after_observation": true,
+    "score_execution_separately": true,
+    "prediction_without_preparation_creates_prediction_debt": true,
+    "work_down_prediction_debt_before_waiting": true,
     "treat_partial_family_match_as_partial_not_success": true,
     "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
   },
@@ -15,59 +18,59 @@
   "likely_user_inputs": [
     {
       "rank": 1,
-      "input_family": "future-branch-self-audit",
-      "examples": ["did you predict that?", "was that one of your branches?", "so what did you already do?", "prove you're actually staying ahead"],
-      "prepared_response": "Compare the actual input against the prior ranked branch field, report exact/partial/miss without inflating the score, record the calibration result, then prepare the newly exposed branch before replying.",
-      "action_if_safe": "Persist prediction calibration, re-rank the branch field, and execute any newly obvious safe follow-up immediately."
+      "input_family": "future-branch-execution-gap-audit",
+      "examples": ["you predicted that, but did you actually do it?", "you listed the next thing but didn't do it", "what did you prepare instead of just predicting?"],
+      "prepared_response": "Compare prediction and preparation/execution separately. A correct prediction with omitted safe work is an execution miss and earns zero useful-hit credit.",
+      "action_if_safe": "Immediately perform the safe implied work, record prediction debt, update calibration, and re-rank this branch family upward until execution catches prediction."
     },
     {
       "rank": 2,
+      "input_family": "future-branch-self-audit",
+      "examples": ["did you predict that?", "was that one of your branches?", "so what did you already do?", "prove you're actually staying ahead"],
+      "prepared_response": "Compare the actual input against the prior ranked branch field, report exact/partial/miss without inflating the score, and also report execution/preparation completeness.",
+      "action_if_safe": "Persist calibration, re-rank the branch field, and execute any newly obvious safe follow-up immediately."
+    },
+    {
+      "rank": 3,
       "input_family": "status-or-so",
       "examples": ["so?", "how's it going?", "what's the status now?"],
       "prepared_response": "Read live build/evidence state and include passed/running/failed/published plus whether human action is needed.",
       "action_if_safe": "Advance any newly unblocked repo/CI step before reporting."
     },
     {
-      "rank": 3,
+      "rank": 4,
+      "input_family": "measure-future-branch",
+      "examples": ["is it actually saving time?", "how accurate are the predictions?", "how do we know this works?"],
+      "prepared_response": "Report prediction accuracy, execution completeness, useful-hit rate, prepared-action hit rate, user turns avoided, wait-time saved, discarded speculative cost, and self-corrections found before the user encountered them.",
+      "action_if_safe": "Update calibration/evidence metrics and compare them against a reactive baseline."
+    },
+    {
+      "rank": 5,
       "input_family": "physical-result-failure",
       "examples": ["it didn't work", "nothing happened", "blank screen", "still broken"],
       "prepared_response": "Map terse report to boot/media/network/install/regrow/rollback branch using embedded triage and boot proof.",
       "action_if_safe": "Use captured evidence, apply smallest safe fix, rebuild/rerun, preserve LKG."
     },
     {
-      "rank": 4,
+      "rank": 6,
       "input_family": "physical-result-success",
       "examples": ["it worked", "I'm in", "it booted"],
       "prepared_response": "Immediately advance to the next gated proof rather than asking what the user wants to do next.",
       "action_if_safe": "Verify boot receipt, Guardian/LKG state, then continue healthy regrow/promotion or next physical gate."
     },
     {
-      "rank": 5,
+      "rank": 7,
       "input_family": "what-next",
       "examples": ["what's next?", "now what?", "what should we do next?"],
       "prepared_response": "Do the highest-value already-authorized next operation first; answer with what was advanced and the next real boundary.",
       "action_if_safe": "Advance completion graph and adjacent independent lanes."
     },
     {
-      "rank": 6,
+      "rank": 8,
       "input_family": "what-else",
       "examples": ["what else can you do?", "do everything else too", "what can run at the same time?"],
       "prepared_response": "Fan out independent lanes and prepare downstream dependent carts without crossing real boundaries.",
       "action_if_safe": "Continue experiments, recovery prep, integrity, status, and next-capability work in parallel."
-    },
-    {
-      "rank": 7,
-      "input_family": "why-or-correction",
-      "examples": ["why didn't you do that already?", "you're missing the point", "that should have been prepared"],
-      "prepared_response": "Treat the correction as evidence that a Future Branch was missing; fix the operating model and immediately prepare the omitted branch.",
-      "action_if_safe": "Persist the corrected rule and apply it to the live program before replying."
-    },
-    {
-      "rank": 8,
-      "input_family": "measure-future-branch",
-      "examples": ["is it actually saving time?", "how accurate are the predictions?", "how do we know this works?"],
-      "prepared_response": "Report prediction exact/partial/miss rate, prepared-action hit rate, user turns avoided, wait-time saved, discarded speculative cost, and self-corrections found before the user encountered them.",
-      "action_if_safe": "Update calibration/evidence metrics and compare them against a reactive baseline."
     }
   ],
   "likely_machine_outcomes": [
@@ -98,14 +101,15 @@
     {
       "rank": 5,
       "state": "physical-success-unlocks-next-capability",
-      "prepared": ["StateWeave independent experiment", "adaptive-kernel independent experiment", "combined control experiment", "anticipatory-state experiment"],
+      "prepared": ["StateWeave independent experiment", "adaptive-kernel independent experiment", "combined control experiment", "anticipatory-state experiment", "Future Branch calibration"],
       "next": "advance experimental canaries without confusing them with production proof"
     }
   ],
   "calibration": {
-    "score_classes": ["exact", "partial", "miss"],
-    "rule": "A broader neighboring family does not count as exact. A missing high-value branch becomes a new candidate and changes future ranking.",
-    "metrics": ["exact_hit_rate", "partial_hit_rate", "miss_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
+    "prediction_score_classes": ["exact", "partial", "miss"],
+    "execution_score_classes": ["complete", "prepared", "partial", "miss", "boundary-correct"],
+    "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. A missing high-value branch becomes prediction debt and changes future ranking.",
+    "metrics": ["prediction_accuracy", "execution_completeness", "useful_hit_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
   },
   "real_boundaries": [
     "physical media insertion/selection",
