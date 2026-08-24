@@ -44,6 +44,11 @@ delta and constraints, choose the minimum useful action that can change that
 state or produce new evidence, and verify the resulting state. Repeated work
 without changed state/evidence is not progress.
 
+Future Branch is enforced as a pre-execution gate by the
+[Future Branch Execution Gate](FutureBranchExecutionGate.md): advance safe,
+reversible tool-side success, failure, rollback, dependency, and verification
+branches before handing the operator the smallest remaining physical action.
+
 ## Boundaries
 
 - BoxBrain owns cross-project discovery, dependencies, priorities, decisions,
