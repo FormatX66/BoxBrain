@@ -48,6 +48,9 @@ def load_state() -> dict[str, Any]:
         raise GuardianError("unsupported slot-state schema")
     if state.get("active") not in {"A", "B"} or state.get("lkg") not in {"A", "B"}:
         raise GuardianError("slot state has invalid active/LKG")
+    trial = state.get("trial")
+    if trial is not None and trial not in {"A", "B"}:
+        raise GuardianError("slot state has invalid trial slot")
     return state
 
 
@@ -90,19 +93,23 @@ def initialize(active: str = "A") -> dict[str, Any]:
 
 def arm_trial(slot: str, *, commit: str) -> dict[str, Any]:
     state = load_state()
+    if state.get("trial"):
+        raise GuardianError("another trial is already pending")
     if slot == state["active"]:
         raise GuardianError("candidate slot is already active")
+    if slot == state["lkg"]:
+        raise GuardianError("candidate slot may not replace the Last Known Good")
     if not _slot_runtime(slot).is_dir():
         raise GuardianError("candidate runtime is missing")
     if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit.lower()):
         raise GuardianError("candidate commit must be a full immutable SHA")
+    # Deliberately do NOT switch /opt/aurum here. The current running phenotype
+    # remains untouched until the next boot preflight activates the trial.
     state["trial"] = slot
     state["trial_commit"] = commit.lower()
     state["trial_boots"] = 0
     state["previous_active"] = state["active"]
-    state["active"] = slot
-    state["last_result"] = "trial-armed"
-    switch_active(slot)
+    state["last_result"] = "trial-armed-for-next-boot"
     save_state(state)
     return state
 
@@ -137,10 +144,14 @@ def preflight() -> dict[str, Any]:
         if current != _slot_runtime(state["active"]).resolve():
             switch_active(state["active"])
         return {"status": "steady", **state}
+
     state["trial_boots"] = int(state.get("trial_boots") or 0) + 1
     if state["trial_boots"] > MAX_TRIAL_BOOTS:
         return {"status": "rollback", **rollback("trial-boot-limit")}
+
+    # Trial activation is a boot-boundary operation, not a live mutation.
     switch_active(trial)
+    state["active"] = trial
     state["last_result"] = "trial-booting"
     save_state(state)
     return {"status": "trial", **state}
@@ -170,21 +181,71 @@ def _candidate_selftest(slot: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout.strip()[-1000:]
 
 
+def _service_health() -> tuple[bool, list[str]]:
+    """Check only critical units that exist on this phenotype.
+
+    Missing optional/new units are not failures on older LKG substrates. A unit
+    that exists and is failed is evidence against candidate promotion.
+    """
+    systemctl = Path("/bin/systemctl")
+    if not systemctl.exists():
+        return True, ["systemd-unavailable-skip"]
+    evidence: list[str] = []
+    healthy = True
+    for unit in ("aurum-pc-console.service", "aurum-input-bootstrap.service"):
+        exists = subprocess.run(
+            [str(systemctl), "show", unit, "--property=LoadState", "--value"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=10,
+        )
+        load_state = exists.stdout.strip()
+        if load_state in {"not-found", ""}:
+            continue
+        failed = subprocess.run(
+            [str(systemctl), "is-failed", unit],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=10,
+        )
+        state = failed.stdout.strip() or "unknown"
+        evidence.append(f"{unit}:{state}")
+        if state == "failed":
+            healthy = False
+    return healthy, evidence
+
+
 def health_check() -> dict[str, Any]:
     state = load_state()
     trial = state.get("trial")
     if not trial:
         return {"status": "steady", **state}
+    if state.get("active") != trial:
+        return {"status": "waiting", "detail": "trial-not-yet-activated-at-boot", **state}
+
     ok, detail = _candidate_selftest(trial)
-    if not ok:
-        rolled = rollback("candidate-selftest-failed")
-        return {"status": "rollback", "health_detail": detail, **rolled}
+    services_ok, service_evidence = _service_health()
+    if not ok or not services_ok:
+        reason = "candidate-selftest-failed" if not ok else "candidate-critical-service-failed"
+        rolled = rollback(reason)
+        return {
+            "status": "rollback",
+            "health_detail": detail,
+            "service_evidence": service_evidence,
+            **rolled,
+        }
     state["lkg"] = trial
     state["active"] = trial
     state["trial"] = None
+    state["trial_commit"] = None
     state["trial_boots"] = 0
     state["last_result"] = "candidate-promoted-healthy"
     state["last_health_detail"] = detail
+    state["last_service_evidence"] = service_evidence
     save_state(state)
     return {"status": "promoted", **state}
 
