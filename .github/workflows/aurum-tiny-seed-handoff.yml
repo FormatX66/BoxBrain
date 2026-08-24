@@ -1,0 +1,146 @@
+name: Aurum Tiny Seed Handoff
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - 'Aurum Tiny Seed x86'
+      - 'Aurum Tiny Seed Pi ARM64'
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-handoff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out handoff definitions
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Resolve matching successful Tiny Seed runs
+        id: runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            target='${{ github.event.workflow_run.head_sha }}'
+          else
+            target="$GITHUB_SHA"
+          fi
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+          resolve_run() {
+            workflow="$1"
+            gh api --method GET \
+              -f branch=main \
+              -f status=success \
+              -f head_sha="$target" \
+              -f per_page=10 \
+              "/repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs" \
+              --jq '.workflow_runs[0].id // empty'
+          }
+
+          x86=$(resolve_run aurum-tiny-seed-x86.yml)
+          pi=$(resolve_run aurum-tiny-seed-pi.yml)
+          if [ -z "$x86" ] || [ -z "$pi" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "AURUM_TINYSEED_HANDOFF_WAIT target=$target x86=${x86:-missing} pi=${pi:-missing}"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "x86=$x86" >> "$GITHUB_OUTPUT"
+          echo "pi=$pi" >> "$GITHUB_OUTPUT"
+          echo "AURUM_TINYSEED_HANDOFF_PAIR target=$target x86=$x86 pi=$pi"
+
+      - name: Download both published seed artifacts
+        if: steps.runs.outputs.ready == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p handoff/x86 handoff/pi
+          gh run download '${{ steps.runs.outputs.x86 }}' -n Aurum-TinySeed-amd64 -D handoff/x86
+          gh run download '${{ steps.runs.outputs.pi }}' -n Aurum-TinySeed-Pi-arm64 -D handoff/pi
+
+      - name: Re-verify release artifacts and write manifest
+        if: steps.runs.outputs.ready == 'true'
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.runs.outputs.target }}
+          X86_RUN: ${{ steps.runs.outputs.x86 }}
+          PI_RUN: ${{ steps.runs.outputs.pi }}
+        run: |
+          set -euo pipefail
+          x86_image=$(find handoff/x86 -type f -name 'Aurum-TinySeed-amd64.iso' -print -quit)
+          x86_sum=$(find handoff/x86 -type f -name 'Aurum-TinySeed-amd64.iso.sha256' -print -quit)
+          pi_image=$(find handoff/pi -type f -name 'Aurum-TinySeed-Pi-arm64.img.xz' -print -quit)
+          pi_sum=$(find handoff/pi -type f -name 'Aurum-TinySeed-Pi-arm64.img.xz.sha256' -print -quit)
+          test -n "$x86_image" && test -n "$x86_sum" && test -n "$pi_image" && test -n "$pi_sum"
+
+          x86_expected=$(awk 'NR==1 {print tolower($1)}' "$x86_sum")
+          x86_actual=$(sha256sum "$x86_image" | awk '{print tolower($1)}')
+          pi_expected=$(awk 'NR==1 {print tolower($1)}' "$pi_sum")
+          pi_actual=$(sha256sum "$pi_image" | awk '{print tolower($1)}')
+          test "$x86_actual" = "$x86_expected"
+          test "$pi_actual" = "$pi_expected"
+
+          export X86_SHA="$x86_actual" PI_SHA="$pi_actual"
+          python3 - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          manifest = {
+              "schema": "aurum-tinyseed-handoff-v1",
+              "state": "READY_TO_FLASH",
+              "source_commit": os.environ["TARGET_SHA"],
+              "assembled_at_unix": int(time.time()),
+              "gates": {
+                  "x86_build": "passed",
+                  "x86_uefi_boot_smoke": "passed",
+                  "x86_bios_boot_smoke": "passed",
+                  "x86_boot_proof_marker": "passed",
+                  "pi_build": "passed",
+                  "pi_static_recovery_payload": "passed",
+                  "published_artifacts": "passed",
+                  "combined_hash_reverification": "passed",
+                  "physical_boot": "pending",
+                  "guardian_forced_rollback": "pending",
+              },
+              "artifacts": {
+                  "x86": {
+                      "workflow_run": int(os.environ["X86_RUN"]),
+                      "name": "Aurum-TinySeed-amd64.iso",
+                      "sha256": os.environ["X86_SHA"],
+                  },
+                  "pi": {
+                      "workflow_run": int(os.environ["PI_RUN"]),
+                      "name": "Aurum-TinySeed-Pi-arm64.img.xz",
+                      "sha256": os.environ["PI_SHA"],
+                  },
+              },
+              "next_gate": "physical-flash-and-boot-proof",
+          }
+          Path("handoff/AURUM-TINYSEED-RELEASE.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          PY
+          cp Projects/Aurum/Germ/handoff/PHYSICAL_HANDOFF.txt handoff/PHYSICAL_HANDOFF.txt
+          echo "AURUM_TINYSEED_HANDOFF_READY target=$TARGET_SHA x86_sha256=$x86_actual pi_sha256=$pi_actual"
+
+      - name: Publish combined Tiny Seed handoff packet
+        if: steps.runs.outputs.ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-Handoff
+          path: handoff/
+          if-no-files-found: error
+          retention-days: 30
