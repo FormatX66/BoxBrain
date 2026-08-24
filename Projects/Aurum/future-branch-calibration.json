@@ -133,17 +133,29 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-current-release-usb-resolve-010",
+      "actual_family": "fresh-current-release-usb-discovery-resolves",
+      "nearest_prior_family": "fresh-current-release-usb-discovery-resolves",
+      "prediction": "exact",
+      "execution": "boundary-correct",
+      "reason": "Immediately before the result, the live Future Branch field ranked fresh current-release USB discovery as the leading machine outcome and the read-only request was already issued for source 8da49de37cde7ab318ba22dc2ad75729ae21e39f. The Windows runner then reported one unique non-system, non-protected 61.5 GB SanDisk USB candidate with zero write authority. The current release and discovery were bound into physical preflight, and execution stopped at the explicit destructive-write authorization boundary.",
+      "correction": "No branch-class correction required. Re-rank from discovery toward explicit guarded-flash authority while keeping live identity reproof, protected-media refusal, checksum verification, raw readback and boot proof prepared.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 0
     }
   ],
   "metrics": {
-    "events": 9,
-    "prediction_accuracy_weighted": 0.555556,
-    "execution_completeness_weighted": 0.833333,
-    "useful_hit_rate": 0.222222,
-    "exact_predictions": 3,
+    "events": 10,
+    "prediction_accuracy_weighted": 0.6,
+    "execution_completeness_weighted": 0.85,
+    "useful_hit_rate": 0.3,
+    "exact_predictions": 4,
     "partial_predictions": 4,
     "miss_predictions": 2,
-    "execution_complete_or_boundary_correct": 7,
+    "execution_complete_or_boundary_correct": 8,
     "execution_prepared": 0,
     "execution_partial": 1,
     "execution_miss": 1,
@@ -151,7 +163,7 @@
     "estimated_wait_seconds_saved": 0,
     "assumptions_corrected_before_user_impact": 7
   },
-  "interpretation": "Future Branch now has two exact useful hits plus a meaningful physical partial hit. The Crayola run showed why hybrid outcomes matter: boot/install succeeded while network-dependent regrow deferred. That gap has already been converted into actionable Wi-Fi retry/join/resume behavior in the current seed path. Execution discipline remains strong, but useful-hit rate correctly fell when the denominator gained a partial/partial physical sample rather than inflating it into an exact win.",
+  "interpretation": "Future Branch now has three exact useful hits plus a meaningful physical partial hit. The newest sample is especially clean: the current-release USB rediscovery branch was ranked first and prepared before the runner result arrived, then the safe work advanced automatically to the explicit destructive-authority boundary. The Crayola hybrid READY-plus-offline outcome remains partial rather than being retroactively inflated, and its gap has already been converted into actionable network retry/join/resume behavior.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
