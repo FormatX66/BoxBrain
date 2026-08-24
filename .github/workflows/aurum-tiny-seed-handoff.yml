@@ -152,9 +152,55 @@ jobs:
           set -euo pipefail
           mkdir -p Projects/Aurum/Release
           cp handoff/AURUM-TINYSEED-RELEASE.json Projects/Aurum/Release/latest-tinyseed-handoff.json
+
+          # A physical preflight is valid only for the exact release identity it
+          # inspected. If a newer/different verified handoff becomes canonical,
+          # fail the prepared physical state back to a fresh read-only discovery
+          # boundary instead of leaving a stale READY status visible.
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          release_path = Path("Projects/Aurum/Release/latest-tinyseed-handoff.json")
+          preflight_path = Path("Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json")
+          if preflight_path.is_file():
+              release = json.loads(release_path.read_text(encoding="utf-8-sig"))
+              preflight = json.loads(preflight_path.read_text(encoding="utf-8-sig"))
+              x86 = (release.get("artifacts") or {}).get("x86") or {}
+              recorded = preflight.get("release") or {}
+              changed = (
+                  recorded.get("source_commit") != release.get("source_commit")
+                  or recorded.get("x86_artifact") != x86.get("name")
+                  or recorded.get("x86_sha256") != x86.get("sha256")
+              )
+              if changed:
+                  recorded.update({
+                      "state": release.get("state"),
+                      "source_commit": release.get("source_commit"),
+                      "x86_artifact": x86.get("name"),
+                      "x86_sha256": x86.get("sha256"),
+                  })
+                  preflight["release"] = recorded
+                  preflight["state"] = "WAIT_FRESH_USB_DISCOVERY"
+                  preflight["write_authority"] = False
+                  preflight["destructive_action_performed"] = False
+                  preflight["next_gate"] = "fresh-read-only-usb-discovery"
+                  preflight["stale_reason"] = "release-identity-changed"
+                  if isinstance(preflight.get("usb_discovery"), dict):
+                      preflight["usb_discovery"]["valid_for_current_release"] = False
+                  preflight_path.write_text(
+                      json.dumps(preflight, indent=2, sort_keys=True) + "\n",
+                      encoding="utf-8",
+                  )
+                  print("AURUM_TINYSEED_PREFLIGHT_INVALIDATED reason=release-identity-changed")
+          PY
+
           git config user.name 'aurum-tinyseed-handoff[bot]'
           git config user.email 'aurum-tinyseed-handoff@users.noreply.github.com'
           git add Projects/Aurum/Release/latest-tinyseed-handoff.json
+          if [ -f Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json ]; then
+            git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json
+          fi
           if git diff --cached --quiet; then
             echo 'AURUM_TINYSEED_HANDOFF_STATE unchanged=true'
             exit 0
