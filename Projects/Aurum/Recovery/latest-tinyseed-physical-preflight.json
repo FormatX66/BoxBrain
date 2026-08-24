@@ -1,6 +1,6 @@
 {
   "schema": "aurum-tinyseed-physical-preflight-v1",
-  "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
+  "state": "WAIT_HOPPER_PREEXECUTION_RECOVERY",
   "release": {
     "state": "READY_TO_FLASH",
     "source_commit": "7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f",
@@ -24,6 +24,12 @@
       "protected": false
     }
   },
+  "preexecution_recovery": {
+    "required_schema": "aurum.hopper.recovery-path-probe.v2",
+    "terminal_receipt_present": false,
+    "manual_handoff_released": false,
+    "reason": "Future Branch requires the safe already-authorized Hopper recovery-path probe to resolve before Tiny Seed destructive authority is requested. Fresh release-bound USB identity may stay warm, but it does not release the human write boundary by itself."
+  },
   "write_authority": false,
   "destructive_action_performed": false,
   "prior_one_shot_request": {
@@ -33,12 +39,13 @@
     "flash_receipt_present": false,
     "authority_must_be_reissued_explicitly": true
   },
-  "next_gate": "explicit-guarded-flash-authorization",
+  "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt",
   "invariants": {
     "preserve_hopper_existing_recovery_media": true,
     "reprove_raw_usb_identity_before_write": true,
     "full_raw_readback_required_after_write": true,
     "physical_boot_proof_required_after_flash": true,
-    "guardian_forced_rollback_proof_required": true
+    "guardian_forced_rollback_proof_required": true,
+    "preexecution_toolside_recovery_before_manual_handoff": true
   }
 }
