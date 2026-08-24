@@ -52,10 +52,25 @@ jobs:
           discovery = load(discovery_path)
           request = load(request_path)
           recovery = load(recovery_path) if recovery_path.exists() else None
+          required_release_gates = {
+              'x86_build',
+              'x86_uefi_boot_smoke',
+              'x86_bios_boot_smoke',
+              'x86_boot_proof_marker',
+              'published_artifacts',
+              'combined_hash_reverification',
+          }
+          gates = release.get('gates') if isinstance(release.get('gates'), dict) else {}
+          release_gates_ok = all(gates.get(name) == 'passed' for name in required_release_gates)
+          artifacts = release.get('artifacts') if isinstance(release.get('artifacts'), dict) else {}
+          x86 = artifacts.get('x86') if isinstance(artifacts.get('x86'), dict) else {}
 
-          if release.get('schema') != 'aurum-tinyseed-handoff-v1' or release.get('state') != 'READY_TO_FLASH':
+          if release.get('schema') != 'aurum-tinyseed-handoff-v1' or release.get('state') != 'READY_TO_FLASH' or not release_gates_ok:
               state = 'WAIT_VERIFIED_RELEASE'
-              reason = 'current handoff is not READY_TO_FLASH'
+              reason = 'current handoff is not a fully gated READY_TO_FLASH release'
+          elif not x86.get('name') or not x86.get('sha256'):
+              state = 'WAIT_VERIFIED_RELEASE'
+              reason = 'current handoff does not identify the verified x86 artifact and checksum'
           elif request.get('schema') != 'aurum-usb-discovery-request-v1' or request.get('mode') != 'read-only' or request.get('write_authority') is not False:
               state = 'WAIT_CURRENT_RELEASE_USB_DISCOVERY'
               reason = 'USB discovery request is not a zero-authority request'
@@ -106,8 +121,8 @@ jobs:
               'release': {
                   'state': release.get('state'),
                   'source_commit': release.get('source_commit'),
-                  'x86_artifact': release.get('x86', {}).get('artifact'),
-                  'x86_sha256': release.get('x86', {}).get('sha256'),
+                  'x86_artifact': x86.get('name'),
+                  'x86_sha256': x86.get('sha256'),
               },
               'usb_discovery': {
                   'request_id': discovery.get('request_id'),
