@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory=$true)][string]$ChecksumPath,
     [Parameter(Mandatory=$true)][string]$DiskSerial,
     [Parameter(Mandatory=$true)][string]$ConfirmText,
+    [string[]]$ProtectedSerial = @(),
     [switch]$Write
 )
 
@@ -13,6 +14,30 @@ Set-StrictMode -Version Latest
 function Fail([string]$Reason) {
     Write-Host "AURUM_TINYSEED_FLASH_REFUSED reason=$Reason"
     exit 2
+}
+
+$protected = @{}
+foreach ($item in $ProtectedSerial) {
+    $value = ([string]$item).Trim()
+    if ($value) { $protected[$value] = $true }
+}
+
+# When running from a BoxBrain checkout, automatically import the canonical
+# protected-media registry so known recovery media cannot be selected even if a
+# caller forgets to pass -ProtectedSerial explicitly.
+$registryPath = Join-Path $PSScriptRoot '..\..\Recovery\protected-media.json'
+if (Test-Path -LiteralPath $registryPath) {
+    try {
+        $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+        foreach ($device in @($registry.devices)) {
+            if ([bool]$device.protected) {
+                $value = ([string]$device.serial).Trim()
+                if ($value) { $protected[$value] = $true }
+            }
+        }
+    } catch {
+        Fail 'protected-media-registry-invalid'
+    }
 }
 
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -28,6 +53,9 @@ $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToL
 if ($actual -ne $expected) { Fail 'image-checksum-mismatch' }
 
 $serial = $DiskSerial.Trim()
+if (-not $serial) { Fail 'disk-serial-missing' }
+if ($protected.ContainsKey($serial)) { Fail 'target-is-protected-recovery-media' }
+
 $matches = @(Get-Disk | Where-Object {
     ([string]$_.SerialNumber).Trim() -eq $serial
 })
@@ -63,6 +91,9 @@ if (
     [bool]$live.IsSystem
 ) {
     Fail 'target-identity-changed-before-write'
+}
+if ($protected.ContainsKey(([string]$live.SerialNumber).Trim())) {
+    Fail 'target-became-protected-before-write'
 }
 
 $letters = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue |
