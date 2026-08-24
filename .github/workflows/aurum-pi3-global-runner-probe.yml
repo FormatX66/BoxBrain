@@ -1,0 +1,142 @@
+name: Aurum Pi3 Attached-Runner Read-Only Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Experiments/pi3-global-runner-request.json'
+      - '.github/workflows/aurum-pi3-global-runner-probe.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        slot: [1, 2, 3]
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 8
+    steps:
+      - name: Check out current control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Run only on the workstation that previously observed the Pi3 USB endpoint
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedRunner = 'GLOBAL-FAMILY-DESKTOP'
+          if ($env:RUNNER_NAME -ne $expectedRunner) {
+            Write-Host "AURUM_PI3_RUNNER_RACE slot=${{ matrix.slot }} runner=$env:RUNNER_NAME state=WRONG_RUNNER"
+            exit 0
+          }
+
+          $aliases = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $ssh = Get-Command ssh -ErrorAction SilentlyContinue
+          $adapters = @(
+            Get-NetAdapter -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.Status -ne 'Disabled' -and (
+                  $_.Name -match '(?i)(usb|rndis|gadget|raspberry|cdc)' -or
+                  $_.InterfaceDescription -match '(?i)(usb|rndis|gadget|raspberry|cdc)'
+                )
+              }
+          )
+          $candidates = @()
+          foreach ($adapter in $adapters) {
+            $neighbors = @(
+              Get-NetNeighbor -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object {
+                  $_.State -notin @('Unreachable', 'Incomplete') -and
+                  $_.IPAddress -and
+                  $_.IPAddress -notmatch '^(0\.0\.0\.0|224\.|239\.|255\.)'
+                }
+            )
+            foreach ($neighbor in $neighbors) {
+              $endpoint = [string]$neighbor.IPAddress
+              if (-not $endpoint) { continue }
+              $reachable = $false
+              try { $reachable = [bool](Test-NetConnection -ComputerName $endpoint -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue) } catch {}
+              if (-not $reachable) { continue }
+              if (-not ($candidates | Where-Object { $_ -eq $endpoint })) { $candidates += $endpoint }
+            }
+          }
+
+          $attempts = @()
+          $receipt = $null
+          if ($ssh) {
+            $remoteScript = @'
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          arch="$(uname -m 2>/dev/null || true)"
+          kernel="$(uname -r 2>/dev/null || true)"
+          cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 0)"
+          ram_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+          interfaces="$(ls -1 /sys/class/net 2>/dev/null | sort | paste -sd, -)"
+          printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfaces"
+          '@
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
+            $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
+            foreach ($endpoint in $candidates) {
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try {
+                $digest = ([BitConverter]::ToString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($endpoint)))).Replace('-', '').ToLowerInvariant()
+              } finally { $hasher.Dispose() }
+              $endpointLabel = "usb-neighbor:$($digest.Substring(0,12))"
+              foreach ($alias in $aliases) {
+                $previousPreference = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                $lines = @()
+                $exitCode = 255
+                try {
+                  $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 -o "HostName=$endpoint" -o "HostKeyAlias=$alias" $alias $remoteCommand 2>$null)
+                  $exitCode = $LASTEXITCODE
+                } catch {
+                  if ($null -ne $LASTEXITCODE) { $exitCode = $LASTEXITCODE }
+                } finally { $ErrorActionPreference = $previousPreference }
+                $attempt = [ordered]@{ endpoint_label=$endpointLabel; trusted_alias=$alias; strict_ssh_exit=$exitCode; strict_identity_verified=$false; pi3_model_match=$false }
+                if ($exitCode -eq 0 -and $lines.Count -ge 7) {
+                  $attempt.strict_identity_verified = $true
+                  $model = [string]$lines[0]
+                  $attempt.pi3_model_match = $model.Contains('Raspberry Pi 3')
+                  if ($attempt.pi3_model_match) {
+                    $cores = 0; [void][int]::TryParse(([string]$lines[3]).Trim(), [ref]$cores)
+                    $ramKb = 0L; [void][long]::TryParse(([string]$lines[4]).Trim(), [ref]$ramKb)
+                    $receipt = [ordered]@{
+                      schema='aurum-pi3-physical-receipt-v1'; captured_at=[DateTime]::UtcNow.ToString('o'); hostname=$alias;
+                      discovery_source='attached-desktop-passive-usb-plus-existing-strict-ssh-trust'; endpoint_label=$endpointLabel;
+                      identity_verification='strict-ssh-existing-alias-host-key-and-auth'; model=$model; arch=([string]$lines[1]).Trim().ToLowerInvariant();
+                      kernel=[string]$lines[2]; cores=$cores; ram_mb=[int]([math]::Floor($ramKb/1024.0)); boot_id=([string]$lines[5]).Trim();
+                      interfaces=@(([string]$lines[6]).Split(',') | Where-Object { $_ })
+                    }
+                    $attempts += $attempt
+                    break
+                  }
+                }
+                $attempts += $attempt
+              }
+              if ($receipt) { break }
+            }
+          }
+
+          $result = [ordered]@{
+            schema='aurum-pi3-attached-runner-probe-v1'; observed_at_utc=[DateTime]::UtcNow.ToString('o'); runner_name=$env:RUNNER_NAME;
+            matrix_slot=${{ matrix.slot }}; state=if($receipt){'PHYSICAL_RECEIPT_CAPTURED'}elseif($candidates.Count -gt 0){'REACHABLE_IDENTITY_UNVERIFIED'}else{'NO_REACHABLE_PASSIVE_USB_ENDPOINT'};
+            active_network_scan=$false; persistent_trust_changed=$false; mutation_allowed=$false; promotion_allowed=$false; write_authority=$false;
+            usb_like_adapter_count=$adapters.Count; reachable_candidate_count=$candidates.Count; attempts=$attempts; receipt=$receipt
+          }
+          $path = 'Projects/Aurum/Experiments/latest-pi3-attached-runner-probe.json'
+          $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding utf8
+          git config user.name 'aurum-pi3-attached-probe[bot]'
+          git config user.email 'aurum-pi3-attached-probe@users.noreply.github.com'
+          git add $path
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host "AURUM_PI3_RUNNER_RACE slot=${{ matrix.slot }} state=$($result.state) unchanged=true"; exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to compare attached-runner Pi3 evidence.' }
+          git commit -m 'Record attached-runner Pi3 probe [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          Write-Host "AURUM_PI3_RUNNER_RACE slot=${{ matrix.slot }} state=$($result.state) persisted=true"

@@ -1,15 +1,17 @@
 {
   "schema": "aurum-pi3-probe-request-v1",
-  "request_id": "pi3-readonly-20260824-1239",
-  "mode": "known-name-read-only",
+  "request_id": "pi3-readonly-linkdiag-20260824-1335",
+  "mode": "known-name-plus-passive-usb-topology-read-only",
   "targets": [
     "aurum-pi3.local",
     "aurum-pi3",
     "raspberrypi.local",
     "raspberrypi"
   ],
+  "passive_usb_neighbor_discovery": true,
+  "active_network_scan": false,
   "mutation_allowed": false,
   "promotion_allowed": false,
   "write_authority": false,
-  "purpose": "Retry collection of a real Pi3 receipt and live reachability evidence after the prior request produced no persisted receipt; keep the probe strictly read-only and do not change boot, network, firmware, drivers, kernel state, or LKG."
+  "purpose": "Repeat the privacy-bounded Pi3 topology probe with host link diagnostics so Aurum can distinguish missing addressing from missing reachability without changing any network, boot, firmware, storage, kernel, driver, or LKG state."
 }

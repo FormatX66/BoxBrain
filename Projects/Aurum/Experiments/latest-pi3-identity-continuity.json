@@ -1,0 +1,17 @@
+﻿{
+    "schema":  "aurum-pi3-identity-continuity-result-v1",
+    "observed_at_utc":  "2026-08-24T17:47:14.1842795Z",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "request_id":  "pi3-strict-alias-continuity-20260824-1347",
+    "state":  "NO_REACHABLE_PASSIVE_USB_ENDPOINT",
+    "active_network_scan":  false,
+    "persistent_trust_changed":  false,
+    "mutation_allowed":  false,
+    "promotion_allowed":  false,
+    "write_authority":  false,
+    "candidate_count":  0,
+    "attempts":  [
+
+                 ],
+    "receipt":  null
+}

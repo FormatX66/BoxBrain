@@ -1,0 +1,12 @@
+{
+  "schema": "aurum-pi3-attached-runner-request-v1",
+  "request_id": "pi3-attached-desktop-race-20260824-1352",
+  "expected_runner_name": "GLOBAL-FAMILY-DESKTOP",
+  "mode": "parallel-generic-runner-routing-then-passive-usb-strict-identity",
+  "active_network_scan": false,
+  "persistent_trust_change_allowed": false,
+  "mutation_allowed": false,
+  "promotion_allowed": false,
+  "write_authority": false,
+  "purpose": "Route a bounded read-only Pi3 proof attempt onto the workstation that previously observed the USB-attached TCP/22 endpoint without changing runner configuration or weakening SSH identity verification."
+}
