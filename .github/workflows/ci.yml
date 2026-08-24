@@ -73,7 +73,7 @@ jobs:
         run: python -m unittest discover -s Projects/AdaptiveKernel/tests -v
       - name: Test combined StateWeave + kernel bridge
         run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v
-      - name: Test Aurum Future Branch prediction, calibration, and execution routing
+      - name: Test Aurum Future Branch prediction, calibration, execution routing, and human availability
         run: |
           cd Projects/Aurum/Experiments
           python -m unittest test_future_branch -v
@@ -82,6 +82,7 @@ jobs:
           python -m unittest test_anticipatory_state -v
           python -m unittest test_speculative_feasibility -v
           python -m unittest test_execution_route -v
+          python -m unittest test_human_availability -v
       - name: Test seed recovery branch manifest
         run: python -m unittest discover -s installer/tests -p 'test_future_branch_recovery.py' -v
       - name: Test Tiny Seed physical preflight states
