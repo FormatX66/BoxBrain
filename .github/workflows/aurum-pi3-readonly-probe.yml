@@ -1,0 +1,140 @@
+name: Aurum Pi3 Read-Only Physical Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Experiments/pi3-probe-request.json'
+      - 'Projects/Aurum/Experiments/pi3_physical_probe.py'
+      - '.github/workflows/aurum-pi3-readonly-probe.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-readonly-physical-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 10
+    steps:
+      - name: Check out current control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Probe only known Pi3 names and collect read-only receipt
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $ssh = Get-Command ssh -ErrorAction SilentlyContinue
+          $attempts = @()
+          $receipt = $null
+
+          foreach ($target in $targets) {
+            $reachable = $false
+            try {
+              $reachable = [bool](Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)
+            } catch {
+              $reachable = $false
+            }
+
+            $attempt = [ordered]@{
+              target_name = $target
+              tcp22_reachable = $reachable
+              ssh_batch_mode = $false
+              pi3_model_match = $false
+            }
+
+            if ($reachable -and $ssh) {
+              $remoteScript = @'
+model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+arch="$(uname -m 2>/dev/null || true)"
+kernel="$(uname -r 2>/dev/null || true)"
+cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 0)"
+ram_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+interfaces="$(ls -1 /sys/class/net 2>/dev/null | sort | paste -sd, -)"
+printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfaces"
+'@
+              $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
+              $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
+              $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $target $remoteCommand 2>$null)
+              if ($LASTEXITCODE -eq 0 -and $lines.Count -ge 7) {
+                $attempt.ssh_batch_mode = $true
+                $model = [string]$lines[0]
+                $arch = ([string]$lines[1]).Trim().ToLowerInvariant()
+                $kernel = [string]$lines[2]
+                $cores = 0
+                [void][int]::TryParse(([string]$lines[3]).Trim(), [ref]$cores)
+                $ramKb = 0L
+                [void][long]::TryParse(([string]$lines[4]).Trim(), [ref]$ramKb)
+                $bootId = ([string]$lines[5]).Trim()
+                $interfaces = @()
+                if ($lines[6]) { $interfaces = @(([string]$lines[6]).Split(',') | Where-Object { $_ }) }
+                $attempt.pi3_model_match = $model.Contains('Raspberry Pi 3')
+
+                if ($attempt.pi3_model_match) {
+                  $receipt = [ordered]@{
+                    schema = 'aurum-pi3-physical-receipt-v1'
+                    captured_at = [DateTime]::UtcNow.ToString('o')
+                    hostname = $target
+                    model = $model
+                    arch = $arch
+                    kernel = $kernel
+                    cores = $cores
+                    ram_mb = [int]([math]::Floor($ramKb / 1024.0))
+                    boot_id = $bootId
+                    interfaces = $interfaces
+                  }
+                  $attempts += $attempt
+                  break
+                }
+              }
+            }
+            $attempts += $attempt
+          }
+
+          $requestId = $null
+          if (Test-Path -LiteralPath 'Projects/Aurum/Experiments/pi3-probe-request.json') {
+            try {
+              $request = Get-Content -LiteralPath 'Projects/Aurum/Experiments/pi3-probe-request.json' -Raw | ConvertFrom-Json
+              $requestId = [string]$request.request_id
+            } catch {
+              $requestId = $null
+            }
+          }
+
+          $result = [ordered]@{
+            schema = 'aurum-pi3-read-only-probe-result-v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            runner_name = $env:RUNNER_NAME
+            request_id = $requestId
+            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } else { 'NO_REACHABLE_PI3_RECEIPT' }
+            mutation_allowed = $false
+            promotion_allowed = $false
+            write_authority = $false
+            attempts = $attempts
+            receipt = $receipt
+          }
+          $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
+          Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) write_authority=false mutation_allowed=false"
+
+      - name: Persist privacy-bounded Pi3 evidence receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-pi3-probe[bot]'
+          git config user.email 'aurum-pi3-probe@users.noreply.github.com'
+          git add Projects/Aurum/Experiments/latest-pi3-physical-receipt.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_PROBE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record read-only Pi3 physical probe [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_PROBE_RECEIPT persisted=true'
