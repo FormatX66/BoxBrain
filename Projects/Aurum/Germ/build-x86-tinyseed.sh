@@ -81,6 +81,22 @@ menuentry "Aurum Tiny Seed" {
 }
 EOF
 
+# Debian live-build's Syslinux/ISOLINUX default timeout is 0, which pauses
+# indefinitely for a key press. Tiny Seed must boot unattended on legacy BIOS.
+mkdir -p config/bootloaders/isolinux config/bootloaders/syslinux
+cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 10
+EOF
+cat > config/bootloaders/syslinux/syslinux.cfg <<'EOF'
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 10
+EOF
+
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
 for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py; do
