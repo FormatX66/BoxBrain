@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import unittest
 
-from future_branch import Disposition, FutureBranch, disposition, rank_branches
+from future_branch import (
+    Disposition,
+    FutureBranch,
+    disposition,
+    human_confidence_feedback,
+    lookahead_depth,
+    rank_branches,
+    should_ask_calibration,
+)
 
 
 class FutureBranchTests(unittest.TestCase):
@@ -14,6 +22,7 @@ class FutureBranchTests(unittest.TestCase):
             "user_time_saved": 1.0,
             "preparation_leverage": 1.0,
             "cost": 1.0,
+            "linearity": 0.5,
         }
         values.update(changes)
         return FutureBranch(**values)
@@ -64,6 +73,36 @@ class FutureBranchTests(unittest.TestCase):
         self.assertIn("stalled-run", names)
         self.assertIn("adjacent-opportunity", names)
         self.assertGreater(len(names), 2)
+
+    def test_high_probability_linear_branch_goes_deeper(self):
+        deep = self.branch("linear", probability=0.97, linearity=0.96)
+        shallow = self.branch("forky", probability=0.55, linearity=0.3)
+        self.assertGreater(lookahead_depth(deep), lookahead_depth(shallow))
+        self.assertEqual(lookahead_depth(deep), 6)
+
+    def test_feedback_signals_expectedness_without_claiming_certainty(self):
+        expected = self.branch("expected", probability=0.93)
+        surprise = self.branch("surprise", probability=0.2)
+        self.assertIn("warm", human_confidence_feedback(expected))
+        self.assertIn("outside my leading branches", human_confidence_feedback(surprise))
+
+    def test_early_training_asks_when_top_branches_are_close(self):
+        self.assertTrue(
+            should_ask_calibration(
+                top_probability=0.74,
+                runner_up_probability=0.66,
+                wrong_branch_cost=0.5,
+            )
+        )
+
+    def test_strong_clear_branch_does_not_interrupt_with_question(self):
+        self.assertFalse(
+            should_ask_calibration(
+                top_probability=0.94,
+                runner_up_probability=0.18,
+                wrong_branch_cost=0.3,
+            )
+        )
 
 
 if __name__ == "__main__":
