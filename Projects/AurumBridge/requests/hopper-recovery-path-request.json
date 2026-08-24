@@ -1,0 +1,9 @@
+{
+  "schema": "aurum.hopper.recovery-path-request.v1",
+  "request_id": "hopper-preexecution-recovery-20260824-2040",
+  "mode": "probe-and-use-existing-authority-only",
+  "grant_new_authority": false,
+  "allow_destructive_media_write": false,
+  "require_terminal_v2_receipt": true,
+  "reason": "Future Branch requires the safe already-authorized Hopper recovery path to resolve before any Tiny Seed manual/destructive handoff. Probe current BoxBrain/Hopper reachability and use only SSH authority that is already present on the target; otherwise fail closed and persist a terminal v2 receipt."
+}
