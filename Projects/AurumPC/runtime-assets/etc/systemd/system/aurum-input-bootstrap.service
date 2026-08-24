@@ -1,13 +1,12 @@
 [Unit]
-Description=Aurum input bootstrap and Hopper self-debug monitor
+Description=Aurum input bootstrap
 After=systemd-udev-trigger.service
 Before=aurum-pc-console.service
 
 [Service]
-Type=simple
-ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json || true; exec /usr/bin/python3 /opt/aurum/aurum_self_debug.py watch --interval 60 --port 8768'
-Restart=on-failure
-RestartSec=10
+Type=oneshot
+ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json'
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
