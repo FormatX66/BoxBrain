@@ -1,8 +1,9 @@
 {
   "schema": "aurum-usb-discovery-request-v1",
-  "request_id": "tinyseed-ready-to-flash-20260824-01",
+  "request_id": "tinyseed-ready-to-flash-20260824-02",
   "mode": "read-only",
   "purpose": "Identify attached USB candidates for Tiny Seed physical preflight without authorizing or performing any media write.",
   "write_authority": false,
-  "required_release_state": "READY_TO_FLASH"
+  "required_release_state": "READY_TO_FLASH",
+  "reason": "Refresh physical-preflight evidence after Future Branch information-value and preflight-state logic merged."
 }
