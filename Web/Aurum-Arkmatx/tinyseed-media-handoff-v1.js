@@ -1,10 +1,12 @@
-/* AURUM_TINYSEED_MEDIA_HANDOFF_V1_3_CANONICAL
+/* AURUM_TINYSEED_MEDIA_HANDOFF_V1_4_CANONICAL
+ * AURUM_TINYSEED_MEDIA_HANDOFF_V1_3_CANONICAL compatibility marker.
  * AURUM_TINYSEED_MEDIA_HANDOFF_V1_2_CANONICAL compatibility marker.
  * AURUM_TINYSEED_MEDIA_HANDOFF_V1_CANONICAL compatibility marker.
  * Canonical website owner: FormatX66/ClusterSites.
  * Refines Recovery Guardian at the physical-media boundary using read-only
  * USB discovery, exact guarded preflight, one-shot write authority, raw-readback
  * proof, and current-release end-to-end network-regrow readiness evidence.
+ * A matching post-write receipt can retire an older authorization carrier.
  * Evidence can retire a human task; it never invents one.
  */
 (()=>{
@@ -82,6 +84,17 @@ const receiptMatches=(r,q)=>Boolean(
   String(q?.source_commit||'').toLowerCase()===String(r?.seed_sha||'').toLowerCase()&&
   String(q?.image_sha256||'').toLowerCase()===String(r?.image_sha256||'').toLowerCase()
 );
+const receiptMatchesPreflight=(p,q)=>{
+  if(!p||!q||q?.schema!=='aurum-tinyseed-flash-request-receipt-v1'||q?.state!=='READY_TO_BOOT'||q?.raw_readback_verified!==true||q?.write_authority_consumed!==true)return false;
+  const preflightAt=Date.parse(p?.observed_at_utc||''),receiptAt=Date.parse(q?.observed_at_utc||'');
+  if(!Number.isFinite(preflightAt)||!Number.isFinite(receiptAt)||receiptAt<preflightAt)return false;
+  return String(q?.source_commit||'').toLowerCase()===String(p?.release?.source_commit||'').toLowerCase()&&
+    String(q?.image_sha256||'').toLowerCase()===String(p?.release?.x86_sha256||'').toLowerCase()&&
+    Number(q?.device?.disk_number)===Number(p?.usb_discovery?.candidate?.disk_number)&&
+    String(q?.device?.model||'')===String(p?.usb_discovery?.candidate?.model||'')&&
+    Number(q?.device?.size_bytes)===Number(p?.usb_discovery?.candidate?.size_bytes)&&
+    String(q?.device?.serial_sha256||'').toLowerCase()===String(p?.usb_discovery?.candidate?.serial_sha256||'').toLowerCase();
+};
 const networkContractPresent=()=>[
   '_repository_addresses',
   'ahostsv4',
@@ -104,6 +117,7 @@ function phase(s){
   if(!ready(s))return'WAITING_FOR_VERIFIED_HANDOFF';
   if(helperState!=='present')return'DISCOVERY_GUARD_NOT_VERIFIED';
   if(!releaseMatches(s,preflight))return'WAITING_FOR_CURRENT_UNIQUE_PREFLIGHT';
+  if(receiptMatchesPreflight(preflight,flashReceipt))return'READY_TO_BOOT';
   if(!requestMatches(preflight,flashRequest))return'WAITING_FOR_EXPLICIT_WRITE_AUTHORITY';
   if(receiptMatches(flashRequest,flashReceipt))return'READY_TO_BOOT';
   return'AUTHORIZED_FLASH_PENDING';
@@ -123,7 +137,7 @@ function actionText(s){
     return`Explicitly authorize one guarded Tiny Seed flash of the currently selected ${model}, bound to source ${source} and x86 SHA-256 ${sha}. Keep that USB connected and unchanged. The authorization is one-shot; any release or device-identity change invalidates it. Do not remove or boot the media until Aurum reports the full raw readback passed.`;
   }
   if(p==='AUTHORIZED_FLASH_PENDING')return'None. Exact one-shot write authority is already present for the verified test USB. Leave that USB connected. Do not remove it, boot it, or re-authorize another write while Aurum/System performs the guarded flash and full raw-readback verification.';
-  if(p==='READY_TO_BOOT')return'None assigned by this evidence layer. The guarded write and raw readback are verified; wait for a separate verified Hopper boot-handoff instruction before moving or booting the media.';
+  if(p==='READY_TO_BOOT')return'None assigned by this evidence layer. The guarded write and full raw readback are verified for the current release and exact USB. Wait for a separate verified Hopper boot-handoff instruction before moving or booting the media.';
   return'None.';
 }
 function networkTextFor(s){
@@ -138,7 +152,10 @@ function frontierText(s){
     const sha=String(flashRequest?.image_sha256||preflight?.release?.x86_sha256||s?.tinySeedX86Sha256||'unknown');
     return`Exact physical target preflight is proven (${m}); one-shot AUTHORIZED_ONCE authority is bound to the current Tiny Seed source and x86 SHA-256 ${sha}.${network}`;
   }
-  if(p==='READY_TO_BOOT')return`Guarded Tiny Seed write completed and the full raw readback is verified; the one-shot write authority was consumed.${network}`;
+  if(p==='READY_TO_BOOT'){
+    const m=String(flashReceipt?.device?.model||preflight?.usb_discovery?.candidate?.model||'verified test USB');
+    return`Guarded Tiny Seed write to ${m} completed for the current release; full raw readback is verified and write authority is consumed.${network}`;
+  }
   if(releaseMatches(s,preflight))return`Current READY_TO_FLASH release is bound to one unique read-only-discovered USB candidate with boot/system/read-only/protected-media checks passed and zero write authority.${network}`;
   if(ready(s)&&helperState==='present')return`Current READY_TO_FLASH release and the fail-closed read-only USB discovery guard are verified.${network}`;
   return networkCurrentReleaseProved(s)?'Current-release resolver + repository TCP/443 boot proof is green; no newer physical-media frontier is proven by this evidence layer.':'No newer physical-media frontier is proven by this evidence layer.';
@@ -147,7 +164,7 @@ function needsText(s){
   const p=phase(s);
   let core='Aurum/System must complete the current release/handoff evidence before physical media work is actionable.';
   if(p==='AUTHORIZED_FLASH_PENDING')core='Aurum/System must consume the one-shot request, re-prove the exact live USB identity immediately before write, verify the exact handoff/image hash, perform the guarded write once, complete full raw readback, and publish a matching READY_TO_BOOT receipt. Physical Hopper boot and Guardian forced-rollback proof remain separate later gates.';
-  else if(p==='READY_TO_BOOT')core='Aurum/System still needs physical Hopper boot, Repair/Reseed health/promotion-or-rollback evidence, forced-LKG rollback proof, and remaining Pi physical recovery proof. This component does not infer a boot instruction.';
+  else if(p==='READY_TO_BOOT')core='Aurum/System still needs a separate verified Hopper boot handoff, then physical Hopper boot, Repair/Reseed health/promotion-or-rollback evidence, forced-LKG rollback proof, and remaining Pi physical recovery proof. The completed flash/readback receipt does not itself assign a boot action.';
   else if(p==='WAITING_FOR_EXPLICIT_WRITE_AUTHORITY')core='Aurum/System must hold at zero write authority and preserve the current exact-target preflight. After explicit human authorization, it must re-prove live USB identity, verify the exact release/image hash, perform the guarded write once, complete full raw readback, and publish a matching READY_TO_BOOT receipt.';
   else if(p==='WAITING_FOR_CURRENT_UNIQUE_PREFLIGHT')core='Aurum/System must discover exactly one eligible USB read-only and bind it to the current release before destructive authority can exist.';
   else if(p==='DISCOVERY_GUARD_NOT_VERIFIED')core='Aurum/System must restore the fail-closed discovery guard.';
@@ -161,21 +178,24 @@ function enrich(){
   const authorizeHuman=p==='WAITING_FOR_EXPLICIT_WRITE_AUTHORITY';
   const humanAction=connectHuman||authorizeHuman;
   const networkProved=networkCurrentReleaseProved(base);
+  const receiptCurrent=receiptMatchesPreflight(preflight,flashReceipt);
   const s={...base,
     mediaHandoffAugmented:true,
     tinySeedUsbCandidateDiscoveryEvidence:helperState==='present'?'read-only-serial-system-readonly-protected-ambiguity-fail-closed':'not-verified',
     tinySeedPhysicalPreflightState:releaseMatches(base,preflight)?'UNIQUE_SAFE_TO_PREFLIGHT_ONLY':'not-current-or-not-verified',
     tinySeedFlashRequestState:requestMatches(preflight,flashRequest)?'AUTHORIZED_ONCE':'none-or-not-current',
-    tinySeedFlashReceiptState:receiptMatches(flashRequest,flashReceipt)?'READY_TO_BOOT':'not-verified',
+    tinySeedFlashReceiptState:receiptCurrent?'READY_TO_BOOT':receiptMatches(flashRequest,flashReceipt)?'READY_TO_BOOT':'not-verified',
     tinySeedPhysicalHandoffPhase:p,
     tinySeedNetworkRegrowGateEvidence:networkContractPresent()?'link-plus-resolver-plus-repository-tcp-443-required':'not-verified',
     tinySeedNetworkBootGateEvidence:networkBootGatePresent()?'uefi-bios-network-marker-plus-resolver-link-payload':'not-verified',
     tinySeedNetworkCurrentReleaseProof:networkProved?'current-release-x86-success-head-match':'not-current-or-not-verified',
+    receiptSupersedesAuthorizationCarrier:receiptCurrent,
+    completionReceiptRequiresCurrentPreflightMatch:true,
     networkReadinessCreatesHumanAction:false,
     physicalNetworkProofInferred:false,
     usbCandidateDiscoveryCanWrite:false,
     usbCandidateDiscoveryCreatesHumanAction:false,
-    writeAuthorityPresent:requestMatches(preflight,flashRequest),
+    writeAuthorityPresent:p==='AUTHORIZED_FLASH_PENDING'&&requestMatches(preflight,flashRequest),
     writeAuthorityCanCreateHumanAction:false,
     explicitWriteAuthorityRequired:authorizeHuman,
     explicitWriteAuthorityCreatesHumanAction:authorizeHuman,
@@ -187,7 +207,7 @@ function enrich(){
   };
   window.__aurumRecoveryGuardianState=s;
   window.__aurumTinySeedMediaHandoffState={
-    schema:'aurum-command-center-tinyseed-media-handoff-v1.3',
+    schema:'aurum-command-center-tinyseed-media-handoff-v1.4',
     helperState,
     phase:p,
     preflightState:s.tinySeedPhysicalPreflightState,
@@ -196,6 +216,8 @@ function enrich(){
     networkRegrowGate:s.tinySeedNetworkRegrowGateEvidence,
     networkBootGate:s.tinySeedNetworkBootGateEvidence,
     networkCurrentReleaseProof:s.tinySeedNetworkCurrentReleaseProof,
+    receiptSupersedesAuthorizationCarrier:s.receiptSupersedesAuthorizationCarrier,
+    completionReceiptRequiresCurrentPreflightMatch:true,
     humanActionRequired:humanAction,
     humanActionEvidence:s.humanActionEvidence,
     protectedSerialCount:protectedSerials.length,
