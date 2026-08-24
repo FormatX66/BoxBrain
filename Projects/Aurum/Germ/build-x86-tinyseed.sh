@@ -47,6 +47,7 @@ udev
 python3
 git
 ca-certificates
+openssl
 network-manager
 iproute2
 iputils-ping
@@ -99,11 +100,23 @@ EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
 chmod 0644 "$GERM_DST/GENETICS.json"
+
+# Remote recovery is fail-closed. The trust policy is always embedded; the
+# public authority is embedded only after the protected enrollment workflow has
+# published it. Without that public key, recovery_poller.py returns disabled.
+RECOVERY_SRC="$REPO_ROOT/Projects/Aurum/Recovery"
+mkdir -p config/includes.chroot/etc/aurum
+cp "$RECOVERY_SRC/trusted-refs.json" config/includes.chroot/etc/aurum/recovery-trusted-refs.json
+if [ -f "$RECOVERY_SRC/authority-public.pem" ]; then
+  cp "$RECOVERY_SRC/authority-public.pem" config/includes.chroot/etc/aurum/recovery-authority.pem
+  chmod 0644 config/includes.chroot/etc/aurum/recovery-authority.pem
+fi
+chmod 0644 config/includes.chroot/etc/aurum/recovery-trusted-refs.json
 
 mkdir -p config/includes.chroot/var/lib/aurum/slots/A/opt/aurum
 cp "$SCRIPT_DIR/bootstrap_console.py" config/includes.chroot/var/lib/aurum/slots/A/opt/aurum/aurum_console.py
@@ -128,11 +141,20 @@ cat > config/includes.chroot/usr/sbin/aurum-reseed <<'EOF'
 #!/bin/sh
 exec /usr/bin/python3 /usr/lib/aurum/germ/reseed.py "$@"
 EOF
-chmod 0755 config/includes.chroot/usr/sbin/aurum-reseed
+cat > config/includes.chroot/usr/sbin/aurum-rollback-drill <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/rollback_drill.py "$@"
+EOF
+cat > config/includes.chroot/usr/sbin/aurum-recovery-poll <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py "$@"
+EOF
+chmod 0755 config/includes.chroot/usr/sbin/aurum-reseed config/includes.chroot/usr/sbin/aurum-rollback-drill config/includes.chroot/usr/sbin/aurum-recovery-poll
 
 SYSTEMD=config/includes.chroot/etc/systemd/system
 WANTS=$SYSTEMD/multi-user.target.wants
-mkdir -p "$WANTS"
+TIMERS=$SYSTEMD/timers.target.wants
+mkdir -p "$WANTS" "$TIMERS"
 cat > "$SYSTEMD/aurum-germ-preflight.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ preflight
@@ -197,9 +219,33 @@ StandardError=journal+console
 [Install]
 WantedBy=multi-user.target
 EOF
+cat > "$SYSTEMD/aurum-recovery-poll.service" <<'EOF'
+[Unit]
+Description=Aurum signed remote recovery desired-state check
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py
+SuccessExitStatus=2
+NoNewPrivileges=true
+EOF
+cat > "$SYSTEMD/aurum-recovery-poll.timer" <<'EOF'
+[Unit]
+Description=Periodically check Aurum signed recovery desired state
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=aurum-recovery-poll.service
+[Install]
+WantedBy=timers.target
+EOF
 for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -s "../$unit" "$WANTS/$unit"
 done
+ln -s "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
 ln -s /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
 ln -s /dev/null "$SYSTEMD/getty@tty1.service"
 
@@ -214,7 +260,7 @@ mkdir -p config/hooks/live
 cat > config/hooks/live/010-tinyseed.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
-chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed
+chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed /usr/sbin/aurum-rollback-drill /usr/sbin/aurum-recovery-poll
 EOF
 chmod 0755 config/hooks/live/010-tinyseed.hook.chroot
 
