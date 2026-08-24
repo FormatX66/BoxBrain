@@ -155,16 +155,44 @@ class AutonomyManager:
         if branch.returncode != 0 or branch.stdout.strip() != BRANCH:
             return {"status": "refused", "reason": "branch-outside-allowlist", "branch": branch.stdout.strip()}
         dirty = _run(["git", "status", "--porcelain=v1"], cwd=self.workspace, timeout=30)
-        if dirty.returncode != 0 or dirty.stdout.strip():
-            return {"status": "refused", "reason": "workspace-dirty", "detail": dirty.stdout.strip()[-1000:]}
+        if dirty.returncode != 0:
+            return {"status": "failed", "phase": "status", "detail": dirty.stdout.strip()[-1000:]}
         before = self._git_head()
+        checkpoint = None
+        changes = [line for line in dirty.stdout.splitlines() if line]
+        if changes:
+            stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+            checkpoint = f"aurum-auto-checkpoint-{stamp}"
+            stashed = _run(["git", "stash", "push", "-u", "-m", checkpoint], cwd=self.workspace, timeout=120)
+            if stashed.returncode != 0:
+                return {
+                    "status": "failed",
+                    "phase": "checkpoint",
+                    "detail": stashed.stdout.strip()[-1500:],
+                    "before": before,
+                }
+            _atomic_json(
+                self.state_dir / "last-workspace-checkpoint.json",
+                {
+                    "schema": "aurum-workspace-checkpoint-v1",
+                    "at": stamp,
+                    "repository": origin.stdout.strip(),
+                    "branch": branch.stdout.strip(),
+                    "head_before_sync": before,
+                    "checkpoint": checkpoint,
+                    "changes": changes,
+                    "preserved": True,
+                    "reapplied": False,
+                    "source": "autonomy",
+                },
+            )
         fetched = _run(["git", "fetch", "--prune", "origin", BRANCH], cwd=self.workspace, timeout=180)
         if fetched.returncode != 0:
-            return {"status": "failed", "phase": "fetch", "detail": fetched.stdout[-1500:], "before": before}
+            return {"status": "failed", "phase": "fetch", "detail": fetched.stdout[-1500:], "before": before, "checkpoint": checkpoint}
         fetched_head_result = _run(["git", "rev-parse", "FETCH_HEAD"], cwd=self.workspace, timeout=20)
         fetched_head = fetched_head_result.stdout.strip() if fetched_head_result.returncode == 0 else None
         if not fetched_head:
-            return {"status": "failed", "phase": "verify", "reason": "fetched-head-unavailable", "before": before}
+            return {"status": "failed", "phase": "verify", "reason": "fetched-head-unavailable", "before": before, "checkpoint": checkpoint}
         if before:
             ancestry = _run(["git", "merge-base", "--is-ancestor", before, fetched_head], cwd=self.workspace, timeout=30)
             if ancestry.returncode != 0:
@@ -174,14 +202,15 @@ class AutonomyManager:
                     "reason": "non-fast-forward-generation",
                     "before": before,
                     "fetched_head": fetched_head,
+                    "checkpoint": checkpoint,
                 }
         merged = _run(["git", "merge", "--ff-only", "FETCH_HEAD"], cwd=self.workspace, timeout=120)
         if merged.returncode != 0:
-            return {"status": "failed", "phase": "merge", "detail": merged.stdout[-1500:], "before": before}
+            return {"status": "failed", "phase": "merge", "detail": merged.stdout[-1500:], "before": before, "checkpoint": checkpoint}
         after = self._git_head()
         clean_after = _run(["git", "status", "--porcelain=v1"], cwd=self.workspace, timeout=30)
         verified = bool(after == fetched_head and clean_after.returncode == 0 and not clean_after.stdout.strip())
-        return {
+        result = {
             "status": "ready" if verified else "failed",
             "phase": "verified" if verified else "verify",
             "before": before,
@@ -197,6 +226,15 @@ class AutonomyManager:
                 "clean": clean_after.returncode == 0 and not clean_after.stdout.strip(),
             },
         }
+        if checkpoint is not None:
+            result.update(
+                {
+                    "checkpoint": checkpoint,
+                    "checkpoint_preserved": True,
+                    "checkpoint_reapplied": False,
+                }
+            )
+        return result
 
     def _subprocess_json(self, script: Path, *arguments: str, timeout: int = 300) -> dict[str, Any]:
         if not script.is_file():
