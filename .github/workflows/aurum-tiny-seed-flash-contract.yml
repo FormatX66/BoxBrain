@@ -7,6 +7,7 @@ on:
       - 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
       - 'Projects/Aurum/Recovery/protected-media.json'
       - '.github/workflows/aurum-tiny-seed-flash-windows.yml'
+      - '.github/workflows/aurum-tiny-seed-flash-authorized.yml'
       - '.github/workflows/aurum-tiny-seed-flash-contract.yml'
 
 permissions:
@@ -39,6 +40,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $script = Get-Content 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1' -Raw
           $workflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-windows.yml' -Raw
+          $legacy = Get-Content '.github/workflows/aurum-tiny-seed-flash-authorized.yml' -Raw
           $requiredScript = @(
             '[switch]$Write',
             'AURUM_TINYSEED_FLASH_DRY_RUN',
@@ -62,4 +64,6 @@ jobs:
           if (-not $workflow.Contains('default: false')) { throw 'flash workflow must default write=false' }
           if (-not $workflow.Contains('READY_TO_FLASH')) { throw 'flash workflow must require READY_TO_FLASH manifest' }
           if (-not $workflow.Contains('source-commit-mismatch')) { throw 'flash workflow must pin source commit' }
-          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true preexecution_recovery_fail_closed=true raw_readback=true'
+          if (-not $legacy.Contains('AURUM_TINYSEED_FLASH_REFUSED reason=legacy-authorized-workflow-disabled')) { throw 'legacy raw-write workflow must remain fail-closed' }
+          if ($legacy.Contains('PhysicalDrive') -or $legacy.Contains('IO.FileStream')) { throw 'legacy workflow must not contain an independent raw-write implementation' }
+          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true preexecution_recovery_fail_closed=true legacy_bypass_disabled=true raw_readback=true'
