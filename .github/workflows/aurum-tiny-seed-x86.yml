@@ -54,12 +54,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OVMF=$(find /usr/share/OVMF -maxdepth 1 -type f \( -name 'OVMF_CODE_4M.fd' -o -name 'OVMF_CODE.fd' \) | head -n1)
-          test -n "$OVMF"
+          if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS.fd
+          else
+            echo "No matching OVMF CODE/VARS pair found" >&2
+            exit 1
+          fi
+          cp "$OVMF_VARS" "$RUNNER_TEMP/OVMF_VARS.fd"
           set +e
           timeout 120 qemu-system-x86_64 \
             -machine q35 -m 1024 -smp 2 \
-            -bios "$OVMF" \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file="$RUNNER_TEMP/OVMF_VARS.fd" \
             -cdrom dist/Aurum-TinySeed-amd64.iso \
             -boot d -display none -serial file:tinyseed-uefi.log -no-reboot
           rc=$?
