@@ -1,0 +1,51 @@
+name: Aurum Hopper Recovery Request Dispatcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumBridge/requests/hopper-recovery-path-request.json'
+      - '.github/workflows/aurum-hopper-recovery-request.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: aurum-hopper-recovery-request-dispatch
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Validate zero-new-authority request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          request='Projects/AurumBridge/requests/hopper-recovery-path-request.json'
+          test -s "$request"
+          python3 - "$request" <<'PY'
+          import json, sys
+          p = json.load(open(sys.argv[1], encoding='utf-8'))
+          assert p.get('schema') == 'aurum.hopper.recovery-path-request.v1'
+          assert p.get('mode') == 'probe-and-use-existing-authority-only'
+          assert p.get('grant_new_authority') is False
+          assert p.get('allow_destructive_media_write') is False
+          assert p.get('require_terminal_v2_receipt') is True
+          request_id = str(p.get('request_id') or '').strip()
+          if not request_id:
+              raise SystemExit('request_id required')
+          print(f'AURUM_HOPPER_RECOVERY_REQUEST_VALID request_id={request_id} new_authority=false media_write=false')
+          PY
+      - name: Dispatch current Hopper recovery workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run aurum-hopper-recovery-path-probe.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'AURUM_HOPPER_RECOVERY_DISPATCHED target=aurum-hopper-recovery-path-probe.yml ref=main'
