@@ -1,0 +1,7 @@
+{
+  "schema": "aurum-pi4-reachability-request-v1",
+  "requested_at": "2026-08-24T07:14:00-04:00",
+  "mode": "read-only",
+  "purpose": "Re-establish BBPI4 route after the operator reconnected and powered the Pi4 from Hopper.",
+  "write_authority": false
+}
