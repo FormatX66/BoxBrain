@@ -1,9 +1,9 @@
 {
   "schema": "aurum-usb-discovery-request-v1",
-  "request_id": "tinyseed-ready-to-flash-20260824-02",
+  "request_id": "tinyseed-crayola-reread-20260824-0733",
   "mode": "read-only",
-  "purpose": "Identify attached USB candidates for Tiny Seed physical preflight without authorizing or performing any media write.",
+  "purpose": "Re-enumerate currently attached USB media after the 1 TB SanDisk storage SSD was unplugged; identify the clean Crayola USB-C thumb drive for Tiny Seed physical preflight without authorizing or performing any media write.",
   "write_authority": false,
   "required_release_state": "READY_TO_FLASH",
-  "reason": "Refresh physical-preflight evidence after Future Branch information-value and preflight-state logic merged."
+  "reason": "User identified prior 1 TB candidate as photo/video storage and removed it. Re-discover from current physical state; prefer evidence matching the newly attached clean USB-C thumb-drive context, but do not select or write any device automatically."
 }
