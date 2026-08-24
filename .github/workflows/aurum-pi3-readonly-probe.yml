@@ -25,16 +25,103 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Probe only known Pi3 names and collect read-only receipt
+      - name: Collect privacy-bounded Pi3 topology and strict-SSH evidence
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $targets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $knownTargets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
           $ssh = Get-Command ssh -ErrorAction SilentlyContinue
           $attempts = @()
           $receipt = $null
+          $targetSpecs = @()
+          $topology = [ordered]@{
+            method = 'known-names-plus-passive-usb-neighbors'
+            active_network_scan = $false
+            usb_like_adapter_count = 0
+            usb_like_adapters = @()
+            passive_neighbor_candidates = 0
+          }
 
-          foreach ($target in $targets) {
+          foreach ($target in $knownTargets) {
+            $targetSpecs += [ordered]@{ label = $target; endpoint = $target; source = 'known-name' }
+          }
+
+          # Observe only host state that Windows already has. No address-range sweep,
+          # DHCP change, route change, driver change, firmware change, or target write.
+          $usbLikeAdapters = @(
+            Get-NetAdapter -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.Status -ne 'Disabled' -and (
+                  $_.Name -match '(?i)(usb|rndis|gadget|raspberry|cdc)' -or
+                  $_.InterfaceDescription -match '(?i)(usb|rndis|gadget|raspberry|cdc)'
+                )
+              }
+          )
+          $topology.usb_like_adapter_count = $usbLikeAdapters.Count
+
+          foreach ($adapter in $usbLikeAdapters) {
+            $neighbors = @(
+              Get-NetNeighbor -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object {
+                  $_.State -notin @('Unreachable', 'Incomplete') -and
+                  $_.IPAddress -and
+                  $_.IPAddress -notmatch '^(0\.0\.0\.0|224\.|239\.|255\.)'
+                }
+            )
+            $ipv4All = @(
+              Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.IPAddress }
+            )
+            $ipv4LinkLocal = @($ipv4All | Where-Object { $_.IPAddress -match '^169\.254\.' })
+            $ipv4NonLinkLocal = @($ipv4All | Where-Object { $_.IPAddress -notmatch '^169\.254\.' })
+            $ipInterfaces = @(Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+            $defaultRoutes = @(
+              Get-NetRoute -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' }
+            )
+            $dnsRows = @(Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+            $dnsServerCount = 0
+            foreach ($dnsRow in $dnsRows) {
+              $dnsServerCount += @($dnsRow.ServerAddresses | Where-Object { $_ }).Count
+            }
+            $dhcpState = if ($ipInterfaces.Count -gt 0) { [string]$ipInterfaces[0].Dhcp } else { 'Unknown' }
+
+            $topology.usb_like_adapters += [ordered]@{
+              name = [string]$adapter.Name
+              description = [string]$adapter.InterfaceDescription
+              status = [string]$adapter.Status
+              link_speed = [string]$adapter.LinkSpeed
+              ipv4_address_count = $ipv4All.Count
+              ipv4_non_link_local_count = $ipv4NonLinkLocal.Count
+              ipv4_link_local_count = $ipv4LinkLocal.Count
+              dhcp = $dhcpState
+              default_route_count = $defaultRoutes.Count
+              dns_server_count = $dnsServerCount
+              neighbor_count = $neighbors.Count
+            }
+
+            foreach ($neighbor in $neighbors) {
+              $endpoint = [string]$neighbor.IPAddress
+              if (-not $endpoint) { continue }
+              $bytes = [Text.Encoding]::UTF8.GetBytes($endpoint)
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try {
+                $hash = ([BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+              } finally {
+                $hasher.Dispose()
+              }
+              $label = "usb-neighbor:$($hash.Substring(0,12))"
+              if (-not ($targetSpecs | Where-Object { $_.endpoint -eq $endpoint })) {
+                $targetSpecs += [ordered]@{ label = $label; endpoint = $endpoint; source = 'passive-usb-neighbor' }
+                $topology.passive_neighbor_candidates++
+              }
+            }
+          }
+
+          foreach ($spec in $targetSpecs) {
+            $target = [string]$spec.endpoint
+            $label = [string]$spec.label
+            $source = [string]$spec.source
             $reachable = $false
             try {
               $reachable = [bool](Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)
@@ -43,27 +130,47 @@ jobs:
             }
 
             $attempt = [ordered]@{
-              target_name = $target
+              target_name = $label
+              target_source = $source
               tcp22_reachable = $reachable
+              ssh_probe_state = if ($reachable) { 'strict-identity-unverified' } else { 'not-reachable' }
               ssh_batch_mode = $false
               pi3_model_match = $false
             }
 
             if ($reachable -and $ssh) {
               $remoteScript = @'
-model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
-arch="$(uname -m 2>/dev/null || true)"
-kernel="$(uname -r 2>/dev/null || true)"
-cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 0)"
-ram_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
-boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
-interfaces="$(ls -1 /sys/class/net 2>/dev/null | sort | paste -sd, -)"
-printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfaces"
-'@
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          arch="$(uname -m 2>/dev/null || true)"
+          kernel="$(uname -r 2>/dev/null || true)"
+          cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 0)"
+          ram_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+          interfaces="$(ls -1 /sys/class/net 2>/dev/null | sort | paste -sd, -)"
+          printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfaces"
+          '@
               $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
               $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
-              $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $target $remoteCommand 2>$null)
-              if ($LASTEXITCODE -eq 0 -and $lines.Count -ge 7) {
+
+              # Host-key or auth rejection is expected evidence, not a workflow crash.
+              # Keep strict host checking: an unknown identity must never become formal
+              # physical proof merely because a TCP endpoint answered on port 22.
+              $previousPreference = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              $lines = @()
+              $sshExitCode = 255
+              try {
+                $lines = @(& $ssh.Source -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $target $remoteCommand 2>$null)
+                $sshExitCode = $LASTEXITCODE
+              } catch {
+                $lines = @()
+                if ($null -ne $LASTEXITCODE) { $sshExitCode = $LASTEXITCODE }
+              } finally {
+                $ErrorActionPreference = $previousPreference
+              }
+
+              if ($sshExitCode -eq 0 -and $lines.Count -ge 7) {
+                $attempt.ssh_probe_state = 'strict-batch-verified'
                 $attempt.ssh_batch_mode = $true
                 $model = [string]$lines[0]
                 $arch = ([string]$lines[1]).Trim().ToLowerInvariant()
@@ -81,7 +188,9 @@ printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfa
                   $receipt = [ordered]@{
                     schema = 'aurum-pi3-physical-receipt-v1'
                     captured_at = [DateTime]::UtcNow.ToString('o')
-                    hostname = $target
+                    hostname = $label
+                    discovery_source = $source
+                    identity_verification = 'strict-ssh-known-host-and-batch-auth'
                     model = $model
                     arch = $arch
                     kernel = $kernel
@@ -108,33 +217,43 @@ printf '%s\n' "$model" "$arch" "$kernel" "$cores" "$ram_kb" "$boot_id" "$interfa
             }
           }
 
+          $anyTcp22 = @($attempts | Where-Object { $_.tcp22_reachable }).Count -gt 0
           $result = [ordered]@{
             schema = 'aurum-pi3-read-only-probe-result-v1'
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
             runner_name = $env:RUNNER_NAME
             request_id = $requestId
-            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } else { 'NO_REACHABLE_PI3_RECEIPT' }
+            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } elseif ($anyTcp22) { 'REACHABLE_IDENTITY_UNVERIFIED' } else { 'NO_REACHABLE_PI3_RECEIPT' }
             mutation_allowed = $false
             promotion_allowed = $false
             write_authority = $false
+            topology = $topology
             attempts = $attempts
             receipt = $receipt
           }
-          $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
-          Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) write_authority=false mutation_allowed=false"
+          $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
+          Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) usb_like_adapters=$($topology.usb_like_adapter_count) passive_neighbors=$($topology.passive_neighbor_candidates) write_authority=false mutation_allowed=false"
 
       - name: Persist privacy-bounded Pi3 evidence receipt
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = 'Stop'
           git config user.name 'aurum-pi3-probe[bot]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure probe Git user name.' }
           git config user.email 'aurum-pi3-probe@users.noreply.github.com'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure probe Git user email.' }
           git add Projects/Aurum/Experiments/latest-pi3-physical-receipt.json
-          if git diff --cached --quiet; then
-            echo 'AURUM_PI3_PROBE_RECEIPT unchanged=true'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to stage the Pi3 evidence receipt.' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AURUM_PI3_PROBE_RECEIPT unchanged=true'
             exit 0
-          fi
+          }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to compare the staged Pi3 evidence receipt.' }
           git commit -m 'Record read-only Pi3 physical probe [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to commit the Pi3 evidence receipt.' }
           git pull --rebase origin main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to rebase the Pi3 evidence receipt onto main.' }
           git push origin HEAD:main
-          echo 'AURUM_PI3_PROBE_RECEIPT persisted=true'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to push the Pi3 evidence receipt.' }
+          Write-Host 'AURUM_PI3_PROBE_RECEIPT persisted=true'

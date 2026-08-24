@@ -1,5 +1,7 @@
 # Future Branch Architecture
 
+> **Current reconciled operating spine:** [FutureBranchCurrent.md](FutureBranchCurrent.md). This document preserves the original architecture and branch-family rationale; the current canonical workflow must include later execution-routing, Reality Gap, Surprise Reserve, Gap Stack, human-availability, expected-information-value, and unattended-precompute behavior.
+
 Future Branch is the common decision primitive for BoxBrain/Aurum when more
 than one plausible future remains. It extends the existing state-first
 execution policy without replacing it.

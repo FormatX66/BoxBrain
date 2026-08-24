@@ -1,10 +1,10 @@
 {
   "schema": "aurum-usb-discovery-request-v1",
-  "request_id": "tinyseed-current-release-reread-20260824-1237",
+  "request_id": "tinyseed-current-release-reread-20260824-1305",
   "mode": "read-only",
   "purpose": "Re-enumerate currently attached USB media for the current verified Tiny Seed release after the release identity changed; refresh physical-preflight evidence without authorizing or performing any media write.",
   "write_authority": false,
   "required_release_state": "READY_TO_FLASH",
-  "required_release_source_commit": "1e02ae4ed0f639cb7cb14424092a6cae7af7d095",
-  "reason": "The verified Tiny Seed handoff advanced to source commit 1e02ae4ed0f639cb7cb14424092a6cae7af7d095 and correctly invalidated the prior USB discovery receipt. Refresh read-only identity evidence so the next physical boundary is based on the current release while preserving zero write authority."
+  "required_release_source_commit": "67cf631e5812fea0dfc5dc1491e8a205571e7ae7",
+  "reason": "The verified Tiny Seed handoff advanced to source commit 67cf631e5812fea0dfc5dc1491e8a205571e7ae7 and correctly invalidated the prior target/preflight evidence. Refresh read-only identity evidence first so Aurum can decide whether any genuine human-only media step remains, while preserving zero write authority."
 }
