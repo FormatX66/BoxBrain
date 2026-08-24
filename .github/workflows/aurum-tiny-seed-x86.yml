@@ -46,7 +46,7 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 live-build debian-archive-keyring debootstrap xorriso isolinux \
                 syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
-                dosfstools mtools ca-certificates git
+                dosfstools mtools ca-certificates git python3
               sh Projects/Aurum/Germ/build-x86-tinyseed.sh
             '
           test -s dist/Aurum-TinySeed-amd64.iso
