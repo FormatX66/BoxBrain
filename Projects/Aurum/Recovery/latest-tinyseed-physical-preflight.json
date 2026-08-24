@@ -4,8 +4,8 @@
   "release": {
     "state": "READY_TO_FLASH",
     "source_commit": "7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f",
-    "x86_artifact": "Aurum-TinySeed-amd64.iso",
-    "x86_sha256": "35bf11282156c9d931011fa6a8243b515219fb79bef96a33c51d7c6b86661ebb"
+    "x86_artifact": null,
+    "x86_sha256": null
   },
   "usb_discovery": {
     "request_id": "tinyseed-offline-carrier-release-reread-20260824-2036",
@@ -21,24 +21,22 @@
       "is_boot": false,
       "is_system": false,
       "is_read_only": false,
-      "protected": false
+      "protected": false,
+      "eligible_for_preflight_only": true,
+      "refusal_reasons": []
     }
   },
   "preexecution_recovery": {
     "required_schema": "aurum.hopper.recovery-path-probe.v2",
     "terminal_receipt_present": false,
+    "remote_repair": null,
+    "terminal_reason": null,
+    "observed_at": null,
     "manual_handoff_released": false,
-    "reason": "Future Branch requires the safe already-authorized Hopper recovery-path probe to resolve before Tiny Seed destructive authority is requested. Fresh release-bound USB identity may stay warm, but it does not release the human write boundary by itself."
+    "reason": "terminal Hopper recovery receipt is missing"
   },
   "write_authority": false,
   "destructive_action_performed": false,
-  "prior_one_shot_request": {
-    "request_id": "tinyseed-crayola-flash-20260824-0739",
-    "state": "EXPIRED_UNUSED",
-    "expired_at_utc": "2026-08-24T12:20:00Z",
-    "flash_receipt_present": false,
-    "authority_must_be_reissued_explicitly": true
-  },
   "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt",
   "invariants": {
     "preserve_hopper_existing_recovery_media": true,
