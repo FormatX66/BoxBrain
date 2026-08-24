@@ -1,0 +1,116 @@
+name: Aurum Read-Only USB Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Recovery/usb-discovery-request.json'
+      - 'Projects/Aurum/Germ/handoff/List-TinySeed-Candidates-Windows.ps1'
+      - 'Projects/Aurum/Recovery/protected-media.json'
+      - '.github/workflows/aurum-usb-discovery.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-read-only-usb-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 10
+    steps:
+      - name: Check out current control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify helper remains read-only and enumerate USB media
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $helperPath = 'Projects/Aurum/Germ/handoff/List-TinySeed-Candidates-Windows.ps1'
+          $helper = Get-Content -LiteralPath $helperPath -Raw
+          foreach ($needle in @("BusType -eq 'USB'", 'SAFE_TO_PREFLIGHT_ONLY', 'AMBIGUOUS_MULTIPLE_ELIGIBLE')) {
+            if (-not $helper.Contains($needle)) { throw "AURUM_USB_DISCOVERY_REFUSED reason=helper-invariant-missing value=$needle" }
+          }
+          foreach ($forbidden in @('Set-Disk', 'Clear-Disk', 'Format-Volume', 'Remove-Partition', '[IO.FileAccess]::Write')) {
+            if ($helper.Contains($forbidden)) { throw "AURUM_USB_DISCOVERY_REFUSED reason=helper-write-token-present value=$forbidden" }
+          }
+
+          $registry = Get-Content -LiteralPath 'Projects/Aurum/Recovery/protected-media.json' -Raw | ConvertFrom-Json
+          $protected = @{}
+          foreach ($device in @($registry.devices)) {
+            if ([bool]$device.protected) {
+              $serial = ([string]$device.serial).Trim()
+              if ($serial) { $protected[$serial] = $true }
+            }
+          }
+
+          # Execute the canonical read-only helper for inspectable Actions evidence.
+          & $helperPath -ProtectedSerial @($protected.Keys)
+
+          $devices = @()
+          foreach ($disk in @(Get-Disk | Where-Object { $_.BusType -eq 'USB' })) {
+            $serial = ([string]$disk.SerialNumber).Trim()
+            $serialHash = $null
+            if ($serial) {
+              $bytes = [Text.Encoding]::UTF8.GetBytes($serial)
+              $sha = [Security.Cryptography.SHA256]::Create()
+              try { $serialHash = ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
+              finally { $sha.Dispose() }
+            }
+            $reasons = New-Object System.Collections.Generic.List[string]
+            if (-not $serial) { [void]$reasons.Add('serial-missing') }
+            if ([bool]$disk.IsBoot -or [bool]$disk.IsSystem) { [void]$reasons.Add('boot-or-system') }
+            if ([bool]$disk.IsReadOnly) { [void]$reasons.Add('read-only') }
+            if ($serial -and $protected.ContainsKey($serial)) { [void]$reasons.Add('protected-recovery-media') }
+            $devices += [ordered]@{
+              disk_number = [int]$disk.Number
+              model = [string]$disk.FriendlyName
+              size_bytes = [int64]$disk.Size
+              serial_sha256 = $serialHash
+              is_boot = [bool]$disk.IsBoot
+              is_system = [bool]$disk.IsSystem
+              is_read_only = [bool]$disk.IsReadOnly
+              protected = ($serial -and $protected.ContainsKey($serial))
+              eligible_for_preflight_only = ($reasons.Count -eq 0)
+              refusal_reasons = @($reasons)
+            }
+          }
+
+          $eligible = @($devices | Where-Object { $_.eligible_for_preflight_only })
+          $request = $null
+          if (Test-Path -LiteralPath 'Projects/Aurum/Recovery/usb-discovery-request.json') {
+            $request = Get-Content -LiteralPath 'Projects/Aurum/Recovery/usb-discovery-request.json' -Raw | ConvertFrom-Json
+          }
+          $result = [ordered]@{
+            schema = 'aurum-read-only-usb-discovery-v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            runner_name = $env:RUNNER_NAME
+            request_id = if ($request) { [string]$request.request_id } else { $null }
+            write_authority = $false
+            device_count = $devices.Count
+            eligible_count = $eligible.Count
+            selection_state = if ($eligible.Count -eq 1) { 'UNIQUE_SAFE_TO_PREFLIGHT_ONLY' } elseif ($eligible.Count -gt 1) { 'AMBIGUOUS_MULTIPLE_ELIGIBLE' } else { 'NO_ELIGIBLE_USB' }
+            devices = $devices
+          }
+          $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'Projects/Aurum/Recovery/latest-usb-discovery.json' -Encoding utf8
+          Write-Host "AURUM_USB_DISCOVERY_RESULT eligible=$($eligible.Count) state=$($result.selection_state) write_authority=false"
+
+      - name: Persist privacy-safe discovery receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-usb-discovery[bot]'
+          git config user.email 'aurum-usb-discovery@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/latest-usb-discovery.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record read-only USB discovery [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_USB_DISCOVERY_RECEIPT persisted=true'
