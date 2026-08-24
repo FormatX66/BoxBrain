@@ -65,7 +65,7 @@ jobs:
 
               # Verify the raw GPT image itself contains the current protected
               # offline carrier, not merely that the source live-build tree did.
-              start_mib=$(parted -sm dist/Aurum-TinySeed-amd64-direct-uefi.img unit MiB print | awk -F: '$1 == "2" {gsub("MiB", "", $2); print int($2)}')
+              start_mib=$(parted -sm dist/Aurum-TinySeed-amd64-direct-uefi.img unit MiB print | python3 -c "import sys; rows=[x for x in sys.stdin if x.startswith(\"2:\")]; print(int(float(rows[0].split(\":\")[1].replace(\"MiB\", \"\")))) if rows else None")
               test -n "$start_mib"
               dd if=dist/Aurum-TinySeed-amd64-direct-uefi.img of=/tmp/direct-data.img bs=1M skip="$start_mib" status=none
               debugfs -R "dump /live/filesystem.squashfs /tmp/direct.squashfs" /tmp/direct-data.img >/tmp/debugfs.log 2>&1
