@@ -1,7 +1,7 @@
 """Read-only Raspberry Pi 3 experiment probe.
 
 This module gathers physical receipts from a real Pi 3 without changing boot state,
-network configuration, drivers, firmware, or the active/LKG kernel profile.  The
+network configuration, drivers, firmware, or the active/LKG kernel profile. The
 receipt can then be fed into the existing StateWeave + Adaptive Kernel experiment.
 """
 
@@ -109,7 +109,10 @@ def build_observe_only_trial(receipt: dict[str, Any]) -> dict[str, Any]:
     machine_state = {
         "hostname": receipt["hostname"],
         "model": receipt["model"],
+        "arch": receipt["arch"],
         "kernel": receipt["kernel"],
+        "cores": receipt["cores"],
+        "ram_mb": receipt["ram_mb"],
         "boot_id": receipt["boot_id"],
         "interfaces": receipt["interfaces"],
     }
