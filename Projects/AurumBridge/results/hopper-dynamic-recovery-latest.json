@@ -1,0 +1,420 @@
+﻿{
+    "schema":  "aurum.boxbrain.dynamic-hopper-recovery.v1",
+    "observed_at":  "2026-08-24T21:08:44.0262906Z",
+    "runner_host":  "LAPTOP-EBD8CG8P",
+    "selected_pi":  null,
+    "discovery_attempts":  [
+                               {
+                                   "candidate":  "boxbrain.local",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "bbpi4.local",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "aurum-pi4.local",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "boxbrain",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "bbpi4",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "10.42.194.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "10.12.194.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.95.255",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.82.97",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.129.122",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.111.255",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.255.255",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.255",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.252",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.241",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.240",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.191",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.173",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.143",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.52",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.51",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.41",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.35",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.34",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.19",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.17",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.16",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.80.1",
+                                   "host_key":  true,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.80.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.80.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "172.17.80.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.248.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.248.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.248.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.248.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.96.1",
+                                   "host_key":  true,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.96.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.96.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.96.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.137.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.137.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.137.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.137.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.58.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.58.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.58.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.58.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.129.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.129.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.129.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.129.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.22.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.22.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.22.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.22.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.2.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.2.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.2.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.2.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.110.1",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.110.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.110.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "169.254.110.194",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.2",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               },
+                               {
+                                   "candidate":  "192.168.0.5",
+                                   "host_key":  false,
+                                   "auth":  false,
+                                   "pi_marker":  false
+                               }
+                           ],
+    "pi_authenticated":  false,
+    "hopper_candidate":  null,
+    "remote_repair":  "unavailable",
+    "hid_keyboard_ready":  false,
+    "hid_vt_switch_sent":  false,
+    "video_before":  false,
+    "video_after":  false,
+    "destructive_media_write":  false,
+    "new_authority_granted":  false,
+    "output":  ""
+}
