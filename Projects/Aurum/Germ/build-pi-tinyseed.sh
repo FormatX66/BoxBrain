@@ -71,7 +71,7 @@ rm -f "$ROOT_MNT/usr/bin/qemu-aarch64-static"
 
 GERM_DST="$ROOT_MNT/usr/lib/aurum/germ"
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   install -m 0755 "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0644 "$GERM_DST/GENETICS.json"
@@ -111,17 +111,31 @@ cat > "$ROOT_MNT/usr/sbin/aurum-recovery-poll" <<'EOF'
 #!/bin/sh
 exec /usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py "$@"
 EOF
-chmod 0755 "$ROOT_MNT/usr/sbin/aurum-reseed" "$ROOT_MNT/usr/sbin/aurum-rollback-drill" "$ROOT_MNT/usr/sbin/aurum-recovery-poll"
+cat > "$ROOT_MNT/usr/sbin/aurum-triage" <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/triage.py "$@"
+EOF
+chmod 0755 "$ROOT_MNT/usr/sbin/aurum-reseed" "$ROOT_MNT/usr/sbin/aurum-rollback-drill" "$ROOT_MNT/usr/sbin/aurum-recovery-poll" "$ROOT_MNT/usr/sbin/aurum-triage"
 
 SYSTEMD="$ROOT_MNT/etc/systemd/system"
 WANTS="$SYSTEMD/multi-user.target.wants"
 TIMERS="$SYSTEMD/timers.target.wants"
 mkdir -p "$WANTS" "$TIMERS"
+cat > "$SYSTEMD/aurum-triage.service" <<'EOF'
+[Unit]
+Description=Aurum read-only failure triage receipt
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/triage.py
+StandardOutput=journal+console
+StandardError=journal+console
+EOF
 cat > "$SYSTEMD/aurum-germ-preflight.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ preflight
 After=local-fs.target
 Before=aurum-tinyseed.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py preflight --reboot-on-rollback
@@ -132,6 +146,7 @@ cat > "$SYSTEMD/aurum-germ-health.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ candidate health gate
 After=aurum-germ-preflight.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStartPre=/bin/sleep 8
@@ -145,6 +160,7 @@ Description=Aurum Tiny Seed setup
 After=NetworkManager.service aurum-germ-preflight.service
 Wants=NetworkManager.service
 Conflicts=getty@tty1.service
+OnFailure=aurum-triage.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/tinyseed.py
@@ -173,6 +189,7 @@ cat > "$SYSTEMD/aurum-boot-proof.service" <<'EOF'
 [Unit]
 Description=Aurum non-secret boot proof receipt
 After=local-fs.target aurum-germ-preflight.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/proof.py
@@ -212,6 +229,11 @@ ln -sfn /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.servic
 ln -sfn /dev/null "$SYSTEMD/getty@tty1.service"
 
 printf '%s\n' aurum-tinyseed > "$ROOT_MNT/etc/hostname"
+cat > "$ROOT_MNT/etc/motd" <<'EOF'
+Aurum Tiny Seed
+Git stores the genetics. Tiny Seed carries the germ. The machine grows Aurum.
+If something fails after boot, run: aurum-triage
+EOF
 CONFIG="$BOOT_MNT/config.txt"
 CMDLINE="$BOOT_MNT/cmdline.txt"
 [ -f "$CONFIG" ] && [ -f "$CMDLINE" ] || { echo "Pi boot files missing" >&2; exit 1; }
@@ -228,6 +250,10 @@ LINE=$(tr -d '\r\n' < "$CMDLINE")
 case " $LINE " in *" console=serial0,115200 "*) : ;; *) LINE="$LINE console=serial0,115200" ;; esac
 case " $LINE " in *" aurum.tinyseed=1 "*) : ;; *) LINE="$LINE aurum.tinyseed=1" ;; esac
 printf '%s\n' "$LINE" > "$CMDLINE"
+# Prepared verbose fallback: it is not selected automatically. If a Pi reaches
+# firmware/kernel but gives insufficient evidence, replace cmdline.txt with this
+# copy on the boot partition and retry without changing the root/LKG state.
+printf '%s %s\n' "$LINE" 'systemd.show_status=yes loglevel=7' > "$BOOT_MNT/cmdline.aurum-safe.txt"
 
 sync
 umount "$BOOT_MNT"
