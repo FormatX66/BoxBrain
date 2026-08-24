@@ -91,6 +91,21 @@ When a branch is very high-probability and highly linear, preparation should con
 
 Forky, uncertain, expensive, or privacy-sensitive branches remain shallow even when plausible.
 
+## Balance apparent waste against compounded efficiency
+
+Do not optimize only for the next resolved branch. Some speculative work that looks wasted at first can produce durable value later.
+
+Evaluate speculation on two horizons:
+
+- **immediate value** — human wait removed if the predicted branch becomes active now;
+- **compounding value** — reusable partial state, cached artifacts, improved prediction calibration, assumptions exposed early, future errors avoided, and work that can be shared by neighboring branches.
+
+A near-term miss is therefore not automatically total waste. Track both **gross speculative work** and **net waste after reusable/learning/error-avoidance value**.
+
+This does not justify unlimited computation. Speculation should continue only while its expected long-horizon return plausibly exceeds its costs in compute, energy, RAM/Slush pressure, storage writes, network use, privacy exposure, and foreground interference.
+
+The desired optimization target is not minimum speculative work. It is **minimum total human/system cost over time**.
+
 ## Training loop
 
 1. Maintain a broad ranked field of likely futures.
@@ -102,7 +117,8 @@ Forky, uncertain, expensive, or privacy-sensitive branches remain shallow even w
 7. Let natural user intent resolve the branch when possible without exposing predictions first.
 8. Give varied lightweight confidence feedback after resolution when useful.
 9. Score whether the prediction was useful and whether the implied work was actually prepared/executed.
-10. Reallocate speculative resources from cooled/missed branches to newly promoted futures.
-11. Reduce question frequency as calibration improves.
+10. Score immediate benefit separately from compounded reuse/learning/error-avoidance value.
+11. Reallocate speculative resources from cooled/missed branches to newly promoted futures.
+12. Reduce question frequency as calibration improves.
 
 The goal is not to predict the user's wording. The goal is to predict enough of the user's **intent and next useful state** that the machine can reduce waiting while remaining non-interfering.
