@@ -25,16 +25,92 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Probe only known Pi3 names and collect read-only receipt
+      - name: Probe known Pi3 names plus passive USB topology and collect read-only receipt
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $targets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $knownTargets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
           $ssh = Get-Command ssh -ErrorAction SilentlyContinue
           $attempts = @()
           $receipt = $null
+          $targetSpecs = @()
+          $topology = [ordered]@{
+            method = 'known-names-plus-passive-usb-neighbors'
+            active_network_scan = $false
+            usb_like_adapter_count = 0
+            usb_like_adapters = @()
+            passive_neighbor_candidates = 0
+          }
 
-          foreach ($target in $targets) {
+          foreach ($target in $knownTargets) {
+            $targetSpecs += [ordered]@{
+              label = $target
+              endpoint = $target
+              source = 'known-name'
+            }
+          }
+
+          # Future Branch topology-first rule: if a dedicated Pi is attached over USB,
+          # do not assume its hostname is still one of the historical names. Observe only
+          # already-present Windows adapter/neighbor state; never sweep an address range.
+          $usbLikeAdapters = @(
+            Get-NetAdapter -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.Status -ne 'Disabled' -and (
+                  $_.Name -match '(?i)(usb|rndis|gadget|raspberry|cdc)' -or
+                  $_.InterfaceDescription -match '(?i)(usb|rndis|gadget|raspberry|cdc)'
+                )
+              }
+          )
+          $topology.usb_like_adapter_count = $usbLikeAdapters.Count
+
+          foreach ($adapter in $usbLikeAdapters) {
+            $neighbors = @(
+              Get-NetNeighbor -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object {
+                  $_.State -notin @('Unreachable', 'Incomplete') -and
+                  $_.IPAddress -and
+                  $_.IPAddress -notmatch '^(0\.0\.0\.0|224\.|239\.|255\.)'
+                }
+            )
+            $ipv4 = @(
+              Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.IPAddress -and $_.IPAddress -notmatch '^169\.254\.' }
+            )
+            $topology.usb_like_adapters += [ordered]@{
+              name = [string]$adapter.Name
+              description = [string]$adapter.InterfaceDescription
+              status = [string]$adapter.Status
+              ipv4_address_count = $ipv4.Count
+              neighbor_count = $neighbors.Count
+            }
+
+            foreach ($neighbor in $neighbors) {
+              $endpoint = [string]$neighbor.IPAddress
+              if (-not $endpoint) { continue }
+              $bytes = [Text.Encoding]::UTF8.GetBytes($endpoint)
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try {
+                $hash = ([BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+              } finally {
+                $hasher.Dispose()
+              }
+              $label = "usb-neighbor:$($hash.Substring(0,12))"
+              if (-not ($targetSpecs | Where-Object { $_.endpoint -eq $endpoint })) {
+                $targetSpecs += [ordered]@{
+                  label = $label
+                  endpoint = $endpoint
+                  source = 'passive-usb-neighbor'
+                }
+                $topology.passive_neighbor_candidates++
+              }
+            }
+          }
+
+          foreach ($spec in $targetSpecs) {
+            $target = [string]$spec.endpoint
+            $label = [string]$spec.label
+            $source = [string]$spec.source
             $reachable = $false
             try {
               $reachable = [bool](Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)
@@ -43,7 +119,8 @@ jobs:
             }
 
             $attempt = [ordered]@{
-              target_name = $target
+              target_name = $label
+              target_source = $source
               tcp22_reachable = $reachable
               ssh_batch_mode = $false
               pi3_model_match = $false
@@ -81,7 +158,8 @@ jobs:
                   $receipt = [ordered]@{
                     schema = 'aurum-pi3-physical-receipt-v1'
                     captured_at = [DateTime]::UtcNow.ToString('o')
-                    hostname = $target
+                    hostname = $label
+                    discovery_source = $source
                     model = $model
                     arch = $arch
                     kernel = $kernel
@@ -108,20 +186,22 @@ jobs:
             }
           }
 
+          $anyTcp22 = @($attempts | Where-Object { $_.tcp22_reachable }).Count -gt 0
           $result = [ordered]@{
             schema = 'aurum-pi3-read-only-probe-result-v1'
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
             runner_name = $env:RUNNER_NAME
             request_id = $requestId
-            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } else { 'NO_REACHABLE_PI3_RECEIPT' }
+            state = if ($receipt) { 'PHYSICAL_RECEIPT_CAPTURED' } elseif ($anyTcp22) { 'NO_VERIFIED_PI3_RECEIPT' } else { 'NO_REACHABLE_PI3_RECEIPT' }
             mutation_allowed = $false
             promotion_allowed = $false
             write_authority = $false
+            topology = $topology
             attempts = $attempts
             receipt = $receipt
           }
-          $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
-          Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) write_authority=false mutation_allowed=false"
+          $result | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath 'Projects/Aurum/Experiments/latest-pi3-physical-receipt.json' -Encoding utf8
+          Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) usb_like_adapters=$($topology.usb_like_adapter_count) passive_neighbors=$($topology.passive_neighbor_candidates) write_authority=false mutation_allowed=false"
 
       - name: Persist privacy-bounded Pi3 evidence receipt
         shell: powershell
