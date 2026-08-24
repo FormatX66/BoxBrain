@@ -124,17 +124,25 @@ jobs:
           Write-Host "AURUM_PI3_READONLY_PROBE state=$($result.state) write_authority=false mutation_allowed=false"
 
       - name: Persist privacy-bounded Pi3 evidence receipt
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = 'Stop'
           git config user.name 'aurum-pi3-probe[bot]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure probe Git user name.' }
           git config user.email 'aurum-pi3-probe@users.noreply.github.com'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure probe Git user email.' }
           git add Projects/Aurum/Experiments/latest-pi3-physical-receipt.json
-          if git diff --cached --quiet; then
-            echo 'AURUM_PI3_PROBE_RECEIPT unchanged=true'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to stage the Pi3 evidence receipt.' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AURUM_PI3_PROBE_RECEIPT unchanged=true'
             exit 0
-          fi
+          }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to compare the staged Pi3 evidence receipt.' }
           git commit -m 'Record read-only Pi3 physical probe [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to commit the Pi3 evidence receipt.' }
           git pull --rebase origin main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to rebase the Pi3 evidence receipt onto main.' }
           git push origin HEAD:main
-          echo 'AURUM_PI3_PROBE_RECEIPT persisted=true'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to push the Pi3 evidence receipt.' }
+          Write-Host 'AURUM_PI3_PROBE_RECEIPT persisted=true'
