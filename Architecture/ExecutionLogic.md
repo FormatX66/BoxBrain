@@ -43,6 +43,14 @@ protected branch during speculative system mutations. Existing safety,
 identity, permission, privacy, emergency-stop, and destructive-action gates
 remain authoritative over any branch ranking.
 
+## Execution-route layer
+
+After deciding what action/state is useful, resolve **how the current context can actually carry it out** before asking the user to move context or perform a machine step. Use the [Execution Route layer](ExecutionRoutes.md) to rank direct-local capability, connected capability, authorized runner, workspace handoff, and human-assisted routes from fresh evidence.
+
+Human interaction is a valid route but not the automatic escape hatch. Prefer a machine-capable route when utility is otherwise similar; allow the human route to win when it is materially safer, faster, more reliable, or required by a real physical/authority boundary. Keep viable alternates warm so one failed carrier does not restart linear reasoning.
+
+Route choice never grants authority. All destructive, credential, privacy, physical, identity, and policy gates remain sovereign.
+
 ## Mandatory pre-action gate
 
 Before doing meaningful work, answer internally and proportionally:
