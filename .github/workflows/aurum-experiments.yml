@@ -46,10 +46,20 @@ jobs:
     steps:
       - name: Check out genetics
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Test anticipatory prepare-but-do-not-act policy
+      - name: Test anticipatory resource scheduling
         run: |
           cd Projects/Aurum/Experiments
           python3 -m unittest -v test_anticipatory_state
+
+  future-branch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test answer execute prepare and wait decisions
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_future_branch
 
   recovery-control-contract:
     runs-on: ubuntu-24.04
