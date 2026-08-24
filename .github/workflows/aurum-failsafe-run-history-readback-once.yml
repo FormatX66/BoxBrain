@@ -45,6 +45,8 @@ jobs:
               ('aurum-pi4-reachability-diagnostic.yml', 'main'),
               ('aurum-pc01-flash-authorized.yml', 'main'),
               ('aurum-hopper-echo-proof.yml', 'main'),
+              ('aurum-tiny-seed-x86.yml', 'main'),
+              ('aurum-tiny-seed-pi.yml', 'main'),
               ('ci.yml', 'main'),
           ]
           snapshot = {}
@@ -98,4 +100,4 @@ jobs:
           print(json.dumps(snapshot, sort_keys=True))
           PY
 
-# Failsafe run history diagnostic refresh: 2026-08-24T02:16Z
+# Failsafe run history diagnostic refresh: 2026-08-24T02:21Z
