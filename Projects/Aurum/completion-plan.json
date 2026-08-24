@@ -1,7 +1,7 @@
 {
   "schema": "aurum-completion-plan-v1",
   "goal": "Aurum can be seeded or reseeded from minimal x86/ARM64 media, preserve Last Known Good state, prove boot and rollback on physical hardware, recover Hopper, and advance adaptive-kernel/StateWeave experiments without confusing experiments with production proof.",
-  "latest_release_source_commit": "67cf631e5812fea0dfc5dc1491e8a205571e7ae7",
+  "latest_release_source_commit": "b582d70605d93f8be12df7e261336839c260fb1e",
   "release_state": "READY_TO_FLASH",
   "policy": {
     "prepare_downstream_before_dependency_is_green": true,
@@ -29,7 +29,9 @@
     {
       "id": "tinyseed-x86-build",
       "lane": "media-x86",
-      "depends_on": ["germ-unit-contract"],
+      "depends_on": [
+        "germ-unit-contract"
+      ],
       "state": "passed-published",
       "ready_now": true,
       "proof": "ISO builds and checksum validates"
@@ -37,7 +39,9 @@
     {
       "id": "tinyseed-x86-uefi",
       "lane": "media-x86",
-      "depends_on": ["tinyseed-x86-build"],
+      "depends_on": [
+        "tinyseed-x86-build"
+      ],
       "state": "passed-published",
       "ready_now": true,
       "proof": "UEFI VM reaches AURUM_TINYSEED_READY and AURUM_BOOT_PROOF_READY"
@@ -45,7 +49,9 @@
     {
       "id": "tinyseed-x86-bios",
       "lane": "media-x86",
-      "depends_on": ["tinyseed-x86-build"],
+      "depends_on": [
+        "tinyseed-x86-build"
+      ],
       "state": "passed-published",
       "ready_now": true,
       "proof": "Legacy BIOS VM reaches AURUM_TINYSEED_READY and AURUM_BOOT_PROOF_READY"
@@ -53,7 +59,9 @@
     {
       "id": "tinyseed-pi-build",
       "lane": "media-arm64",
-      "depends_on": ["germ-unit-contract"],
+      "depends_on": [
+        "germ-unit-contract"
+      ],
       "state": "passed-published",
       "ready_now": true,
       "proof": "compressed Pi image builds, checksum and xz integrity pass"
@@ -61,7 +69,9 @@
     {
       "id": "tinyseed-pi-static-payload",
       "lane": "media-arm64",
-      "depends_on": ["tinyseed-pi-build"],
+      "depends_on": [
+        "tinyseed-pi-build"
+      ],
       "state": "passed-published",
       "ready_now": true,
       "proof": "mounted image contains Guardian, reseed germ, boot-proof service and Tiny Seed kernel flag"
@@ -69,7 +79,11 @@
     {
       "id": "tinyseed-combined-handoff",
       "lane": "release",
-      "depends_on": ["tinyseed-x86-uefi", "tinyseed-x86-bios", "tinyseed-pi-static-payload"],
+      "depends_on": [
+        "tinyseed-x86-uefi",
+        "tinyseed-x86-bios",
+        "tinyseed-pi-static-payload"
+      ],
       "state": "passed-ready-to-flash",
       "ready_now": true,
       "proof": "same source commit has two successful published artifacts, hashes reverified, combined handoff manifest says READY_TO_FLASH"
@@ -77,7 +91,9 @@
     {
       "id": "x86-physical-flash",
       "lane": "physical-x86",
-      "depends_on": ["tinyseed-combined-handoff"],
+      "depends_on": [
+        "tinyseed-combined-handoff"
+      ],
       "state": "ready-for-guarded-preflight-explicit-authority-pending",
       "ready_now": false,
       "proof": "explicitly selected non-system media is flashed and readback-verified"
@@ -85,7 +101,9 @@
     {
       "id": "x86-physical-boot",
       "lane": "physical-x86",
-      "depends_on": ["x86-physical-flash"],
+      "depends_on": [
+        "x86-physical-flash"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "real x86 target produces Tiny Seed ready marker and boot-proof receipt"
@@ -93,7 +111,9 @@
     {
       "id": "pi-physical-flash",
       "lane": "physical-arm64",
-      "depends_on": ["tinyseed-combined-handoff"],
+      "depends_on": [
+        "tinyseed-combined-handoff"
+      ],
       "state": "blocked-on-physical-media",
       "ready_now": false,
       "proof": "Pi image is written to explicitly selected media and verified"
@@ -101,7 +121,9 @@
     {
       "id": "pi-physical-boot",
       "lane": "physical-arm64",
-      "depends_on": ["pi-physical-flash"],
+      "depends_on": [
+        "pi-physical-flash"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "real ARM64 target produces Tiny Seed ready marker and boot-proof receipt"
@@ -109,7 +131,9 @@
     {
       "id": "healthy-regrow-promotion",
       "lane": "recovery",
-      "depends_on": ["x86-physical-boot"],
+      "depends_on": [
+        "x86-physical-boot"
+      ],
       "state": "prepared-waiting",
       "ready_now": false,
       "proof": "current genetics grow only in inactive slot, reboot, pass health evidence, promote while previous LKG remains intact until promotion"
@@ -117,7 +141,9 @@
     {
       "id": "forced-rollback-proof",
       "lane": "recovery",
-      "depends_on": ["healthy-regrow-promotion"],
+      "depends_on": [
+        "healthy-regrow-promotion"
+      ],
       "state": "unit-proven-physical-pending",
       "ready_now": true,
       "proof": "deliberately bad disposable candidate is quarantined and Guardian automatically restores LKG"
@@ -125,7 +151,10 @@
     {
       "id": "hopper-recovery",
       "lane": "hopper",
-      "depends_on": ["tinyseed-combined-handoff", "forced-rollback-proof"],
+      "depends_on": [
+        "tinyseed-combined-handoff",
+        "forced-rollback-proof"
+      ],
       "state": "prepared-waiting",
       "ready_now": false,
       "proof": "Hopper boots recovered Aurum and retains a proven recovery path"
@@ -149,7 +178,10 @@
     {
       "id": "stateweave-kernel-combined",
       "lane": "experiment",
-      "depends_on": ["stateweave-independent", "adaptive-kernel-independent"],
+      "depends_on": [
+        "stateweave-independent",
+        "adaptive-kernel-independent"
+      ],
       "state": "ci-passed-experiment",
       "ready_now": true,
       "proof": "pre-change StateWeave receipt is bound to a candidate kernel plan with explicit rollback target and branch bridge"
@@ -157,7 +189,10 @@
     {
       "id": "pi3-kernel-canary",
       "lane": "physical-experiment",
-      "depends_on": ["pi-physical-boot", "adaptive-kernel-independent"],
+      "depends_on": [
+        "pi-physical-boot",
+        "adaptive-kernel-independent"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "adaptive-kernel canary runs on experimental Pi3 without affecting production nodes"
@@ -165,7 +200,10 @@
     {
       "id": "pi3-stateweave-canary",
       "lane": "physical-experiment",
-      "depends_on": ["pi-physical-boot", "stateweave-independent"],
+      "depends_on": [
+        "pi-physical-boot",
+        "stateweave-independent"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "StateWeave capture/restore/tamper tests run on experimental Pi3"
@@ -173,7 +211,11 @@
     {
       "id": "pi3-combined-canary",
       "lane": "physical-experiment",
-      "depends_on": ["pi3-kernel-canary", "pi3-stateweave-canary", "stateweave-kernel-combined"],
+      "depends_on": [
+        "pi3-kernel-canary",
+        "pi3-stateweave-canary",
+        "stateweave-kernel-combined"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "combined experiment is compared against the two independent controls"
@@ -189,7 +231,10 @@
     {
       "id": "remote-recovery-physical-proof",
       "lane": "remote-recovery",
-      "depends_on": ["remote-recovery-crypto", "forced-rollback-proof"],
+      "depends_on": [
+        "remote-recovery-crypto",
+        "forced-rollback-proof"
+      ],
       "state": "blocked-on-physical-hardware",
       "ready_now": false,
       "proof": "authenticated remote request causes only the permitted rollback/reseed action and preserves LKG"
