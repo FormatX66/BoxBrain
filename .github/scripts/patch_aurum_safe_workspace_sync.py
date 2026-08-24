@@ -5,8 +5,12 @@ import re
 
 workspace_path = Path("Projects/AurumPC/aurum_workspace.py")
 autonomy_path = Path("Projects/AurumPC/aurum_autonomy.py")
+runtime_path = Path("Projects/AurumPC/aurum_runtime_update.py")
+build_path = Path("Projects/AurumPC/build-iso.sh")
 workspace_text = workspace_path.read_text(encoding="utf-8")
 autonomy_text = autonomy_path.read_text(encoding="utf-8")
+runtime_text = runtime_path.read_text(encoding="utf-8")
+build_text = build_path.read_text(encoding="utf-8")
 changed = False
 
 # ---- AurumWorkspace.git_sync -------------------------------------------------
@@ -137,9 +141,31 @@ if '"reason": "workspace-dirty"' in autonomy_text:
 if '"source": "autonomy"' not in autonomy_text or 'aurum-auto-checkpoint-' not in autonomy_text:
     raise SystemExit("autonomy checkpoint contract is absent")
 
+# ---- Make the bootstrap helper resident in installed runtime and new ISOs ----
+if '    "aurum_sync_recovery.py",\n' not in runtime_text:
+    anchor = '    "aurum_runtime_update.py",\n'
+    if anchor not in runtime_text:
+        raise SystemExit("runtime allowlist anchor is absent")
+    runtime_text = runtime_text.replace(anchor, anchor + '    "aurum_sync_recovery.py",\n', 1)
+    changed = True
+
+if 'aurum_sync_recovery.py' not in build_text:
+    anchor = 'aurum_runtime_update.py aurum_time.py'
+    if anchor not in build_text:
+        raise SystemExit("ISO runtime-copy anchor is absent")
+    build_text = build_text.replace(anchor, 'aurum_runtime_update.py aurum_sync_recovery.py aurum_time.py', 1)
+    changed = True
+
+if '    "aurum_sync_recovery.py",\n' not in runtime_text:
+    raise SystemExit("runtime does not install aurum_sync_recovery.py")
+if 'aurum_sync_recovery.py' not in build_text:
+    raise SystemExit("ISO does not bundle aurum_sync_recovery.py")
+
 if changed:
     workspace_path.write_text(workspace_text, encoding="utf-8")
     autonomy_path.write_text(autonomy_text, encoding="utf-8")
-    print("wired checkpoint-first workspace and autonomy sync")
+    runtime_path.write_text(runtime_text, encoding="utf-8")
+    build_path.write_text(build_text, encoding="utf-8")
+    print("wired checkpoint-first sync and resident recovery helper")
 else:
-    print("checkpoint-first workspace and autonomy sync already wired")
+    print("checkpoint-first sync and resident recovery helper already wired")
