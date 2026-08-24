@@ -77,6 +77,40 @@ if (-not $Write) {
     exit 0
 }
 
+# Future Branch pre-execution recovery is a hard destructive-write gate, not
+# merely dashboard prose. A write is permitted only after a fresh terminal v2
+# Hopper recovery receipt proves the already-authorized system-side recovery
+# path was actually attempted and could not complete recovery. If remote repair
+# completed, the correct next action is to re-read Hopper health, not flash.
+$recoveryReceiptPath = Join-Path $PSScriptRoot '..\..\..\AurumBridge\results\hopper-recovery-path-latest.json'
+if (-not (Test-Path -LiteralPath $recoveryReceiptPath -PathType Leaf)) {
+    Fail 'preexecution-recovery-receipt-missing'
+}
+try {
+    $recoveryReceipt = Get-Content -LiteralPath $recoveryReceiptPath -Raw | ConvertFrom-Json
+} catch {
+    Fail 'preexecution-recovery-receipt-invalid'
+}
+if ([string]$recoveryReceipt.schema -ne 'aurum.hopper.recovery-path-probe.v2') {
+    Fail 'preexecution-recovery-receipt-schema'
+}
+try {
+    $recoveryObserved = [DateTime]::Parse([string]$recoveryReceipt.observed_at).ToUniversalTime()
+} catch {
+    Fail 'preexecution-recovery-receipt-time-invalid'
+}
+$recoveryAgeSeconds = ([DateTime]::UtcNow - $recoveryObserved).TotalSeconds
+if ($recoveryAgeSeconds -lt -300) { Fail 'preexecution-recovery-receipt-from-future' }
+if ($recoveryAgeSeconds -gt 3600) { Fail 'preexecution-recovery-receipt-stale' }
+$remoteRepair = ([string]$recoveryReceipt.remote_repair).Trim().ToLowerInvariant()
+if ($remoteRepair -eq 'completed') { Fail 'preexecution-remote-repair-completed-recheck-hopper' }
+if ($remoteRepair -notin @('unavailable','failed')) { Fail 'preexecution-recovery-not-terminal' }
+$terminalReason = ([string]$recoveryReceipt.terminal_reason).Trim().ToLowerInvariant()
+if ($terminalReason -notin @('boxbrain-unreachable','authorized-recovery-unavailable','remote-repair-failed')) {
+    Fail 'preexecution-recovery-terminal-reason-invalid'
+}
+Write-Host "AURUM_TINYSEED_PREEXECUTION_RECOVERY_GATE_OK remote_repair=$remoteRepair terminal_reason=$terminalReason age_seconds=$([Math]::Round($recoveryAgeSeconds))"
+
 $diskNumber = [int]$disk.Number
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
 $expectedSize = [int64]$disk.Size
