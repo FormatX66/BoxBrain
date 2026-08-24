@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import unittest
 
 from physical_handoff_preflight import evaluate_physical_preflight
@@ -22,6 +23,22 @@ class PhysicalHandoffPreflightTests(unittest.TestCase):
             "eligible_count": eligible,
             "selection_state": state,
         }
+
+    def request(self, *, expires: str = "2026-08-24T14:00:00Z") -> dict:
+        return {
+            "schema": "aurum-tinyseed-flash-request-v1",
+            "state": "AUTHORIZED_ONCE",
+            "request_id": "flash-once",
+            "write_authority": True,
+            "confirmation": "FLASH_TINY_SEED_TEST_USB",
+            "expires_at_utc": expires,
+            "seed_sha": "abc123",
+            "image_sha256": "deadbeef",
+            "discovery_request_id": "test-request",
+        }
+
+    def now(self) -> datetime:
+        return datetime(2026, 8, 24, 13, 0, tzinfo=timezone.utc)
 
     def test_ready_release_without_receipt_waits_for_read_only_discovery(self):
         result = evaluate_physical_preflight(self.release(), None)
@@ -65,6 +82,46 @@ class PhysicalHandoffPreflightTests(unittest.TestCase):
         result = evaluate_physical_preflight(self.release(), discovery)
         self.assertEqual(result["preflight_state"], "REFUSE_DISCOVERY_AUTHORITY")
         self.assertFalse(result["write_authority"])
+
+    def test_expired_one_shot_authorization_returns_to_human_boundary(self):
+        result = evaluate_physical_preflight(
+            self.release(),
+            self.discovery(state="UNIQUE_SAFE_TO_PREFLIGHT_ONLY", eligible=1),
+            self.request(expires="2026-08-24T12:20:00Z"),
+            now_utc=self.now(),
+        )
+        self.assertEqual(result["authorization"]["authorization_state"], "EXPIRED")
+        self.assertEqual(result["preflight_state"], "READY_FOR_GUARDED_FLASH_PREFLIGHT")
+        self.assertFalse(result["write_authority"])
+        self.assertFalse(result["destructive_action_allowed"])
+
+    def test_valid_one_shot_authorization_still_requires_live_reproof(self):
+        result = evaluate_physical_preflight(
+            self.release(),
+            self.discovery(state="UNIQUE_SAFE_TO_PREFLIGHT_ONLY", eligible=1),
+            self.request(),
+            now_utc=self.now(),
+        )
+        self.assertEqual(
+            result["authorization"]["authorization_state"],
+            "VALID_ONE_SHOT_PENDING_LIVE_REPROOF",
+        )
+        self.assertEqual(result["preflight_state"], "AUTHORIZED_ONE_SHOT_PENDING_LIVE_REPROOF")
+        self.assertFalse(result["write_authority"])
+        self.assertFalse(result["destructive_action_allowed"])
+
+    def test_mismatched_release_or_discovery_refuses_authorization(self):
+        request = self.request()
+        request["seed_sha"] = "different"
+        result = evaluate_physical_preflight(
+            self.release(),
+            self.discovery(state="UNIQUE_SAFE_TO_PREFLIGHT_ONLY", eligible=1),
+            request,
+            now_utc=self.now(),
+        )
+        self.assertEqual(result["authorization"]["authorization_state"], "REFUSE_PROVENANCE_MISMATCH")
+        self.assertEqual(result["preflight_state"], "REFUSE_FLASH_AUTHORIZATION")
+        self.assertFalse(result["destructive_action_allowed"])
 
 
 if __name__ == "__main__":
