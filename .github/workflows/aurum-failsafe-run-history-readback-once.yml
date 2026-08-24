@@ -98,4 +98,4 @@ jobs:
           print(json.dumps(snapshot, sort_keys=True))
           PY
 
-# Failsafe run history includes Hopper Echo physical proof lane: 2026-08-22T22:46Z
+# Failsafe run history diagnostic refresh: 2026-08-24T02:16Z
