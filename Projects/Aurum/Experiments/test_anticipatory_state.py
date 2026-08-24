@@ -7,6 +7,7 @@ from anticipatory_state import (
     ResourceBudget,
     SpeculationPolicy,
     build_speculative_plan,
+    value_components,
 )
 
 
@@ -87,6 +88,45 @@ class AnticipatoryStateTests(unittest.TestCase):
         )
         self.assertEqual(plan["prepared"], [])
         self.assertEqual(plan["held"][0]["held_reason"], "insufficient-future-value")
+
+    def test_compounding_value_can_make_a_lower_probability_future_worth_preparing(self):
+        plan = build_speculative_plan(
+            [
+                CandidateIntent("one-shot", 0.7, 1.0, 1000, 0.1, 64),
+                CandidateIntent(
+                    "reusable-learning",
+                    0.3,
+                    1.0,
+                    500,
+                    0.1,
+                    64,
+                    reuse_value=3.0,
+                    learning_value=2.0,
+                    avoided_future_error_value=1.0,
+                ),
+            ],
+            self.budget(),
+        )
+        self.assertEqual(plan["prepared"][0]["intent"], "reusable-learning")
+        self.assertGreater(plan["prepared"][0]["compound_value"], plan["prepared"][0]["immediate_value"])
+
+    def test_value_components_separate_short_and_long_horizon_value(self):
+        parts = value_components(
+            CandidateIntent(
+                "compound",
+                0.5,
+                2.0,
+                1000,
+                0.1,
+                64,
+                reuse_value=2.0,
+                learning_value=1.0,
+                avoided_future_error_value=3.0,
+            )
+        )
+        self.assertEqual(parts["immediate"], 2.0)
+        self.assertEqual(parts["compound"], 6.0)
+        self.assertEqual(parts["total"], 8.0)
 
 
 if __name__ == "__main__":
