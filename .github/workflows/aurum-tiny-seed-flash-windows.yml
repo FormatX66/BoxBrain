@@ -48,10 +48,19 @@ jobs:
           HANDOFF_RUN: ${{ inputs.handoff_run_id }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $out = Join-Path $env:RUNNER_TEMP 'aurum-tinyseed-handoff'
-          if (Test-Path $out) { Remove-Item -LiteralPath $out -Recurse -Force }
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          gh run download $env:HANDOFF_RUN -n Aurum-TinySeed-Handoff -D $out
+          if ($env:HANDOFF_RUN -notmatch '^\d+$') { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=handoff-run-format' }
+          $out = Join-Path $env:ProgramData "Aurum\cache\tinyseed-handoff-run-$env:HANDOFF_RUN"
+          $cachedManifest = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' -ErrorAction SilentlyContinue | Select-Object -First 1
+          $cachedImage = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' -ErrorAction SilentlyContinue | Select-Object -First 1
+          $cachedSha = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $cachedManifest -or -not $cachedImage -or -not $cachedSha) {
+            if (Test-Path $out) { Remove-Item -LiteralPath $out -Recurse -Force }
+            New-Item -ItemType Directory -Path $out -Force | Out-Null
+            gh run download $env:HANDOFF_RUN -n Aurum-TinySeed-Handoff -D $out
+          } else {
+            Write-Host "AURUM_TINYSEED_HANDOFF_CACHE_HIT run=$env:HANDOFF_RUN"
+          }
+          "AURUM_HANDOFF_ROOT=$out" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Verify READY_TO_FLASH manifest and source identity
         shell: powershell
@@ -59,7 +68,7 @@ jobs:
           SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $out = Join-Path $env:RUNNER_TEMP 'aurum-tinyseed-handoff'
+          $out = $env:AURUM_HANDOFF_ROOT
           $manifestPath = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
           if (-not $manifestPath) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=release-manifest-missing' }
           $manifest = Get-Content -LiteralPath $manifestPath.FullName -Raw | ConvertFrom-Json

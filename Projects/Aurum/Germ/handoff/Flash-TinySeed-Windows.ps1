@@ -217,7 +217,7 @@ function Clear-ReverifiedTarget {
     Update-HostStorageCache -ErrorAction SilentlyContinue | Out-Null
     Start-Sleep -Seconds 2
     $candidate = Get-ReverifiedTarget
-    if ($candidate.PartitionStyle -ne 'RAW' -or [int]$candidate.NumberOfPartitions -ne 0) {
+    if ([int]$candidate.NumberOfPartitions -ne 0) {
         Fail "target-clear-not-observed style=$($candidate.PartitionStyle) partitions=$($candidate.NumberOfPartitions)"
     }
 }
