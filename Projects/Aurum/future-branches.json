@@ -1,8 +1,8 @@
 {
-  "schema": "aurum-future-branch-state-v4",
+  "schema": "aurum-future-branch-state-v5",
   "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate both prediction and execution quality from what actually happens.",
   "policy": {
-    "lookahead_depth": 2,
+    "lookahead_depth": "adaptive-to-boundary",
     "binary_pass_fail_only": false,
     "execute_safe_likely_followup_now": true,
     "prepare_dependency_blocked_followup": true,
@@ -15,114 +15,109 @@
     "allow_method_pivot_when_carrier_cost_exceeds_expected_value": true,
     "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
   },
-  "current_program": "Aurum Tiny Seed / recovery foundation with parallel experiments and Future Branch calibration",
+  "current_program": "Aurum Tiny Seed READY_TO_FLASH; physical x86 proof is the leading boundary while Pi proof, rollback, Future Branch and parallel experiments remain warm",
+  "resolved_machine_outcomes": [
+    {
+      "state": "tinyseed-artifacts-pass-and-publish",
+      "prediction": "exact",
+      "execution": "boundary-correct",
+      "proof": "same-revision x86 and Pi artifacts published from cc016ddf86444ab3e992ec07187802900dca7b56; combined handoff reverified hashes and persisted READY_TO_FLASH"
+    }
+  ],
   "likely_user_inputs": [
     {
       "rank": 1,
-      "input_family": "future-branch-execution-gap-audit",
-      "examples": ["you predicted that, but did you actually do it?", "you listed the next thing but didn't do it", "what did you prepare instead of just predicting?"],
-      "prepared_response": "Compare prediction and preparation/execution separately. A correct prediction with omitted safe work is an execution miss and earns zero useful-hit credit.",
-      "action_if_safe": "Immediately perform the safe implied work, record prediction debt, update calibration, and re-rank this branch family upward until execution catches prediction."
+      "input_family": "physical-handoff",
+      "examples": ["ok what do I need to do", "ready to flash?", "which USB", "let's flash it"],
+      "prepared_response": "State that READY_TO_FLASH is verified, protect the existing 64 GB Gen0 recovery USB, identify a different non-system test USB by serial, run the guarded flasher in dry-run mode first, then request explicit destructive-write authority only after preflight proves the target and checksum.",
+      "action_if_safe": "Provide the exact artifact identity, checksum and guarded preflight path; stop before the destructive write until the user supplies/identifies physical media and authorizes it."
     },
     {
       "rank": 2,
-      "input_family": "future-branch-self-audit",
-      "examples": ["did you predict that?", "was that one of your branches?", "so what did you already do?", "prove you're actually staying ahead"],
-      "prepared_response": "Compare the actual input against the prior ranked branch field, report exact/partial/miss without inflating the score, and also report execution/preparation completeness.",
-      "action_if_safe": "Persist calibration, re-rank the branch field, and execute any newly obvious safe follow-up immediately."
+      "input_family": "physical-result-failure",
+      "examples": ["it didn't boot", "blank screen", "nothing happened", "setup is stuck", "network won't connect"],
+      "prepared_response": "Use Tiny Seed boot-proof markers, GRUB serial evidence, safe/verbose boot, read-only triage and preserved diagnostics to classify media/firmware/kernel/setup/network failure without touching LKG.",
+      "action_if_safe": "Apply the smallest evidence-driven fix to a candidate path, preserve Gen0/LKG, and keep the alternate carrier branch available if repeated carrier-specific friction returns."
     },
     {
       "rank": 3,
-      "input_family": "status-or-so",
-      "examples": ["so?", "how's it going?", "what's the status now?"],
-      "prepared_response": "Read live build/evidence state and include passed/running/failed/published plus whether human action is needed.",
-      "action_if_safe": "Advance any newly unblocked repo/CI step before reporting."
+      "input_family": "physical-result-success",
+      "examples": ["it booted", "I'm in", "that worked"],
+      "prepared_response": "Verify ready/boot-proof receipts and immediately continue the protected Repair/Reseed flow rather than asking what to do next.",
+      "action_if_safe": "Confirm Gen0 as slot A/LKG, grow current genetics only into inactive slot B, collect health evidence, and stop at any reboot/physical boundary that cannot be crossed remotely."
     },
     {
       "rank": 4,
-      "input_family": "seed-method-pivot",
-      "examples": ["should we switch seed methods?", "is the ISO the wrong way to do this?", "should we use a different carrier?", "are we wasting time fixing this boot path?"],
-      "prepared_response": "Compare the current ISO-hybrid path against alternate carriers using repeated-failure cost, verification friction, platform coverage, recovery simplicity, reuse value, and time-to-physical-proof. Treat the carrier as replaceable while preserving the same germ/genetics/LKG contract.",
-      "action_if_safe": "Keep the current path alive while preparing the strongest alternative. Promote the alternative only when evidence shows lower total expected cost or the current carrier repeatedly fails the same class of gate."
+      "input_family": "status-or-so",
+      "examples": ["so?", "how's it going?", "what's the status now?"],
+      "prepared_response": "Report VERIFIED READY_TO_FLASH separately from physical proof, then name the next human boundary and any parallel software work already advanced.",
+      "action_if_safe": "Read live handoff/status evidence and advance any newly unblocked non-physical work before reporting."
     },
     {
       "rank": 5,
-      "input_family": "measure-future-branch",
-      "examples": ["is it actually saving time?", "how accurate are the predictions?", "how do we know this works?"],
-      "prepared_response": "Report prediction accuracy, execution completeness, useful-hit rate, prepared-action hit rate, user turns avoided, wait-time saved, discarded speculative cost, and self-corrections found before the user encountered them.",
-      "action_if_safe": "Update calibration/evidence metrics and compare them against a reactive baseline."
+      "input_family": "seed-method-pivot",
+      "examples": ["should we switch seed methods?", "is the ISO still the wrong way?", "should we use the universal carrier instead?"],
+      "prepared_response": "The pivot branch is cooler now because both x86 boot paths and the combined handoff passed. Keep universal-carrier work warm as the long-term architecture and promote it again only if physical evidence shows carrier-specific cost or coverage problems.",
+      "action_if_safe": "Do not pivot merely because the alternative exists; compare new physical evidence against expected total cost."
     },
     {
       "rank": 6,
-      "input_family": "physical-result-failure",
-      "examples": ["it didn't work", "nothing happened", "blank screen", "still broken"],
-      "prepared_response": "Map terse report to boot/media/network/install/regrow/rollback branch using embedded triage and boot proof.",
-      "action_if_safe": "Use captured evidence, apply smallest safe fix, rebuild/rerun, preserve LKG."
+      "input_family": "future-branch-self-audit",
+      "examples": ["did it predict that?", "was that branch warm?", "what did predictions actually save?"],
+      "prepared_response": "Score the prior branch honestly. The Tiny Seed publish outcome was an exact prediction with boundary-correct execution; the earlier method-pivot idea was a miss that changed the model.",
+      "action_if_safe": "Persist calibration and re-rank without inflating partial or post-hoc matches."
     },
     {
       "rank": 7,
-      "input_family": "physical-result-success",
-      "examples": ["it worked", "I'm in", "it booted"],
-      "prepared_response": "Immediately advance to the next gated proof rather than asking what the user wants to do next.",
-      "action_if_safe": "Verify boot receipt, Guardian/LKG state, then continue healthy regrow/promotion or next physical gate."
-    },
-    {
-      "rank": 8,
-      "input_family": "what-next",
-      "examples": ["what's next?", "now what?", "what should we do next?"],
-      "prepared_response": "Do the highest-value already-authorized next operation first; answer with what was advanced and the next real boundary.",
-      "action_if_safe": "Advance completion graph and adjacent independent lanes."
-    },
-    {
-      "rank": 9,
       "input_family": "what-else",
-      "examples": ["what else can you do?", "do everything else too", "what can run at the same time?"],
-      "prepared_response": "Fan out independent lanes and prepare downstream dependent carts without crossing real boundaries.",
-      "action_if_safe": "Continue experiments, recovery prep, integrity, status, and next-capability work in parallel."
+      "examples": ["what else can run", "do everything else too", "what can we work on while I handle the USB"],
+      "prepared_response": "Keep Pi proof prep, Guardian forced-rollback preparation, remote-recovery crypto, StateWeave/adaptive-kernel experiments and universal-carrier design advancing independently without confusing them with physical proof.",
+      "action_if_safe": "Continue all dependency-satisfied software/CI lanes while the physical x86 branch waits."
     }
   ],
   "likely_machine_outcomes": [
     {
       "rank": 1,
-      "state": "tinyseed-artifacts-pass-and-publish",
-      "prepared": ["combined handoff", "hash reverification", "physical handoff packet", "dry-run-first Windows flash tool", "boot proof", "triage", "rollback drill"],
-      "next": "physical flash/readback and real boot proof"
+      "state": "x86-physical-flash-readback-passes",
+      "prepared": ["verified x86 artifact checksum", "unique USB serial targeting", "dry-run preflight", "system-disk refusal", "identity recheck before write", "full raw readback hash", "boot-proof collection"],
+      "next": "physical Hopper boot and Tiny Seed ready/boot-proof evidence"
     },
     {
       "rank": 2,
-      "state": "x86-or-pi-ci-failure",
-      "prepared": ["inspectable logs", "repository integrity mirror", "fast germ contract", "self-capturing evidence"],
-      "next": "diagnose exact failing gate, safe patch, rerun without weakening verification"
+      "state": "physical-boot-success",
+      "prepared": ["boot-proof receipt", "single-existing-install detection", "bridge preserving Gen0 as slot A/LKG", "inactive slot B regrow", "health gates", "rollback path"],
+      "next": "protected trial boot, promotion only on fresh health evidence"
     },
     {
       "rank": 3,
-      "state": "current-seed-carrier-cost-exceeds-value",
-      "prepared": ["universal-carrier architecture", "shared boot-front-door concept", "architecture-separated payloads", "same germ/genetics/LKG contract", "current ISO path retained as control"],
-      "next": "prepare and benchmark a universal disk-image/front-door carrier in parallel, then pivot only if it reaches physical-proof readiness with lower expected total cost"
+      "state": "physical-boot-or-setup-failure",
+      "prepared": ["GRUB serial evidence", "safe/verbose boot", "aurum-triage", "NetworkManager evidence", "failure playbook", "preserved Gen0 recovery USB"],
+      "next": "classify exact failure, repair candidate only, retain LKG and compare carrier-pivot cost if the failure is method-specific"
     },
     {
       "rank": 4,
-      "state": "physical-boot-visible-but-setup-or-network-not-ready",
-      "prepared": ["safe/verbose x86 boot path", "aurum-triage", "NetworkManager evidence", "serial/console boot markers"],
-      "next": "repair network/setup while preserving germ and LKG"
-    },
-    {
-      "rank": 5,
       "state": "candidate-regrow-fails-or-rolls-back",
       "prepared": ["Guardian quarantine", "LKG rollback", "regrow receipt", "controlled rollback drill", "triage classification"],
       "next": "treat rollback as protection success, repair candidate, regrow only inactive slot"
     },
     {
+      "rank": 5,
+      "state": "pi-physical-proof-unlocks-arm64-canaries",
+      "prepared": ["Pi artifact", "static recovery payload proof", "Pi-specific proof boundary", "StateWeave independent experiment", "adaptive-kernel independent experiment"],
+      "next": "prove Pi boot first; keep ARM64 A/B promotion disabled until Pi runtime/health adapter is proven"
+    },
+    {
       "rank": 6,
-      "state": "physical-success-unlocks-next-capability",
-      "prepared": ["StateWeave independent experiment", "adaptive-kernel independent experiment", "combined control experiment", "anticipatory-state experiment", "Future Branch calibration"],
-      "next": "advance experimental canaries without confusing them with production proof"
+      "state": "physical-success-unlocks-universal-carrier",
+      "prepared": ["universal-carrier architecture", "shared boot-front-door concept", "architecture-separated payloads", "same germ/genetics/LKG contract"],
+      "next": "construct one physical carrier for proven x86 and Pi frontends without replacing their already-proven independent artifacts"
     }
   ],
   "calibration": {
     "prediction_score_classes": ["exact", "partial", "miss"],
     "execution_score_classes": ["complete", "prepared", "partial", "miss", "boundary-correct"],
     "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. A missing high-value branch becomes prediction debt and changes future ranking.",
+    "latest_resolved_sample": "tinyseed-artifacts-pass-and-publish = exact prediction + boundary-correct execution",
     "metrics": ["prediction_accuracy", "execution_completeness", "useful_hit_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
   },
   "real_boundaries": [
