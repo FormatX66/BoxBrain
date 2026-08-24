@@ -7,7 +7,7 @@
     "preserve_hopper_existing_recovery_media": true,
     "reprove_raw_usb_identity_before_write": true
   },
-  "next_gate": "fresh-read-only-usb-discovery",
+  "next_gate": "attach-spare-test-usb-and-rerun-read-only-discovery",
   "prior_one_shot_request": {
     "authority_must_be_reissued_explicitly": true,
     "expired_at_utc": "2026-08-24T12:20:00Z",
@@ -22,24 +22,14 @@
     "x86_sha256": "f179653005381edd427f7e516af921007120d57edde0b1972d68fb6241c93989"
   },
   "schema": "aurum-tinyseed-physical-preflight-v1",
-  "stale_reason": "release-identity-changed",
-  "state": "WAIT_FRESH_USB_DISCOVERY",
+  "state": "WAIT_USB_MEDIA",
   "usb_discovery": {
-    "candidate": {
-      "disk_number": 2,
-      "is_boot": false,
-      "is_read_only": false,
-      "is_system": false,
-      "model": "USB SanDisk 3.2 Gen",
-      "protected": false,
-      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
-      "size_bytes": 61524148224
-    },
-    "eligible_count": 1,
-    "observed_at_utc": "2026-08-24T11:33:53.9820329Z",
-    "request_id": "tinyseed-crayola-reread-20260824-0733",
-    "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
-    "valid_for_current_release": false
+    "candidate": null,
+    "eligible_count": 0,
+    "observed_at_utc": "2026-08-24T13:40:21.0389089Z",
+    "request_id": "tinyseed-current-release-reread-20260824-0938",
+    "selection_state": "NO_ELIGIBLE_USB",
+    "valid_for_current_release": true
   },
   "write_authority": false
 }
