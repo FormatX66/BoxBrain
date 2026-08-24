@@ -1,0 +1,94 @@
+name: Aurum Tiny Seed Windows Flash
+
+on:
+  workflow_dispatch:
+    inputs:
+      handoff_run_id:
+        description: 'Successful Aurum Tiny Seed Handoff workflow run ID'
+        required: true
+        type: string
+      source_commit:
+        description: 'Exact source commit recorded in AURUM-TINYSEED-RELEASE.json'
+        required: true
+        type: string
+      disk_serial:
+        description: 'Exact serial of the dedicated non-system USB test media'
+        required: true
+        type: string
+      confirm_text:
+        description: 'FLASH_TINYSEED_<first 8 uppercase chars of image SHA256>'
+        required: true
+        type: string
+      write:
+        description: 'Actually write after every preflight gate passes; false is dry-run only'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-windows-flash
+  cancel-in-progress: false
+
+jobs:
+  flash:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 60
+    steps:
+      - name: Check out guarded flash tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Download exact combined handoff packet
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HANDOFF_RUN: ${{ inputs.handoff_run_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'aurum-tinyseed-handoff'
+          if (Test-Path $out) { Remove-Item -LiteralPath $out -Recurse -Force }
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          gh run download $env:HANDOFF_RUN -n Aurum-TinySeed-Handoff -D $out
+
+      - name: Verify READY_TO_FLASH manifest and source identity
+        shell: powershell
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:RUNNER_TEMP 'aurum-tinyseed-handoff'
+          $manifestPath = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
+          if (-not $manifestPath) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=release-manifest-missing' }
+          $manifest = Get-Content -LiteralPath $manifestPath.FullName -Raw | ConvertFrom-Json
+          if ($manifest.schema -ne 'aurum-tinyseed-handoff-v1' -or $manifest.state -ne 'READY_TO_FLASH') {
+            throw "AURUM_TINYSEED_FLASH_REFUSED reason=handoff-not-ready state=$($manifest.state)"
+          }
+          if ([string]$manifest.source_commit -ne $env:SOURCE_COMMIT) {
+            throw "AURUM_TINYSEED_FLASH_REFUSED reason=source-commit-mismatch manifest=$($manifest.source_commit) requested=$env:SOURCE_COMMIT"
+          }
+          $image = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
+          $sum = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
+          if (-not $image -or -not $sum) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=x86-artifact-incomplete' }
+          "IMAGE_PATH=$($image.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CHECKSUM_PATH=$($sum.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Preflight or explicitly write and raw-readback-verify
+        shell: powershell
+        env:
+          DISK_SERIAL: ${{ inputs.disk_serial }}
+          CONFIRM_TEXT: ${{ inputs.confirm_text }}
+          WRITE_REQUESTED: ${{ inputs.write }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script = 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
+          $args = @(
+            '-ImagePath', $env:IMAGE_PATH,
+            '-ChecksumPath', $env:CHECKSUM_PATH,
+            '-DiskSerial', $env:DISK_SERIAL,
+            '-ConfirmText', $env:CONFIRM_TEXT
+          )
+          if ($env:WRITE_REQUESTED -eq 'true') { $args += '-Write' }
+          & $script @args
