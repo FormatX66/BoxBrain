@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Aurum Tiny Seed setup surface.
 
-This is intentionally not a desktop. It is a small full-screen-ish setup flow:
-1) network (skipped when already online), 2) choose existing Aurum or a target
-disk, 3) confirm and let the germ bridge/install/regrow automatically.
+This is intentionally not a desktop. It is a small full-screen setup flow:
+1) network (skipped when already online), 2) choose repair or a target disk,
+3) confirm and let the germ bridge/install/regrow automatically.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ from typing import Any
 
 import bridge
 import installer
+import machine
 import network
-import platform as py_platform
 
 
 def _clear() -> None:
@@ -32,20 +32,6 @@ def _title(step: str, subtitle: str) -> None:
     print("│                         TINY SEED                            │")
     print("╰──────────────────────────────────────────────────────────────╯")
     print(f"\n{step}\n{subtitle}\n")
-
-
-def _detect() -> dict[str, Any]:
-    machine = py_platform.machine().lower()
-    architecture = "x86_64" if machine in {"x86_64", "amd64"} else "arm64" if machine in {"aarch64", "arm64"} else machine
-    model = None
-    for path in (Path("/sys/firmware/devicetree/base/model"), Path("/sys/class/dmi/id/product_name")):
-        try:
-            model = path.read_text(encoding="utf-8", errors="replace").replace("\x00", "").strip()
-        except OSError:
-            continue
-        if model:
-            break
-    return {"architecture": architecture, "model": model}
 
 
 def _network_step() -> bool:
@@ -214,24 +200,35 @@ def main() -> int:
     if os.geteuid() != 0:
         print("Aurum Tiny Seed must run as root.")
         return 2
-    detected = _detect()
+    detected = machine.detect()
     online = _network_step()
 
     _title("2 · MACHINE", f"Detected: {detected['architecture']} · {detected.get('model') or 'unknown model'}")
     existing = _installed_roots()
     action = "fresh"
     selected_existing: dict[str, Any] | None = None
-    if existing:
-        print("Aurum found on this machine:\n")
+
+    if len(existing) == 1:
+        # An existing Aurum installation is the safest and most likely intent.
+        # Never fall through to a destructive fresh install merely because the
+        # user pressed Enter or mistyped a selection.
+        selected_existing = existing[0]
+        action = "repair"
+        print(
+            "✓ Existing Aurum found — repair/reseed selected automatically:\n"
+            f"  {selected_existing['device']} · {'germ-ready' if selected_existing['germ'] else 'legacy seed'}"
+        )
+    elif len(existing) > 1:
+        print("Multiple Aurum installations were found. Choose which one to repair/reseed:\n")
         index = _choose(
             existing,
-            lambda item: f"Repair / reseed {item['device']}  {'germ-ready' if item['germ'] else 'legacy seed'}",
+            lambda item: f"Repair / reseed {item['device']} · {'germ-ready' if item['germ'] else 'legacy seed'}",
         )
-        if index is not None:
-            action = "repair"
-            selected_existing = existing[index]
-        else:
-            print("No existing installation selected; switching to fresh install.")
+        if index is None:
+            print("No unambiguous existing installation selected. Tiny Seed stopped without writing anything.")
+            return 1
+        selected_existing = existing[index]
+        action = "repair"
 
     selected_target: dict[str, Any] | None = None
     if action == "fresh":
@@ -250,7 +247,7 @@ def main() -> int:
                 lambda item: f"{item['device']} · {item['size_gib']} GiB · {item['model']}" + (" · removable" if item['removable'] else ""),
             )
             if index is None:
-                print("No target selected.")
+                print("No target selected. Tiny Seed stopped without writing anything.")
                 return 1
             selected_target = targets[index]
 
