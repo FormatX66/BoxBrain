@@ -1,3 +1,4 @@
 Repository Integrity Mirror
 
-BoxBrain validation passed: 318 required files and 384 Markdown files.
+BoxBrain validation failed:
+- Orphan Markdown file: Projects/Aurum/FUTURE_BRANCH.md
