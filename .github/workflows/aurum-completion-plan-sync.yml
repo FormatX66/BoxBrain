@@ -1,0 +1,44 @@
+name: Aurum Completion Plan Release Sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+      - 'Admin/sync_aurum_release_status.py'
+      - '.github/workflows/aurum-completion-plan-sync.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-completion-plan-release-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out canonical state
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Project canonical handoff identity into completion plan
+        run: python Admin/sync_aurum_release_status.py
+
+      - name: Persist synchronized completion plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-completion-plan[bot]'
+          git config user.email 'aurum-completion-plan@users.noreply.github.com'
+          git add Projects/Aurum/completion-plan.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_COMPLETION_PLAN_SYNC unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Synchronize Aurum completion release status [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_COMPLETION_PLAN_SYNC persisted=true'
