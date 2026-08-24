@@ -49,6 +49,7 @@ ALLOWLIST = (
     "aurum_installer.py",
     "aurum_network.py",
     "aurum_runtime_update.py",
+    "aurum_sync_recovery.py",
     "aurum_self_debug.py",
     "aurum_time.py",
     "aurum_traits.py",
