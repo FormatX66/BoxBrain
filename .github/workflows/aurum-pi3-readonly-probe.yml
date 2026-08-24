@@ -25,6 +25,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Normalize persistent runner Git state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $staleRebase = (Test-Path -LiteralPath '.git/rebase-merge') -or (Test-Path -LiteralPath '.git/rebase-apply')
+          if ($staleRebase) {
+            git rebase --quit
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to clear stale CI rebase metadata.' }
+            Write-Host 'AURUM_PI3_PROBE_GIT_STATE stale_rebase_cleared=true'
+          }
+          git checkout --force $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to restore the exact workflow commit.' }
+          Write-Host "AURUM_PI3_PROBE_GIT_STATE exact_head=$env:GITHUB_SHA"
+
       - name: Collect privacy-bounded Pi3 topology and strict-SSH evidence
         shell: powershell
         run: |
