@@ -1,9 +1,11 @@
 {
   "schema": "aurum.hopper.recovery-path-request.v1",
-  "request_id": "hopper-preexecution-recovery-20260824-2101",
+  "request_id": "hopper-pi-recovery-20260824-2102",
   "mode": "probe-and-use-existing-authority-only",
   "grant_new_authority": false,
   "allow_destructive_media_write": false,
   "require_terminal_v2_receipt": true,
-  "reason": "Rerun the corrected mandatory pre-execution recovery probe after teaching the Windows runner to treat an unreachable candidate Pi address as branch evidence rather than a terminating native-command error. Use only existing authority and keep media write authority false."
+  "physical_hid_authorized": true,
+  "physical_hid_confirmation": "OPEN_HOPPER_KVM_CONSOLE",
+  "reason": "Operator explicitly authorized using the already-connected BoxBrain Pi to fix Hopper. Future Branch must try existing network authority first and then the existing Pi HID KVM path, preserve Hopper local changes, grant no new authority, and perform no destructive media write."
 }
