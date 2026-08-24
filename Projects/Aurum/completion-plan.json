@@ -1,6 +1,9 @@
 {
   "schema": "aurum-completion-plan-v1",
   "goal": "Aurum can be seeded or reseeded from minimal x86/ARM64 media, preserve Last Known Good state, prove boot and rollback on physical hardware, recover Hopper, and advance adaptive-kernel/StateWeave experiments without confusing experiments with production proof.",
+  "latest_release_source_commit": "82aa2ffe979b0c3a4e18b502ed116559945e32b5",
+  "latest_main_ci_commit": "776075f9f8fbe592b40dc127deb90606c0ce0481",
+  "release_state": "READY_TO_FLASH",
   "policy": {
     "prepare_downstream_before_dependency_is_green": true,
     "execute_only_when_dependencies_are_satisfied": true,
@@ -12,7 +15,7 @@
       "id": "repo-integrity",
       "lane": "foundation",
       "depends_on": [],
-      "state": "verifying",
+      "state": "passed-current-head",
       "ready_now": true,
       "proof": "canonical repository validator passes in inspectable CI"
     },
@@ -20,7 +23,7 @@
       "id": "germ-unit-contract",
       "lane": "foundation",
       "depends_on": [],
-      "state": "verifying-current-commit",
+      "state": "passed-release-source",
       "ready_now": true,
       "proof": "reseed, guardian, bridge and boot-proof unit tests pass"
     },
@@ -28,7 +31,7 @@
       "id": "tinyseed-x86-build",
       "lane": "media-x86",
       "depends_on": ["germ-unit-contract"],
-      "state": "verifying-current-commit",
+      "state": "passed-published",
       "ready_now": true,
       "proof": "ISO builds and checksum validates"
     },
@@ -36,7 +39,7 @@
       "id": "tinyseed-x86-uefi",
       "lane": "media-x86",
       "depends_on": ["tinyseed-x86-build"],
-      "state": "prepared",
+      "state": "passed-published",
       "ready_now": true,
       "proof": "UEFI VM reaches AURUM_TINYSEED_READY and AURUM_BOOT_PROOF_READY"
     },
@@ -44,7 +47,7 @@
       "id": "tinyseed-x86-bios",
       "lane": "media-x86",
       "depends_on": ["tinyseed-x86-build"],
-      "state": "prepared",
+      "state": "passed-published",
       "ready_now": true,
       "proof": "Legacy BIOS VM reaches AURUM_TINYSEED_READY and AURUM_BOOT_PROOF_READY"
     },
@@ -52,7 +55,7 @@
       "id": "tinyseed-pi-build",
       "lane": "media-arm64",
       "depends_on": ["germ-unit-contract"],
-      "state": "verifying-current-commit",
+      "state": "passed-published",
       "ready_now": true,
       "proof": "compressed Pi image builds, checksum and xz integrity pass"
     },
@@ -60,7 +63,7 @@
       "id": "tinyseed-pi-static-payload",
       "lane": "media-arm64",
       "depends_on": ["tinyseed-pi-build"],
-      "state": "prepared",
+      "state": "passed-published",
       "ready_now": true,
       "proof": "mounted image contains Guardian, reseed germ, boot-proof service and Tiny Seed kernel flag"
     },
@@ -68,7 +71,7 @@
       "id": "tinyseed-combined-handoff",
       "lane": "release",
       "depends_on": ["tinyseed-x86-uefi", "tinyseed-x86-bios", "tinyseed-pi-static-payload"],
-      "state": "prepared-waiting",
+      "state": "passed-ready-to-flash",
       "ready_now": true,
       "proof": "same source commit has two successful published artifacts, hashes reverified, combined handoff manifest says READY_TO_FLASH"
     },
@@ -116,7 +119,7 @@
       "id": "forced-rollback-proof",
       "lane": "recovery",
       "depends_on": ["healthy-regrow-promotion"],
-      "state": "tooling-in-progress",
+      "state": "unit-proven-physical-pending",
       "ready_now": true,
       "proof": "deliberately bad disposable candidate is quarantined and Guardian automatically restores LKG"
     },
@@ -132,25 +135,25 @@
       "id": "stateweave-independent",
       "lane": "experiment",
       "depends_on": [],
-      "state": "ci-experiment",
+      "state": "ci-passed-experiment",
       "ready_now": true,
-      "proof": "deterministic snapshot/restore and tamper rejection evidence"
+      "proof": "deterministic snapshot/restore, tamper rejection, and Future Branch state-record evidence"
     },
     {
       "id": "adaptive-kernel-independent",
       "lane": "experiment",
       "depends_on": [],
-      "state": "ci-experiment",
+      "state": "ci-passed-experiment",
       "ready_now": true,
-      "proof": "bounded hardware-fit candidate plan without promotion or LKG mutation"
+      "proof": "bounded hardware-fit candidate plan and Future Branch proposals without promotion or LKG mutation"
     },
     {
       "id": "stateweave-kernel-combined",
       "lane": "experiment",
       "depends_on": ["stateweave-independent", "adaptive-kernel-independent"],
-      "state": "ci-experiment",
+      "state": "ci-passed-experiment",
       "ready_now": true,
-      "proof": "pre-change StateWeave receipt is bound to a candidate kernel plan with explicit rollback target"
+      "proof": "pre-change StateWeave receipt is bound to a candidate kernel plan with explicit rollback target and branch bridge"
     },
     {
       "id": "pi3-kernel-canary",
