@@ -1,24 +1,27 @@
-/* AURUM_ACTION_OWNERSHIP_V1_8_CANONICAL
+/* AURUM_ACTION_OWNERSHIP_V1_9_CANONICAL
+ * AURUM_ACTION_OWNERSHIP_V1_8_CANONICAL compatibility marker.
  * AURUM_ACTION_OWNERSHIP_V1_7_CANONICAL compatibility marker.
  * AURUM_ACTION_OWNERSHIP_V1_6_CANONICAL compatibility marker.
  * AURUM_ACTION_OWNERSHIP_V1_1_CANONICAL compatibility marker.
  * Canonical website owner: FormatX66/ClusterSites.
  * Separates confirmed human-only work from Aurum/system work using structured evidence.
  * Uses timestamps to resolve newer transport evidence, refuses stale voice/action mirrors,
- * and accepts a verified Recovery Guardian physical-handoff boundary as independent human evidence.
+ * and gates Recovery Guardian physical handoff behind the mandatory Future Branch pre-execution recovery pass.
  * Unknown or unavailable evidence never creates a human task.
  * Unknown evidence never becomes your task.
  */
 (()=>{
 'use strict';
-if(window.__aurumActionOwnershipV18)return;
-window.__aurumActionOwnershipV18=true;
+if(window.__aurumActionOwnershipV19)return;
+window.__aurumActionOwnershipV19=true;
 const HOSTED='/aurum/voice-status.json';
 const STATIC='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.json';
 const NATIVE='https://api.github.com/repos/FormatX66/BoxBrain/contents/Projects/Codelation/autobuild/native_chain_state.json?ref=aurum%2Ftrunk-v0.01';
+const HOPPER_RECOVERY='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/AurumBridge/results/hopper-recovery-path-latest.json';
 const REFRESH=5*60*1000;
 const VOICE_MAX_AGE=6*60*60*1000;
-const state={voice:null,voiceFresh:false,native:null,route:window.__aurumControlRouteState||null,seed:window.__aurumSeedDeliveryState||null,reach:window.__aurumPi4ReachabilityState||null,recovery:window.__aurumRecoveryGuardianState||null,voiceSource:'unknown',updated:0,lastRender:''};
+const PREEXEC_MAX_AGE=60*60*1000;
+const state={voice:null,voiceFresh:false,native:null,route:window.__aurumControlRouteState||null,seed:window.__aurumSeedDeliveryState||null,reach:window.__aurumPi4ReachabilityState||null,recovery:window.__aurumRecoveryGuardianState||null,preExecution:null,preExecutionAgeMs:null,voiceSource:'unknown',updated:0,lastRender:''};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const words=v=>String(v??'unknown').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
 function decode(v){const raw=atob(String(v||'').replace(/\s+/g,''));try{return decodeURIComponent([...raw].map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))}catch{return raw}}
@@ -33,19 +36,35 @@ function reachAddresses(q){return(q?.tcp22Addresses||[]).join(', ')||(q?.pingAdd
 function reachSupersedesSeed(q,s){const qms=Number(q?.observedMs||0),sms=time(s?.receipt?.observed_at);return Boolean(q?.phase==='route-found'&&qms&&sms&&qms>sms)}
 function routeAfterReach(r,q){const rms=time(r?.result?.observed_at),qms=Number(q?.observedMs||0);return Boolean(rms&&qms&&rms>qms)}
 function recoveryHuman(r){return Boolean(r?.schema==='aurum-command-center-recovery-guardian-v1.7'&&r?.humanActionRequired===true&&r?.readyToFlashCreatesHumanAction===true&&r?.tinySeedReleaseState==='READY_TO_FLASH'&&r?.physicalHandoffRequiresSeparateTargetIdentity===true&&r?.preflightRequiredBeforeDestructiveWrite===true&&r?.physicalRecoveryProofInferred===false)}
+function preExecutionState(){
+ const p=state.preExecution,age=state.preExecutionAgeMs;
+ if(!p)return'pending-evidence';
+ if(p?.schema!=='aurum.hopper.recovery-path-probe.v2')return'incompatible-evidence';
+ if(!Number.isFinite(Number(age))||age<0||age>PREEXEC_MAX_AGE)return'stale-evidence';
+ if(p?.remote_repair==='completed')return'remote-repair-completed';
+ if(['unavailable','failed'].includes(String(p?.remote_repair||'')))return'manual-boundary-cleared';
+ return'pending-evidence';
+}
+function recoveryHumanAllowed(r){return recoveryHuman(r)&&preExecutionState()==='manual-boundary-cleared'}
 function recoveryAction(r){
- if(!recoveryHuman(r))return'';
+ if(!recoveryHumanAllowed(r))return'';
  const sha=String(r?.tinySeedX86Sha256||'the verified x86 checksum');
  const source=String(r?.tinySeedReleaseSourceCommit||'the verified Tiny Seed source');
  if(r?.tinySeedPhysicalHandoffPhase==='WAITING_FOR_EXPLICIT_WRITE_AUTHORITY')return`Tiny Seed guarded flash authority — human-only step: explicitly authorize one guarded flash of the currently selected verified test USB for source ${source} and x86 SHA-256 ${sha}. Keep that USB connected and unchanged. The authorization is one-shot; any release or device-identity change invalidates it. Do not remove or boot the media until Aurum reports full raw readback verification passed.`;
  return`Tiny Seed physical handoff — human-only steps: connect a disposable/test USB that is not a boot/system disk and is not protected recovery media, then leave it connected for Aurum to enumerate and preflight. Do not authorize a destructive write until Aurum reports that the exact target serial is safe and x86 SHA-256 ${sha} matches. When that proof is shown, explicitly authorize the write. Do not remove or boot the media until Aurum reports raw readback verification passed.`;
 }
 function systemItems(){
- const out=[],v=state.voice,n=state.native,r=state.route,s=state.seed,q=state.reach,rg=state.recovery;
+ const out=[],v=state.voice,n=state.native,r=state.route,s=state.seed,q=state.reach,rg=state.recovery,pre=preExecutionState();
  if(v&&!state.voiceFresh){out.push({title:'Voice/action evidence freshness',detail:`The ${state.voiceSource} mirror is readable but older than the six-hour operator-action window. Refresh voice-status truth before using it for voice-derived Your Actions. Stale evidence remains Aurum/system work and cannot assign a human task.`})}
  if(state.voiceFresh&&(v?.overall?.state==='awaiting-boot-proof'||v?.live_evidence?.pc_seed_with_human_traits?.state==='pending'))out.push({title:'Human-capability boot proof',detail:'Build and verify a fresh PC seed containing all seven everyday capabilities, then boot a generation that already contains them. Fresh voice evidence says this remains automated build work.'});
  if(n?.blocked_reason==='external-prerequisite-blocked'){const gen=Number(n?.completed_generations||0),reason=words(n?.external_evidence?.reason||'external prerequisite'),local=/candidate-verified/i.test(String(n?.blocked_output||''))?' Local candidate is already verified.':'';out.push({title:`Native self-build generation ${gen}`,detail:`Refresh the ${reason} evidence so the verified native frontier can continue.${local}`})}else if(n?.failed_attempt)out.push({title:'Native self-build recovery',detail:'Diagnose the current failed native attempt and restore a verified checkpoint before promotion.'});
- if(recoveryHuman(rg))out.push({title:'Tiny Seed post-flash recovery proof',detail:'After the separately authorized guarded flash and full raw readback, Aurum still must collect real Hopper boot proof, Repair/Reseed trial health evidence, promotion-or-rollback evidence, and a forced-LKG-rollback proof. READY_TO_FLASH does not prove those system gates.'});
+ if(recoveryHuman(rg)){
+  if(pre==='pending-evidence')out.push({title:'Future Branch pre-execution recovery gate',detail:'A safe Hopper remote-recovery branch is implemented, but no fresh terminal recovery-path receipt is present yet. Run/finish the system-side probe and checkpoint-first authorized repair path before escalating to Tiny Seed media or write authority. Missing evidence cannot become Your Actions.'});
+  else if(pre==='stale-evidence')out.push({title:'Future Branch pre-execution recovery gate',detail:`The latest Hopper recovery-path receipt is older than the one-hour manual-handoff window (${ageText(state.preExecutionAgeMs)} old). Refresh the system-side probe before exposing a destructive or physical Tiny Seed action.`});
+  else if(pre==='incompatible-evidence')out.push({title:'Future Branch pre-execution recovery gate',detail:'The Hopper recovery-path receipt is not the expected v2 evidence contract. Restore compatible terminal evidence before any manual recovery handoff.'});
+  else if(pre==='remote-repair-completed')out.push({title:'Hopper remote recovery completed',detail:'The already-authorized checkpoint-first remote repair path completed. Re-read Hopper health and Recovery Guardian state before considering Tiny Seed media; stale READY_TO_FLASH state must not manufacture a human task.'});
+  else out.push({title:'Tiny Seed post-flash recovery proof',detail:'The Future Branch remote-recovery pass is terminal and did not complete recovery, so the verified Tiny Seed boundary may be exposed separately. After any authorized guarded flash and full raw readback, Aurum still must collect real Hopper boot proof, Repair/Reseed trial health evidence, promotion-or-rollback evidence, and a forced-LKG-rollback proof.'});
+ }
  const combined=combinedPiBoundary(s,r),newerReach=reachSupersedesSeed(q,s);
  if(newerReach&&r?.phase==='failed'&&r?.result?.state==='BOXBRAIN_SSH_UNREACHABLE'){const later=routeAfterReach(r,q);out.push({title:'BBPI4 LAN route rediscovered; SSH path unstable',detail:`A newer dynamic diagnostic superseded the older seed receipt as current transport context: ${reachAddresses(q)} answered ${q.tcp22Addresses?.length?'ping/TCP22':'ping'} at ${q.result?.observed_at||'the recorded time'}. ${later?'A still-newer':'The'} end-to-end route proof then could not obtain an SSH host key on ${routeAttempts(r)}. Treat this as layered/intermittent reachability: LAN transport has existed, while SSH identity/service stability and Hopper access remain unresolved. Do not infer that the Pi is powered off or create a human task from this evidence.`})}
  else if(newerReach&&s?.phase==='failed'){out.push({title:'BBPI4 seed delivery after route rediscovery',detail:`The latest seed receipt failed before the newer dynamic diagnostic found a BBPI4 route at ${reachAddresses(q)}. Retry or diagnose seed reconciliation using the rediscovered transport context; the old all-routes-unreachable statement is no longer the newest reachability evidence. This remains Aurum/system work.`})}
@@ -63,16 +82,18 @@ function render(){
  const voiceHuman=state.voiceFresh&&isHumanAction(rawAction);
  const recovery=state.recovery;
  const recoveryConfirmed=recoveryHuman(recovery);
+ const recoveryReleased=recoveryHumanAllowed(recovery);
+ const pre=preExecutionState();
  const actions=[];
  if(voiceHuman)actions.push(rawAction);
- if(recoveryConfirmed)actions.push(recoveryAction(recovery));
+ if(recoveryReleased)actions.push(recoveryAction(recovery));
  const human=actions.length>0;
  const action=human?actions.join(' '):state.voiceFresh?rawAction:(state.voice?'Human-action voice evidence is stale; no voice-derived task is inferred. No independent verified human boundary is currently active.':'Human-action voice evidence is unavailable; no voice-derived task is inferred. No independent verified human boundary is currently active.');
  const work=systemItems();
- const fingerprint=JSON.stringify([actions,action,work,state.voiceFresh,state.voiceSource,state.route?.phase,state.route?.result?.observed_at,state.seed?.phase,state.seed?.receipt?.observed_at,state.reach?.phase,state.reach?.observedMs,recovery?.schema,recovery?.humanActionRequired,recovery?.humanActionEvidence,recovery?.tinySeedPhysicalHandoffPhase,recovery?.tinySeedReleaseState,recovery?.tinySeedReleaseSourceCommit,recovery?.tinySeedX86Sha256]);
+ const fingerprint=JSON.stringify([actions,action,work,state.voiceFresh,state.voiceSource,state.route?.phase,state.route?.result?.observed_at,state.seed?.phase,state.seed?.receipt?.observed_at,state.reach?.phase,state.reach?.observedMs,recovery?.schema,recovery?.humanActionRequired,recovery?.humanActionEvidence,recovery?.tinySeedPhysicalHandoffPhase,recovery?.tinySeedReleaseState,recovery?.tinySeedReleaseSourceCommit,recovery?.tinySeedX86Sha256,pre,state.preExecution?.observed_at,state.preExecution?.remote_repair]);
  if(fingerprint===state.lastRender)return;state.lastRender=fingerprint;
- gate.className=`gate ${human?'':'ok'}`;gate.dataset.actionContract='verified';gate.dataset.humanActionCount=String(actions.length);gate.dataset.systemWorkCount=String(work.length);gate.dataset.voiceEvidenceFresh=String(state.voiceFresh);gate.dataset.recoveryHumanBoundary=String(recoveryConfirmed);
- gate.innerHTML=`<b>${human?'Human-only action confirmed.':state.voiceFresh?'No action needed from you right now.':'No confirmed action from you; available action evidence does not establish a human boundary.'}</b><p>${esc(action)}</p><div class="ao-grid"><div class="ao-box ${human?'human':'clear'}"><span class="ao-label">YOU</span><strong>${human?`${actions.length} confirmed`:'0 confirmed'}</strong><small>${human?esc(actions.join(' ')):state.voiceFresh?'Nothing is currently assigned to you.':'Stale/unknown voice evidence is blocked from assigning you work unless an independent verified evidence source establishes a human-only boundary.'}</small></div><div class="ao-box system"><span class="ao-label">AURUM</span><strong>${work.length} system ${work.length===1?'item':'items'}</strong>${work.length?`<ul>${work.map(x=>`<li><b>${esc(x.title)}</b><br>${esc(x.detail)}</li>`).join('')}</ul>`:'<small>No structured system work found in these evidence sources.</small>'}</div></div><div class="ao-source">Action ownership uses voice evidence, Recovery Guardian release/handoff evidence, native-chain state, seed receipts, dynamic BBPI4 reachability diagnostics, and end-to-end Hopper route proof. Voice/action evidence must be fresh (≤6h) before it can create a voice-derived assignment; a Recovery Guardian assignment requires a verified READY_TO_FLASH release plus the current media-handoff phase proving either a human-only physical connection boundary or a human-only explicit write-authority boundary. Unknown evidence never becomes your task.</div>`;
+ gate.className=`gate ${human?'':'ok'}`;gate.dataset.actionContract='verified';gate.dataset.humanActionCount=String(actions.length);gate.dataset.systemWorkCount=String(work.length);gate.dataset.voiceEvidenceFresh=String(state.voiceFresh);gate.dataset.recoveryHumanBoundary=String(recoveryConfirmed);gate.dataset.recoveryHumanBoundaryReleased=String(recoveryReleased);gate.dataset.preExecutionGate=pre;
+ gate.innerHTML=`<b>${human?'Human-only action confirmed.':state.voiceFresh?'No action needed from you right now.':'No confirmed action from you; available action evidence does not establish a human boundary.'}</b><p>${esc(action)}</p><div class="ao-grid"><div class="ao-box ${human?'human':'clear'}"><span class="ao-label">YOU</span><strong>${human?`${actions.length} confirmed`:'0 confirmed'}</strong><small>${human?esc(actions.join(' ')):state.voiceFresh?'Nothing is currently assigned to you.':'Stale/unknown voice evidence is blocked from assigning you work unless an independent verified evidence source establishes a human-only boundary.'}</small></div><div class="ao-box system"><span class="ao-label">AURUM</span><strong>${work.length} system ${work.length===1?'item':'items'}</strong>${work.length?`<ul>${work.map(x=>`<li><b>${esc(x.title)}</b><br>${esc(x.detail)}</li>`).join('')}</ul>`:'<small>No structured system work found in these evidence sources.</small>'}</div></div><div class="ao-source">Action ownership uses voice evidence, Recovery Guardian release/handoff evidence, the Future Branch pre-execution Hopper recovery receipt, native-chain state, seed receipts, dynamic BBPI4 reachability diagnostics, and end-to-end Hopper route proof. Voice/action evidence must be fresh (≤6h) before it can create a voice-derived assignment. Recovery Guardian Tiny Seed actions are additionally blocked until a fresh terminal pre-execution recovery pass proves the safe already-authorized remote branch has been exhausted without completing recovery. Unknown evidence never becomes your task.</div>`;
  if(!document.querySelector('#aoStyle')){const st=document.createElement('style');st.id='aoStyle';st.textContent='.ao-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:8px;margin-top:10px}.ao-box{border:1px solid #2b3140;border-radius:12px;background:#10141c;padding:10px}.ao-box strong{display:block;font-size:12px;margin:3px 0 5px}.ao-box small,.ao-box li{font-size:10px;line-height:1.45;color:#8f9bad}.ao-box ul{margin:6px 0 0;padding-left:17px}.ao-box li{margin:5px 0}.ao-label{font-size:8.5px;font-weight:850;letter-spacing:.1em;color:#778399}.ao-box.clear{border-color:#244735}.ao-box.clear strong{color:#8ce7b2}.ao-box.human{border-color:#654f1d;background:#1a160d}.ao-box.human strong{color:#f0c76a}.ao-box.system{border-color:#343164}.ao-box.system strong{color:#bbb6ff}.ao-source{margin-top:8px;font-size:9px;line-height:1.4;color:#6f7c90}@media(max-width:700px){.ao-grid{grid-template-columns:1fr}}';document.head.appendChild(st)}
 }
 async function voice(){
@@ -90,7 +111,8 @@ async function voice(){
  state.voice=null;state.voiceFresh=false;state.voiceSource='unavailable';
 }
 async function native(){try{const r=await fetch(NATIVE,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(String(r.status));const e=await r.json(),n=JSON.parse(decode(e.content)),schema=n?.schema||n?._checkpoint?.schema;if(schema!=='aurum-native-chain-resume-v1')throw new Error('schema');state.native=n}catch(_){state.native=null}}
-async function refresh(){await Promise.all([voice(),native()]);state.route=window.__aurumControlRouteState||state.route;state.seed=window.__aurumSeedDeliveryState||state.seed;state.reach=window.__aurumPi4ReachabilityState||state.reach;state.recovery=window.__aurumRecoveryGuardianState||state.recovery;state.updated=Date.now();state.lastRender='';render()}
+async function preExecution(){try{const r=await fetch(`${HOPPER_RECOVERY}?t=${Date.now()}`,{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const p=await r.json();state.preExecution=p;const t=time(p?.observed_at);state.preExecutionAgeMs=t?Date.now()-t:null}catch(_){state.preExecution=null;state.preExecutionAgeMs=null}}
+async function refresh(){await Promise.all([voice(),native(),preExecution()]);state.route=window.__aurumControlRouteState||state.route;state.seed=window.__aurumSeedDeliveryState||state.seed;state.reach=window.__aurumPi4ReachabilityState||state.reach;state.recovery=window.__aurumRecoveryGuardianState||state.recovery;state.updated=Date.now();state.lastRender='';render()}
 window.addEventListener('aurum-control-route-state',e=>{state.route=e.detail||null;state.lastRender='';render()});
 window.addEventListener('aurum-seed-delivery-state',e=>{state.seed=e.detail||null;state.lastRender='';render()});
 window.addEventListener('aurum-pi4-reachability-state',e=>{state.reach=e.detail||null;state.lastRender='';render()});
