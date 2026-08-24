@@ -1,0 +1,5 @@
+{
+  "schema": "aurum-pc-bridge-job-v1",
+  "id": "storage-snapshot-20260824-0741",
+  "action": "storage_snapshot"
+}
