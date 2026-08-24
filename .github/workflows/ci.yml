@@ -56,6 +56,32 @@ jobs:
       - name: Run Codelation seed suite
         run: python -m unittest discover -s Projects/Codelation/tests -v
 
+  future-branch-projects:
+    name: Future Branch project consumers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+      - name: Test StateWeave branch records
+        run: python -m unittest discover -s Projects/StateWeave/tests -v
+      - name: Test Adaptive Kernel branch proposals
+        run: python -m unittest discover -s Projects/AdaptiveKernel/tests -v
+      - name: Test combined StateWeave + kernel bridge
+        run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v
+      - name: Test Aurum Future Branch prediction and calibration
+        run: |
+          python -m unittest Projects.Aurum.Experiments.test_future_branch -v
+          python -m unittest Projects.Aurum.Experiments.test_future_branch_benchmark -v
+          python -m unittest Projects.Aurum.Experiments.test_future_branch_calibrator -v
+          python -m unittest Projects.Aurum.Experiments.test_anticipatory_state -v
+      - name: Test seed recovery branch manifest
+        run: python -m unittest installer.tests.test_future_branch_recovery -v
+
   aurum-windows-worker:
     name: Aurum Windows worker
     runs-on: windows-latest
