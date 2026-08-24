@@ -25,7 +25,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof)
 
       - name: Install VM tooling
         run: |
@@ -76,6 +76,7 @@ jobs:
           set -e
           test "$rc" -eq 0 -o "$rc" -eq 124
           grep -q 'AURUM_TINYSEED_READY' tinyseed-uefi.log
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-uefi.log
 
       - name: Legacy BIOS boot smoke
         shell: bash
@@ -90,6 +91,7 @@ jobs:
           set -e
           test "$rc" -eq 0 -o "$rc" -eq 124
           grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-bios.log
 
       - name: Publish Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
