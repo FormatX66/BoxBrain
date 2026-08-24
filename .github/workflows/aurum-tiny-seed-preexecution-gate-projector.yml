@@ -1,0 +1,164 @@
+name: Aurum Tiny Seed Pre-execution Gate Projector
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
+      - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+      - 'Projects/Aurum/Recovery/latest-usb-discovery.json'
+      - 'Projects/Aurum/Recovery/usb-discovery-request.json'
+      - '.github/workflows/aurum-tiny-seed-preexecution-gate-projector.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-tiny-seed-preexecution-gate-projector
+  cancel-in-progress: true
+
+jobs:
+  project:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out canonical evidence
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Project evidence without granting authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime as dt
+          import json
+          import pathlib
+
+          root = pathlib.Path('.')
+          release_path = root / 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+          discovery_path = root / 'Projects/Aurum/Recovery/latest-usb-discovery.json'
+          request_path = root / 'Projects/Aurum/Recovery/usb-discovery-request.json'
+          recovery_path = root / 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
+          out_path = root / 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+
+          def load(path):
+              return json.loads(path.read_text(encoding='utf-8-sig'))
+
+          release = load(release_path)
+          discovery = load(discovery_path)
+          request = load(request_path)
+          recovery = load(recovery_path) if recovery_path.exists() else None
+
+          if release.get('schema') != 'aurum-tinyseed-handoff-v1' or release.get('state') != 'READY_TO_FLASH':
+              state = 'WAIT_VERIFIED_RELEASE'
+              reason = 'current handoff is not READY_TO_FLASH'
+          elif request.get('schema') != 'aurum-usb-discovery-request-v1' or request.get('mode') != 'read-only' or request.get('write_authority') is not False:
+              state = 'WAIT_CURRENT_RELEASE_USB_DISCOVERY'
+              reason = 'USB discovery request is not a zero-authority request'
+          elif request.get('required_release_source_commit') != release.get('source_commit'):
+              state = 'WAIT_CURRENT_RELEASE_USB_DISCOVERY'
+              reason = 'USB discovery request provenance does not match current release'
+          elif discovery.get('schema') != 'aurum-read-only-usb-discovery-v1' or discovery.get('write_authority') is not False:
+              state = 'WAIT_CURRENT_RELEASE_USB_DISCOVERY'
+              reason = 'USB discovery evidence is invalid or carries authority'
+          elif discovery.get('request_id') != request.get('request_id'):
+              state = 'WAIT_CURRENT_RELEASE_USB_DISCOVERY'
+              reason = 'USB discovery result does not match the current request'
+          elif discovery.get('selection_state') != 'UNIQUE_SAFE_TO_PREFLIGHT_ONLY' or discovery.get('eligible_count') != 1:
+              state = 'WAIT_USB_MEDIA'
+              reason = 'there is not exactly one eligible preflight-only USB'
+          elif recovery is None:
+              state = 'WAIT_HOPPER_PREEXECUTION_RECOVERY'
+              reason = 'terminal Hopper recovery receipt is missing'
+          elif recovery.get('schema') != 'aurum.hopper.recovery-path-probe.v2':
+              state = 'WAIT_HOPPER_PREEXECUTION_RECOVERY'
+              reason = 'Hopper recovery receipt schema is invalid'
+          else:
+              try:
+                  observed = dt.datetime.fromisoformat(str(recovery.get('observed_at')).replace('Z', '+00:00')).astimezone(dt.timezone.utc)
+                  age = (dt.datetime.now(dt.timezone.utc) - observed).total_seconds()
+              except Exception:
+                  age = 10**9
+              remote = str(recovery.get('remote_repair') or '').strip().lower()
+              terminal = str(recovery.get('terminal_reason') or '').strip().lower()
+              if age < -300 or age > 3600:
+                  state = 'WAIT_HOPPER_PREEXECUTION_RECOVERY'
+                  reason = 'Hopper recovery receipt is not fresh'
+              elif remote == 'completed':
+                  state = 'WAIT_HOPPER_HEALTH_REREAD'
+                  reason = 'remote repair completed; stale manual flash escalation is suppressed'
+              elif remote in {'unavailable', 'failed'} and terminal in {'boxbrain-unreachable', 'authorized-recovery-unavailable', 'remote-repair-failed'}:
+                  state = 'READY_FOR_GUARDED_FLASH_PREFLIGHT'
+                  reason = 'fresh terminal unrepaired Hopper recovery receipt and current release-bound unique USB evidence are present'
+              else:
+                  state = 'WAIT_HOPPER_PREEXECUTION_RECOVERY'
+                  reason = 'Hopper recovery receipt is not a permitted terminal unrepaired outcome'
+
+          devices = discovery.get('devices') if isinstance(discovery.get('devices'), list) else []
+          candidate = devices[0] if len(devices) == 1 else None
+          payload = {
+              'schema': 'aurum-tinyseed-physical-preflight-v1',
+              'state': state,
+              'release': {
+                  'state': release.get('state'),
+                  'source_commit': release.get('source_commit'),
+                  'x86_artifact': release.get('x86', {}).get('artifact'),
+                  'x86_sha256': release.get('x86', {}).get('sha256'),
+              },
+              'usb_discovery': {
+                  'request_id': discovery.get('request_id'),
+                  'observed_at_utc': discovery.get('observed_at_utc'),
+                  'selection_state': discovery.get('selection_state'),
+                  'eligible_count': discovery.get('eligible_count'),
+                  'valid_for_current_release': request.get('required_release_source_commit') == release.get('source_commit'),
+                  'candidate': candidate,
+              },
+              'preexecution_recovery': {
+                  'required_schema': 'aurum.hopper.recovery-path-probe.v2',
+                  'terminal_receipt_present': recovery is not None,
+                  'remote_repair': None if recovery is None else recovery.get('remote_repair'),
+                  'terminal_reason': None if recovery is None else recovery.get('terminal_reason'),
+                  'observed_at': None if recovery is None else recovery.get('observed_at'),
+                  'manual_handoff_released': state == 'READY_FOR_GUARDED_FLASH_PREFLIGHT',
+                  'reason': reason,
+              },
+              'write_authority': False,
+              'destructive_action_performed': False,
+              'next_gate': {
+                  'READY_FOR_GUARDED_FLASH_PREFLIGHT': 'explicit-guarded-flash-authorization',
+                  'WAIT_HOPPER_HEALTH_REREAD': 'fresh-hopper-health-evidence',
+                  'WAIT_HOPPER_PREEXECUTION_RECOVERY': 'fresh-terminal-hopper-preexecution-recovery-receipt',
+                  'WAIT_CURRENT_RELEASE_USB_DISCOVERY': 'fresh-current-release-read-only-usb-discovery',
+                  'WAIT_USB_MEDIA': 'eligible-test-usb-presence',
+                  'WAIT_VERIFIED_RELEASE': 'verified-ready-to-flash-release',
+              }[state],
+              'invariants': {
+                  'preserve_hopper_existing_recovery_media': True,
+                  'reprove_raw_usb_identity_before_write': True,
+                  'full_raw_readback_required_after_write': True,
+                  'physical_boot_proof_required_after_flash': True,
+                  'guardian_forced_rollback_proof_required': True,
+                  'preexecution_toolside_recovery_before_manual_handoff': True,
+              },
+          }
+          out_path.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({'state': state, 'reason': reason, 'write_authority': False}, sort_keys=True))
+          PY
+
+          git config user.name 'aurum-preexecution-gate[bot]'
+          git config user.email 'aurum-preexecution-gate@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          state=$(python3 -c "import json; print(json.load(open('Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'))['state'])")
+          git commit -m "Project Tiny Seed pre-execution state=$state [skip ci]"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((attempt * 2))
+          done
+          exit 1
