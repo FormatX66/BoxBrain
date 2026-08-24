@@ -45,6 +45,40 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     Fail 'administrator-required'
 }
 
+if (-not ('AurumTinySeedVolumeNative' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+public static class AurumTinySeedVolumeNative {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern SafeFileHandle CreateFile(
+        string fileName,
+        uint desiredAccess,
+        uint shareMode,
+        IntPtr securityAttributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile
+    );
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeviceIoControl(
+        SafeFileHandle device,
+        uint controlCode,
+        IntPtr inBuffer,
+        uint inBufferSize,
+        IntPtr outBuffer,
+        uint outBufferSize,
+        out uint bytesReturned,
+        IntPtr overlapped
+    );
+}
+'@
+}
+
 $image = Get-Item -LiteralPath $ImagePath -ErrorAction Stop
 $sum = Get-Item -LiteralPath $ChecksumPath -ErrorAction Stop
 $expected = ((Get-Content -LiteralPath $sum.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
@@ -112,12 +146,64 @@ function Get-ReverifiedTarget {
     return $candidate
 }
 
+$script:targetVolumeLocks = New-Object System.Collections.ArrayList
+
+function Release-TargetVolumeLocks {
+    foreach ($handle in @($script:targetVolumeLocks)) {
+        if ($null -ne $handle) { try { $handle.Dispose() } catch { } }
+    }
+    $script:targetVolumeLocks.Clear()
+}
+
 function Dismount-TargetVolumes([int]$Number) {
+    Release-TargetVolumeLocks
     $letters = @(Get-Partition -DiskNumber $Number -ErrorAction SilentlyContinue |
         Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
     foreach ($letter in $letters) {
         & mountvol "$letter`:" /P | Out-Null
         if ($LASTEXITCODE -ne 0) { Fail "volume-dismount-failed drive=$letter" }
+    }
+
+    $volumePaths = @(Get-Partition -DiskNumber $Number -ErrorAction SilentlyContinue |
+        ForEach-Object { @($_.AccessPaths) } |
+        Where-Object { ([string]$_).StartsWith('\\?\Volume{') } |
+        Sort-Object -Unique)
+    foreach ($volumePathValue in $volumePaths) {
+        $volumePath = [string]$volumePathValue
+        if ($volumePath.EndsWith('\')) { $volumePath = $volumePath.Substring(0, $volumePath.Length - 1) }
+        $handle = [AurumTinySeedVolumeNative]::CreateFile(
+            $volumePath,
+            [uint32]3221225472,
+            [uint32]3,
+            [IntPtr]::Zero,
+            [uint32]3,
+            [uint32]128,
+            [IntPtr]::Zero
+        )
+        if ($handle.IsInvalid) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            $handle.Dispose()
+            Fail "volume-lock-open-failed path=$volumePath win32=$code"
+        }
+        [uint32]$bytesReturned = 0
+        if (-not [AurumTinySeedVolumeNative]::DeviceIoControl(
+            $handle, [uint32]0x00090018, [IntPtr]::Zero, 0,
+            [IntPtr]::Zero, 0, [ref]$bytesReturned, [IntPtr]::Zero
+        )) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            $handle.Dispose()
+            Fail "volume-lock-failed path=$volumePath win32=$code"
+        }
+        if (-not [AurumTinySeedVolumeNative]::DeviceIoControl(
+            $handle, [uint32]0x00090020, [IntPtr]::Zero, 0,
+            [IntPtr]::Zero, 0, [ref]$bytesReturned, [IntPtr]::Zero
+        )) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            $handle.Dispose()
+            Fail "volume-dismount-ioctl-failed path=$volumePath win32=$code"
+        }
+        [void]$script:targetVolumeLocks.Add($handle)
+        Write-Host "AURUM_TINYSEED_FLASH_VOLUME_LOCKED disk=$Number path=$volumePath"
     }
 }
 
@@ -242,5 +328,6 @@ try {
     $sha.Dispose()
 }
 
+Release-TargetVolumeLocks
 if ($readback -ne $actual) { Fail "raw-readback-mismatch actual=$readback expected=$actual" }
 Write-Host "AURUM_TINYSEED_FLASH_OK disk=$diskNumber serial=$serial image_sha256=$actual raw_readback_verified=true"
