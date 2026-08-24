@@ -17,12 +17,13 @@ If an ISO must exist before a disk can be flashed, Aurum cannot flash early. It 
 Future Branch is **not** only success versus failure. For every meaningful live gate, generate and rank the most plausible next branches across several classes:
 
 1. **Outcome branches** — success, partial/degraded success, ambiguous result, expected failure, unexpected failure, timeout/stall, or no observable change.
-2. **Human-input branches** — likely next questions or reports such as “what’s next?”, “what do I need to do?”, “it didn’t work”, “that worked”, “why?”, “what else can run now?”, “can we simplify this?”, or a terse screenshot/photo/status report.
+2. **Human-input branches** — likely next questions or reports such as “what’s next?”, “what do I need to do?”, “it didn’t work”, “that worked”, “why?”, “what else can run now?”, “can we simplify this?”, a terse screenshot/photo/status report, or a meta-check asking whether Future Branch actually predicted the current follow-up.
 3. **Operational branches** — the next safe action that naturally follows the current state.
 4. **Recovery branches** — rollback, retry, alternate path, evidence capture, or return to Last Known Good.
 5. **Adjacent-opportunity branches** — independent work that becomes useful because the current milestone changes what is possible elsewhere.
 6. **Next-capability branches** — the next larger capability or project frontier that should already be warming up before the current milestone completes.
 7. **Stop/wait branches** — cases where the correct future state is deliberately to do nothing until a real dependency, permission, preference, or physical action occurs.
+8. **Self-audit branches** — likely checks that challenge whether the prior Future Branch set was actually useful, accurate, or prepared deeply enough.
 
 Do not prepare every imaginable branch. Rank the small set that is both plausible and useful.
 
@@ -67,6 +68,32 @@ The desired machine posture is:
 
 This is effectively **branch prediction for the whole computer instead of only for instruction addresses**.
 
+## Prediction calibration and self-audit
+
+Future Branch must measure itself. A system that claims it is anticipating but never scores its misses can become overconfident and waste resources on the wrong futures.
+
+After an observable next user input or machine state resolves a branch set, classify the prior prediction as:
+
+- **exact** — the important next family was explicitly predicted and prepared;
+- **partial** — a nearby/broader branch existed, but the useful specific branch was missing or underprepared;
+- **miss** — the branch field did not materially cover what happened.
+
+A partial match must not be upgraded to exact merely because it can be explained afterward.
+
+Record and optimize at least:
+
+- exact / partial / miss rate;
+- prepared-action hit rate;
+- user turns avoided;
+- estimated human wait time saved;
+- speculative compute/storage/network cost;
+- branches discarded unused;
+- assumptions exposed and corrected before user impact.
+
+Meta-inputs such as “did you predict that?” are first-class evidence. If the system failed to predict the audit itself, that miss or partial hit must change the next branch ranking.
+
+Canonical calibration state lives in `future-branch-calibration.json`.
+
 ## Future Branch loop
 
 `Current Proven State`
@@ -84,6 +111,8 @@ This is effectively **branch prediction for the whole computer instead of only f
 → prepare dependency-blocked downstream actions and high-value fallbacks in parallel
 
 → compare predicted branches with actual machine/user result
+
+→ score exact / partial / miss
 
 → correct assumptions and prune wrong branches
 
@@ -133,12 +162,14 @@ When operating Aurum or any multi-step project:
 - do not stop at the current command boundary;
 - predict the top few likely next user inputs, not merely “pass” or “fail”;
 - predict the top few likely machine outcomes, including partial, ambiguous, stalled, and unexpected states;
+- predict likely checks of the prediction system itself;
 - prepare the highest-value answers/actions before waiting;
 - if the likely next request is a safe action and it is already executable, **do it now**;
 - if the likely next request is informational, answer it preemptively when that reduces a turn;
 - keep at least the next one or two useful stages ready when safe;
 - continue independent adjacent work while a dependent branch waits;
 - use actual evidence and actual user behavior to re-rank branches continuously;
+- score prediction quality without retroactively inflating misses into hits;
 - if a branch proves wrong, correct it rather than defending the original assumption;
 - notify the operator only when a real human boundary is reached or a meaningful verified result is available.
 
@@ -152,4 +183,4 @@ Future Branch complements:
 - **Adaptive scheduling** — consume idle capacity while preserving foreground headroom.
 - **A/B + LKG + State Guardian** — keep speculative/candidate work from destroying the last proven state.
 
-Aurum's desired operating posture is therefore not **WAITING FOR COMMAND** but **ANTICIPATING, PREPARED, EVIDENCE-CORRECTING, AND NON-INTERFERING**.
+Aurum's desired operating posture is therefore not **WAITING FOR COMMAND** but **ANTICIPATING, PREPARED, EVIDENCE-CORRECTING, CALIBRATING, AND NON-INTERFERING**.
