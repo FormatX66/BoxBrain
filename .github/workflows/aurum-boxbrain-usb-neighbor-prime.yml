@@ -1,0 +1,120 @@
+name: Aurum BoxBrain USB Neighbor Prime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-boxbrain-usb-neighbor-prime.yml'
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: aurum-boxbrain-usb-neighbor-prime
+  cancel-in-progress: true
+
+jobs:
+  prime-and-retry:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Prime IPv6 neighbor discovery on active USB-like links
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          Set-StrictMode -Version Latest
+          $root=$env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+
+          $adapters=@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object {
+            $_.Status -eq 'Up' -and (
+              $_.InterfaceDescription -match '(?i)USB|GbE|RNDIS|CDC|Gadget' -or
+              $_.Name -match '(?i)USB|Ethernet'
+            )
+          } | Select-Object Name,InterfaceDescription,Status,ifIndex,MacAddress,LinkSpeed)
+
+          $before=@(Get-NetNeighbor -ErrorAction SilentlyContinue | Where-Object {
+            $_.InterfaceIndex -in @($adapters.ifIndex) -and $_.State -ne 'Unreachable'
+          } | Select-Object IPAddress,AddressFamily,InterfaceIndex,State,LinkLayerAddress)
+
+          $probes=@()
+          foreach($a in $adapters){
+            $idx=[int]$a.ifIndex
+            $target="ff02::1%$idx"
+            $saved=$ErrorActionPreference;$ErrorActionPreference='Continue'
+            $text=@(& ping.exe -6 -n 1 -w 900 $target 2>&1) -join "`n"
+            $exit=$LASTEXITCODE
+            $ErrorActionPreference=$saved
+            $probes += [ordered]@{
+              interface=[string]$a.Name
+              ifindex=$idx
+              target=$target
+              exit_code=$exit
+              response=([string]$text).Substring(0,[Math]::Min(800,([string]$text).Length))
+            }
+          }
+          Start-Sleep -Milliseconds 500
+
+          $after=@(Get-NetNeighbor -ErrorAction SilentlyContinue | Where-Object {
+            $_.InterfaceIndex -in @($adapters.ifIndex) -and $_.State -ne 'Unreachable'
+          } | Select-Object IPAddress,AddressFamily,InterfaceIndex,State,LinkLayerAddress)
+
+          $beforeKeys=@($before | ForEach-Object { "$($_.InterfaceIndex)|$($_.IPAddress)|$($_.LinkLayerAddress)" })
+          $new=@($after | Where-Object { "$($_.InterfaceIndex)|$($_.IPAddress)|$($_.LinkLayerAddress)" -notin $beforeKeys })
+          $payload=[ordered]@{
+            schema='aurum.boxbrain.usb-neighbor-prime.v1'
+            observed_at=(Get-Date).ToUniversalTime().ToString('o')
+            runner=$env:COMPUTERNAME
+            read_only_probe=$true
+            destructive_media_write=$false
+            new_authority_granted=$false
+            adapters=$adapters
+            probes=$probes
+            neighbors_before=$before
+            neighbors_after=$after
+            newly_observed_neighbors=$new
+          }
+
+          $dir=Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory $dir -Force | Out-Null
+          $out=Join-Path $dir 'usb-neighbor-prime-latest.json'
+          $payload | ConvertTo-Json -Depth 10 | Set-Content $out -Encoding UTF8
+          Get-Content $out -Raw | Write-Host
+
+          git config user.name 'aurum-usb-neighbor-prime[bot]'
+          git config user.email 'aurum-usb-neighbor-prime@users.noreply.github.com'
+          git add -- $out
+          if(-not (git diff --cached --quiet)){
+            git commit -m 'Record USB neighbor prime evidence [skip ci]'
+            for($i=1;$i -le 3;$i++){
+              git pull --rebase origin main
+              git push origin HEAD:main
+              if($LASTEXITCODE -eq 0){break}
+              Start-Sleep -Seconds (2*$i)
+            }
+            if($LASTEXITCODE -ne 0){throw 'Failed to publish USB neighbor-prime evidence.'}
+          }
+
+      - name: Redispatch BoxBrain USB recovery with refreshed neighbor cache
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $headers=@{
+            Authorization="Bearer $env:GH_TOKEN"
+            Accept='application/vnd.github+json'
+            'X-GitHub-Api-Version'='2022-11-28'
+          }
+          $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/workflows/aurum-boxbrain-usb-link-recovery.yml/dispatches"
+          $body=@{ref='main'} | ConvertTo-Json
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body -ContentType 'application/json' | Out-Null
+          Write-Host 'AURUM_USB_NEIGHBOR_PRIME_REDISPATCHED=true'
