@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Aurum is the experimental AI-native operating-system/runtime and self-building capability stack. Its active work includes x86_64 boot/runtime paths, local reasoning, machine-native state, autonomous driver synthesis, self-build, dialogue, human capability traits, physical/virtual hardware validation, protected genetics-driven reseeding, and the minimal Tiny Seed recovery/install front door.
+Aurum is the experimental AI-native operating-system/runtime and self-building capability stack. Its active work includes x86_64 boot/runtime paths, local reasoning, machine-native state, autonomous driver synthesis, self-build, dialogue, human capability traits, physical/virtual hardware validation, protected genetics-driven reseeding, the minimal Tiny Seed recovery/install front door, and Future Branch anticipatory preparation.
 
 ## Current status
 
@@ -11,6 +11,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 ## Canonical project documents
 
 - [North-star generational architecture](NORTH_STAR_GENERATIONAL_ARCHITECTURE.md)
+- [Future Branch anticipatory operating principle](FUTURE_BRANCH.md)
 - [Genetics and Reseed Germ architecture](../../docs/architecture/RESEED_GENETICS_ARCHITECTURE.md)
 - [Mandatory seed recovery architecture](../../docs/architecture/SEED_RECOVERY_ARCHITECTURE.md)
 - [Tiny Seed boot medium architecture](../../docs/architecture/TINY_SEED_BOOT_MEDIUM.md)
@@ -47,3 +48,5 @@ The intended human setup surface is deliberately small: **boot Tiny Seed -> conn
 ## Process invariant
 
 Aurum may record heartbeat/telemetry as evidence, but only a change in capability, gate, verified state, or unresolved frontier counts as progress and may trigger an immediate continuation build.
+
+Future Branch applies to that process: prepare the most useful likely success/failure/recovery branches ahead of time, execute only when real prerequisites and permissions are satisfied, and use actual outcomes to correct assumptions before the user reaches the next boundary.
