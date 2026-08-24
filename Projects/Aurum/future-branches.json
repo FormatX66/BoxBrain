@@ -1,5 +1,5 @@
 {
-  "schema": "aurum-future-branch-state-v5",
+  "schema": "aurum-future-branch-state-v6",
   "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate both prediction and execution quality from what actually happens.",
   "policy": {
     "lookahead_depth": "adaptive-to-boundary",
@@ -13,15 +13,23 @@
     "work_down_prediction_debt_before_waiting": true,
     "treat_partial_family_match_as_partial_not_success": true,
     "allow_method_pivot_when_carrier_cost_exceeds_expected_value": true,
+    "prepared_state_must_match_canonical_provenance": true,
+    "invalidate_stale_preflight_on_release_change": true,
     "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
   },
-  "current_program": "Aurum Tiny Seed READY_TO_FLASH; physical x86 proof is the leading boundary while Pi proof, rollback, Future Branch and parallel experiments remain warm",
+  "current_program": "Aurum Tiny Seed is READY_TO_FLASH from verified source 468f02e0a64e222a9e693c793d68c756df720309; fresh read-only discovery found one non-system 61.5 GB SanDisk USB candidate and the physical path is stopped at explicit destructive-write authority",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
       "prediction": "exact",
       "execution": "boundary-correct",
-      "proof": "same-revision x86 and Pi artifacts published from 82aa2ffe979b0c3a4e18b502ed116559945e32b5; combined handoff reverified hashes and persisted READY_TO_FLASH"
+      "proof": "same-revision x86 and Pi artifacts published from 468f02e0a64e222a9e693c793d68c756df720309; combined handoff reverified hashes and persisted READY_TO_FLASH"
+    },
+    {
+      "state": "prepared-physical-state-became-stale-after-canonical-release-changed",
+      "prediction": "partial",
+      "execution": "complete",
+      "proof": "the persisted physical preflight still referenced an older release identity after a newer verified handoff became canonical; the mismatch was detected before any write, the preflight was rebound to current release evidence, and the handoff workflow now invalidates stale physical preflight whenever release identity changes"
     }
   ],
   "likely_user_inputs": [
@@ -29,8 +37,8 @@
       "rank": 1,
       "input_family": "physical-handoff",
       "examples": ["ok what do I need to do", "ready to flash?", "which USB", "let's flash it"],
-      "prepared_response": "State that READY_TO_FLASH is verified, protect recovery media, identify a different non-system test USB by serial, run the guarded flasher in dry-run mode first, then request explicit destructive-write authority only after preflight proves the target and checksum.",
-      "action_if_safe": "Provide the exact artifact identity, checksum and guarded preflight path; auto-load the canonical protected-media registry when available; stop before the destructive write until the user supplies/identifies physical media and authorizes that exact serial."
+      "prepared_response": "State that READY_TO_FLASH is verified, name only the read-only-discovered candidate evidence, protect recovery media, and stop at explicit destructive-write authority. Re-prove exact live identity immediately before any authorized write.",
+      "action_if_safe": "Keep artifact identity, checksum, current release binding, protected-media refusal and guarded preflight prepared; do not create or consume write authority without explicit human authorization for the current physical candidate."
     },
     {
       "rank": 2,
@@ -50,8 +58,8 @@
       "rank": 4,
       "input_family": "status-or-so",
       "examples": ["so?", "how's it going?", "what's the status now?"],
-      "prepared_response": "Report VERIFIED READY_TO_FLASH separately from physical proof, then name the next human boundary and any parallel software work already advanced.",
-      "action_if_safe": "Read live handoff/status evidence and advance any newly unblocked non-physical work before reporting."
+      "prepared_response": "Report VERIFIED READY_TO_FLASH separately from physical proof, include whether the current physical preflight is bound to the same release identity, then name the next human boundary and parallel software work already advanced.",
+      "action_if_safe": "Read live handoff, USB discovery and preflight evidence together; invalidate prepared state if provenance or physical identity changed before reporting."
     },
     {
       "rank": 5,
@@ -64,8 +72,8 @@
       "rank": 6,
       "input_family": "future-branch-self-audit",
       "examples": ["did it predict that?", "was that branch warm?", "what did predictions actually save?"],
-      "prepared_response": "Score the prior branch honestly. The Tiny Seed publish outcome was an exact prediction with boundary-correct execution; the earlier method-pivot idea was a miss that changed the model.",
-      "action_if_safe": "Persist calibration and re-rank without inflating partial or post-hoc matches."
+      "prepared_response": "Score the prior branch honestly. Tiny Seed publication was exact; the earlier method-pivot was a miss; stale prepared-state invalidation was only partial because same-revision proof existed but the live field did not explicitly predict that a newer canonical release could invalidate an already prepared physical handoff.",
+      "action_if_safe": "Persist calibration, strengthen provenance invalidation, and re-rank without inflating partial or post-hoc matches."
     },
     {
       "rank": 7,
@@ -79,35 +87,41 @@
     {
       "rank": 1,
       "state": "x86-physical-flash-readback-passes",
-      "prepared": ["verified x86 artifact checksum", "unique USB serial targeting", "protected-media refusal", "dry-run preflight", "system-disk refusal", "identity recheck before write", "full raw readback hash", "boot-proof collection"],
+      "prepared": ["verified x86 artifact checksum", "current release provenance binding", "unique USB identity targeting", "protected-media refusal", "dry-run preflight", "system-disk refusal", "identity recheck before write", "full raw readback hash", "boot-proof collection"],
       "next": "physical Hopper boot and Tiny Seed ready/boot-proof evidence"
     },
     {
       "rank": 2,
+      "state": "release-or-device-evidence-changes-before-physical-action",
+      "prepared": ["release identity comparison", "stale-preflight invalidation", "fresh read-only USB rediscovery", "write authority remains false"],
+      "next": "discard stale prepared state, rebuild preflight from current canonical release and current physical evidence"
+    },
+    {
+      "rank": 3,
       "state": "physical-boot-success",
       "prepared": ["boot-proof receipt", "single-existing-install detection", "bridge preserving Gen0 as slot A/LKG", "inactive slot B regrow", "health gates", "rollback path"],
       "next": "protected trial boot, promotion only on fresh health evidence"
     },
     {
-      "rank": 3,
+      "rank": 4,
       "state": "physical-boot-or-setup-failure",
-      "prepared": ["GRUB serial evidence", "safe/verbose boot", "aurum-triage", "NetworkManager evidence", "failure playbook", "preserved Gen0 recovery USB"],
+      "prepared": ["GRUB serial evidence", "safe/verbose boot", "aurum-triage", "NetworkManager evidence", "failure playbook", "preserved recovery media"],
       "next": "classify exact failure, repair candidate only, retain LKG and compare carrier-pivot cost if the failure is method-specific"
     },
     {
-      "rank": 4,
+      "rank": 5,
       "state": "candidate-regrow-fails-or-rolls-back",
       "prepared": ["Guardian quarantine", "LKG rollback", "regrow receipt", "controlled rollback drill", "triage classification"],
       "next": "treat rollback as protection success, repair candidate, regrow only inactive slot"
     },
     {
-      "rank": 5,
+      "rank": 6,
       "state": "pi-physical-proof-unlocks-arm64-canaries",
       "prepared": ["Pi artifact", "static recovery payload proof", "Pi-specific proof boundary", "StateWeave independent experiment", "adaptive-kernel independent experiment"],
       "next": "prove Pi boot first; keep ARM64 A/B promotion disabled until Pi runtime/health adapter is proven"
     },
     {
-      "rank": 6,
+      "rank": 7,
       "state": "physical-success-unlocks-universal-carrier",
       "prepared": ["universal-carrier architecture", "shared boot-front-door concept", "architecture-separated payloads", "same germ/genetics/LKG contract"],
       "next": "construct one physical carrier for proven x86 and Pi frontends without replacing their already-proven independent artifacts"
@@ -116,8 +130,8 @@
   "calibration": {
     "prediction_score_classes": ["exact", "partial", "miss"],
     "execution_score_classes": ["complete", "prepared", "partial", "miss", "boundary-correct"],
-    "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. A missing high-value branch becomes prediction debt and changes future ranking.",
-    "latest_resolved_sample": "tinyseed-artifacts-pass-and-publish = exact prediction + boundary-correct execution",
+    "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. Prepared state that no longer matches canonical provenance is invalid, not warm. A missing high-value branch becomes prediction debt and changes future ranking.",
+    "latest_resolved_sample": "prepared physical state drift = partial prediction + complete corrective execution before user impact",
     "metrics": ["prediction_accuracy", "execution_completeness", "useful_hit_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
   },
   "real_boundaries": [
