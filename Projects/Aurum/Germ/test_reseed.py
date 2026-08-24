@@ -117,6 +117,47 @@ class ReseedGermTests(unittest.TestCase):
             self.assertIn("from aurum_germ import handle_reseed", text)
             self.assertIn('command == "reseed"', text)
 
+    def test_bridge_repairs_installed_resolver_and_records_enablement(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = root / "lib/systemd/system/systemd-resolved.service"
+            resolved.parent.mkdir(parents=True)
+            resolved.write_text("[Unit]\nDescription=fixture\n", encoding="utf-8")
+
+            repair = bridge._install_units(root)
+
+            resolver = root / "etc/systemd/system/aurum-resolver-link.service"
+            self.assertIn(
+                "ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf",
+                resolver.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                (root / "etc/NetworkManager/conf.d/10-aurum-resolved.conf").read_text(encoding="utf-8"),
+                "[main]\ndns=systemd-resolved\nrc-manager=symlink\n",
+            )
+            wants = root / "etc/systemd/system/multi-user.target.wants"
+            self.assertEqual((wants / resolver.name).readlink(), Path("../aurum-resolver-link.service"))
+            self.assertEqual(
+                (wants / "systemd-resolved.service").readlink(),
+                Path("/lib/systemd/system/systemd-resolved.service"),
+            )
+            self.assertTrue(repair["resolver_link_unit_installed"])
+            self.assertTrue(repair["systemd_resolved_available"])
+            self.assertTrue(repair["systemd_resolved_enabled"])
+
+    def test_bridge_does_not_install_dangling_resolver_without_resolved(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            repair = bridge._install_units(root)
+            systemd = root / "etc/systemd/system"
+            wants = systemd / "multi-user.target.wants"
+            self.assertFalse((systemd / "aurum-resolver-link.service").exists())
+            self.assertFalse((wants / "aurum-resolver-link.service").is_symlink())
+            self.assertFalse((wants / "systemd-resolved.service").is_symlink())
+            self.assertFalse(repair["resolver_link_unit_installed"])
+            self.assertFalse(repair["systemd_resolved_available"])
+            self.assertFalse(repair["systemd_resolved_enabled"])
+
 
 if __name__ == "__main__":
     unittest.main()
