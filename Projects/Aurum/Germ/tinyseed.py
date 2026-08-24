@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Aurum Tiny Seed setup surface.
 
-This is intentionally not a desktop. It is a small full-screen setup flow:
-1) network (skipped when already online), 2) choose repair or a target disk,
-3) confirm and let the germ bridge/install/regrow automatically.
+External-media mode is a small three-screen setup flow: network, machine, go.
+Installed bootstrap mode is even smaller: if a grown phenotype is active it is
+launched; otherwise networking is obtained and current genetics are regrown.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import getpass
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,10 @@ import bridge
 import installer
 import machine
 import network
+
+INSTALLED_MARKER = Path("/etc/aurum-tinyseed-installed.json")
+LIVE_MEDIUM = Path("/run/live/medium")
+SLOT_STATE = Path("/var/lib/aurum/germ/slots.json")
 
 
 def _clear() -> None:
@@ -92,6 +97,75 @@ def _run(args: list[str], *, check: bool = True, timeout: int = 60) -> subproces
     if check and result.returncode != 0:
         raise RuntimeError(result.stdout.strip()[-1200:] or "command failed")
     return result
+
+
+def _json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _exec_active_phenotype() -> int:
+    runtime = Path("/opt/aurum")
+    bootstrap = runtime / "aurum_bootstrap.py"
+    console = runtime / "aurum_console.py"
+    if bootstrap.is_file():
+        os.execv("/usr/bin/python3", ["/usr/bin/python3", str(bootstrap)])
+    if console.is_file():
+        os.execv("/usr/bin/python3", ["/usr/bin/python3", str(console)])
+    _title("RECOVERY", "The active phenotype is missing its launcher.")
+    print("Tiny Seed has not modified another slot. Boot external Tiny Seed to repair/regrow.")
+    return 2
+
+
+def _installed_bootstrap_mode() -> int:
+    """Finish a fresh offline install or launch the boot-selected phenotype."""
+    state = _json(SLOT_STATE)
+    trial = state.get("trial")
+    active = state.get("active")
+    # Preflight sets active=trial at the boot boundary. Once that happened, run
+    # the candidate so the independent health service can judge the real boot.
+    if trial and active == trial:
+        return _exec_active_phenotype()
+
+    # A previously promoted non-bootstrap phenotype should simply run.
+    if state.get("last_result") == "candidate-promoted-healthy" or state.get("lkg") != "A":
+        return _exec_active_phenotype()
+
+    _title("FINISHING AURUM", "The protected germ is installed. Current genetics still need to grow.")
+    online = _network_step()
+    if not online:
+        _title("OFFLINE", "The bootstrap stays healthy; nothing was overwritten.")
+        print("Connect Ethernet or reboot and choose Wi-Fi to regrow current Aurum.")
+        try:
+            input("\nPress Enter to retry networking, or power off normally. ")
+        except (EOFError, KeyboardInterrupt):
+            return 1
+        return _installed_bootstrap_mode()
+
+    _title("GROWING AURUM", "Fetching current trusted genetics and building the inactive slot.")
+    result = _run(
+        [
+            "/usr/bin/python3", "/usr/lib/aurum/germ/reseed.py", "regrow",
+            "--ref", "main", "--authorize-network",
+        ],
+        timeout=1200,
+    )
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        payload = {"status": "finished", "detail": result.stdout.strip()[-2000:]}
+    if payload.get("status") == "trial-armed":
+        _title("READY TO PROVE", "Current Aurum was grown beside the bootstrap LKG.")
+        print("Rebooting into the candidate. The Guardian will promote it only if health checks pass.")
+        subprocess.run(["/bin/systemctl", "reboot"], check=False)
+        return 0
+
+    _title("GERM READY", "Aurum stopped before replacing the bootstrap LKG.")
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 1
 
 
 def _installed_roots() -> list[dict[str, Any]]:
@@ -200,6 +274,10 @@ def main() -> int:
     if os.geteuid() != 0:
         print("Aurum Tiny Seed must run as root.")
         return 2
+
+    if INSTALLED_MARKER.is_file() and not LIVE_MEDIUM.is_dir():
+        return _installed_bootstrap_mode()
+
     detected = machine.detect()
     online = _network_step()
 
@@ -209,9 +287,6 @@ def main() -> int:
     selected_existing: dict[str, Any] | None = None
 
     if len(existing) == 1:
-        # An existing Aurum installation is the safest and most likely intent.
-        # Never fall through to a destructive fresh install merely because the
-        # user pressed Enter or mistyped a selection.
         selected_existing = existing[0]
         action = "repair"
         print(
@@ -292,11 +367,11 @@ def main() -> int:
     regrow = result.get("regrow") if isinstance(result, dict) else None
     if isinstance(regrow, dict) and regrow.get("status") == "trial-armed":
         print("\n✓ Current genetics were grown into the inactive slot.")
-        print("  Power off, remove Tiny Seed, and boot the machine. The guardian will promote or roll back automatically.")
+        print("  Power off, remove Tiny Seed, and boot the machine. The Guardian will promote or roll back automatically.")
     elif online:
         print("\nGenetics were staged as far as this platform currently allows. Keep Tiny Seed available as the recovery germ.")
     else:
-        print("\nBoot is prepared. Connect networking later and choose reseed current.")
+        print("\nBoot is prepared. Connect networking later and Tiny Seed will finish regrowth on the installed machine.")
     return 0
 
 
