@@ -1,6 +1,7 @@
-/* AURUM_RECOVERY_LEDGER_V1_CANONICAL_PROJECTION
+/* AURUM_RECOVERY_LEDGER_V1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
- * Public projection only. Augments the existing expandable Recovery Guardian card;
+ * BoxBrain carries a byte-identical public projection.
+ * Augments the existing expandable Recovery Guardian card;
  * it does not create a new dashboard box or any human authority.
  */
 (()=>{
