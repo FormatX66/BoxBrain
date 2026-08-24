@@ -284,7 +284,6 @@ function Write-And-VerifyImageFirstSector {
     }
 
     for ($attempt = 1; $attempt -le 4; $attempt += 1) {
-        Clear-ReverifiedTarget
         $candidate = Get-ReverifiedTarget
         $path = "\\.\PhysicalDrive$([int]$candidate.Number)"
         $writer = $null
@@ -321,21 +320,23 @@ function Write-And-VerifyImageFirstSector {
 $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
-Write-And-VerifyImageFirstSector
+Clear-ReverifiedTarget
 $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
-Dismount-TargetVolumes $diskNumber
+if ([int]$live.NumberOfPartitions -ne 0) { Fail 'target-not-clear-before-image-body' }
+Release-TargetVolumeLocks
 
 $bufferSize = 4MB
 $buffer = New-Object byte[] $bufferSize
 $maxIoRetries = 8
 
 # Re-prove and re-lock the exact target immediately before handing the remaining
-# image bytes to the low-level writer. Sector zero was already reread above.
+# image bytes to the low-level writer. Sector zero stays cleared until the body
+# is fully flushed so Windows cannot mount the hybrid image mid-write.
 $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
-Dismount-TargetVolumes $diskNumber
+if ([int]$live.NumberOfPartitions -ne 0) { Fail 'target-partition-appeared-before-image-body' }
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
 $source = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
 $rawHandle = $null
@@ -384,6 +385,10 @@ try {
     $source.Dispose()
 }
 Write-Host "AURUM_TINYSEED_FLASH_RAW_WRITE_OK writer=win32-writefile bytes=$([int64]$image.Length - 512)"
+Write-And-VerifyImageFirstSector
+$live = Get-ReverifiedTarget
+$diskNumber = [int]$live.Number
+Dismount-TargetVolumes $diskNumber
 Start-Sleep -Seconds 3
 
 # Full image-length readback hash. This is deliberately slower than a spot check
