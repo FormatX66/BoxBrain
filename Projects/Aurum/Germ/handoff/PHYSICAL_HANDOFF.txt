@@ -1,0 +1,28 @@
+AURUM TINY SEED — PHYSICAL HANDOFF
+
+This packet is consumed only after CI has produced AURUM-TINYSEED-RELEASE.json with state READY_TO_FLASH.
+
+Required order on each physical target:
+1. Verify the artifact SHA-256 against AURUM-TINYSEED-RELEASE.json.
+2. Flash only the explicitly selected non-system target media.
+3. Read back or otherwise verify the written media before booting it.
+4. Boot the target from Tiny Seed.
+5. Require the boot console/journal to contain both:
+   AURUM_TINYSEED_READY
+   AURUM_BOOT_PROOF_READY
+6. Preserve /var/lib/aurum/evidence/boot-proof.json when the root is persistent, or capture the console marker on live media.
+7. Confirm Guardian state shows a valid A/B schema with an LKG slot before any regrow operation.
+8. Allow reseed/regrow to build only the inactive slot. Never overwrite LKG.
+9. Reboot into the armed trial and require Guardian health evidence before promotion.
+10. After a healthy promotion is proven, run the controlled rollback drill on a disposable candidate and require automatic return to LKG plus quarantine evidence.
+
+Do not call physical boot proven from a VM smoke test. Do not call rollback proven from a unit test. Do not flash if the release manifest is missing, hashes disagree, or the target disk cannot be identified unambiguously.
+
+Evidence expected after the physical gates:
+- boot-proof.json or captured AURUM_BOOT_PROOF_READY receipt
+- Guardian slots.json before trial
+- Guardian slots.json after healthy promotion
+- Guardian slots.json after forced bad-candidate rollback
+- quarantine record naming the failed candidate/reason
+
+When these receipts exist, the seed can advance from READY_TO_FLASH to PHYSICALLY_BOOTED and RECOVERY_PROVEN.
