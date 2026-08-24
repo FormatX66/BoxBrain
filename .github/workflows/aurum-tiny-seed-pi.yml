@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
       - '.github/workflows/aurum-tiny-seed-pi.yml'
 
 permissions:
@@ -25,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control)
 
       - name: Install ARM image tooling
         run: |
@@ -65,10 +67,19 @@ jobs:
           test -x "$root/usr/lib/aurum/germ/guardian.py"
           test -x "$root/usr/lib/aurum/germ/reseed.py"
           test -x "$root/usr/lib/aurum/germ/proof.py"
+          test -x "$root/usr/lib/aurum/germ/rollback_drill.py"
+          test -x "$root/usr/lib/aurum/germ/recovery_control.py"
+          test -x "$root/usr/lib/aurum/germ/recovery_poller.py"
+          test -x "$root/usr/sbin/aurum-rollback-drill"
+          test -x "$root/usr/sbin/aurum-recovery-poll"
+          test -f "$root/etc/aurum/recovery-trusted-refs.json"
           test -f "$root/etc/systemd/system/aurum-boot-proof.service"
           test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-boot-proof.service"
+          test -f "$root/etc/systemd/system/aurum-recovery-poll.timer"
+          test -L "$root/etc/systemd/system/timers.target.wants/aurum-recovery-poll.timer"
+          chroot "$root" /usr/bin/openssl version >/dev/null
           grep -q 'aurum.tinyseed=1' "$boot/cmdline.txt"
-          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded'
+          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded'
 
       - name: Publish Pi Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
