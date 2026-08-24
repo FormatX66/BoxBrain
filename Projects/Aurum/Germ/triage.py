@@ -130,7 +130,7 @@ def classify(snapshot: dict[str, Any]) -> dict[str, str]:
                 "next": "Use the saved regrow receipt to repair fetch/build/platform staging, then retry only the inactive slot.",
             }
 
-    if guardian.get("trial") and str(guardian.get("last_result") or "").startswith("rolled-back:"):
+    if str(guardian.get("last_result") or "").startswith("rolled-back:"):
         return {
             "code": "CANDIDATE_ROLLED_BACK",
             "next": "Treat rollback as successful protection; inspect quarantine/health evidence and fix the candidate before another trial.",
