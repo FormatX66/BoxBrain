@@ -39,7 +39,7 @@ jobs:
       - name: Verify compressed image
         run: |
           test -s dist/Aurum-TinySeed-Pi-arm64.img.xz
-          sha256sum -c dist/Aurum-TinySeed-Pi-arm64.img.xz.sha256
+          (cd dist && sha256sum -c Aurum-TinySeed-Pi-arm64.img.xz.sha256)
           xz -t dist/Aurum-TinySeed-Pi-arm64.img.xz
 
       - name: Publish Pi Tiny Seed
