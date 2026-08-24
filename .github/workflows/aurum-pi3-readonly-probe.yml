@@ -73,15 +73,35 @@ jobs:
                   $_.IPAddress -notmatch '^(0\.0\.0\.0|224\.|239\.|255\.)'
                 }
             )
-            $ipv4 = @(
+            $ipv4All = @(
               Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                Where-Object { $_.IPAddress -and $_.IPAddress -notmatch '^169\.254\.' }
+                Where-Object { $_.IPAddress }
             )
+            $ipv4LinkLocal = @($ipv4All | Where-Object { $_.IPAddress -match '^169\.254\.' })
+            $ipv4NonLinkLocal = @($ipv4All | Where-Object { $_.IPAddress -notmatch '^169\.254\.' })
+            $ipInterfaces = @(Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+            $defaultRoutes = @(
+              Get-NetRoute -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' }
+            )
+            $dnsRows = @(Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+            $dnsServerCount = 0
+            foreach ($dnsRow in $dnsRows) {
+              $dnsServerCount += @($dnsRow.ServerAddresses | Where-Object { $_ }).Count
+            }
+            $dhcpState = if ($ipInterfaces.Count -gt 0) { [string]$ipInterfaces[0].Dhcp } else { 'Unknown' }
+
             $topology.usb_like_adapters += [ordered]@{
               name = [string]$adapter.Name
               description = [string]$adapter.InterfaceDescription
               status = [string]$adapter.Status
-              ipv4_address_count = $ipv4.Count
+              link_speed = [string]$adapter.LinkSpeed
+              ipv4_address_count = $ipv4All.Count
+              ipv4_non_link_local_count = $ipv4NonLinkLocal.Count
+              ipv4_link_local_count = $ipv4LinkLocal.Count
+              dhcp = $dhcpState
+              default_route_count = $defaultRoutes.Count
+              dns_server_count = $dnsServerCount
               neighbor_count = $neighbors.Count
             }
 
