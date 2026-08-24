@@ -98,11 +98,45 @@ def patch_console_file(path: Path) -> dict[str, Any]:
     return {"status": "patched", "sha256": _sha256(path)}
 
 
-def _install_units(root: Path) -> None:
+def _install_units(root: Path) -> dict[str, Any]:
     systemd = root / "etc/systemd/system"
     wants = systemd / "multi-user.target.wants"
     systemd.mkdir(parents=True, exist_ok=True)
     wants.mkdir(parents=True, exist_ok=True)
+
+    resolved_candidates = (
+        root / "lib/systemd/system/systemd-resolved.service",
+        root / "usr/lib/systemd/system/systemd-resolved.service",
+    )
+    resolved_available = any(path.is_file() for path in resolved_candidates)
+    resolved_target = (
+        "/lib/systemd/system/systemd-resolved.service"
+        if resolved_candidates[0].is_file()
+        else "/usr/lib/systemd/system/systemd-resolved.service"
+    )
+
+    network_manager = root / "etc/NetworkManager/conf.d/10-aurum-resolved.conf"
+    resolver = systemd / "aurum-resolver-link.service"
+    if resolved_available:
+        network_manager.parent.mkdir(parents=True, exist_ok=True)
+        network_manager.write_text(
+            "[main]\n"
+            "dns=systemd-resolved\n"
+            "rc-manager=symlink\n",
+            encoding="utf-8",
+        )
+        resolver.write_text(
+            "[Unit]\n"
+            "Description=Restore the Aurum installed resolver link\n"
+            "After=local-fs.target\n"
+            "Before=NetworkManager.service systemd-resolved.service aurum-pc-console.service\n\n"
+            "[Service]\n"
+            "Type=oneshot\n"
+            "ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf\n\n"
+            "[Install]\n"
+            "WantedBy=multi-user.target\n",
+            encoding="utf-8",
+        )
 
     preflight = systemd / "aurum-germ-preflight.service"
     preflight.write_text(
@@ -132,13 +166,31 @@ def _install_units(root: Path) -> None:
         encoding="utf-8",
     )
 
-    for unit in (preflight.name, health.name):
+    managed_units = [preflight.name, health.name]
+    if resolved_available:
+        managed_units.insert(0, resolver.name)
+    for unit in managed_units:
         link = wants / unit
         try:
             link.unlink()
         except FileNotFoundError:
             pass
         link.symlink_to(Path("../") / unit)
+
+    resolved_link = wants / "systemd-resolved.service"
+    if resolved_available:
+        try:
+            resolved_link.unlink()
+        except FileNotFoundError:
+            pass
+        resolved_link.symlink_to(resolved_target)
+    return {
+        "resolver_link_unit_installed": resolved_available and resolver.is_file(),
+        "network_manager_resolved_config_installed": resolved_available and network_manager.is_file(),
+        "systemd_resolved_available": resolved_available,
+        "systemd_resolved_enabled": resolved_available and resolved_link.is_symlink(),
+        "systemd_resolved_unit": resolved_target if resolved_available else None,
+    }
 
 
 def _install_wrapper(root: Path) -> None:
@@ -182,13 +234,14 @@ def install(root: Path, *, source_dir: Path | None = None) -> dict[str, Any]:
 
     if runtime_path.is_symlink() and state_file.is_file():
         hashes = _copy_germ(root, source)
-        _install_units(root)
+        resolver_repair = _install_units(root)
         _install_wrapper(root)
         return {
             "schema": "aurum-pre-germ-bridge-v1",
             "status": "already-bridged-refreshed-germ",
             "root": str(root),
             "germ_hashes": hashes,
+            "resolver_repair": resolver_repair,
             "live_phenotype_replaced": False,
         }
 
@@ -228,7 +281,7 @@ def install(root: Path, *, source_dir: Path | None = None) -> dict[str, Any]:
         "updated_at_unix": int(time.time()),
     }
     _atomic_json(state_file, state)
-    _install_units(root)
+    resolver_repair = _install_units(root)
     _install_wrapper(root)
 
     receipt = {
@@ -240,6 +293,7 @@ def install(root: Path, *, source_dir: Path | None = None) -> dict[str, Any]:
         "legacy_console_sha256": original_console_hash,
         "patched_console": patch,
         "germ_hashes": hashes,
+        "resolver_repair": resolver_repair,
         "live_overwrite_allowed": False,
         "current_organism_preserved_as_slot_a": True,
         "installed_at_unix": int(time.time()),
