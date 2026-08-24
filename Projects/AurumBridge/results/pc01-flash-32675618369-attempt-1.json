@@ -1,0 +1,15 @@
+{
+    "schema":  "aurum-pc01-flash-receipt-v1",
+    "state":  "ALREADY_COMPLETE",
+    "github_workflow_run":  32675618369,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-24T00:06:56.3177369Z",
+    "data":  {
+                 "image_sha256":  "cc41f46c334c9db1256c11cddda1bffde6e5db45e47922720ec74260bd8e8bb7",
+                 "head":  "8948d21f761a7220c2c4347b07dced4c19acef68",
+                 "sentinel":  "C:\\ProgramData\\Aurum\\pc01-flash-8948d21f761a7220c2c4347b07dced4c19acef68-cc41f46c334c9db1256c11cddda1bffde6e5db45e47922720ec74260bd8e8bb7.done",
+                 "raw_readback_verified":  true
+             }
+}
