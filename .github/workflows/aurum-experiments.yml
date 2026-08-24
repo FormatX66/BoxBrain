@@ -41,6 +41,16 @@ jobs:
           cd Projects/Aurum/Experiments
           python3 -m unittest -v test_experiment_suite.CombinedExperimentTests
 
+  anticipatory-state:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test anticipatory prepare-but-do-not-act policy
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_anticipatory_state
+
   recovery-control-contract:
     runs-on: ubuntu-24.04
     steps:
