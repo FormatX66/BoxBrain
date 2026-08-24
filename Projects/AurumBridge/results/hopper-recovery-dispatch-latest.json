@@ -1,14 +1,28 @@
 {
-  "schema": "aurum.hopper.recovery-dispatch.v1",
-  "request_id": "hopper-preexecution-recovery-20260824-2101",
-  "observed_at": "2026-08-24T20:59:18.614151Z",
-  "target_workflow": "aurum-hopper-recovery-path-probe.yml",
-  "run_found": true,
-  "run_id": 32776982392,
-  "status": "pending",
-  "conclusion": "",
-  "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32776982392",
-  "head_sha": "3fc33676c31b18f28a434b5390e2847016ea4cd4",
+  "schema": "aurum.hopper.recovery-dispatch.v2",
+  "request_id": "hopper-pi-recovery-20260824-2102",
+  "observed_at": "2026-08-24T20:59:53.475186Z",
+  "branches": {
+    "aurum-hopper-recovery-path-probe.yml": {
+      "conclusion": "",
+      "createdAt": "2026-08-24T20:59:44Z",
+      "databaseId": 32777029518,
+      "event": "workflow_dispatch",
+      "headSha": "22d9556a02f328b32dff5ba54dbb16b4d32235f9",
+      "status": "pending",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777029518"
+    },
+    "aurum-hopper-pi-kvm-recovery.yml": {
+      "conclusion": "",
+      "createdAt": "2026-08-24T20:59:46Z",
+      "databaseId": 32777031823,
+      "event": "workflow_dispatch",
+      "headSha": "a730fe27e70f27cfd36871772d840d300220cc6d",
+      "status": "queued",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777031823"
+    }
+  },
   "new_authority_granted": false,
-  "media_write_authority": false
+  "destructive_media_write": false,
+  "physical_hid_authorized": true
 }
