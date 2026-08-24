@@ -1,0 +1,26 @@
+﻿{
+    "schema":  "aurum-read-only-usb-discovery-v1",
+    "observed_at_utc":  "2026-08-24T11:11:26.5335587Z",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "request_id":  "tinyseed-ready-to-flash-20260824-02",
+    "write_authority":  false,
+    "device_count":  1,
+    "eligible_count":  1,
+    "selection_state":  "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
+    "devices":  [
+                    {
+                        "disk_number":  1,
+                        "model":  "SanDisk Portable SSD",
+                        "size_bytes":  1000204140544,
+                        "serial_sha256":  "26cec5f4ded82d4764184bfe5d9b534ad787b94f3d661abcbd4120b627d7c652",
+                        "is_boot":  false,
+                        "is_system":  false,
+                        "is_read_only":  false,
+                        "protected":  false,
+                        "eligible_for_preflight_only":  true,
+                        "refusal_reasons":  [
+
+                                            ]
+                    }
+                ]
+}
