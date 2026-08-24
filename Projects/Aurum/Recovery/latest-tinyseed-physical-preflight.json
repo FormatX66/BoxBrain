@@ -25,6 +25,13 @@
   },
   "write_authority": false,
   "destructive_action_performed": false,
+  "prior_one_shot_request": {
+    "request_id": "tinyseed-crayola-flash-20260824-0739",
+    "state": "EXPIRED_UNUSED",
+    "expired_at_utc": "2026-08-24T12:20:00Z",
+    "flash_receipt_present": false,
+    "authority_must_be_reissued_explicitly": true
+  },
   "next_gate": "explicit-guarded-flash-authorization",
   "invariants": {
     "preserve_hopper_existing_recovery_media": true,
