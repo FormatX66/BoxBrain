@@ -1,0 +1,69 @@
+name: Aurum Recovery Request Cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-recovery-request-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out desired state
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+
+      - name: Reset only expired signed request to idle
+        id: reset
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, time
+          from pathlib import Path
+          path = Path('Projects/Aurum/Recovery/desired-state.json')
+          value = json.loads(path.read_text(encoding='utf-8'))
+          if value.get('schema') == 'aurum-recovery-idle-v1':
+              print('AURUM_RECOVERY_CLEANUP state=already-idle')
+              raise SystemExit(0)
+          if value.get('schema') != 'aurum-recovery-envelope-v1':
+              print('AURUM_RECOVERY_CLEANUP state=refused-unknown-schema')
+              raise SystemExit(2)
+          payload = value.get('payload') if isinstance(value.get('payload'), dict) else {}
+          expires = payload.get('expires_at_unix')
+          if not isinstance(expires, int):
+              print('AURUM_RECOVERY_CLEANUP state=refused-missing-expiry')
+              raise SystemExit(2)
+          if expires >= int(time.time()):
+              print(f'AURUM_RECOVERY_CLEANUP state=still-valid expires={expires}')
+              raise SystemExit(0)
+          path.write_text(json.dumps({'schema':'aurum-recovery-idle-v1','state':'idle'}, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          Path('.aurum-recovery-reset').write_text('1', encoding='utf-8')
+          print(f'AURUM_RECOVERY_CLEANUP state=expired-reset expires={expires}')
+          PY
+
+      - name: Publish idle state when reset was needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f .aurum-recovery-reset ]; then
+            exit 0
+          fi
+          git config user.name 'aurum-recovery-cleanup[bot]'
+          git config user.email 'aurum-recovery-cleanup@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/desired-state.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Expire Aurum signed recovery request'
+          git pull --rebase origin main
+          git push origin HEAD:main
