@@ -2,7 +2,9 @@
 """Poll the public desired-state channel and apply only signed bounded recovery.
 
 The transport is not trusted. Authenticity comes from the enrolled Ed25519 key,
-request freshness, per-machine addressing, immutable refs, and replay protection.
+request freshness, per-machine addressing, exact genetics/platform commits, and
+replay protection. If a moving platform branch resolves differently from the
+signed platform commit, the staged trial is quarantined before it can boot.
 """
 from __future__ import annotations
 
@@ -143,6 +145,19 @@ def _steady_lkg() -> tuple[bool, dict[str, Any]]:
     )
 
 
+def _rollback(guardian: Path, request_id: str, reason: str) -> dict[str, Any]:
+    return _run_json(
+        [
+            sys.executable,
+            str(guardian),
+            "rollback",
+            "--reason",
+            f"signed-remote-recovery:{request_id}:{reason}",
+        ],
+        timeout=30,
+    )
+
+
 def _apply(request: dict[str, Any]) -> dict[str, Any]:
     target = request["target"]
     request_id = request["request_id"]
@@ -160,20 +175,12 @@ def _apply(request: dict[str, Any]) -> dict[str, Any]:
                 "active": before.get("active"),
                 "lkg": before.get("lkg"),
             }
-        return _run_json(
-            [
-                sys.executable,
-                str(guardian),
-                "rollback",
-                "--reason",
-                f"signed-remote-recovery:{request_id}",
-            ],
-            timeout=30,
-        )
+        return _rollback(guardian, request_id, target)
 
     ref = request.get("ref")
-    if not isinstance(ref, str):
-        raise PollerError("specific recovery request lost its immutable ref")
+    expected_platform = request.get("platform_commit")
+    if not isinstance(ref, str) or not isinstance(expected_platform, str):
+        raise PollerError("specific recovery request lost its pinned state")
     result = _run_json(
         [
             sys.executable,
@@ -187,6 +194,18 @@ def _apply(request: dict[str, Any]) -> dict[str, Any]:
     )
     if result.get("status") not in {"trial-armed", "platform-source-staged"}:
         raise PollerError(f"specific recovery did not reach a safe staged state: {result.get('status')}")
+
+    actual_genetics = str(result.get("genetics_commit") or "").lower()
+    actual_platform = str(result.get("platform_source_commit") or "").lower()
+    if actual_genetics != ref or actual_platform != expected_platform:
+        # regrow never activates a candidate immediately. If it armed a local
+        # trial, quarantine it now; the signed mismatch may never cross reboot.
+        if result.get("status") == "trial-armed":
+            _rollback(guardian, request_id, "pinned-state-mismatch")
+        raise PollerError(
+            "specific recovery resolved outside the signed state "
+            f"genetics={actual_genetics or 'missing'} platform={actual_platform or 'missing'}"
+        )
     return result
 
 
@@ -199,12 +218,12 @@ def poll_once() -> dict[str, Any]:
     if not TRUST_FILE.is_file():
         raise PollerError("recovery trust file is missing")
 
-    trusted = recovery_control.load_trusted_commits(TRUST_FILE)
+    trusted = recovery_control.load_trusted_states(TRUST_FILE)
     request = recovery_control.verify_envelope(
         desired,
         public_key=PUBLIC_KEY,
         local_node_id=_node_id(),
-        trusted_commits=trusted,
+        trusted_states=trusted,
     )
     request_id = request["request_id"]
     if _already_consumed(request_id):
