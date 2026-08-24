@@ -43,6 +43,30 @@ Predicting a likely follow-up is not enough.
 
 The target is to eliminate avoidable “now what?”, “so?”, “do that”, and “why didn’t you already do it?” turns.
 
+## Whole-machine speculative computing
+
+Future Branch generalizes the same basic idea that makes modern processors fast: **do useful work before certainty exists, then keep or discard it when the branch resolves**.
+
+At the CPU level, branch prediction and speculative execution guess likely instruction paths. Future Branch lifts that idea upward across the entire machine and the human workflow:
+
+- predict likely user intentions, questions, commands, and task outcomes;
+- precompute likely answers, plans, artifacts, builds, diagnostics, and next states;
+- keep multiple high-value futures alive at once rather than choosing only one early;
+- use RAM and Slush as a reclaimable speculative-state field;
+- use available CPU/GPU/CI/network capacity to deepen the highest-value branches;
+- discard, compress, or deprioritize branches as evidence lowers their probability;
+- instantly promote the branch that becomes real once dependencies, evidence, and permissions allow it.
+
+The resource objective is **not literally maximum clocks or 100% utilization at every instant**. The objective is maximum useful anticipation while preserving foreground responsiveness, thermal/power limits, storage endurance, network budgets, privacy boundaries, and enough instantly reclaimable headroom for an unexpected user action.
+
+RAM should therefore tend toward being **usefully full**, not empty: active state plus caches plus speculative futures, all reclaimable by value. Slush is the machine-native workspace for those futures. Storage may hold colder speculative state, but should maintain free-space and write-endurance reserves rather than churn indefinitely.
+
+The desired machine posture is:
+
+`Current Proven State -> many ranked candidate futures -> speculative computation/materialization -> evidence/cue selects a branch -> permission/dependency gate -> instant promotion -> feedback -> re-rank futures`
+
+This is effectively **branch prediction for the whole computer instead of only for instruction addresses**.
+
 ## Future Branch loop
 
 `Current Proven State`
