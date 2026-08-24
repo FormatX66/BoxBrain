@@ -1,0 +1,112 @@
+name: Aurum Enroll Trusted Recovery State
+
+on:
+  workflow_dispatch:
+    inputs:
+      genetics_commit:
+        description: 'Exact 40-character genetics commit'
+        required: true
+        type: string
+      platform_commit:
+        description: 'Exact 40-character platform-source commit'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-recovery-state-enrollment
+  cancel-in-progress: false
+
+jobs:
+  enroll:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out full repository history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate exact state pair
+        shell: bash
+        env:
+          GENETICS_COMMIT: ${{ inputs.genetics_commit }}
+          PLATFORM_COMMIT: ${{ inputs.platform_commit }}
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          g = os.environ['GENETICS_COMMIT'].strip().lower()
+          p = os.environ['PLATFORM_COMMIT'].strip().lower()
+          for label, value in [('genetics', g), ('platform', p)]:
+              if not re.fullmatch(r'[0-9a-f]{40}', value):
+                  raise SystemExit(f'{label} commit must be exactly 40 lowercase hex characters')
+              result = subprocess.run(['git','cat-file','-e',value+'^{commit}'])
+              if result.returncode:
+                  raise SystemExit(f'{label} commit does not exist in this repository')
+          manifest_text = subprocess.check_output(
+              ['git','show',f'{g}:Projects/Aurum/Germ/GENETICS.json'], text=True
+          )
+          manifest = json.loads(manifest_text)
+          policy = manifest.get('policy') or {}
+          if manifest.get('schema') != 'aurum-genetics-v1':
+              raise SystemExit('genetics commit has unsupported manifest schema')
+          if policy.get('candidate_only_staging') is not True:
+              raise SystemExit('genetics commit does not require candidate-only staging')
+          if policy.get('live_overwrite_allowed') is not False:
+              raise SystemExit('genetics commit does not prohibit live overwrite')
+          if policy.get('promotion_requires_health_evidence') is not True:
+              raise SystemExit('genetics commit does not require health evidence')
+          has_runtime = any(
+              subprocess.run(['git','cat-file','-e',f'{p}:{path}']).returncode == 0
+              for path in ('Projects/AurumPC', 'Projects/AurumPi3')
+          )
+          if not has_runtime:
+              raise SystemExit('platform commit contains no declared Aurum runtime root')
+          print(f'AURUM_RECOVERY_STATE_VALID genetics={g} platform={p}')
+          PY
+
+      - name: Add exact pair to trust policy
+        shell: bash
+        env:
+          GENETICS_COMMIT: ${{ inputs.genetics_commit }}
+          PLATFORM_COMMIT: ${{ inputs.platform_commit }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('Projects/Aurum/Recovery/trusted-refs.json')
+          value = json.loads(path.read_text(encoding='utf-8'))
+          if value.get('schema') != 'aurum-recovery-trust-v1':
+              raise SystemExit('unexpected recovery trust schema')
+          pair = {
+              'genetics_commit': os.environ['GENETICS_COMMIT'].strip().lower(),
+              'platform_commit': os.environ['PLATFORM_COMMIT'].strip().lower(),
+          }
+          states = [x for x in value.get('specific_states', []) if isinstance(x, dict)]
+          if pair not in states:
+              states.append(pair)
+          value['specific_states'] = sorted(states, key=lambda x: (x.get('genetics_commit',''), x.get('platform_commit','')))
+          path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+
+      - name: Publish trust policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-recovery-trust[bot]'
+          git config user.email 'aurum-recovery-trust@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/trusted-refs.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_RECOVERY_STATE_OK state=already-enrolled'
+            exit 0
+          fi
+          git commit -m 'Enroll exact Aurum recovery state'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_RECOVERY_STATE_OK state=enrolled'
