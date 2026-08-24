@@ -100,17 +100,21 @@ jobs:
           Write-Host "AURUM_USB_DISCOVERY_RESULT eligible=$($eligible.Count) state=$($result.selection_state) write_authority=false"
 
       - name: Persist privacy-safe discovery receipt
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = 'Stop'
           git config user.name 'aurum-usb-discovery[bot]'
           git config user.email 'aurum-usb-discovery@users.noreply.github.com'
           git add Projects/Aurum/Recovery/latest-usb-discovery.json
-          if git diff --cached --quiet; then
-            echo 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
             exit 0
-          fi
+          }
           git commit -m 'Record read-only USB discovery [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT commit-failed' }
           git pull --rebase origin main
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT rebase-failed' }
           git push origin HEAD:main
-          echo 'AURUM_USB_DISCOVERY_RECEIPT persisted=true'
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT push-failed' }
+          Write-Host 'AURUM_USB_DISCOVERY_RECEIPT persisted=true'
