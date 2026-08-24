@@ -1,6 +1,7 @@
 /* Aurum trait-development projection.
  * Canonical website component: FormatX66/ClusterSites.
  * Public dashboard projection: FormatX66/BoxBrain.
+ * AURUM_TRAITS_RECOVERY_GUARDIAN_V1_1_CANONICAL
  * Progress means evidence maturity, not calendar/time completion.
  */
 (() => {
@@ -44,7 +45,7 @@
     </div>
     <div class="trait-panel">
       <div id="traitGrid" class="trait-grid"><div class="trait-loading">Reading current build evidence…</div></div>
-      <div class="trait-note">Bars measure evidence maturity in four equal gates: Defined → Implementation → Build lane → Verified. Defined means the trait or architecture is explicitly accepted; Built requires implementation evidence. They are not schedule estimates.</div>
+      <div class="trait-note">Bars measure evidence maturity in four equal gates: Defined → Implementation → Build lane → Verified. Defined means the trait or architecture is explicitly accepted; Built requires implementation evidence. They are not schedule estimates. Recovery Guardian software can reach Built/Lane without claiming physical rollback verification.</div>
     </div>`;
   rootSection.insertAdjacentElement('afterend', section);
 
@@ -76,9 +77,9 @@
     },
     {
       name:'Recovery Guardian',
-      desc:'A/B seed slots, Last Known Good, State Guardian, snapshots, health gates and deterministic rollback that preserve the last proven state.',
-      impl:()=>hasCommit(/implement(?:ed|ation)?.*(state guardian|last known good|a\/b seed|rollback)|state guardian (?:runtime|watchdog|implementation)|last known good (?:metadata|pointer)|mutation journal|automatic rollback/i),
-      lane:()=>hasRun(/recovery guardian implementation|seed recovery|state guardian|last known good|rollback verification/i),
+      desc:'Protected germ, A/B runtime slots, Last Known Good, health-gated promotion and deterministic rollback while the last proven state stays intact.',
+      impl:()=>hasCommit(/protected germ slot guardian|current-genetics regrowth into protected a\/b slots|a\/b runtime[- ]slot|pre-germ compatibility bridge|state guardian (?:runtime|watchdog|implementation)|last known good (?:metadata|pointer)|mutation journal|automatic rollback|guardian.*(?:health|rollback)/i),
+      lane:()=>hasRun(/aurum reseed germ|recovery guardian implementation|seed recovery|state guardian|last known good|rollback verification/i),
       verified:()=>hasSuccess(/recovery guardian implementation|seed recovery|state guardian|last known good|rollback verification/i)
     },
     {
