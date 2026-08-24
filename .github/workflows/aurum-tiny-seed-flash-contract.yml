@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
+      - 'Projects/Aurum/Recovery/protected-media.json'
       - '.github/workflows/aurum-tiny-seed-flash-windows.yml'
       - '.github/workflows/aurum-tiny-seed-flash-contract.yml'
 
@@ -43,6 +44,9 @@ jobs:
             'AURUM_TINYSEED_FLASH_DRY_RUN',
             'disk-serial-not-unique',
             'target-is-boot-or-system',
+            'target-is-protected-recovery-media',
+            'target-became-protected-before-write',
+            'protected-media.json',
             'target-identity-changed-before-write',
             'raw-readback-mismatch',
             'raw_readback_verified=true'
@@ -53,4 +57,4 @@ jobs:
           if (-not $workflow.Contains('default: false')) { throw 'flash workflow must default write=false' }
           if (-not $workflow.Contains('READY_TO_FLASH')) { throw 'flash workflow must require READY_TO_FLASH manifest' }
           if (-not $workflow.Contains('source-commit-mismatch')) { throw 'flash workflow must pin source commit' }
-          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true raw_readback=true'
+          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true raw_readback=true'
