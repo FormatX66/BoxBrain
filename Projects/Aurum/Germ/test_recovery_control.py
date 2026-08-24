@@ -45,6 +45,7 @@ class RecoveryControlTests(unittest.TestCase):
             "expires_at_unix": self.now + 300,
             "target": "last-known-good",
             "ref": None,
+            "platform_commit": None,
             "reboot": False,
         }
         payload.update(changes)
@@ -74,7 +75,7 @@ class RecoveryControlTests(unittest.TestCase):
             envelope,
             public_key=self.public_key,
             local_node_id=node,
-            trusted_commits=set() if trusted is None else trusted,
+            trusted_states=set() if trusted is None else trusted,
             now=self.now if now is None else now,
         )
 
@@ -98,23 +99,38 @@ class RecoveryControlTests(unittest.TestCase):
         with self.assertRaises(recovery_control.RecoveryControlError):
             self.verify(self.envelope(payload))
 
-    def test_specific_commit_must_be_immutable_and_trusted(self):
-        commit = "a" * 40
-        payload = self.payload(target="specific", ref=commit)
+    def test_specific_state_requires_two_immutable_trusted_commits(self):
+        genetics = "a" * 40
+        platform = "b" * 40
+        payload = self.payload(target="specific", ref=genetics, platform_commit=platform)
         envelope = self.envelope(payload)
         with self.assertRaises(recovery_control.RecoveryControlError):
             self.verify(envelope)
-        checked = self.verify(envelope, trusted={commit})
-        self.assertEqual(checked["ref"], commit)
+        checked = self.verify(envelope, trusted={(genetics, platform)})
+        self.assertEqual(checked["ref"], genetics)
+        self.assertEqual(checked["platform_commit"], platform)
+
+    def test_specific_state_rejects_moving_platform_ref(self):
+        genetics = "a" * 40
+        payload = self.payload(target="specific", ref=genetics, platform_commit="aurum/trunk-v0.01")
+        with self.assertRaises(recovery_control.RecoveryControlError):
+            self.verify(self.envelope(payload), trusted={(genetics, "b" * 40)})
 
     def test_trust_file_rejects_moving_refs(self):
         path = self.root / "trust.json"
         path.write_text(
-            json.dumps({"schema": recovery_control.TRUST_SCHEMA, "specific_commits": ["main"]}),
+            json.dumps(
+                {
+                    "schema": recovery_control.TRUST_SCHEMA,
+                    "specific_states": [
+                        {"genetics_commit": "a" * 40, "platform_commit": "main"}
+                    ],
+                }
+            ),
             encoding="utf-8",
         )
         with self.assertRaises(recovery_control.RecoveryControlError):
-            recovery_control.load_trusted_commits(path)
+            recovery_control.load_trusted_states(path)
 
 
 if __name__ == "__main__":
