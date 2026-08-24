@@ -1,0 +1,52 @@
+name: Aurum Parallel Experiments
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Experiments/**'
+      - '.github/workflows/aurum-experiments.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  stateweave:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test StateWeave independently
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_experiment_suite.StateWeaveTests
+
+  adaptive-kernel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test adaptive-kernel policy independently
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_experiment_suite.AdaptiveKernelTests
+
+  stateweave-adaptive-kernel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test combined hypothesis separately
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_experiment_suite.CombinedExperimentTests
+
+  recovery-control-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test fail-closed remote recovery contract
+        run: |
+          cd Projects/Aurum/Experiments
+          python3 -m unittest -v test_experiment_suite.RecoveryControlTests
