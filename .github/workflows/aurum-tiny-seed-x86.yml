@@ -1,0 +1,94 @@
+name: Aurum Tiny Seed x86
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - '.github/workflows/aurum-tiny-seed-x86.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-x86-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Compile and unit-test germ
+        run: |
+          python3 -m py_compile Projects/Aurum/Germ/*.py
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian)
+
+      - name: Install VM tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf
+
+      - name: Build minimal Tiny Seed ISO
+        run: |
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap xorriso isolinux \
+                syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
+                dosfstools mtools ca-certificates
+              sh Projects/Aurum/Germ/build-x86-tinyseed.sh
+            '
+          test -s dist/Aurum-TinySeed-amd64.iso
+          sha256sum -c dist/Aurum-TinySeed-amd64.iso.sha256
+
+      - name: UEFI boot smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          OVMF=$(find /usr/share/OVMF -maxdepth 1 -type f \( -name 'OVMF_CODE_4M.fd' -o -name 'OVMF_CODE.fd' \) | head -n1)
+          test -n "$OVMF"
+          set +e
+          timeout 120 qemu-system-x86_64 \
+            -machine q35 -m 1024 -smp 2 \
+            -bios "$OVMF" \
+            -cdrom dist/Aurum-TinySeed-amd64.iso \
+            -boot d -display none -serial file:tinyseed-uefi.log -no-reboot
+          rc=$?
+          set -e
+          test "$rc" -eq 0 -o "$rc" -eq 124
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-uefi.log
+
+      - name: Legacy BIOS boot smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 120 qemu-system-x86_64 \
+            -machine pc -m 1024 -smp 2 \
+            -cdrom dist/Aurum-TinySeed-amd64.iso \
+            -boot d -display none -serial file:tinyseed-bios.log -no-reboot
+          rc=$?
+          set -e
+          test "$rc" -eq 0 -o "$rc" -eq 124
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log
+
+      - name: Publish Tiny Seed
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-amd64
+          path: |
+            dist/Aurum-TinySeed-amd64.iso
+            dist/Aurum-TinySeed-amd64.iso.sha256
+            tinyseed-uefi.log
+            tinyseed-bios.log
+          if-no-files-found: error
+          retention-days: 30
