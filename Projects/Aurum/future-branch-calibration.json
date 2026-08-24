@@ -121,25 +121,37 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 0
+    },
+    {
+      "event": "future-branch-physical-ready-offline-009",
+      "actual_family": "physical-boot-success-with-offline-regrow",
+      "nearest_prior_family": "physical-boot-success plus physical-boot-or-setup-failure",
+      "prediction": "partial",
+      "execution": "partial",
+      "reason": "Before physical use, the live field explicitly ranked physical boot success and physical boot/setup/network failure as separate likely outcomes. The Crayola Tiny Seed then physically reached the READY console on Hopper, preserved the existing germ as slot A, installed the bridge on /dev/nvme0n1p2, and reported regrow.status=deferred-offline. Because the important hybrid state—boot/install success followed by network-deferred regrow—was not represented explicitly, this is partial rather than exact. Useful downstream work was preserved, but the live network path was not actionable enough to join Wi-Fi and resume regrowth without leaving the flow.",
+      "correction": "Model mixed gate outcomes explicitly when one stage succeeds and the immediately following stage degrades or defers. Preserve completed safe work and keep the next recovery action in the same live flow. The current Tiny Seed network path now supports retry/rescan, explicit offline continuation, and post-install Wi-Fi join plus regrow resume without repeating target selection or destructive work.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 8,
-    "prediction_accuracy_weighted": 0.5625,
-    "execution_completeness_weighted": 0.875,
-    "useful_hit_rate": 0.25,
+    "events": 9,
+    "prediction_accuracy_weighted": 0.555556,
+    "execution_completeness_weighted": 0.833333,
+    "useful_hit_rate": 0.222222,
     "exact_predictions": 3,
-    "partial_predictions": 3,
+    "partial_predictions": 4,
     "miss_predictions": 2,
     "execution_complete_or_boundary_correct": 7,
     "execution_prepared": 0,
-    "execution_partial": 0,
+    "execution_partial": 1,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
-    "assumptions_corrected_before_user_impact": 6
+    "assumptions_corrected_before_user_impact": 7
   },
-  "interpretation": "Future Branch now has two exact useful hits and a growing set of useful self-corrections. The newest natural-world sample is important because the predicted provenance/device-change branch actually resolved without a user prompt: stale physical evidence was rejected, a fresh read-only discovery ran, and the system discovered there is currently no eligible USB attached before asking for destructive authority. Execution discipline is seven of eight complete or boundary-correct outcomes.",
+  "interpretation": "Future Branch now has two exact useful hits plus a meaningful physical partial hit. The Crayola run showed why hybrid outcomes matter: boot/install succeeded while network-dependent regrow deferred. That gap has already been converted into actionable Wi-Fi retry/join/resume behavior in the current seed path. Execution discipline remains strong, but useful-hit rate correctly fell when the denominator gained a partial/partial physical sample rather than inflating it into an exact win.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
