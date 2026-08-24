@@ -5,9 +5,12 @@ import unittest
 from future_branch import (
     Disposition,
     FutureBranch,
+    LookaheadMode,
+    calibration_question_budget,
     disposition,
     human_confidence_feedback,
     lookahead_depth,
+    lookahead_mode,
     rank_branches,
     should_ask_calibration,
 )
@@ -80,11 +83,37 @@ class FutureBranchTests(unittest.TestCase):
         self.assertGreater(lookahead_depth(deep), lookahead_depth(shallow))
         self.assertEqual(lookahead_depth(deep), 6)
 
+    def test_very_high_linear_branch_prepares_to_boundary_when_resources_allow(self):
+        branch = self.branch("hot-linear", probability=0.95, linearity=0.94)
+        self.assertEqual(
+            lookahead_mode(branch, resource_headroom=0.8),
+            LookaheadMode.TO_BOUNDARY,
+        )
+
+    def test_same_branch_stays_shallow_when_resources_are_tight(self):
+        branch = self.branch("hot-but-starved", probability=0.95, linearity=0.94)
+        self.assertNotEqual(
+            lookahead_mode(branch, resource_headroom=0.15),
+            LookaheadMode.TO_BOUNDARY,
+        )
+
+    def test_question_budget_tracks_uncertainty_shape(self):
+        self.assertEqual(calibration_question_budget([0.34, 0.33, 0.30]), 3)
+        self.assertEqual(calibration_question_budget([0.52, 0.48]), 2)
+        self.assertEqual(calibration_question_budget([0.92, 0.05, 0.03]), 1)
+
     def test_feedback_signals_expectedness_without_claiming_certainty(self):
         expected = self.branch("expected", probability=0.93)
         surprise = self.branch("surprise", probability=0.2)
         self.assertIn("warm", human_confidence_feedback(expected))
-        self.assertIn("outside my leading branches", human_confidence_feedback(surprise))
+        self.assertIn("outside", human_confidence_feedback(surprise))
+
+    def test_feedback_variants_mix_surface_language(self):
+        branch = self.branch("expected", probability=0.93)
+        self.assertNotEqual(
+            human_confidence_feedback(branch, variant=0),
+            human_confidence_feedback(branch, variant=1),
+        )
 
     def test_early_training_asks_when_top_branches_are_close(self):
         self.assertTrue(
