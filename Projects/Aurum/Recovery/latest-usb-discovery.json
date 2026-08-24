@@ -1,13 +1,26 @@
 ﻿{
     "schema":  "aurum-read-only-usb-discovery-v1",
-    "observed_at_utc":  "2026-08-24T13:51:32.9756328Z",
+    "observed_at_utc":  "2026-08-24T15:09:45.0831194Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
-    "request_id":  "tinyseed-current-release-reread-20260824-0938",
+    "request_id":  "tinyseed-current-release-reread-20260824-1101",
     "write_authority":  false,
-    "device_count":  0,
-    "eligible_count":  0,
-    "selection_state":  "NO_ELIGIBLE_USB",
+    "device_count":  1,
+    "eligible_count":  1,
+    "selection_state":  "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
     "devices":  [
+                    {
+                        "disk_number":  1,
+                        "model":  "USB SanDisk 3.2 Gen",
+                        "size_bytes":  61524148224,
+                        "serial_sha256":  "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+                        "is_boot":  false,
+                        "is_system":  false,
+                        "is_read_only":  false,
+                        "protected":  false,
+                        "eligible_for_preflight_only":  true,
+                        "refusal_reasons":  [
 
+                                            ]
+                    }
                 ]
 }
