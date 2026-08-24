@@ -29,17 +29,21 @@ jobs:
           mkdir -p Projects/AurumBridge/results
           gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-boxbrain-dynamic-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/dynamic.json
           gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-selfhosted-linux-hopper-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/linux.json
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-boxbrain-usb-link-recovery.yml --limit 5 --json databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,event,headSha > /tmp/usb.json
           python3 - <<'PY'
           import json, pathlib, datetime as dt
           dynamic=json.load(open('/tmp/dynamic.json',encoding='utf-8'))
           linux=json.load(open('/tmp/linux.json',encoding='utf-8'))
+          usb=json.load(open('/tmp/usb.json',encoding='utf-8'))
           payload={
-            'schema':'aurum.recovery-run-status.v2',
+            'schema':'aurum.recovery-run-status.v3',
             'observed_at':dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'),
             'dynamic_latest':dynamic[0] if dynamic else None,
             'linux_latest':linux[0] if linux else None,
+            'usb_latest':usb[0] if usb else None,
             'dynamic_recent':dynamic,
             'linux_recent':linux,
+            'usb_recent':usb,
           }
           p=pathlib.Path('Projects/AurumBridge/results/hopper-dynamic-recovery-run-status.json')
           p.write_text(json.dumps(payload,indent=2)+'\n',encoding='utf-8')
