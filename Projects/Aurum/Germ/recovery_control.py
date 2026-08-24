@@ -93,7 +93,7 @@ def _validate_payload(
         raise RecoveryControlError("recovery request has expired")
 
     target = payload.get("target")
-    if target not in {"previous", "last-known-good", "specific"}:
+    if target not in {"stay-current", "current", "previous", "last-known-good", "specific"}:
         raise RecoveryControlError("unsupported recovery target")
 
     ref = payload.get("ref")

@@ -9,6 +9,7 @@
     "Projects/Aurum/Germ/GENETICS.json",
     "Projects/Aurum/Germ/reseed.py",
     "Projects/Aurum/Germ/guardian.py",
+    "Projects/Aurum/Germ/recovery_ledger.py",
     "Projects/Aurum/Germ/bridge.py",
     "Projects/Aurum/Germ/germ_console.py",
     "Projects/Aurum/Germ/machine.py",

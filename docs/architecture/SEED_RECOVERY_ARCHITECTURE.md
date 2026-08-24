@@ -142,6 +142,16 @@ Failure flow:
 8. mutation journal/quarantine;
 9. GitHub desired-state reseed/rollback trigger.
 
+The Phase 1 software path maps to the protected Germ as follows:
+
+- `guardian.py` owns A/B activation, LKG/previous-LKG provenance, boot limits, health promotion, quarantine, and deterministic rollback;
+- `recovery_ledger.py` writes mode-restricted atomic checkpoints and hash-chained prepared/committed journal records before protected changes;
+- `reseed.py` preserves an existing inactive slot as an atomic snapshot before candidate replacement and records the immutable genetics, platform, and manifest identities;
+- `bridge.py` carries the complete recovery Germ, boot proof, triage, Guardian units, resolver repair, and signed recovery poller into an installed seed;
+- `recovery_control.py` and `recovery_poller.py` fail closed around signed, expiring, node-scoped `stay-current`, `current`, `previous`, `last-known-good`, and trusted-specific desired states.
+
+This software mapping is not a substitute for the physical proof gate. A release remains unproven until a current image is flashed, booted, promoted through a healthy B-slot trial, forced through a bad-candidate rollback/quarantine drill, and exercised against an enrolled recovery authority.
+
 ### Phase 2 — finer recovery
 - subsystem-level StateWeave rollback;
 - partial driver/kernel/config restoration;

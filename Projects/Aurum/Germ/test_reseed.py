@@ -21,6 +21,16 @@ class ReseedGermTests(unittest.TestCase):
         self.assertTrue(manifest["policy"]["promotion_requires_health_evidence"])
         self.assertIn("x86_64", manifest["platforms"])
         self.assertIn("arm64", manifest["platforms"])
+        for name in (
+            "recovery_ledger.py",
+            "proof.py",
+            "rollback_drill.py",
+            "recovery_control.py",
+            "recovery_poller.py",
+            "triage.py",
+        ):
+            self.assertIn(name, bridge.GERM_FILES)
+            self.assertIn(f"Projects/Aurum/Germ/{name}", manifest["required_paths"])
 
     def test_unknown_schema_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -144,6 +154,9 @@ class ReseedGermTests(unittest.TestCase):
             self.assertTrue(repair["resolver_link_unit_installed"])
             self.assertTrue(repair["systemd_resolved_available"])
             self.assertTrue(repair["systemd_resolved_enabled"])
+            self.assertTrue(repair["boot_proof_enabled"])
+            self.assertTrue(repair["recovery_poll_timer_enabled"])
+            self.assertTrue(repair["triage_unit_installed"])
 
     def test_bridge_does_not_install_dangling_resolver_without_resolved(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -157,6 +170,48 @@ class ReseedGermTests(unittest.TestCase):
             self.assertFalse(repair["resolver_link_unit_installed"])
             self.assertFalse(repair["systemd_resolved_available"])
             self.assertFalse(repair["systemd_resolved_enabled"])
+
+    def test_bridge_installs_recovery_wrappers_and_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "target"
+            source = Path(td) / "Projects/Aurum/Germ"
+            recovery = source.parent / "Recovery"
+            recovery.mkdir(parents=True)
+            (recovery / "trusted-refs.json").write_text(
+                '{"schema":"aurum-recovery-trust-v1","specific_states":[]}\n',
+                encoding="utf-8",
+            )
+            (recovery / "authority-public.pem").write_text("fixture-public-key\n", encoding="utf-8")
+            bridge._install_wrapper(root)
+            installed = bridge._install_recovery_policy(root, source)
+
+            for name, script in (
+                ("aurum-reseed", "reseed.py"),
+                ("aurum-rollback-drill", "rollback_drill.py"),
+                ("aurum-recovery-poll", "recovery_poller.py"),
+                ("aurum-triage", "triage.py"),
+            ):
+                wrapper = root / "usr/sbin" / name
+                self.assertIn(f"/usr/lib/aurum/germ/{script}", wrapper.read_text(encoding="utf-8"))
+            self.assertTrue(installed["trust_policy_installed"])
+            self.assertTrue(installed["authority_enrolled"])
+
+    def test_candidate_install_preserves_existing_inactive_slot_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            slot = root / "slots/B"
+            candidate = root / "candidate/B"
+            snapshot = root / "slot-snapshots/fixture-B"
+            (slot / "opt/aurum").mkdir(parents=True)
+            (slot / "opt/aurum/old.txt").write_text("old\n", encoding="utf-8")
+            (candidate / "opt/aurum").mkdir(parents=True)
+            (candidate / "opt/aurum/new.txt").write_text("new\n", encoding="utf-8")
+
+            reseed._replace_inactive_slot(candidate, slot, snapshot)
+
+            self.assertEqual((snapshot / "opt/aurum/old.txt").read_text(encoding="utf-8"), "old\n")
+            self.assertEqual((slot / "opt/aurum/new.txt").read_text(encoding="utf-8"), "new\n")
+            self.assertFalse(candidate.exists())
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ jobs:
           sh -n Projects/Aurum/Germ/build-pi-tinyseed.sh
       - name: Run germ safety tests
         working-directory: Projects/Aurum/Germ
-        run: python3 -m unittest -v test_reseed test_guardian test_tinyseed
+        run: python3 -m unittest -v test_reseed test_guardian test_recovery_control test_recovery_poller test_tinyseed
       - name: Verify architecture invariants are present
         run: |
           grep -Fq 'Git stores the genetics. Seeds carry the germ.' docs/architecture/RESEED_GENETICS_ARCHITECTURE.md

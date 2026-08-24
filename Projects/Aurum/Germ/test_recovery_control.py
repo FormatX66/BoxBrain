@@ -84,6 +84,18 @@ class RecoveryControlTests(unittest.TestCase):
         self.assertEqual(checked["target"], "last-known-good")
         self.assertEqual(checked["node_id"], "node-123")
 
+    def test_current_and_stay_current_requests_need_no_moving_ref_field(self):
+        for target in ("stay-current", "current"):
+            with self.subTest(target=target):
+                checked = self.verify(self.envelope(self.payload(target=target)))
+                self.assertEqual(checked["target"], target)
+                self.assertIsNone(checked["ref"])
+
+    def test_current_request_rejects_injected_ref(self):
+        payload = self.payload(target="current", ref="main")
+        with self.assertRaises(recovery_control.RecoveryControlError):
+            self.verify(self.envelope(payload))
+
     def test_tampered_payload_fails_signature(self):
         envelope = self.envelope(self.payload())
         envelope["payload"]["reboot"] = True

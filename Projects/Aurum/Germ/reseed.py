@@ -9,6 +9,7 @@ The previous LKG remains intact until the next boot proves the candidate.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import bridge
+import recovery_ledger
 
 SCHEMA = "aurum-genetics-v1"
 GERM_PROTOCOL = 1
@@ -234,16 +236,123 @@ def _preboot_health(runtime: Path) -> dict[str, Any]:
     return {"compile": "passed", "selftest": detail[-1000:]}
 
 
-def _arm_trial(slot: str, commit: str) -> dict[str, Any]:
+def _guardian_checkpoint(
+    slot: str,
+    *,
+    state_root: Path,
+    platform_commit: str,
+    genetics_commit: str,
+    manifest_identity: str,
+    slot_snapshot: Path | None,
+) -> dict[str, Any]:
+    guardian = Path(__file__).resolve().with_name("guardian.py")
+    arguments = [
+        sys.executable,
+        str(guardian),
+        "checkpoint",
+        "--reason",
+        "replace-inactive-slot",
+        "--slot",
+        slot,
+        "--commit",
+        platform_commit,
+        "--genetics-commit",
+        genetics_commit,
+        "--manifest-identity",
+        manifest_identity,
+    ]
+    environment = dict(os.environ)
+    environment["AURUM_GERM_STATE_ROOT"] = str(state_root)
+    text = _run(arguments, timeout=30, env=environment)
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise GermError("guardian did not return a valid pre-change checkpoint") from exc
+    if result.get("status") != "checkpointed":
+        raise GermError("guardian refused the pre-change inactive-slot checkpoint")
+    result["planned_slot_snapshot"] = str(slot_snapshot) if slot_snapshot else None
+    return result
+
+
+def _arm_trial(
+    slot: str,
+    commit: str,
+    *,
+    state_root: Path,
+    genetics_commit: str,
+    manifest_identity: str,
+) -> dict[str, Any]:
     guardian = Path(__file__).resolve().with_name("guardian.py")
     text = _run(
-        [sys.executable, str(guardian), "arm-trial", "--slot", slot, "--commit", commit],
+        [
+            sys.executable,
+            str(guardian),
+            "arm-trial",
+            "--slot",
+            slot,
+            "--commit",
+            commit,
+            "--genetics-commit",
+            genetics_commit,
+            "--manifest-identity",
+            manifest_identity,
+        ],
         timeout=30,
+        env={**os.environ, "AURUM_GERM_STATE_ROOT": str(state_root)},
     )
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise GermError("guardian did not return valid trial state") from exc
+
+
+def _replace_inactive_slot(candidate_slot: Path, slot_root: Path, slot_snapshot: Path | None) -> None:
+    """Atomically preserve an existing inactive slot before installing its candidate."""
+    if slot_root.exists():
+        if slot_root.is_symlink() or not slot_root.is_dir():
+            raise GermError("inactive slot has an unsafe layout")
+        if slot_snapshot is None:
+            raise GermError("inactive slot snapshot path was not prepared")
+        slot_snapshot.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(slot_root, slot_snapshot)
+    os.replace(candidate_slot, slot_root)
+
+
+def _commit_slot_replacement(
+    *,
+    state_root: Path,
+    slot_state: dict[str, Any],
+    slot: str,
+    slot_root: Path,
+    slot_snapshot: Path | None,
+    prepared: dict[str, Any],
+    platform_commit: str,
+    genetics_commit: str,
+    manifest_identity: str,
+) -> dict[str, Any]:
+    requested = {
+        "candidate_slot": slot,
+        "platform_commit": platform_commit,
+        "genetics_commit": genetics_commit,
+        "manifest_identity": manifest_identity,
+    }
+    try:
+        return recovery_ledger.commit_change(
+            state_root=state_root,
+            change="replace-inactive-slot",
+            before=slot_state,
+            after=slot_state,
+            prepared=prepared,
+            requested=requested,
+            validation={
+                "candidate_runtime_present": (slot_root / "opt/aurum").is_dir(),
+                "prior_slot_snapshotted": slot_snapshot is None or slot_snapshot.is_dir(),
+                "slot_snapshot": str(slot_snapshot) if slot_snapshot else None,
+            },
+            outcome="inactive-slot-replaced",
+        )
+    except recovery_ledger.LedgerError as exc:
+        raise GermError(f"inactive-slot replacement journal failed: {exc}") from exc
 
 
 def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, Any]:
@@ -293,6 +402,12 @@ def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, 
     if inactive == slot_state.get("lkg"):
         raise GermError("refusing to replace the Last Known Good slot")
 
+    manifest_path = genetics_path / MANIFEST_RELATIVE
+    manifest_identity = (
+        f"{manifest.get('schema')}:{manifest.get('germ_protocol')}:"
+        f"sha256:{hashlib.sha256(manifest_path.read_bytes()).hexdigest()}"
+    )
+
     build_root = state_root / "build"
     build_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"slot-{inactive}-", dir=str(build_root)) as temporary:
@@ -301,11 +416,41 @@ def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, 
         runtime.parent.mkdir(parents=True, exist_ok=True)
         _copy_runtime(source_destination, adapter, runtime)
         health = _preboot_health(runtime)
+        slot_snapshot: Path | None = None
         if slot_root.exists():
-            shutil.rmtree(slot_root)
-        os.replace(candidate_slot, slot_root)
+            if slot_root.is_symlink() or not slot_root.is_dir():
+                raise GermError("inactive slot has an unsafe layout")
+            snapshot_root = state_root / "slot-snapshots"
+            snapshot_root.mkdir(parents=True, exist_ok=True)
+            slot_snapshot = snapshot_root / f"{time.time_ns()}-{inactive}"
+        pre_change = _guardian_checkpoint(
+            inactive,
+            state_root=state_root,
+            platform_commit=source_commit,
+            genetics_commit=verified["commit"],
+            manifest_identity=manifest_identity,
+            slot_snapshot=slot_snapshot,
+        )
+        _replace_inactive_slot(candidate_slot, slot_root, slot_snapshot)
+        slot_change_journal = _commit_slot_replacement(
+            state_root=state_root,
+            slot_state=slot_state,
+            slot=inactive,
+            slot_root=slot_root,
+            slot_snapshot=slot_snapshot,
+            prepared=pre_change,
+            platform_commit=source_commit,
+            genetics_commit=verified["commit"],
+            manifest_identity=manifest_identity,
+        )
 
-    guardian = _arm_trial(inactive, source_commit)
+    guardian = _arm_trial(
+        inactive,
+        source_commit,
+        state_root=state_root,
+        genetics_commit=verified["commit"],
+        manifest_identity=manifest_identity,
+    )
     receipt = {
         "schema": "aurum-regrow-receipt-v1",
         "status": "trial-armed",
@@ -316,6 +461,10 @@ def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, 
         "platform_source_commit": source_commit,
         "candidate_slot": inactive,
         "preboot_health": health,
+        "pre_change_checkpoint": pre_change,
+        "slot_change_journal": slot_change_journal,
+        "inactive_slot_snapshot": str(slot_snapshot) if slot_snapshot else None,
+        "manifest_identity": manifest_identity,
         "guardian": guardian,
         "previous_lkg_preserved": True,
         "active_process_overwritten": False,

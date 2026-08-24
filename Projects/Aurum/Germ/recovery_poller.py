@@ -37,6 +37,10 @@ class PollerError(RuntimeError):
     pass
 
 
+def _immutable_commit(value: str) -> bool:
+    return len(value) == 40 and all(character in "0123456789abcdef" for character in value)
+
+
 def _json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -165,10 +169,30 @@ def _apply(request: dict[str, Any]) -> dict[str, Any]:
     guardian = germ / "guardian.py"
     reseed = germ / "reseed.py"
 
-    if target in {"last-known-good", "previous"}:
+    if target == "stay-current":
         steady, before = _steady_lkg()
-        if target == "previous" and steady:
-            raise PollerError("previous recovery state is unavailable while Guardian is steady")
+        return {
+            "status": "observed-current",
+            "steady_lkg": steady,
+            "active": before.get("active"),
+            "lkg": before.get("lkg"),
+            "trial": before.get("trial"),
+        }
+
+    if target == "previous":
+        return _run_json(
+            [
+                sys.executable,
+                str(guardian),
+                "restore-previous",
+                "--reason",
+                f"signed-remote-recovery:{request_id}:previous",
+            ],
+            timeout=30,
+        )
+
+    if target == "last-known-good":
+        steady, before = _steady_lkg()
         if steady:
             return {
                 "status": "already-last-known-good",
@@ -177,9 +201,9 @@ def _apply(request: dict[str, Any]) -> dict[str, Any]:
             }
         return _rollback(guardian, request_id, target)
 
-    ref = request.get("ref")
+    ref = "main" if target == "current" else request.get("ref")
     expected_platform = request.get("platform_commit")
-    if not isinstance(ref, str) or not isinstance(expected_platform, str):
+    if not isinstance(ref, str) or (target == "specific" and not isinstance(expected_platform, str)):
         raise PollerError("specific recovery request lost its pinned state")
     result = _run_json(
         [
@@ -197,6 +221,13 @@ def _apply(request: dict[str, Any]) -> dict[str, Any]:
 
     actual_genetics = str(result.get("genetics_commit") or "").lower()
     actual_platform = str(result.get("platform_source_commit") or "").lower()
+    if target == "current":
+        if not _immutable_commit(actual_genetics) or not _immutable_commit(actual_platform):
+            if result.get("status") == "trial-armed":
+                _rollback(guardian, request_id, "resolved-state-missing")
+            raise PollerError("current trusted recovery did not resolve immutable genetics/platform commits")
+        return result
+
     if actual_genetics != ref or actual_platform != expected_platform:
         # regrow never activates a candidate immediately. If it armed a local
         # trial, quarantine it now; the signed mismatch may never cross reboot.
@@ -244,7 +275,8 @@ def poll_once() -> dict[str, Any]:
     if request.get("reboot") is True:
         trial_armed = result.get("status") == "trial-armed"
         rollback_changed_active = result.get("status") == "rollback"
-        if trial_armed or rollback_changed_active:
+        previous_changed_active = result.get("status") == "restored-previous"
+        if trial_armed or rollback_changed_active or previous_changed_active:
             subprocess.run(["/bin/systemctl", "reboot"], check=False, timeout=10)
             receipt["reboot_requested"] = True
     return receipt

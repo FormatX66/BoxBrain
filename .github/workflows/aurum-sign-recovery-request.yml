@@ -12,6 +12,8 @@ on:
         required: true
         type: choice
         options:
+          - stay-current
+          - current
           - last-known-good
           - previous
           - specific
@@ -67,7 +69,7 @@ jobs:
           reboot = os.environ['REBOOT'].lower() == 'true'
           if len(node) < 8 or len(node) > 128:
               raise SystemExit('invalid node_id')
-          if target not in {'last-known-good', 'previous', 'specific'}:
+          if target not in {'stay-current', 'current', 'last-known-good', 'previous', 'specific'}:
               raise SystemExit('invalid target')
 
           trust = json.loads(Path('Projects/Aurum/Recovery/trusted-refs.json').read_text())

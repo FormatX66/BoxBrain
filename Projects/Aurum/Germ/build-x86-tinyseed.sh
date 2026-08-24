@@ -124,7 +124,7 @@ EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
+for name in GENETICS.json reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
