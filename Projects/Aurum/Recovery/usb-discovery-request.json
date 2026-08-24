@@ -1,10 +1,10 @@
 {
   "schema": "aurum-usb-discovery-request-v1",
-  "request_id": "tinyseed-recovery-release-reread-20260824-1822",
+  "request_id": "tinyseed-offline-carrier-release-reread-20260824-2036",
   "mode": "read-only",
-  "purpose": "Re-enumerate currently attached USB media for the current verified Tiny Seed release after the release identity changed; refresh physical-preflight evidence without authorizing or performing any media write.",
+  "purpose": "Re-enumerate currently attached USB media for the current verified Tiny Seed release after the release identity advanced to the offline-capable phenotype carrier; refresh physical-preflight evidence without authorizing or performing any media write.",
   "write_authority": false,
   "required_release_state": "READY_TO_FLASH",
-  "required_release_source_commit": "9a47674041887f3e7413986c3b06b20c427e6de6",
-  "reason": "The verified recovery-complete Tiny Seed handoff advanced to source commit 9a47674041887f3e7413986c3b06b20c427e6de6 and correctly invalidated the prior target/preflight evidence. Refresh read-only identity evidence before any human-only media step, while preserving zero write authority."
+  "required_release_source_commit": "7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f",
+  "reason": "The verified Tiny Seed handoff advanced to source commit 7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f with the policy-pinned offline recovery phenotype. The prior USB evidence was correctly invalidated by the release change. Refresh read-only identity evidence against this exact release while preserving zero write authority before any human-only media step."
 }
