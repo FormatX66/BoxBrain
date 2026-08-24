@@ -55,31 +55,35 @@ def _sha256(path: Path) -> str:
 def patch_console_file(path: Path) -> dict[str, Any]:
     """Add the germ command to a compatible bounded Aurum console.
 
-    The bridge accepts both the physical Gen0 console and the newer bounded x86
-    console shape. It still fails closed: the import anchor, one help marker,
-    and the reboot dispatch anchor must all be present exactly as expected.
+    Two exact help shapes are supported: the physical Gen0 console and the
+    current richer x86 console. Anything else fails closed.
     """
     text = path.read_text(encoding="utf-8")
     if "from aurum_germ import handle_reseed" in text:
         return {"status": "already-patched", "sha256": _sha256(path)}
 
     import_anchor = "from aurum_workspace import AurumWorkspace, WorkspaceError\n"
-    help_marker = '"reboot | poweroff | help",'
+    old_help = '        "install confirm ERASE-CODE | reboot | poweroff | help",\n'
+    current_help = '        "reboot | poweroff | help",\n'
     reboot_anchor = '        elif command == "reboot" and len(tokens) == 1:\n'
-    if import_anchor not in text or text.count(help_marker) != 1 or reboot_anchor not in text:
+    if import_anchor not in text or reboot_anchor not in text:
         raise BridgeError("Aurum console does not match the safe germ bridge anchors")
+    if old_help in text:
+        help_replacement = (
+            '        "install confirm ERASE-CODE | reseed status | reseed current authorize-network | "\n'
+            '        "reseed commit SHA authorize-network | reseed rollback confirm | reboot | poweroff | help",\n'
+        )
+        text = text.replace(old_help, help_replacement, 1)
+    elif current_help in text:
+        help_replacement = (
+            '        "reseed status | reseed current authorize-network | reseed commit SHA authorize-network | "\n'
+            '        "reseed rollback confirm | reboot | poweroff | help",\n'
+        )
+        text = text.replace(current_help, help_replacement, 1)
+    else:
+        raise BridgeError("Aurum console help surface is not a supported germ bridge shape")
 
-    text = text.replace(
-        import_anchor,
-        import_anchor + "from aurum_germ import handle_reseed\n",
-        1,
-    )
-    text = text.replace(
-        help_marker,
-        '"reseed status | reseed current authorize-network | reseed commit SHA authorize-network | "\n'
-        '        "reseed rollback confirm | reboot | poweroff | help",',
-        1,
-    )
+    text = text.replace(import_anchor, import_anchor + "from aurum_germ import handle_reseed\n", 1)
     text = text.replace(
         reboot_anchor,
         '        elif command == "reseed" and len(tokens) >= 1:\n'
