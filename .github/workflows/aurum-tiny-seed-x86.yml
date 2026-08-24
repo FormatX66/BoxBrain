@@ -27,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_triage)
 
       - name: Install VM tooling
         run: |
@@ -94,6 +94,15 @@ jobs:
           test "$rc" -eq 0 -o "$rc" -eq 124
           grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log
           grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-bios.log
+
+      - name: Inspect recovery and failure-prep payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name triage.py -print | grep -q triage.py
+          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name aurum-triage.service -print | grep -q aurum-triage.service
+          xorriso -indev dist/Aurum-TinySeed-amd64.iso -find / -name recovery_poller.py -print | grep -q recovery_poller.py
+          echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
 
       - name: Publish Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
