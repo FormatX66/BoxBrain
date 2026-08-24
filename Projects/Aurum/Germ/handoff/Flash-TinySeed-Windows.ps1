@@ -316,7 +316,7 @@ $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
 Dismount-TargetVolumes $diskNumber
 $ddImagePath = $image.FullName.Replace('\', '/')
-$ddDevicePath = "//./PhysicalDrive$diskNumber"
+$ddDevicePath = "\\.\PhysicalDrive$diskNumber"
 $previousArgConversion = $env:MSYS2_ARG_CONV_EXCL
 try {
     $env:MSYS2_ARG_CONV_EXCL = '*'
