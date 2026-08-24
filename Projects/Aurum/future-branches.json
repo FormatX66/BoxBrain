@@ -1,5 +1,5 @@
 {
-  "schema": "aurum-future-branch-state-v3",
+  "schema": "aurum-future-branch-state-v4",
   "purpose": "Rank likely next machine states and user follow-up inputs, prepare high-value branches early, execute safe dependency-satisfied next actions without waiting for another prompt, and calibrate both prediction and execution quality from what actually happens.",
   "policy": {
     "lookahead_depth": 2,
@@ -12,6 +12,7 @@
     "prediction_without_preparation_creates_prediction_debt": true,
     "work_down_prediction_debt_before_waiting": true,
     "treat_partial_family_match_as_partial_not_success": true,
+    "allow_method_pivot_when_carrier_cost_exceeds_expected_value": true,
     "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
   },
   "current_program": "Aurum Tiny Seed / recovery foundation with parallel experiments and Future Branch calibration",
@@ -39,34 +40,41 @@
     },
     {
       "rank": 4,
+      "input_family": "seed-method-pivot",
+      "examples": ["should we switch seed methods?", "is the ISO the wrong way to do this?", "should we use a different carrier?", "are we wasting time fixing this boot path?"],
+      "prepared_response": "Compare the current ISO-hybrid path against alternate carriers using repeated-failure cost, verification friction, platform coverage, recovery simplicity, reuse value, and time-to-physical-proof. Treat the carrier as replaceable while preserving the same germ/genetics/LKG contract.",
+      "action_if_safe": "Keep the current path alive while preparing the strongest alternative. Promote the alternative only when evidence shows lower total expected cost or the current carrier repeatedly fails the same class of gate."
+    },
+    {
+      "rank": 5,
       "input_family": "measure-future-branch",
       "examples": ["is it actually saving time?", "how accurate are the predictions?", "how do we know this works?"],
       "prepared_response": "Report prediction accuracy, execution completeness, useful-hit rate, prepared-action hit rate, user turns avoided, wait-time saved, discarded speculative cost, and self-corrections found before the user encountered them.",
       "action_if_safe": "Update calibration/evidence metrics and compare them against a reactive baseline."
     },
     {
-      "rank": 5,
+      "rank": 6,
       "input_family": "physical-result-failure",
       "examples": ["it didn't work", "nothing happened", "blank screen", "still broken"],
       "prepared_response": "Map terse report to boot/media/network/install/regrow/rollback branch using embedded triage and boot proof.",
       "action_if_safe": "Use captured evidence, apply smallest safe fix, rebuild/rerun, preserve LKG."
     },
     {
-      "rank": 6,
+      "rank": 7,
       "input_family": "physical-result-success",
       "examples": ["it worked", "I'm in", "it booted"],
       "prepared_response": "Immediately advance to the next gated proof rather than asking what the user wants to do next.",
       "action_if_safe": "Verify boot receipt, Guardian/LKG state, then continue healthy regrow/promotion or next physical gate."
     },
     {
-      "rank": 7,
+      "rank": 8,
       "input_family": "what-next",
       "examples": ["what's next?", "now what?", "what should we do next?"],
       "prepared_response": "Do the highest-value already-authorized next operation first; answer with what was advanced and the next real boundary.",
       "action_if_safe": "Advance completion graph and adjacent independent lanes."
     },
     {
-      "rank": 8,
+      "rank": 9,
       "input_family": "what-else",
       "examples": ["what else can you do?", "do everything else too", "what can run at the same time?"],
       "prepared_response": "Fan out independent lanes and prepare downstream dependent carts without crossing real boundaries.",
@@ -88,18 +96,24 @@
     },
     {
       "rank": 3,
+      "state": "current-seed-carrier-cost-exceeds-value",
+      "prepared": ["universal-carrier architecture", "shared boot-front-door concept", "architecture-separated payloads", "same germ/genetics/LKG contract", "current ISO path retained as control"],
+      "next": "prepare and benchmark a universal disk-image/front-door carrier in parallel, then pivot only if it reaches physical-proof readiness with lower expected total cost"
+    },
+    {
+      "rank": 4,
       "state": "physical-boot-visible-but-setup-or-network-not-ready",
       "prepared": ["safe/verbose x86 boot path", "aurum-triage", "NetworkManager evidence", "serial/console boot markers"],
       "next": "repair network/setup while preserving germ and LKG"
     },
     {
-      "rank": 4,
+      "rank": 5,
       "state": "candidate-regrow-fails-or-rolls-back",
       "prepared": ["Guardian quarantine", "LKG rollback", "regrow receipt", "controlled rollback drill", "triage classification"],
       "next": "treat rollback as protection success, repair candidate, regrow only inactive slot"
     },
     {
-      "rank": 5,
+      "rank": 6,
       "state": "physical-success-unlocks-next-capability",
       "prepared": ["StateWeave independent experiment", "adaptive-kernel independent experiment", "combined control experiment", "anticipatory-state experiment", "Future Branch calibration"],
       "next": "advance experimental canaries without confusing them with production proof"
