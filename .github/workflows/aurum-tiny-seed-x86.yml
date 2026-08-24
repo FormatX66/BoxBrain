@@ -27,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_carrier test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed)
 
       - name: Install VM tooling
         run: |
@@ -46,7 +46,7 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 live-build debian-archive-keyring debootstrap xorriso isolinux \
                 syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
-                dosfstools mtools ca-certificates
+                dosfstools mtools ca-certificates git
               sh Projects/Aurum/Germ/build-x86-tinyseed.sh
             '
           test -s dist/Aurum-TinySeed-amd64.iso
@@ -127,6 +127,10 @@ jobs:
           unsquashfs -ll "$squashfs" | tee tinyseed-payload.log >/dev/null
           for expected in \
             usr/lib/aurum/germ/triage.py \
+            usr/lib/aurum/germ/carrier.py \
+            usr/lib/aurum/carrier/carrier.json \
+            usr/lib/aurum/carrier/platform/Projects/AurumPC/aurum_console.py \
+            usr/lib/aurum/carrier/platform/Projects/Codelation \
             etc/systemd/system/aurum-triage.service \
             usr/lib/aurum/germ/recovery_poller.py \
             etc/systemd/system/aurum-recovery-poll.timer \
@@ -140,6 +144,14 @@ jobs:
               exit 1
             fi
           done
+          carrier_root="$RUNNER_TEMP/tinyseed-carrier-root"
+          unsquashfs -f -d "$carrier_root" "$squashfs" \
+            usr/lib/aurum/germ/carrier.py \
+            usr/lib/aurum/carrier >/dev/null
+          python3 "$carrier_root/usr/lib/aurum/germ/carrier.py" verify \
+            --root "$carrier_root/usr/lib/aurum/carrier" \
+            --architecture x86_64
+          echo 'AURUM_TINYSEED_OFFLINE_CARRIER_OK'
           echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
 
       - name: Upload boot diagnostics on failure

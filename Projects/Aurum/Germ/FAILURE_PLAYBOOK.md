@@ -34,8 +34,9 @@ Prepared response:
 - The protected germ/LKG remains unchanged.
 - `aurum-triage` checks NetworkManager plus the default route and returns `NETWORK_NOT_READY` before regrowth is attempted.
 - Prefer Ethernet if present, otherwise use the Tiny Seed retry/rescan screen to join Wi-Fi. Network failure never silently selects offline mode; continuing offline requires an explicit choice.
-- If an install/repair was prepared offline, Tiny Seed keeps the live console actionable and offers **Join Wi-Fi now** before deferral. A successful join resumes regrowth against the already prepared root without repeating target selection or destructive work.
-- Offline install/repair may prepare the germ, but current genetics must not be called regrown until network retrieval succeeds.
+- If an install/repair is offline and the verified x86 fallback carrier is present, Tiny Seed grows that pinned phenotype into the inactive slot without granting network authority. It must still report its exact genetics/platform commits and pass every Guardian gate.
+- If no valid carrier is present, Tiny Seed keeps the live console actionable and offers **Join Wi-Fi now** before deferral. A successful join resumes regrowth against the already prepared root without repeating target selection or destructive work.
+- A fallback phenotype must be called `offline-carrier`, never `current`, unless its recorded immutable commits equal the current trusted genetics and platform heads.
 
 ### 4. Existing Aurum/install target ambiguity
 

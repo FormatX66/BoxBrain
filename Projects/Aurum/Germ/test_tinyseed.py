@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import builtins
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -90,6 +91,25 @@ class TinySeedNetworkTests(unittest.TestCase):
         ):
             self.assertFalse(tinyseed._finish_offline(result, "/dev/nvme0n1p2"))
         network_step.assert_not_called()
+
+    def test_existing_seed_uses_verified_carrier_when_network_is_down(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            carrier_root = Path(temporary) / "carrier"
+            carrier_root.mkdir()
+            (carrier_root / "carrier.json").write_text("{}\n", encoding="utf-8")
+            with (
+                mock.patch.object(tinyseed, "OFFLINE_CARRIER", carrier_root),
+                mock.patch.object(tinyseed, "_run"),
+                mock.patch.object(tinyseed.bridge, "install", return_value={"status": "bridged"}),
+                mock.patch.object(
+                    tinyseed,
+                    "_chroot_regrow",
+                    return_value={"status": "trial-armed", "source_transport": "offline-carrier"},
+                ) as regrow,
+            ):
+                result = tinyseed._repair_existing({"device": "/dev/test-root"}, online=False)
+            self.assertEqual(result["regrow"]["status"], "trial-armed")
+            regrow.assert_called_once_with(mock.ANY, offline=True)
 
 
 if __name__ == "__main__":

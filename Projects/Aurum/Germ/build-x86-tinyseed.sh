@@ -124,11 +124,30 @@ EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
+for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
 chmod 0644 "$GERM_DST/GENETICS.json"
+
+# Carry one reproducible, policy-pinned x86 phenotype beside the germ.  This is
+# an emergency fallback only: online regrowth still resolves current genetics.
+# The carrier can grow only the inactive slot and remains subject to the same
+# preboot test, Guardian trial, health promotion, journal, and rollback gates.
+PLATFORM_COMMIT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["platforms"]["x86_64"]["offline_carrier"]["pinned_commit"])' "$SCRIPT_DIR/GENETICS.json")
+GENETICS_COMMIT=$(git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD)
+CARRIER_SOURCE="$BUILD_ROOT/carrier-platform-source"
+mkdir -p "$CARRIER_SOURCE"
+git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" fetch --depth=1 https://github.com/FormatX66/BoxBrain.git "$PLATFORM_COMMIT"
+test "$(git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" rev-parse FETCH_HEAD)" = "$PLATFORM_COMMIT"
+git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" archive "$PLATFORM_COMMIT" Projects/AurumPC Projects/Codelation | tar -x -C "$CARRIER_SOURCE"
+python3 "$SCRIPT_DIR/carrier.py" build \
+  --genetics-root "$REPO_ROOT" \
+  --platform-root "$CARRIER_SOURCE" \
+  --output config/includes.chroot/usr/lib/aurum/carrier \
+  --genetics-commit "$GENETICS_COMMIT" \
+  --platform-commit "$PLATFORM_COMMIT" \
+  --architecture x86_64
 
 # Remote recovery is fail-closed. The trust policy is always embedded; the
 # public authority is embedded only after the protected enrollment workflow has

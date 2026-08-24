@@ -107,7 +107,7 @@ Its long-term job is to provide a known-good protected germ capable of:
 - repairing local boot/recovery metadata;
 - preserving or restoring local identity/state when safe.
 
-The recovery medium may contain a fallback phenotype for offline emergencies, but that fallback is secondary to the germ/regrowth role.
+The recovery medium may contain a fallback phenotype for offline emergencies, but that fallback is secondary to the germ/regrowth role. A fallback must be pinned by the genetics policy, cover every carried regular file with deterministic tree hashes, record both the genetics and platform commits, and be permitted to grow only an inactive non-LKG slot. It never bypasses preboot validation, Guardian trial boot, postboot health promotion, journaling, quarantine, or rollback.
 
 ## Pre-germ compatibility
 

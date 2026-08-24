@@ -24,6 +24,7 @@ import network
 INSTALLED_MARKER = Path("/etc/aurum-tinyseed-installed.json")
 LIVE_MEDIUM = Path("/run/live/medium")
 SLOT_STATE = Path("/var/lib/aurum/germ/slots.json")
+OFFLINE_CARRIER = Path("/usr/lib/aurum/carrier")
 
 
 def _clear() -> None:
@@ -254,7 +255,7 @@ def _installed_roots() -> list[dict[str, Any]]:
     return found
 
 
-def _chroot_regrow(root: Path) -> dict[str, Any]:
+def _chroot_regrow(root: Path, *, offline: bool = False) -> dict[str, Any]:
     mounted: list[Path] = []
     try:
         for source, rel in (("/dev", "dev"), ("/run", "run")):
@@ -267,11 +268,25 @@ def _chroot_regrow(root: Path) -> dict[str, Any]:
             target.mkdir(parents=True, exist_ok=True)
             _run(["mount", "-t", fs, fs, str(target)], timeout=20)
             mounted.append(target)
+        carrier_target: Path | None = None
+        if offline:
+            if not (OFFLINE_CARRIER / "carrier.json").is_file():
+                raise RuntimeError("verified offline phenotype carrier is unavailable")
+            carrier_target = root / "run/aurum-offline-carrier"
+            carrier_target.mkdir(parents=True, exist_ok=True)
+            _run(["mount", "--bind", str(OFFLINE_CARRIER), str(carrier_target)], timeout=20)
+            mounted.append(carrier_target)
+            _run(["mount", "-o", "remount,bind,ro", str(carrier_target)], timeout=20)
+        reseed_arguments = [
+            "chroot", str(root), "/usr/bin/python3", "/usr/lib/aurum/germ/reseed.py",
+            "regrow", "--ref", "main",
+        ]
+        if offline:
+            reseed_arguments.extend(["--offline-carrier", "/run/aurum-offline-carrier"])
+        else:
+            reseed_arguments.append("--authorize-network")
         result = _run(
-            [
-                "chroot", str(root), "/usr/bin/python3", "/usr/lib/aurum/germ/reseed.py",
-                "regrow", "--ref", "main", "--authorize-network",
-            ],
+            reseed_arguments,
             timeout=1200,
         )
         try:
@@ -283,14 +298,14 @@ def _chroot_regrow(root: Path) -> dict[str, Any]:
             _run(["umount", "-l", str(target)], check=False, timeout=20)
 
 
-def _regrow_installed_root(device: str) -> dict[str, Any]:
+def _regrow_installed_root(device: str, *, offline: bool = False) -> dict[str, Any]:
     """Resume regrowth after networking becomes available post-install."""
     with tempfile.TemporaryDirectory(prefix="aurum-regrow-") as td:
         root = Path(td) / "root"
         root.mkdir()
         _run(["mount", device, str(root)], timeout=20)
         try:
-            result = _chroot_regrow(root)
+            result = _chroot_regrow(root, offline=offline)
             _run(["sync"], check=False)
             return result
         finally:
@@ -324,7 +339,12 @@ def _repair_existing(entry: dict[str, Any], *, online: bool) -> dict[str, Any]:
         _run(["mount", device, str(root)], timeout=20)
         try:
             bridged = bridge.install(root)
-            regrow = _chroot_regrow(root) if online else {"status": "deferred-offline"}
+            if online:
+                regrow = _chroot_regrow(root)
+            elif (OFFLINE_CARRIER / "carrier.json").is_file():
+                regrow = _chroot_regrow(root, offline=True)
+            else:
+                regrow = {"status": "deferred-offline"}
             _run(["sync"], check=False)
             return {"status": "prepared", "device": device, "bridge": bridged, "regrow": regrow}
         finally:
@@ -411,6 +431,8 @@ def main() -> int:
         print("WARNING: the selected target disk will be completely erased.\n")
     if online:
         print("Current trusted genetics will be fetched automatically.")
+    elif (OFFLINE_CARRIER / "carrier.json").is_file():
+        print("Network is unavailable. A verified fallback phenotype will grow only in the inactive slot.")
     else:
         print("Offline mode: Tiny Seed will install/repair the protected germ; current genetics can regrow later.")
     confirm = input("\nContinue? [y/N]: ").strip().lower()
@@ -437,6 +459,19 @@ def main() -> int:
         return 2
 
     regrow = result.get("regrow") if isinstance(result, dict) else None
+    if (
+        isinstance(regrow, dict)
+        and regrow.get("status") in {"deferred", "deferred-offline"}
+        and root_device
+        and (OFFLINE_CARRIER / "carrier.json").is_file()
+    ):
+        try:
+            result["regrow"] = _regrow_installed_root(root_device, offline=True)
+            regrow = result["regrow"]
+        except RuntimeError as exc:
+            _title("STOPPED SAFELY", "The protected germ is unchanged; offline candidate growth did not complete.")
+            print(str(exc))
+            return 2
     if isinstance(regrow, dict) and regrow.get("status") in {"deferred", "deferred-offline"}:
         if not root_device:
             _title("STOPPED SAFELY", "The protected germ is installed, but its root identity was not preserved.")
@@ -458,7 +493,7 @@ def main() -> int:
     elif online:
         print("\nGenetics were staged as far as this platform currently allows. Keep Tiny Seed available as the recovery germ.")
     else:
-        print("\nBoot is prepared. Connect networking later and Tiny Seed will finish regrowth on the installed machine.")
+        print("\nBoot is prepared. Connect networking later and Tiny Seed will finish current regrowth on the installed machine.")
     return 0
 
 

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import bridge
+import carrier
 import recovery_ledger
 
 SCHEMA = "aurum-genetics-v1"
@@ -164,6 +165,72 @@ def stage(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, A
         "staged_at_unix": int(time.time()),
     }
     _atomic_json(receipts / f"genetics-{commit}.json", receipt)
+    _atomic_json(state_root / "latest-stage.json", receipt)
+    return receipt
+
+
+def stage_offline(*, carrier_root: Path, state_root: Path) -> dict[str, Any]:
+    """Stage a fully verified carrier without granting network authority."""
+    architecture = _architecture()
+    try:
+        verified = carrier.verify(carrier_root, architecture=architecture)
+    except carrier.CarrierError as exc:
+        raise GermError(str(exc)) from exc
+
+    state_root.mkdir(parents=True, exist_ok=True)
+    candidates = state_root / "genetics"
+    sources = state_root / "platform-sources"
+    receipts = state_root / "receipts"
+    candidates.mkdir(parents=True, exist_ok=True)
+    sources.mkdir(parents=True, exist_ok=True)
+    receipts.mkdir(parents=True, exist_ok=True)
+    genetics_commit = str(verified["genetics_commit"])
+    platform_commit = str(verified["platform_commit"])
+    genetics_destination = candidates / genetics_commit
+    platform_destination = sources / platform_commit
+
+    with tempfile.TemporaryDirectory(prefix="aurum-offline-carrier-", dir=str(state_root)) as temporary:
+        temporary_root = Path(temporary)
+        staged_genetics = temporary_root / "genetics"
+        staged_platform = temporary_root / "platform"
+        shutil.copytree(Path(verified["genetics_root"]), staged_genetics)
+        shutil.copytree(Path(verified["platform_root"]), staged_platform)
+        # Re-verify the copied bytes, not merely the external medium.
+        if carrier.tree_digest(staged_genetics) != verified["genetics_tree"]:
+            raise GermError("staged offline genetics failed tree verification")
+        if carrier.tree_digest(staged_platform) != verified["platform_tree"]:
+            raise GermError("staged offline platform failed tree verification")
+        if genetics_destination.exists():
+            shutil.rmtree(genetics_destination)
+        if platform_destination.exists():
+            shutil.rmtree(platform_destination)
+        os.replace(staged_genetics, genetics_destination)
+        os.replace(staged_platform, platform_destination)
+
+    receipt = {
+        "schema": "aurum-reseed-stage-receipt-v1",
+        "status": "staged-offline-carrier",
+        "transport": "offline-carrier",
+        "repository": verified["repository"],
+        "requested_ref": verified.get("genetics_ref") or DEFAULT_REF,
+        "resolved_commit": genetics_commit,
+        "candidate": str(genetics_destination),
+        "platform_source_ref": verified["platform_source_ref"],
+        "platform_source_commit": platform_commit,
+        "platform_source": str(platform_destination),
+        "carrier": {
+            "schema": verified["schema"],
+            "root": str(carrier_root.resolve()),
+            "genetics_tree": verified["genetics_tree"],
+            "platform_tree": verified["platform_tree"],
+        },
+        "network_authorized": False,
+        "active_overwritten": False,
+        "promotion_performed": False,
+        "health_evidence_required_before_promotion": True,
+        "staged_at_unix": int(time.time()),
+    }
+    _atomic_json(receipts / f"genetics-{genetics_commit}.json", receipt)
     _atomic_json(state_root / "latest-stage.json", receipt)
     return receipt
 
@@ -355,12 +422,31 @@ def _commit_slot_replacement(
         raise GermError(f"inactive-slot replacement journal failed: {exc}") from exc
 
 
-def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, Any]:
+def regrow(
+    *,
+    ref: str,
+    state_root: Path,
+    authorize_network: bool,
+    offline_carrier: Path | None = None,
+) -> dict[str, Any]:
     if os.geteuid() != 0:
         raise GermError("regrowth requires the root-owned protected germ")
-    control = stage(ref=ref, state_root=state_root, authorize_network=authorize_network)
+    if offline_carrier is not None and authorize_network:
+        raise GermError("choose either network genetics or the offline carrier, not both")
+    control = (
+        stage_offline(carrier_root=offline_carrier, state_root=state_root)
+        if offline_carrier is not None
+        else stage(ref=ref, state_root=state_root, authorize_network=authorize_network)
+    )
     genetics_path = Path(control["candidate"])
-    verified = verify_candidate(genetics_path)
+    if control.get("transport") == "offline-carrier":
+        manifest = load_manifest(genetics_path / MANIFEST_RELATIVE)
+        missing = [str(path) for path in manifest["required_paths"] if not (genetics_path / path).exists()]
+        if missing:
+            raise GermError("staged offline genetics are incomplete: " + ", ".join(missing))
+        verified = {"commit": str(control["resolved_commit"]), "manifest": manifest}
+    else:
+        verified = verify_candidate(genetics_path)
     manifest = verified["manifest"]
     architecture = _architecture()
     adapter = (manifest.get("platforms") or {}).get(architecture)
@@ -370,15 +456,23 @@ def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, 
     source_ref = str(adapter.get("source_ref") or "")
     if not source_ref:
         raise GermError("platform genetics do not declare a source_ref")
-    sources = state_root / "platform-sources"
-    sources.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="aurum-platform-", dir=str(state_root)) as temporary:
-        work = Path(temporary) / "source"
-        source_commit = _fetch_ref(source_ref, work)
-        source_destination = sources / source_commit
-        if source_destination.exists():
-            shutil.rmtree(source_destination)
-        os.replace(work, source_destination)
+    if control.get("transport") == "offline-carrier":
+        if control.get("platform_source_ref") != source_ref:
+            raise GermError("offline carrier platform ref does not match current genetics")
+        source_commit = str(control["platform_source_commit"])
+        source_destination = Path(control["platform_source"])
+        if not source_destination.is_dir():
+            raise GermError("staged offline platform source is missing")
+    else:
+        sources = state_root / "platform-sources"
+        sources.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="aurum-platform-", dir=str(state_root)) as temporary:
+            work = Path(temporary) / "source"
+            source_commit = _fetch_ref(source_ref, work)
+            source_destination = sources / source_commit
+            if source_destination.exists():
+                shutil.rmtree(source_destination)
+            os.replace(work, source_destination)
 
     if adapter.get("local_ab_slots") is not True or adapter.get("growth_adapter") != "python-runtime-slot-v1":
         receipt = {
@@ -457,6 +551,7 @@ def regrow(*, ref: str, state_root: Path, authorize_network: bool) -> dict[str, 
         "architecture": architecture,
         "genetics_ref": ref,
         "genetics_commit": verified["commit"],
+        "source_transport": control.get("transport") or "network-git",
         "platform_source_ref": source_ref,
         "platform_source_commit": source_commit,
         "candidate_slot": inactive,
@@ -532,21 +627,33 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--ref", default=DEFAULT_REF)
     p.add_argument("--state-root", type=Path, default=DEFAULT_STATE_ROOT)
     p.add_argument("--authorize-network", action="store_true")
+    p.add_argument("--offline-carrier", type=Path)
     return p
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.offline_carrier is not None and args.authorize_network:
+            raise GermError("choose either network genetics or the offline carrier, not both")
         if args.command == "status":
             result = status(args.state_root)
         elif args.command == "plan":
             result = plan(args.ref, args.state_root)
         elif args.command == "stage":
-            result = stage(ref=args.ref, state_root=args.state_root, authorize_network=args.authorize_network)
+            result = (
+                stage_offline(carrier_root=args.offline_carrier, state_root=args.state_root)
+                if args.offline_carrier is not None
+                else stage(ref=args.ref, state_root=args.state_root, authorize_network=args.authorize_network)
+            )
         else:
-            result = regrow(ref=args.ref, state_root=args.state_root, authorize_network=args.authorize_network)
-    except (GermError, bridge.BridgeError) as exc:
+            result = regrow(
+                ref=args.ref,
+                state_root=args.state_root,
+                authorize_network=args.authorize_network,
+                offline_carrier=args.offline_carrier,
+            )
+    except (GermError, bridge.BridgeError, carrier.CarrierError) as exc:
         print(json.dumps({"status": "refused", "detail": str(exc)}, indent=2, sort_keys=True))
         return 2
     print(json.dumps(result, indent=2, sort_keys=True))

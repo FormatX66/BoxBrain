@@ -9,6 +9,7 @@
 - The Aurum console bridge exposes bounded `reseed status`, `reseed current authorize-network`, `reseed commit <SHA> authorize-network`, and confirmed rollback operations.
 - `tinyseed.py` implements the common three-step external setup surface: Network -> Machine -> Go. Wi-Fi scan/service failures remain on an actionable retry screen, offline continuation is explicit, and an offline install can join Wi-Fi and resume regrowth before leaving the live console. A single detected existing Aurum installation is automatically treated as Repair/Reseed; destructive target ambiguity stops safely.
 - Fresh Tiny Seed installs carry a minimal bootstrap LKG. If current genetics were not grown before first boot, installed bootstrap mode obtains networking and finishes regrowth rather than requiring a conventional package/update flow.
+- x86 Tiny Seed also carries one policy-pinned, hash-complete fallback phenotype. When GitHub, DNS, or the network is unavailable, the verified carrier can grow only the inactive slot; the normal preboot test, Guardian trial, health promotion, journal, quarantine, and rollback gates remain mandatory. Online regrowth remains the preferred current-genetics path.
 - x86 Tiny Seed media builder and GitHub Actions build/UEFI+BIOS smoke workflow exist.
 - Raspberry Pi ARM64 Tiny Seed image builder and GitHub Actions static build/verification workflow exist.
 - A guarded Windows flash path verifies image checksum, requires unique USB serial identity and explicit confirmation, refuses boot/system disks, re-proves identity immediately before write, and performs a full image-length raw readback hash.
@@ -34,7 +35,7 @@
 - Hopper Gen0 built-in selftest passed and its local seed is healthy.
 - Hopper Gen0 Git workspace is intentionally not initialized.
 - The existing 64 GB Gen0 recovery USB remains the physical fallback and must **not** be overwritten during Tiny Seed testing.
-- On 2026-08-24, the separate Crayola x86 Tiny Seed physically reached the `READY` console on Hopper, preserved the existing germ as slot A, installed the bridge on `/dev/nvme0n1p2`, and reported `regrow.status=deferred-offline`. This proves the user-visible boot/install boundary, but it does not replace the pending formal boot-proof marker or Guardian rollback proof.
+- On 2026-08-24, the separate Crayola x86 Tiny Seed physically reached the `READY` console on Hopper, preserved the existing germ as slot A, installed the bridge on `/dev/nvme0n1p2`, and reported `regrow.status=deferred-offline`. This proves the user-visible boot/install boundary and exposed the network-dependent recovery gap addressed by the offline phenotype carrier; it does not replace the pending formal boot-proof marker or Guardian rollback proof.
 
 ## Unresolved frontier
 
@@ -43,10 +44,10 @@
 3. Physical Hopper proof:
    - boot Tiny Seed;
    - collect Tiny Seed ready + boot-proof evidence;
-   - connect network through the setup surface;
+   - prefer network through the setup surface, but require the verified offline carrier to remain usable when network or DNS is broken;
    - detect the one existing Gen0 installation and choose Repair/Reseed automatically;
    - install the pre-germ bridge preserving Gen0 as slot A/LKG;
-   - grow current x86 genetics into slot B;
+   - grow current x86 genetics, or the explicitly identified pinned offline fallback, into slot B;
    - reboot trial;
    - require fresh selftest + critical-service + physical desktop + input evidence;
    - promote on proof or automatically roll back to Gen0.
