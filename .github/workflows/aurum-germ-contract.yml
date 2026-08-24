@@ -1,0 +1,48 @@
+name: Aurum Germ Safety Contract
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - '.github/workflows/aurum-germ-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-germ-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out current genetics
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Compile protected germ
+        run: python3 -m py_compile Projects/Aurum/Germ/*.py
+
+      - name: Run germ safety tests
+        run: |
+          cd Projects/Aurum/Germ
+          python3 -m unittest -v \
+            test_reseed \
+            test_guardian \
+            test_proof \
+            test_rollback_drill \
+            test_recovery_control
+
+      - name: Validate current genetics manifest
+        run: |
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('Projects/Aurum/Germ').resolve()))
+          import reseed
+          verified = reseed.verify_candidate(Path('.').resolve())
+          print('AURUM_GERM_CONTRACT_OK commit=' + verified['commit'])
+          PY
