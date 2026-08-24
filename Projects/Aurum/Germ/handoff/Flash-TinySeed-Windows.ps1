@@ -75,6 +75,29 @@ public static class AurumTinySeedVolumeNative {
         out uint bytesReturned,
         IntPtr overlapped
     );
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetFilePointerEx(
+        SafeFileHandle file,
+        long distance,
+        out long newPosition,
+        uint moveMethod
+    );
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool WriteFile(
+        SafeFileHandle file,
+        byte[] buffer,
+        uint bytesToWrite,
+        out uint bytesWritten,
+        IntPtr overlapped
+    );
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool FlushFileBuffers(SafeFileHandle file);
 }
 '@
 }
@@ -307,42 +330,60 @@ Dismount-TargetVolumes $diskNumber
 $bufferSize = 4MB
 $buffer = New-Object byte[] $bufferSize
 $maxIoRetries = 8
-$ddPath = 'C:\Program Files\Git\usr\bin\dd.exe'
-if (-not (Test-Path -LiteralPath $ddPath)) { Fail 'raw-writer-dd-missing' }
 
 # Re-prove and re-lock the exact target immediately before handing the remaining
 # image bytes to the low-level writer. Sector zero was already reread above.
 $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
 Dismount-TargetVolumes $diskNumber
-$ddImagePath = $image.FullName.Replace('\', '/')
-$ddDevicePath = "\\.\PhysicalDrive$diskNumber"
-$previousArgConversion = $env:MSYS2_ARG_CONV_EXCL
+$physicalPath = "\\.\PhysicalDrive$diskNumber"
+$source = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+$rawHandle = $null
 try {
-    $env:MSYS2_ARG_CONV_EXCL = '*'
-    $ddArguments = @(
-        "if=$ddImagePath",
-        "of=$ddDevicePath",
-        'bs=4M',
-        'skip=512',
-        'seek=512',
-        'iflag=fullblock,skip_bytes',
-        'oflag=seek_bytes',
-        'conv=notrunc,fsync',
-        'status=progress'
+    $rawHandle = [AurumTinySeedVolumeNative]::CreateFile(
+        $physicalPath,
+        [uint32]3221225472,
+        [uint32]3,
+        [IntPtr]::Zero,
+        [uint32]3,
+        [uint32]2147483648,
+        [IntPtr]::Zero
     )
-    $ddOutput = & $ddPath @ddArguments 2>&1
-    $ddExit = $LASTEXITCODE
-    foreach ($line in @($ddOutput)) { Write-Host ([string]$line) }
-} finally {
-    if ($null -eq $previousArgConversion) {
-        Remove-Item Env:MSYS2_ARG_CONV_EXCL -ErrorAction SilentlyContinue
-    } else {
-        $env:MSYS2_ARG_CONV_EXCL = $previousArgConversion
+    if ($rawHandle.IsInvalid) {
+        $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        Fail "physical-drive-open-failed win32=$code"
     }
+    [int64]$offset = 512
+    [int64]$newPosition = 0
+    if (-not [AurumTinySeedVolumeNative]::SetFilePointerEx(
+        $rawHandle, $offset, [ref]$newPosition, [uint32]0
+    )) {
+        $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        Fail "physical-drive-seek-failed offset=$offset win32=$code"
+    }
+    [void]$source.Seek($offset, [IO.SeekOrigin]::Begin)
+    while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+        [uint32]$written = 0
+        if (-not [AurumTinySeedVolumeNative]::WriteFile(
+            $rawHandle, $buffer, [uint32]$read, [ref]$written, [IntPtr]::Zero
+        )) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            Fail "physical-drive-write-failed offset=$offset win32=$code"
+        }
+        if ([int]$written -ne $read) {
+            Fail "physical-drive-short-write offset=$offset wanted=$read actual=$written"
+        }
+        $offset += $written
+    }
+    if (-not [AurumTinySeedVolumeNative]::FlushFileBuffers($rawHandle)) {
+        $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        Fail "physical-drive-flush-failed win32=$code"
+    }
+} finally {
+    if ($null -ne $rawHandle) { try { $rawHandle.Dispose() } catch { } }
+    $source.Dispose()
 }
-if ($ddExit -ne 0) { Fail "raw-writer-dd-failed exit=$ddExit" }
-Write-Host "AURUM_TINYSEED_FLASH_RAW_WRITE_OK writer=dd bytes=$([int64]$image.Length - 512)"
+Write-Host "AURUM_TINYSEED_FLASH_RAW_WRITE_OK writer=win32-writefile bytes=$([int64]$image.Length - 512)"
 Start-Sleep -Seconds 3
 
 # Full image-length readback hash. This is deliberately slower than a spot check
