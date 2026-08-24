@@ -85,17 +85,29 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-tinyseed-publish-006",
+      "actual_family": "tinyseed-artifacts-pass-and-publish",
+      "nearest_prior_family": "tinyseed-artifacts-pass-and-publish",
+      "prediction": "exact",
+      "execution": "boundary-correct",
+      "reason": "The live Future Branch field ranked same-revision Tiny Seed artifacts passing and publishing as the leading machine outcome and had already prepared combined handoff, hash reverification, guarded dry-run-first flashing, boot proof, triage and rollback paths. x86 and Pi artifacts then published from the same source commit, the handoff reverified both hashes and persisted READY_TO_FLASH, and execution stopped correctly at the physical/destructive media-write boundary.",
+      "correction": "No branch-class correction required. Re-rank the field from build/publish toward physical flash, boot proof and recovery evidence; cool the seed-method pivot while retaining it as a fallback.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 0
     }
   ],
   "metrics": {
-    "events": 5,
-    "prediction_accuracy_weighted": 0.4,
-    "execution_completeness_weighted": 0.8,
-    "useful_hit_rate": 0.2,
-    "exact_predictions": 1,
+    "events": 6,
+    "prediction_accuracy_weighted": 0.5,
+    "execution_completeness_weighted": 0.833333,
+    "useful_hit_rate": 0.166667,
+    "exact_predictions": 2,
     "partial_predictions": 2,
     "miss_predictions": 2,
-    "execution_complete_or_boundary_correct": 4,
+    "execution_complete_or_boundary_correct": 5,
     "execution_prepared": 0,
     "execution_partial": 0,
     "execution_miss": 1,
@@ -103,7 +115,7 @@
     "estimated_wait_seconds_saved": 0,
     "assumptions_corrected_before_user_impact": 5
   },
-  "interpretation": "Early samples show execution is improving faster than prediction coverage. Natural-world prediction remains immature, especially around strategy pivots where the system knows alternatives but fails to rank them as becoming relevant. Future Branch should model not only outcomes inside the current method but also the possibility that the method, tool, carrier, or abstraction itself should change.",
+  "interpretation": "Future Branch now has its first fully scored useful hit: the leading Tiny Seed publish branch resolved exactly, all safe downstream work reached a verified READY_TO_FLASH handoff, and execution stopped at the correct physical boundary. Prediction coverage remains early and strategy-pivot misses still matter, but execution discipline is materially stronger than the first samples.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
