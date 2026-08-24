@@ -1,36 +1,45 @@
 {
-  "schema": "aurum-tinyseed-physical-preflight-v1",
-  "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
-  "release": {
-    "state": "READY_TO_FLASH",
-    "source_commit": "468f02e0a64e222a9e693c793d68c756df720309",
-    "x86_artifact": "Aurum-TinySeed-amd64.iso",
-    "x86_sha256": "59f65b1161484ba583f9cbc02758b5edb4fdbc7a085b29ba6cc6e3d898e8b6c9"
+  "destructive_action_performed": false,
+  "invariants": {
+    "full_raw_readback_required_after_write": true,
+    "guardian_forced_rollback_proof_required": true,
+    "physical_boot_proof_required_after_flash": true,
+    "preserve_hopper_existing_recovery_media": true,
+    "reprove_raw_usb_identity_before_write": true
   },
+  "next_gate": "fresh-read-only-usb-discovery",
+  "prior_one_shot_request": {
+    "authority_must_be_reissued_explicitly": true,
+    "expired_at_utc": "2026-08-24T12:20:00Z",
+    "flash_receipt_present": false,
+    "request_id": "tinyseed-crayola-flash-20260824-0739",
+    "state": "EXPIRED_UNUSED"
+  },
+  "release": {
+    "source_commit": "6744b920a27453a480e2795e2251b0c9cdd3a917",
+    "state": "READY_TO_FLASH",
+    "x86_artifact": "Aurum-TinySeed-amd64.iso",
+    "x86_sha256": "f179653005381edd427f7e516af921007120d57edde0b1972d68fb6241c93989"
+  },
+  "schema": "aurum-tinyseed-physical-preflight-v1",
+  "stale_reason": "release-identity-changed",
+  "state": "WAIT_FRESH_USB_DISCOVERY",
   "usb_discovery": {
-    "request_id": "tinyseed-crayola-reread-20260824-0733",
-    "observed_at_utc": "2026-08-24T11:33:53.9820329Z",
-    "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
-    "eligible_count": 1,
     "candidate": {
       "disk_number": 2,
-      "model": "USB SanDisk 3.2 Gen",
-      "size_bytes": 61524148224,
-      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
       "is_boot": false,
-      "is_system": false,
       "is_read_only": false,
-      "protected": false
-    }
+      "is_system": false,
+      "model": "USB SanDisk 3.2 Gen",
+      "protected": false,
+      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+      "size_bytes": 61524148224
+    },
+    "eligible_count": 1,
+    "observed_at_utc": "2026-08-24T11:33:53.9820329Z",
+    "request_id": "tinyseed-crayola-reread-20260824-0733",
+    "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
+    "valid_for_current_release": false
   },
-  "write_authority": false,
-  "destructive_action_performed": false,
-  "next_gate": "explicit-guarded-flash-authorization",
-  "invariants": {
-    "preserve_hopper_existing_recovery_media": true,
-    "reprove_raw_usb_identity_before_write": true,
-    "full_raw_readback_required_after_write": true,
-    "physical_boot_proof_required_after_flash": true,
-    "guardian_forced_rollback_proof_required": true
-  }
+  "write_authority": false
 }
