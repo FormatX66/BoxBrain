@@ -146,6 +146,9 @@ class ReseedGermTests(unittest.TestCase):
                 (root / "etc/NetworkManager/conf.d/10-aurum-resolved.conf").read_text(encoding="utf-8"),
                 "[main]\ndns=systemd-resolved\nrc-manager=symlink\n",
             )
+            resolver_text = resolver.read_text(encoding="utf-8")
+            self.assertIn("Before=NetworkManager.service aurum-pc-console.service", resolver_text)
+            self.assertNotIn("Before=NetworkManager.service systemd-resolved.service", resolver_text)
             wants = root / "etc/systemd/system/multi-user.target.wants"
             self.assertEqual((wants / resolver.name).readlink(), Path("../aurum-resolver-link.service"))
             self.assertEqual(
@@ -158,6 +161,11 @@ class ReseedGermTests(unittest.TestCase):
             self.assertTrue(repair["boot_proof_enabled"])
             self.assertTrue(repair["recovery_poll_timer_enabled"])
             self.assertTrue(repair["triage_unit_installed"])
+
+    def test_x86_live_resolver_link_does_not_order_before_early_boot_resolved(self) -> None:
+        build_script = Path(__file__).with_name("build-x86-tinyseed.sh").read_text(encoding="utf-8")
+        self.assertIn("Before=NetworkManager.service", build_script)
+        self.assertNotIn("Before=NetworkManager.service systemd-resolved.service", build_script)
 
     def test_bridge_does_not_install_dangling_resolver_without_resolved(self) -> None:
         with tempfile.TemporaryDirectory() as td:

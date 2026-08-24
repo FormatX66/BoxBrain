@@ -222,7 +222,7 @@ cat > "$SYSTEMD/aurum-resolver-link.service" <<'EOF'
 [Unit]
 Description=Restore the Tiny Seed live resolver link
 After=local-fs.target
-Before=NetworkManager.service systemd-resolved.service
+Before=NetworkManager.service
 [Service]
 Type=oneshot
 ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
