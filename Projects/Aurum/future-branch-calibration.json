@@ -97,25 +97,37 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 0
+    },
+    {
+      "event": "future-branch-prepared-state-drift-007",
+      "actual_family": "prepared-state-invalidated-by-new-canonical-evidence",
+      "nearest_prior_family": "tinyseed-artifacts-pass-and-publish",
+      "prediction": "partial",
+      "execution": "complete",
+      "reason": "The system correctly treated same-revision release identity as important, but did not explicitly predict that a newer verified Tiny Seed handoff could make an already persisted physical preflight stale. The stale source commit and x86 hash were detected before any write, current read-only USB evidence was re-bound to the current handoff, and the handoff workflow was changed to invalidate physical preflight automatically whenever canonical release identity changes.",
+      "correction": "Prepared state is only warm while its provenance remains current. Treat release/hash/device-evidence changes as first-class invalidation branches and discard/rebuild stale speculative state before physical or irreversible actions.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 6,
+    "events": 7,
     "prediction_accuracy_weighted": 0.5,
-    "execution_completeness_weighted": 0.833333,
-    "useful_hit_rate": 0.166667,
+    "execution_completeness_weighted": 0.857143,
+    "useful_hit_rate": 0.142857,
     "exact_predictions": 2,
-    "partial_predictions": 2,
+    "partial_predictions": 3,
     "miss_predictions": 2,
-    "execution_complete_or_boundary_correct": 5,
+    "execution_complete_or_boundary_correct": 6,
     "execution_prepared": 0,
     "execution_partial": 0,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
-    "assumptions_corrected_before_user_impact": 5
+    "assumptions_corrected_before_user_impact": 6
   },
-  "interpretation": "Future Branch now has its first fully scored useful hit: the leading Tiny Seed publish branch resolved exactly, all safe downstream work reached a verified READY_TO_FLASH handoff, and execution stopped at the correct physical boundary. Prediction coverage remains early and strategy-pivot misses still matter, but execution discipline is materially stronger than the first samples.",
+  "interpretation": "Future Branch has one exact useful hit and a growing set of useful self-corrections. The latest natural-world sample exposed a new class: prepared work can become invalid when canonical provenance changes. The fix now invalidates stale physical preflight automatically before a later action can consume it. The useful-hit fraction is lower only because the denominator gained a partial sample; execution discipline improved to six of seven complete or boundary-correct outcomes.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
