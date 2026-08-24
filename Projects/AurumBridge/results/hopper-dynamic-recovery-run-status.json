@@ -1,7 +1,7 @@
 {
-  "schema": "aurum.dynamic-recovery-run-status.v1",
-  "observed_at": "2026-08-24T21:09:04.880099Z",
-  "latest": {
+  "schema": "aurum.recovery-run-status.v2",
+  "observed_at": "2026-08-24T21:09:55.132968Z",
+  "dynamic_latest": {
     "conclusion": "",
     "createdAt": "2026-08-24T21:07:55Z",
     "databaseId": 32777802714,
@@ -12,7 +12,18 @@
     "updatedAt": "2026-08-24T21:08:56Z",
     "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777802714"
   },
-  "recent": [
+  "linux_latest": {
+    "conclusion": "",
+    "createdAt": "2026-08-24T21:03:13Z",
+    "databaseId": 32777359732,
+    "event": "push",
+    "headSha": "12f79c241c7cd787ce0554f14a410542eb386c4c",
+    "startedAt": "2026-08-24T21:03:13Z",
+    "status": "queued",
+    "updatedAt": "2026-08-24T21:03:13Z",
+    "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777359732"
+  },
+  "dynamic_recent": [
     {
       "conclusion": "",
       "createdAt": "2026-08-24T21:07:55Z",
@@ -45,6 +56,19 @@
       "status": "completed",
       "updatedAt": "2026-08-24T21:08:56Z",
       "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777550507"
+    }
+  ],
+  "linux_recent": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-08-24T21:03:13Z",
+      "databaseId": 32777359732,
+      "event": "push",
+      "headSha": "12f79c241c7cd787ce0554f14a410542eb386c4c",
+      "startedAt": "2026-08-24T21:03:13Z",
+      "status": "queued",
+      "updatedAt": "2026-08-24T21:03:13Z",
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777359732"
     }
   ]
 }
