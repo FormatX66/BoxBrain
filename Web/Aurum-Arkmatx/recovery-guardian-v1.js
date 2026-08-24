@@ -2,9 +2,10 @@
  * AURUM_RECOVERY_GUARDIAN_V1_1_CANONICAL
  * AURUM_RECOVERY_GUARDIAN_V1_2_CANONICAL
  * AURUM_RECOVERY_GUARDIAN_V1_3_CANONICAL
+ * AURUM_RECOVERY_GUARDIAN_V1_4_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Surfaces protected reseed/recovery evidence while keeping repository/CI proof,
- * boot-boundary safety logic, and physical promotion/rollback proof distinct.
+ * Tiny Seed build-lane proof, boot-boundary safety logic, and physical recovery proof distinct.
  */
 (()=>{
 'use strict';
@@ -13,12 +14,15 @@ window.__aurumRecoveryGuardianV1=true;
 const API='https://api.github.com/repos/FormatX66/BoxBrain';
 const DOC_URL='https://github.com/FormatX66/BoxBrain/blob/main/docs/architecture/SEED_RECOVERY_ARCHITECTURE.md';
 const GENETICS_DOC_URL='https://github.com/FormatX66/BoxBrain/blob/main/docs/architecture/RESEED_GENETICS_ARCHITECTURE.md';
+const OPERATOR_CONTRACT_URL='https://github.com/FormatX66/BoxBrain/blob/main/Projects/Aurum/OPERATOR_CONTRACT.md';
 const STATUS_URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Aurum/Germ/STATUS.md';
 const MANIFEST_URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Aurum/Germ/GENETICS.json';
 const GERM_URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Aurum/Germ/reseed.py';
 const GUARDIAN_URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Aurum/Germ/guardian.py';
 const TINYSEED_URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/Aurum/Germ/tinyseed.py';
 const GERM_WORKFLOW='Aurum Reseed Germ';
+const TINY_X86_WORKFLOW='Aurum Tiny Seed x86';
+const TINY_PI_WORKFLOW='Aurum Tiny Seed Pi ARM64';
 const INVARIANT='No new state may destroy the last proven working state.';
 const REGROWTH_INVARIANT='Any viable germ-bearing seed must be able to regrow directly into the current trusted genetics without replaying every intermediate generation.';
 const FLOW='proven local state → snapshot → resolve genetics → grow inactive candidate → arm trial → boot-boundary activation → physical/runtime health gate → promote → new LKG';
@@ -31,20 +35,24 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const activeRun=r=>['queued','in_progress','waiting','requested','pending'].includes(String(r?.status||''));
 const failedRun=r=>['failure','timed_out','startup_failure','action_required'].includes(String(r?.conclusion||''));
 const runText=r=>!r?'no current workflow evidence':activeRun(r)?String(r.status):r.conclusion||r.status||'unknown';
+const newest=(runs,name)=>runs.filter(r=>String(r.name||'')===name).sort((a,b)=>new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at))[0]||null;
+const buildLaneState=s=>failedRun(s.tinyX86Run)||failedRun(s.tinyPiRun)?'needs-work':activeRun(s.tinyX86Run)||activeRun(s.tinyPiRun)?'building':s.tinyX86Run?.conclusion==='success'&&s.tinyPiRun?.conclusion==='success'?'green':'incomplete';
+const liveProblem=s=>failedRun(s.tinyX86Run)?`${TINY_X86_WORKFLOW} ${runText(s.tinyX86Run)}`:failedRun(s.tinyPiRun)?`${TINY_PI_WORKFLOW} ${runText(s.tinyPiRun)}`:failedRun(s.run)?`${GERM_WORKFLOW} ${runText(s.run)}`:'';
+const activeProblem=s=>activeRun(s.tinyX86Run)?`${TINY_X86_WORKFLOW} ${runText(s.tinyX86Run)}`:activeRun(s.tinyPiRun)?`${TINY_PI_WORKFLOW} ${runText(s.tinyPiRun)}`:activeRun(s.run)?`${GERM_WORKFLOW} ${runText(s.run)}`:'';
 const style=document.createElement('style');
 style.id='aurumRecoveryGuardianStyle';
 style.textContent=`
 .recovery-law{margin-top:9px;border:1px solid #4d467f;border-radius:10px;background:#171629;padding:8px 9px;color:#cbc7ff;font-size:10px;font-weight:850}.recovery-law small{display:block;margin-top:3px;color:#9099ad;font-size:9px;font-weight:650}.recovery-guide{margin-top:10px;border:1px solid #3c386a;border-radius:12px;background:#121421;padding:11px}.recovery-guide h4{margin:0 0 6px;font-size:11px;color:#cbc7ff;text-transform:uppercase;letter-spacing:.07em}.recovery-guide p,.recovery-guide li{font-size:10.5px;line-height:1.48;color:#939caf}.recovery-guide p{margin:4px 0}.recovery-guide ol,.recovery-guide ul{margin:6px 0 0;padding-left:18px}.recovery-guide a{color:#bcb7ff;font-weight:750;text-decoration:none}.recovery-guide a:hover{text-decoration:underline}.recovery-owner{margin-top:8px;padding-top:8px;border-top:1px solid #343164;color:#8f99ad;font-size:9.5px;line-height:1.42}.recovery-owner b{color:#bcb7ff}.recovery-proof{display:grid;grid-template-columns:165px minmax(0,1fr);gap:5px 9px;margin:7px 0 9px}.recovery-proof b{color:#cfd3df;font-size:10px}.recovery-proof span{min-width:0;overflow-wrap:anywhere}@media(max-width:680px){.recovery-proof{grid-template-columns:1fr}}
 `;
 document.head.appendChild(style);
-let state={phase:'checking',manifest:null,germPresent:false,guardianPresent:false,tinySeedPresent:false,bootBoundaryTrialPresent:false,physicalX86GatePresent:false,tinySeedRepairSafetyPresent:false,statusFrontierPresent:false,run:null,error:''};
+let state={phase:'checking',manifest:null,germPresent:false,guardianPresent:false,tinySeedPresent:false,bootBoundaryTrialPresent:false,physicalX86GatePresent:false,tinySeedRepairSafetyPresent:false,statusFrontierPresent:false,run:null,tinyX86Run:null,tinyPiRun:null,error:''};
 function card(){return $('#systems [data-id="recovery"]')}
 function ensureCard(){
  const systems=$('#systems');if(!systems)return null;
  let c=card();
  if(!c){
   c=document.createElement('button');c.type='button';c.className='card';c.dataset.id='recovery';
-  c.innerHTML='<div class="card-head"><div class="card-icon">⟲</div><span class="pill running">Checking</span></div><h3>Recovery Guardian</h3><p>Protected reseed germ, A/B + LKG survival layer, boot-boundary trials, physical promotion gates and rollback.</p><div class="evidence">Checking current genetics/recovery evidence…</div><div class="recovery-law">Protect the last proven state.<small>Git stores the genetics. Seeds carry the germ. Software guardrails do not equal physical recovery proof.</small></div>';
+  c.innerHTML='<div class="card-head"><div class="card-icon">⟲</div><span class="pill running">Checking</span></div><h3>Recovery Guardian</h3><p>Protected reseed germ, A/B + LKG survival layer, boot-boundary trials, Tiny Seed build lanes and rollback.</p><div class="evidence">Checking current genetics/recovery evidence…</div><div class="recovery-law">Protect the last proven state.<small>Git stores the genetics. Seeds carry the germ. Build lanes and physical recovery proof stay separate.</small></div>';
   systems.appendChild(c);
  }
  return c;
@@ -53,9 +61,9 @@ function phase(){
  if(state.error)return'unknown';
  if(!state.manifest||!state.germPresent||!state.guardianPresent)return'attention';
  if(!state.bootBoundaryTrialPresent||!state.physicalX86GatePresent)return'attention';
- if(failedRun(state.run))return'attention';
- if(activeRun(state.run))return'building';
- if(state.run?.conclusion==='success')return'verified-germ';
+ if(liveProblem(state))return'attention';
+ if(activeProblem(state))return'building';
+ if(state.run?.conclusion==='success'&&buildLaneState(state)==='green')return'verified-germ';
  return'built-germ';
 }
 function manifestValid(m){return m?.schema==='aurum-genetics-v1'&&m?.germ_protocol===1&&m?.repository==='https://github.com/FormatX66/BoxBrain.git'&&m?.policy?.candidate_only_staging===true&&m?.policy?.live_overwrite_allowed===false&&m?.policy?.promotion_requires_health_evidence===true&&m?.policy?.resolve_immutable_commit_before_growth===true}
@@ -64,30 +72,36 @@ function render(){
  state.phase=phase();c.dataset.recoveryPhase=state.phase;
  const pill=$('.pill',c),evidence=$('.evidence',c);
  if(state.phase==='checking'){pill.className='pill running';pill.textContent='Checking';evidence.textContent='Checking current genetics/recovery evidence…'}
- else if(state.phase==='verified-germ'){pill.className='pill running';pill.textContent='Advancing';evidence.textContent=`Boot-boundary A/B/LKG guard + x86 physical promotion gate${state.tinySeedRepairSafetyPresent?' + repair-first Tiny Seed':''} are implemented; germ CI is green · hardware proof remains system work.`}
- else if(state.phase==='building'){pill.className='pill running';pill.textContent='Building';evidence.textContent=`Recovery safety code is present; ${GERM_WORKFLOW} is ${runText(state.run)} · physical promotion/rollback proof remains separate.`}
- else if(state.phase==='built-germ'){pill.className='pill running';pill.textContent='Built';evidence.textContent='Boot-boundary trial and x86 physical promotion guardrails are implemented · current CI proof is not established; physical recovery proof remains separate.'}
- else if(state.phase==='attention'){pill.className='pill failed';pill.textContent='Attention';evidence.textContent=`Recovery evidence problem: ${state.run&&failedRun(state.run)?`Reseed Germ workflow ${runText(state.run)}`:'current germ/guardian safety contract unavailable or incomplete'} · Aurum/system work; no human action inferred.`}
- else{pill.className='pill waiting';pill.textContent='Needs Work';evidence.textContent=`Recovery evidence unavailable${state.error?`: ${state.error}`:''} · Aurum/system evidence refresh; no human action inferred.`}
+ else if(state.phase==='verified-germ'){pill.className='pill running';pill.textContent='Advancing';evidence.textContent='Recovery guardrails + germ CI + x86/Pi Tiny Seed build lanes are green · physical boot/promotion/rollback proof remains system work.'}
+ else if(state.phase==='building'){pill.className='pill running';pill.textContent='Building';evidence.textContent=`Recovery safety code is present; ${activeProblem(state)} · physical proof remains separate.`}
+ else if(state.phase==='built-germ'){pill.className='pill running';pill.textContent='Built';evidence.textContent=`Boot-safe recovery software is present · Tiny Seed build-lane proof is ${buildLaneState(state)}; physical recovery proof remains separate.`}
+ else if(state.phase==='attention'){pill.className='pill failed';pill.textContent='Needs Work';evidence.textContent=`Recovery build/evidence problem: ${liveProblem(state)||'current germ/guardian safety contract unavailable or incomplete'} · Aurum/System; no human action inferred.`}
+ else{pill.className='pill waiting';pill.textContent='Needs Work';evidence.textContent=`Recovery evidence unavailable${state.error?`: ${state.error}`:''} · Aurum/System evidence refresh; no human action inferred.`}
  enhanceDetail();publish();
 }
 function enhanceDetail(){
  const c=card();if(!c||c.getAttribute('aria-expanded')!=='true')return;
  const detail=$('#detail');if(!detail||!detail.classList.contains('show'))return;
- const title=$('#detailTitle');if(title)title.textContent='Recovery Guardian — Boot-safe genetics + physical promotion gate';
- const text=$('#detailText');if(text)text.textContent='The software survival layer now keeps the active phenotype untouched while a trial is merely armed, switches only at a boot boundary, and requires fresh physical x86 evidence before promotion. That is stronger implementation evidence, not physical proof.';
+ const title=$('#detailTitle');if(title)title.textContent='Recovery Guardian — Boot-safe genetics + independent Tiny Seed lanes';
+ const text=$('#detailText');if(text)text.textContent='The recovery surface now reads the germ, Tiny Seed x86, and Tiny Seed Pi ARM64 workflows independently. One green lane cannot hide another failing lane, and none of those software/build proofs are treated as physical recovery proof.';
  const host=$('.guide-wrap',detail)||detail;
  let box=$('.recovery-guide',host);if(!box){box=document.createElement('div');box.className='recovery-guide';host.appendChild(box)}
  const m=state.manifest||{};
- box.innerHTML=`<h4>Current proof boundary</h4><div class="recovery-proof"><b>Reseed Germ</b><span>${esc(state.germPresent?'regrowth implementation present':'not verified present')}</span><b>A/B + LKG Guardian</b><span>${esc(state.guardianPresent?'runtime implementation present':'not verified present')}</span><b>Boot-boundary trial</b><span>${esc(state.bootBoundaryTrialPresent?'armed candidate does not replace the running phenotype; activation waits for boot preflight':'not verified in current guardian')}</span><b>x86 promotion gate</b><span>${esc(state.physicalX86GatePresent?'fresh first-boot selftest + physical desktop + input-ready evidence required before promotion':'not verified in current guardian')}</span><b>Tiny Seed repair safety</b><span>${esc(state.tinySeedRepairSafetyPresent?'one existing Aurum defaults to Repair/Reseed; ambiguous/no target stops without writing':'not verified in current Tiny Seed')}</span><b>Tiny Seed substrate</b><span>${esc(state.tinySeedPresent?'installer/bootstrap paths are in the current genetics manifest':'not verified present')}</span><b>Genetics manifest</b><span>${esc(manifestValid(m)?`compatible · schema ${m.schema} · protocol ${m.germ_protocol}`:'not verified compatible')}</span><b>Germ CI lane</b><span>${esc(runText(state.run))}</span><b>Current frontier record</b><span>${esc(state.statusFrontierPresent?'repository status keeps physical proof explicitly unresolved':'not verified present')}</span><b>Live overwrite</b><span>${esc(m?.policy?.live_overwrite_allowed===false?'prohibited':'not verified')}</span></div><p><b>Important:</b> the promotion code now refuses to treat a passing unit/selftest alone as sufficient on a rich x86 phenotype. It waits for fresh first-boot assessment and input readiness. Repository implementation or CI success still cannot label physical promotion/rollback as verified.</p><h4 style="margin-top:10px">Genetics / regrowth model</h4><p><b>${esc(INVARIANT)}</b></p><p>${esc(REGROWTH_INVARIANT)}</p><p><b>Healthy promotion:</b> ${esc(FLOW)}</p><p><b>Failure recovery:</b> ${esc(FAILURE)}</p><h4 style="margin-top:10px">Phase 1 survival layer</h4><ol>${PHASE1.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><h4 style="margin-top:10px">Needs Work → Aurum/System</h4><ul>${NOT_PROVEN.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="recovery-owner"><b>Your Actions:</b> ${esc(HUMAN_RULE)}</div><p style="margin-top:8px"><a href="${GENETICS_DOC_URL}" target="_blank" rel="noopener">Open genetics / reseed architecture ↗</a> · <a href="${DOC_URL}" target="_blank" rel="noopener">Open recovery architecture ↗</a></p>`;
+ const liveNeeds=[];
+ if(failedRun(state.tinyX86Run))liveNeeds.push(`${TINY_X86_WORKFLOW} is ${runText(state.tinyX86Run)}; diagnose/fix/reprove this build lane before calling x86 Tiny Seed green.`);
+ if(failedRun(state.tinyPiRun))liveNeeds.push(`${TINY_PI_WORKFLOW} is ${runText(state.tinyPiRun)}; diagnose/fix/reprove this build lane before calling Pi Tiny Seed green.`);
+ if(failedRun(state.run))liveNeeds.push(`${GERM_WORKFLOW} is ${runText(state.run)}; repair the software proof lane before advancing it.`);
+ const needs=liveNeeds.concat(NOT_PROVEN);
+ box.innerHTML=`<h4>Current proof boundary</h4><div class="recovery-proof"><b>Reseed Germ</b><span>${esc(state.germPresent?'regrowth implementation present':'not verified present')}</span><b>A/B + LKG Guardian</b><span>${esc(state.guardianPresent?'runtime implementation present':'not verified present')}</span><b>Boot-boundary trial</b><span>${esc(state.bootBoundaryTrialPresent?'armed candidate does not replace the running phenotype; activation waits for boot preflight':'not verified in current guardian')}</span><b>x86 promotion gate</b><span>${esc(state.physicalX86GatePresent?'fresh first-boot selftest + physical desktop + input-ready evidence required before promotion':'not verified in current guardian')}</span><b>Tiny Seed repair safety</b><span>${esc(state.tinySeedRepairSafetyPresent?'one existing Aurum defaults to Repair/Reseed; ambiguous/no target stops without writing':'not verified in current Tiny Seed')}</span><b>Tiny Seed substrate</b><span>${esc(state.tinySeedPresent?'installer/bootstrap paths are in the current genetics manifest':'not verified present')}</span><b>Genetics manifest</b><span>${esc(manifestValid(m)?`compatible · schema ${m.schema} · protocol ${m.germ_protocol}`:'not verified compatible')}</span><b>Germ CI lane</b><span>${esc(runText(state.run))}</span><b>Tiny Seed x86 lane</b><span>${esc(runText(state.tinyX86Run))}</span><b>Tiny Seed Pi ARM64 lane</b><span>${esc(runText(state.tinyPiRun))}</span><b>Combined Tiny Seed lanes</b><span>${esc(buildLaneState(state))}</span><b>Current frontier record</b><span>${esc(state.statusFrontierPresent?'repository status keeps physical proof explicitly unresolved':'not verified present')}</span><b>Live overwrite</b><span>${esc(m?.policy?.live_overwrite_allowed===false?'prohibited':'not verified')}</span></div><p><b>Important:</b> a successful repository/build lane proves only that lane. It cannot promote physical recovery maturity. Likewise, a failing build lane remains Needs Work even when a sibling lane is green.</p><h4 style="margin-top:10px">Completion standard</h4><p>A required gate that is failing, queued, skipped, or unverified is not done. Aurum should continue the safe consequence chain through diagnosis, re-test, publication/deployment, and resulting health checks. Workflow state alone never creates a human task.</p><h4 style="margin-top:10px">Genetics / regrowth model</h4><p><b>${esc(INVARIANT)}</b></p><p>${esc(REGROWTH_INVARIANT)}</p><p><b>Healthy promotion:</b> ${esc(FLOW)}</p><p><b>Failure recovery:</b> ${esc(FAILURE)}</p><h4 style="margin-top:10px">Phase 1 survival layer</h4><ol>${PHASE1.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><h4 style="margin-top:10px">Needs Work → Aurum/System</h4><ul>${needs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="recovery-owner"><b>Your Actions:</b> ${esc(HUMAN_RULE)}</div><p style="margin-top:8px"><a href="${OPERATOR_CONTRACT_URL}" target="_blank" rel="noopener">Open operator completion contract ↗</a> · <a href="${GENETICS_DOC_URL}" target="_blank" rel="noopener">Open genetics / reseed architecture ↗</a> · <a href="${DOC_URL}" target="_blank" rel="noopener">Open recovery architecture ↗</a></p>`;
 }
 function seedGuard(){
  const seed=$('#systems [data-id="seed"]');if(!seed)return;
  let note=$('.recovery-owner',seed);if(!note){note=document.createElement('div');note.className='recovery-owner';seed.appendChild(note)}
  note.innerHTML='<b>Genetics/recovery invariant:</b> grow into the inactive slot, leave the current phenotype untouched while the trial is armed, switch only at the boot boundary, and promote only after fresh health evidence.';
 }
+function runSnapshot(r){return r?{id:r.id,status:r.status,conclusion:r.conclusion,updatedAt:r.updated_at||null}:null}
 function publish(){
- const s={schema:'aurum-command-center-recovery-guardian-v1.3',architectureLocked:true,mandatoryBaseSeed:true,phase1:PHASE1.slice(),germImplementationEvidence:state.germPresent?'repository-present':'not-verified',guardianImplementationEvidence:state.guardianPresent?'ab-lkg-health-rollback-runtime-present':'not-verified',bootBoundaryTrialEvidence:state.bootBoundaryTrialPresent?'armed-without-live-switch-boot-preflight-activation':'not-verified',physicalX86PromotionGateEvidence:state.physicalX86GatePresent?'fresh-first-boot-desktop-input-required':'not-verified',tinySeedRepairSafetyEvidence:state.tinySeedRepairSafetyPresent?'repair-first-ambiguous-target-stops-without-write':'not-verified',tinySeedSubstrateEvidence:state.tinySeedPresent?'manifest-present':'not-verified',statusFrontierEvidence:state.statusFrontierPresent?'physical-proof-explicitly-unresolved':'not-verified',germManifestCompatible:manifestValid(state.manifest),germWorkflow:state.run?{id:state.run.id,status:state.run.status,conclusion:state.run.conclusion}:null,germSafetyContractVerified:state.run?.conclusion==='success',fullRecoveryImplementationEvidence:'software-survival-layer-present-hardware-proof-pending',physicalRecoveryProofInferred:false,needsWorkOwner:'aurum-system',humanActionInference:false,docUrl:DOC_URL,geneticsDocUrl:GENETICS_DOC_URL};
+ const s={schema:'aurum-command-center-recovery-guardian-v1.4',architectureLocked:true,mandatoryBaseSeed:true,phase1:PHASE1.slice(),germImplementationEvidence:state.germPresent?'repository-present':'not-verified',guardianImplementationEvidence:state.guardianPresent?'ab-lkg-health-rollback-runtime-present':'not-verified',bootBoundaryTrialEvidence:state.bootBoundaryTrialPresent?'armed-without-live-switch-boot-preflight-activation':'not-verified',physicalX86PromotionGateEvidence:state.physicalX86GatePresent?'fresh-first-boot-desktop-input-required':'not-verified',tinySeedRepairSafetyEvidence:state.tinySeedRepairSafetyPresent?'repair-first-ambiguous-target-stops-without-write':'not-verified',tinySeedSubstrateEvidence:state.tinySeedPresent?'manifest-present':'not-verified',statusFrontierEvidence:state.statusFrontierPresent?'physical-proof-explicitly-unresolved':'not-verified',germManifestCompatible:manifestValid(state.manifest),germWorkflow:runSnapshot(state.run),tinySeedX86Workflow:runSnapshot(state.tinyX86Run),tinySeedPiWorkflow:runSnapshot(state.tinyPiRun),tinySeedBuildLaneState:buildLaneState(state),tinySeedBuildFailureCreatesHumanAction:false,germSafetyContractVerified:state.run?.conclusion==='success',operatorCompletionContractVisible:true,completionRule:'required-failing-queued-skipped-or-unverified-gates-are-not-done',fullRecoveryImplementationEvidence:'software-survival-layer-present-hardware-proof-pending',physicalRecoveryProofInferred:false,needsWorkOwner:'aurum-system',humanActionInference:false,docUrl:DOC_URL,geneticsDocUrl:GENETICS_DOC_URL,operatorContractUrl:OPERATOR_CONTRACT_URL};
  window.__aurumRecoveryGuardianState=s;
  window.dispatchEvent(new CustomEvent('aurum-recovery-guardian-state',{detail:s}));
 }
@@ -112,9 +126,9 @@ async function refreshEvidence(){
   const statusFrontierPresent=frontier.includes('waiting for build/physical proof')&&frontier.includes('require fresh selftest + critical-service + physical desktop + input evidence')&&frontier.includes('promote on proof or automatically roll back to Gen0');
   const required=Array.isArray(manifest?.required_paths)?manifest.required_paths:[];
   const tinySeedPresent=['Projects/Aurum/Germ/installer.py','Projects/Aurum/Germ/tinyseed.py','Projects/Aurum/Germ/bootstrap_console.py','docs/architecture/TINY_SEED_BOOT_MEDIUM.md'].every(x=>required.includes(x));
-  const run=runs.filter(r=>String(r.name||'')===GERM_WORKFLOW).sort((a,b)=>new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at))[0]||null;
-  state={phase:'',manifest,germPresent,guardianPresent,tinySeedPresent,bootBoundaryTrialPresent,physicalX86GatePresent,tinySeedRepairSafetyPresent,statusFrontierPresent,run,error:''};
- }catch(e){state={phase:'unknown',manifest:null,germPresent:false,guardianPresent:false,tinySeedPresent:false,bootBoundaryTrialPresent:false,physicalX86GatePresent:false,tinySeedRepairSafetyPresent:false,statusFrontierPresent:false,run:null,error:e?.message||'request failed'}}
+  const run=newest(runs,GERM_WORKFLOW),tinyX86Run=newest(runs,TINY_X86_WORKFLOW),tinyPiRun=newest(runs,TINY_PI_WORKFLOW);
+  state={phase:'',manifest,germPresent,guardianPresent,tinySeedPresent,bootBoundaryTrialPresent,physicalX86GatePresent,tinySeedRepairSafetyPresent,statusFrontierPresent,run,tinyX86Run,tinyPiRun,error:''};
+ }catch(e){state={phase:'unknown',manifest:null,germPresent:false,guardianPresent:false,tinySeedPresent:false,bootBoundaryTrialPresent:false,physicalX86GatePresent:false,tinySeedRepairSafetyPresent:false,statusFrontierPresent:false,run:null,tinyX86Run:null,tinyPiRun:null,error:e?.message||'request failed'}}
  render();
 }
 let scheduled=false;function refresh(){scheduled=false;ensureCard();seedGuard();enhanceDetail()}function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(refresh)}
