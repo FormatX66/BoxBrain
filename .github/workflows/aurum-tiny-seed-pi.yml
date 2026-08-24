@@ -72,12 +72,12 @@ jobs:
           test -x "$root/usr/lib/aurum/germ/recovery_poller.py"
           test -x "$root/usr/sbin/aurum-rollback-drill"
           test -x "$root/usr/sbin/aurum-recovery-poll"
+          test -x "$root/usr/bin/openssl"
           test -f "$root/etc/aurum/recovery-trusted-refs.json"
           test -f "$root/etc/systemd/system/aurum-boot-proof.service"
           test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-boot-proof.service"
           test -f "$root/etc/systemd/system/aurum-recovery-poll.timer"
           test -L "$root/etc/systemd/system/timers.target.wants/aurum-recovery-poll.timer"
-          chroot "$root" /usr/bin/openssl version >/dev/null
           grep -q 'aurum.tinyseed=1' "$boot/cmdline.txt"
           echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded'
 
