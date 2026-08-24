@@ -16,10 +16,10 @@
     "state": "EXPIRED_UNUSED"
   },
   "release": {
-    "source_commit": "66fc7e1f9fc730d933e5fb2ff3b5ec1abb003a16",
+    "source_commit": "7d6bf52b09c056aad1cb62a5a50f69a82fc27d6f",
     "state": "READY_TO_FLASH",
     "x86_artifact": "Aurum-TinySeed-amd64.iso",
-    "x86_sha256": "c89bcb7d16a50633545cfbb69dc3055f9ec7a2c9d1055664758437412eb5723e"
+    "x86_sha256": "35bf11282156c9d931011fa6a8243b515219fb79bef96a33c51d7c6b86661ebb"
   },
   "schema": "aurum-tinyseed-physical-preflight-v1",
   "stale_reason": "release-identity-changed",
