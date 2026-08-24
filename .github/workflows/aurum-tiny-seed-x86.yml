@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
       - '.github/workflows/aurum-tiny-seed-x86.yml'
 
 permissions:
@@ -25,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof test_rollback_drill test_recovery_control)
 
       - name: Install VM tooling
         run: |
