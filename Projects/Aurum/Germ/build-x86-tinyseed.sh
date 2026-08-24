@@ -199,6 +199,17 @@ ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/triage.py
 StandardOutput=journal+console
 StandardError=journal+console
 EOF
+cat > "$SYSTEMD/aurum-resolver-link.service" <<'EOF'
+[Unit]
+Description=Restore the Tiny Seed live resolver link
+After=local-fs.target
+Before=NetworkManager.service systemd-resolved.service
+[Service]
+Type=oneshot
+ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+[Install]
+WantedBy=multi-user.target
+EOF
 cat > "$SYSTEMD/aurum-germ-preflight.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ preflight
@@ -226,8 +237,8 @@ EOF
 cat > "$SYSTEMD/aurum-tinyseed.service" <<'EOF'
 [Unit]
 Description=Aurum Tiny Seed setup
-After=NetworkManager.service systemd-resolved.service aurum-germ-preflight.service
-Wants=NetworkManager.service systemd-resolved.service
+After=aurum-resolver-link.service NetworkManager-wait-online.service systemd-resolved.service aurum-germ-preflight.service
+Wants=aurum-resolver-link.service NetworkManager-wait-online.service systemd-resolved.service
 Conflicts=getty@tty1.service
 OnFailure=aurum-triage.service
 [Service]
@@ -290,7 +301,7 @@ Unit=aurum-recovery-poll.service
 [Install]
 WantedBy=timers.target
 EOF
-for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
+for unit in aurum-resolver-link.service aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -s "../$unit" "$WANTS/$unit"
 done
 ln -s "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
@@ -311,7 +322,6 @@ cat > config/hooks/live/010-tinyseed.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed /usr/sbin/aurum-rollback-drill /usr/sbin/aurum-recovery-poll /usr/sbin/aurum-triage
-ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-tinyseed.hook.chroot
 

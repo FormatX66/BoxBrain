@@ -73,7 +73,7 @@ jobs:
             -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
             -drive if=pflash,format=raw,file="$RUNNER_TEMP/OVMF_VARS.fd" \
             -cdrom dist/Aurum-TinySeed-amd64.iso \
-            -boot d -display none -serial file:tinyseed-uefi.log -no-reboot
+            -boot d -nic user,model=e1000 -display none -serial file:tinyseed-uefi.log -no-reboot
           rc=$?
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
@@ -84,6 +84,7 @@ jobs:
           missing=0
           grep -q 'AURUM_TINYSEED_READY' tinyseed-uefi.log || missing=1
           grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-uefi.log || missing=1
+          grep -q 'AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true' tinyseed-uefi.log || missing=1
           if [ "$missing" -ne 0 ]; then
             echo 'UEFI boot smoke markers missing; serial evidence follows' >&2
             cat tinyseed-uefi.log 2>/dev/null || true
@@ -98,7 +99,7 @@ jobs:
           timeout 120 qemu-system-x86_64 \
             -machine pc -m 1024 -smp 2 \
             -cdrom dist/Aurum-TinySeed-amd64.iso \
-            -boot d -display none -serial file:tinyseed-bios.log -no-reboot
+            -boot d -nic user,model=e1000 -display none -serial file:tinyseed-bios.log -no-reboot
           rc=$?
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
@@ -109,6 +110,7 @@ jobs:
           missing=0
           grep -q 'AURUM_TINYSEED_READY' tinyseed-bios.log || missing=1
           grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-bios.log || missing=1
+          grep -q 'AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true' tinyseed-bios.log || missing=1
           if [ "$missing" -ne 0 ]; then
             echo 'BIOS boot smoke markers missing; serial evidence follows' >&2
             cat tinyseed-bios.log 2>/dev/null || true
@@ -129,6 +131,7 @@ jobs:
             usr/lib/aurum/germ/recovery_poller.py \
             etc/systemd/system/aurum-recovery-poll.timer \
             etc/NetworkManager/conf.d/10-aurum-resolved.conf \
+            etc/systemd/system/aurum-resolver-link.service \
             etc/systemd/system/multi-user.target.wants/systemd-resolved.service \
             usr/lib/systemd/systemd-resolved \
             usr/sbin/aurum-triage; do
@@ -137,10 +140,6 @@ jobs:
               exit 1
             fi
           done
-          if ! grep -Eq 'etc/resolv\.conf -> /run/systemd/resolve/stub-resolv\.conf$' tinyseed-payload.log; then
-            echo 'Tiny Seed resolver link does not target the live systemd-resolved stub' >&2
-            exit 1
-          fi
           echo 'AURUM_TINYSEED_X86_FAILURE_PREP_OK'
 
       - name: Upload boot diagnostics on failure

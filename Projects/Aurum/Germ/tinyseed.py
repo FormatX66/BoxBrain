@@ -39,6 +39,16 @@ def _title(step: str, subtitle: str) -> None:
     print(f"\n{step}\n{subtitle}\n")
 
 
+def _announce_online() -> None:
+    marker = "AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true"
+    print(marker, flush=True)
+    try:
+        with Path("/dev/ttyS0").open("w", encoding="utf-8") as serial:
+            serial.write(marker + "\n")
+    except OSError:
+        pass
+
+
 def _network_step() -> bool:
     while True:
         _title("1 · NETWORK", "Join Wi-Fi now so Aurum can regrow current trusted genetics.")
@@ -51,6 +61,7 @@ def _network_step() -> bool:
             return False
         if current.get("online"):
             print("✓ Network already connected. Nothing to do.")
+            _announce_online()
             return True
 
         try:
@@ -97,6 +108,7 @@ def _network_step() -> bool:
             password = None
         if network.wait_online():
             print(f"✓ {result.get('status')} — {item['ssid']}")
+            _announce_online()
             return True
         print("Wi-Fi associated, but no usable network route is ready yet.")
         input("\nPress Enter to rescan. ")
