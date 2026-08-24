@@ -1,0 +1,37 @@
+﻿{
+    "schema":  "aurum-pi3-read-only-probe-result-v1",
+    "observed_at_utc":  "2026-08-24T17:07:12.8824500Z",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "request_id":  "pi3-readonly-20260824-1239",
+    "state":  "NO_REACHABLE_PI3_RECEIPT",
+    "mutation_allowed":  false,
+    "promotion_allowed":  false,
+    "write_authority":  false,
+    "attempts":  [
+                     {
+                         "target_name":  "aurum-pi3.local",
+                         "tcp22_reachable":  false,
+                         "ssh_batch_mode":  false,
+                         "pi3_model_match":  false
+                     },
+                     {
+                         "target_name":  "aurum-pi3",
+                         "tcp22_reachable":  false,
+                         "ssh_batch_mode":  false,
+                         "pi3_model_match":  false
+                     },
+                     {
+                         "target_name":  "raspberrypi.local",
+                         "tcp22_reachable":  false,
+                         "ssh_batch_mode":  false,
+                         "pi3_model_match":  false
+                     },
+                     {
+                         "target_name":  "raspberrypi",
+                         "tcp22_reachable":  false,
+                         "ssh_batch_mode":  false,
+                         "pi3_model_match":  false
+                     }
+                 ],
+    "receipt":  null
+}
