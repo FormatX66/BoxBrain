@@ -43,13 +43,27 @@ class Pi3PhysicalProbeTests(unittest.TestCase):
         self.assertFalse(gate["accepted"])
         self.assertIn("missing-boot-receipt", gate["problems"])
 
-    def test_valid_receipt_builds_stateweave_kernel_trial_without_promotion(self):
+    def test_armv7_receipt_preserves_stateweave_but_holds_kernel_candidate(self):
         trial = build_observe_only_trial(self.sample())
-        self.assertEqual(trial["kernel_plan"]["action"], "stage-candidate")
+        self.assertEqual(trial["kernel_plan"]["action"], "hold")
+        self.assertEqual(
+            trial["kernel_plan"]["reason"],
+            "unsupported-or-insufficient-hardware",
+        )
         self.assertFalse(trial["kernel_plan"]["promotion_allowed"])
         self.assertFalse(trial["promotion_allowed"])
         self.assertEqual(trial["rollback_target"], "pi3-current-observed")
         self.assertIn("probe-mesh-read-only", trial["future_branch_next"])
+        self.assertEqual(trial["before"]["state"]["arch"] if "arch" in trial["before"]["state"] else self.sample()["arch"], "armv7l")
+
+    def test_aarch64_pi3_receipt_can_stage_candidate_without_promotion(self):
+        receipt = self.sample()
+        receipt["arch"] = "aarch64"
+        trial = build_observe_only_trial(receipt)
+        self.assertEqual(trial["kernel_plan"]["action"], "stage-candidate")
+        self.assertEqual(trial["kernel_plan"]["candidate"], "arm64-small")
+        self.assertFalse(trial["kernel_plan"]["promotion_allowed"])
+        self.assertFalse(trial["promotion_allowed"])
 
 
 if __name__ == "__main__":
