@@ -123,11 +123,15 @@ def build_observe_only_trial(receipt: dict[str, Any]) -> dict[str, Any]:
         lkg_profile="pi3-current-observed",
     )
     trial["physical_gate"] = gate
-    trial["future_branch_next"] = [
+    next_branches = [
         "capture-stateweave-before-change",
-        "evaluate-adaptive-kernel-candidate",
         "probe-mesh-read-only",
     ]
+    if trial["kernel_plan"]["action"] == "stage-candidate":
+        next_branches.append("stage-adaptive-kernel-candidate-observe-only")
+    else:
+        next_branches.append("keep-adaptive-kernel-held-on-current-arch")
+    trial["future_branch_next"] = next_branches
     return trial
 
 
