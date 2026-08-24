@@ -1,0 +1,15 @@
+{
+  "schema": "aurum-pi3-probe-request-v1",
+  "request_id": "pi3-readonly-20260824-1142",
+  "mode": "known-name-read-only",
+  "targets": [
+    "aurum-pi3.local",
+    "aurum-pi3",
+    "raspberrypi.local",
+    "raspberrypi"
+  ],
+  "mutation_allowed": false,
+  "promotion_allowed": false,
+  "write_authority": false,
+  "purpose": "Collect a real Pi3 receipt and live reachability evidence without changing boot, network, firmware, drivers, kernel state, or LKG."
+}
