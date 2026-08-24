@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 concurrency:
@@ -21,6 +21,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: true
       - name: Validate zero-new-authority request
         id: request
         shell: bash
@@ -41,11 +45,61 @@ jobs:
               raise SystemExit('request_id required')
           print(f'AURUM_HOPPER_RECOVERY_REQUEST_VALID request_id={request_id} new_authority=false media_write=false')
           PY
-      - name: Dispatch current Hopper recovery workflow
+      - name: Dispatch current Hopper recovery workflow and record queue state
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          request_id=$(python3 -c "import json; print(json.load(open('Projects/AurumBridge/requests/hopper-recovery-path-request.json'))['request_id'])")
+          before=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           gh workflow run aurum-hopper-recovery-path-probe.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo 'AURUM_HOPPER_RECOVERY_DISPATCHED target=aurum-hopper-recovery-path-probe.yml ref=main'
+          sleep 5
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow aurum-hopper-recovery-path-probe.yml --limit 10 \
+            --json databaseId,status,conclusion,headSha,createdAt,url,event > "$RUNNER_TEMP/recovery-runs.json"
+          python3 - "$RUNNER_TEMP/recovery-runs.json" "$request_id" "$before" <<'PY'
+          import datetime as dt, json, pathlib, sys
+          runs = json.load(open(sys.argv[1], encoding='utf-8'))
+          request_id, before = sys.argv[2], sys.argv[3]
+          threshold = dt.datetime.fromisoformat(before.replace('Z', '+00:00')) - dt.timedelta(seconds=10)
+          candidates = []
+          for run in runs:
+              try:
+                  created = dt.datetime.fromisoformat(str(run.get('createdAt')).replace('Z', '+00:00'))
+              except Exception:
+                  continue
+              if created >= threshold and run.get('event') == 'workflow_dispatch':
+                  candidates.append((created, run))
+          run = max(candidates, key=lambda x: x[0])[1] if candidates else None
+          payload = {
+              'schema': 'aurum.hopper.recovery-dispatch.v1',
+              'request_id': request_id,
+              'observed_at': dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00','Z'),
+              'target_workflow': 'aurum-hopper-recovery-path-probe.yml',
+              'run_found': run is not None,
+              'run_id': None if run is None else run.get('databaseId'),
+              'status': 'not-observed' if run is None else run.get('status'),
+              'conclusion': None if run is None else run.get('conclusion'),
+              'url': None if run is None else run.get('url'),
+              'head_sha': None if run is None else run.get('headSha'),
+              'new_authority_granted': False,
+              'media_write_authority': False,
+          }
+          out = pathlib.Path('Projects/AurumBridge/results/hopper-recovery-dispatch-latest.json')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(payload, sort_keys=True))
+          PY
+          git config user.name 'aurum-recovery-dispatch[bot]'
+          git config user.email 'aurum-recovery-dispatch@users.noreply.github.com'
+          git add Projects/AurumBridge/results/hopper-recovery-dispatch-latest.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Record Hopper recovery dispatch state [skip ci]'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((attempt * 2))
+          done
+          exit 1
