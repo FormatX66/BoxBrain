@@ -1,0 +1,8 @@
+{
+  "schema": "aurum.hopper.pi-kvm-cancellation.v1",
+  "observed_at": "2026-08-24T20:57:31.289187Z",
+  "ungated_head_sha": "acd6461b7462cfcaacff177406895ce858f55585",
+  "active_runs_cancelled": 0,
+  "current_kvm_workflow_requires_explicit_physical_authorization": true,
+  "new_authority_granted": false
+}
