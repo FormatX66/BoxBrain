@@ -13,6 +13,18 @@
     "miss": "The branch was named or predicted but its obvious safe implied work was not done or prepared.",
     "boundary-correct": "Execution correctly stopped at a genuine physical, destructive, credential, preference, or irreversible boundary."
   },
+  "calibration_policy": {
+    "default_mode": "natural-interaction",
+    "do_not_prompt_user_for_prediction_tests": true,
+    "score_from_normal_work": true,
+    "exclude_trivial_surface_predictions": [
+      "spelling mistakes",
+      "typos",
+      "punctuation quirks",
+      "routine wording variants"
+    ],
+    "meaningful_prediction_requirement": "A scored branch must predict useful intent, state, question, action, failure, opportunity, or boundary and materially reduce work or latency if prepared."
+  },
   "events": [
     {
       "event": "future-branch-meta-audit-001",
@@ -49,25 +61,37 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-natural-mode-transition-004",
+      "actual_family": "stop-explicit-meta-testing-and-train-through-normal-interaction",
+      "nearest_prior_family": null,
+      "prediction": "miss",
+      "execution": "complete",
+      "reason": "The prior branch field did not explicitly predict that the user would end deliberate logic games and move Future Branch into ordinary natural use. The resolving turn switched calibration to natural-interaction mode and excluded trivial typo/spelling predictions from scoring.",
+      "correction": "Treat transitions between explicit testing and natural use as plausible meta-state branches, but calibrate primarily from normal useful work rather than prompting for tests.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 3,
-    "prediction_accuracy_weighted": 0.666667,
-    "execution_completeness_weighted": 0.666667,
-    "useful_hit_rate": 0.333333,
+    "events": 4,
+    "prediction_accuracy_weighted": 0.5,
+    "execution_completeness_weighted": 0.75,
+    "useful_hit_rate": 0.25,
     "exact_predictions": 1,
     "partial_predictions": 2,
-    "miss_predictions": 0,
-    "execution_complete_or_boundary_correct": 2,
+    "miss_predictions": 1,
+    "execution_complete_or_boundary_correct": 3,
     "execution_prepared": 0,
     "execution_partial": 0,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
-    "assumptions_corrected_before_user_impact": 3
+    "assumptions_corrected_before_user_impact": 4
   },
-  "interpretation": "Early samples show prediction is ahead of execution. The priority is no longer merely generating better futures; it is converting high-ranked safe futures into prepared or executed state before the user asks.",
+  "interpretation": "Early samples show prediction is ahead of useful anticipation quality and natural-world coverage is still immature. The priority is to learn from ordinary work, convert high-ranked futures into prepared or executed state, and avoid gaming metrics with trivial wording or typo predictions.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
