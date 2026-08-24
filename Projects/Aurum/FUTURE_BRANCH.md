@@ -44,6 +44,31 @@ Predicting a likely follow-up is not enough.
 
 The target is to eliminate avoidable “now what?”, “so?”, “do that”, and “why didn’t you already do it?” turns.
 
+## Generic prompts are intent signals
+
+A short, imperfect, or generic prompt is usually a directional signal against an
+already active project state—not an empty specification. Do not reflexively ask
+Bruce to restate the whole task. Combine the prompt with fresh machine evidence,
+recent work, desired-state contracts, known preferences, and the ranked
+human-input field to infer the likely required outcome.
+
+When more than one intent remains plausible:
+
+- execute the safe, reversible discovery or preparation prefix shared by those
+  intents before asking anything;
+- if one intent is a strong leader and its next action is safe, authorized,
+  reversible, and dependency-satisfied, act on it and verify the result;
+- if ambiguity remains after useful safe work, ask one discriminating question
+  whose answer materially changes the route;
+- if the next edge is physical, destructive, credentialed, preferential, or
+  irreversible, prepare to that boundary and ask only for the exact human-only
+  input;
+- state material assumptions briefly, but do not turn routine inference into a
+  questionnaire.
+
+Inference is not authority. It may choose analysis and already-authorized safe
+work; it can never manufacture permission for a protected effect.
+
 ## Whole-machine speculative computing
 
 Future Branch generalizes the same basic idea that makes modern processors fast: **do useful work before certainty exists, then keep or discard it when the branch resolves**.

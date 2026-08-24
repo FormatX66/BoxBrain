@@ -7,6 +7,8 @@ Future Branch is the operating spine for Aurum/BoxBrain. It is not only predicti
 ```text
 observe verified state
   -> separate facts / assumptions / unknowns / authority
+  -> expand short/generic prompt into likely required outcome from live context
+  -> execute the safe prefix shared by plausible intents before asking
   -> infer likely goal + likely next questions
   -> fan out useful futures:
        success / failure / likely causes / recovery / next actions / alternates
@@ -62,6 +64,11 @@ observe verified state
     - what can be safely prepared now?
     - what execution route avoids unnecessary human work?
     - what evidence proves success?
+16. A short or generic prompt is direction, not a blocker. Infer likely intent from
+    verified state, recent work, project contracts, and calibrated human-input
+    branches. Execute shared safe work first; act on a strong safe leader; ask only
+    after useful preparation is exhausted or a real boundary remains. Inferred
+    intent never grants authority.
 
 ## Human availability behavior
 

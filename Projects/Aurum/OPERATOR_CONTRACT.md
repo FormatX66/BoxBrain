@@ -47,6 +47,12 @@ Use new evidence and Bruce's actual next input to correct assumptions, prune wro
 
 When a branch point does not require human authorization or a personal preference, consult Aurum's own state, desired-state contracts, health evidence, recovery rules, project intent, and prepared Future Branch field first. Prefer the action Aurum's evidence supports rather than bouncing the decision back to Bruce.
 
+Treat terse or generic prompts as high-level direction. First inspect the active
+state and infer the likely outcome Bruce is trying to reach. Execute safe work
+shared by plausible interpretations, or the strong safe leading interpretation,
+before asking for clarification. Brevity alone is not a blocker and does not reset
+the task to zero context.
+
 Ask Bruce only when the next action genuinely requires information that cannot be inferred from available evidence, authorization, physical intervention, an irreversible/risky choice, or a preference Aurum cannot infer safely.
 
 ## Recovery and safety rule

@@ -19,7 +19,11 @@
     "require_preexecution_toolside_recovery_before_manual_handoff": true,
     "model_mixed_gate_outcomes": true,
     "preserve_completed_work_across_partial_outcomes": true,
-    "ranking": "probability * impact * user_time_saved * preparation_leverage / cost"
+    "ranking": "probability * impact * user_time_saved * preparation_leverage / cost",
+    "treat_generic_prompt_as_direction": true,
+    "infer_required_outcome_from_live_state_and_history": true,
+    "execute_shared_safe_prefix_before_clarification": true,
+    "inferred_intent_never_grants_authority": true
   },
   "current_program": "Aurum Tiny Seed remains verified READY_TO_FLASH from source 66fc7e1f9fc730d933e5fb2ff3b5ec1abb003a16 with canonical x86 SHA-256 c89bcb7d16a50633545cfbb69dc3055f9ec7a2c9d1055664758437412eb5723e, but Future Branch is now a mandatory pre-execution gate. Before asking for Tiny Seed media or destructive write authority, Aurum must first complete the safe already-authorized Hopper recovery-path probe and checkpoint-first remote repair branch. No fresh terminal aurum.hopper.recovery-path-probe.v2 receipt is currently present, so that missing system evidence blocks a Tiny Seed human assignment. A direct-UEFI fallback carrier has separately passed protected Germ, raw-image/layout, checksum, and OVMF removable-media boot gates and was published experimentally on draft PR #76; it remains isolated and noncanonical until physical evidence justifies a carrier pivot.",
   "resolved_machine_outcomes": [
@@ -63,55 +67,62 @@
   "likely_user_inputs": [
     {
       "rank": 1,
+      "input_family": "generic-prompt-intent-expansion",
+      "examples": ["make it make sense", "keep going", "do the obvious next thing", "use Future Branch here", "fix it"],
+      "prepared_response": "Treat the prompt as direction against the active Aurum state. Infer the likely required outcome, state the material assumption briefly, and make safe measurable progress instead of asking Bruce to respecify context the machine already has.",
+      "action_if_safe": "Read fresh active state and desired-state contracts, rank likely intents, execute the reversible discovery/preparation prefix shared by them, then act on a strong safe leader. Ask only for the exact human-only edge after preparation; inferred intent never grants authority."
+    },
+    {
+      "rank": 2,
       "input_family": "status-or-so",
       "examples": ["so?", "how's it going?", "what's the status now?"],
       "prepared_response": "Report READY_TO_FLASH separately from the active recovery boundary. The artifact is ready, but the new mandatory Future Branch pre-execution Hopper recovery pass has not yet produced a fresh terminal v2 receipt, so there is no Tiny Seed human action right now.",
       "action_if_safe": "Read the live handoff, current recovery-path receipt, control-route proof, USB evidence, and Recovery Guardian state together. Advance every safe remote/system branch first and expose only the smallest remaining human edge after terminal evidence."
     },
     {
-      "rank": 2,
+      "rank": 3,
       "input_family": "explicit-guarded-flash-authorization",
       "examples": ["go ahead and flash the test USB", "authorize the flash", "use that USB"],
       "prepared_response": "Do not consume or request destructive authority while the mandatory pre-execution recovery pass is missing, stale, incompatible, or has completed a remote repair. First finish the safe Hopper recovery branch; only a fresh terminal unrepaired result can release the separately verified Tiny Seed write-authority boundary.",
       "action_if_safe": "If and only if the fresh pre-execution recovery receipt is terminal and unrepaired, revalidate the current release and exact USB identity, then require a new one-shot authorization bound to that provenance before any write."
     },
     {
-      "rank": 3,
+      "rank": 4,
       "input_family": "physical-media-change-before-flash",
       "examples": ["I unplugged it", "I moved the USB", "a different drive is connected"],
       "prepared_response": "Any physical-device change invalidates the candidate assumption. Re-run zero-authority discovery and never reuse the prior disk number or identity evidence.",
       "action_if_safe": "Discard stale media identity and repeat read-only discovery; keep write authority false until both the pre-execution recovery gate and a unique current-release candidate are proven again."
     },
     {
-      "rank": 4,
+      "rank": 5,
       "input_family": "physical-result-mixed",
       "examples": ["it booted but Wi-Fi isn't working", "I'm in but it says offline", "READY but regrow didn't finish"],
       "prepared_response": "Treat boot/install progress as durable evidence, not a failed attempt. Keep the bridge/LKG state, use the live retry/rescan or Join Wi-Fi path, then resume regrow against the already prepared root without repeating destructive work.",
       "action_if_safe": "Preserve completed stages, repair only the failed/deferred next gate, resume current genetics regrow when network proof exists, and still require formal boot-proof plus Guardian evidence before promotion claims."
     },
     {
-      "rank": 5,
+      "rank": 6,
       "input_family": "physical-result-failure",
       "examples": ["it didn't boot", "blank screen", "nothing happened", "setup is stuck", "network won't connect"],
       "prepared_response": "Use Tiny Seed boot-proof markers, direct route evidence, safe/verbose boot, read-only triage, and preserved diagnostics to classify the exact failed stage without touching LKG. The direct-UEFI fallback is warm but remains isolated until the failure is shown to be carrier-specific.",
       "action_if_safe": "Apply the smallest evidence-driven fix to a candidate path, preserve Gen0/LKG, and promote the alternate carrier branch only if physical evidence makes the canonical carrier more expensive or specifically at fault."
     },
     {
-      "rank": 6,
+      "rank": 7,
       "input_family": "physical-result-success",
       "examples": ["it booted", "I'm in", "that worked"],
       "prepared_response": "Verify ready/boot-proof receipts and immediately continue the protected Repair/Reseed flow rather than asking what to do next.",
       "action_if_safe": "Confirm Gen0 as slot A/LKG, grow current genetics only into inactive slot B, collect health evidence, and stop at any reboot/physical boundary that cannot be crossed remotely."
     },
     {
-      "rank": 7,
+      "rank": 8,
       "input_family": "seed-method-pivot",
       "examples": ["should we switch seed methods?", "is the ISO still the wrong way?", "should we use the direct UEFI or universal carrier instead?"],
       "prepared_response": "A direct-UEFI fallback now has virtual Passed + Published proof, but it is deliberately isolated. Keep it warm; do not pivot the canonical release merely because the fallback passes virtually. Promote it toward physical testing only if Hopper evidence demonstrates carrier-specific failure or lower expected total cost.",
       "action_if_safe": "Compare fresh physical evidence against the canonical carrier and preserve the same Germ/genetics/LKG contract across any candidate pivot."
     },
     {
-      "rank": 8,
+      "rank": 9,
       "input_family": "future-branch-self-audit",
       "examples": ["did it predict that?", "was that branch warm?", "what did predictions actually save?"],
       "prepared_response": "Score honestly and include the new pre-execution doctrine: a manual handoff is not a completed branch when a safe remote recovery path remains. Count the direct-UEFI lane only as experimental virtual proof until physical evidence exists.",

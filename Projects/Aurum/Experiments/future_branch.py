@@ -26,6 +26,14 @@ class LookaheadMode(str, Enum):
     TO_BOUNDARY = "to-boundary"
 
 
+class IntentRoute(str, Enum):
+    EXECUTE_SHARED_SAFE_PREFIX = "execute-shared-safe-prefix"
+    EXECUTE_LEADING_INTENT = "execute-leading-intent"
+    PREPARE_THEN_WAIT_BOUNDARY = "prepare-then-wait-boundary"
+    PREPARE_RANKED_FIELD = "prepare-ranked-field"
+    ASK_DISCRIMINATING_QUESTION = "ask-discriminating-question"
+
+
 @dataclass(frozen=True)
 class FutureBranch:
     name: str
@@ -66,6 +74,81 @@ class FutureBranch:
                 self.irreversible_boundary,
             )
         )
+
+
+@dataclass(frozen=True)
+class IntentInference:
+    """Evidence for expanding a short or generic prompt into useful work."""
+
+    prompt_specificity: float
+    top_probability: float
+    runner_up_probability: float
+    wrong_branch_cost: float
+    observed_state_available: bool
+    shared_safe_prefix_available: bool = False
+    leading_action_safe_reversible: bool = False
+    leading_dependencies_satisfied: bool = False
+    human_boundary_after_preparation: bool = False
+
+    def validate(self) -> None:
+        for name, value in (
+            ("prompt_specificity", self.prompt_specificity),
+            ("top_probability", self.top_probability),
+            ("runner_up_probability", self.runner_up_probability),
+        ):
+            if not 0 <= value <= 1:
+                raise ValueError(f"{name} must be between 0 and 1")
+        if self.runner_up_probability > self.top_probability:
+            raise ValueError("runner_up_probability cannot exceed top_probability")
+        if self.wrong_branch_cost < 0:
+            raise ValueError("wrong_branch_cost must be non-negative")
+
+
+def route_inferred_intent(signal: IntentInference) -> dict:
+    """Route generic prompts from evidence instead of treating brevity as a blocker.
+
+    Inference never creates authority. A safe prefix shared by plausible intents is
+    useful even before one intent wins, so it executes first. Otherwise a strong,
+    low-cost leader may execute when it is already safe and dependency-complete.
+    Ambiguous fields with live state are prepared before interrupting the operator.
+    """
+    signal.validate()
+    spread = signal.top_probability - signal.runner_up_probability
+    strong_leader = (
+        signal.top_probability >= 0.72
+        and spread >= 0.18
+        and signal.wrong_branch_cost < 2.0
+    )
+
+    if signal.shared_safe_prefix_available:
+        route = IntentRoute.EXECUTE_SHARED_SAFE_PREFIX
+        ask_user = signal.human_boundary_after_preparation
+    elif (
+        strong_leader
+        and signal.leading_action_safe_reversible
+        and signal.leading_dependencies_satisfied
+        and not signal.human_boundary_after_preparation
+    ):
+        route = IntentRoute.EXECUTE_LEADING_INTENT
+        ask_user = False
+    elif signal.human_boundary_after_preparation:
+        route = IntentRoute.PREPARE_THEN_WAIT_BOUNDARY
+        ask_user = True
+    elif signal.observed_state_available:
+        route = IntentRoute.PREPARE_RANKED_FIELD
+        ask_user = False
+    else:
+        route = IntentRoute.ASK_DISCRIMINATING_QUESTION
+        ask_user = True
+
+    return {
+        "route": route.value,
+        "generic_prompt": signal.prompt_specificity < 0.5,
+        "strong_leader": strong_leader,
+        "ask_user": ask_user,
+        "inferred_intent_grants_authority": False,
+        "preparation_continues_to_boundary": True,
+    }
 
 
 def priority(branch: FutureBranch) -> float:

@@ -157,26 +157,38 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-generic-prompt-intent-expansion-012",
+      "actual_family": "generic-prompt-should-expand-from-live-context",
+      "nearest_prior_family": "future-branch-self-audit plus translate-shorthand-to-outcome",
+      "prediction": "partial",
+      "execution": "complete",
+      "reason": "The operator clarified that brief or generic prompts are exactly where Future Branch should infer the likely required outcome and obvious next work. Existing doctrine covered shorthand translation and self-audit, but the portable seed and executable router did not explicitly require shared safe work before clarification. That omission encouraged stagnant question loops even when live state supplied enough context.",
+      "correction": "Treat generic prompts as directional intent signals. Inspect active state, execute the safe reversible prefix shared by plausible intents, act on a strong safe leader, and ask only after useful preparation is exhausted or a real human boundary remains. Inferred intent never grants authority.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "events": 11,
-    "prediction_accuracy_weighted": 0.545455,
-    "execution_completeness_weighted": 0.818182,
-    "useful_hit_rate": 0.272727,
+    "events": 12,
+    "prediction_accuracy_weighted": 0.541667,
+    "execution_completeness_weighted": 0.833333,
+    "useful_hit_rate": 0.291667,
     "exact_predictions": 4,
-    "partial_predictions": 4,
+    "partial_predictions": 5,
     "miss_predictions": 3,
-    "execution_complete_or_boundary_correct": 8,
+    "execution_complete_or_boundary_correct": 9,
     "execution_prepared": 0,
     "execution_partial": 2,
     "execution_miss": 1,
     "user_turns_avoided": 0,
     "estimated_wait_seconds_saved": 0,
     "assumptions_corrected_before_user_impact": 7,
-    "assumptions_corrected_after_user_prompt": 1
+    "assumptions_corrected_after_user_prompt": 2
   },
-  "interpretation": "Future Branch has three exact useful hits, a meaningful physical partial hit, and a new topology-first miss. The USB-gateway miss is not inflated after the fact: the system anchored on the operator's word 'AP' and failed to inspect the already working shared USB path until corrected. That failure now drives explicit preparation signals to translate labels into outcomes, probe live topology and capabilities, and prefer verified reuse before inventing a new mechanism.",
+  "interpretation": "Future Branch now records two related operator-language corrections without inflating them after the fact: the USB-gateway topology miss and the partial generic-prompt intent-expansion hit. The shared correction is outcome-first operation: use live state and contracts to infer what must become true, perform safe evidence-gathering or preparation common to plausible intents, and interrupt Bruce only at a decision that actually changes the route or grants protected authority.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",

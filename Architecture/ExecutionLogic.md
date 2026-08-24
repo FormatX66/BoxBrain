@@ -55,7 +55,10 @@ Route choice never grants authority. All destructive, credential, privacy, physi
 
 Before doing meaningful work, answer internally and proportionally:
 
-1. **Intent:** What outcome is actually requested?
+1. **Intent:** What outcome is actually requested? Treat terse or generic wording
+   as directional evidence against the active state, history, and project
+   contracts. Do not reset to zero context or ask for a full restatement when a
+   safe shared prefix or strong evidence-supported intent can move the work.
 2. **Current state:** What is known from fresh evidence? Do not invent unseen state.
 3. **Required state:** What must become true for the request to be satisfied?
 4. **Delta:** What specifically differs between current and required state?

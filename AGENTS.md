@@ -18,6 +18,11 @@ If neither is possible, do not spend compute/usage performing it.
 
 ## Required behavior
 
+- Treat a short, imperfect, or generic prompt as directional evidence against the
+  active project state, not as a context reset. Infer the likely required outcome,
+  execute safe reversible work shared by plausible intents, and ask only when the
+  remaining answer changes the route or crosses a real human boundary. Inferred
+  intent never grants protected authority.
 - Prefer cached verified evidence and deterministic local work before model calls.
 - Deduplicate equivalent work and never replay a known state without a changed input, implementation, environment, evidence, hypothesis, dependency, or authority.
 - Distinguish `success`, `waiting`, `refused`, `blocked`, `no_change`, and `failed`.

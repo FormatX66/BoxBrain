@@ -36,6 +36,8 @@ class FutureBranchSpineTests(unittest.TestCase):
             "unattended precompute",
             "ran” ≠ “worked",
             "human chooses direction; machine clears the field",
+            "short/generic prompt as direction",
+            "inferred intent never grants authority",
         ):
             self.assertIn(item, text)
 

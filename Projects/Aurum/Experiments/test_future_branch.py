@@ -5,6 +5,8 @@ import unittest
 from future_branch import (
     Disposition,
     FutureBranch,
+    IntentInference,
+    IntentRoute,
     LookaheadMode,
     calibration_question_budget,
     disposition,
@@ -12,6 +14,7 @@ from future_branch import (
     lookahead_depth,
     lookahead_mode,
     rank_branches,
+    route_inferred_intent,
     should_ask_calibration,
 )
 
@@ -132,6 +135,65 @@ class FutureBranchTests(unittest.TestCase):
                 wrong_branch_cost=0.3,
             )
         )
+
+    def test_generic_prompt_executes_safe_prefix_shared_by_plausible_intents(self):
+        plan = route_inferred_intent(
+            IntentInference(
+                prompt_specificity=0.1,
+                top_probability=0.46,
+                runner_up_probability=0.41,
+                wrong_branch_cost=1.0,
+                observed_state_available=True,
+                shared_safe_prefix_available=True,
+            )
+        )
+        self.assertEqual(plan["route"], IntentRoute.EXECUTE_SHARED_SAFE_PREFIX.value)
+        self.assertFalse(plan["ask_user"])
+        self.assertFalse(plan["inferred_intent_grants_authority"])
+
+    def test_generic_prompt_executes_strong_safe_leading_intent(self):
+        plan = route_inferred_intent(
+            IntentInference(
+                prompt_specificity=0.2,
+                top_probability=0.88,
+                runner_up_probability=0.12,
+                wrong_branch_cost=0.3,
+                observed_state_available=True,
+                leading_action_safe_reversible=True,
+                leading_dependencies_satisfied=True,
+            )
+        )
+        self.assertEqual(plan["route"], IntentRoute.EXECUTE_LEADING_INTENT.value)
+        self.assertFalse(plan["ask_user"])
+
+    def test_generic_prompt_prepares_before_real_human_boundary(self):
+        plan = route_inferred_intent(
+            IntentInference(
+                prompt_specificity=0.15,
+                top_probability=0.82,
+                runner_up_probability=0.10,
+                wrong_branch_cost=0.4,
+                observed_state_available=True,
+                leading_action_safe_reversible=True,
+                leading_dependencies_satisfied=True,
+                human_boundary_after_preparation=True,
+            )
+        )
+        self.assertEqual(plan["route"], IntentRoute.PREPARE_THEN_WAIT_BOUNDARY.value)
+        self.assertTrue(plan["ask_user"])
+
+    def test_ambiguous_prompt_without_observed_state_asks_one_useful_question(self):
+        plan = route_inferred_intent(
+            IntentInference(
+                prompt_specificity=0.1,
+                top_probability=0.45,
+                runner_up_probability=0.40,
+                wrong_branch_cost=3.0,
+                observed_state_available=False,
+            )
+        )
+        self.assertEqual(plan["route"], IntentRoute.ASK_DISCRIMINATING_QUESTION.value)
+        self.assertTrue(plan["ask_user"])
 
 
 if __name__ == "__main__":
