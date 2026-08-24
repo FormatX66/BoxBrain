@@ -134,7 +134,7 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 live-build debian-archive-keyring debootstrap \
                 xorriso isolinux syslinux-common squashfs-tools \
-                grub-pc-bin grub-efi-amd64-bin dosfstools mtools
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools python3
               sh Projects/AurumPC/build-iso.sh
             '
           test -s dist/Aurum-PC-v0.01-amd64.iso
