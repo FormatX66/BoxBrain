@@ -2,23 +2,37 @@ AURUM TINY SEED — PHYSICAL HANDOFF
 
 This packet is consumed only after CI has produced AURUM-TINYSEED-RELEASE.json with state READY_TO_FLASH.
 
+Human-only boundary before destructive work:
+- Connect a disposable/test USB that is not the protected Gen0 recovery USB.
+- Keep it connected while Aurum performs read-only discovery and guarded preflight.
+- Do not authorize a write until the exact USB serial, artifact SHA-256, and non-system status have all been proven.
+
+Prepared Windows handoff tools:
+- List-TinySeed-Candidates-Windows.ps1 — read-only USB discovery. It reports serial, disk number, size, boot/system/read-only state, can exclude known protected recovery serials, and marks a unique eligible device SAFE_TO_PREFLIGHT_ONLY. It never writes media.
+- Flash-TinySeed-Windows.ps1 — checksum-pinned, exact-serial flasher. Run without -Write first. It refuses non-USB, boot/system, read-only, ambiguous, too-small, identity-changed, or checksum-mismatched targets. Only after dry-run proof and explicit confirmation may -Write be used. A full image-length raw readback SHA-256 must pass before the media is considered ready to boot.
+
 Required order on each physical target:
-1. Verify the artifact SHA-256 against AURUM-TINYSEED-RELEASE.json.
-2. Flash only the explicitly selected non-system target media.
-3. Read back or otherwise verify the written media before booting it.
-4. Boot the target from Tiny Seed.
-5. Require the boot console/journal to contain both:
+1. Verify the release state is READY_TO_FLASH and record the expected artifact SHA-256.
+2. Enumerate USB candidates read-only and identify the exact disposable/test media by serial. Protect known recovery-media serials when available.
+3. Run Flash-TinySeed-Windows.ps1 without -Write and require AURUM_TINYSEED_FLASH_DRY_RUN state=READY_FOR_EXPLICIT_WRITE.
+4. Obtain explicit destructive-write authority for that exact serial only.
+5. Run the guarded write and require AURUM_TINYSEED_FLASH_OK with raw_readback_verified=true.
+6. Boot the target from Tiny Seed.
+7. Require the boot console/journal to contain both:
    AURUM_TINYSEED_READY
    AURUM_BOOT_PROOF_READY
-6. Preserve /var/lib/aurum/evidence/boot-proof.json when the root is persistent, or capture the console marker on live media.
-7. Confirm Guardian state shows a valid A/B schema with an LKG slot before any regrow operation.
-8. Allow reseed/regrow to build only the inactive slot. Never overwrite LKG.
-9. Reboot into the armed trial and require Guardian health evidence before promotion.
-10. After a healthy promotion is proven, run the controlled rollback drill on a disposable candidate and require automatic return to LKG plus quarantine evidence.
+8. Preserve /var/lib/aurum/evidence/boot-proof.json when the root is persistent, or capture the console marker on live media.
+9. Confirm Guardian state shows a valid A/B schema with an LKG slot before any regrow operation.
+10. Allow reseed/regrow to build only the inactive slot. Never overwrite LKG.
+11. Reboot into the armed trial and require Guardian health evidence before promotion.
+12. After a healthy promotion is proven, run the controlled rollback drill on a disposable candidate and require automatic return to LKG plus quarantine evidence.
 
 Do not call physical boot proven from a VM smoke test. Do not call rollback proven from a unit test. Do not flash if the release manifest is missing, hashes disagree, or the target disk cannot be identified unambiguously.
 
 Evidence expected after the physical gates:
+- read-only USB discovery receipt naming the selected serial
+- guarded flasher dry-run receipt
+- full raw readback verification receipt
 - boot-proof.json or captured AURUM_BOOT_PROOF_READY receipt
 - Guardian slots.json before trial
 - Guardian slots.json after healthy promotion
