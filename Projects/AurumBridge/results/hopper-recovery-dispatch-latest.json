@@ -1,0 +1,14 @@
+{
+  "schema": "aurum.hopper.recovery-dispatch.v1",
+  "request_id": "hopper-preexecution-recovery-20260824-2053",
+  "observed_at": "2026-08-24T20:57:08.341738Z",
+  "target_workflow": "aurum-hopper-recovery-path-probe.yml",
+  "run_found": true,
+  "run_id": 32776787084,
+  "status": "in_progress",
+  "conclusion": "",
+  "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32776787084",
+  "head_sha": "dc2fa5eef03bc92c531c471c5cef8a1d2ed0d0b2",
+  "new_authority_granted": false,
+  "media_write_authority": false
+}
