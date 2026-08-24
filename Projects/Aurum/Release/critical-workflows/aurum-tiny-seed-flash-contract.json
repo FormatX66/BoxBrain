@@ -4,13 +4,13 @@
   "run_id": 32777478652,
   "run_number": 19,
   "run_attempt": 1,
-  "status": "queued",
+  "status": "in_progress",
   "conclusion": null,
   "event": "push",
   "head_sha": "c52cf1441be66c37f835ebd445e044e8364f09aa",
   "head_branch": "codex/tinyseed-preflight-v2-20260824",
   "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32777478652",
-  "updated_at": "2026-08-24T21:04:29Z",
+  "updated_at": "2026-08-24T21:04:32Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
