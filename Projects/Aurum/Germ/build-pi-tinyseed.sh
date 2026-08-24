@@ -59,7 +59,7 @@ chroot "$ROOT_MNT" /usr/bin/qemu-aarch64-static /bin/sh -lc '
   set -eu
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git ca-certificates network-manager python3 rsync parted dosfstools e2fsprogs util-linux
+    git ca-certificates openssl network-manager python3 rsync parted dosfstools e2fsprogs util-linux
   apt-get clean
   rm -rf /var/lib/apt/lists/*
 '
@@ -71,10 +71,17 @@ rm -f "$ROOT_MNT/usr/bin/qemu-aarch64-static"
 
 GERM_DST="$ROOT_MNT/usr/lib/aurum/germ"
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py; do
   install -m 0755 "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0644 "$GERM_DST/GENETICS.json"
+
+RECOVERY_SRC="$REPO_ROOT/Projects/Aurum/Recovery"
+mkdir -p "$ROOT_MNT/etc/aurum"
+install -m 0644 "$RECOVERY_SRC/trusted-refs.json" "$ROOT_MNT/etc/aurum/recovery-trusted-refs.json"
+if [ -f "$RECOVERY_SRC/authority-public.pem" ]; then
+  install -m 0644 "$RECOVERY_SRC/authority-public.pem" "$ROOT_MNT/etc/aurum/recovery-authority.pem"
+fi
 
 mkdir -p "$ROOT_MNT/var/lib/aurum/slots/A/opt/aurum" "$ROOT_MNT/var/lib/aurum/germ" "$ROOT_MNT/opt"
 install -m 0755 "$SCRIPT_DIR/bootstrap_console.py" "$ROOT_MNT/var/lib/aurum/slots/A/opt/aurum/aurum_console.py"
@@ -96,11 +103,20 @@ cat > "$ROOT_MNT/usr/sbin/aurum-reseed" <<'EOF'
 #!/bin/sh
 exec /usr/bin/python3 /usr/lib/aurum/germ/reseed.py "$@"
 EOF
-chmod 0755 "$ROOT_MNT/usr/sbin/aurum-reseed"
+cat > "$ROOT_MNT/usr/sbin/aurum-rollback-drill" <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/rollback_drill.py "$@"
+EOF
+cat > "$ROOT_MNT/usr/sbin/aurum-recovery-poll" <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py "$@"
+EOF
+chmod 0755 "$ROOT_MNT/usr/sbin/aurum-reseed" "$ROOT_MNT/usr/sbin/aurum-rollback-drill" "$ROOT_MNT/usr/sbin/aurum-recovery-poll"
 
 SYSTEMD="$ROOT_MNT/etc/systemd/system"
 WANTS="$SYSTEMD/multi-user.target.wants"
-mkdir -p "$WANTS"
+TIMERS="$SYSTEMD/timers.target.wants"
+mkdir -p "$WANTS" "$TIMERS"
 cat > "$SYSTEMD/aurum-germ-preflight.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ preflight
@@ -165,9 +181,33 @@ StandardError=journal+console
 [Install]
 WantedBy=multi-user.target
 EOF
+cat > "$SYSTEMD/aurum-recovery-poll.service" <<'EOF'
+[Unit]
+Description=Aurum signed remote recovery desired-state check
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py
+SuccessExitStatus=2
+NoNewPrivileges=true
+EOF
+cat > "$SYSTEMD/aurum-recovery-poll.timer" <<'EOF'
+[Unit]
+Description=Periodically check Aurum signed recovery desired state
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=aurum-recovery-poll.service
+[Install]
+WantedBy=timers.target
+EOF
 for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -sfn "../$unit" "$WANTS/$unit"
 done
+ln -sfn "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
 ln -sfn /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
 ln -sfn /dev/null "$SYSTEMD/getty@tty1.service"
 
