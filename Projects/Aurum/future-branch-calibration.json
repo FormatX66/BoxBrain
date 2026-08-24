@@ -1,34 +1,78 @@
 {
-  "schema": "aurum-future-branch-calibration-v1",
-  "purpose": "Measure whether Future Branch actually predicts useful next states and reduces user waiting instead of merely describing proactive behavior.",
-  "score_classes": {
+  "schema": "aurum-future-branch-calibration-v2",
+  "purpose": "Measure whether Future Branch predicts useful next states AND prepares or executes the allowed work implied by those predictions.",
+  "prediction_score_classes": {
     "exact": "The actual next input/state was explicitly represented by a prior ranked branch family.",
     "partial": "A neighboring broader family existed, but the important specific branch was not prepared explicitly.",
     "miss": "No materially useful prior branch represented the actual next input/state."
+  },
+  "execution_score_classes": {
+    "complete": "The useful safe work implied by the predicted branch was already done before or during the resolving turn.",
+    "prepared": "A real dependency/boundary prevented execution, but everything safe up to that boundary was prepared.",
+    "partial": "Some implied work was done or prepared, but an obvious safe next action was omitted.",
+    "miss": "The branch was named or predicted but its obvious safe implied work was not done or prepared.",
+    "boundary-correct": "Execution correctly stopped at a genuine physical, destructive, credential, preference, or irreversible boundary."
   },
   "events": [
     {
       "event": "future-branch-meta-audit-001",
       "actual_family": "future-branch-self-audit",
       "nearest_prior_family": "why-or-correction",
-      "score": "partial",
-      "reason": "The prior field anticipated a correction that something should have been prepared, but did not explicitly anticipate the user checking whether the prediction check itself had been predicted.",
-      "correction": "Promote self-audit/meta-verification to a first-class likely-input branch and measure future exact/partial/miss behavior."
+      "prediction": "partial",
+      "execution": "complete",
+      "reason": "The prior field anticipated a correction that something should have been prepared, but did not explicitly anticipate the user checking whether the prediction check itself had been predicted. The miss was then converted into a first-class self-audit branch and calibration loop.",
+      "correction": "Promote self-audit/meta-verification to a first-class likely-input branch.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-predicted-followups-002",
+      "actual_family": "ask-again-about-predicted-next-followups",
+      "nearest_prior_family": "self-audit-live-status-measurement-and-learning",
+      "prediction": "exact",
+      "execution": "miss",
+      "reason": "The assistant correctly predicted that the user would ask again about the next likely inputs and about proving/improving Future Branch, but only listed those branches instead of doing their safe implied work.",
+      "correction": "Prediction alone earns no useful-hit credit when a safe implied action was executable and omitted.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-execution-audit-003",
+      "actual_family": "audit-prediction-versus-preparation-completeness",
+      "nearest_prior_family": "future-branch-self-audit",
+      "prediction": "partial",
+      "execution": "complete",
+      "reason": "Self-audit was predicted, but the sharper distinction between predicting a future and actually preparing/executing that future had not been modeled as a separate score. The resolving turn added executable calibration, tests, CI, live evidence checking, and this ledger correction.",
+      "correction": "Track prediction accuracy and execution/preparation completeness independently; optimize their product as useful-hit rate.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 1
     }
   ],
   "metrics": {
-    "exact": 0,
-    "partial": 1,
-    "miss": 0,
-    "total_scored": 1,
-    "exact_hit_rate": 0.0,
-    "partial_hit_rate": 1.0,
-    "miss_rate": 0.0
+    "events": 3,
+    "prediction_accuracy_weighted": 0.666667,
+    "execution_completeness_weighted": 0.666667,
+    "useful_hit_rate": 0.333333,
+    "exact_predictions": 1,
+    "partial_predictions": 2,
+    "miss_predictions": 0,
+    "execution_complete_or_boundary_correct": 2,
+    "execution_prepared": 0,
+    "execution_partial": 0,
+    "execution_miss": 1,
+    "user_turns_avoided": 0,
+    "estimated_wait_seconds_saved": 0,
+    "assumptions_corrected_before_user_impact": 3
   },
-  "future_metrics": [
+  "interpretation": "Early samples show prediction is ahead of execution. The priority is no longer merely generating better futures; it is converting high-ranked safe futures into prepared or executed state before the user asks.",
+  "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
     "estimated_wait_time_saved",
+    "foreground_latency_added",
     "speculative_compute_cost",
     "speculative_storage_cost",
     "branches_discarded",
