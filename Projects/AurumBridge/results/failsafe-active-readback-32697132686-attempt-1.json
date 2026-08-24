@@ -1,0 +1,39 @@
+{
+  "github_run_attempt": 1,
+  "github_workflow_run": 32697132686,
+  "observed_at": 1787552624,
+  "schema": "aurum-failsafe-active-readback-v2",
+  "source_commit": "e4adbac08dc8f839e0dbab3fb976fece4ef8b93e",
+  "workflows": {
+    "aurum-authorized-windows-ap.yml@main": {
+      "active": []
+    },
+    "aurum-autobuild.yml@aurum/trunk-v0.01": {
+      "active": []
+    },
+    "aurum-autobuild.yml@main": {
+      "active": []
+    },
+    "aurum-continuous-controller.yml@main": {
+      "active": []
+    },
+    "aurum-dual-seed-lanes.yml@main": {
+      "active": []
+    },
+    "aurum-event-bridge.yml@main": {
+      "active": []
+    },
+    "aurum-external-evidence-recovery.yml@aurum/trunk-v0.01": {
+      "active": []
+    },
+    "aurum-hopper-echo-proof.yml@main": {
+      "active": []
+    },
+    "aurum-pi4-enrollment-diagnostic-once.yml@main": {
+      "active": []
+    },
+    "aurum-pi4-identity-recovery-once.yml@main": {
+      "active": []
+    }
+  }
+}
