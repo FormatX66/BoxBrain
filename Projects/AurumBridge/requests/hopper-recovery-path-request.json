@@ -1,11 +1,11 @@
 {
   "schema": "aurum.hopper.recovery-path-request.v1",
-  "request_id": "hopper-pi-recovery-20260824-2102",
+  "request_id": "hopper-pi-recovery-20260824-2110",
   "mode": "probe-and-use-existing-authority-only",
   "grant_new_authority": false,
   "allow_destructive_media_write": false,
   "require_terminal_v2_receipt": true,
   "physical_hid_authorized": true,
   "physical_hid_confirmation": "OPEN_HOPPER_KVM_CONSOLE",
-  "reason": "Operator explicitly authorized using the already-connected BoxBrain Pi to fix Hopper. Future Branch must try existing network authority first and then the existing Pi HID KVM path, preserve Hopper local changes, grant no new authority, and perform no destructive media write."
+  "reason": "Operator explicitly authorized using the already-connected BoxBrain Pi to fix Hopper. Future Branch must discover the existing connected Pi dynamically, use existing authority only, preserve Hopper local changes, grant no new authority, and perform no destructive media write."
 }
