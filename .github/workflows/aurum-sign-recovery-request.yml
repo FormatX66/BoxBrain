@@ -1,0 +1,143 @@
+name: Aurum Sign Recovery Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      node_id:
+        description: 'Exact target machine identity (/etc/machine-id)'
+        required: true
+        type: string
+      target:
+        description: 'Bounded recovery target'
+        required: true
+        type: choice
+        options:
+          - last-known-good
+          - previous
+          - specific
+      ref:
+        description: '40-character trusted commit; required only for specific'
+        required: false
+        type: string
+      reboot:
+        description: 'Request reboot only after a successful state-changing action'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-signed-recovery-request
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out recovery policy
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+
+      - name: Validate request and create canonical payload
+        shell: bash
+        env:
+          NODE_ID: ${{ inputs.node_id }}
+          TARGET: ${{ inputs.target }}
+          REF: ${{ inputs.ref }}
+          REBOOT: ${{ inputs.reboot }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, time
+          from pathlib import Path
+
+          node = os.environ['NODE_ID'].strip()
+          target = os.environ['TARGET'].strip()
+          ref = os.environ.get('REF', '').strip().lower()
+          reboot = os.environ['REBOOT'].lower() == 'true'
+          if len(node) < 8 or len(node) > 128:
+              raise SystemExit('invalid node_id')
+          if target not in {'last-known-good', 'previous', 'specific'}:
+              raise SystemExit('invalid target')
+
+          trust = json.loads(Path('Projects/Aurum/Recovery/trusted-refs.json').read_text())
+          trusted = {str(x).lower() for x in trust.get('specific_commits', [])}
+          if target == 'specific':
+              if not re.fullmatch(r'[0-9a-f]{40}', ref):
+                  raise SystemExit('specific recovery requires immutable 40-character commit')
+              if ref not in trusted:
+                  raise SystemExit('specific recovery commit is not enrolled in trusted-refs.json')
+          elif ref:
+              raise SystemExit('ref is only allowed for target=specific')
+
+          now = int(time.time())
+          payload = {
+              'schema': 'aurum-recovery-request-v1',
+              'request_id': f"gh-{os.environ['GITHUB_RUN_ID']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}",
+              'node_id': node,
+              'issued_at_unix': now,
+              'expires_at_unix': now + 900,
+              'target': target,
+              'ref': ref if target == 'specific' else None,
+              'reboot': reboot,
+          }
+          canonical = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+          Path(os.environ['RUNNER_TEMP'], 'recovery-payload.bin').write_bytes(canonical)
+          Path(os.environ['RUNNER_TEMP'], 'recovery-payload.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Sign with protected Ed25519 authority
+        shell: bash
+        env:
+          PRIVATE_KEY: ${{ secrets.AURUM_RECOVERY_ED25519_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo 'AURUM_RECOVERY_SIGN_WAIT reason=secret-not-enrolled'
+            exit 2
+          fi
+          key="$RUNNER_TEMP/recovery-private.pem"
+          sig="$RUNNER_TEMP/recovery-signature.bin"
+          umask 077
+          printf '%s\n' "$PRIVATE_KEY" > "$key"
+          openssl pkeyutl -sign -inkey "$key" -rawin -in "$RUNNER_TEMP/recovery-payload.bin" -out "$sig"
+          rm -f "$key"
+          test "$(wc -c < "$sig")" -eq 64
+
+      - name: Build signed envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          payload = json.loads((root / 'recovery-payload.json').read_text())
+          signature = base64.b64encode((root / 'recovery-signature.bin').read_bytes()).decode('ascii')
+          envelope = {
+              'schema': 'aurum-recovery-envelope-v1',
+              'payload': payload,
+              'signature_ed25519_base64': signature,
+          }
+          Path('Projects/Aurum/Recovery/desired-state.json').write_text(
+              json.dumps(envelope, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Publish short-lived signed desired state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'aurum-recovery-control[bot]'
+          git config user.email 'aurum-recovery-control@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/desired-state.json
+          git commit -m "Publish signed Aurum recovery request $GITHUB_RUN_ID"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_RECOVERY_SIGN_OK state=published-short-lived-signed-request'
