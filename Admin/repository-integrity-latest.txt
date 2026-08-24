@@ -1,0 +1,4 @@
+Repository Integrity Mirror
+
+BoxBrain validation failed:
+- Orphan Markdown file: Projects/Aurum/Germ/STATUS.md
