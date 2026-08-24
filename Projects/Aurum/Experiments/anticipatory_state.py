@@ -49,6 +49,23 @@ class ResourceBudget:
             raise ValueError("privacy budget must be non-negative")
 
 
+@dataclass(frozen=True)
+class SpeculationPolicy:
+    """How aggressively to fill otherwise-idle resources with useful futures."""
+
+    idle_cpu_target: float = 0.95
+    reclaimable_ram_target: float = 0.90
+    minimum_score: float = 0.05
+
+    def validate(self) -> None:
+        if not 0.0 <= self.idle_cpu_target <= 1.0:
+            raise ValueError("idle_cpu_target must be between 0 and 1")
+        if not 0.0 <= self.reclaimable_ram_target <= 1.0:
+            raise ValueError("reclaimable_ram_target must be between 0 and 1")
+        if self.minimum_score < 0:
+            raise ValueError("minimum_score must be non-negative")
+
+
 def expected_preparation_value(intent: CandidateIntent) -> float:
     intent.validate()
     benefit = intent.probability * intent.human_value * (1.0 + intent.latency_saved_ms / 1000.0)
@@ -59,14 +76,20 @@ def expected_preparation_value(intent: CandidateIntent) -> float:
 def build_speculative_plan(
     intents: Iterable[CandidateIntent],
     budget: ResourceBudget,
+    policy: SpeculationPolicy | None = None,
 ) -> dict:
-    """Rank branches and select only those that fit reclaimable idle resources.
+    """Rank branches and fill reclaimable idle resources with useful futures.
 
     CPU cost is modeled as a fraction of one normalized idle-capacity pool. RAM
-    may use only free RAM above the foreground reserve. Storage writes are
-    explicitly budgeted to avoid turning speculative work into SSD churn.
+    may use only free RAM above the foreground reserve. The policy intentionally
+    targets most-but-not-all idle CPU and reclaimable RAM/Slush while retaining
+    immediate foreground headroom. Low-value work is not admitted merely to make
+    utilization appear high. Storage writes remain separately budgeted to avoid
+    speculative SSD churn.
     """
     budget.validate()
+    policy = policy or SpeculationPolicy()
+    policy.validate()
     candidates = list(intents)
     for intent in candidates:
         intent.validate()
@@ -75,8 +98,11 @@ def build_speculative_plan(
         candidates,
         key=lambda item: (-expected_preparation_value(item), item.name),
     )
-    cpu_left = budget.idle_cpu_capacity
-    ram_left = max(0, budget.free_ram_mb - budget.foreground_ram_reserve_mb)
+    total_reclaimable_ram = max(0, budget.free_ram_mb - budget.foreground_ram_reserve_mb)
+    cpu_budget = budget.idle_cpu_capacity * policy.idle_cpu_target
+    ram_budget = int(total_reclaimable_ram * policy.reclaimable_ram_target)
+    cpu_left = cpu_budget
+    ram_left = ram_budget
     storage_left = budget.storage_write_budget_mb
     prepared: list[dict] = []
     held: list[dict] = []
@@ -84,7 +110,9 @@ def build_speculative_plan(
     for intent in ranked:
         score = expected_preparation_value(intent)
         reason = None
-        if intent.privacy_cost > budget.max_privacy_cost:
+        if score < policy.minimum_score:
+            reason = "insufficient-future-value"
+        elif intent.privacy_cost > budget.max_privacy_cost:
             reason = "privacy-budget"
         elif intent.cpu_cost > cpu_left:
             reason = "foreground-cpu-reserve"
@@ -117,11 +145,26 @@ def build_speculative_plan(
         record["preparation_depth"] = depth
         prepared.append(record)
 
+    cpu_used = cpu_budget - cpu_left
+    ram_used = ram_budget - ram_left
     return {
-        "schema": "aurum-anticipatory-state-plan-v0",
+        "schema": "aurum-anticipatory-state-plan-v1",
         "mode": "anticipating-not-interfering",
+        "policy": {
+            "idle_cpu_target": policy.idle_cpu_target,
+            "reclaimable_ram_target": policy.reclaimable_ram_target,
+            "minimum_score": policy.minimum_score,
+        },
         "prepared": prepared,
         "held": held,
+        "utilization": {
+            "speculative_cpu_budget": round(cpu_budget, 6),
+            "speculative_cpu_used": round(cpu_used, 6),
+            "speculative_cpu_fill": 0.0 if cpu_budget == 0 else round(cpu_used / cpu_budget, 6),
+            "reclaimable_ram_budget_mb": ram_budget,
+            "reclaimable_ram_used_mb": ram_used,
+            "reclaimable_ram_fill": 0.0 if ram_budget == 0 else round(ram_used / ram_budget, 6),
+        },
         "remaining": {
             "idle_cpu_capacity": round(cpu_left, 6),
             "reclaimable_ram_mb": ram_left,
