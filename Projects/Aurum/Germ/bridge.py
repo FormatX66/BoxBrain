@@ -55,18 +55,19 @@ def _sha256(path: Path) -> str:
 def patch_console_file(path: Path) -> dict[str, Any]:
     """Add the germ command to a compatible bounded Aurum console.
 
-    Anchor checks make this fail closed instead of attempting a fuzzy patch on
-    an unknown future console.
+    The bridge accepts both the physical Gen0 console and the newer bounded x86
+    console shape. It still fails closed: the import anchor, one help marker,
+    and the reboot dispatch anchor must all be present exactly as expected.
     """
     text = path.read_text(encoding="utf-8")
     if "from aurum_germ import handle_reseed" in text:
         return {"status": "already-patched", "sha256": _sha256(path)}
 
     import_anchor = "from aurum_workspace import AurumWorkspace, WorkspaceError\n"
-    help_anchor = '        "install confirm ERASE-CODE | reboot | poweroff | help",\n'
+    help_marker = '"reboot | poweroff | help",'
     reboot_anchor = '        elif command == "reboot" and len(tokens) == 1:\n'
-    if import_anchor not in text or help_anchor not in text or reboot_anchor not in text:
-        raise BridgeError("legacy Aurum console does not match the safe germ bridge anchors")
+    if import_anchor not in text or text.count(help_marker) != 1 or reboot_anchor not in text:
+        raise BridgeError("Aurum console does not match the safe germ bridge anchors")
 
     text = text.replace(
         import_anchor,
@@ -74,9 +75,9 @@ def patch_console_file(path: Path) -> dict[str, Any]:
         1,
     )
     text = text.replace(
-        help_anchor,
-        '        "install confirm ERASE-CODE | reseed status | reseed current authorize-network | "\n'
-        '        "reseed commit SHA authorize-network | reseed rollback confirm | reboot | poweroff | help",\n',
+        help_marker,
+        '"reseed status | reseed current authorize-network | reseed commit SHA authorize-network | "\n'
+        '        "reseed rollback confirm | reboot | poweroff | help",',
         1,
     )
     text = text.replace(
