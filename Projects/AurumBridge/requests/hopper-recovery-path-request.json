@@ -1,9 +1,9 @@
 {
   "schema": "aurum.hopper.recovery-path-request.v1",
-  "request_id": "hopper-preexecution-recovery-20260824-2053",
+  "request_id": "hopper-preexecution-recovery-20260824-2101",
   "mode": "probe-and-use-existing-authority-only",
   "grant_new_authority": false,
   "allow_destructive_media_write": false,
   "require_terminal_v2_receipt": true,
-  "reason": "Refresh the mandatory Future Branch pre-execution Hopper recovery attempt after installing lifecycle evidence mirroring and terminal unreachable handling. Use only existing SSH authority; grant no new authority and perform no Tiny Seed media write."
+  "reason": "Rerun the corrected mandatory pre-execution recovery probe after teaching the Windows runner to treat an unreachable candidate Pi address as branch evidence rather than a terminating native-command error. Use only existing authority and keep media write authority false."
 }
