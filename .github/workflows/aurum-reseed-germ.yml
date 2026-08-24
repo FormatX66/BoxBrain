@@ -32,7 +32,9 @@ jobs:
       - name: Validate genetics manifest
         run: python3 -m json.tool Projects/Aurum/Germ/GENETICS.json >/dev/null
       - name: Validate image builders
-        run: sh -n Projects/Aurum/Germ/build-x86-tinyseed.sh
+        run: |
+          sh -n Projects/Aurum/Germ/build-x86-tinyseed.sh
+          sh -n Projects/Aurum/Germ/build-pi-tinyseed.sh
       - name: Run germ safety tests
         working-directory: Projects/Aurum/Germ
         run: python3 -m unittest -v test_reseed test_guardian
