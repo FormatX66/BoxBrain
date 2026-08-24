@@ -84,11 +84,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $script = 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
-          $args = @(
-            '-ImagePath', $env:IMAGE_PATH,
-            '-ChecksumPath', $env:CHECKSUM_PATH,
-            '-DiskSerial', $env:DISK_SERIAL,
-            '-ConfirmText', $env:CONFIRM_TEXT
-          )
-          if ($env:WRITE_REQUESTED -eq 'true') { $args += '-Write' }
-          & $script @args
+          if ($env:WRITE_REQUESTED -eq 'true') {
+            & $script -ImagePath $env:IMAGE_PATH -ChecksumPath $env:CHECKSUM_PATH -DiskSerial $env:DISK_SERIAL -ConfirmText $env:CONFIRM_TEXT -Write
+          } else {
+            & $script -ImagePath $env:IMAGE_PATH -ChecksumPath $env:CHECKSUM_PATH -DiskSerial $env:DISK_SERIAL -ConfirmText $env:CONFIRM_TEXT
+          }
