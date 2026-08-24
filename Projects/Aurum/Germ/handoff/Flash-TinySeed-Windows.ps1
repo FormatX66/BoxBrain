@@ -207,10 +207,98 @@ function Dismount-TargetVolumes([int]$Number) {
     }
 }
 
+function Clear-ReverifiedTarget {
+    Release-TargetVolumeLocks
+    $candidate = Get-ReverifiedTarget
+    $number = [int]$candidate.Number
+    # Get-ReverifiedTarget is the immediate identity proof for this destructive
+    # clear. Only the exact serial/model/size USB can reach this command.
+    Clear-Disk -Number $number -RemoveData -RemoveOEM -Confirm:$false -ErrorAction Stop | Out-Null
+    Update-HostStorageCache -ErrorAction SilentlyContinue | Out-Null
+    Start-Sleep -Seconds 2
+    $candidate = Get-ReverifiedTarget
+    if ($candidate.PartitionStyle -ne 'RAW' -or [int]$candidate.NumberOfPartitions -ne 0) {
+        Fail "target-clear-not-observed style=$($candidate.PartitionStyle) partitions=$($candidate.NumberOfPartitions)"
+    }
+}
+
+function Test-ImageFirstSector([byte[]]$Expected) {
+    $candidate = Get-ReverifiedTarget
+    $path = "\\.\PhysicalDrive$([int]$candidate.Number)"
+    $reader = $null
+    try {
+        $reader = New-Object IO.FileStream(
+            $path,
+            [IO.FileMode]::Open,
+            [IO.FileAccess]::Read,
+            [IO.FileShare]::ReadWrite,
+            4096,
+            [IO.FileOptions]::SequentialScan
+        )
+        $observed = New-Object byte[] 512
+        $count = $reader.Read($observed, 0, $observed.Length)
+        if ($count -ne $observed.Length) { return $false }
+        for ($index = 0; $index -lt $observed.Length; $index += 1) {
+            if ($observed[$index] -ne $Expected[$index]) { return $false }
+        }
+        return $true
+    } catch [IO.IOException] {
+        return $false
+    } finally {
+        if ($null -ne $reader) { try { $reader.Dispose() } catch { } }
+    }
+}
+
+function Write-And-VerifyImageFirstSector {
+    $imageReader = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $firstSector = New-Object byte[] 512
+        if ($imageReader.Read($firstSector, 0, $firstSector.Length) -ne $firstSector.Length) {
+            Fail 'image-first-sector-short-read'
+        }
+    } finally {
+        $imageReader.Dispose()
+    }
+
+    for ($attempt = 1; $attempt -le 4; $attempt += 1) {
+        Clear-ReverifiedTarget
+        $candidate = Get-ReverifiedTarget
+        $path = "\\.\PhysicalDrive$([int]$candidate.Number)"
+        $writer = $null
+        try {
+            $writer = New-Object IO.FileStream(
+                $path,
+                [IO.FileMode]::Open,
+                [IO.FileAccess]::Write,
+                [IO.FileShare]::ReadWrite,
+                4096,
+                [IO.FileOptions]::WriteThrough
+            )
+            $writer.Write($firstSector, 0, $firstSector.Length)
+            $writer.Flush($true)
+        } catch [IO.IOException] {
+            Write-Host "AURUM_TINYSEED_FLASH_IO_RETRY phase=first-sector attempt=$attempt"
+        } finally {
+            if ($null -ne $writer) { try { $writer.Dispose() } catch { } }
+        }
+        Start-Sleep -Seconds 3
+        Update-HostStorageCache -ErrorAction SilentlyContinue | Out-Null
+        if (Test-ImageFirstSector $firstSector) {
+            Write-Host 'AURUM_TINYSEED_FLASH_FIRST_SECTOR_OK bytes=512'
+            return
+        }
+    }
+    Fail 'image-first-sector-write-retry-exhausted'
+}
+
 # Re-prove identity immediately before the first destructive operation. Keep
 # removable media online: some USB firmware re-enumerates after sector zero
 # changes and reports a transient ERROR_NOT_READY if Windows was asked to
 # offline it. Every reopen below repeats the same physical identity proof.
+$live = Get-ReverifiedTarget
+$diskNumber = [int]$live.Number
+$physicalPath = "\\.\PhysicalDrive$diskNumber"
+Write-And-VerifyImageFirstSector
 $live = Get-ReverifiedTarget
 $diskNumber = [int]$live.Number
 $physicalPath = "\\.\PhysicalDrive$diskNumber"
@@ -222,7 +310,8 @@ $maxIoRetries = 8
 $source = [IO.File]::Open($image.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
 $target = $null
 try {
-    [int64]$written = 0
+    [int64]$written = 512
+    [void]$source.Seek($written, [IO.SeekOrigin]::Begin)
     while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
         $attempt = 0
         while ($true) {
