@@ -25,7 +25,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_reseed test_guardian test_proof)
 
       - name: Install ARM image tooling
         run: |
@@ -41,6 +41,34 @@ jobs:
           test -s dist/Aurum-TinySeed-Pi-arm64.img.xz
           (cd dist && sha256sum -c Aurum-TinySeed-Pi-arm64.img.xz.sha256)
           xz -t dist/Aurum-TinySeed-Pi-arm64.img.xz
+
+      - name: Inspect embedded recovery and boot-proof payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$RUNNER_TEMP/Aurum-TinySeed-Pi-arm64.img"
+          root="$RUNNER_TEMP/pi-root"
+          boot="$RUNNER_TEMP/pi-boot"
+          mkdir -p "$root" "$boot"
+          xz -dc dist/Aurum-TinySeed-Pi-arm64.img.xz > "$raw"
+          loop=$(sudo losetup --find --show --partscan "$raw")
+          cleanup() {
+            set +e
+            mountpoint -q "$boot" && sudo umount "$boot"
+            mountpoint -q "$root" && sudo umount "$root"
+            sudo losetup -d "$loop" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          sudo udevadm settle
+          sudo mount "${loop}p2" "$root"
+          sudo mount "${loop}p1" "$boot"
+          test -x "$root/usr/lib/aurum/germ/guardian.py"
+          test -x "$root/usr/lib/aurum/germ/reseed.py"
+          test -x "$root/usr/lib/aurum/germ/proof.py"
+          test -f "$root/etc/systemd/system/aurum-boot-proof.service"
+          test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-boot-proof.service"
+          grep -q 'aurum.tinyseed=1' "$boot/cmdline.txt"
+          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded'
 
       - name: Publish Pi Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
