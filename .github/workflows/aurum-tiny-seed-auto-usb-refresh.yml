@@ -20,7 +20,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Require a newly published verified handoff packet
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          HANDOFF_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo 'proceed=true' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_AUTO_USB_REFRESH_GATE manual=true'
+            exit 0
+          fi
+          count=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$HANDOFF_RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.name == "Aurum-TinySeed-Handoff" and .expired == false)] | length')
+          if [ "$count" -lt 1 ]; then
+            echo 'proceed=false' >> "$GITHUB_OUTPUT"
+            echo 'AURUM_AUTO_USB_REFRESH_GATE published_handoff=false'
+            exit 0
+          fi
+          echo 'proceed=true' >> "$GITHUB_OUTPUT"
+          echo 'AURUM_AUTO_USB_REFRESH_GATE published_handoff=true'
+
       - name: Check out current control plane
+        if: steps.gate.outputs.proceed == 'true'
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: main
@@ -28,7 +53,7 @@ jobs:
           persist-credentials: true
 
       - name: Bind a zero-authority discovery request to the verified release
-        id: bind
+        if: steps.gate.outputs.proceed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -78,6 +103,7 @@ jobs:
           PY
 
       - name: Persist zero-authority request without waking unrelated CI
+        if: steps.gate.outputs.proceed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -86,21 +112,26 @@ jobs:
           git add Projects/Aurum/Recovery/usb-discovery-request.json
           if git diff --cached --quiet; then
             echo 'AURUM_AUTO_USB_REFRESH request_unchanged=true'
-            exit 0
-          fi
-          git commit -m 'Refresh USB discovery for verified Tiny Seed release [skip ci]'
-          for i in 1 2 3; do
-            git pull --rebase origin main
-            if git push origin HEAD:main; then
-              echo 'AURUM_AUTO_USB_REFRESH persisted=true'
-              exit 0
+          else
+            git commit -m 'Refresh USB discovery for verified Tiny Seed release [skip ci]'
+            pushed=false
+            for i in 1 2 3; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              sleep $((2*i))
+            done
+            if [ "$pushed" != true ]; then
+              echo 'AURUM_AUTO_USB_REFRESH push-failed' >&2
+              exit 1
             fi
-            sleep $((2*i))
-          done
-          echo 'AURUM_AUTO_USB_REFRESH push-failed' >&2
-          exit 1
+            echo 'AURUM_AUTO_USB_REFRESH persisted=true'
+          fi
 
       - name: Explicitly dispatch read-only USB discovery
+        if: steps.gate.outputs.proceed == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
