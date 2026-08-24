@@ -72,35 +72,52 @@ grub-pc-bin
 grub2-common
 EOF
 
-mkdir -p config/bootloaders/grub-pc
-cat > config/bootloaders/grub-pc/grub.cfg <<'EOF'
+# Keep the normal unattended path first, but carry a prepared safe/verbose
+# fallback for real hardware that blanks the display or hides an early failure.
+for grub_dir in grub-pc grub-efi; do
+  mkdir -p "config/bootloaders/$grub_dir"
+  cat > "config/bootloaders/$grub_dir/grub.cfg" <<'EOF'
 set default=0
-set timeout=1
+set timeout=3
 menuentry "Aurum Tiny Seed" {
     linux @KERNEL_LIVE@ @APPEND_LIVE@
     initrd @INITRD_LIVE@
 }
+menuentry "Aurum Tiny Seed (safe verbose)" {
+    linux @KERNEL_LIVE@ @APPEND_LIVE@ nomodeset systemd.show_status=yes loglevel=7
+    initrd @INITRD_LIVE@
+}
 EOF
+done
 
 # Debian live-build's Syslinux/ISOLINUX default timeout is 0, which pauses
 # indefinitely for a key press. Tiny Seed must boot unattended on legacy BIOS.
+# A second manual entry is intentionally verbose and graphics-conservative.
 mkdir -p config/bootloaders/isolinux config/bootloaders/syslinux
 cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 10
+timeout 30
+label aurum-safe
+  menu label Aurum Tiny Seed (safe verbose)
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
 EOF
 cat > config/bootloaders/syslinux/syslinux.cfg <<'EOF'
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 10
+timeout 30
+label aurum-safe
+  menu label Aurum Tiny Seed (safe verbose)
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
 EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py; do
+for name in GENETICS.json reseed.py guardian.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
@@ -149,17 +166,31 @@ cat > config/includes.chroot/usr/sbin/aurum-recovery-poll <<'EOF'
 #!/bin/sh
 exec /usr/bin/python3 /usr/lib/aurum/germ/recovery_poller.py "$@"
 EOF
-chmod 0755 config/includes.chroot/usr/sbin/aurum-reseed config/includes.chroot/usr/sbin/aurum-rollback-drill config/includes.chroot/usr/sbin/aurum-recovery-poll
+cat > config/includes.chroot/usr/sbin/aurum-triage <<'EOF'
+#!/bin/sh
+exec /usr/bin/python3 /usr/lib/aurum/germ/triage.py "$@"
+EOF
+chmod 0755 config/includes.chroot/usr/sbin/aurum-reseed config/includes.chroot/usr/sbin/aurum-rollback-drill config/includes.chroot/usr/sbin/aurum-recovery-poll config/includes.chroot/usr/sbin/aurum-triage
 
 SYSTEMD=config/includes.chroot/etc/systemd/system
 WANTS=$SYSTEMD/multi-user.target.wants
 TIMERS=$SYSTEMD/timers.target.wants
 mkdir -p "$WANTS" "$TIMERS"
+cat > "$SYSTEMD/aurum-triage.service" <<'EOF'
+[Unit]
+Description=Aurum read-only failure triage receipt
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/triage.py
+StandardOutput=journal+console
+StandardError=journal+console
+EOF
 cat > "$SYSTEMD/aurum-germ-preflight.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ preflight
 After=local-fs.target
 Before=aurum-tinyseed.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py preflight --reboot-on-rollback
@@ -170,6 +201,7 @@ cat > "$SYSTEMD/aurum-germ-health.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ candidate health gate
 After=aurum-germ-preflight.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStartPre=/bin/sleep 8
@@ -183,6 +215,7 @@ Description=Aurum Tiny Seed setup
 After=NetworkManager.service aurum-germ-preflight.service
 Wants=NetworkManager.service
 Conflicts=getty@tty1.service
+OnFailure=aurum-triage.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/tinyseed.py
@@ -211,6 +244,7 @@ cat > "$SYSTEMD/aurum-boot-proof.service" <<'EOF'
 [Unit]
 Description=Aurum non-secret boot proof receipt
 After=local-fs.target aurum-germ-preflight.service
+OnFailure=aurum-triage.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/proof.py
@@ -254,13 +288,14 @@ printf '%s\n' aurum-tinyseed > config/includes.chroot/etc/hostname
 cat > config/includes.chroot/etc/motd <<'EOF'
 Aurum Tiny Seed
 Git stores the genetics. Tiny Seed carries the germ. The machine grows Aurum.
+If something fails after boot, run: aurum-triage
 EOF
 
 mkdir -p config/hooks/live
 cat > config/hooks/live/010-tinyseed.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
-chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed /usr/sbin/aurum-rollback-drill /usr/sbin/aurum-recovery-poll
+chmod 0755 /usr/lib/aurum/germ/*.py /usr/sbin/aurum-reseed /usr/sbin/aurum-rollback-drill /usr/sbin/aurum-recovery-poll /usr/sbin/aurum-triage
 EOF
 chmod 0755 config/hooks/live/010-tinyseed.hook.chroot
 
