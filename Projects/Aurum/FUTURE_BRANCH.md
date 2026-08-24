@@ -2,26 +2,29 @@
 
 **Status:** Core Aurum operating principle
 
-Future Branch means the system should not wait for the current step to finish before thinking about what is likely to happen next. It should maintain a small, ranked set of likely future states, prepare the most useful next steps in advance, and use new evidence to prune, correct, or deepen those branches.
+Future Branch means the system should not wait for the current step to finish before reasoning about what is most likely to happen next. It should maintain a small ranked field of likely future states **and likely human follow-up inputs**, prepare the highest-value responses/actions in advance, and use new evidence to prune, correct, or deepen those branches.
 
 ## Core rule
 
-> Be one or two useful steps ahead without crossing a real dependency, safety, authorization, or physical boundary early.
+> Be one or two useful steps ahead without crossing a real dependency, safety, authorization, preference, or physical boundary early.
 
 A dependency may block execution, but it should not block preparation.
 
-If an ISO must exist before a disk can be flashed, Aurum cannot flash early. It can still prepare the flash tool, target-safety checks, readback verification, boot-proof collection, likely failure diagnostics, rollback path, and the step after a successful boot while the ISO is still building.
+If an ISO must exist before a disk can be flashed, Aurum cannot flash early. It can still prepare the flash tool, target-safety checks, readback verification, boot-proof collection, likely physical failure paths, rollback path, the answer to likely follow-up questions, and the step after a successful boot while the ISO is still building.
 
-## Branch set
+## Branch field — not a binary tree
 
-For every meaningful live gate, maintain at least:
+Future Branch is **not** only success versus failure. For every meaningful live gate, generate and rank the most plausible next branches across several classes:
 
-1. **Success branch** — what becomes possible if the current gate passes.
-2. **Likely failure branches** — the most probable and consequential ways the gate may fail.
-3. **Recovery branch** — how to return to a proven state when a failure affects active state.
-4. **Next-capability branch** — what useful work should begin after the current milestone succeeds.
+1. **Outcome branches** — success, partial/degraded success, ambiguous result, expected failure, unexpected failure, timeout/stall, or no observable change.
+2. **Human-input branches** — likely next questions or reports such as “what’s next?”, “what do I need to do?”, “it didn’t work”, “that worked”, “why?”, “what else can run now?”, “can we simplify this?”, or a terse screenshot/photo/status report.
+3. **Operational branches** — the next safe action that naturally follows the current state.
+4. **Recovery branches** — rollback, retry, alternate path, evidence capture, or return to Last Known Good.
+5. **Adjacent-opportunity branches** — independent work that becomes useful because the current milestone changes what is possible elsewhere.
+6. **Next-capability branches** — the next larger capability or project frontier that should already be warming up before the current milestone completes.
+7. **Stop/wait branches** — cases where the correct future state is deliberately to do nothing until a real dependency, permission, preference, or physical action occurs.
 
-Do not prepare every imaginable branch. Rank branches by expected value.
+Do not prepare every imaginable branch. Rank the small set that is both plausible and useful.
 
 A practical priority score is conceptually:
 
@@ -29,35 +32,48 @@ A practical priority score is conceptually:
 
 High-probability, high-impact, cheap-to-prepare branches go first. Low-probability expensive speculation stays shallow or is discarded.
 
+## The “do it before I ask” rule
+
+Predicting a likely follow-up is not enough.
+
+- If the likely follow-up would be an **informational question**, include the answer in the current response when useful.
+- If the likely follow-up would ask for a **safe, reversible, already-authorized action**, perform that action now when dependencies are satisfied instead of waiting for the question.
+- If the action is dependency-blocked, prepare everything up to that boundary so execution can begin immediately when the dependency clears.
+- If the likely follow-up requires **physical intervention, destructive authority, credentials, personal preference, or an irreversible/risky choice**, prepare the exact next instruction and evidence needed, but do not cross the boundary early.
+
+The target is to eliminate avoidable “now what?”, “so?”, “do that”, and “why didn’t you already do it?” turns.
+
 ## Future Branch loop
 
 `Current Proven State`
 
-→ observe current evidence
+→ observe current evidence and user context
 
-→ generate plausible next success/failure states
+→ generate plausible next machine states and likely human inputs
 
-→ rank by probability, impact, cost, and user latency saved
+→ rank by probability, impact, cost, user latency saved, and preparation leverage
 
-→ prepare safe downstream artifacts and diagnostics in parallel
+→ answer likely informational follow-ups early
 
-→ execute only branches whose prerequisites and permissions are satisfied
+→ execute likely safe next actions whose prerequisites are already satisfied
 
-→ compare predicted branch with actual result
+→ prepare dependency-blocked downstream actions and high-value fallbacks in parallel
+
+→ compare predicted branches with actual machine/user result
 
 → correct assumptions and prune wrong branches
 
-→ deepen the branch supported by evidence
+→ deepen the branches supported by evidence
 
 → verify the resulting state
 
-→ make the new proven state the basis for the next Future Branch set
+→ make the new proven state the basis for the next Future Branch field
 
 ## Self-correction value
 
 Future Branch is not only prefetching. It is an error-discovery mechanism.
 
-By constructing likely next states before they are needed, Aurum can expose its own hidden assumptions early. A prepared flash path may reveal that artifact identity is not pinned. A prepared rollback path may reveal that a trial clears metadata earlier than assumed. A prepared physical test may reveal that evidence collection was never embedded in the image.
+By constructing likely next states and likely user reactions before they are needed, Aurum can expose its own hidden assumptions early. A prepared flash path may reveal that artifact identity is not pinned. A prepared rollback path may reveal that a trial clears metadata earlier than assumed. A prepared physical test may reveal that evidence collection was never embedded in the image. Predicting the user may ask “what do I do now?” can reveal that no executable handoff has actually been prepared.
 
 The system should treat these discoveries as useful evidence, repair the assumption, and regenerate the affected branch before the user reaches it.
 
@@ -66,14 +82,15 @@ The intended effect is:
 - fewer user-visible dead ends;
 - less waiting between dependent operations;
 - fewer repeated instructions;
-- fewer "now what?" interactions;
+- fewer “now what?” interactions;
 - earlier discovery of bad assumptions;
 - faster recovery when the actual result differs from prediction;
+- fewer turns spent asking for the obvious next operation;
 - more useful use of idle compute, RAM, storage, CI capacity, and preparation time.
 
 ## Execution boundary
 
-Future Branch may **think ahead freely** and **prepare ahead aggressively**, but it may **act ahead only when confidence, dependency, safety, and permission allow it**.
+Future Branch may **think ahead freely** and **prepare ahead aggressively**, but it may **act ahead only when confidence, dependency, safety, preference, and permission allow it**.
 
 Speculative work must remain:
 
@@ -90,11 +107,14 @@ No speculative branch may silently become production state.
 When operating Aurum or any multi-step project:
 
 - do not stop at the current command boundary;
-- ask what the operator is most likely to report next if it works;
-- ask what the operator is most likely to report next if it fails;
-- prepare the highest-value responses to both before waiting;
+- predict the top few likely next user inputs, not merely “pass” or “fail”;
+- predict the top few likely machine outcomes, including partial, ambiguous, stalled, and unexpected states;
+- prepare the highest-value answers/actions before waiting;
+- if the likely next request is a safe action and it is already executable, **do it now**;
+- if the likely next request is informational, answer it preemptively when that reduces a turn;
 - keep at least the next one or two useful stages ready when safe;
-- use actual evidence to re-rank branches continuously;
+- continue independent adjacent work while a dependent branch waits;
+- use actual evidence and actual user behavior to re-rank branches continuously;
 - if a branch proves wrong, correct it rather than defending the original assumption;
 - notify the operator only when a real human boundary is reached or a meaningful verified result is available.
 
