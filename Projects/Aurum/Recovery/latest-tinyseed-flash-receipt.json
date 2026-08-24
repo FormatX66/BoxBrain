@@ -1,0 +1,17 @@
+{
+  "schema": "aurum-tinyseed-flash-request-receipt-v1",
+  "state": "READY_TO_BOOT",
+  "request_id": "tinyseed-crayola-mainpc-20260824-1647",
+  "source_commit": "1e02ae4ed0f639cb7cb14424092a6cae7af7d095",
+  "image_sha256": "480cb0aae9c8f430c867b8f24291120162aaed166675c0f907eb45118dfd9e58",
+  "handoff_run_id": 32751558619,
+  "device": {
+    "disk_number": 1,
+    "model": "USB SanDisk 3.2 Gen",
+    "size_bytes": 61524148224,
+    "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5"
+  },
+  "raw_readback_verified": true,
+  "write_authority_consumed": true,
+  "observed_at_utc": "2026-08-24T16:47:19.9606587Z"
+}

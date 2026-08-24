@@ -103,6 +103,7 @@ foreach ($letter in $letters) {
     if ($LASTEXITCODE -ne 0) { Fail "volume-dismount-failed drive=$letter" }
 }
 
+$removableRequiresClean = $false
 try {
     Set-Disk -Number $diskNumber -IsOffline $true -ErrorAction Stop
 } catch {
@@ -111,6 +112,80 @@ try {
     if ($_.Exception.Message -notmatch '(?i)(removable media cannot be set to offline|not supported)') {
         throw
     }
+    $removableRequiresClean = $true
+}
+
+if ($removableRequiresClean) {
+    # A letterless mounted volume can remain after drive-letter dismount and
+    # block raw writes even for an elevated process. Re-prove the exact target,
+    # then clear only its stale partition map so Windows releases that volume.
+    $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+    if (
+        ([string]$live.SerialNumber).Trim() -ne $serial -or
+        [int64]$live.Size -ne $expectedSize -or
+        $live.BusType -ne 'USB' -or
+        [bool]$live.IsBoot -or
+        [bool]$live.IsSystem -or
+        [bool]$live.IsReadOnly
+    ) {
+        Fail 'target-identity-changed-before-clean'
+    }
+    if ($protected.ContainsKey(([string]$live.SerialNumber).Trim())) {
+        Fail 'target-became-protected-before-clean'
+    }
+
+    $diskpartScript = New-TemporaryFile
+    try {
+        @(
+            "select disk $diskNumber"
+            'clean'
+            'exit'
+        ) | Set-Content -LiteralPath $diskpartScript.FullName -Encoding ASCII
+        $diskpartOutput = @(& diskpart.exe /s $diskpartScript.FullName 2>&1)
+        $diskpartExit = $LASTEXITCODE
+    } finally {
+        Remove-Item -LiteralPath $diskpartScript.FullName -Force -ErrorAction SilentlyContinue
+    }
+    if ($diskpartExit -ne 0) {
+        Fail "diskpart-clean-failed exit=$diskpartExit output=$($diskpartOutput -join ' | ')"
+    }
+
+    $refresh = Get-Command Update-HostStorageCache -ErrorAction SilentlyContinue
+    if ($refresh) { Update-HostStorageCache }
+    Start-Sleep -Seconds 2
+    $live = Get-Disk -Number $diskNumber -ErrorAction Stop
+    $remainingPartitions = @(Get-Partition -DiskNumber $diskNumber -ErrorAction SilentlyContinue)
+    if (
+        ([string]$live.SerialNumber).Trim() -ne $serial -or
+        [int64]$live.Size -ne $expectedSize -or
+        $live.BusType -ne 'USB' -or
+        [bool]$live.IsBoot -or
+        [bool]$live.IsSystem -or
+        [bool]$live.IsReadOnly -or
+        $remainingPartitions.Count -ne 0
+    ) {
+        Fail "removable-clean-not-proven partitions=$($remainingPartitions.Count)"
+    }
+    if ($protected.ContainsKey(([string]$live.SerialNumber).Trim())) {
+        Fail 'target-became-protected-after-clean'
+    }
+    Write-Host "AURUM_TINYSEED_FLASH_PREP mode=removable-clean disk=$diskNumber serial=$serial partitions=0"
+}
+
+# Re-prove identity again immediately before opening the raw device.
+$live = Get-Disk -Number $diskNumber -ErrorAction Stop
+if (
+    ([string]$live.SerialNumber).Trim() -ne $serial -or
+    [int64]$live.Size -ne $expectedSize -or
+    $live.BusType -ne 'USB' -or
+    [bool]$live.IsBoot -or
+    [bool]$live.IsSystem -or
+    [bool]$live.IsReadOnly
+) {
+    Fail 'target-identity-changed-before-raw-write'
+}
+if ($protected.ContainsKey(([string]$live.SerialNumber).Trim())) {
+    Fail 'target-became-protected-before-raw-write'
 }
 
 $bufferSize = 4MB
@@ -120,7 +195,7 @@ try {
     $target = New-Object IO.FileStream(
         $physicalPath,
         [IO.FileMode]::Open,
-        [IO.FileAccess]::Write,
+        [IO.FileAccess]::ReadWrite,
         [IO.FileShare]::ReadWrite,
         $bufferSize,
         [IO.FileOptions]::WriteThrough
