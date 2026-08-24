@@ -25,7 +25,7 @@ The normal setup surface is deliberately only three screens.
 
 - If wired networking or an existing connection is already online, this screen completes automatically.
 - Otherwise show nearby Wi-Fi networks, ask for one password, and connect.
-- Offline mode remains possible for germ repair or bootstrap installation; genetics regrowth is deferred until networking exists.
+- Offline mode remains possible for germ repair or bootstrap installation. On x86, a verified policy-pinned fallback phenotype may grow into the inactive slot without networking; otherwise current-genetics regrowth is deferred until networking exists.
 
 ### 2. Machine
 

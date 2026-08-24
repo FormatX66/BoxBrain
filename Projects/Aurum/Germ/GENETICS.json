@@ -7,6 +7,7 @@
   "stable_bootstrap": "Projects/Aurum/Germ/reseed.py",
   "required_paths": [
     "Projects/Aurum/Germ/GENETICS.json",
+    "Projects/Aurum/Germ/carrier.py",
     "Projects/Aurum/Germ/reseed.py",
     "Projects/Aurum/Germ/guardian.py",
     "Projects/Aurum/Germ/recovery_ledger.py",
@@ -35,7 +36,11 @@
       "runtime_root": "Projects/AurumPC",
       "codelation_root": "Projects/Codelation",
       "growth_adapter": "python-runtime-slot-v1",
-      "local_ab_slots": true
+      "local_ab_slots": true,
+      "offline_carrier": {
+        "enabled": true,
+        "pinned_commit": "41d480cd2a7b5530a5720c353ceb479b4df5f59a"
+      }
     },
     "arm64": {
       "source_ref": "aurum/pi3-v0.01",

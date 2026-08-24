@@ -21,6 +21,7 @@ from typing import Any, Sequence
 
 GERM_FILES = (
     "GENETICS.json",
+    "carrier.py",
     "reseed.py",
     "guardian.py",
     "recovery_ledger.py",
@@ -111,40 +112,6 @@ def _install_units(root: Path) -> dict[str, Any]:
     systemd.mkdir(parents=True, exist_ok=True)
     wants.mkdir(parents=True, exist_ok=True)
     timer_wants.mkdir(parents=True, exist_ok=True)
-
-    resolved_candidates = (
-        root / "lib/systemd/system/systemd-resolved.service",
-        root / "usr/lib/systemd/system/systemd-resolved.service",
-    )
-    resolved_available = any(path.is_file() for path in resolved_candidates)
-    resolved_target = (
-        "/lib/systemd/system/systemd-resolved.service"
-        if resolved_candidates[0].is_file()
-        else "/usr/lib/systemd/system/systemd-resolved.service"
-    )
-
-    network_manager = root / "etc/NetworkManager/conf.d/10-aurum-resolved.conf"
-    resolver = systemd / "aurum-resolver-link.service"
-    if resolved_available:
-        network_manager.parent.mkdir(parents=True, exist_ok=True)
-        network_manager.write_text(
-            "[main]\n"
-            "dns=systemd-resolved\n"
-            "rc-manager=symlink\n",
-            encoding="utf-8",
-        )
-        resolver.write_text(
-            "[Unit]\n"
-            "Description=Restore the Aurum installed resolver link\n"
-            "After=local-fs.target\n"
-            "Before=NetworkManager.service systemd-resolved.service aurum-pc-console.service\n\n"
-            "[Service]\n"
-            "Type=oneshot\n"
-            "ExecStart=/bin/ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf\n\n"
-            "[Install]\n"
-            "WantedBy=multi-user.target\n",
-            encoding="utf-8",
-        )
 
     resolved_candidates = (
         root / "lib/systemd/system/systemd-resolved.service",

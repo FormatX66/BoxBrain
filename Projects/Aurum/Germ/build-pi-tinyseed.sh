@@ -71,7 +71,7 @@ rm -f "$ROOT_MNT/usr/bin/qemu-aarch64-static"
 
 GERM_DST="$ROOT_MNT/usr/lib/aurum/germ"
 mkdir -p "$GERM_DST"
-for name in GENETICS.json reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
+for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   install -m 0755 "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0644 "$GERM_DST/GENETICS.json"
