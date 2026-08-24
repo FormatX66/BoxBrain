@@ -2,8 +2,9 @@
 """Cryptographic verification for Aurum remote recovery requests.
 
 Requests are Ed25519-signed, short-lived, bound to one machine identity, and
-checked against replay state before any recovery action is allowed. This module
-only verifies authority and policy; recovery_poller.py performs bounded actions.
+checked against replay state before any recovery action is allowed. A `specific`
+request pins both the genetics commit and the platform-source commit, so a
+moving branch can never silently change the signed recovery state.
 """
 from __future__ import annotations
 
@@ -40,21 +41,25 @@ def canonical_json(value: Any) -> bytes:
     ).encode("utf-8")
 
 
-def load_trusted_commits(path: Path) -> set[str]:
+def load_trusted_states(path: Path) -> set[tuple[str, str]]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RecoveryControlError(f"recovery trust policy unreadable: {exc}") from exc
     if payload.get("schema") != TRUST_SCHEMA:
         raise RecoveryControlError("unsupported recovery trust policy")
-    commits = payload.get("specific_commits")
-    if not isinstance(commits, list):
-        raise RecoveryControlError("specific_commits must be a list")
-    result: set[str] = set()
-    for item in commits:
-        if not isinstance(item, str) or not COMMIT_RE.fullmatch(item.lower()):
-            raise RecoveryControlError("trusted specific recovery refs must be immutable 40-character commits")
-        result.add(item.lower())
+    states = payload.get("specific_states")
+    if not isinstance(states, list):
+        raise RecoveryControlError("specific_states must be a list")
+    result: set[tuple[str, str]] = set()
+    for item in states:
+        if not isinstance(item, dict):
+            raise RecoveryControlError("specific recovery trust entries must be objects")
+        genetics = str(item.get("genetics_commit") or "").lower()
+        platform = str(item.get("platform_commit") or "").lower()
+        if not COMMIT_RE.fullmatch(genetics) or not COMMIT_RE.fullmatch(platform):
+            raise RecoveryControlError("trusted specific states require two immutable 40-character commits")
+        result.add((genetics, platform))
     return result
 
 
@@ -62,7 +67,7 @@ def _validate_payload(
     payload: dict[str, Any],
     *,
     local_node_id: str,
-    trusted_commits: set[str],
+    trusted_states: set[tuple[str, str]],
     now: int,
 ) -> dict[str, Any]:
     if payload.get("schema") != REQUEST_SCHEMA:
@@ -92,14 +97,19 @@ def _validate_payload(
         raise RecoveryControlError("unsupported recovery target")
 
     ref = payload.get("ref")
+    platform_commit = payload.get("platform_commit")
     if target == "specific":
         if not isinstance(ref, str) or not COMMIT_RE.fullmatch(ref.lower()):
-            raise RecoveryControlError("specific recovery target must be an immutable commit")
+            raise RecoveryControlError("specific recovery genetics must be an immutable commit")
+        if not isinstance(platform_commit, str) or not COMMIT_RE.fullmatch(platform_commit.lower()):
+            raise RecoveryControlError("specific recovery platform source must be an immutable commit")
         ref = ref.lower()
-        if ref not in trusted_commits:
-            raise RecoveryControlError("specific recovery commit is not trusted")
-    elif ref is not None:
-        raise RecoveryControlError("ref is only valid for target=specific")
+        platform_commit = platform_commit.lower()
+        if (ref, platform_commit) not in trusted_states:
+            raise RecoveryControlError("specific genetics/platform state pair is not trusted")
+    else:
+        if ref is not None or platform_commit is not None:
+            raise RecoveryControlError("ref/platform_commit are only valid for target=specific")
 
     reboot = payload.get("reboot", False)
     if not isinstance(reboot, bool):
@@ -113,6 +123,7 @@ def _validate_payload(
         "expires_at_unix": expires,
         "target": target,
         "ref": ref,
+        "platform_commit": platform_commit,
         "reboot": reboot,
     }
 
@@ -164,7 +175,7 @@ def verify_envelope(
     *,
     public_key: Path,
     local_node_id: str,
-    trusted_commits: set[str],
+    trusted_states: set[tuple[str, str]],
     now: int | None = None,
 ) -> dict[str, Any]:
     if envelope.get("schema") != ENVELOPE_SCHEMA:
@@ -185,7 +196,7 @@ def verify_envelope(
     checked = _validate_payload(
         payload,
         local_node_id=local_node_id,
-        trusted_commits=trusted_commits,
+        trusted_states=trusted_states,
         now=int(time.time()) if now is None else int(now),
     )
     _verify_ed25519(public_key, canonical_json(payload), signature)
