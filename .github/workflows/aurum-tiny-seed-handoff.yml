@@ -10,7 +10,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 concurrency:
   group: aurum-tiny-seed-handoff-${{ github.ref }}
@@ -144,3 +144,22 @@ jobs:
           path: handoff/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Persist verified handoff state for operators and automation
+        if: steps.runs.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/Aurum/Release
+          cp handoff/AURUM-TINYSEED-RELEASE.json Projects/Aurum/Release/latest-tinyseed-handoff.json
+          git config user.name 'aurum-tinyseed-handoff[bot]'
+          git config user.email 'aurum-tinyseed-handoff@users.noreply.github.com'
+          git add Projects/Aurum/Release/latest-tinyseed-handoff.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_TINYSEED_HANDOFF_STATE unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record verified Tiny Seed handoff [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_TINYSEED_HANDOFF_STATE persisted=true'
