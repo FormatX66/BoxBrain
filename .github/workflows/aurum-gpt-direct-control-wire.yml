@@ -37,7 +37,8 @@ jobs:
           trait = Path('Projects/AurumPC/aurum_gpt_trait.py').read_text(encoding='utf-8')
           executor = Path('Projects/AurumPC/aurum_gpt_executor.py').read_text(encoding='utf-8')
           assert '"aurum_gpt_executor.py"' in runtime
-          assert 'aurum_workspace_replace' in trait
+          assert 'aurum_workspace_read' in trait
+          assert 'aurum_workspace_replace' not in trait
           assert 'aurum_control' in trait
           assert 'direct_shell_contract": False' in executor
           assert 'rollback_on_validation_failure' in executor

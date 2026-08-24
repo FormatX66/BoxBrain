@@ -35,8 +35,9 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           text = Path('Projects/AurumPC/aurum_gpt_trait.py').read_text(encoding='utf-8')
-          for marker in ['function_call_output', 'aurum_control', 'aurum_workspace_read', 'aurum_workspace_replace', 'parallel_tool_calls']:
+          for marker in ['function_call_output', 'aurum_control', 'aurum_workspace_read', 'parallel_tool_calls']:
               assert marker in text, marker
+          assert 'aurum_workspace_replace' not in text
           assert 'raw_shell": False' in text
           PY
 
