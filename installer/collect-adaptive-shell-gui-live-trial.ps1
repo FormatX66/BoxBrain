@@ -48,8 +48,18 @@ function Invoke-GuiTrial {
         [Parameter(Mandatory)][string]$Command,
         [switch]$AllowFailure
     )
-    $lines = @(& $ssh @options $target $Command 2>&1)
-    $exitCode = $LASTEXITCODE
+    # Windows PowerShell 5.1 surfaces native-process stderr as ErrorRecord objects.
+    # Do not let benign SSH stderr become a terminating PowerShell error; the native
+    # ssh exit code remains the authority for transport/remote-command failure.
+    $savedErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $lines = @(& $ssh @options $target $Command 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorActionPreference
+    }
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         throw "The strict BBPI4 GUI trial command failed: $($lines -join ' ')"
     }
