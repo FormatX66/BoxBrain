@@ -1,0 +1,102 @@
+{
+  "schema": "aurum-tinyseed-self-build-lifecycle-v1",
+  "initiator": "tinyseed",
+  "universal_scope": "carrier-and-lifecycle-with-architecture-specific-boot-adapters",
+  "network_bootstrap": {
+    "priority": "early-before-expensive-construction",
+    "route_order": [
+      "already-online-authorized-route",
+      "wifi-onboarding",
+      "other-authorized-transport",
+      "bounded-offline-recovery"
+    ],
+    "cloud_roles": [
+      "verified-source-and-artifact-cache",
+      "classical-compiler-builder",
+      "remote-test-and-emulation",
+      "model-assisted-planning",
+      "qpu-attributed-future-branch-experiment"
+    ],
+    "network_authority_required": true,
+    "provider-and-runtime-attribution_required": true,
+    "local_artifact_verification_required": true,
+    "local_boot_health_proof_required": true,
+    "offline_recovery_must_remain_viable": true
+  },
+  "phases": [
+    {
+      "id": "external-generic-discovery",
+      "boot": 0,
+      "kernel_role": "generic-compatibility",
+      "observes": "machine-species",
+      "outputs": [
+        "verified-carrier",
+        "network-capability-receipt",
+        "authorized-cloud-local-build-route-or-offline-state",
+        "machine-species-receipt",
+        "resolved-first-boot-kernel",
+        "protected-install-target"
+      ],
+      "rollback": "external-carrier-remains-recovery-path"
+    },
+    {
+      "id": "tinyseed-install",
+      "boot": 0,
+      "kernel_role": "generic-compatibility",
+      "observes": "machine-species",
+      "outputs": [
+        "protected-reseed-germ",
+        "first-boot-kernel-lkg",
+        "compact-build-seed-instructions",
+        "network-resume-state-without-credentials",
+        "guardian-and-recovery-metadata",
+        "inactive-candidate-slot"
+      ],
+      "rollback": "no-in-place-overwrite-of-proven-organism"
+    },
+    {
+      "id": "internal-first-boot",
+      "boot": 1,
+      "kernel_role": "first-boot-lkg",
+      "observes": "machine-specimen",
+      "outputs": [
+        "exact-machine-inventory",
+        "soil-bootstrap",
+        "field-bootstrap",
+        "slush-bootstrap",
+        "verified-build-seed-instructions"
+      ],
+      "rollback": "external-carrier-or-first-boot-lkg"
+    },
+    {
+      "id": "full-aurum-growth",
+      "boot": 1,
+      "kernel_role": "first-boot-lkg",
+      "observes": "machine-specimen-and-build-evidence",
+      "outputs": [
+        "adaptive-kernel-candidate",
+        "custom-driver-candidates",
+        "full-aurum-candidate",
+        "adaptive-trial-metadata"
+      ],
+      "rollback": "discard-or-quarantine-inactive-candidate"
+    },
+    {
+      "id": "adaptive-trial",
+      "boot": 2,
+      "kernel_role": "adaptive-candidate",
+      "observes": "independent-health-evidence",
+      "outputs": [
+        "promoted-generation-or-rollback-receipt"
+      ],
+      "rollback": "automatic-first-boot-lkg"
+    }
+  ],
+  "future_branch": {
+    "preserve_lkg": true,
+    "candidate_slot_required": true,
+    "qpu_role": "optional-attributed-candidate-selection-accelerator",
+    "qpu_is_build_or-health-proof": false
+  },
+  "semantic_progress_only": true
+}

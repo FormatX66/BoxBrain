@@ -97,6 +97,10 @@ The physical implementation may initially use separate partitions for x86 and AR
 
 ## Boot behavior
 
+The universal carrier's complete discovery, internal first-boot, full build,
+and adaptive trial sequence follows the
+[TinySeed Self-Build Lifecycle](../../docs/architecture/TINYSEED_SELF_BUILD_LIFECYCLE.md).
+
 ### x86-64 PC
 
 UEFI finds the removable x64 loader, loads the x86 bootstrap, identifies the machine, then boots/materializes the x86 Aurum phenotype. Pi/other-platform files are ignored.

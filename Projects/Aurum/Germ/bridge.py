@@ -21,6 +21,7 @@ from typing import Any, Sequence
 
 GERM_FILES = (
     "GENETICS.json",
+    "SELF_BUILD_LIFECYCLE.json",
     "carrier.py",
     "reseed.py",
     "guardian.py",

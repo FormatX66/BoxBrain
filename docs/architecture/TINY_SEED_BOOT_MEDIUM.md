@@ -6,6 +6,9 @@ Status: **Implementation v1 in progress; x86 build path implemented, Raspberry P
 
 The Tiny Seed is the smallest practical physical Aurum germ carrier. It is not a full Aurum release and it is not meant to preserve a frozen phenotype forever.
 
+Its canonical multi-boot handoff into a self-built adaptive system is defined
+by the [TinySeed Self-Build Lifecycle](TINYSEED_SELF_BUILD_LIFECYCLE.md).
+
 Its job is to boot enough trusted substrate to:
 
 1. identify the machine and storage safely;
@@ -25,6 +28,11 @@ The normal setup surface is deliberately only three screens.
 
 - If wired networking or an existing connection is already online, this screen completes automatically.
 - Otherwise show nearby Wi-Fi networks, ask for one password, and connect.
+- After connectivity, select and record an authorized local/cloud hybrid build
+  route so remote caches, classical builders, test capacity, and attributed
+  Future Branch accelerators can assist construction.
+- Verify all remote build results locally and require physical boot/health proof
+  on the target; cloud completion is never promotion proof.
 - Offline mode remains possible for germ repair or bootstrap installation. On x86, a verified policy-pinned fallback phenotype may grow into the inactive slot without networking; otherwise current-genetics regrowth is deferred until networking exists.
 
 ### 2. Machine
@@ -44,7 +52,11 @@ Show one plain-language summary and a yes/no confirmation.
 - Existing Aurum: install/refresh the protected germ, convert a legacy single runtime to A/B if needed, fetch current genetics, grow the inactive slot, health-test, arm the trial.
 - Fresh machine: install the minimal germ substrate, then regrow current genetics before first boot where the platform adapter supports it.
 
-After that, the user removes Tiny Seed and boots normally. The Guardian promotes the candidate only after health evidence; otherwise it returns to LKG.
+After that, the user removes Tiny Seed and boots normally. When a full phenotype
+was not safely grown during the external boot, the installed first-boot kernel
+continues exact discovery and growth automatically. The resulting adaptive
+kernel enters a later protected trial boot. The Guardian promotes a candidate
+only after health evidence; otherwise it returns to LKG.
 
 ## Minimal payload
 

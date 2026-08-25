@@ -22,6 +22,7 @@ class ReseedGermTests(unittest.TestCase):
         self.assertIn("x86_64", manifest["platforms"])
         self.assertIn("arm64", manifest["platforms"])
         for name in (
+            "SELF_BUILD_LIFECYCLE.json",
             "carrier.py",
             "recovery_ledger.py",
             "proof.py",

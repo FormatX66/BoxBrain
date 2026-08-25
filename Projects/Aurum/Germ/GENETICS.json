@@ -7,6 +7,7 @@
   "stable_bootstrap": "Projects/Aurum/Germ/reseed.py",
   "required_paths": [
     "Projects/Aurum/Germ/GENETICS.json",
+    "Projects/Aurum/Germ/SELF_BUILD_LIFECYCLE.json",
     "Projects/Aurum/Germ/carrier.py",
     "Projects/Aurum/Germ/reseed.py",
     "Projects/Aurum/Germ/guardian.py",
@@ -28,7 +29,8 @@
     "Projects/Aurum/completion-plan.json",
     "docs/architecture/RESEED_GENETICS_ARCHITECTURE.md",
     "docs/architecture/SEED_RECOVERY_ARCHITECTURE.md",
-    "docs/architecture/TINY_SEED_BOOT_MEDIUM.md"
+    "docs/architecture/TINY_SEED_BOOT_MEDIUM.md",
+    "docs/architecture/TINYSEED_SELF_BUILD_LIFECYCLE.md"
   ],
   "platforms": {
     "x86_64": {

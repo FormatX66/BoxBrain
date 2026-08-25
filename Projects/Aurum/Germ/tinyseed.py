@@ -52,7 +52,10 @@ def _announce_online() -> None:
 
 def _network_step() -> bool:
     while True:
-        _title("1 · NETWORK", "Join Wi-Fi now so Aurum can regrow current trusted genetics.")
+        _title(
+            "1 · NETWORK",
+            "Connect now so Aurum can use trusted genetics and authorized cloud build help.",
+        )
         try:
             current = network.status()
         except network.NetworkError as exc:
@@ -370,7 +373,7 @@ def main() -> int:
     if INSTALLED_MARKER.is_file() and not LIVE_MEDIUM.is_dir():
         return _installed_bootstrap_mode()
 
-    detected = machine.detect()
+    detected = machine.detect_species()
     online = _network_step()
 
     _title("2 · MACHINE", f"Detected: {detected['architecture']} · {detected.get('model') or 'unknown model'}")
@@ -451,6 +454,7 @@ def main() -> int:
                 architecture=str(detected["architecture"]),
                 model=detected.get("model"),
                 regrow_current=online,
+                species=detected,
             )
             root_device = str(result.get("root_device") or "")
     except (bridge.BridgeError, installer.InstallError, network.NetworkError, RuntimeError) as exc:

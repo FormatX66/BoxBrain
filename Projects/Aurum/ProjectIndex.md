@@ -16,6 +16,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [Genetics and Reseed Germ architecture](../../docs/architecture/RESEED_GENETICS_ARCHITECTURE.md)
 - [Mandatory seed recovery architecture](../../docs/architecture/SEED_RECOVERY_ARCHITECTURE.md)
 - [Tiny Seed boot medium architecture](../../docs/architecture/TINY_SEED_BOOT_MEDIUM.md)
+- [TinySeed self-build lifecycle](../../docs/architecture/TINYSEED_SELF_BUILD_LIFECYCLE.md)
 - [Operator completion contract](OPERATOR_CONTRACT.md)
 - [Universal PC/Pi seed-drive north star](UNIVERSAL_PC_PI_SEED_DRIVE.md)
 - [Reseed Germ / Tiny Seed evidence status](Germ/STATUS.md)

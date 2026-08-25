@@ -185,7 +185,15 @@ def _kernel_pair(root: Path) -> tuple[str, str]:
     raise InstallError("installed Tiny Seed has no matching kernel/initramfs")
 
 
-def _write_common(root: Path, *, root_uuid: str, boot_line: str) -> None:
+def _write_common(
+    root: Path,
+    *,
+    root_uuid: str,
+    boot_line: str,
+    species: dict[str, Any] | None = None,
+) -> None:
+    if species is not None and species.get("schema") != "aurum-machine-species-v1":
+        raise InstallError("Tiny Seed received an incompatible machine-species receipt")
     (root / "etc").mkdir(parents=True, exist_ok=True)
     machine_id = root / "etc/machine-id"
     machine_id.write_text("", encoding="utf-8")
@@ -202,6 +210,13 @@ def _write_common(root: Path, *, root_uuid: str, boot_line: str) -> None:
         ) + "\n",
         encoding="utf-8",
     )
+    if species is not None:
+        bootstrap = root / "var/lib/aurum/bootstrap"
+        bootstrap.mkdir(parents=True, exist_ok=True)
+        (bootstrap / "machine-species.json").write_text(
+            json.dumps(species, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
 
 def _chroot_regrow(root: Path) -> dict[str, Any]:
@@ -239,7 +254,12 @@ def _chroot_regrow(root: Path) -> dict[str, Any]:
             _run(["umount", "-l", str(target)], timeout=20, check=False)
 
 
-def _install_x86(target: dict[str, Any], *, regrow_current: bool) -> dict[str, Any]:
+def _install_x86(
+    target: dict[str, Any],
+    *,
+    regrow_current: bool,
+    species: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     device = target["device"]
     p1, p2, p3 = (_partition(device, n) for n in (1, 2, 3))
     _run(["wipefs", "--all", "--force", device])
@@ -276,7 +296,12 @@ def _install_x86(target: dict[str, Any], *, regrow_current: bool) -> dict[str, A
                 f"UUID={root_uuid} / ext4 defaults,noatime 0 1\nUUID={efi_uuid} /boot/efi vfat umask=0077 0 2\n",
                 encoding="utf-8",
             )
-            _write_common(root, root_uuid=root_uuid, boot_line="x86-dual-uefi-bios")
+            _write_common(
+                root,
+                root_uuid=root_uuid,
+                boot_line="x86-dual-uefi-bios",
+                species=species,
+            )
             _run([
                 "grub-install", "--target=x86_64-efi", f"--efi-directory={efi}",
                 f"--boot-directory={root / 'boot'}", "--removable", "--no-nvram", "--recheck",
@@ -313,7 +338,12 @@ def _install_x86(target: dict[str, Any], *, regrow_current: bool) -> dict[str, A
     }
 
 
-def _install_pi(target: dict[str, Any], *, regrow_current: bool) -> dict[str, Any]:
+def _install_pi(
+    target: dict[str, Any],
+    *,
+    regrow_current: bool,
+    species: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     device = target["device"]
     p1, p2 = (_partition(device, n) for n in (1, 2))
     source_boot = Path("/boot/firmware")
@@ -358,7 +388,12 @@ def _install_pi(target: dict[str, Any], *, regrow_current: bool) -> dict[str, An
                 else:
                     text += f" root=UUID={root_uuid}"
                 cmdline.write_text(text + "\n", encoding="utf-8")
-            _write_common(root, root_uuid=root_uuid, boot_line="raspberry-pi-firmware")
+            _write_common(
+                root,
+                root_uuid=root_uuid,
+                boot_line="raspberry-pi-firmware",
+                species=species,
+            )
             regrow = _chroot_regrow(root) if regrow_current else {"status": "deferred"}
             _run(["sync"], check=False)
         finally:
@@ -375,7 +410,14 @@ def _install_pi(target: dict[str, Any], *, regrow_current: bool) -> dict[str, An
     }
 
 
-def install(confirmation_code: str, *, architecture: str, model: str | None, regrow_current: bool = True) -> dict[str, Any]:
+def install(
+    confirmation_code: str,
+    *,
+    architecture: str,
+    model: str | None,
+    regrow_current: bool = True,
+    species: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if os.geteuid() != 0:
         raise InstallError("Tiny Seed install requires root")
     matches = [t for t in discover_targets() if t["confirmation_code"] == confirmation_code]
@@ -383,9 +425,13 @@ def install(confirmation_code: str, *, architecture: str, model: str | None, reg
         raise InstallError("confirmation no longer identifies exactly one eligible target disk")
     target = matches[0]
     if architecture == "x86_64":
-        return _install_x86(target, regrow_current=regrow_current)
+        return _install_x86(
+            target, regrow_current=regrow_current, species=species
+        )
     if architecture == "arm64" and model and "raspberry pi" in model.lower():
-        return _install_pi(target, regrow_current=regrow_current)
+        return _install_pi(
+            target, regrow_current=regrow_current, species=species
+        )
     raise InstallError(f"no fresh-install adapter is proven for architecture={architecture} model={model!r}")
 
 
