@@ -13,6 +13,8 @@ on:
       - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
+      - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-fallback-canonical-provenance.json'
+      - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-x86-fallback-carrier-matrix-experiment.json'
       # These two files also contain non-canonical planning/calibration fields that
       # are legitimately edited by other lanes. Re-run the projector after those
       # edits so their embedded canonical release/preflight truth cannot drift.
@@ -21,6 +23,7 @@ on:
       - 'Projects/Aurum/future-branches.json'
       - 'Admin/sync_aurum_release_status.py'
       - 'Admin/sync_aurum_future_branch_evidence.py'
+      - 'Admin/sync_aurum_fallback_evidence.py'
       - '.github/workflows/aurum-completion-plan-sync.yml'
 
 permissions:
@@ -46,6 +49,9 @@ jobs:
 
       - name: Project canonical release and preflight evidence into Future Branch
         run: python Admin/sync_aurum_future_branch_evidence.py
+
+      - name: Project fallback freshness into Future Branch
+        run: python Admin/sync_aurum_fallback_evidence.py
 
       - name: Persist synchronized Aurum state
         shell: bash
