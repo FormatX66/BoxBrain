@@ -318,27 +318,17 @@
     "physical_preflight": {
       "present": true,
       "matches_current_release": true,
-      "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
-      "next_gate": "explicit-guarded-flash-authorization",
+      "state": "READY_TO_BOOT",
+      "next_gate": "physical-hopper-boot-proof",
       "write_authority": false,
       "destructive_action_allowed": false,
       "destructive_action_performed": false,
-      "eligible_count": 1,
-      "usb_candidate": {
-        "disk_number": 1,
-        "model": "USB SanDisk 3.2 Gen",
-        "size_bytes": 61524148224,
-        "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
-        "is_boot": false,
-        "is_system": false,
-        "is_read_only": false,
-        "protected": false,
-        "eligible_for_preflight_only": true
-      }
+      "eligible_count": null,
+      "usb_candidate": null
     },
     "preexecution_recovery": {
-      "terminal_receipt_present": true,
-      "manual_handoff_released": true,
+      "terminal_receipt_present": false,
+      "manual_handoff_released": false,
       "remote_repair": "unavailable",
       "terminal_reason": "boxbrain-unreachable",
       "observed_at": "2026-08-25T22:35:40.2563458Z"
@@ -378,12 +368,12 @@
   "live_controls": {
     "release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
     "release_state": "READY_TO_FLASH",
-    "preflight_state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
-    "next_gate": "explicit-guarded-flash-authorization",
+    "preflight_state": "READY_TO_BOOT",
+    "next_gate": "physical-hopper-boot-proof",
     "preflight_matches_current_release": true,
-    "eligible_usb_count": 1,
-    "terminal_recovery_receipt": true,
-    "manual_handoff_released": true,
+    "eligible_usb_count": null,
+    "terminal_recovery_receipt": false,
+    "manual_handoff_released": false,
     "flash_receipt_present": true,
     "flash_receipt_matches_current_release": true,
     "current_release_flash_ready_to_boot": true,
