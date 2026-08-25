@@ -8,7 +8,9 @@ on:
       - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
       - 'Projects/Aurum/Recovery/latest-usb-discovery.json'
       - 'Projects/Aurum/Recovery/usb-discovery-request.json'
+      - 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
       - 'Projects/Aurum/Germ/physical_handoff_preflight.py'
+      - 'Projects/Aurum/Germ/post_flash_projection.py'
       - '.github/workflows/aurum-tiny-seed-preexecution-gate-projector.yml'
   workflow_dispatch:
 
@@ -42,6 +44,7 @@ jobs:
           root = Path('.')
           sys.path.insert(0, str((root / 'Projects/Aurum/Germ').resolve()))
           from physical_handoff_preflight import evaluate_physical_preflight
+          from post_flash_projection import matching_ready_to_boot, project_post_flash_state
 
           def load(path):
               return json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else None
@@ -49,11 +52,15 @@ jobs:
           release = load(root / 'Projects/Aurum/Release/latest-tinyseed-handoff.json')
           discovery = load(root / 'Projects/Aurum/Recovery/latest-usb-discovery.json')
           flash_request = load(root / 'Projects/Aurum/Recovery/tinyseed-flash-request.json')
+          flash_receipt = load(root / 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json')
           recovery = load(root / 'Projects/AurumBridge/results/hopper-recovery-path-latest.json')
           if release is None:
               raise SystemExit('AURUM_TINYSEED_PREEXECUTION_REFUSED reason=release-missing')
 
-          payload = evaluate_physical_preflight(release, discovery, flash_request, recovery)
+          if matching_ready_to_boot(release, flash_receipt):
+              payload = project_post_flash_state(release, flash_receipt, recovery)
+          else:
+              payload = evaluate_physical_preflight(release, discovery, flash_request, recovery)
           if payload.get('write_authority') is not False or payload.get('destructive_action_allowed') is not False:
               raise SystemExit('AURUM_TINYSEED_PREEXECUTION_REFUSED reason=evaluator-granted-authority')
           out_path = root / 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
