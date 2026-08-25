@@ -17,6 +17,16 @@ single-leader supervisor lease, runner watchdog, bounded retry classification,
 branch quarantine, LKG promotion, a loopback authenticated API, and Windows and
 Linux service installers.
 
+Hosted Windows installation is now CI-proven. GitHub Actions run `32878837340`
+on source commit `da4239ab301c5fb2d6748145dae75b03e3589bed` successfully exercised the
+real Windows installer, persisted a matching source/health receipt, registered
+and started the `Aurum Farmer` scheduled task, verified the authenticated
+loopback health endpoint and event chain, then removed the ephemeral CI task
+through the real uninstaller. This is **installer/service-contract proof on a
+hosted Windows machine**, not evidence that Farmer is already installed and
+running on the operator's long-lived physical computer. Live deployed-runtime
+proof remains a separate boundary.
+
 ## Canonical implementation
 
 - [Runtime and operator guide](README.md)
@@ -29,6 +39,8 @@ Linux service installers.
   scheduler, dedupe, and Chat-to-Git adapter regression proof
 - `installer/install-aurum-farmer.ps1` — current-user Windows service install
 - `installer/aurum-farmer.service` — Linux/Pi systemd unit template
+- `.github/workflows/aurum-farmer-ci.yml` — Linux runtime regression plus hosted
+  Windows install/start/health/uninstall proof
 
 ## Invariants
 
