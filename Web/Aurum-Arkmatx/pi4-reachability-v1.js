@@ -2,6 +2,7 @@
  * Canonical website owner: FormatX66/ClusterSites.
  * v1.1 joins dynamic BBPI4 transport evidence with the newest Pi4 seed-reconcile receipt
  * and the pre-mutation Future Branch recovery guard without inferring physical authority.
+ * Compatibility: transport reachability, not proof of SSH identity.
  * Transport reachability is not proof of SSH identity; workflow success is not Pi4 seed success.
  */
 (()=>{'use strict';if(window.__aurumPi4ReachabilityV1)return;window.__aurumPi4ReachabilityV1=true;
@@ -29,7 +30,7 @@ if(reachState.phase==='checking'){pill.className='pill running';pill.textContent
 else if(ss==='PI4_SEED_OK'&&reachState.seedFresh){pill.className='pill running';pill.textContent='Advancing';evidence.textContent='Pi4 seed reconcile is freshly proven OK; physical/runtime health remains a separate evidence gate.'}
 else if(ss==='WAITING'&&reachState.seedFresh){pill.className='pill failed';pill.textContent='Needs Work';evidence.textContent=`Pi4 seed reconcile is waiting at ${seedReason(s)} · Aurum/System owns the blocker; no human action inferred.`}
 else if(ss==='PI4_SEED_FAILURE'&&reachState.seedFresh){pill.className='pill failed';pill.textContent='Needs Work';evidence.textContent='Pi4 seed reconcile reported failure · inspect the receipt before changing hardware; no human action inferred.'}
-else if(s.state&&!reachState.seedFresh){pill.className='pill waiting';pill.textContent='Waiting';evidence.textContent=`Latest Pi4 seed receipt is ${ss}, but it is older than 30 minutes · refresh system evidence before acting.`}
+else if(s.state&&!reachState.seedFresh){pill.className='pill waiting';pill.textContent=`Waiting`;evidence.textContent=`Latest Pi4 seed receipt is ${ss}, but it is older than 30 minutes · refresh system evidence before acting.`}
 else if(reachState.phase==='route-found'&&reachState.fresh){pill.className='pill experiment';pill.textContent='Experiment';evidence.textContent=`LAN transport observed at ${reachState.tcp22Addresses.join(', ')||reachState.pingAddresses.join(', ')} · transport is not SSH identity or Pi4 seed proof.`}
 else if(reachState.phase==='failed'){pill.className='pill failed';pill.textContent='Needs Work';evidence.textContent='Dynamic BBPI4 reachability diagnostic found no usable route · Aurum/System work; no human action inferred.'}
 else{pill.className='pill unknown';pill.textContent='Unknown';evidence.textContent='BBPI4 transport/seed evidence is unavailable · no human task inferred.'}
