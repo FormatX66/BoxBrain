@@ -2,8 +2,8 @@
   "authorization": {
     "authorization_state": "EXPIRED",
     "destructive_action_allowed": false,
-    "expires_at_utc": "2026-08-24T12:20:00+00:00",
-    "request_id": "tinyseed-crayola-flash-20260824-0739",
+    "expires_at_utc": "2026-08-25T15:14:04+00:00",
+    "request_id": "tinyseed-sandisk-flash-20260825-1429-r2",
     "request_write_authority": false
   },
   "destructive_action_allowed": false,
@@ -24,7 +24,7 @@
   "physical_boot_proven": false,
   "preexecution_recovery": {
     "manual_handoff_released": true,
-    "observed_at": "2026-08-25T14:28:04.3651244Z",
+    "observed_at": "2026-08-25T20:17:27.4141282Z",
     "reason": "fresh terminal unrepaired Hopper recovery receipt and current release-bound unique USB evidence are present",
     "remote_repair": "unavailable",
     "required_schema": "aurum.hopper.recovery-path-probe.v2",
