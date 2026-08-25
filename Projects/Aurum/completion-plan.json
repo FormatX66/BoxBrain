@@ -224,9 +224,9 @@
       "id": "remote-recovery-crypto",
       "lane": "remote-recovery",
       "depends_on": [],
-      "state": "implementation-in-progress",
+      "state": "ci-passed-software-physical-pending",
       "ready_now": true,
-      "proof": "desired-state request is cryptographically authenticated, freshness/replay checked and fails closed"
+      "proof": "signed desired-state authentication, freshness checks, durable replay refusal/persistence, malformed-ledger fail-closed behavior, and production recovery-poller ordering pass the protected germ-safety contract on current main"
     },
     {
       "id": "remote-recovery-physical-proof",
