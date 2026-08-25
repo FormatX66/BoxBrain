@@ -1,9 +1,9 @@
 ﻿{
     "schema":  "aurum-read-only-usb-discovery-v1",
-    "observed_at_utc":  "2026-08-25T09:50:09.7942766Z",
+    "observed_at_utc":  "2026-08-25T11:12:10.1040448Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
-    "request_id":  "tinyseed-auto-release-964b12de2ac9-32833481699",
-    "release_source_commit":  "964b12de2ac99ac069a0abf90673ebd77aabb0e0",
+    "request_id":  "tinyseed-auto-release-e845c02b984b-32841015742",
+    "release_source_commit":  "e845c02b984b8a40de42b58b1e059f03366804c3",
     "release_request_match":  true,
     "write_authority":  false,
     "device_count":  1,
