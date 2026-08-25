@@ -56,12 +56,13 @@ jobs:
 
           $seedSha = ([string]$request.seed_sha).Trim().ToLowerInvariant()
           $imageSha = ([string]$request.image_sha256).Trim().ToLowerInvariant()
+          $handoffRunId = [long]$request.handoff_run_id
           $serialHashWanted = ([string]$request.usb.serial_sha256).Trim().ToLowerInvariant()
           $modelWanted = [string]$request.usb.model
           $sizeWanted = [int64]$request.usb.size_bytes
           $discoveryId = [string]$request.discovery_request_id
 
-          if ($seedSha -notmatch '^[0-9a-f]{40}$' -or $imageSha -notmatch '^[0-9a-f]{64}$' -or $serialHashWanted -notmatch '^[0-9a-f]{64}$') {
+          if ($seedSha -notmatch '^[0-9a-f]{40}$' -or $imageSha -notmatch '^[0-9a-f]{64}$' -or $handoffRunId -le 0 -or $serialHashWanted -notmatch '^[0-9a-f]{64}$') {
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-identity-format'
           }
           if (([string]$preflight.release.source_commit).ToLowerInvariant() -ne $seedSha -or ([string]$preflight.release.x86_sha256).ToLowerInvariant() -ne $imageSha) {
@@ -122,10 +123,14 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
           }
           $repo = $env:GITHUB_REPOSITORY
-          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?status=success&per_page=100"
-          $run = @($runs.workflow_runs | Where-Object { $_.conclusion -eq 'success' -and ([string]$_.head_sha).ToLowerInvariant() -eq $seedSha } | Sort-Object id -Descending | Select-Object -First 1)
-          if ($run.Count -ne 1) { throw 'AURUM_TINYSEED_FLASH_WAITING reason=no-successful-handoff-for-exact-sha' }
-          $handoffRunId = [long]$run[0].id
+          # workflow_run jobs execute under the controller commit, while the
+          # handoff manifest is intentionally assembled for the exact completed
+          # x86/Pi source commit. Bind the request to one successful handoff run,
+          # then let the downloaded manifest and image hashes prove seed identity.
+          $run = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId"
+          if ([string]$run.path -ne '.github/workflows/aurum-tiny-seed-handoff.yml' -or [string]$run.conclusion -ne 'success') {
+            throw 'AURUM_TINYSEED_FLASH_WAITING reason=bound-handoff-run-not-successful'
+          }
           $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
           $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
           if ($artifact.Count -ne 1) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-artifact-missing' }
