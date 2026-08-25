@@ -7,9 +7,12 @@ on:
       - 'Aurum Hopper Recovery Request Dispatcher'
       - 'Aurum Tiny Seed Flash Contract'
       - 'Aurum Tiny Seed direct UEFI offline-carrier experiment'
+      - 'Aurum Tiny Seed x86 fallback carrier matrix experiment'
     # Durable main-branch receipts are terminal evidence, not a live progress
     # ticker. Queued/in-progress state is available from Actions/Failsafe
     # readback; committing every lifecycle transition creates evidence churn.
+    # Keep both Tiny Seed experiment names while the older draft remains open so
+    # either experiment can produce an honest terminal receipt.
     types: [completed]
 
 permissions:
