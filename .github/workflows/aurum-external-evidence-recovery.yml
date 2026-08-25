@@ -105,28 +105,115 @@ jobs:
           $key = $strictKey
 
           $collector = Join-Path $env:GITHUB_WORKSPACE 'installer\collect-adaptive-shell-gui-live-trial.ps1'
+          $repairer = Join-Path $env:GITHUB_WORKSPACE 'installer\recover-gui-module-drift.ps1'
           $approvedRoutes = @('10.12.194.1', '10.42.194.1', 'bbpi4.local', '192.168.0.194')
           $selectedRoute = $null
+
+          function Invoke-ChildPowerShell {
+            param([Parameter(Mandatory)][string[]]$Arguments)
+            $savedErrorActionPreference = $ErrorActionPreference
+            try {
+              $ErrorActionPreference = 'Continue'
+              $lines = @(& powershell.exe @Arguments 2>&1)
+              $exitCode = $LASTEXITCODE
+            }
+            finally {
+              $ErrorActionPreference = $savedErrorActionPreference
+            }
+            foreach ($line in $lines) {
+              Write-Host ([string]$line)
+            }
+            return [pscustomobject]@{
+              ExitCode = $exitCode
+              Output = @($lines | ForEach-Object { [string]$_ })
+            }
+          }
+
+          function Invoke-GuiCollector {
+            param([Parameter(Mandatory)][string]$Route)
+            return Invoke-ChildPowerShell -Arguments @(
+              '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $collector,
+              '-PiAddress', $Route,
+              '-KeyPath', $key,
+              '-KnownHostsPath', $knownHosts,
+              '-AuthorizationReference', $env:AURUM_AUTHORIZATION_REFERENCE,
+              '-TimeToLiveSeconds', '1200'
+            )
+          }
+
           try {
             foreach ($route in $approvedRoutes) {
               Write-Host "AURUM_EXTERNAL_EVIDENCE route_probe=$route"
-              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
-                -PiAddress $route `
-                -KeyPath $key `
-                -KnownHostsPath $knownHosts `
-                -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
-                -TimeToLiveSeconds 1200
-              $collectorExitCode = $LASTEXITCODE
-              if ($collectorExitCode -eq 0) {
+              $trial = Invoke-GuiCollector -Route $route
+              if ($trial.ExitCode -eq 0) {
                 $selectedRoute = $route
                 break
               }
-              Write-Host "AURUM_EXTERNAL_EVIDENCE route_failed=$route exit_code=$collectorExitCode"
+
+              $escapedRoute = [regex]::Escape($route)
+              $repairableModuleDrift = @($trial.Output | Where-Object {
+                $_ -match "^AURUM_GUI_CONTRACT_MISMATCH route=$escapedRoute failed=module_hash(?:\s|$)" -and
+                $_ -match ' authority=false content_free=true$'
+              }).Count -gt 0
+
+              if ($repairableModuleDrift) {
+                Write-Host "AURUM_EXTERNAL_EVIDENCE bounded_repair=gui-module-drift route=$route"
+                $repair = Invoke-ChildPowerShell -Arguments @(
+                  '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $repairer,
+                  '-PiAddress', $route,
+                  '-KeyPath', $key,
+                  '-KnownHostsPath', $knownHosts
+                )
+                if ($repair.ExitCode -ne 0) {
+                  throw 'The exact GUI module-drift repair failed before verification.'
+                }
+                $repairMarker = $repair.Output | Where-Object {
+                  $_ -match '^AURUM_GUI_MODULE_REPAIRED previous_sha=[0-9a-f]{64} installed_sha=[0-9a-f]{64} '
+                } | Select-Object -Last 1
+                if (-not $repairMarker) {
+                  throw 'The GUI module-drift repair did not return bounded rollback provenance.'
+                }
+                $previousSha = ([regex]::Match(
+                  [string]$repairMarker,
+                  'previous_sha=([0-9a-f]{64})'
+                )).Groups[1].Value
+
+                $verifiedTrial = Invoke-GuiCollector -Route $route
+                if ($verifiedTrial.ExitCode -eq 0) {
+                  Write-Host "AURUM_EXTERNAL_EVIDENCE repair_verified=true route=$route"
+                  $selectedRoute = $route
+                  break
+                }
+
+                Write-Host "AURUM_EXTERNAL_EVIDENCE repair_verified=false rollback=true route=$route"
+                $rollback = Invoke-ChildPowerShell -Arguments @(
+                  '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $repairer,
+                  '-PiAddress', $route,
+                  '-KeyPath', $key,
+                  '-KnownHostsPath', $knownHosts,
+                  '-RollbackSha', $previousSha
+                )
+                if ($rollback.ExitCode -ne 0) {
+                  throw 'GUI module-drift verification failed and the bounded rollback also failed.'
+                }
+                throw 'GUI module-drift repair was rolled back because fresh evidence did not verify.'
+              }
+
+              Write-Host "AURUM_EXTERNAL_EVIDENCE route_failed=$route exit_code=$($trial.ExitCode)"
             }
           }
           finally {
             if (Test-Path -LiteralPath $strictKey -PathType Leaf) {
-              Remove-Item -LiteralPath $strictKey -Force
+              # Keep the key strict while it is in use, then grant only this runner enough
+              # authority to delete its ephemeral copy. No other identity is added.
+              & icacls.exe $strictKey /inheritance:r /grant:r "${runnerIdentity}:(F)" | Out-Null
+              if ($LASTEXITCODE -ne 0) {
+                throw 'Could not prepare the runner-local BBPI4 SSH key copy for secure deletion.'
+              }
+              Remove-Item -LiteralPath $strictKey -Force -ErrorAction SilentlyContinue
+              if (Test-Path -LiteralPath $strictKey -PathType Leaf) {
+                throw 'Could not remove the runner-local BBPI4 SSH key copy.'
+              }
             }
           }
           if (-not $selectedRoute) {
