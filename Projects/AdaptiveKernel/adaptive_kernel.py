@@ -3,9 +3,12 @@
 This lane produces *plans only*. It does not bind drivers, write firmware, change
 boot state, or perform privileged hardware operations.
 
-Future Branch integration emits auditable candidate proposals only. It does not
-rank or promote them, so this standalone experiment remains independent of
-StateWeave and of the external policy/safety evaluator.
+Future Branch integration emits auditable candidate proposals and a bounded
+canary decision field. It never mutates the proven implementation itself: the
+current proven state, rollback, and gather-more-evidence remain explicit competing
+branches, and a candidate can become promotion-eligible only after independent
+boot/resume/hardware/performance/regression evidence is positive and a separate
+Guardian approval is present.
 """
 
 from __future__ import annotations
@@ -35,6 +38,38 @@ class Candidate:
 class KernelPlan:
     selected: tuple[Candidate, ...]
     rejected: tuple[Candidate, ...]
+
+
+@dataclass(frozen=True)
+class CanaryEvidence:
+    """Independent canary dimensions used before a kernel/driver promotion."""
+
+    boot: bool | None = None
+    resume: bool | None = None
+    hardware: bool | None = None
+    performance: bool | None = None
+    regression: bool | None = None
+
+    def as_mapping(self) -> dict[str, bool | None]:
+        return {
+            "boot": self.boot,
+            "resume": self.resume,
+            "hardware": self.hardware,
+            "performance": self.performance,
+            "regression": self.regression,
+        }
+
+    @property
+    def complete(self) -> bool:
+        return all(value is not None for value in self.as_mapping().values())
+
+    @property
+    def all_positive(self) -> bool:
+        return self.complete and all(bool(value) for value in self.as_mapping().values())
+
+    @property
+    def strong_regression(self) -> bool:
+        return self.regression is False
 
 
 _RISK_SCORE = {"low": 0.10, "medium": 0.45, "high": 0.85}
@@ -78,7 +113,7 @@ def future_branch_proposals(
     *,
     rollback_target: str = "current-proven-kernel",
 ) -> tuple[dict, ...]:
-    """Emit safety-evaluator-ready Future Branch proposals.
+    """Emit safety-evaluator-ready Future Branch candidate proposals.
 
     The output intentionally mirrors the shared Future Branch contract but does
     not choose a winner. Every observed requirement becomes an evidence record;
@@ -118,3 +153,127 @@ def future_branch_proposals(
             }
         )
     return tuple(proposals)
+
+
+def kernel_canary_branch_field(
+    proposals: Iterable[dict],
+    evidence_by_branch: Mapping[str, CanaryEvidence],
+    *,
+    proven_state: str = "current-proven-kernel",
+    guardian_approved_branches: Iterable[str] = (),
+) -> dict:
+    """Create the bounded Future Branch field for kernel/driver canaries.
+
+    This is still proposal/decision evidence only. ``promotion_performed`` is
+    always false. A Guardian approval can make a fully verified candidate
+    *promotion eligible*, but this function cannot replace the proven state.
+
+    Regression evidence is a hard veto: ``regression=False`` rejects the
+    candidate regardless of positive boot/resume/hardware/performance evidence.
+    Missing evidence leaves the candidate warm and keeps gather-more-evidence
+    explicit.
+    """
+
+    guardian_approved = set(guardian_approved_branches)
+    candidate_branches: list[dict] = []
+    for raw in proposals:
+        proposal = dict(raw)
+        branch_id = str(proposal["branch_id"])
+        canary = evidence_by_branch.get(branch_id, CanaryEvidence())
+        dimensions = canary.as_mapping()
+        independent = [
+            {
+                "ref": f"canary.{branch_id}.{name}",
+                "dimension": name,
+                "supports": value,
+                "observed": value is not None,
+                "quality": 1.0,
+                "weight": 1.0,
+            }
+            for name, value in dimensions.items()
+        ]
+        proposal["evidence"] = list(proposal.get("evidence", ())) + independent
+        proposal["canary_evidence"] = dimensions
+        proposal["guardian_approved"] = branch_id in guardian_approved
+        proposal["promotion_eligible"] = False
+
+        if canary.strong_regression:
+            proposal["status"] = "rejected"
+            proposal["hold_reason"] = "strong-regression-evidence"
+        elif not canary.complete:
+            proposal["status"] = "warm"
+            proposal["hold_reason"] = "gather-independent-canary-evidence"
+        elif not canary.all_positive:
+            proposal["status"] = "rejected"
+            proposal["hold_reason"] = "negative-canary-evidence"
+        elif branch_id not in guardian_approved:
+            proposal["status"] = "verified"
+            proposal["hold_reason"] = "guardian-approval-required"
+        else:
+            proposal["status"] = "verified"
+            proposal["promotion_eligible"] = True
+            proposal["hold_reason"] = None
+        candidate_branches.append(proposal)
+
+    field = [
+        {
+            "branch_id": "kernel-proven-lkg",
+            "proposed_state": proven_state,
+            "confidence": 1.0,
+            "risk": 0.0,
+            "cost": 0.0,
+            "reversibility": "full",
+            "evidence": [{"ref": "kernel.current-proven-state", "supports": True, "quality": 1.0, "weight": 1.0}],
+            "status": "verified",
+            "requires_authorization": False,
+            "authorized": True,
+            "rollback_target": None,
+            "is_last_known_good": True,
+            "promotion_eligible": False,
+        },
+        *candidate_branches,
+        {
+            "branch_id": "kernel-rollback",
+            "proposed_state": proven_state,
+            "confidence": 0.98,
+            "risk": 0.02,
+            "cost": 0.05,
+            "reversibility": "full",
+            "evidence": [{"ref": "kernel.rollback-target", "supports": True, "quality": 1.0, "weight": 1.0}],
+            "status": "warm",
+            "requires_authorization": False,
+            "authorized": True,
+            "rollback_target": proven_state,
+            "is_last_known_good": False,
+            "promotion_eligible": False,
+        },
+        {
+            "branch_id": "kernel-gather-evidence",
+            "proposed_state": "gather-independent-kernel-canary-evidence",
+            "confidence": 0.90,
+            "risk": 0.0,
+            "cost": 0.10,
+            "reversibility": "full",
+            "evidence": [],
+            "status": "warm",
+            "requires_authorization": False,
+            "authorized": True,
+            "rollback_target": proven_state,
+            "is_last_known_good": False,
+            "promotion_eligible": False,
+        },
+    ]
+    return {
+        "schema": "aurum-adaptive-kernel-future-branch-canary-v1",
+        "decision_authority": "StateGuardian",
+        "promotion_performed": False,
+        "proven_state": proven_state,
+        "branches": field,
+        "invariants": {
+            "proven_state_destroy_allowed": False,
+            "strong_regression_is_veto": True,
+            "independent_canary_dimensions": ["boot", "resume", "hardware", "performance", "regression"],
+            "guardian_approval_required_for_promotion_eligibility": True,
+            "promotion_requires_separate_guardian_action": True,
+        },
+    }
