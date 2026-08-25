@@ -155,7 +155,7 @@ jobs:
           }
           Write-Host "AURUM_USB_PREFLIGHT_RESULT state=$($preflight.preflight_state) write_authority=false destructive_action_allowed=false"
 
-      - name: Persist privacy-safe discovery receipt without rebasing evidence
+      - name: Persist privacy-safe discovery and synchronized Future Branch state
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -166,7 +166,10 @@ jobs:
           # on main are hot and can legitimately change while this self-hosted run
           # is executing. Never rebase a generated evidence commit through those
           # changes: refresh main, re-evaluate against the latest release/recovery
-          # state, then try a normal fast-forward push. A race simply retries.
+          # state, then project that exact canonical evidence into Future Branch
+          # before attempting a normal fast-forward push. This makes the physical
+          # receipt and the operator-facing branch state one atomic commit instead
+          # of relying on a deeper workflow_run chain that GitHub may suppress.
           $discoveryPath = 'Projects/Aurum/Recovery/latest-usb-discovery.json'
           $preflightPath = 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
           $discoveryPayload = Get-Content -LiteralPath $discoveryPath -Raw
@@ -214,14 +217,28 @@ jobs:
               throw 'AURUM_USB_DISCOVERY_RECEIPT evaluator-granted-authority'
             }
 
-            git add $discoveryPath $preflightPath
+            & python Admin/sync_aurum_release_status.py
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT release-sync-failed' }
+            & python Admin/sync_aurum_future_branch_evidence.py
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT future-branch-sync-failed' }
+            & python Admin/sync_aurum_fallback_evidence.py
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT fallback-sync-failed' }
+            & python Admin/materialize_aurum_next_interaction.py
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT interaction-materialize-failed' }
+
+            git add `
+              $discoveryPath `
+              $preflightPath `
+              'Projects/Aurum/completion-plan.json' `
+              'Projects/Aurum/future-branches.json' `
+              'Projects/Aurum/next-interaction-packet.json'
             git diff --cached --quiet
             if ($LASTEXITCODE -eq 0) {
               Write-Host 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
               exit 0
             }
 
-            git commit -m 'Record read-only USB discovery [skip ci]'
+            git commit -m 'Record read-only USB discovery and synchronized Aurum state [skip ci]'
             if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT commit-failed' }
             git push origin HEAD:main
             if ($LASTEXITCODE -eq 0) {
