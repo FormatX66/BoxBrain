@@ -29,43 +29,57 @@ class RepositoryValidatorTests(unittest.TestCase):
 
             self.assertEqual(repository_markdown_files(root), [expected])
 
-    def test_retired_pc01_flash_workflow_cannot_regain_persistent_authority(self) -> None:
+    def test_retired_pc01_media_workflows_cannot_regain_persistent_authority(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            workflow = root / ".github" / "workflows" / "aurum-pc01-flash-authorized.yml"
-            workflow.parent.mkdir(parents=True)
-            workflow.write_text(
-                "on:\n"
-                "  workflow_run:\n"
-                "env:\n"
-                "  AURUM_FLASH_AUTHORIZATION: old-static-authority\n"
-                "jobs:\n"
-                "  flash:\n"
-                "    steps:\n"
-                "      - run: echo \\\\.\\PhysicalDrive1 && diskpart.exe\n",
-                encoding="utf-8",
-            )
+            workflow_dir = root / ".github" / "workflows"
+            workflow_dir.mkdir(parents=True)
+            unsafe = {
+                "aurum-pc01-flash-authorized.yml": (
+                    "on:\n  workflow_run:\nenv:\n  AURUM_FLASH_AUTHORIZATION: old-static-authority\n"
+                    "jobs:\n  flash:\n    steps:\n      - run: echo \\\\.\\PhysicalDrive1 && diskpart.exe\n"
+                ),
+                "aurum-pc01-grub-flash-once.yml": (
+                    "on:\n  push:\nenv:\n  AURUM_FLASH_AUTHORIZATION: old-grub-authority\n"
+                    "jobs:\n  flash:\n    steps:\n      - run: diskpart.exe\n"
+                ),
+                "aurum-pc01-reflash-once.yml": (
+                    "on:\n  push:\nenv:\n  AURUM_REFLASH_AUTHORIZATION: old-reflash-authority\n"
+                    "jobs:\n  flash:\n    steps:\n      - run: diskpart.exe\n"
+                ),
+            }
+            for name, text in unsafe.items():
+                (workflow_dir / name).write_text(text, encoding="utf-8")
 
             errors = destructive_workflow_policy_errors(root)
-            self.assertGreaterEqual(len(errors), 4)
+            self.assertGreaterEqual(len(errors), 9)
             self.assertTrue(any("workflow_run:" in error for error in errors))
+            self.assertTrue(any("push:" in error for error in errors))
             self.assertTrue(any("AURUM_FLASH_AUTHORIZATION:" in error for error in errors))
+            self.assertTrue(any("AURUM_REFLASH_AUTHORIZATION:" in error for error in errors))
+            self.assertTrue(any("aurum-pc01-grub-flash-once.yml" in error for error in errors))
+            self.assertTrue(any("aurum-pc01-reflash-once.yml" in error for error in errors))
 
-    def test_retired_pc01_flash_tombstone_is_allowed(self) -> None:
+    def test_retired_pc01_media_tombstones_are_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            workflow = root / ".github" / "workflows" / "aurum-pc01-flash-authorized.yml"
-            workflow.parent.mkdir(parents=True)
-            workflow.write_text(
+            workflow_dir = root / ".github" / "workflows"
+            workflow_dir.mkdir(parents=True)
+            tombstone = (
                 "name: retired\n"
                 "on:\n"
                 "  workflow_dispatch:\n"
                 "jobs:\n"
                 "  retired:\n"
                 "    steps:\n"
-                "      - run: exit 1\n",
-                encoding="utf-8",
+                "      - run: exit 1\n"
             )
+            for name in (
+                "aurum-pc01-flash-authorized.yml",
+                "aurum-pc01-grub-flash-once.yml",
+                "aurum-pc01-reflash-once.yml",
+            ):
+                (workflow_dir / name).write_text(tombstone, encoding="utf-8")
 
             self.assertEqual(destructive_workflow_policy_errors(root), [])
 
