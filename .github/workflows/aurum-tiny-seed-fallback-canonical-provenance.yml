@@ -1,0 +1,85 @@
+name: Aurum Tiny Seed fallback canonical provenance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
+      - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+      - '.github/workflows/aurum-tiny-seed-fallback-canonical-provenance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-fallback-canonical-provenance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canonical-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out fallback experiment
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Require fallback payload to match current canonical Tiny Seed release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The experimental loader may differ, but the protected Germ, genetics,
+          # offline-carrier policy and recovery trust inputs must be byte-for-byte
+          # identical to the source commit of the current canonical READY_TO_FLASH
+          # release before this fallback may be described as warm/current.
+          git fetch --no-tags origin main
+          handoff="$RUNNER_TEMP/latest-tinyseed-handoff.json"
+          git show origin/main:Projects/Aurum/Release/latest-tinyseed-handoff.json > "$handoff"
+
+          read -r release_state release_source <<EOF
+          $(python3 - "$handoff" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding='utf-8-sig'))
+          print(data.get('state', ''), data.get('source_commit', ''))
+          PY
+          )
+          EOF
+
+          test "$release_state" = "READY_TO_FLASH"
+          test -n "$release_source"
+          git cat-file -e "$release_source^{commit}"
+
+          protected_paths=(
+            Projects/Aurum/Germ/build-x86-tinyseed.sh
+            Projects/Aurum/Germ/GENETICS.json
+            Projects/Aurum/Germ/carrier.py
+            Projects/Aurum/Germ/reseed.py
+            Projects/Aurum/Germ/guardian.py
+            Projects/Aurum/Germ/recovery_ledger.py
+            Projects/Aurum/Germ/bridge.py
+            Projects/Aurum/Germ/germ_console.py
+            Projects/Aurum/Germ/machine.py
+            Projects/Aurum/Germ/network.py
+            Projects/Aurum/Germ/installer.py
+            Projects/Aurum/Germ/tinyseed.py
+            Projects/Aurum/Germ/bootstrap_console.py
+            Projects/Aurum/Germ/proof.py
+            Projects/Aurum/Germ/rollback_drill.py
+            Projects/Aurum/Germ/recovery_control.py
+            Projects/Aurum/Germ/recovery_poller.py
+            Projects/Aurum/Germ/triage.py
+            Projects/Aurum/Recovery/trusted-refs.json
+            Projects/Aurum/Recovery/authority-public.pem
+          )
+
+          if ! git diff --quiet "$release_source" HEAD -- "${protected_paths[@]}"; then
+            echo "Fallback protected payload drifted from canonical release source $release_source" >&2
+            git diff --name-status "$release_source" HEAD -- "${protected_paths[@]}" >&2
+            exit 1
+          fi
+
+          echo "AURUM_TINYSEED_FALLBACK_CANONICAL_PAYLOAD_MATCH_OK source=$release_source"
