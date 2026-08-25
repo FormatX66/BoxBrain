@@ -79,8 +79,8 @@
         "authorize the flash",
         "use that USB"
       ],
-      "prepared_response": "The safe system-side recovery and current-release USB discovery work are complete. Bind any new authority only to source b582d70605d93f8be12df7e261336839c260fb1e and the currently proven USB candidate; never reuse the expired prior request.",
-      "action_if_safe": "On fresh explicit one-shot authority, re-read canonical release and protected-media registry, re-enumerate the USB live, require the same physical identity/provenance, verify the artifact checksum, run guarded dry-run/preflight, and only then allow the bounded write plus full raw-device readback."
+      "prepared_response": "Do not treat flash authorization as executable yet. Canonical Tiny Seed release 6f91d25b934ffe48352fa43a865625d2bc2d5d1e is READY_TO_FLASH, but physical preflight is WAIT_HOPPER_PREEXECUTION_RECOVERY; the current next gate is fresh-terminal-hopper-preexecution-recovery-receipt. Write authority remains false.",
+      "action_if_safe": "Keep write authority false and resolve fresh-terminal-hopper-preexecution-recovery-receipt using only read-only or already-authorized recovery paths. Reproject canonical preflight, and accept a fresh one-shot destructive authorization only after the state again proves READY_FOR_GUARDED_FLASH_PREFLIGHT for the same live release/device."
     },
     {
       "rank": 2,
@@ -90,8 +90,8 @@
         "how's it going?",
         "what's the status now?"
       ],
-      "prepared_response": "Report the exact boundary: canonical Tiny Seed is READY_TO_FLASH, mandatory Hopper recovery resolved unrepaired, one safe release-bound USB is proven, physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT, and the only missing authority is a fresh explicit one-shot guarded flash authorization. Physical boot and Guardian rollback proof remain pending.",
-      "action_if_safe": "Re-read handoff, physical preflight, current USB evidence, authorization freshness, and any flash receipt before reporting; advance only zero-authority preparation until a fresh destructive boundary is explicitly crossed."
+      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 6f91d25b934ffe48352fa43a865625d2bc2d5d1e with x86 SHA-256 5301e757924e74fbb9abef59e94afc0c31034c02e16352f01f71e91e30ca9940. Physical preflight is WAIT_HOPPER_PREEXECUTION_RECOVERY; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=false, eligible_usb_count=1, write_authority=false, destructive_action_performed=false, next_gate=fresh-terminal-hopper-preexecution-recovery-receipt. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+      "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and any flash receipt before reporting; advance only safe zero-authority work until the proven next gate changes."
     },
     {
       "rank": 3,
@@ -102,8 +102,8 @@
         "use Future Branch here",
         "fix it"
       ],
-      "prepared_response": "Treat the prompt as direction against the active Aurum state and do all safe reversible work shared by likely intents. Do not interpret a generic prompt as destructive disk-write authority.",
-      "action_if_safe": "Refresh evidence, prepare the guarded write/readback/boot-proof chain, and stop at explicit destructive authority."
+      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=WAIT_HOPPER_PREEXECUTION_RECOVERY, next_gate=fresh-terminal-hopper-preexecution-recovery-receipt. Do all shared safe reversible work, but never infer destructive disk-write authority.",
+      "action_if_safe": "Advance the safe prefix through fresh-terminal-hopper-preexecution-recovery-receipt, refresh canonical evidence, and stop before any boundary that requires explicit new authority."
     },
     {
       "rank": 4,
@@ -177,17 +177,15 @@
   "likely_machine_outcomes": [
     {
       "rank": 1,
-      "state": "fresh-authority-triggers-live-reproof-and-guarded-preflight",
+      "state": "fresh-terminal-hopper-preexecution-recovery-resolves",
       "prepared": [
         "canonical READY_TO_FLASH source/hash",
-        "fresh USB candidate model/size/serial hash",
-        "protected-media registry",
-        "artifact checksum",
-        "guarded dry-run",
-        "live USB identity re-enumeration",
-        "system/boot-disk refusal"
+        "current release-bound USB evidence",
+        "existing-authority recovery probe",
+        "terminal v2 recovery receipt",
+        "zero-authority preflight projector"
       ],
-      "next": "write only if every live proof still matches the one-shot authority; otherwise fail closed and return to read-only discovery"
+      "next": "project the fresh terminal recovery result; if manual handoff is released, advance to guarded-flash preflight, otherwise preserve the blocker without granting new authority"
     },
     {
       "rank": 2,
@@ -344,5 +342,18 @@
       "terminal_reason": "boxbrain-unreachable",
       "observed_at": "2026-08-24T21:09:24.3307021Z"
     }
+  },
+  "live_controls": {
+    "release_source_commit": "6f91d25b934ffe48352fa43a865625d2bc2d5d1e",
+    "release_state": "READY_TO_FLASH",
+    "preflight_state": "WAIT_HOPPER_PREEXECUTION_RECOVERY",
+    "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt",
+    "preflight_matches_current_release": true,
+    "eligible_usb_count": 1,
+    "terminal_recovery_receipt": true,
+    "manual_handoff_released": false,
+    "flash_authorization_eligible": false,
+    "write_authority": false,
+    "destructive_action_allowed": false
   }
 }
