@@ -21,6 +21,20 @@ The later kernel-module canary remains held until matching headers, an
 out-of-band watchdog, reboot/recovery proof, and a fresh explicit mutation gate
 are all present.
 
+## Aurum Farmer and Future Branch ownership
+
+The persistent Aurum Farmer owns physical completion through
+`farmer/pi3-adaptive-driver-job.json`. Its default high-confidence Future Branch
+watches a strict semantic receipt for the pinned experimental Pi 3. A file's
+existence is not success: target identity, physical acceptance, completed and
+promoted state, unchanged system driver, build/fingerprint evidence, score, and
+the rollback snapshot must all be present before Farmer can seal the result.
+
+The kernel-module canary and QPU-ordering branches are registered beside it but
+remain dependency- and authority-held. The GitHub physical workflow mirrors
+changed evidence into Farmer's durable runtime and resumes the waiting job; the
+classical candidate order remains the no-QPU fallback.
+
 ## Run locally with the deterministic Pi 3 fixture
 
 ```text

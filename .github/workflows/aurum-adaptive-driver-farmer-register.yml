@@ -1,0 +1,157 @@
+name: Register Pi3 Adaptive Driver Future Branches With Aurum Farmer
+
+on:
+  workflow_run:
+    workflows: ['Aurum Farmer Self-Hosted Windows Deploy']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-adaptive-driver-farmer-register
+  cancel-in-progress: false
+
+jobs:
+  register:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 25
+    env:
+      AURUM_TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Check out the exact Future Branch definition
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.AURUM_TARGET_SHA }}
+
+      - name: Wait for the matching persistent Farmer release
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
+          $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
+          $deadline = (Get-Date).AddMinutes(20)
+          $install = $null
+          do {
+            if (Test-Path -LiteralPath $installReceiptPath -PathType Leaf) {
+              try {
+                $candidate = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
+                if (
+                  [string]$candidate.source_commit -eq [string]$env:AURUM_TARGET_SHA -and
+                  [bool]$candidate.health_verified -and
+                  [string]$candidate.task_state -eq 'Running'
+                ) {
+                  $install = $candidate
+                  break
+                }
+              } catch {}
+            }
+            Start-Sleep -Seconds 2
+          } while ((Get-Date) -lt $deadline)
+          if (-not $install) {
+            throw "AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=matching-release-not-installed source=$env:AURUM_TARGET_SHA"
+          }
+          "AURUM_FARMER_RUNTIME_ROOT=$runtimeRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "AURUM_FARMER_PYTHON=$([string]$install.python_exe)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "AURUM_FARMER_RELEASE=$([string]$install.release_root)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "AURUM_ADAPTIVE_FARMER_RELEASE_READY source=$env:AURUM_TARGET_SHA"
+
+      - name: Submit the durable job and prove its safe waiting state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $runtimeRoot = [string]$env:AURUM_FARMER_RUNTIME_ROOT
+          $configPath = Join-Path $runtimeRoot 'farmer.json'
+          $evidenceRoot = Join-Path $runtimeRoot 'external-evidence'
+          $evidencePath = Join-Path $evidenceRoot 'pi3-adaptive-driver-result.json'
+          $jobPath = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/farmer/pi3-adaptive-driver-job.json').Path
+          New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+          if (-not (Test-Path -LiteralPath $evidencePath -PathType Leaf)) {
+            $waiting = [ordered]@{
+              schema = 'aurum-adaptive-driver-runner-receipt-v1'
+              state = 'waiting'
+              reason = 'pinned-pi3-not-yet-strictly-reachable'
+              target = 'raspberry-pi-3-experimental'
+              system_driver_changed = $false
+              mutation_allowed = $false
+            }
+            $temporary = "$evidencePath.tmp"
+            $waiting | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temporary -Encoding utf8
+            Move-Item -LiteralPath $temporary -Destination $evidencePath -Force
+          }
+
+          $previousPythonPath = $env:PYTHONPATH
+          try {
+            $env:PYTHONPATH = [string]$env:AURUM_FARMER_RELEASE
+            $submitRaw = @(& $env:AURUM_FARMER_PYTHON -m aurum_farmer --config $configPath submit --file $jobPath)
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=submit' }
+            $submit = ($submitRaw -join "`n") | ConvertFrom-Json
+            if ([string]$submit.job_id -ne 'AF-PI3-ADAPTIVE-DRIVER-001') {
+              throw "AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=job-id actual=$($submit.job_id)"
+            }
+
+            $deadline = (Get-Date).AddSeconds(30)
+            $status = $null
+            do {
+              Start-Sleep -Milliseconds 500
+              $statusRaw = @(& $env:AURUM_FARMER_PYTHON -m aurum_farmer --config $configPath status --job 'AF-PI3-ADAPTIVE-DRIVER-001')
+              if ($LASTEXITCODE -ne 0) { throw 'AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=status' }
+              $status = ($statusRaw -join "`n") | ConvertFrom-Json
+            } until ([string]$status.state -in @('WAITING', 'SUCCEEDED', 'FAILED_FINAL') -or (Get-Date) -ge $deadline)
+
+            if ([string]$status.state -notin @('WAITING', 'SUCCEEDED')) {
+              throw "AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=unexpected-state state=$($status.state)"
+            }
+            if (@($status.branches).Count -ne 3) {
+              throw "AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=future-branch-count count=$(@($status.branches).Count)"
+            }
+            $physical = @($status.branches | Where-Object { [string]$_.logical_id -eq 'physical-generation-1-result' })
+            $kernel = @($status.branches | Where-Object { [string]$_.logical_id -eq 'kernel-module-canary-held' })
+            $qpu = @($status.branches | Where-Object { [string]$_.logical_id -eq 'qpu-ordering-held' })
+            if ($physical.Count -ne 1 -or $kernel.Count -ne 1 -or $qpu.Count -ne 1) {
+              throw 'AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=future-branch-identities'
+            }
+            if ([bool]$kernel[0].authority_ready -or [bool]$qpu[0].authority_ready) {
+              throw 'AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=held-branch-authority'
+            }
+
+            $health = Invoke-RestMethod -Method Get -Uri 'http://127.0.0.1:19466/health' -TimeoutSec 3
+            if ([string]$health.status -ne 'healthy' -or -not [bool]$health.event_chain_valid) {
+              throw 'AURUM_ADAPTIVE_FARMER_REGISTER_FAILED reason=health-or-event-chain'
+            }
+            New-Item -ItemType Directory -Path 'adaptive-farmer-registration' -Force | Out-Null
+            $proof = [ordered]@{
+              schema = 'aurum.adaptive-driver.farmer-registration.v1'
+              observed_at_utc = [DateTime]::UtcNow.ToString('o')
+              source_commit = [string]$env:AURUM_TARGET_SHA
+              runner_name = [string]$env:RUNNER_NAME
+              job_id = [string]$status.id
+              created = [bool]$submit.created
+              state = [string]$status.state
+              future_branch_count = @($status.branches).Count
+              physical_branch_state = [string]$physical[0].state
+              kernel_canary_authority_ready = [bool]$kernel[0].authority_ready
+              qpu_authority_ready = [bool]$qpu[0].authority_ready
+              event_chain_valid = [bool]$health.event_chain_valid
+              production_nodes_allowed = $false
+              physical_proof_inferred = $false
+              system_driver_mutation_allowed = $false
+            }
+            $proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'adaptive-farmer-registration/result.json' -Encoding utf8
+            Write-Host "AURUM_ADAPTIVE_FARMER_REGISTERED job=$($status.id) state=$($status.state) branches=$(@($status.branches).Count)"
+          } finally {
+            $env:PYTHONPATH = $previousPythonPath
+          }
+
+      - name: Publish Farmer registration evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-adaptive-driver-farmer-registration
+          path: adaptive-farmer-registration/result.json
+          if-no-files-found: error
+          retention-days: 30

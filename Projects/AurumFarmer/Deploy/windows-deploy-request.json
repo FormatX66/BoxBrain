@@ -1,15 +1,15 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Install or upgrade Aurum Farmer on the already-enrolled self-hosted Windows execution node, verify loopback health, then prove a durable Farmer job queued while the supervisor is stopped resumes to sealed success after the scheduled task restarts.",
+  "purpose": "Install or upgrade Aurum Farmer on the already-enrolled self-hosted Windows execution node, add semantic external-evidence gates for Adaptive Driver Future Branches, verify loopback health, then prove durable work resumes to sealed success after the scheduled task restarts.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 4,
-  "retry_reason": "Allow the previous supervisor lease to expire before judging restart takeover, and pin the deployment checkout to the exact request revision so concurrent evidence commits cannot drift the proof source.",
+  "retry_sequence": 5,
+  "retry_reason": "Deploy the semantic evidence-file gate required for the pinned Pi3 Adaptive Driver Future Branch job while preserving the verified restart and exact-source guarantees.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",

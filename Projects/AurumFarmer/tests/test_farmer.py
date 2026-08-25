@@ -6,7 +6,12 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 
-from aurum_farmer.executors import ChatToGitExecutor, ExecutorRegistry, NoopExecutor
+from aurum_farmer.executors import (
+    ChatToGitExecutor,
+    EvidenceFileExecutor,
+    ExecutorRegistry,
+    NoopExecutor,
+)
 from aurum_farmer.ledger import Ledger
 from aurum_farmer.models import (
     BranchSpec,
@@ -148,6 +153,67 @@ class FarmerTests(unittest.TestCase):
         job = self.ledger.get_job(job_id)
         self.assertEqual(job["state"], JobState.FAILED_FINAL.value)
         self.assertEqual(job["branches"][0]["failure_class"], "evidence_gate")
+
+    def test_evidence_file_waits_for_semantic_state_then_succeeds(self):
+        receipt = self.root / "adaptive-driver-result.json"
+        receipt.write_text(
+            json.dumps({"state": "waiting", "system_driver_changed": False}),
+            encoding="utf-8",
+        )
+        job_id = self.ledger.submit(
+            JobSpec(
+                goal="wait for verified physical adaptive-driver evidence",
+                branches=(
+                    BranchSpec(
+                        id="physical-result",
+                        label="verified physical result",
+                        executor="evidence_file",
+                        payload={
+                            "path": str(receipt),
+                            "required_json": {
+                                "state": "completed",
+                                "decision": ["promoted", "eligible-held"],
+                                "system_driver_changed": False,
+                            },
+                            "required_json_present": ["lkg.rollback.snapshot"],
+                            "poll_seconds": 0.01,
+                            "evidence_kind": "adaptive_driver_physical_result",
+                        },
+                        expected_evidence=(
+                            EvidenceRequirement("adaptive_driver_physical_result"),
+                        ),
+                        max_attempts=3,
+                    ),
+                ),
+            )
+        )[0]
+        registry = self.registry("evidence_file", EvidenceFileExecutor())
+        supervisor = Supervisor(self.ledger, registry, owner="semantic-evidence")
+        first = supervisor.tick()
+        self.assertEqual(first["job_state"], JobState.WAITING.value)
+        receipt.write_text(
+            json.dumps(
+                {
+                    "state": "completed",
+                    "decision": "promoted",
+                    "system_driver_changed": False,
+                    "lkg": {"rollback": {"snapshot": "lkg-snapshots/reference.json"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.ledger.resume(
+            job_id,
+            changed_dimension="evidence",
+            note="adaptive-driver receipt reached its semantic success state",
+        )
+        second = supervisor.tick()
+        self.assertEqual(second["job_state"], JobState.SUCCEEDED.value)
+        job = self.ledger.get_job(job_id)
+        self.assertEqual(job["state"], JobState.SUCCEEDED.value)
+        self.assertTrue(
+            any(item["kind"] == "adaptive_driver_physical_result" for item in job["evidence"])
+        )
 
     def test_future_branch_scheduler_executes_safe_branch_before_human_edge(self):
         job_id = self.ledger.submit(

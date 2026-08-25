@@ -28,7 +28,16 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $targets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Pi3 identity config must exclude production nodes.' }
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $fingerprint = (& ssh-keygen -lf $knownHosts 2>$null) -join "`n"
+          if ($LASTEXITCODE -ne 0 -or -not $fingerprint.Contains([string]$identity.host_key_sha256)) {
+            throw 'Pinned Pi3 known-host fingerprint does not match the identity contract.'
+          }
+          $targets = @([string]$identity.pinned_ipv4)
           $ssh = Get-Command ssh -ErrorAction Stop
           $verifiedTarget = $null
           $attempts = @()
@@ -37,21 +46,35 @@ jobs:
             try {
               $reachable = [bool](Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)
             } catch {}
-            $attempt = [ordered]@{ target = $target; tcp22 = $reachable; strict_identity = $false; pi3 = $false }
+            $attempt = [ordered]@{
+              target = $target
+              tcp22 = $reachable
+              strict_identity = $false
+              pi3 = $false
+              serial_match = $false
+            }
             if ($reachable) {
-              $sshTarget = "aurum@$target"
+              $sshTarget = "$($identity.ssh_user)@$target"
+              $remoteScript = @'
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          printf '%s\n%s\n' "$model" "$serial"
+          '@
+              $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
+              $identityCommand = "printf '%s' '$encoded' | base64 -d | sh"
               $prior = $ErrorActionPreference
               $ErrorActionPreference = 'Continue'
               try {
-                $model = (& $ssh.Source -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $sshTarget "tr -d '\000' </proc/device-tree/model" 2>$null | Select-Object -First 1)
+                $identityLines = @(& $ssh.Source -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$knownHosts -o ConnectTimeout=5 -o ConnectionAttempts=1 -i $keyPath $sshTarget $identityCommand 2>$null)
                 $exitCode = $LASTEXITCODE
               } finally {
                 $ErrorActionPreference = $prior
               }
-              if ($exitCode -eq 0) {
+              if ($exitCode -eq 0 -and $identityLines.Count -ge 2) {
                 $attempt.strict_identity = $true
-                $attempt.pi3 = ([string]$model).Contains('Raspberry Pi 3')
-                if ($attempt.pi3) { $verifiedTarget = $sshTarget }
+                $attempt.pi3 = ([string]$identityLines[0]).Contains([string]$identity.model_marker)
+                $attempt.serial_match = ([string]$identityLines[1]).Trim() -eq ([string]$identity.serial).Trim()
+                if ($attempt.pi3 -and $attempt.serial_match) { $verifiedTarget = $sshTarget }
               }
             }
             $attempts += $attempt
@@ -80,7 +103,7 @@ jobs:
           $prior = $ErrorActionPreference
           $ErrorActionPreference = 'Continue'
           try {
-            $output = @($source | & $ssh.Source -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $verifiedTarget $remoteCommand 2>&1)
+            $output = @($source | & $ssh.Source -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$knownHosts -o ConnectTimeout=5 -o ConnectionAttempts=1 -i $keyPath $verifiedTarget $remoteCommand 2>&1)
             $exitCode = $LASTEXITCODE
           } finally {
             $ErrorActionPreference = $prior
@@ -91,6 +114,57 @@ jobs:
           if ($parsed.target -ne 'raspberry-pi-3-experimental') { throw 'Unexpected adaptive-driver target.' }
           if ($parsed.system_driver_changed) { throw 'System driver changed during safe test.' }
           Write-Host "AURUM_ADAPTIVE_DRIVER state=$($parsed.state) decision=$($parsed.decision) score=$($parsed.score.score) system_driver_changed=false"
+
+      - name: Mirror semantic evidence into Aurum Farmer and resume on changed evidence
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultPath = 'adaptive-driver-evidence/result.json'
+          if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+            Write-Host 'AURUM_FARMER_EVIDENCE mirrored=false reason=result-missing'
+            exit 0
+          }
+          $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+          $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
+          if (-not (Test-Path -LiteralPath $runtimeRoot -PathType Container)) {
+            Write-Host 'AURUM_FARMER_EVIDENCE mirrored=false reason=runtime-missing'
+            exit 0
+          }
+          $evidenceRoot = Join-Path $runtimeRoot 'external-evidence'
+          New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
+          $evidencePath = Join-Path $evidenceRoot 'pi3-adaptive-driver-result.json'
+          $temporary = Join-Path $evidenceRoot 'pi3-adaptive-driver-result.json.tmp'
+          Copy-Item -LiteralPath $resultPath -Destination $temporary -Force
+          Move-Item -LiteralPath $temporary -Destination $evidencePath -Force
+          Write-Host "AURUM_FARMER_EVIDENCE mirrored=true state=$($result.state) decision=$($result.decision)"
+
+          $semanticSuccess = (
+            [string]$result.state -eq 'completed' -and
+            [string]$result.decision -eq 'promoted' -and
+            -not [bool]$result.system_driver_changed
+          )
+          if (-not $semanticSuccess) { exit 0 }
+          $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
+          $configPath = Join-Path $runtimeRoot 'farmer.json'
+          if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) { exit 0 }
+          $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
+          $python = [string]$install.python_exe
+          $releaseRoot = [string]$install.release_root
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { exit 0 }
+          $previousPythonPath = $env:PYTHONPATH
+          try {
+            $env:PYTHONPATH = $releaseRoot
+            $statusRaw = @(& $python -m aurum_farmer --config $configPath status --job 'AF-PI3-ADAPTIVE-DRIVER-001' 2>$null)
+            if ($LASTEXITCODE -ne 0) { exit 0 }
+            $status = ($statusRaw -join "`n") | ConvertFrom-Json
+            if ([string]$status.state -in @('WAITING', 'RETRYING', 'RECOVERING', 'BLOCKED_HUMAN')) {
+              & $python -m aurum_farmer --config $configPath resume --job 'AF-PI3-ADAPTIVE-DRIVER-001' --changed-dimension evidence --note 'Strict Pi3 physical adaptive-driver evidence changed to promoted success.' | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to resume the durable adaptive-driver Farmer job.' }
+            }
+          } finally {
+            $env:PYTHONPATH = $previousPythonPath
+          }
 
       - name: Publish adaptive-driver evidence
         if: always()

@@ -1,0 +1,101 @@
+{
+  "id": "AF-PI3-ADAPTIVE-DRIVER-001",
+  "goal": "Advance Adaptive Driver Test 001 on only the pinned experimental Raspberry Pi 3, preserve the Linux physical LKG, and close only after semantic physical evidence proves a promoted generation-1 candidate with a verified rollback snapshot and no system-driver mutation.",
+  "priority": 95,
+  "dedupe_key": "pi3-adaptive-driver-test-001-pinned-a6a7df7f",
+  "context": {
+    "ingress": "adaptive-driver-future-branch",
+    "target": "raspberry-pi-3-experimental",
+    "serial": "00000000a6a7df7f",
+    "physical_lkg": "pi3-linux-reference-driver",
+    "production_nodes_allowed": false
+  },
+  "branches": [
+    {
+      "id": "physical-generation-1-result",
+      "label": "Wait for the strictly identified Pi3 generation-1 physical result",
+      "executor": "evidence_file",
+      "payload": {
+        "path": "C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\runtime\\external-evidence\\pi3-adaptive-driver-result.json",
+        "required_json": {
+          "target": "raspberry-pi-3-experimental",
+          "physical_gate.accepted": true,
+          "state": "completed",
+          "decision": "promoted",
+          "system_driver_changed": false,
+          "test.kernel_module_loaded": false,
+          "test.kernel_driver_binding_changed": false
+        },
+        "required_json_present": [
+          "fingerprint.fingerprint_sha256",
+          "build.source_sha256",
+          "score.score",
+          "lkg.rollback.snapshot"
+        ],
+        "poll_seconds": 86400,
+        "evidence_kind": "adaptive_driver_physical_result",
+        "waiting_evidence_kind": "adaptive_driver_physical_wait"
+      },
+      "expected_evidence": [
+        "adaptive_driver_physical_result"
+      ],
+      "priority": 100,
+      "confidence": 0.95,
+      "impact": 1.0,
+      "evidence_quality": 1.0,
+      "risk": 0.05,
+      "cost": 0.15,
+      "reversibility": 1.0,
+      "authority_ready": true,
+      "dependencies_satisfied": true,
+      "max_attempts": 20,
+      "lkg_scope": "pi3-adaptive-driver-metadata"
+    },
+    {
+      "id": "kernel-module-canary-held",
+      "label": "Hold a Pi3 kernel-module canary until recovery prerequisites exist",
+      "executor": "evidence_file",
+      "payload": {
+        "path": "C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\runtime\\external-evidence\\pi3-kernel-canary-authority.json",
+        "evidence_kind": "pi3_kernel_canary_authority"
+      },
+      "expected_evidence": [
+        "pi3_kernel_canary_authority"
+      ],
+      "priority": 60,
+      "confidence": 0.55,
+      "impact": 0.9,
+      "evidence_quality": 0.2,
+      "risk": 0.7,
+      "cost": 0.7,
+      "reversibility": 0.4,
+      "authority_ready": false,
+      "dependencies_satisfied": false,
+      "max_attempts": 1,
+      "lkg_scope": "pi3-kernel-driver"
+    },
+    {
+      "id": "qpu-ordering-held",
+      "label": "Use QPU ordering only after measurable candidate-test savings exist",
+      "executor": "evidence_file",
+      "payload": {
+        "path": "C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\runtime\\external-evidence\\pi3-qpu-value-gate.json",
+        "evidence_kind": "pi3_qpu_value_gate"
+      },
+      "expected_evidence": [
+        "pi3_qpu_value_gate"
+      ],
+      "priority": 25,
+      "confidence": 0.25,
+      "impact": 0.4,
+      "evidence_quality": 0.1,
+      "risk": 0.1,
+      "cost": 0.8,
+      "reversibility": 1.0,
+      "authority_ready": false,
+      "dependencies_satisfied": false,
+      "max_attempts": 1,
+      "lkg_scope": "pi3-adaptive-driver-scheduler"
+    }
+  ]
+}

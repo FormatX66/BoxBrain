@@ -52,7 +52,7 @@ jobs:
                 Where-Object {
                   $_.State -notin @('Unreachable', 'Incomplete') -and
                   $_.IPAddress -and
-                  $_.IPAddress -notmatch '^(0\.0\.0\.0|224\.|239\.|255\.)'
+                  $_.IPAddress -notmatch '^(0\.0\.0\.0|169\.254\.255\.255|224\.|239\.|255\.)'
                 }
             )
             foreach ($neighbor in $neighbors) {

@@ -1,0 +1,15 @@
+{
+  "schema": "aurum-pi3-pinned-identity-v1",
+  "target": "raspberry-pi-3-experimental",
+  "model_marker": "Raspberry Pi 3",
+  "serial": "00000000a6a7df7f",
+  "ethernet_mac": "B8-27-EB-A7-DF-7F",
+  "ssh_user": "aurum",
+  "pinned_ipv4": "169.254.129.122",
+  "historical_ipv6": "fe80::14fa:7c36:2469:c06c",
+  "host_key_algorithm": "ssh-ed25519",
+  "host_key_sha256": "SHA256:gOiSjGMmyxunQCR4ykqQwFjJUQReMmUw8QPAn0PN9P8",
+  "windows_key_locator": "C:\\Users\\bruce\\.ssh\\id_ed25519",
+  "scope": "experimental-pi3-only",
+  "production_nodes_allowed": false
+}

@@ -548,6 +548,35 @@ class ChatToGitExecutor:
 class EvidenceFileExecutor:
     """Observe a deterministic external receipt without treating file presence alone as proof."""
 
+    @staticmethod
+    def _json_path(value: Any, path: str) -> tuple[bool, Any]:
+        current = value
+        for part in path.split("."):
+            if not isinstance(current, Mapping) or part not in current:
+                return False, None
+            current = current[part]
+        return True, current
+
+    @classmethod
+    def _semantic_problems(cls, parsed: Any, payload: Mapping[str, Any]) -> list[str]:
+        problems: list[str] = []
+        required = payload.get("required_json", {})
+        if required and not isinstance(required, Mapping):
+            return ["payload.required_json must be an object"]
+        for path, expected in dict(required).items():
+            present, actual = cls._json_path(parsed, str(path))
+            accepted = actual in expected if isinstance(expected, list) else actual == expected
+            if not present or not accepted:
+                problems.append(f"{path} expected {expected!r}, observed {actual!r}")
+        required_present = payload.get("required_json_present", [])
+        if not isinstance(required_present, list):
+            return [*problems, "payload.required_json_present must be an array"]
+        for path in required_present:
+            present, actual = cls._json_path(parsed, str(path))
+            if not present or actual is None or actual == "" or actual is False:
+                problems.append(f"{path} must be present and non-empty")
+        return problems
+
     def execute(self, context: Mapping[str, Any]) -> ExecutionResult:
         payload = dict(context.get("payload", {}))
         raw_path = payload.get("path")
@@ -576,9 +605,28 @@ class EvidenceFileExecutor:
                 failure_fingerprint=_fingerprint(str(path), digest, expected_sha256),
             )
         try:
-            parsed = json.loads(body.decode("utf-8"))
+            parsed = json.loads(body.decode("utf-8-sig"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             parsed = {"content_sha256": digest, "bytes": len(body)}
+        semantic_problems = self._semantic_problems(parsed, payload)
+        if semantic_problems:
+            return ExecutionResult(
+                outcome=Outcome.WAITING,
+                summary="External evidence exists but its semantic gates are not satisfied.",
+                evidence=(
+                    EvidenceItem(
+                        kind=str(payload.get("waiting_evidence_kind", "external_receipt_observed")),
+                        source=str(path),
+                        data={
+                            "sha256": digest,
+                            "bytes": len(body),
+                            "problems": semantic_problems,
+                        },
+                    ),
+                ),
+                retry_after_seconds=float(payload.get("poll_seconds", 30)),
+                next_action=f"wait for semantic evidence in {path}",
+            )
         return ExecutionResult(
             outcome=Outcome.SUCCEEDED,
             summary="External evidence file identity and content hash verified.",
