@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Admin.reconstruct_aurum_state import ReconstructionError, reconstruct
+from Admin.reconstruct_aurum_state import ReconstructionError, read_json, reconstruct
 
 
 class AurumRestartReconstructionTests(unittest.TestCase):
@@ -162,6 +162,19 @@ class AurumRestartReconstructionTests(unittest.TestCase):
         path.write_text(json.dumps(plan), encoding="utf-8")
         with self.assertRaisesRegex(ReconstructionError, "unknown dependencies"):
             reconstruct(root)
+
+    def test_windows_utf8_bom_is_encoding_metadata_not_state_corruption(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "state.json"
+            path.write_bytes(b"\xef\xbb\xbf" + json.dumps({"state": "READY"}).encode("utf-8"))
+            self.assertEqual(read_json(path), {"state": "READY"})
+
+    def test_malformed_json_still_fails_closed_after_bom_tolerance(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "state.json"
+            path.write_bytes(b"\xef\xbb\xbf{not-json}")
+            with self.assertRaisesRegex(ReconstructionError, "invalid durable JSON"):
+                read_json(path)
 
     def test_current_repository_state_reconstructs_consistently(self):
         root = Path(__file__).resolve().parents[2]
