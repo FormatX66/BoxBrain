@@ -7,6 +7,12 @@ restart without being committed to Git: running/retrying/failed jobs, local
 hardware/software fingerprints, active hypotheses, local artifact references,
 and a bounded resume hint.
 
+On nodes where Aurum Farmer is the persistent controller, Farmer's sealed SQLite
+ledger is the production local operational-state authority. This generic JSON
+checkpoint is then a compatibility/reconstruction projection and must be derived
+from Farmer rather than maintained as a competing state store. On nodes without
+Farmer, the generic checkpoint remains the bounded fallback local state layer.
+
 The default path lives under data/, which is repository-ignored. The checkpoint
 contains no destructive authority and cannot promote candidates or mutate LKG.
 """
@@ -120,6 +126,11 @@ def build_checkpoint(root: Path = ROOT, overlay: dict[str, Any] | None = None) -
     durable = reconstruct(root)
     jobs = normalize_jobs(overlay.get("jobs"))
 
+    operational_state_source = overlay.get("operational_state_source", "generic-runtime-overlay")
+    if not isinstance(operational_state_source, str) or not operational_state_source.strip():
+        raise CheckpointError("operational_state_source must be a non-empty string")
+    source_metadata = _dict_or_empty(overlay.get("source_metadata"), "source_metadata")
+
     resumable = [
         {
             "id": job["id"],
@@ -142,6 +153,8 @@ def build_checkpoint(root: Path = ROOT, overlay: dict[str, Any] | None = None) -
         .get("what_should_execute_next", {})
         .get("canonical_next_gate"),
         "runtime": {
+            "operational_state_source": operational_state_source.strip(),
+            "source_metadata": source_metadata,
             "jobs": jobs,
             "resumable": resumable,
             "hardware_fingerprint": _dict_or_empty(overlay.get("hardware_fingerprint"), "hardware_fingerprint"),
@@ -206,6 +219,7 @@ def main() -> None:
             {
                 "schema": value["schema"],
                 "output": str(args.output),
+                "operational_state_source": value["runtime"]["operational_state_source"],
                 "jobs": len(value["runtime"]["jobs"]),
                 "resumable": len(value["runtime"]["resumable"]),
                 "authority_granted": value["authority"]["authority_granted"],
