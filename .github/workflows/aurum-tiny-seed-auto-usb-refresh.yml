@@ -20,7 +20,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require a newly published verified handoff packet
+      - name: Check out current control plane
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Require useful current-release USB refresh work
         id: gate
         shell: bash
         env:
@@ -29,28 +36,39 @@ jobs:
           HANDOFF_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = workflow_dispatch ]; then
-            echo 'proceed=true' >> "$GITHUB_OUTPUT"
-            echo 'AURUM_AUTO_USB_REFRESH_GATE manual=true'
-            exit 0
+          if [ "$EVENT_NAME" = workflow_run ]; then
+            count=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$HANDOFF_RUN_ID/artifacts" \
+              --jq '[.artifacts[] | select(.name == "Aurum-TinySeed-Handoff" and .expired == false)] | length')
+            if [ "$count" -lt 1 ]; then
+              echo 'proceed=false' >> "$GITHUB_OUTPUT"
+              echo 'AURUM_AUTO_USB_REFRESH_GATE published_handoff=false'
+              exit 0
+            fi
           fi
-          count=$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$HANDOFF_RUN_ID/artifacts" \
-            --jq '[.artifacts[] | select(.name == "Aurum-TinySeed-Handoff" and .expired == false)] | length')
-          if [ "$count" -lt 1 ]; then
-            echo 'proceed=false' >> "$GITHUB_OUTPUT"
-            echo 'AURUM_AUTO_USB_REFRESH_GATE published_handoff=false'
-            exit 0
-          fi
-          echo 'proceed=true' >> "$GITHUB_OUTPUT"
-          echo 'AURUM_AUTO_USB_REFRESH_GATE published_handoff=true'
 
-      - name: Check out current control plane
-        if: steps.gate.outputs.proceed == 'true'
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: true
+          decision=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from Admin.tinyseed_refresh_policy import decide_usb_refresh
+
+          def load(path: Path):
+              if not path.is_file():
+                  return None
+              try:
+                  return json.loads(path.read_text(encoding='utf-8-sig'))
+              except Exception:
+                  return None
+
+          release = load(Path('Projects/Aurum/Release/latest-tinyseed-handoff.json'))
+          receipt = load(Path('Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'))
+          result = decide_usb_refresh(release, receipt)
+          print(('true' if result.refresh else 'false') + '|' + result.reason)
+          PY
+          )
+          proceed=${decision%%|*}
+          reason=${decision#*|}
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+          echo "AURUM_AUTO_USB_REFRESH_GATE proceed=$proceed reason=$reason event=$EVENT_NAME"
 
       - name: Bind a zero-authority discovery request to the verified release
         if: steps.gate.outputs.proceed == 'true'
