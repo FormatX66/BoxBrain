@@ -1,0 +1,22 @@
+[Unit]
+Description=Aurum Farmer persistent BoxBrain orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=boxbrain
+Group=boxbrain
+WorkingDirectory=/opt/boxbrain/aurum-farmer/current
+Environment=PYTHONPATH=/opt/boxbrain/aurum-farmer/current
+ExecStart=/usr/bin/python3 -m aurum_farmer --config /var/lib/boxbrain/aurum-farmer/farmer.json daemon
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/boxbrain/aurum-farmer
+
+[Install]
+WantedBy=multi-user.target

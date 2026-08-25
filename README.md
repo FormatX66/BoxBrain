@@ -76,6 +76,7 @@ link to it.
 - [ChatGPT write-boundary test notes](CHATGPT_WRITE_TEST.md)
 - [Memory priority stack](memory-priority-stack/README.md)
 - [Orchestrator memory prompt](memory-priority-stack/docs/ORCHESTRATOR_MEMORY_PROMPT.md)
+- [Aurum Farmer persistent orchestrator](Projects/AurumFarmer/README.md)
 
 ## Quick start
 

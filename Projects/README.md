@@ -6,6 +6,7 @@ one metadata index; implementation details stay in the registered repository.
 | Project | Status | Priority | Completion | Index |
 | --- | --- | --- | --- | --- |
 | Aurum | Active experimental build | P0 | Capability-based | [Project index](Aurum/ProjectIndex.md) |
+| AurumFarmer | Implemented persistent orchestrator | P0 | Evidence-based v1 | [Project index](AurumFarmer/ProjectIndex.md) |
 | AurumBridge | Active bootstrap subsystem | P0 | Capability-based | [Project index](AurumBridge/ProjectIndex.md) |
 | BrainConnect | Active alpha | P0 | 95% estimate | [Project index](BrainConnect/ProjectIndex.md) |
 | WebsiteBuilder | Discovery | Unranked | 0% | [Project index](WebsiteBuilder/ProjectIndex.md) |
