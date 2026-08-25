@@ -1,0 +1,17 @@
+{
+    "schema":  "aurum-pi4-seed-receipt-v1",
+    "state":  "WAITING",
+    "github_workflow_run":  32805743942,
+    "github_run_attempt":  1,
+    "host":  "LAPTOP-EBD8CG8P",
+    "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
+    "observed_at":  "2026-08-25T03:36:55.4477556Z",
+    "data":  {
+                 "addresses":  [
+                                   "10.12.194.1",
+                                   "10.42.194.1"
+                               ],
+                 "transport":  "usb-c-ssh",
+                 "reason":  "usb-c-ssh-unreachable"
+             }
+}
