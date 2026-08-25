@@ -97,15 +97,20 @@ IGNORED_DIRECTORY_NAMES = frozenset(
 # creates a false repository-integrity failure.
 IGNORED_FILE_NAMES = frozenset({"AGENTS.md", "pull_request_template.md"})
 
-# This historical workflow once embedded a persistent destructive authorization
-# and auto-triggered after image builds. It is retained only as a fail-closed
-# tombstone so receipts/history remain understandable. Never let it regain a raw
-# write path or automatic trigger; current writes belong to the canonical
-# release/device-bound one-shot guarded-flash flow.
-LEGACY_PC01_FLASH_WORKFLOW = Path(".github/workflows/aurum-pc01-flash-authorized.yml")
-LEGACY_PC01_FORBIDDEN_TOKENS = (
+# These historical workflows once embedded static destructive authorization and
+# direct raw-media writers. They remain only as fail-closed tombstones so old
+# receipts/history stay understandable. Current media writes belong exclusively
+# to the canonical release/device-bound one-shot guarded-flash flow.
+RETIRED_PC01_MEDIA_WORKFLOWS = (
+    Path(".github/workflows/aurum-pc01-flash-authorized.yml"),
+    Path(".github/workflows/aurum-pc01-grub-flash-once.yml"),
+    Path(".github/workflows/aurum-pc01-reflash-once.yml"),
+)
+RETIRED_PC01_FORBIDDEN_TOKENS = (
     "workflow_run:",
+    "push:",
     "AURUM_FLASH_AUTHORIZATION:",
+    "AURUM_REFLASH_AUTHORIZATION:",
     "\\\\.\\PhysicalDrive",
     "diskpart.exe",
     "FileAccess]::ReadWrite",
@@ -136,19 +141,19 @@ def local_link_target(document: Path, raw_target: str) -> Path | None:
 
 
 def destructive_workflow_policy_errors(root: Path = ROOT) -> list[str]:
-    """Fail closed if the retired PC-01 workflow regains persistent write authority."""
-    workflow = root / LEGACY_PC01_FLASH_WORKFLOW
-    if not workflow.is_file():
-        return []
-
-    text = workflow.read_text(encoding="utf-8")
+    """Fail closed if a retired PC-01 media writer regains executable authority."""
     errors: list[str] = []
-    for token in LEGACY_PC01_FORBIDDEN_TOKENS:
-        if token in text:
-            errors.append(
-                "Retired PC-01 flash workflow regained forbidden destructive behavior: "
-                f"{token}"
-            )
+    for relative_workflow in RETIRED_PC01_MEDIA_WORKFLOWS:
+        workflow = root / relative_workflow
+        if not workflow.is_file():
+            continue
+        text = workflow.read_text(encoding="utf-8")
+        for token in RETIRED_PC01_FORBIDDEN_TOKENS:
+            if token in text:
+                errors.append(
+                    "Retired PC-01 media workflow regained forbidden destructive behavior: "
+                    f"{relative_workflow}: {token}"
+                )
     return errors
 
 
