@@ -178,6 +178,14 @@ jobs:
                   'previous_sha=([0-9a-f]{64})'
                 )).Groups[1].Value
 
+                # The transient GUI intentionally refuses socket reuse. The repair stops
+                # the exact unit, but prior loopback HTTP checks can retain :8765 in
+                # TIME_WAIT longer than the start helper's 45-second fail-closed probe.
+                # One bounded quiescence interval preserves the no-reuse safety contract
+                # without broadening the one-module repair or disabling strict checks.
+                Write-Host "AURUM_EXTERNAL_EVIDENCE restart_quiescence=65s route=$route"
+                Start-Sleep -Seconds 65
+
                 $verifiedTrial = Invoke-GuiCollector -Route $route
                 if ($verifiedTrial.ExitCode -eq 0) {
                   Write-Host "AURUM_EXTERNAL_EVIDENCE repair_verified=true route=$route"
