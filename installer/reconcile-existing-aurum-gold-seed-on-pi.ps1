@@ -6,7 +6,8 @@ param(
     [string]$KeyPath = (Join-Path $HOME ".ssh\boxbrain_pi_ed25519"),
     [string]$SshExecutable,
     [string]$ScpExecutable,
-    [string]$UserKnownHostsFile
+    [string]$UserKnownHostsFile,
+    [string]$DesiredState
 )
 
 Set-StrictMode -Version Latest
@@ -17,6 +18,9 @@ if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
 }
 if ($PiUser -notmatch '^[a-z_][a-z0-9_-]*$') {
     throw "The BBPI4 SSH user is not a safe POSIX account name: $PiUser"
+}
+if ($DesiredState -and $DesiredState -notmatch '^[A-Za-z0-9._:/-]{1,160}$') {
+    throw "DesiredState must be a bounded evidence token, not executable shell input."
 }
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -122,10 +126,13 @@ set -euo pipefail
 TRANSFER_ROOT="$1"
 STAGED="$TRANSFER_ROOT/Projects/Codelation"
 PI_USER="$2"
+DESIRED_STATE="${3:--}"
+if [ "$DESIRED_STATE" = "-" ]; then DESIRED_STATE=""; fi
 INSTALL=/opt/boxbrain/codelation
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 ROLLBACK_ROOT=/opt/boxbrain/rollback
 ROLLBACK="$ROLLBACK_ROOT/codelation-$STAMP"
+FUTURE_BRANCH_MANIFEST="$ROLLBACK_ROOT/future-branch-$STAMP.json"
 
 matching_units() {
   systemctl list-unit-files --no-legend 2>/dev/null \
@@ -151,25 +158,68 @@ user_cron_before="$(matching_user_cron)"
 root_cron_before="$(matching_root_cron)"
 
 cd "$STAGED"
-# Only the Aurum overlay contract is authoritative for this operation.
-python3 -m unittest discover -s tests -p 'test_aurum_live.py' -v
-python3 -m unittest discover -s tests -p 'test_aurum_dialogue.py' -v
+# The candidate overlay tests resolve the first Future Branch fork. Failed
+# candidates are recorded as quarantined before the live install is touched.
 aurum_overlay_tests=passed
+if ! python3 -m unittest discover -s tests -p 'test_aurum_live.py' -v; then
+  aurum_overlay_tests=failed
+fi
+if [ "$aurum_overlay_tests" = passed ] && ! python3 -m unittest discover -s tests -p 'test_aurum_dialogue.py' -v; then
+  aurum_overlay_tests=failed
+fi
 
 # The broader Codelation suite remains useful evidence, but it is no longer
 # allowed to veto an already-running operator-approved Aurum gold seed.
-codelation_diagnostic_status=passed
-codelation_diagnostic_detail=all-current-tests-passed
-if ! python3 -m unittest discover -s tests -v > "$TRANSFER_ROOT/codelation-tests.log" 2>&1; then
-  codelation_diagnostic_status=failed-nonblocking
-  codelation_diagnostic_detail="$(tail -n 8 "$TRANSFER_ROOT/codelation-tests.log" | tr '\r\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g')"
+codelation_diagnostic_status=skipped-candidate-quarantined
+codelation_diagnostic_detail=overlay-contract-failed
+if [ "$aurum_overlay_tests" = passed ]; then
+  codelation_diagnostic_status=passed
+  codelation_diagnostic_detail=all-current-tests-passed
+  if ! python3 -m unittest discover -s tests -v > "$TRANSFER_ROOT/codelation-tests.log" 2>&1; then
+    codelation_diagnostic_status=failed-nonblocking
+    codelation_diagnostic_detail="$(tail -n 8 "$TRANSFER_ROOT/codelation-tests.log" | tr '\r\n' ' ' | sed 's/[[:space:]][[:space:]]*/ /g')"
+  fi
 fi
 
 sudo -n install -d -o root -g root -m 700 "$ROLLBACK_ROOT"
+current_seed_present=false
 if [ -d "$INSTALL" ]; then
+  current_seed_present=true
+fi
+if [ "$aurum_overlay_tests" = passed ] && $current_seed_present; then
   sudo -n cp -a "$INSTALL" "$ROLLBACK"
 else
   ROLLBACK=none
+fi
+
+# Persist the recovery branch field after the candidate tests and rollback path
+# are known but before the first candidate file can mutate the live install.
+manifest_args=(
+  python3 "$TRANSFER_ROOT/installer/future_branch_recovery.py"
+  --candidate "staged-codelation-$STAMP"
+  --lkg "$INSTALL"
+  --output "$FUTURE_BRANCH_MANIFEST"
+)
+if [ "$aurum_overlay_tests" = passed ]; then
+  manifest_args+=(--candidate-tests-passed)
+fi
+if $current_seed_present; then
+  manifest_args+=(--current-seed-present)
+fi
+if [ "$ROLLBACK" != none ]; then
+  manifest_args+=(--rollback "$ROLLBACK")
+fi
+if [ -n "$DESIRED_STATE" ]; then
+  # Desired state remains evidence/constraint only; the helper never authorizes
+  # or promotes a branch and State Guardian remains the decision authority.
+  manifest_args+=(--desired-state "$DESIRED_STATE")
+fi
+sudo -n "${manifest_args[@]}"
+sudo -n chmod 600 "$FUTURE_BRANCH_MANIFEST"
+
+if [ "$aurum_overlay_tests" != passed ]; then
+  echo "AURUM_FUTURE_BRANCH_CANDIDATE_QUARANTINED manifest=$FUTURE_BRANCH_MANIFEST" >&2
+  exit 32
 fi
 
 sudo -n install -d -o "$PI_USER" -g "$PI_USER" -m 700 \
@@ -314,6 +364,8 @@ matching_systemd_units=$new_units_count
 matching_user_cron=$user_cron_changed
 matching_root_cron=$root_cron_changed
 rollback=$ROLLBACK
+future_branch_manifest=$FUTURE_BRANCH_MANIFEST
+future_branch_manifest_phase=pre-mutation
 transfer_cleanup=$transfer_cleanup
 EOF
 chmod 600 verification/AURUM_LIVE_VERIFY.txt
@@ -334,6 +386,8 @@ printf '%s\n' \
   "unapproved_user_cron_changes=$user_cron_changed" \
   "unapproved_root_cron_changes=$root_cron_changed" \
   "rollback=$ROLLBACK" \
+  "future_branch_manifest=$FUTURE_BRANCH_MANIFEST" \
+  "future_branch_manifest_phase=pre-mutation" \
   "transfer_cleanup=$transfer_cleanup"
 '@
 
@@ -348,11 +402,12 @@ printf '%s\n' \
     if ($scriptTransfer.ExitCode -ne 0) { throw "Could not stage the bounded BBPI4 reconciliation script." }
 
     $remoteScript = "$transfer/aurum-reconcile.sh"
-    $remoteCommand = "chmod 700 -- $remoteScript && $remoteScript $transfer $PiUser"
+    $desiredStateArg = if ($DesiredState) { $DesiredState } else { "-" }
+    $remoteCommand = "chmod 700 -- $remoteScript && $remoteScript $transfer $PiUser $desiredStateArg"
     $reconcileResult = Invoke-OpenSshNative -Executable $sshPath -Arguments ($options + @($target, $remoteCommand))
     Write-OpenSshOutput $reconcileResult
     if ($reconcileResult.ExitCode -ne 0) {
-        throw "Aurum gold-seed reconciliation or verification failed. The prior Aurum/Codelation directory was preserved in rollback."
+        throw "Aurum gold-seed reconciliation or verification failed. No candidate promotion was performed; any rollback/manifest evidence created before mutation remains preserved."
     }
 }
 finally {
@@ -375,6 +430,7 @@ $required = @(
     "new_unapproved_systemd_units=0",
     "unapproved_user_cron_changes=0",
     "unapproved_root_cron_changes=0",
+    "future_branch_manifest_phase=pre-mutation",
     "transfer_cleanup=confirmed"
 )
 foreach ($marker in $required) {
