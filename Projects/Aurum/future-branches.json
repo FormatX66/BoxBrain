@@ -159,8 +159,8 @@
         "is the ISO still the wrong way?",
         "should we use direct UEFI or the universal carrier instead?"
       ],
-      "prepared_response": "The direct-UEFI fallback has virtual Passed + Published proof but remains experimental. Keep it warm; do not replace the canonical release without physical carrier-specific evidence or a clear expected-cost advantage.",
-      "action_if_safe": "Compare fresh physical evidence and preserve the same Germ/genetics/LKG contract across any candidate pivot."
+      "prepared_response": "The fallback payload is re-proven against the current canonical release, but same-head fallback build/boot publication is not yet current. Keep the method prepared but cool until the matrix succeeds on that exact experimental head.",
+      "action_if_safe": "Compare fresh physical carrier evidence and expected total cost while preserving the same Germ/genetics/LKG contract. Never promote the experimental carrier from virtual evidence alone."
     },
     {
       "rank": 9,
@@ -359,6 +359,21 @@
         "size_bytes": 61524148224,
         "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5"
       }
+    },
+    "fallback_carrier": {
+      "provenance_receipt_present": true,
+      "provenance_success": true,
+      "provenance_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
+      "provenance_release_source_commit": "964b12de2ac99ac069a0abf90673ebd77aabb0e0",
+      "provenance_matches_current_release": true,
+      "canonical_payload_match": true,
+      "matrix_receipt_present": true,
+      "matrix_success": true,
+      "matrix_head_sha": "ef137007d04a8d511ab8cdee6b3699ba0ad132a6",
+      "same_experimental_head": false,
+      "warm_current": false,
+      "physical_proof_inferred": false,
+      "authority_granted": false
     }
   },
   "live_controls": {
@@ -375,6 +390,8 @@
     "current_release_flash_ready_to_boot": false,
     "flash_authorization_eligible": true,
     "write_authority": false,
-    "destructive_action_allowed": false
+    "destructive_action_allowed": false,
+    "fallback_carrier_current": false,
+    "fallback_carrier_provenance_current": true
   }
 }
