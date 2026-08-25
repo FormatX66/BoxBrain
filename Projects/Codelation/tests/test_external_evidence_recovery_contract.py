@@ -52,6 +52,12 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertIn("Join-Path $keyDirectory 'known_hosts'", workflow)
         self.assertIn("The dedicated BBPI4 SSH key is unavailable", workflow)
         self.assertIn("The pinned SSH known-hosts file is unavailable", workflow)
+        self.assertIn("$env:RUNNER_TEMP", workflow)
+        self.assertIn("[IO.File]::WriteAllBytes($strictKey, [IO.File]::ReadAllBytes($key))", workflow)
+        self.assertIn("icacls.exe", workflow)
+        self.assertIn("/inheritance:r", workflow)
+        self.assertIn("/grant:r", workflow)
+        self.assertIn("Remove-Item -LiteralPath $strictKey -Force", workflow)
 
     def test_recovery_falls_back_only_across_preapproved_bbpi4_ssh_routes(self) -> None:
         workflow = RECOVERY.read_text(encoding="utf-8")
