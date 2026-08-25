@@ -115,6 +115,14 @@ RETIRED_PC01_FORBIDDEN_TOKENS = (
     "diskpart.exe",
     "FileAccess]::ReadWrite",
 )
+STATIC_AUTHORIZATION_PATTERN = re.compile(
+    r"(?mi)^\s*AURUM_[A-Z0-9_]*AUTHORIZATION\s*:\s*['\"]?[^$\s][^\r\n]*$"
+)
+RAW_MEDIA_WRITE_MARKERS = (
+    "\\\\.\\PhysicalDrive",
+    "diskpart.exe",
+    "FileAccess]::ReadWrite",
+)
 
 
 def repository_markdown_files(root: Path = ROOT) -> list[Path]:
@@ -141,8 +149,10 @@ def local_link_target(document: Path, raw_target: str) -> Path | None:
 
 
 def destructive_workflow_policy_errors(root: Path = ROOT) -> list[str]:
-    """Fail closed if a retired PC-01 media writer regains executable authority."""
+    """Fail closed if legacy/static media-write authority becomes executable."""
     errors: list[str] = []
+
+    # Known retired writers may not regain triggers, static authority, or raw IO.
     for relative_workflow in RETIRED_PC01_MEDIA_WORKFLOWS:
         workflow = root / relative_workflow
         if not workflow.is_file():
@@ -153,6 +163,22 @@ def destructive_workflow_policy_errors(root: Path = ROOT) -> list[str]:
                 errors.append(
                     "Retired PC-01 media workflow regained forbidden destructive behavior: "
                     f"{relative_workflow}: {token}"
+                )
+
+    # General invariant: no GitHub workflow may combine a literal persistent
+    # AURUM_*AUTHORIZATION value with a direct raw-media writer. Current guarded
+    # flows consume fresh request state or explicit dispatch inputs instead.
+    workflow_dir = root / ".github" / "workflows"
+    if workflow_dir.is_dir():
+        for workflow in sorted(workflow_dir.glob("*.yml")):
+            text = workflow.read_text(encoding="utf-8")
+            if not STATIC_AUTHORIZATION_PATTERN.search(text):
+                continue
+            markers = [marker for marker in RAW_MEDIA_WRITE_MARKERS if marker in text]
+            if markers:
+                errors.append(
+                    "Workflow combines persistent static authorization with raw-media IO: "
+                    f"{workflow.relative_to(root)} markers={','.join(markers)}"
                 )
     return errors
 
