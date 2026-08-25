@@ -1,0 +1,102 @@
+name: Aurum Pi3 Adaptive Driver Test 001
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_metadata_promotion:
+        description: Promote only isolated candidate metadata after LKG snapshot verification
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-adaptive-driver-test-001
+  cancel-in-progress: false
+
+jobs:
+  pi3-adaptive-driver:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact experiment source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Run only through a strictly trusted experimental Pi3 identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @('aurum-pi3.local', 'aurum-pi3', 'raspberrypi.local', 'raspberrypi')
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $verifiedTarget = $null
+          $attempts = @()
+          foreach ($target in $targets) {
+            $reachable = $false
+            try {
+              $reachable = [bool](Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)
+            } catch {}
+            $attempt = [ordered]@{ target = $target; tcp22 = $reachable; strict_identity = $false; pi3 = $false }
+            if ($reachable) {
+              $sshTarget = "aurum@$target"
+              $prior = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              try {
+                $model = (& $ssh.Source -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $sshTarget "tr -d '\000' </proc/device-tree/model" 2>$null | Select-Object -First 1)
+                $exitCode = $LASTEXITCODE
+              } finally {
+                $ErrorActionPreference = $prior
+              }
+              if ($exitCode -eq 0) {
+                $attempt.strict_identity = $true
+                $attempt.pi3 = ([string]$model).Contains('Raspberry Pi 3')
+                if ($attempt.pi3) { $verifiedTarget = $sshTarget }
+              }
+            }
+            $attempts += $attempt
+            if ($verifiedTarget) { break }
+          }
+
+          New-Item -ItemType Directory -Force -Path 'adaptive-driver-evidence' | Out-Null
+          if (-not $verifiedTarget) {
+            $receipt = [ordered]@{
+              schema = 'aurum-adaptive-driver-runner-receipt-v1'
+              state = 'waiting'
+              reason = 'no-strictly-trusted-pi3-endpoint'
+              runner = $env:RUNNER_NAME
+              attempts = $attempts
+              mutation_allowed = $false
+              system_driver_changed = $false
+            }
+            $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Encoding utf8
+            Write-Host 'AURUM_ADAPTIVE_DRIVER state=waiting reason=no-strictly-trusted-pi3-endpoint'
+            exit 0
+          }
+
+          $promotion = if ('${{ inputs.allow_metadata_promotion }}' -eq 'true') { '--allow-promotion' } else { '' }
+          $source = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/adaptive_driver_loop.py' -Raw
+          $remoteCommand = "python3 - --state-dir /tmp/aurum-adaptive-driver-test-001 --root / $promotion"
+          $prior = $ErrorActionPreference
+          $ErrorActionPreference = 'Continue'
+          try {
+            $output = @($source | & $ssh.Source -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 $verifiedTarget $remoteCommand 2>&1)
+            $exitCode = $LASTEXITCODE
+          } finally {
+            $ErrorActionPreference = $prior
+          }
+          $output | Set-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Encoding utf8
+          if ($exitCode -ne 0) { throw "Pi3 adaptive-driver loop failed with exit code $exitCode" }
+          $parsed = Get-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Raw | ConvertFrom-Json
+          if ($parsed.target -ne 'raspberry-pi-3-experimental') { throw 'Unexpected adaptive-driver target.' }
+          if ($parsed.system_driver_changed) { throw 'System driver changed during safe test.' }
+          Write-Host "AURUM_ADAPTIVE_DRIVER state=$($parsed.state) decision=$($parsed.decision) score=$($parsed.score.score) system_driver_changed=false"
+
+      - name: Publish adaptive-driver evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurum-pi3-adaptive-driver-test-001
+          path: adaptive-driver-evidence/result.json
+          if-no-files-found: error
+          retention-days: 30
