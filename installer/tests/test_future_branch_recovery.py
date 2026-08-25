@@ -43,6 +43,24 @@ class FutureBranchRecoveryTests(unittest.TestCase):
         self.assertFalse(payload["promotion_performed"])
         self.assertFalse(payload["invariants"]["candidate_direct_promotion_allowed"])
 
+    def test_protected_offline_recovery_is_a_first_class_warm_branch(self):
+        payload = recovery_manifest(
+            candidate_state="seed-B",
+            lkg_state="seed-A",
+            rollback_target="rollback-A",
+            candidate_tests_passed=True,
+            current_seed_present=True,
+        )
+        by_id = {item["branch_id"]: item for item in payload["branches"]}
+        offline = by_id["seed-offline-recovery"]
+        self.assertEqual(offline["status"], "warm")
+        self.assertEqual(offline["proposed_state"], "enter-protected-offline-recovery")
+        self.assertEqual(offline["rollback_target"], "rollback-A")
+        self.assertFalse(offline["requires_authorization"])
+        self.assertTrue(offline["authorized"])
+        self.assertTrue(payload["invariants"]["offline_recovery_must_remain_available"])
+        self.assertFalse(payload["promotion_performed"])
+
     def test_remote_desired_state_is_evidence_not_authority(self):
         payload = recovery_manifest(
             candidate_state="seed-B",
@@ -54,6 +72,7 @@ class FutureBranchRecoveryTests(unittest.TestCase):
         )
         candidate = next(item for item in payload["branches"] if item["branch_id"] == "seed-candidate")
         self.assertEqual(payload["desired_state_constraint"], "previous")
+        self.assertTrue(payload["desired_state_is_evidence_not_authority"])
         self.assertEqual(payload["decision_authority"], "BrainConnect/StateGuardian")
         self.assertFalse(payload["promotion_performed"])
         self.assertFalse(candidate["authorized"])
