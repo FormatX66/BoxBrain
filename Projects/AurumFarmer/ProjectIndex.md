@@ -38,6 +38,31 @@ This is deployed process-boundary restart/resume evidence for Farmer. It does
 not infer destructive authority, LKG mutation, Tiny Seed physical boot proof, or
 any unrelated physical proof.
 
+## Operational state authority
+
+Farmer's validating SQLite WAL ledger plus its local signing key is the
+**production local operational-state authority on Farmer-controlled nodes**.
+The generic `data/aurum/runtime-checkpoint.json` is not a second writable
+scheduler authority there; it is a compatibility/reconstruction projection.
+This avoids split-brain between two local state stores.
+
+The local-state order is:
+
+1. validating Farmer ledger/event chain/signing material;
+2. a zero-authority compatibility checkpoint derived from Farmer;
+3. the generic runtime checkpoint only on nodes where Farmer is not the active
+   controller.
+
+`Admin/checkpoint_farmer_runtime.py` performs that fail-closed projection. It
+requires the existing ledger and signing key, verifies the Farmer event chain,
+maps Farmer job states into the generic checkpoint vocabulary, and refuses to
+copy destructive authority, candidate promotion, or LKG mutation permission.
+The generic reconstruction/resume tooling therefore remains useful without
+creating a peer authority.
+
+This architecture is the production resolution of the state-authority frontier
+tracked in Aurum issue #40.
+
 ## Canonical implementation
 
 - [Runtime and operator guide](README.md)
@@ -56,6 +81,8 @@ any unrelated physical proof.
   Windows install/start/health/uninstall proof
 - `.github/workflows/aurum-farmer-self-hosted-windows-deploy.yml` — reversible
   deployed Windows install plus abrupt process-boundary restart/resume proof
+- `../../Admin/checkpoint_farmer_runtime.py` — Farmer-to-generic zero-authority
+  compatibility projection
 
 ## Invariants
 
@@ -70,6 +97,8 @@ any unrelated physical proof.
    decision.
 7. Chat-to-Git is the `chat_to_git` executor. GitHub workflows are the
    `github_workflow` executor. Farmer remains the state authority.
+8. A Farmer-derived generic checkpoint is a projection/cache, never a peer
+   writable authority and never an authorization token.
 
 ## Related architecture
 
@@ -77,4 +106,5 @@ any unrelated physical proof.
 - [Future Branch current workflow](../../Architecture/FutureBranchCurrent.md)
 - [Future Branch execution gate](../../Architecture/FutureBranchExecutionGate.md)
 - [Execution routes](../../Architecture/ExecutionRoutes.md)
+- [Aurum state authority](../Aurum/STATE_AUTHORITY.md)
 - [Aurum project](../Aurum/ProjectIndex.md)
