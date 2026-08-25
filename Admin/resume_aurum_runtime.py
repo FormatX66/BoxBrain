@@ -17,8 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from Admin.checkpoint_aurum_runtime import DEFAULT_OUTPUT, normalize_jobs, stable_digest
-from Admin.reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
+try:
+    from Admin.checkpoint_aurum_runtime import DEFAULT_OUTPUT, normalize_jobs, stable_digest
+    from Admin.reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
+except ModuleNotFoundError:  # Support `python Admin/resume_aurum_runtime.py`.
+    from checkpoint_aurum_runtime import DEFAULT_OUTPUT, normalize_jobs, stable_digest
+    from reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
 
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 
@@ -132,7 +136,9 @@ def resume_state(
     live_head = None
     try:
         from Admin.checkpoint_aurum_runtime import repository_head as read_repository_head
-
+    except ModuleNotFoundError:
+        from checkpoint_aurum_runtime import repository_head as read_repository_head
+    try:
         live_head = read_repository_head(root)
     except Exception:
         live_head = None
