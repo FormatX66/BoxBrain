@@ -6,6 +6,7 @@ on:
       - 'Aurum Hopper Recovery Path Probe'
       - 'Aurum Hopper Recovery Request Dispatcher'
       - 'Aurum Tiny Seed Flash Contract'
+      - 'Aurum Tiny Seed One-Shot Flash Request'
       - 'Aurum Tiny Seed Auto USB Refresh'
       - 'Aurum Read-Only USB Discovery'
       - 'Aurum Tiny Seed direct UEFI offline-carrier experiment'
@@ -18,6 +19,9 @@ on:
     # either experiment can produce an honest terminal receipt. Mirror the
     # system-owned USB refresh/discovery pair as well so a stalled physical
     # preflight can be distinguished from a completed no-media/error result.
+    # The one-shot flash is also critical terminal evidence: authorization and a
+    # ready preflight do not prove a write happened, and only the workflow's
+    # terminal result plus the raw-readback receipt may advance physical state.
     # Mirror canonical fallback provenance too: a fallback artifact may stay
     # virtually green while the canonical READY_TO_FLASH release rolls forward,
     # so durable evidence must show whether that fallback was re-proven against
