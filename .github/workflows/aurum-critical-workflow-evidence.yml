@@ -10,6 +10,7 @@ on:
       - 'Aurum Read-Only USB Discovery'
       - 'Aurum Tiny Seed direct UEFI offline-carrier experiment'
       - 'Aurum Tiny Seed x86 fallback carrier matrix experiment'
+      - 'Aurum Tiny Seed fallback canonical provenance'
     # Durable main-branch receipts are terminal evidence, not a live progress
     # ticker. Queued/in-progress state is available from Actions/Failsafe
     # readback; committing every lifecycle transition creates evidence churn.
@@ -17,6 +18,10 @@ on:
     # either experiment can produce an honest terminal receipt. Mirror the
     # system-owned USB refresh/discovery pair as well so a stalled physical
     # preflight can be distinguished from a completed no-media/error result.
+    # Mirror canonical fallback provenance too: a fallback artifact may stay
+    # virtually green while the canonical READY_TO_FLASH release rolls forward,
+    # so durable evidence must show whether that fallback was re-proven against
+    # the current protected Germ/recovery payload rather than only an older one.
     types: [completed]
 
 permissions:
