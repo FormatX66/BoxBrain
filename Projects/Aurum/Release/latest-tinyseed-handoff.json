@@ -2,16 +2,16 @@
   "artifacts": {
     "pi": {
       "name": "Aurum-TinySeed-Pi-arm64.img.xz",
-      "sha256": "dc619c58b8ac728cfbaca652f83e06421929b60d371f53a242a957fe371560bf",
-      "workflow_run": 32798383901
+      "sha256": "731be53ce9eb175f080d95a362d6c7974a9752e650b5d4ea28ead351160c0432",
+      "workflow_run": 32815061324
     },
     "x86": {
       "name": "Aurum-TinySeed-amd64.iso",
-      "sha256": "5301e757924e74fbb9abef59e94afc0c31034c02e16352f01f71e91e30ca9940",
-      "workflow_run": 32798384327
+      "sha256": "91f2f14c94819447bcfbdf89e921998fa5b39a5e542114ce66fda88a93c95966",
+      "workflow_run": 32815061332
     }
   },
-  "assembled_at_unix": 1787622693,
+  "assembled_at_unix": 1787638412,
   "gates": {
     "combined_hash_reverification": "passed",
     "guardian_forced_rollback": "pending",
@@ -26,6 +26,6 @@
   },
   "next_gate": "physical-flash-and-boot-proof",
   "schema": "aurum-tinyseed-handoff-v1",
-  "source_commit": "6f91d25b934ffe48352fa43a865625d2bc2d5d1e",
+  "source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051",
   "state": "READY_TO_FLASH"
 }
