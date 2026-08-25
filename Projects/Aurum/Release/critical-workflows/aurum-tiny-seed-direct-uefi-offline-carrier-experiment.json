@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Tiny Seed direct UEFI offline-carrier experiment",
-  "run_id": 32813838239,
-  "run_number": 7,
+  "run_id": 32813848817,
+  "run_number": 8,
   "run_attempt": 1,
   "status": "in_progress",
   "conclusion": null,
-  "event": "push",
+  "event": "pull_request",
   "head_sha": "ce303d913fe984d1f830af4b592e96121f7104b4",
   "head_branch": "experiment/tinyseed-direct-uefi-current-20260825",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32813838239",
-  "updated_at": "2026-08-25T05:41:38Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32813848817",
+  "updated_at": "2026-08-25T05:41:49Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
