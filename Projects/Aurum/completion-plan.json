@@ -94,8 +94,8 @@
       "depends_on": [
         "tinyseed-combined-handoff"
       ],
-      "state": "ready-for-guarded-preflight-explicit-authority-pending",
-      "ready_now": false,
+      "state": "passed-readback-verified",
+      "ready_now": true,
       "proof": "explicitly selected non-system media is flashed and readback-verified"
     },
     {
@@ -104,7 +104,7 @@
       "depends_on": [
         "x86-physical-flash"
       ],
-      "state": "blocked-on-physical-hardware",
+      "state": "ready-for-physical-boot-proof",
       "ready_now": false,
       "proof": "real x86 target produces Tiny Seed ready marker and boot-proof receipt"
     },
