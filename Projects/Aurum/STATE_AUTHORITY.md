@@ -33,6 +33,14 @@ Operational state should be persisted locally and checkpointed frequently enough
 
 Where practical, durable summaries/checkpoints that define project behavior should be synchronized into versioned project artifacts.
 
+The local checkpoint writer is `Admin/checkpoint_aurum_runtime.py`. By default it atomically writes `data/aurum/runtime-checkpoint.json`, which is intentionally ignored by Git. It starts from the durable repository reconstruction, then adds local jobs, resumable positions, hardware/software fingerprints, hypotheses, and local artifact references supplied by the runtime. Stored checkpoint state can resume work, but it cannot grant destructive authority, promote a candidate, or mutate LKG; those boundaries always require fresh live evidence.
+
+Example local checkpoint refresh:
+
+`python Admin/checkpoint_aurum_runtime.py`
+
+A runtime may pass a JSON overlay with `--runtime-overlay <path>` to persist active jobs and local fingerprints without moving those ephemeral details into Git.
+
 ### 3. ChatGPT / external AI memory — supplemental context only
 
 Conversation memory, summaries, model context, and other external AI memory may help interpret intent or accelerate work, but they must never be the only copy of:
@@ -73,6 +81,8 @@ A direct operator or recovery check is:
 `python Admin/reconstruct_aurum_state.py`
 
 The emitted `aurum-restart-reconstruction-v1` object is a reconstruction artifact, not an authorization token. Any human-only, physical, destructive, or time-sensitive boundary still requires fresh live evidence and Action Ownership checks.
+
+The local operational layer is separately exercised by `Admin.tests.test_checkpoint_aurum_runtime`, including atomic persistence, resumable-job capture, invalid-state refusal, duplicate-job refusal, and proof that an overlay cannot smuggle destructive authority or LKG mutation into a checkpoint.
 
 ## Design consequence
 
