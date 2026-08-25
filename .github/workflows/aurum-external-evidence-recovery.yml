@@ -90,23 +90,44 @@ jobs:
             throw "The pinned SSH known-hosts file is unavailable to the authorized Windows runner."
           }
 
+          # A self-hosted runner may execute under a different Windows identity than the
+          # profile that owns the dedicated key. OpenSSH correctly rejects a private key
+          # whose ACL is broad for that identity, so use an ephemeral byte-for-byte copy
+          # with inheritance removed and read access granted only to the current runner.
+          $strictKey = Join-Path $env:RUNNER_TEMP ("boxbrain_pi_ed25519." + [Guid]::NewGuid().ToString('N'))
+          [IO.File]::WriteAllBytes($strictKey, [IO.File]::ReadAllBytes($key))
+          $runnerIdentity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+          & icacls.exe $strictKey /inheritance:r /grant:r "${runnerIdentity}:(R)" | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $strictKey -Force -ErrorAction SilentlyContinue
+            throw 'Could not establish a runner-local strict ACL for the dedicated BBPI4 SSH key.'
+          }
+          $key = $strictKey
+
           $collector = Join-Path $env:GITHUB_WORKSPACE 'installer\collect-adaptive-shell-gui-live-trial.ps1'
           $approvedRoutes = @('10.12.194.1', '10.42.194.1', 'bbpi4.local', '192.168.0.194')
           $selectedRoute = $null
-          foreach ($route in $approvedRoutes) {
-            Write-Host "AURUM_EXTERNAL_EVIDENCE route_probe=$route"
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
-              -PiAddress $route `
-              -KeyPath $key `
-              -KnownHostsPath $knownHosts `
-              -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
-              -TimeToLiveSeconds 1200
-            $collectorExitCode = $LASTEXITCODE
-            if ($collectorExitCode -eq 0) {
-              $selectedRoute = $route
-              break
+          try {
+            foreach ($route in $approvedRoutes) {
+              Write-Host "AURUM_EXTERNAL_EVIDENCE route_probe=$route"
+              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collector `
+                -PiAddress $route `
+                -KeyPath $key `
+                -KnownHostsPath $knownHosts `
+                -AuthorizationReference $env:AURUM_AUTHORIZATION_REFERENCE `
+                -TimeToLiveSeconds 1200
+              $collectorExitCode = $LASTEXITCODE
+              if ($collectorExitCode -eq 0) {
+                $selectedRoute = $route
+                break
+              }
+              Write-Host "AURUM_EXTERNAL_EVIDENCE route_failed=$route exit_code=$collectorExitCode"
             }
-            Write-Host "AURUM_EXTERNAL_EVIDENCE route_failed=$route exit_code=$collectorExitCode"
+          }
+          finally {
+            if (Test-Path -LiteralPath $strictKey -PathType Leaf) {
+              Remove-Item -LiteralPath $strictKey -Force
+            }
           }
           if (-not $selectedRoute) {
             throw 'The bounded GUI evidence collector could not reach BBPI4 on any preapproved strict-SSH route.'
