@@ -8,10 +8,13 @@ on:
       - 'Admin/sync_aurum_release_status.py'
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - 'Admin/sync_aurum_fallback_evidence.py'
+      - 'Admin/materialize_aurum_next_interaction.py'
       - 'Admin/tests/test_sync_aurum_release_status.py'
       - 'Admin/tests/test_sync_aurum_future_branch_evidence.py'
       - 'Admin/tests/test_sync_aurum_fallback_evidence.py'
+      - 'Admin/tests/test_materialize_aurum_next_interaction.py'
       - 'Projects/**'
+      - 'Prompts/FutureBranchSeed.txt'
       - 'README.md'
       - 'START_HERE.md'
       - 'PROJECTS.md'
@@ -49,6 +52,7 @@ jobs:
             Admin.tests.test_sync_aurum_release_status \
             Admin.tests.test_sync_aurum_future_branch_evidence \
             Admin.tests.test_sync_aurum_fallback_evidence \
+            Admin.tests.test_materialize_aurum_next_interaction \
             > "$RUNNER_TEMP/sync-tests.txt" 2>&1
           tests_rc=$?
           set -e
