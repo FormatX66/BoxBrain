@@ -53,6 +53,107 @@ def require_seed_contract(text: str) -> None:
         raise ValueError(f"Future Branch interaction/handoff contract incomplete: {missing}")
 
 
+def _post_flash_ready(live_controls: dict | None) -> bool:
+    return bool(
+        isinstance(live_controls, dict)
+        and live_controls.get("current_release_flash_ready_to_boot") is True
+        and live_controls.get("flash_receipt_matches_current_release") is True
+    )
+
+
+def _post_flash_program() -> str:
+    return (
+        "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; "
+        "effective next gate=physical-hopper-boot-proof. The canonical release remains "
+        "READY_TO_FLASH as an artifact state, but another media write is not required unless "
+        "later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly "
+        "started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. "
+        "Canonical evidence may prepare a branch but never grants destructive authority or physical proof."
+    )
+
+
+def _normalize_post_flash_inputs(inputs: list[object], enabled: bool) -> list[object]:
+    """Remove stale flash-as-next-step truth after current media is readback proven.
+
+    The preflight and old authorization branch remain historical evidence, but they
+    must not stay ranked above the physical boot outcome once the exact current
+    release has a matching READY_TO_BOOT receipt.
+    """
+    if not enabled:
+        return inputs
+
+    preferred = {
+        "physical-result-success": 0,
+        "physical-result-mixed": 1,
+        "physical-result-failure": 2,
+        "status-or-so": 3,
+        "generic-prompt-intent-expansion": 4,
+    }
+    normalized: list[object] = []
+    for value in inputs:
+        if not isinstance(value, dict):
+            normalized.append(value)
+            continue
+        item = dict(value)
+        family = item.get("input_family")
+        if family == "status-or-so":
+            item["prepared_response"] = _post_flash_program()
+            item["action_if_safe"] = (
+                "Re-read the matching current-release flash receipt and current completion graph, "
+                "then continue only toward physical Hopper boot-proof collection; do not request or "
+                "infer another media write."
+            )
+        elif family == "generic-prompt-intent-expansion":
+            item["prepared_response"] = (
+                "Treat a generic continuation prompt against the proven post-flash state: current-release "
+                "media is READY_TO_BOOT and the effective next gate is physical-hopper-boot-proof. "
+                "Do all shared safe reversible work, but never infer physical boot success."
+            )
+            item["action_if_safe"] = (
+                "Advance boot-proof preparation and evidence handling from the matching readback-verified "
+                "receipt without granting a new write."
+            )
+        elif family == "explicit-guarded-flash-authorization":
+            item["prepared_response"] = (
+                "Do not request another flash by default. The current release already has a matching "
+                "readback-verified READY_TO_BOOT receipt; a new bounded flash cycle requires fresh evidence "
+                "that the existing media is invalid or an explicit decision to replace it."
+            )
+            item["action_if_safe"] = (
+                "Keep new write authority false and continue to physical boot proof unless later evidence "
+                "invalidates the media/provenance."
+            )
+        normalized.append(item)
+
+    sortable = [item for item in normalized if isinstance(item, dict) and isinstance(item.get("rank"), int)]
+    sortable.sort(
+        key=lambda item: (
+            preferred.get(str(item.get("input_family")), 100),
+            int(item["rank"]),
+            str(item.get("input_family", "")),
+        )
+    )
+    for rank, item in enumerate(sortable, start=1):
+        item["rank"] = rank
+    rank_by_family = {
+        str(item.get("input_family")): int(item["rank"])
+        for item in sortable
+        if isinstance(item.get("input_family"), str)
+    }
+    for item in normalized:
+        if isinstance(item, dict) and isinstance(item.get("input_family"), str):
+            rank = rank_by_family.get(item["input_family"])
+            if rank is not None:
+                item["rank"] = rank
+    return sorted(
+        normalized,
+        key=lambda item: (
+            int(item.get("rank", 10**9)) if isinstance(item, dict) else 10**9,
+            str(item.get("input_family", "")) if isinstance(item, dict) else "",
+        ),
+    )
+
+
 def _post_flash_frontier(candidates: list[dict], live_controls: dict | None) -> list[dict]:
     """Promote physical-boot outcomes after current-release raw readback is proven.
 
@@ -62,7 +163,7 @@ def _post_flash_frontier(candidates: list[dict], live_controls: dict | None) -> 
     order only; it grants no authority and infers no boot success.
     """
 
-    if not isinstance(live_controls, dict) or not live_controls.get("current_release_flash_ready_to_boot"):
+    if not _post_flash_ready(live_controls):
         return sorted(candidates, key=lambda item: item["rank"])
 
     preferred = {
@@ -88,13 +189,15 @@ def materialize() -> dict:
     canonical = branch.get("canonical_evidence")
     live_controls = branch.get("live_controls")
     release = canonical.get("release") if isinstance(canonical, dict) else None
+    post_flash_ready = _post_flash_ready(live_controls if isinstance(live_controls, dict) else None)
 
     inputs = branch.get("likely_user_inputs")
     if not isinstance(inputs, list):
         raise ValueError("likely_user_inputs must be an array")
+    normalized_inputs = _normalize_post_flash_inputs(inputs, post_flash_ready)
 
     candidates = []
-    for entry in inputs:
+    for entry in normalized_inputs:
         if not isinstance(entry, dict):
             continue
         rank = entry.get("rank")
@@ -121,19 +224,10 @@ def materialize() -> dict:
     marker = " Future Branch handoff:"
     if marker in base_program:
         base_program = base_program.split(marker, 1)[0].rstrip()
-
-    post_flash_ready = bool(
-        isinstance(live_controls, dict)
-        and live_controls.get("current_release_flash_ready_to_boot") is True
-        and live_controls.get("flash_receipt_matches_current_release") is True
-    )
     if post_flash_ready:
-        operational_prefix = (
-            "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; "
-            "effective next gate=physical-hopper-boot-proof. Do not reflash unless later evidence "
-            "invalidates the media/provenance or a new bounded flash cycle is explicitly started."
-        )
-        base_program = f"{operational_prefix} {base_program}".strip()
+        # Do not prepend current truth to a stale pre-flash narrative. Once the exact
+        # current media is readback-proven, the operational program is physical boot.
+        base_program = _post_flash_program()
 
     visible_program = f"{base_program} {HANDOFF_SENTENCE}".strip()
 
@@ -153,9 +247,11 @@ def materialize() -> dict:
     branch_changed = (
         branch.get("current_program") != visible_program
         or branch.get("interaction_handoff") != handoff_state
+        or branch.get("likely_user_inputs") != normalized_inputs
     )
     if branch_changed:
         branch["current_program"] = visible_program
+        branch["likely_user_inputs"] = normalized_inputs
         branch["interaction_handoff"] = handoff_state
         BRANCH.write_text(json.dumps(branch, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
