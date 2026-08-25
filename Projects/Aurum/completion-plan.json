@@ -1,7 +1,7 @@
 {
   "schema": "aurum-completion-plan-v1",
   "goal": "Aurum can be seeded or reseeded from minimal x86/ARM64 media, preserve Last Known Good state, prove boot and rollback on physical hardware, recover Hopper, and advance adaptive-kernel/StateWeave experiments without confusing experiments with production proof.",
-  "latest_release_source_commit": "964b12de2ac99ac069a0abf90673ebd77aabb0e0",
+  "latest_release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
   "release_state": "READY_TO_FLASH",
   "policy": {
     "prepare_downstream_before_dependency_is_green": true,
