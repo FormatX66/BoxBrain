@@ -7,7 +7,7 @@
   "source_schema": "aurum-future-branch-state-v11",
   "source_evidence_sha256": "895939a7d52e4e5345ae8e7ff6d022fc160ada29fa3ecbbd48d480049ac733d1",
   "release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
-  "current_program": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. Do not reflash unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Aurum Tiny Seed canonical release is READY_TO_FLASH from source e845c02b984b8a40de42b58b1e059f03366804c3 with x86 SHA-256 afecf00f5d0c1b01c8585b74b4f31d51bd23420e6be142b6f5a4c8a0a5dd7382. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=true, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
+  "current_program": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. The canonical release remains READY_TO_FLASH as an artifact state, but another media write is not required unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "frontier": [
     {
       "rank": 1,
@@ -33,15 +33,15 @@
     {
       "rank": 4,
       "input_family": "status-or-so",
-      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source e845c02b984b8a40de42b58b1e059f03366804c3 with x86 SHA-256 afecf00f5d0c1b01c8585b74b4f31d51bd23420e6be142b6f5a4c8a0a5dd7382. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=true, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
-      "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes.",
+      "prepared_response": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. The canonical release remains READY_TO_FLASH as an artifact state, but another media write is not required unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+      "action_if_safe": "Re-read the matching current-release flash receipt and current completion graph, then continue only toward physical Hopper boot-proof collection; do not request or infer another media write.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
       "rank": 5,
       "input_family": "generic-prompt-intent-expansion",
-      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=READY_FOR_GUARDED_FLASH_PREFLIGHT, next_gate=explicit-guarded-flash-authorization, current_release_flash_ready_to_boot=true. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
-      "action_if_safe": "Advance to physical boot-proof collection from the matching readback-verified current-release flash receipt, without granting a new write.",
+      "prepared_response": "Treat a generic continuation prompt against the proven post-flash state: current-release media is READY_TO_BOOT and the effective next gate is physical-hopper-boot-proof. Do all shared safe reversible work, but never infer physical boot success.",
+      "action_if_safe": "Advance boot-proof preparation and evidence handling from the matching readback-verified receipt without granting a new write.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     }
   ],
