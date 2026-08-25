@@ -68,7 +68,10 @@ jobs:
           if (-not [bool]$install.previous_releases_preserved) { throw 'AURUM_FARMER_DEPLOY_FAILED reason=release-preservation' }
           if ([string]$install.task_state -ne 'Running') { throw "AURUM_FARMER_DEPLOY_FAILED reason=task-state state=$($install.task_state)" }
 
-          $python = (Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+          $python = [string]$install.python_exe
+          if ([string]::IsNullOrWhiteSpace($python) -or -not (Test-Path -LiteralPath $python -PathType Leaf)) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=installed-python-missing'
+          }
           $releaseRoot = [string]$install.release_root
           if (-not (Test-Path -LiteralPath (Join-Path $releaseRoot 'aurum_farmer') -PathType Container)) {
             throw 'AURUM_FARMER_DEPLOY_FAILED reason=installed-release-missing'
@@ -145,6 +148,8 @@ jobs:
             source_commit = [string]$install.source_commit
             release_root = [string]$install.release_root
             runtime_root = [string]$install.runtime_root
+            python_exe = [string]$install.python_exe
+            python_runtime = [string]$install.python_runtime
             task_name = $taskName
             task_state = [string]$task.State
             initial_health_verified = [bool]$install.health_verified
