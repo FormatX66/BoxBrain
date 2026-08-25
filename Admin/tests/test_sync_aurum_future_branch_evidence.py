@@ -63,6 +63,49 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             },
         }
 
+    def live_branch(self) -> dict:
+        return {
+            "schema": "aurum-future-branch-state-test",
+            "current_program": "stale release",
+            "canonical_evidence": {"release": {"source_commit": "old"}},
+            "likely_user_inputs": [
+                {
+                    "rank": 1,
+                    "input_family": "explicit-guarded-flash-authorization",
+                    "prepared_response": "bind old-release-now",
+                    "action_if_safe": "write old release",
+                },
+                {
+                    "rank": 2,
+                    "input_family": "status-or-so",
+                    "prepared_response": "old status",
+                    "action_if_safe": "old status action",
+                },
+                {
+                    "rank": 3,
+                    "input_family": "generic-prompt-intent-expansion",
+                    "prepared_response": "old generic",
+                    "action_if_safe": "old generic action",
+                },
+            ],
+            "likely_machine_outcomes": [
+                {
+                    "rank": 1,
+                    "state": "stale-authority-first",
+                    "prepared": ["old"],
+                    "next": "old",
+                },
+                {"rank": 2, "state": "keep-second"},
+            ],
+        }
+
+    def input_family(self, branch: dict, family: str) -> dict:
+        return next(
+            item
+            for item in branch.get("likely_user_inputs", [])
+            if item.get("input_family") == family
+        )
+
     def test_stale_branch_evidence_is_synchronized_without_granting_authority(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -75,7 +118,7 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
                     "schema": "aurum-future-branch-state-test",
                     "current_program": "stale release",
                     "canonical_evidence": {"release": {"source_commit": "old"}},
-                    "likely_machine_outcomes": [{"state": "keep-me"}],
+                    "likely_machine_outcomes": [],
                 },
             )
 
@@ -94,7 +137,58 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             self.assertEqual(evidence["preexecution_recovery"]["terminal_reason"], "boxbrain-unreachable")
             self.assertTrue(evidence["preexecution_recovery"]["manual_handoff_released"])
             self.assertIn("explicit-guarded-flash-authorization", branch["current_program"])
-            self.assertEqual(branch["likely_machine_outcomes"], [{"state": "keep-me"}])
+            self.assertEqual(branch["likely_machine_outcomes"], [])
+            self.assertTrue(branch["live_controls"]["flash_authorization_eligible"])
+
+    def test_waiting_recovery_rewrites_stale_flash_prescription_and_top_outcome(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            preflight = self.preflight()
+            preflight["state"] = "WAIT_HOPPER_PREEXECUTION_RECOVERY"
+            preflight["next_gate"] = "fresh-terminal-hopper-preexecution-recovery-receipt"
+            preflight["preexecution_recovery"]["manual_handoff_released"] = False
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", preflight)
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", self.live_branch())
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            authorization = self.input_family(branch, "explicit-guarded-flash-authorization")
+            status = self.input_family(branch, "status-or-so")
+            generic = self.input_family(branch, "generic-prompt-intent-expansion")
+
+            self.assertFalse(branch["live_controls"]["flash_authorization_eligible"])
+            self.assertEqual(branch["live_controls"]["preflight_state"], "WAIT_HOPPER_PREEXECUTION_RECOVERY")
+            self.assertIn("WAIT_HOPPER_PREEXECUTION_RECOVERY", authorization["prepared_response"])
+            self.assertIn("fresh-terminal-hopper-preexecution-recovery-receipt", authorization["action_if_safe"])
+            self.assertNotIn("old-release-now", authorization["prepared_response"])
+            self.assertIn("WAIT_HOPPER_PREEXECUTION_RECOVERY", status["prepared_response"])
+            self.assertIn("fresh-terminal-hopper-preexecution-recovery-receipt", generic["action_if_safe"])
+            self.assertEqual(
+                branch["likely_machine_outcomes"][0]["state"],
+                "fresh-terminal-hopper-preexecution-recovery-resolves",
+            )
+            self.assertEqual(branch["likely_machine_outcomes"][1], {"rank": 2, "state": "keep-second"})
+
+    def test_ready_preflight_rewrites_authorization_to_exact_current_release(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", self.preflight())
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", self.live_branch())
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            authorization = self.input_family(branch, "explicit-guarded-flash-authorization")
+
+            self.assertTrue(branch["live_controls"]["flash_authorization_eligible"])
+            self.assertIn("a" * 40, authorization["prepared_response"])
+            self.assertIn("Fresh one-shot authority", authorization["prepared_response"])
+            self.assertIn("full raw readback", authorization["action_if_safe"])
+            self.assertEqual(
+                branch["likely_machine_outcomes"][0]["state"],
+                "fresh-authority-triggers-live-reproof-and-guarded-preflight",
+            )
 
     def test_stale_preflight_release_is_projected_as_mismatch_not_silently_current(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -113,6 +207,7 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             self.assertTrue(result["changed"])
             self.assertFalse(branch["canonical_evidence"]["physical_preflight"]["matches_current_release"])
             self.assertIn("preflight_matches_current_release=false", branch["current_program"])
+            self.assertFalse(branch["live_controls"]["flash_authorization_eligible"])
 
     def test_invalid_candidate_fails_closed_without_changing_branch_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
