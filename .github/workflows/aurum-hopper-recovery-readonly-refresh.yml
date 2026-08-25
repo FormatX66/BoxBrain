@@ -144,7 +144,7 @@ jobs:
 
           git config user.name 'aurum-readonly-recovery[bot]'
           git config user.email 'aurum-readonly-recovery@users.noreply.github.com'
-          git add -- $out
+          git add Projects/AurumBridge/results/hopper-recovery-path-latest.json
           if (git diff --cached --quiet) {
             exit 0
           }
@@ -156,3 +156,72 @@ jobs:
             Start-Sleep -Seconds (2*$attempt)
           }
           throw 'Failed to publish read-only Hopper recovery evidence.'
+
+  project:
+    needs: refresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out freshly persisted canonical evidence
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Project zero-authority preflight and Future Branch state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path('.')
+          sys.path.insert(0, str((root / 'Projects/Aurum/Germ').resolve()))
+          from physical_handoff_preflight import evaluate_physical_preflight
+
+          def load(path: Path):
+              return json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else None
+
+          release = load(root / 'Projects/Aurum/Release/latest-tinyseed-handoff.json')
+          discovery = load(root / 'Projects/Aurum/Recovery/latest-usb-discovery.json')
+          flash_request = load(root / 'Projects/Aurum/Recovery/tinyseed-flash-request.json')
+          recovery = load(root / 'Projects/AurumBridge/results/hopper-recovery-path-latest.json')
+          if release is None or recovery is None:
+              raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=canonical-evidence-missing')
+          payload = evaluate_physical_preflight(release, discovery, flash_request, recovery)
+          if payload.get('write_authority') is not False or payload.get('destructive_action_allowed') is not False:
+              raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=evaluator-granted-authority')
+          out = root / 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+          out.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'state': payload.get('preflight_state'),
+              'next_gate': payload.get('next_gate'),
+              'write_authority': False,
+              'destructive_action_allowed': False,
+          }, sort_keys=True))
+          PY
+
+          python3 Admin/sync_aurum_future_branch_evidence.py
+
+          git config user.name 'aurum-readonly-recovery[bot]'
+          git config user.email 'aurum-readonly-recovery@users.noreply.github.com'
+          git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/future-branches.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          state=$(python3 -c "import json; print(json.load(open('Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'))['preflight_state'])")
+          git commit -m "Project read-only recovery state=$state [skip ci]"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            python3 Admin/sync_aurum_future_branch_evidence.py
+            git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/future-branches.json
+            if ! git diff --cached --quiet; then
+              git commit --amend --no-edit
+            fi
+            git push origin HEAD:main && exit 0
+            sleep $((attempt * 2))
+          done
+          exit 1
