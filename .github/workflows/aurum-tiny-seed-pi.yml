@@ -90,7 +90,7 @@ jobs:
           grep -q '^Package: python3-evdev$' "$root/var/lib/dpkg/status"
           grep -q '^Package: openssh-server$' "$root/var/lib/dpkg/status"
           test "$(readlink "$root/etc/systemd/system/userconfig.service")" = /dev/null
-          grep -q '^aurum:!' "$root/etc/shadow"
+          sudo grep -q '^aurum:!' "$root/etc/shadow"
           test ! -e "$root/etc/aurum/early-kvm.json"
           test ! -e "$boot/aurum-kvm/authority.json"
           test -f "$boot/aurum-kvm/README.txt"

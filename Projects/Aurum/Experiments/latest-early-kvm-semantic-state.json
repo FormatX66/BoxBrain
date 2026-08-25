@@ -1,0 +1,82 @@
+{
+  "schema": "aurum-early-kvm-semantic-state-v1",
+  "observed_at_utc": "2026-08-25T22:43:50.5249326Z",
+  "state": "CI_CORRECTION_PENDING",
+  "capability": {
+    "status": "repository-implemented",
+    "target": "raspberry-pi-tinyseed-arm64",
+    "boot_boundary": "linux-userspace-before-tinyseed",
+    "transport": "tls-pinned+hmac-sha256",
+    "input_backend": "linux-uinput",
+    "video_primary_when_available": "bounded-linux-framebuffer",
+    "video_lkg_fallback": "usb3-hdmi-capture",
+    "authority_contract": "no-authority-file-no-listener",
+    "vendor_first_user_wizard_masked": true,
+    "physical_pi3_proven": false
+  },
+  "evidence": {
+    "implementation_commits": [
+      "f214d9ba0762bda2758648f9be0a352bf055cc74",
+      "45420fabc1e92a8fd49645e7546b77cb75b65b55",
+      "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3"
+    ],
+    "pull_request": "https://github.com/FormatX66/BoxBrain/pull/89",
+    "local_linux_tests": {
+      "suite": "Projects/Aurum/Germ python unittest discovery",
+      "passed": 79,
+      "failed": 0
+    },
+    "pi_image_run": {
+      "run_id": 32906803535,
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32906803535",
+      "source_commit": "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3",
+      "image_build": "passed",
+      "compressed_image_verification": "passed",
+      "embedded_image_inspection": "failed-before-semantic-seal",
+      "failure": "CI inspection lacked permission to read the mounted root /etc/shadow; the invariant itself did not report a mismatch"
+    },
+    "farmer": {
+      "registration_run_id": 32893530148,
+      "registration_run_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32893530148",
+      "job_manifest": "Projects/AdaptiveDrivers/farmer/pi3-adaptive-driver-job.json",
+      "job_id": "AF-PI3-ADAPTIVE-DRIVER-001",
+      "loopback_health_observation": {
+        "status": "healthy",
+        "event_chain_valid": true,
+        "running_attempts": 0,
+        "state_counts": {
+          "SUCCEEDED": 3,
+          "WAITING": 1
+        }
+      },
+      "job_detail_readable_by_current_user": false,
+      "job_detail_reason": "Farmer job API token and SYSTEM ledger ACL remain protected"
+    }
+  },
+  "coordination": {
+    "adaptive_kernel_pi3_qpu_comparison": {
+      "reported_state": "active-building-in-sibling-task",
+      "repository_run_observed": false,
+      "duplicate_harness_allowed": false,
+      "early_kvm_overlap": "none"
+    },
+    "qpu_in_early_kvm_scope": "held-no-measurable-value"
+  },
+  "safety": {
+    "linux_reference_driver_preserved": true,
+    "last_known_good_preserved": true,
+    "system_driver_changed": false,
+    "kernel_driver_binding_changed": false,
+    "production_node_touched": false,
+    "boot_media_written": false,
+    "physical_promotion_allowed": false
+  },
+  "frontier": [
+    "rerun ARM64 build with sudo-only read of the mounted image shadow invariant",
+    "seal the embedded-image inspection and artifact publication",
+    "merge PR only after required checks pass",
+    "require explicit test-media identity and write authority before flashing",
+    "prove Pi3 input and disconnect release through the pinned controller plus USB3 HDMI capture"
+  ],
+  "receipt_path": "Projects/Aurum/Experiments/latest-early-kvm-semantic-state.json"
+}
