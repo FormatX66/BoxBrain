@@ -1,0 +1,158 @@
+name: Aurum Hopper Recovery Read-Only Refresh
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - 'Aurum Tiny Seed Handoff'
+      - 'Aurum Read-Only USB Discovery'
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-hopper-recovery-readonly-refresh.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-hopper-recovery-readonly-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 10
+    steps:
+      - name: Check out canonical state
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Refresh terminal Hopper evidence without mutation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $root = $env:GITHUB_WORKSPACE
+          Set-Location -LiteralPath $root
+          $ssh = (Get-Command ssh.exe -ErrorAction Stop).Source
+          $keyscan = (Get-Command ssh-keyscan.exe -ErrorAction Stop).Source
+          $keys = @(
+            (Join-Path $env:USERPROFILE '.ssh\boxbrain_pi_ed25519'),
+            'C:\Users\Bruce\.ssh\boxbrain_pi_ed25519',
+            'C:\Users\bruce\.ssh\boxbrain_pi_ed25519'
+          )
+          $keys += @(Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName '.ssh\boxbrain_pi_ed25519' })
+          $key = $keys | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $key) { throw 'Dedicated BoxBrain Pi key unavailable on the authorized runner.' }
+
+          $targets = @('boxbrain.local','bbpi4.local','aurum-pi4.local','10.42.194.1','10.12.194.1','192.168.0.194')
+          $selected = $null
+          $output = @()
+          foreach ($target in $targets) {
+            $knownHosts = Join-Path $env:RUNNER_TEMP ('aurum-readonly-recovery-' + [Guid]::NewGuid().ToString('N') + '.known_hosts')
+            $scanErr = $knownHosts + '.err'
+            $saved = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $proc = Start-Process -FilePath $keyscan -ArgumentList @('-T','2','-t','ed25519',$target) -NoNewWindow -Wait -PassThru -RedirectStandardOutput $knownHosts -RedirectStandardError $scanErr
+            $ErrorActionPreference = $saved
+            Remove-Item $scanErr -Force -ErrorAction SilentlyContinue
+            $hostKeys = @((Get-Content $knownHosts -ErrorAction SilentlyContinue) | Where-Object { $_ -and -not ([string]$_).StartsWith('#') })
+            if ($hostKeys.Count -eq 0) {
+              Remove-Item $knownHosts -Force -ErrorAction SilentlyContinue
+              continue
+            }
+
+            $remote = @'
+          set -u
+          echo AURUM_HOPPER_RECOVERY_READONLY_REFRESH
+          echo "pi_host=$(hostname)"
+          H=""
+          for h in hopper hopper.local pc-01 pc-01.local 10.12.194.5; do
+            if getent ahostsv4 "$h" >/dev/null 2>&1 || [ "$h" = "10.12.194.5" ]; then H="$h"; break; fi
+          done
+          echo "hopper_candidate=$H"
+          if [ -z "$H" ]; then
+            echo "hopper_resolved=false"
+            echo "remote_repair=unavailable"
+            exit 0
+          fi
+          echo "hopper_resolved=true"
+          if timeout 3 bash -c "</dev/tcp/$H/22" 2>/dev/null; then echo "ssh_port_22=open"; else echo "ssh_port_22=closed"; fi
+          for spec in 8768/status 8767/proof 8765/api/status; do
+            port="${spec%%/*}"; path="/${spec#*/}"
+            code="$(curl -sS --connect-timeout 2 --max-time 4 -o /tmp/aurum-readonly-probe-body -w '%{http_code}' "http://$H:$port$path" 2>/dev/null || true)"
+            echo "http_${port}=${code:-000}"
+          done
+          rm -f /tmp/aurum-readonly-probe-body
+          echo "remote_repair=unavailable"
+          '@
+            $saved = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $lines = @(& $ssh -i $key -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$knownHosts" "kali@$target" $remote 2>&1)
+            $exit = $LASTEXITCODE
+            $ErrorActionPreference = $saved
+            Remove-Item $knownHosts -Force -ErrorAction SilentlyContinue
+            if ($exit -eq 0) {
+              $selected = $target
+              $output = $lines
+              break
+            }
+          }
+
+          $kv = @{}
+          if ($selected) {
+            foreach ($line in $output) {
+              if ($line -match '^([^=]+)=(.*)$') { $kv[$Matches[1]] = $Matches[2] }
+            }
+          }
+          $hopperResolved = ($kv['hopper_resolved'] -eq 'true')
+          $terminalReason = if (-not $selected) {
+            'boxbrain-unreachable'
+          } elseif (-not $hopperResolved) {
+            'authorized-recovery-unavailable'
+          } else {
+            'authorized-recovery-unavailable'
+          }
+          $payload = [ordered]@{
+            schema = 'aurum.hopper.recovery-path-probe.v2'
+            observed_at = (Get-Date).ToUniversalTime().ToString('o')
+            runner_host = $env:COMPUTERNAME
+            boxbrain_address = $selected
+            hopper_candidate = $kv['hopper_candidate']
+            hopper_resolved = $hopperResolved
+            ssh_port_22 = $kv['ssh_port_22']
+            ssh_host_key = if($selected){'pi-strict-host-key-verified'}else{$null}
+            ssh_authorized_user = $null
+            self_debug_8768 = $kv['http_8768']
+            echo_proof_8767 = $kv['http_8767']
+            gui_8765 = $kv['http_8765']
+            remote_repair = 'unavailable'
+            terminal_reason = $terminalReason
+            read_only_probe = $true
+            mutation_if_authorized = 'none-read-only-refresh'
+          }
+          $dir = Join-Path $root 'Projects\AurumBridge\results'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $out = Join-Path $dir 'hopper-recovery-path-latest.json'
+          $payload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $out -Encoding UTF8
+          Get-Content -LiteralPath $out -Raw | Write-Host
+
+          git config user.name 'aurum-readonly-recovery[bot]'
+          git config user.email 'aurum-readonly-recovery@users.noreply.github.com'
+          git add -- $out
+          if (git diff --cached --quiet) {
+            exit 0
+          }
+          git commit -m 'Refresh read-only Hopper recovery evidence [skip ci]'
+          for($attempt=1;$attempt -le 3;$attempt++) {
+            git pull --rebase origin main
+            git push origin HEAD:main
+            if($LASTEXITCODE -eq 0) { exit 0 }
+            Start-Sleep -Seconds (2*$attempt)
+          }
+          throw 'Failed to publish read-only Hopper recovery evidence.'
