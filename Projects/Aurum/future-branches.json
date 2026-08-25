@@ -25,7 +25,7 @@
     "execute_shared_safe_prefix_before_clarification": true,
     "inferred_intent_never_grants_authority": true
   },
-  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source b582d70605d93f8be12df7e261336839c260fb1e with x86 SHA-256 1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 6f91d25b934ffe48352fa43a865625d2bc2d5d1e with x86 SHA-256 5301e757924e74fbb9abef59e94afc0c31034c02e16352f01f71e91e30ca9940. Physical preflight is WAIT_HOPPER_PREEXECUTION_RECOVERY; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=false, eligible_usb_count=1, write_authority=false, destructive_action_performed=false, next_gate=fresh-terminal-hopper-preexecution-recovery-receipt. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -311,16 +311,16 @@
   ],
   "canonical_evidence": {
     "release": {
-      "source_commit": "b582d70605d93f8be12df7e261336839c260fb1e",
+      "source_commit": "6f91d25b934ffe48352fa43a865625d2bc2d5d1e",
       "state": "READY_TO_FLASH",
       "x86_artifact": "Aurum-TinySeed-amd64.iso",
-      "x86_sha256": "1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4"
+      "x86_sha256": "5301e757924e74fbb9abef59e94afc0c31034c02e16352f01f71e91e30ca9940"
     },
     "physical_preflight": {
       "present": true,
       "matches_current_release": true,
-      "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
-      "next_gate": "explicit-guarded-flash-authorization",
+      "state": "WAIT_HOPPER_PREEXECUTION_RECOVERY",
+      "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt",
       "write_authority": false,
       "destructive_action_allowed": false,
       "destructive_action_performed": false,
@@ -339,7 +339,7 @@
     },
     "preexecution_recovery": {
       "terminal_receipt_present": true,
-      "manual_handoff_released": true,
+      "manual_handoff_released": false,
       "remote_repair": "unavailable",
       "terminal_reason": "boxbrain-unreachable",
       "observed_at": "2026-08-24T21:09:24.3307021Z"
