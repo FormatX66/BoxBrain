@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/aurum-hopper-recovery-readonly-refresh.yml'
+      - 'Projects/Aurum/Germ/post_flash_projection.py'
 
 permissions:
   contents: write
@@ -139,6 +140,46 @@ jobs:
           $dir = Join-Path $root 'Projects\AurumBridge\results'
           New-Item -ItemType Directory -Path $dir -Force | Out-Null
           $out = Join-Path $dir 'hopper-recovery-path-latest.json'
+
+          # Once current-release media is full-readback verified, repeated terminal
+          # recovery observations no longer gate a flash. Preserve a materially new
+          # recovery result, but do not churn Git for timestamp/runner-only changes.
+          $releasePath = Join-Path $root 'Projects\Aurum\Release\latest-tinyseed-handoff.json'
+          $flashReceiptPath = Join-Path $root 'Projects\Aurum\Recovery\latest-tinyseed-flash-receipt.json'
+          $postFlashReady = $false
+          if ((Test-Path -LiteralPath $releasePath -PathType Leaf) -and (Test-Path -LiteralPath $flashReceiptPath -PathType Leaf)) {
+            $release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+            $flashReceipt = Get-Content -LiteralPath $flashReceiptPath -Raw | ConvertFrom-Json
+            $postFlashReady = (
+              $release.schema -eq 'aurum-tinyseed-handoff-v1' -and
+              $release.state -eq 'READY_TO_FLASH' -and
+              $flashReceipt.schema -eq 'aurum-tinyseed-flash-request-receipt-v1' -and
+              $flashReceipt.state -eq 'READY_TO_BOOT' -and
+              $flashReceipt.source_commit -eq $release.source_commit -and
+              $flashReceipt.image_sha256 -eq $release.artifacts.x86.sha256 -and
+              $flashReceipt.raw_readback_verified -eq $true -and
+              $flashReceipt.write_authority_consumed -eq $true
+            )
+          }
+          if ($postFlashReady -and (Test-Path -LiteralPath $out -PathType Leaf)) {
+            $previous = Get-Content -LiteralPath $out -Raw | ConvertFrom-Json
+            $semanticFields = @(
+              'schema','boxbrain_address','hopper_candidate','hopper_resolved','ssh_port_22',
+              'ssh_host_key','ssh_authorized_user','self_debug_8768','echo_proof_8767','gui_8765',
+              'remote_repair','terminal_reason','read_only_probe','mutation_if_authorized'
+            )
+            $oldSemantic = [ordered]@{}
+            $newSemantic = [ordered]@{}
+            foreach ($field in $semanticFields) {
+              $oldSemantic[$field] = $previous.$field
+              $newSemantic[$field] = $payload[$field]
+            }
+            if (($oldSemantic | ConvertTo-Json -Compress -Depth 5) -eq ($newSemantic | ConvertTo-Json -Compress -Depth 5)) {
+              Write-Host 'AURUM_HOPPER_RECOVERY_REFRESH_SUPPRESSED reason=post-flash-terminal-state-unchanged'
+              exit 0
+            }
+          }
+
           $payload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $out -Encoding UTF8
           Get-Content -LiteralPath $out -Raw | Write-Host
 
@@ -181,6 +222,7 @@ jobs:
           root = Path('.')
           sys.path.insert(0, str((root / 'Projects/Aurum/Germ').resolve()))
           from physical_handoff_preflight import evaluate_physical_preflight
+          from post_flash_projection import matching_ready_to_boot, project_post_flash_state
 
           def load(path: Path):
               return json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else None
@@ -188,10 +230,16 @@ jobs:
           release = load(root / 'Projects/Aurum/Release/latest-tinyseed-handoff.json')
           discovery = load(root / 'Projects/Aurum/Recovery/latest-usb-discovery.json')
           flash_request = load(root / 'Projects/Aurum/Recovery/tinyseed-flash-request.json')
+          flash_receipt = load(root / 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json')
           recovery = load(root / 'Projects/AurumBridge/results/hopper-recovery-path-latest.json')
-          if release is None or recovery is None:
-              raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=canonical-evidence-missing')
-          payload = evaluate_physical_preflight(release, discovery, flash_request, recovery)
+          if release is None:
+              raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=canonical-release-missing')
+          if matching_ready_to_boot(release, flash_receipt):
+              payload = project_post_flash_state(release, flash_receipt, recovery)
+          else:
+              if recovery is None:
+                  raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=canonical-recovery-missing')
+              payload = evaluate_physical_preflight(release, discovery, flash_request, recovery)
           if payload.get('write_authority') is not False or payload.get('destructive_action_allowed') is not False:
               raise SystemExit('AURUM_READONLY_RECOVERY_PROJECT_REFUSED reason=evaluator-granted-authority')
           out = root / 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
