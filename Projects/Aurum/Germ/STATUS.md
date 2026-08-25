@@ -24,9 +24,10 @@
 - Pi workflow requires a reproducible, checksum-pinned Raspberry Pi OS Lite ARM64 base and compressed-image verification.
 - The current x86 source branch input bootstrap was decoupled from an uninitialized Git workspace so seed-local input startup no longer depends on `/var/lib/aurum/workspace/BoxBrain` existing.
 - The prior x86 recovery-payload verifier mismatch was corrected by inspecting `/live/filesystem.squashfs` rather than only the outer ISO filesystem; boot gates were not weakened.
-- **Canonical current artifact identity, source commit, hashes, workflow runs, gate results, next gate, and handoff state live only in `Projects/Aurum/Release/latest-tinyseed-handoff.json`.** Read that file for the current values instead of duplicating them here.
+- **Canonical release artifact identity, source commit, hashes, workflow runs, and release gates live in `Projects/Aurum/Release/latest-tinyseed-handoff.json`.**
+- **Canonical physical x86 flash/readback proof lives in `Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json`; the effective cross-gate program state lives in `Projects/Aurum/completion-plan.json`.** A `READY_TO_FLASH` release can therefore coexist with `x86-physical-flash=passed-readback-verified`; the release manifest describes the artifact, while the completion graph describes what has already happened to physical media.
 - A handoff may report `READY_TO_FLASH` only after same-revision x86 and Pi artifacts are published and their hashes are reverified by the combined handoff.
-- `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The physical-flash/readback, hardware boot, and forced-rollback gates remain independent evidence.
+- `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. A matching `READY_TO_BOOT` flash receipt proves only the selected media write plus full raw readback; physical hardware boot and forced rollback remain separate evidence gates.
 - Draft PR #83 head `ba4062f435464d6572d8c86f7539af1dbe50c087` is the newest **current-release provenance-locked fallback proof**. Canonical-provenance run `32838156216` passed against the current canonical `READY_TO_FLASH` source `964b12de2ac99ac069a0abf90673ebd77aabb0e0`, requiring the protected Germ, genetics, offline-carrier policy, recovery logic, and recovery trust inputs to match byte-for-byte while allowing only the carrier/loader method to differ. Fallback-matrix run `32838156218` passed the protected Germ suite, built both raw-GPT candidates, cryptographically reverified the embedded offline phenotype from each finished image, and passed OVMF removable-media boot smoke for both loader families while requiring Tiny Seed ready, boot-proof, and network-ready markers. It published `Aurum-TinySeed-amd64-fallback-matrix-experimental` as artifact id `9559809859`, digest `sha256:db44023bfcec25af0b735c97b5a64130102a7b9587290ce79af95e9becde94db`. The canonical Future Branch projector now treats this fallback as warm/current only when provenance matches the current release and the successful matrix receipt is from the same experimental head; a release rollover automatically cools older proof. This is **experimental Passed + Published + provenance-locked** evidence only; it does not promote either fallback, grant write authority, or claim physical HP compatibility. Whole-repository CircleCI on the experiment branch snapshot is not used as part of this proof because its repository-integrity/Future Branch lanes are stale relative to newer main-only state-sync changes.
 - The older direct-UEFI offline-carrier PR #78 remains historical evidence and was closed after PR #83 produced the stronger current-head loader matrix.
 
@@ -38,12 +39,12 @@
 - The existing 64 GB Gen0 recovery USB remains the physical fallback and must **not** be overwritten during Tiny Seed testing.
 - On 2026-08-24, the separate Crayola x86 Tiny Seed physically reached the `READY` console on Hopper, preserved the existing germ as slot A, installed the bridge on `/dev/nvme0n1p2`, and reported `regrow.status=deferred-offline`. This proves the user-visible boot/install boundary and exposed the network-dependent recovery gap addressed by the offline phenotype carrier; it does not replace the pending formal boot-proof marker or Guardian rollback proof.
 - Earlier HP PC-01 physical evidence showed the direct systemd-stub/UKI family reaching firmware but failing at the UKI -> embedded-kernel start boundary with `EFI_INVALID_PARAMETER`. The new systemd-boot candidate has only virtual evidence so far; OVMF success must not be treated as proof that this HP-specific physical failure is fixed.
+- The current x86 Tiny Seed test media has a matching `READY_TO_BOOT` receipt with full raw readback verification. This proves the physical flash/readback gate only; it does not prove Hopper boot.
 
 ## Unresolved frontier
 
-1. Read `Projects/Aurum/Release/latest-tinyseed-handoff.json` and require state `READY_TO_FLASH` before physical media work.
-2. Flash the current x86 Tiny Seed artifact to a **different explicitly identified test USB** using the guarded dry-run-first handoff path; require full raw readback verification before declaring the media ready to boot.
-3. Physical Hopper proof:
+1. Read `Projects/Aurum/completion-plan.json` before choosing the next operation. If `x86-physical-flash` is already `passed-readback-verified`, do **not** request or perform another flash merely because the release manifest still says `READY_TO_FLASH`.
+2. Physical Hopper proof using the already readback-verified current-release media:
    - boot Tiny Seed;
    - collect Tiny Seed ready + boot-proof evidence;
    - prefer network through the setup surface, but require the verified offline carrier to remain usable when network or DNS is broken;
@@ -53,11 +54,17 @@
    - reboot trial;
    - require fresh selftest + critical-service + physical desktop + input evidence;
    - promote on proof or automatically roll back to Gen0.
-4. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
-5. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
-6. Keep the PR #83 fallback matrix warm but isolated. If Hopper later shows a carrier-specific canonical failure or higher expected total cost, prefer the systemd-boot -> kernel EFI-stub candidate for the next bounded physical compatibility test because it avoids the already-observed systemd-stub inner-kernel boundary. Do not pivot merely because both candidates pass virtually.
-7. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
+3. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
+4. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
+5. Keep the PR #83 fallback matrix warm but isolated. If Hopper later shows a carrier-specific canonical failure or higher expected total cost, prefer the systemd-boot -> kernel EFI-stub candidate for the next bounded physical compatibility test because it avoids the already-observed systemd-stub inner-kernel boundary. Do not pivot merely because both candidates pass virtually.
+6. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
 
 ## State classification
 
-The canonical classification is the `state` plus `next_gate` in `Projects/Aurum/Release/latest-tinyseed-handoff.json`. Prose in this file intentionally does not duplicate mutable canonical artifact hashes or source revisions.
+Use three different authorities for three different questions:
+
+- **release artifact state:** `Projects/Aurum/Release/latest-tinyseed-handoff.json`;
+- **physical x86 media proof:** `Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json`;
+- **effective next gate across the program:** `Projects/Aurum/completion-plan.json`.
+
+Never collapse those into one label. In particular, a release may remain `READY_TO_FLASH` after a matching physical medium has already become `READY_TO_BOOT`.
