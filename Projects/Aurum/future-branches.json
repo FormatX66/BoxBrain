@@ -25,7 +25,7 @@
     "execute_shared_safe_prefix_before_clarification": true,
     "inferred_intent_never_grants_authority": true
   },
-  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 964b12de2ac99ac069a0abf90673ebd77aabb0e0 with x86 SHA-256 bfe58db102bce84159b5147b8be54f6af4c42077f45941236b5dd200cebb76df. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 964b12de2ac99ac069a0abf90673ebd77aabb0e0 with x86 SHA-256 bfe58db102bce84159b5147b8be54f6af4c42077f45941236b5dd200cebb76df. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -393,5 +393,15 @@
     "destructive_action_allowed": false,
     "fallback_carrier_current": true,
     "fallback_carrier_provenance_current": true
+  },
+  "interaction_handoff": {
+    "schema": "aurum-next-interaction-handoff-v1",
+    "packet_path": "Projects/Aurum/next-interaction-packet.json",
+    "activation": "next-real-interaction-not-clock",
+    "materialization_evidence": "packet-file-rendered-from-current-future-branch-state",
+    "consumption_evidence": "not-verified",
+    "scheduled_simulation_allowed": false,
+    "authority_granted": false,
+    "human_action_inferred": false
   }
 }
