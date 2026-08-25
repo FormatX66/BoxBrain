@@ -12,7 +12,7 @@ jobs:
           command: python Admin/validate_repository.py
       - run:
           name: Test repository validator and Aurum canonical state sync
-          command: python -m unittest Admin.tests.test_validate_repository Admin.tests.test_sync_aurum_release_status Admin.tests.test_sync_aurum_future_branch_evidence Admin.tests.test_sync_aurum_fallback_evidence Admin.tests.test_materialize_aurum_next_interaction Admin.tests.test_reconstruct_aurum_state Admin.tests.test_checkpoint_aurum_runtime Admin.tests.test_checkpoint_farmer_runtime Admin.tests.test_resume_aurum_runtime
+          command: python -m unittest Admin.tests.test_validate_repository Admin.tests.test_sync_aurum_release_status Admin.tests.test_sync_aurum_future_branch_evidence Admin.tests.test_sync_aurum_fallback_evidence Admin.tests.test_materialize_aurum_next_interaction Admin.tests.test_reconstruct_aurum_state Admin.tests.test_checkpoint_aurum_runtime Admin.tests.test_checkpoint_farmer_runtime Admin.tests.test_resume_aurum_runtime Admin.tests.test_tinyseed_refresh_policy
 
   codelation:
     docker:
