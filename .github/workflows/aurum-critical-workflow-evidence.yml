@@ -6,13 +6,17 @@ on:
       - 'Aurum Hopper Recovery Path Probe'
       - 'Aurum Hopper Recovery Request Dispatcher'
       - 'Aurum Tiny Seed Flash Contract'
+      - 'Aurum Tiny Seed Auto USB Refresh'
+      - 'Aurum Read-Only USB Discovery'
       - 'Aurum Tiny Seed direct UEFI offline-carrier experiment'
       - 'Aurum Tiny Seed x86 fallback carrier matrix experiment'
     # Durable main-branch receipts are terminal evidence, not a live progress
     # ticker. Queued/in-progress state is available from Actions/Failsafe
     # readback; committing every lifecycle transition creates evidence churn.
     # Keep both Tiny Seed experiment names while the older draft remains open so
-    # either experiment can produce an honest terminal receipt.
+    # either experiment can produce an honest terminal receipt. Mirror the
+    # system-owned USB refresh/discovery pair as well so a stalled physical
+    # preflight can be distinguished from a completed no-media/error result.
     types: [completed]
 
 permissions:
