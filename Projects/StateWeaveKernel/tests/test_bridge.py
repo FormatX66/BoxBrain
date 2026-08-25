@@ -65,6 +65,10 @@ class StateWeaveKernelBridgeTests(unittest.TestCase):
             recorded["future.branch.kernel-pointer-next.rollback_target"],
             "proven-A",
         )
+        self.assertEqual(
+            recorded["future.branch.kernel-pointer-next.basis_state_digest"],
+            state.digest(),
+        )
         self.assertFalse(
             recorded["future.branch.kernel-pointer-next.evidence.1.supports"]
         )
