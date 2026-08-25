@@ -16,6 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 BRANCH = ROOT / "Projects/Aurum/future-branches.json"
 PACKET = ROOT / "Projects/Aurum/next-interaction-packet.json"
 SEED = ROOT / "Prompts/FutureBranchSeed.txt"
+HANDOFF_SENTENCE = (
+    "Future Branch handoff: next-interaction packet materialized from current canonical "
+    "evidence; activation is the next real interaction, not a clock; consumption proof "
+    "is not yet verified."
+)
 
 
 def read_json(path: Path) -> dict:
@@ -76,6 +81,34 @@ def materialize() -> dict:
     live_controls = branch.get("live_controls")
     release = canonical.get("release") if isinstance(canonical, dict) else None
 
+    base_program = branch.get("current_program")
+    if not isinstance(base_program, str):
+        base_program = ""
+    marker = " Future Branch handoff:"
+    if marker in base_program:
+        base_program = base_program.split(marker, 1)[0].rstrip()
+    visible_program = f"{base_program} {HANDOFF_SENTENCE}".strip()
+
+    handoff_state = {
+        "schema": "aurum-next-interaction-handoff-v1",
+        "packet_path": "Projects/Aurum/next-interaction-packet.json",
+        "activation": "next-real-interaction-not-clock",
+        "materialization_evidence": "packet-file-rendered-from-current-future-branch-state",
+        "consumption_evidence": "not-verified",
+        "scheduled_simulation_allowed": False,
+        "authority_granted": False,
+        "human_action_inferred": False,
+    }
+
+    branch_changed = (
+        branch.get("current_program") != visible_program
+        or branch.get("interaction_handoff") != handoff_state
+    )
+    if branch_changed:
+        branch["current_program"] = visible_program
+        branch["interaction_handoff"] = handoff_state
+        BRANCH.write_text(json.dumps(branch, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+
     packet = {
         "schema": "aurum-next-interaction-packet-v1",
         "activation": "next-real-interaction-not-clock",
@@ -84,7 +117,7 @@ def materialize() -> dict:
         "source_schema": branch.get("schema"),
         "source_evidence_sha256": stable_digest(canonical),
         "release_source_commit": release.get("source_commit") if isinstance(release, dict) else None,
-        "current_program": branch.get("current_program"),
+        "current_program": visible_program,
         "frontier": candidates,
         "live_controls": live_controls if isinstance(live_controls, dict) else None,
         "materialization_evidence": "packet-file-rendered-from-current-future-branch-state",
@@ -98,10 +131,10 @@ def materialize() -> dict:
 
     rendered = json.dumps(packet, indent=2, sort_keys=False) + "\n"
     before = PACKET.read_text(encoding="utf-8") if PACKET.exists() else None
-    changed = before != rendered
-    if changed:
+    packet_changed = before != rendered
+    if packet_changed:
         PACKET.write_text(rendered, encoding="utf-8")
-    return {"changed": changed, "packet": packet}
+    return {"changed": branch_changed or packet_changed, "packet": packet}
 
 
 if __name__ == "__main__":
