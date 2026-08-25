@@ -1,7 +1,7 @@
 {
   "schema": "aurum-early-kvm-semantic-state-v1",
-  "observed_at_utc": "2026-08-25T22:43:50.5249326Z",
-  "state": "CI_CORRECTION_PENDING",
+  "observed_at_utc": "2026-08-25T22:53:34.6239976Z",
+  "state": "REPOSITORY_VERIFIED_PHYSICAL_PENDING",
   "capability": {
     "status": "repository-implemented",
     "target": "raspberry-pi-tinyseed-arm64",
@@ -18,7 +18,8 @@
     "implementation_commits": [
       "f214d9ba0762bda2758648f9be0a352bf055cc74",
       "45420fabc1e92a8fd49645e7546b77cb75b65b55",
-      "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3"
+      "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3",
+      "7ebf9cffa07bb55e1475c74f1ddf474da6aaac35"
     ],
     "pull_request": "https://github.com/FormatX66/BoxBrain/pull/89",
     "local_linux_tests": {
@@ -26,7 +27,7 @@
       "passed": 79,
       "failed": 0
     },
-    "pi_image_run": {
+    "prior_pi_image_run": {
       "run_id": 32906803535,
       "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32906803535",
       "source_commit": "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3",
@@ -34,6 +35,24 @@
       "compressed_image_verification": "passed",
       "embedded_image_inspection": "failed-before-semantic-seal",
       "failure": "CI inspection lacked permission to read the mounted root /etc/shadow; the invariant itself did not report a mismatch"
+    },
+    "pi_image_run": {
+      "run_id": 32907606560,
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32907606560",
+      "source_commit": "7ebf9cffa07bb55e1475c74f1ddf474da6aaac35",
+      "image_build": "passed",
+      "compressed_image_verification": "passed",
+      "embedded_image_inspection": "passed",
+      "artifact_publication": "passed",
+      "static_marker": "AURUM_TINYSEED_PI_STATIC_OK early-kvm=tls-pinned-inert-by-default user-wizard=masked ssh-host-key=unique-first-boot",
+      "artifact": {
+        "id": 9585574208,
+        "name": "Aurum-TinySeed-Pi-arm64",
+        "size_bytes": 731901047,
+        "digest": "sha256:c66d90e5532b5ff11fa8753d7a9280beed5a0af0be3c6ea5bc5d66178fc5dd95",
+        "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32907606560/artifacts/9585574208",
+        "expires_at_utc": "2026-09-24T22:52:24Z"
+      }
     },
     "farmer": {
       "registration_run_id": 32893530148,
@@ -72,8 +91,6 @@
     "physical_promotion_allowed": false
   },
   "frontier": [
-    "rerun ARM64 build with sudo-only read of the mounted image shadow invariant",
-    "seal the embedded-image inspection and artifact publication",
     "merge PR only after required checks pass",
     "require explicit test-media identity and write authority before flashing",
     "prove Pi3 input and disconnect release through the pinned controller plus USB3 HDMI capture"
