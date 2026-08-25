@@ -127,6 +127,73 @@ class AurumRuntimeResumeTests(unittest.TestCase):
             self.assertEqual(payload["runtime"]["checkpointed_running"][0]["id"], "controller-loop")
             self.assertFalse(payload["authority"]["authority_granted"])
 
+    def test_separate_writer_and_resume_processes_preserve_restart_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            checkpoint_path = temp_path / "runtime-checkpoint.json"
+            overlay_path = temp_path / "runtime-overlay.json"
+            overlay_path.write_text(
+                json.dumps(
+                    {
+                        "jobs": [
+                            {
+                                "id": "process-boundary-job",
+                                "state": "retrying",
+                                "depends_on": [],
+                                "checkpoint": "before-process-exit",
+                                "resume_hint": "re-observe live state after restart",
+                            }
+                        ],
+                        "software_fingerprint": {"proof": "two-separate-processes"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            write_result = subprocess.run(
+                [
+                    sys.executable,
+                    "Admin/checkpoint_aurum_runtime.py",
+                    "--root",
+                    str(self.root()),
+                    "--output",
+                    str(checkpoint_path),
+                    "--runtime-overlay",
+                    str(overlay_path),
+                ],
+                cwd=self.root(),
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(write_result.returncode, 0, msg=write_result.stderr or write_result.stdout)
+
+            resume_result = subprocess.run(
+                [
+                    sys.executable,
+                    "Admin/resume_aurum_runtime.py",
+                    "--root",
+                    str(self.root()),
+                    "--checkpoint",
+                    str(checkpoint_path),
+                ],
+                cwd=self.root(),
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(resume_result.returncode, 0, msg=resume_result.stderr or resume_result.stdout)
+            payload = json.loads(resume_result.stdout)
+            self.assertEqual(payload["runtime"]["checkpointed_retrying"][0]["id"], "process-boundary-job")
+            self.assertEqual(
+                payload["runtime"]["software_fingerprint"]["proof"],
+                "two-separate-processes",
+            )
+            self.assertFalse(payload["runtime"]["live_process_inferred"])
+            self.assertFalse(payload["authority"]["authority_granted"])
+
 
 if __name__ == "__main__":
     unittest.main()
