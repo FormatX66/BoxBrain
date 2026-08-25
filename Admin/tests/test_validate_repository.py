@@ -13,6 +13,19 @@ from Admin.validate_repository import (
 
 
 class RepositoryValidatorTests(unittest.TestCase):
+    def test_repository_integrity_report_cannot_commit_to_main(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (
+            root / ".github" / "workflows" / "repository-integrity.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("contents: read", workflow)
+        self.assertIn("actions/upload-artifact@", workflow)
+        self.assertIn("$GITHUB_STEP_SUMMARY", workflow)
+        self.assertNotIn("Admin/repository-integrity-latest.txt", workflow)
+        self.assertNotIn("git push origin HEAD:main", workflow)
+        self.assertNotIn("ref: main", workflow)
+
     def test_generated_markdown_is_excluded(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

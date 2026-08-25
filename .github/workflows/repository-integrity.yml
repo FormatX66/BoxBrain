@@ -24,7 +24,7 @@ on:
       - '.github/workflows/repository-integrity.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: repository-integrity-mirror
@@ -37,8 +37,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: main
 
       - name: Run canonical repository validator and state-sync tests
         id: validate
@@ -65,7 +63,9 @@ jobs:
             echo
             echo '== canonical Aurum state-sync tests =='
             cat "$RUNNER_TEMP/sync-tests.txt"
-          } | tee Admin/repository-integrity-latest.txt
+          } | tee "$RUNNER_TEMP/repository-integrity.txt"
+
+          cat "$RUNNER_TEMP/repository-integrity.txt" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$validator_rc" -eq 0 ] && [ "$tests_rc" -eq 0 ]; then
             rc=0
@@ -76,21 +76,14 @@ jobs:
           echo "tests_rc=$tests_rc" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Publish changed diagnostic receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'repository-integrity-mirror[bot]'
-          git config user.email 'repository-integrity-mirror@users.noreply.github.com'
-          git add Admin/repository-integrity-latest.txt
-          if git diff --cached --quiet; then
-            echo 'REPOSITORY_INTEGRITY_RECEIPT unchanged=true'
-            exit 0
-          fi
-          git commit -m 'Record repository integrity diagnostic [skip ci]'
-          git pull --rebase origin main
-          git push origin HEAD:main
-          echo 'REPOSITORY_INTEGRITY_RECEIPT published=true'
+      - name: Preserve repository integrity report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: repository-integrity-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/repository-integrity.txt
+          retention-days: 14
 
       - name: Enforce validator result
         if: always()
