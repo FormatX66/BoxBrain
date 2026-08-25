@@ -2,8 +2,10 @@
 
 ## Purpose
 
-Provide an auditable controller that connects cloud AI planning to an isolated,
-resettable computer lab through narrowly scoped plugins.
+Provide the persistent remote-management service that BoxBrain provisions and
+verifies for a system's future observation, maintenance, control, and repair.
+BrainConnect shares the BoxBrain console experience while retaining a distinct
+post-enrollment service, credential, target-identity, and authority boundary.
 
 ## Current status
 
@@ -124,6 +126,7 @@ acceptance outcome is complete.
 
 ## Related projects
 
+- [BoxBrain/BrainConnect ownership and shared-console contract](../../Architecture/RepositoryOwnership.md#boxbrain-and-brainconnect)
 - [AgentFramework](../AgentFramework/ProjectIndex.md)
 - [Automation](../Automation/ProjectIndex.md)
 - [Security](../Security/ProjectIndex.md)

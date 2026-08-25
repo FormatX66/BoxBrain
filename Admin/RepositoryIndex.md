@@ -4,14 +4,20 @@ This is the canonical registry of repositories currently visible to BoxBrain thr
 
 | Repository / scope | State | Default branch | Remote |
 | --- | --- | --- | --- |
-| BoxBrain — BoxBrain, Aurum, Codelation, AurumBridge and coordination | Active | `main` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
-| BrainConnect | Active | `main` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
-| ClusterSites — canonical family website cluster | Active | `main` | [FormatX66/ClusterSites](https://github.com/FormatX66/ClusterSites) |
-| wetbeard-site — public website/deployment work | Active | `main` | [FormatX66/wetbeard-site](https://github.com/FormatX66/wetbeard-site) |
-| arkmatx-deploy — Arkmatx deployment/controller surface | Active | `main` | [FormatX66/arkmatx-deploy](https://github.com/FormatX66/arkmatx-deploy) |
-| HeX-Control | Scaffold / near-empty | `main` | [FormatX66/HeX-Control](https://github.com/FormatX66/HeX-Control) |
-| hex | Legacy empty repository | `master` | `FormatX66/hex` (private) |
-| desktop-tutorial | Legacy empty repository | `master` | `FormatX66/desktop-tutorial` (private) |
+| BoxBrain — Pi4 field appliance, Aurum, Codelation, AurumBridge and coordination | Active | `main` | [FormatX66/BoxBrain](https://github.com/FormatX66/BoxBrain) |
+| BrainConnect — persistent remote management provisioned by BoxBrain; shared console | Active | `main` | [FormatX66/BrainConnect](https://github.com/FormatX66/BrainConnect) |
+| ClusterSites — canonical source and build/deployment flow for every hosted website | Active / canonical | `main` | [FormatX66/ClusterSites](https://github.com/FormatX66/ClusterSites) |
+| wetbeard-site — legacy site/deployment mirror pending ClusterSites parity | Consolidation candidate; no new canonical site work | `main` | [FormatX66/wetbeard-site](https://github.com/FormatX66/wetbeard-site) |
+| arkmatx-deploy — specialized Arkmatx portal/control-plane service; site ownership remains in ClusterSites | Active service boundary | `main` | [FormatX66/arkmatx-deploy](https://github.com/FormatX66/arkmatx-deploy) |
+| Chat-to-Git-Pipeline — bounded Git request/webhook service surfaced through Arkmatx.com | Active service boundary | `main` | [FormatX66/Chat-to-Git-Pipeline](https://github.com/FormatX66/Chat-to-Git-Pipeline) |
+| aurum-future-branch-quantum — provider-neutral Future Branch quantum test service | Active experimental service | `main` | `FormatX66/aurum-future-branch-quantum` (private) |
+| TypeTriX — standalone Windows adaptive typing implementation | Active experimental product | `main` | `FormatX66/TypeTriX` (private) |
+| HeX-Control — learning scaffold apparently superseded by BrainConnect | Archive candidate after unique-state check | `main` | [FormatX66/HeX-Control](https://github.com/FormatX66/HeX-Control) |
+| hex — legacy empty repository | Archive candidate | `master` | `FormatX66/hex` (private) |
+| desktop-tutorial — legacy tutorial repository | Archive candidate | `master` | `FormatX66/desktop-tutorial` (private) |
+
+The canonical product and repository boundaries are defined in
+[Repository and Service Ownership](../Architecture/RepositoryOwnership.md).
 
 ## BoxBrain-contained project scopes
 

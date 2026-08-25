@@ -1,17 +1,23 @@
 # System Architecture
 
-BoxBrain is the Raspberry Pi 4 appliance: its durable controller, local state,
-transport manager, and recovery interfaces live on the Pi. This repository is
-the appliance's source and ecosystem knowledge base. BrainConnect supplies the
-audited controller components that BoxBrain embeds rather than defining a
-second physical controller.
+BoxBrain is the Raspberry Pi 4 field appliance. It connects to a system,
+discovers and analyzes it, provides authorized control and repair, and proves a
+safe continuing-management route. BrainConnect is the persistent remote
+management that BoxBrain provisions for that system's future service.
+
+BoxBrain and BrainConnect present one shared operator console, but the active
+carrier and authority remain explicit: BoxBrain owns the attached field and
+recovery lifecycle; BrainConnect owns the verified post-enrollment remote
+service lifecycle. The complete ownership contract is in
+[Repository and Service Ownership](RepositoryOwnership.md).
 
 ```mermaid
 flowchart TD
     BB["BoxBrain knowledge and coordination repository"]
     PI["Project and repository indexes"]
     GOV["Decisions, roadmap, changes, and handoffs"]
-    BC["BrainConnect implementation repository"]
+    CONSOLE["Shared BoxBrain / BrainConnect console"]
+    BC["BrainConnect persistent remote-management service"]
     PICTRL["BoxBrain Pi 4 core appliance"]
     TRANSPORT["USB, Ethernet, Wi-Fi, and Bluetooth transport manager"]
     WINLAB["Checkpointed Hyper-V Windows lab"]
@@ -23,13 +29,16 @@ flowchart TD
     BB --> PI
     BB --> GOV
     PI --> BC
-    BC --> PICTRL
+    CONSOLE --> PICTRL
+    CONSOLE --> BC
+    PICTRL -->|provision and verify| BC
     PICTRL --> TRANSPORT
     TRANSPORT --> WINLAB
     PI --> AF
     PI --> SEC
     PI --> RES
     PI --> WEB
+    BC -->|future service| WINLAB
     BC -. future shared contracts .-> AF
     BC -. cross-project controls .-> SEC
     BC -. benchmarks and evidence .-> RES
@@ -53,8 +62,14 @@ branches before handing the operator the smallest remaining physical action.
 
 - BoxBrain owns cross-project discovery, dependencies, priorities, decisions,
   and handoffs.
-- The Pi 4 is the canonical BoxBrain runtime identity and owns durable local
-  state plus all physical transport endpoints.
+- The Pi 4 is the canonical BoxBrain runtime identity and owns attached-system
+  discovery, analysis, control, repair, durable field state, and physical
+  transport endpoints.
+- BrainConnect is provisioned and verified by BoxBrain, then owns bounded
+  persistent remote management for the enrolled system.
+- BoxBrain and BrainConnect share one console contract and user experience;
+  route, target, permission, credential, and recovery state never become
+  implicit merely because the UI is shared.
 - USB attachment may expose USB Ethernet plus keyboard and mouse HID. Bluetooth
   HID remains a separate pairing and trust boundary even when USB attachment is
   used as its trigger.
@@ -77,10 +92,11 @@ branches before handing the operator the smallest remaining physical action.
 
 ## Current dependency path
 
-The active execution path is the BoxBrain Pi appliance, using BrainConnect
-controller components, to an authorized target over a bounded transport. The
-current deployed Pi service remains an edge/controller bridge while the
-remaining controller state and UI are consolidated onto the appliance.
+The active execution path is the BoxBrain Pi appliance to an authorized target
+over a bounded transport. The current deployed BrainConnect components provide
+the proven control and observation mechanisms used during this transition.
+The target-state lifecycle is BoxBrain attached service followed by a
+BoxBrain-provisioned, independently verified BrainConnect remote route.
 BrainConnect has
 verified and audited the full target's certificate-only RDP identity boundary;
 it now accepts bounded, audited open-profile operations into a durable queue.

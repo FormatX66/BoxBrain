@@ -2,27 +2,27 @@
 
 ## Purpose
 
-To be confirmed. The name suggests website creation or management, but no
-authoritative requirements or source repository were discovered.
+Website building is a capability of ClusterSites rather than a separate
+product or source-of-truth repository.
 
 ## Current status
 
-Discovery only. No implementation, canonical documentation, or repository has
-been registered.
+Consolidated into the canonical `FormatX66/ClusterSites` flow. This index is
+retained only as a compatibility pointer.
 
 ## Metadata
 
-- **Owner:** Unconfirmed
-- **Priority:** Unranked
-- **Completion:** 0%
-- **Dependencies:** Unknown
-- **Documentation:** This metadata record only
-- **Repositories:** None discovered
+- **Owner:** ClusterSites
+- **Priority:** Managed through ClusterSites
+- **Completion:** Not independently measured
+- **Dependencies:** ClusterSites site/build contracts
+- **Documentation:** [ClusterSites ownership](../../Architecture/RepositoryOwnership.md#clustersites)
+- **Repository:** [FormatX66/ClusterSites](https://github.com/FormatX66/ClusterSites)
 - **Related projects:** [WebsiteCluster](../WebsiteCluster/ProjectIndex.md),
   [Automation](../Automation/ProjectIndex.md),
   [Security](../Security/ProjectIndex.md)
 
 ## Next step
 
-Locate existing assets and requirements before creating any repository or
-additional documentation.
+Do not create a separate WebsiteBuilder implementation. Route website build
+work to ClusterSites.

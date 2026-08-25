@@ -1,27 +1,33 @@
-# WebsiteCluster Project Index
+# ClusterSites / WebsiteCluster Project Index
 
 ## Purpose
 
-To be confirmed. The anticipated scope is multi-site coordination, but no
-authoritative requirements or source repository were discovered.
+Own every hosted website and the common flow used to build, validate, and
+prepare deployments for them. The current family includes Ubercorp,
+MadMorrigan, Arkmatx, XanderZombie, Wet Beard, WitchDicks, and later hosted
+sites added to the cluster.
 
 ## Current status
 
-Proposed metadata only.
+Active. `FormatX66/ClusterSites` is the canonical website source and build-flow
+repository. Individual site repositories are legacy mirrors or bounded
+deployment carriers until ClusterSites proves parity and they can be archived.
 
 ## Metadata
 
-- **Owner:** Unconfirmed
-- **Priority:** Unranked
-- **Completion:** 0%
-- **Dependencies:** WebsiteBuilder scope, hosting model, and security model
-- **Documentation:** This metadata record only
-- **Repositories:** None discovered
+- **Owner:** Bruce / ClusterSites
+- **Priority:** P0 for hosted website work
+- **Completion:** Capability-based
+- **Dependencies:** Hosting and site-specific deployment credentials remain
+  outside source control
+- **Documentation:** [Repository and service ownership](../../Architecture/RepositoryOwnership.md#clustersites)
+- **Repository:** [FormatX66/ClusterSites](https://github.com/FormatX66/ClusterSites)
 - **Related projects:** [WebsiteBuilder](../WebsiteBuilder/ProjectIndex.md),
   [Automation](../Automation/ProjectIndex.md),
   [Security](../Security/ProjectIndex.md)
 
 ## Next step
 
-Confirm whether WebsiteCluster is a separate product, a deployment topology,
-or a feature of WebsiteBuilder before creating code or architecture.
+Inventory legacy site repositories against ClusterSites, preserve any unique
+source or deployment knowledge, and stop independent edits once parity is
+verified.

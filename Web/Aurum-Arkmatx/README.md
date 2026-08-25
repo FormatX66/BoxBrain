@@ -2,6 +2,12 @@
 
 Shared-host-compatible Aurum edge node and read-only project status surface.
 
+This directory is a BoxBrain integration/evidence mirror. The canonical
+Arkmatx.com website, build, and deployment flow is owned by
+[ClusterSites](https://github.com/FormatX66/ClusterSites). Arkmatx.com is the
+technology-project portal through which this Aurum surface and other
+independently owned service backends are exposed.
+
 Hosted endpoints when the Arkmatx PHP deployment is configured:
 
 - `GET /` or `/status` — node status

@@ -5,6 +5,7 @@ never stored in this repository.
 
 | Integration | Project | State | Boundary | Canonical documentation |
 | --- | --- | --- | --- | --- |
+| Shared operator console | BoxBrain / BrainConnect | Existing UI components; ownership contract defined | One console experience with explicit attached BoxBrain versus enrolled BrainConnect carrier, target identity, and authority | [Repository ownership](RepositoryOwnership.md#one-shared-console) |
 | Flutter dashboard | BrainConnect | Implemented | Operator UI to authenticated controller API | [Development guide](https://github.com/FormatX66/BrainConnect/blob/main/docs/DEVELOPMENT.md) |
 | FastAPI controller | BrainConnect | Implemented | Local control plane and audit API | [Controller README](https://github.com/FormatX66/BrainConnect/blob/main/controller/README.md) |
 | SQLite | BrainConnect | Implemented | Durable task and append-only audit storage | [Architecture](https://github.com/FormatX66/BrainConnect/blob/main/docs/ARCHITECTURE.md) |
@@ -22,6 +23,8 @@ never stored in this repository.
 | Restricted Windows SSH link | BoxBrain edge agent | Deployed and verified | Non-administrator, public-key-only target account; firewall source exactly `10.12.194.1`; no TTY or forwarding | [Edge-agent onboarding](../edge/kali-pi-agent/README.md) |
 | Cloud model provider | BrainConnect | Planned | Provider-neutral structured planner adapter | [Roadmap](https://github.com/FormatX66/BrainConnect/blob/main/docs/ROADMAP.md) |
 | Git hosting | Ecosystem | Configured | Existing BoxBrain remote plus private BrainConnect remote | [Repository index](../Admin/RepositoryIndex.md) |
+| ClusterSites website/build flow | ClusterSites | Canonical ownership confirmed | All hosted website source, assets, validation, builds, and deployment planning; legacy site repositories are mirrors until parity is proven | [Repository ownership](RepositoryOwnership.md#clustersites) |
+| Arkmatx.com technology portal | ClusterSites plus registered service backends | Active portal boundary | ClusterSites owns the site and route integration; independently secured services retain their own runtime repositories | [Repository ownership](RepositoryOwnership.md#arkmatxcom) |
 
 Add integrations only after confirming the owning project and canonical
 documentation.
