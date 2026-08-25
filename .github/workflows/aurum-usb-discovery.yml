@@ -155,22 +155,81 @@ jobs:
           }
           Write-Host "AURUM_USB_PREFLIGHT_RESULT state=$($preflight.preflight_state) write_authority=false destructive_action_allowed=false"
 
-      - name: Persist privacy-safe discovery receipt
+      - name: Persist privacy-safe discovery receipt without rebasing evidence
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           git config user.name 'aurum-usb-discovery[bot]'
           git config user.email 'aurum-usb-discovery@users.noreply.github.com'
-          git add Projects/Aurum/Recovery/latest-usb-discovery.json Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
-            exit 0
+
+          # Preserve the hardware observation outside the worktree. Evidence files
+          # on main are hot and can legitimately change while this self-hosted run
+          # is executing. Never rebase a generated evidence commit through those
+          # changes: refresh main, re-evaluate against the latest release/recovery
+          # state, then try a normal fast-forward push. A race simply retries.
+          $discoveryPath = 'Projects/Aurum/Recovery/latest-usb-discovery.json'
+          $preflightPath = 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+          $discoveryPayload = Get-Content -LiteralPath $discoveryPath -Raw
+          $observed = $discoveryPayload | ConvertFrom-Json
+          $observedRelease = ([string]$observed.release_source_commit).Trim().ToLowerInvariant()
+
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            foreach ($stateDir in @('.git/rebase-merge', '.git/rebase-apply')) {
+              if (Test-Path -LiteralPath $stateDir) {
+                git rebase --abort 2>$null
+                if ($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $stateDir)) {
+                  Remove-Item -LiteralPath $stateDir -Recurse -Force
+                }
+              }
+            }
+
+            git fetch origin main
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT fetch-failed' }
+            git reset --hard origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT reset-failed' }
+
+            $release = Get-Content -LiteralPath 'Projects/Aurum/Release/latest-tinyseed-handoff.json' -Raw | ConvertFrom-Json
+            $request = Get-Content -LiteralPath 'Projects/Aurum/Recovery/usb-discovery-request.json' -Raw | ConvertFrom-Json
+            $releaseSource = ([string]$release.source_commit).Trim().ToLowerInvariant()
+            $requestRelease = ([string]$request.required_release_source_commit).Trim().ToLowerInvariant()
+            $requestStillReadOnly = [string]$request.schema -eq 'aurum-usb-discovery-request-v1' -and [string]$request.mode -eq 'read-only' -and -not [bool]$request.write_authority
+            if (-not $requestStillReadOnly -or [string]$release.state -ne 'READY_TO_FLASH' -or $releaseSource -ne $observedRelease -or $requestRelease -ne $observedRelease) {
+              Write-Host "AURUM_USB_DISCOVERY_RECEIPT superseded=true observed_release=$observedRelease current_release=$releaseSource request_release=$requestRelease"
+              exit 0
+            }
+
+            $discoveryPayload | Set-Content -LiteralPath $discoveryPath -Encoding utf8
+            $arguments = @(
+              'Projects/Aurum/Germ/physical_handoff_preflight.py',
+              '--release', 'Projects/Aurum/Release/latest-tinyseed-handoff.json',
+              '--discovery', $discoveryPath,
+              '--flash-request', 'Projects/Aurum/Recovery/tinyseed-flash-request.json',
+              '--preexecution-recovery', 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
+            )
+            $json = & python @arguments
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT preflight-refresh-failed' }
+            $json | Set-Content -LiteralPath $preflightPath -Encoding utf8
+            $preflight = $json | ConvertFrom-Json
+            if ([bool]$preflight.write_authority -or [bool]$preflight.destructive_action_allowed) {
+              throw 'AURUM_USB_DISCOVERY_RECEIPT evaluator-granted-authority'
+            }
+
+            git add $discoveryPath $preflightPath
+            git diff --cached --quiet
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host 'AURUM_USB_DISCOVERY_RECEIPT unchanged=true'
+              exit 0
+            }
+
+            git commit -m 'Record read-only USB discovery [skip ci]'
+            if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT commit-failed' }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "AURUM_USB_DISCOVERY_RECEIPT persisted=true attempt=$attempt"
+              exit 0
+            }
+
+            Write-Host "AURUM_USB_DISCOVERY_RECEIPT retry=true attempt=$attempt reason=non-fast-forward-or-transient-push"
+            Start-Sleep -Seconds ($attempt * 2)
           }
-          git commit -m 'Record read-only USB discovery [skip ci]'
-          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT commit-failed' }
-          git pull --rebase origin main
-          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT rebase-failed' }
-          git push origin HEAD:main
-          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_RECEIPT push-failed' }
-          Write-Host 'AURUM_USB_DISCOVERY_RECEIPT persisted=true'
+          throw 'AURUM_USB_DISCOVERY_RECEIPT persist-retry-exhausted'
