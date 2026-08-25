@@ -2,6 +2,11 @@ name: Aurum Completion Plan Release Sync
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - 'Aurum Tiny Seed Handoff'
+      - 'Aurum Read-Only USB Discovery'
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -20,11 +25,14 @@ concurrency:
 
 jobs:
   sync:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out canonical state
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
 
       - name: Project canonical handoff identity into completion plan
         run: python Admin/sync_aurum_release_status.py
