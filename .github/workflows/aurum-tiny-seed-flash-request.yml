@@ -166,7 +166,14 @@ jobs:
 
           $confirm = "FLASH_TINYSEED_$($imageSha.Substring(0,8).ToUpperInvariant())"
           $script = 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
-          $childOutput = & pwsh -NoProfile -File $script -ImagePath $image.FullName -ChecksumPath $shaFile.FullName -DiskSerial $rawSerial -ConfirmText $confirm -Write 2>&1
+          # Reuse the exact PowerShell host GitHub Actions selected. Some
+          # self-hosted Windows runners provide Windows PowerShell but do not
+          # put PowerShell 7's `pwsh` alias on PATH.
+          $shellExe = (Get-Process -Id $PID -ErrorAction Stop).Path
+          if ((Split-Path -Leaf $shellExe) -notin @('powershell.exe', 'pwsh.exe')) {
+            throw 'AURUM_TINYSEED_FLASH_REFUSED reason=untrusted-powershell-host'
+          }
+          $childOutput = & $shellExe -NoProfile -File $script -ImagePath $image.FullName -ChecksumPath $shaFile.FullName -DiskSerial $rawSerial -ConfirmText $confirm -Write 2>&1
           $childExit = $LASTEXITCODE
           foreach ($line in @($childOutput)) { Write-Host (([string]$line).Replace($rawSerial, '<redacted-serial>')) }
           if ($childExit -ne 0) { throw "AURUM_TINYSEED_FLASH_FAILED helper_exit=$childExit" }
