@@ -63,6 +63,24 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             },
         }
 
+    def flash_receipt(self, *, source_commit: str | None = None) -> dict:
+        return {
+            "schema": "aurum-tinyseed-flash-request-receipt-v1",
+            "state": "READY_TO_BOOT",
+            "request_id": "test-flash",
+            "source_commit": source_commit or "a" * 40,
+            "image_sha256": "b" * 64,
+            "device": {
+                "disk_number": 1,
+                "model": "USB Test",
+                "size_bytes": 64000000000,
+                "serial_sha256": "c" * 64,
+            },
+            "raw_readback_verified": True,
+            "write_authority_consumed": True,
+            "observed_at_utc": "2026-08-24T22:00:00Z",
+        }
+
     def live_branch(self) -> dict:
         return {
             "schema": "aurum-future-branch-state-test",
@@ -136,6 +154,7 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             self.assertFalse(evidence["physical_preflight"]["destructive_action_performed"])
             self.assertEqual(evidence["preexecution_recovery"]["terminal_reason"], "boxbrain-unreachable")
             self.assertTrue(evidence["preexecution_recovery"]["manual_handoff_released"])
+            self.assertFalse(evidence["flash_receipt"]["present"])
             self.assertIn("explicit-guarded-flash-authorization", branch["current_program"])
             self.assertEqual(branch["likely_machine_outcomes"], [])
             self.assertTrue(branch["live_controls"]["flash_authorization_eligible"])
@@ -188,6 +207,57 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             self.assertEqual(
                 branch["likely_machine_outcomes"][0]["state"],
                 "fresh-authority-triggers-live-reproof-and-guarded-preflight",
+            )
+
+    def test_stale_flash_receipt_is_projected_but_cannot_block_current_release_flash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", self.preflight())
+            self.write_json(
+                root,
+                "Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json",
+                self.flash_receipt(source_commit="d" * 40),
+            )
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", self.live_branch())
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            flash = branch["canonical_evidence"]["flash_receipt"]
+
+            self.assertTrue(flash["present"])
+            self.assertFalse(flash["matches_current_release"])
+            self.assertTrue(flash["raw_readback_verified"])
+            self.assertFalse(branch["live_controls"]["current_release_flash_ready_to_boot"])
+            self.assertTrue(branch["live_controls"]["flash_authorization_eligible"])
+            self.assertIn("flash_receipt_matches_current_release=false", branch["current_program"])
+
+    def test_matching_readback_verified_flash_moves_to_physical_boot_without_reflash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", self.preflight())
+            self.write_json(
+                root,
+                "Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json",
+                self.flash_receipt(),
+            )
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", self.live_branch())
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            authorization = self.input_family(branch, "explicit-guarded-flash-authorization")
+            generic = self.input_family(branch, "generic-prompt-intent-expansion")
+
+            self.assertTrue(branch["canonical_evidence"]["flash_receipt"]["matches_current_release"])
+            self.assertTrue(branch["live_controls"]["current_release_flash_ready_to_boot"])
+            self.assertFalse(branch["live_controls"]["flash_authorization_eligible"])
+            self.assertIn("already has a matching readback-verified READY_TO_BOOT flash receipt", authorization["prepared_response"])
+            self.assertIn("physical boot/boot-proof", authorization["action_if_safe"])
+            self.assertIn("physical boot-proof collection", generic["action_if_safe"])
+            self.assertEqual(
+                branch["likely_machine_outcomes"][0]["state"],
+                "current-release-flash-readback-proven-awaiting-physical-boot",
             )
 
     def test_stale_preflight_release_is_projected_as_mismatch_not_silently_current(self) -> None:
