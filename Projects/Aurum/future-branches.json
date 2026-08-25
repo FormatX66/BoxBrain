@@ -25,7 +25,7 @@
     "execute_shared_safe_prefix_before_clarification": true,
     "inferred_intent_never_grants_authority": true
   },
-  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source e845c02b984b8a40de42b58b1e059f03366804c3 with x86 SHA-256 afecf00f5d0c1b01c8585b74b4f31d51bd23420e6be142b6f5a4c8a0a5dd7382. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source e845c02b984b8a40de42b58b1e059f03366804c3 with x86 SHA-256 afecf00f5d0c1b01c8585b74b4f31d51bd23420e6be142b6f5a4c8a0a5dd7382. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -159,7 +159,7 @@
         "is the ISO still the wrong way?",
         "should we use direct UEFI or the universal carrier instead?"
       ],
-      "prepared_response": "The fallback carrier is not currently provenance-locked to the canonical READY_TO_FLASH release. Treat older virtual success as historical only and re-prove canonical payload provenance plus same-head build/boot before calling it warm.",
+      "prepared_response": "The x86 fallback carrier has current-release canonical-provenance proof and successful same-head virtual build/boot proof. Keep it warm as an isolated experimental fallback; this is not physical HP proof and grants no write authority.",
       "action_if_safe": "Compare fresh physical carrier evidence and expected total cost while preserving the same Germ/genetics/LKG contract. Never promote the experimental carrier from virtual evidence alone."
     },
     {
@@ -342,7 +342,7 @@
       "manual_handoff_released": true,
       "remote_repair": "unavailable",
       "terminal_reason": "boxbrain-unreachable",
-      "observed_at": "2026-08-25T11:47:09.7469876Z"
+      "observed_at": "2026-08-25T11:50:51.5339527Z"
     },
     "flash_receipt": {
       "present": true,
@@ -359,6 +359,21 @@
         "size_bytes": 61524148224,
         "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5"
       }
+    },
+    "fallback_carrier": {
+      "provenance_receipt_present": true,
+      "provenance_success": true,
+      "provenance_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
+      "provenance_release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
+      "provenance_matches_current_release": true,
+      "canonical_payload_match": true,
+      "matrix_receipt_present": true,
+      "matrix_success": true,
+      "matrix_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
+      "same_experimental_head": true,
+      "warm_current": true,
+      "physical_proof_inferred": false,
+      "authority_granted": false
     }
   },
   "live_controls": {
@@ -375,7 +390,9 @@
     "current_release_flash_ready_to_boot": false,
     "flash_authorization_eligible": true,
     "write_authority": false,
-    "destructive_action_allowed": false
+    "destructive_action_allowed": false,
+    "fallback_carrier_current": true,
+    "fallback_carrier_provenance_current": true
   },
   "interaction_handoff": {
     "schema": "aurum-next-interaction-handoff-v1",
