@@ -4,9 +4,10 @@ A deterministic machine-state representation and transition engine. This lane is
 standalone on purpose: it does not import or depend on the Adaptive Kernel lane.
 
 Future Branch integration is deliberately *recording only*: StateWeave preserves
-candidate/proven branch facts, evidence references, rollback lineage, and verified
-outcomes. It does not rank branches or execute their actions. The safety/policy
-engine remains outside this state representation.
+candidate/proven branch facts, evidence references, rollback lineage, verified
+outcomes, and the verified-state basis a speculative branch was built against. It
+does not rank branches or execute their actions. The safety/policy engine remains
+outside this state representation.
 """
 
 from __future__ import annotations
@@ -113,6 +114,7 @@ class BranchRecord:
     rollback_target: str | None = None
     is_last_known_good: bool = False
     verified_result: str | None = None
+    basis_state_digest: str | None = None
 
     def validate(self) -> None:
         if not self.branch_id or not _BRANCH_ID.fullmatch(self.branch_id):
@@ -127,6 +129,8 @@ class BranchRecord:
             raise ValueError("invalid reversibility")
         if self.status not in _BRANCH_STATUSES:
             raise ValueError("invalid branch status")
+        if self.basis_state_digest is not None and not re.fullmatch(r"[0-9a-f]{64}", self.basis_state_digest):
+            raise ValueError("basis_state_digest must be a sha256 hex digest")
         for item in self.evidence:
             item.validate()
 
@@ -149,6 +153,8 @@ def branch_writes(record: BranchRecord) -> dict[str, Scalar]:
         writes[f"{prefix}rollback_target"] = record.rollback_target
     if record.verified_result is not None:
         writes[f"{prefix}verified_result"] = record.verified_result
+    if record.basis_state_digest is not None:
+        writes[f"{prefix}basis_state_digest"] = record.basis_state_digest
 
     for index, item in enumerate(record.evidence):
         evidence_prefix = f"{prefix}evidence.{index}."
@@ -178,6 +184,34 @@ def record_branch_set(state: State, records: Iterable[BranchRecord]) -> State:
         result = record_branch(result, record)
         count += 1
     return Transition.build("future-branch-field", writes={"future.branch.count": count}).apply(result)
+
+
+def expire_stale_branches(state: State, *, current_verified_state_digest: str) -> State:
+    """Mark warm/promoted speculative branches expired when their basis changed.
+
+    The old decision facts/evidence stay in StateWeave for auditability; only the
+    branch status changes to ``expired``. Verified/LKG records are not rewritten by
+    this helper. A branch with no recorded basis remains untouched because its
+    staleness cannot be established from evidence.
+    """
+
+    if not re.fullmatch(r"[0-9a-f]{64}", current_verified_state_digest):
+        raise ValueError("current_verified_state_digest must be a sha256 hex digest")
+    values = state.as_dict()
+    suffix = ".basis_state_digest"
+    writes: dict[str, Scalar] = {}
+    for key, basis in values.items():
+        if not key.startswith("future.branch.") or not key.endswith(suffix):
+            continue
+        branch_id = key[len("future.branch.") : -len(suffix)]
+        status_key = f"future.branch.{branch_id}.status"
+        status = values.get(status_key)
+        if basis != current_verified_state_digest and status in {"warm", "promoted"}:
+            writes[status_key] = "expired"
+            writes[f"future.branch.{branch_id}.expired_against_state_digest"] = current_verified_state_digest
+    if not writes:
+        return state
+    return Transition.build("future-branch-expire-stale", writes=writes).apply(state)
 
 
 def run(initial: State, transitions: Iterable[Transition]) -> tuple[State, tuple[TraceStep, ...]]:
