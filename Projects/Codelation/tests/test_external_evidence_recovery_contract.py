@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[3]
 RECOVERY = ROOT / ".github" / "workflows" / "aurum-external-evidence-recovery.yml"
 AUTOBUILD = ROOT / ".github" / "workflows" / "aurum-autobuild.yml"
 COLLECTOR = ROOT / "installer" / "collect-adaptive-shell-gui-live-trial.ps1"
+REPAIR = ROOT / "installer" / "recover-gui-module-drift.ps1"
 APPROVED_ROUTES = (
     "10.12.194.1",
     "10.42.194.1",
@@ -57,7 +58,9 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertIn("icacls.exe", workflow)
         self.assertIn("/inheritance:r", workflow)
         self.assertIn("/grant:r", workflow)
+        self.assertIn('"${runnerIdentity}:(F)"', workflow)
         self.assertIn("Remove-Item -LiteralPath $strictKey -Force", workflow)
+        self.assertIn("Could not remove the runner-local BBPI4 SSH key copy", workflow)
 
     def test_recovery_falls_back_only_across_preapproved_bbpi4_ssh_routes(self) -> None:
         workflow = RECOVERY.read_text(encoding="utf-8")
@@ -118,6 +121,31 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
             self.assertIn(reason, collector)
         self.assertNotIn("api_status_payload=", collector)
         self.assertNotIn("api_key=", collector)
+
+    def test_exact_module_hash_drift_repair_is_bounded_and_reversible(self) -> None:
+        workflow = RECOVERY.read_text(encoding="utf-8")
+        repair = REPAIR.read_text(encoding="utf-8")
+
+        self.assertIn("recover-gui-module-drift.ps1", workflow)
+        self.assertIn("failed=module_hash(?:\\s|$)", workflow)
+        self.assertIn("authority=false content_free=true", workflow)
+        self.assertIn("AURUM_EXTERNAL_EVIDENCE bounded_repair=gui-module-drift", workflow)
+        self.assertIn("-RollbackSha", workflow)
+
+        for route in APPROVED_ROUTES:
+            self.assertIn(route, repair)
+        self.assertIn("StrictHostKeyChecking=yes", repair)
+        self.assertIn("UserKnownHostsFile=", repair)
+        self.assertIn("/opt/boxbrain/codelation/seed/aurum_gui.py", repair)
+        self.assertIn("/opt/boxbrain/codelation/rollback/gui", repair)
+        self.assertIn("aurum_gui.py.$existing", repair)
+        self.assertIn("systemctl stop aurum-gui.service", repair)
+        self.assertIn("install -o root -g root -m 0644", repair)
+        self.assertIn("AURUM_GUI_MODULE_REPAIRED", repair)
+        self.assertIn("AURUM_GUI_MODULE_ROLLBACK_OK", repair)
+        self.assertNotIn("systemctl enable", repair)
+        self.assertNotIn("apt install", repair)
+        self.assertNotIn("apt-get", repair)
 
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
