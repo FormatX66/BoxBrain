@@ -6,6 +6,6 @@ BoxBrain validation passed: 318 required files and 392 Markdown files.
 == canonical Aurum state-sync tests ==
 ..........................
 ----------------------------------------------------------------------
-Ran 26 tests in 0.027s
+Ran 26 tests in 0.119s
 
 OK
