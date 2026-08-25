@@ -12,6 +12,7 @@ on:
     paths:
       - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+      - 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
       # These two files also contain non-canonical planning/calibration fields that
       # are legitimately edited by other lanes. Re-run the projector after those
       # edits so their embedded canonical release/preflight truth cannot drift.
