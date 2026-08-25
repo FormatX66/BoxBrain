@@ -69,6 +69,11 @@ jobs:
       - run:
           name: Test seed recovery branch manifest
           command: python -m unittest discover -s installer/tests -p 'test_future_branch_recovery.py' -v
+      - run:
+          name: Test Tiny Seed physical preflight states
+          command: |
+            cd Projects/Aurum/Germ
+            python -m unittest test_physical_handoff_preflight -v
 
   germ-safety:
     docker:
