@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Read-Only USB Discovery",
-  "run_id": 32828029793,
-  "run_number": 22,
+  "run_id": 32828270755,
+  "run_number": 23,
   "run_attempt": 1,
   "status": "completed",
-  "conclusion": "failure",
+  "conclusion": "cancelled",
   "event": "push",
-  "head_sha": "2770d6786b35917f4bdc35c454690e0bfe9e78a0",
+  "head_sha": "dab5eb506b7125b5051f90038d849413d0c99ef0",
   "head_branch": "main",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32828029793",
-  "updated_at": "2026-08-25T08:43:59Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32828270755",
+  "updated_at": "2026-08-25T08:45:57Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
