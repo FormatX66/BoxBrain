@@ -11,8 +11,10 @@ on:
     branches: [main]
     paths:
       - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+      - 'Projects/Aurum/Recovery/latest-usb-discovery.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
+      - 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
       - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-fallback-canonical-provenance.json'
       - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-x86-fallback-carrier-matrix-experiment.json'
       # These two files also contain non-canonical planning/calibration fields that
@@ -26,6 +28,7 @@ on:
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - 'Admin/sync_aurum_fallback_evidence.py'
       - 'Admin/materialize_aurum_next_interaction.py'
+      - '.github/workflows/aurum-usb-discovery.yml'
       - '.github/workflows/aurum-completion-plan-sync.yml'
 
 permissions:
