@@ -5,7 +5,7 @@
   "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
   "source": "Projects/Aurum/future-branches.json",
   "source_schema": "aurum-future-branch-state-v11",
-  "source_evidence_sha256": "a2d57d653a327634780efbe81b7de2bf8e392da84a122c6123ff8d7b0599671e",
+  "source_evidence_sha256": "3de20a882e9e27e2f9a877ee20ff00586733edf777f6d1b8385cd1dbb830e43c",
   "release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
   "current_program": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. The canonical release remains READY_TO_FLASH as an artifact state, but another media write is not required unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "frontier": [
