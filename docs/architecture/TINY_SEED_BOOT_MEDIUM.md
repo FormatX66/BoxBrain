@@ -1,6 +1,6 @@
 # Aurum Tiny Seed Boot Medium
 
-Status: **Implementation v1 in progress; x86 build path implemented, Raspberry Pi adapter scaffolded and requires physical proof**
+Status: **Implementation v1 in progress; x86 build path implemented, Raspberry Pi image and early-KVM path implemented and require physical proof**
 
 ## Purpose
 
@@ -100,6 +100,8 @@ The first physical proof target is Hopper.
 
 The same setup/germ code is architecture-neutral. Raspberry Pi media uses a Pi-compatible ARM64 kernel/firmware boot frontend and the same germ payload.
 
+The Pi image pre-creates a locked `aurum` account and masks the vendor first-user wizard, so a headless boot cannot stop before networking. An optional [Aurum Early KVM](AURUM_EARLY_KVM.md) authority bundle can be placed on the boot partition before first boot. The bundle is consumed into the protected root, then a certificate-pinned TLS keyboard/mouse service starts after NetworkManager and before Tiny Seed. Without that physical authority record, no KVM listener starts. HDMI capture remains the independent visual fallback.
+
 Fresh Pi install logic is present for a Tiny Seed that has already booted on a compatible Pi:
 
 - FAT boot partition;
@@ -129,6 +131,8 @@ The setup UI, genetics protocol, receipts, and safety rules remain shared.
 - Network access is explicit at the germ boundary.
 - A failed candidate is quarantined and cannot silently promote itself.
 - Pre-germ bridge patching is anchor-checked and fails closed on an unknown console shape.
+- No early-KVM authority file means no early-KVM listener; malformed bundles never activate partial authority.
+- Early-KVM input uses pinned TLS plus per-session HMAC/sequence checks and releases all held inputs on disconnect.
 
 ## Success criteria
 
@@ -161,6 +165,7 @@ The setup UI, genetics protocol, receipts, and safety rules remain shared.
 
 - boot the ARM64 Tiny Seed on a Pi;
 - connect Wi-Fi through the same three-step setup surface;
+- prove certificate-pinned keyboard/mouse control before the setup surface, with USB HDMI capture as the visual cross-check;
 - install/repair germ substrate;
 - prove Pi-specific candidate growth and rollback before setting `local_ab_slots=true` for ARM64.
 

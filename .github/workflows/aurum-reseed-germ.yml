@@ -7,6 +7,7 @@ on:
       - 'docs/architecture/RESEED_GENETICS_ARCHITECTURE.md'
       - 'docs/architecture/SEED_RECOVERY_ARCHITECTURE.md'
       - 'docs/architecture/TINY_SEED_BOOT_MEDIUM.md'
+      - 'docs/architecture/AURUM_EARLY_KVM.md'
       - '.github/workflows/aurum-reseed-germ.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'docs/architecture/RESEED_GENETICS_ARCHITECTURE.md'
       - 'docs/architecture/SEED_RECOVERY_ARCHITECTURE.md'
       - 'docs/architecture/TINY_SEED_BOOT_MEDIUM.md'
+      - 'docs/architecture/AURUM_EARLY_KVM.md'
       - '.github/workflows/aurum-reseed-germ.yml'
   workflow_dispatch:
 
@@ -37,11 +39,12 @@ jobs:
           sh -n Projects/Aurum/Germ/build-pi-tinyseed.sh
       - name: Run germ safety tests
         working-directory: Projects/Aurum/Germ
-        run: python3 -m unittest -v test_reseed test_guardian test_recovery_control test_recovery_poller test_tinyseed
+        run: python3 -m unittest -v test_reseed test_guardian test_recovery_control test_recovery_poller test_tinyseed test_early_kvm
       - name: Verify architecture invariants are present
         run: |
           grep -Fq 'Git stores the genetics. Seeds carry the germ.' docs/architecture/RESEED_GENETICS_ARCHITECTURE.md
           grep -Fq 'Any viable germ-bearing seed must be able to regrow directly into the current trusted genetics' docs/architecture/SEED_RECOVERY_ARCHITECTURE.md
           grep -Fq 'Boot Tiny Seed' docs/architecture/TINY_SEED_BOOT_MEDIUM.md
+          grep -Fq 'No authority file means no listener' docs/architecture/AURUM_EARLY_KVM.md
           grep -Fq '"live_overwrite_allowed": false' Projects/Aurum/Germ/GENETICS.json
           grep -Fq '"promotion_requires_health_evidence": true' Projects/Aurum/Germ/GENETICS.json

@@ -27,7 +27,7 @@ jobs:
       - name: Compile and unit-test germ
         run: |
           python3 -m py_compile Projects/Aurum/Germ/*.py
-          (cd Projects/Aurum/Germ && python3 -m unittest -v test_carrier test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed)
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_carrier test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed test_early_kvm)
 
       - name: Install ARM image tooling
         run: |
@@ -71,6 +71,8 @@ jobs:
           test -x "$root/usr/lib/aurum/germ/recovery_control.py"
           test -x "$root/usr/lib/aurum/germ/recovery_poller.py"
           test -x "$root/usr/lib/aurum/germ/triage.py"
+          test -x "$root/usr/lib/aurum/germ/early_kvm.py"
+          test -x "$root/usr/lib/aurum/germ/early_kvm_bootstrap.py"
           test -x "$root/usr/sbin/aurum-rollback-drill"
           test -x "$root/usr/sbin/aurum-recovery-poll"
           test -x "$root/usr/sbin/aurum-triage"
@@ -79,12 +81,27 @@ jobs:
           test -f "$root/etc/systemd/system/aurum-boot-proof.service"
           test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-boot-proof.service"
           test -f "$root/etc/systemd/system/aurum-triage.service"
+          test -f "$root/etc/systemd/system/aurum-early-kvm-bootstrap.service"
+          test -f "$root/etc/systemd/system/aurum-early-kvm.service"
+          test -L "$root/etc/systemd/system/multi-user.target.wants/aurum-early-kvm.service"
+          grep -q 'ConditionPathExists=/etc/aurum/early-kvm.json' "$root/etc/systemd/system/aurum-early-kvm.service"
+          grep -q 'Before=aurum-tinyseed.service' "$root/etc/systemd/system/aurum-early-kvm.service"
+          test "$(cat "$root/etc/modules-load.d/aurum-early-kvm.conf")" = uinput
+          grep -q '^Package: python3-evdev$' "$root/var/lib/dpkg/status"
+          grep -q '^Package: openssh-server$' "$root/var/lib/dpkg/status"
+          test "$(readlink "$root/etc/systemd/system/userconfig.service")" = /dev/null
+          sudo grep -q '^aurum:!' "$root/etc/shadow"
+          test ! -e "$root/etc/aurum/early-kvm.json"
+          test ! -e "$boot/aurum-kvm/authority.json"
+          test -f "$boot/aurum-kvm/README.txt"
+          test -f "$root/etc/systemd/system/aurum-ssh-hostkeys.service"
+          test -z "$(find "$root/etc/ssh" -maxdepth 1 -name 'ssh_host_*_key' -print -quit)"
           grep -q 'OnFailure=aurum-triage.service' "$root/etc/systemd/system/aurum-tinyseed.service"
           test -f "$root/etc/systemd/system/aurum-recovery-poll.timer"
           test -L "$root/etc/systemd/system/timers.target.wants/aurum-recovery-poll.timer"
           grep -q 'aurum.tinyseed=1' "$boot/cmdline.txt"
           grep -q 'systemd.show_status=yes' "$boot/cmdline.aurum-safe.txt"
-          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded triage=embedded safe-cmdline=prepared'
+          echo 'AURUM_TINYSEED_PI_STATIC_OK guardian=reseed proof=embedded rollback=embedded signed-recovery=embedded triage=embedded early-kvm=tls-pinned-inert-by-default user-wizard=masked ssh-host-key=unique-first-boot safe-cmdline=prepared'
 
       - name: Publish Pi Tiny Seed
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
