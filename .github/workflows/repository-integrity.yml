@@ -5,6 +5,12 @@ on:
   push:
     paths:
       - 'Admin/validate_repository.py'
+      - 'Admin/sync_aurum_release_status.py'
+      - 'Admin/sync_aurum_future_branch_evidence.py'
+      - 'Admin/sync_aurum_fallback_evidence.py'
+      - 'Admin/tests/test_sync_aurum_release_status.py'
+      - 'Admin/tests/test_sync_aurum_future_branch_evidence.py'
+      - 'Admin/tests/test_sync_aurum_fallback_evidence.py'
       - 'Projects/**'
       - 'README.md'
       - 'START_HERE.md'
@@ -31,20 +37,39 @@ jobs:
         with:
           ref: main
 
-      - name: Run canonical repository validator and preserve exact output
+      - name: Run canonical repository validator and state-sync tests
         id: validate
         shell: bash
         run: |
           set +e
           python3 Admin/validate_repository.py > "$RUNNER_TEMP/integrity.txt" 2>&1
-          rc=$?
+          validator_rc=$?
+          python3 -m unittest \
+            Admin.tests.test_validate_repository \
+            Admin.tests.test_sync_aurum_release_status \
+            Admin.tests.test_sync_aurum_future_branch_evidence \
+            Admin.tests.test_sync_aurum_fallback_evidence \
+            > "$RUNNER_TEMP/sync-tests.txt" 2>&1
+          tests_rc=$?
           set -e
-          cat "$RUNNER_TEMP/integrity.txt"
+
           {
             echo 'Repository Integrity Mirror'
             echo
+            echo '== repository validator =='
             cat "$RUNNER_TEMP/integrity.txt"
-          } > Admin/repository-integrity-latest.txt
+            echo
+            echo '== canonical Aurum state-sync tests =='
+            cat "$RUNNER_TEMP/sync-tests.txt"
+          } | tee Admin/repository-integrity-latest.txt
+
+          if [ "$validator_rc" -eq 0 ] && [ "$tests_rc" -eq 0 ]; then
+            rc=0
+          else
+            rc=1
+          fi
+          echo "validator_rc=$validator_rc" >> "$GITHUB_OUTPUT"
+          echo "tests_rc=$tests_rc" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Publish changed diagnostic receipt
