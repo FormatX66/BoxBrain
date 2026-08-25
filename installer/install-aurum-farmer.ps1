@@ -3,7 +3,8 @@
 param(
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "BoxBrain\AurumFarmer"),
     [string]$TaskName = "Aurum Farmer",
-    [switch]$SkipStart
+    [switch]$SkipStart,
+    [switch]$ForceEmbeddedPython
 )
 
 Set-StrictMode -Version Latest
@@ -11,7 +12,6 @@ $ErrorActionPreference = "Stop"
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repositoryRoot "Projects\AurumFarmer"
-$python = (Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $sourceCommit = (& git -C $repositoryRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceCommit)) {
     throw "Could not resolve the BoxBrain source commit."
@@ -27,6 +27,72 @@ New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $sourceRoot "aurum_farmer") -Destination $releaseRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $sourceRoot "tests") -Destination $releaseRoot -Recurse
+
+function Test-PythonCandidate {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    try {
+        $null = & $Path -c "import sys; assert sys.version_info >= (3, 10)"
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
+$python = $null
+$pythonRuntime = "system"
+if (-not $ForceEmbeddedPython.IsPresent) {
+    $candidate = Get-Command python.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($candidate -and (Test-PythonCandidate -Path $candidate.Source)) {
+        $python = $candidate.Source
+    }
+}
+
+if (-not $python) {
+    # Farmer must be installable on a clean Windows node without a pre-existing
+    # Python installation. Keep the interpreter release-local and checksum-pinned
+    # so the deployment remains reversible and prior releases remain intact.
+    $pythonRuntime = "embedded"
+    $pythonVersion = "3.13.15"
+    $pythonArchiveSha256 = "d1f04d990aee1253d8569e8e5104e30fa9f5fa830899f14843448872d936a2cf"
+    $pythonArchiveUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip"
+    $cacheRoot = Join-Path $InstallRoot "cache"
+    $archivePath = Join-Path $cacheRoot "python-$pythonVersion-embed-amd64.zip"
+    $pythonRoot = Join-Path $releaseRoot "python"
+    New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+
+    $cacheValid = $false
+    if (Test-Path -LiteralPath $archivePath -PathType Leaf) {
+        $cacheHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $cacheValid = $cacheHash -eq $pythonArchiveSha256
+    }
+    if (-not $cacheValid) {
+        $partial = "$archivePath.partial"
+        Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $pythonArchiveUrl -OutFile $partial -UseBasicParsing
+        $downloadHash = (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($downloadHash -ne $pythonArchiveSha256) {
+            Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+            throw "Embedded Python archive checksum mismatch."
+        }
+        Move-Item -LiteralPath $partial -Destination $archivePath -Force
+    }
+
+    New-Item -ItemType Directory -Path $pythonRoot -Force | Out-Null
+    Expand-Archive -LiteralPath $archivePath -DestinationPath $pythonRoot -Force
+    $pth = Get-ChildItem -LiteralPath $pythonRoot -Filter "python*._pth" -File | Select-Object -First 1
+    if (-not $pth) { throw "Embedded Python path file is missing." }
+    $pthLines = @(Get-Content -LiteralPath $pth.FullName)
+    if ($pthLines -notcontains "..") {
+        $pthLines += ".."
+        Set-Content -LiteralPath $pth.FullName -Value $pthLines -Encoding ascii
+    }
+    $python = Join-Path $pythonRoot "python.exe"
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf) -or -not (Test-PythonCandidate -Path $python)) {
+        throw "Embedded Python runtime failed validation."
+    }
+}
 
 $previousPythonPath = $env:PYTHONPATH
 try {
@@ -90,6 +156,8 @@ $receipt = [ordered]@{
     source_commit = $sourceCommit
     release_root = $releaseRoot
     runtime_root = $runtimeRoot
+    python_exe = $python
+    python_runtime = $pythonRuntime
     task_name = $TaskName
     task_state = [string]$task.State
     health_verified = $healthy
