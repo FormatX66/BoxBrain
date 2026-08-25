@@ -59,7 +59,15 @@ chroot "$ROOT_MNT" /usr/bin/qemu-aarch64-static /bin/sh -lc '
   set -eu
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git ca-certificates openssl network-manager python3 rsync parted dosfstools e2fsprogs util-linux
+    git ca-certificates openssl network-manager openssh-server python3 python3-evdev \
+    rsync parted dosfstools e2fsprogs util-linux
+  if ! getent passwd aurum >/dev/null; then
+    useradd --create-home --shell /bin/bash aurum
+  fi
+  passwd --lock aurum
+  for group in video input render netdev gpio; do
+    getent group "$group" >/dev/null && usermod -aG "$group" aurum || true
+  done
   apt-get clean
   rm -rf /var/lib/apt/lists/*
 '
@@ -68,13 +76,24 @@ umount "$ROOT_MNT/sys"
 umount "$ROOT_MNT/proc"
 umount "$ROOT_MNT/dev"
 rm -f "$ROOT_MNT/usr/bin/qemu-aarch64-static"
+# Never clone an SSH host identity across flashed machines. A fresh identity is
+# generated on the Pi before sshd can start.
+rm -f "$ROOT_MNT/etc/ssh/ssh_host_"*
 
 GERM_DST="$ROOT_MNT/usr/lib/aurum/germ"
 mkdir -p "$GERM_DST"
-for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
+for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py early_kvm.py early_kvm_bootstrap.py; do
   install -m 0755 "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0644 "$GERM_DST/GENETICS.json"
+
+mkdir -p "$ROOT_MNT/etc/modules-load.d" "$ROOT_MNT/etc/ssh/sshd_config.d"
+printf '%s\n' uinput > "$ROOT_MNT/etc/modules-load.d/aurum-early-kvm.conf"
+cat > "$ROOT_MNT/etc/ssh/sshd_config.d/50-aurum-key-only.conf" <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
 
 RECOVERY_SRC="$REPO_ROOT/Projects/Aurum/Recovery"
 mkdir -p "$ROOT_MNT/etc/aurum"
@@ -142,6 +161,49 @@ ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py preflight --reboot-on
 [Install]
 WantedBy=multi-user.target
 EOF
+cat > "$SYSTEMD/aurum-early-kvm-bootstrap.service" <<'EOF'
+[Unit]
+Description=Aurum early-KVM physical authority bootstrap
+After=local-fs.target
+Before=NetworkManager.service aurum-early-kvm.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/early_kvm_bootstrap.py
+RemainAfterExit=yes
+UMask=0077
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > "$SYSTEMD/aurum-early-kvm.service" <<'EOF'
+[Unit]
+Description=Aurum early-boot authenticated KVM
+After=NetworkManager.service aurum-early-kvm-bootstrap.service
+Wants=NetworkManager.service
+Before=aurum-tinyseed.service
+ConditionPathExists=/etc/aurum/early-kvm.json
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/early_kvm.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > "$SYSTEMD/aurum-ssh-hostkeys.service" <<'EOF'
+[Unit]
+Description=Aurum unique first-boot SSH host identity
+Before=ssh.service
+ConditionPathExists=!/etc/ssh/ssh_host_ed25519_key
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ssh-keygen -A
+UMask=0077
+[Install]
+WantedBy=multi-user.target
+EOF
 cat > "$SYSTEMD/aurum-germ-health.service" <<'EOF'
 [Unit]
 Description=Aurum protected germ candidate health gate
@@ -157,8 +219,8 @@ EOF
 cat > "$SYSTEMD/aurum-tinyseed.service" <<'EOF'
 [Unit]
 Description=Aurum Tiny Seed setup
-After=NetworkManager.service aurum-germ-preflight.service
-Wants=NetworkManager.service
+After=NetworkManager.service aurum-germ-preflight.service aurum-early-kvm.service
+Wants=NetworkManager.service aurum-early-kvm.service
 Conflicts=getty@tty1.service
 OnFailure=aurum-triage.service
 [Service]
@@ -221,12 +283,14 @@ Unit=aurum-recovery-poll.service
 [Install]
 WantedBy=timers.target
 EOF
-for unit in aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
+for unit in aurum-early-kvm-bootstrap.service aurum-early-kvm.service aurum-ssh-hostkeys.service aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -sfn "../$unit" "$WANTS/$unit"
 done
 ln -sfn "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
 ln -sfn /lib/systemd/system/NetworkManager.service "$WANTS/NetworkManager.service"
+[ -f "$ROOT_MNT/lib/systemd/system/ssh.service" ] && ln -sfn /lib/systemd/system/ssh.service "$WANTS/ssh.service"
 ln -sfn /dev/null "$SYSTEMD/getty@tty1.service"
+ln -sfn /dev/null "$SYSTEMD/userconfig.service"
 
 printf '%s\n' aurum-tinyseed > "$ROOT_MNT/etc/hostname"
 cat > "$ROOT_MNT/etc/motd" <<'EOF'
@@ -237,6 +301,15 @@ EOF
 CONFIG="$BOOT_MNT/config.txt"
 CMDLINE="$BOOT_MNT/cmdline.txt"
 [ -f "$CONFIG" ] && [ -f "$CMDLINE" ] || { echo "Pi boot files missing" >&2; exit 1; }
+mkdir -p "$BOOT_MNT/aurum-kvm"
+cat > "$BOOT_MNT/aurum-kvm/README.txt" <<'EOF'
+Aurum Early KVM
+
+This image does not listen for remote input by default. Before first boot, run
+prepare_early_kvm.py against this mounted boot partition to add a controller
+allowlist and fresh authority. The Pi consumes that authority into its protected
+root on first boot. HDMI capture remains the visual fallback.
+EOF
 if ! grep -q '^# Aurum Tiny Seed$' "$CONFIG"; then
   cat >> "$CONFIG" <<'EOF'
 

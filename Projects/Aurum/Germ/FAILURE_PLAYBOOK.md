@@ -73,6 +73,9 @@ Likely report: Pi has power but no useful console, UART differs, image boots but
 
 Prepared response:
 - Pi media carries UART output and a `cmdline.aurum-safe.txt` verbose fallback on the boot partition.
+- If Ethernet link is present but SSH is absent, inspect the configured USB HDMI capture before changing network state. A visible vendor username prompt indicates the wrong/old image or a missing wizard mask, not a network fault.
+- For an early-KVM-prepared image, verify the bootstrap receipt and pinned controller status. No boot authority means no listener by design; malformed authority must remain unconsumed and inactive.
+- A KVM disconnect releases every pressed key/button. Use `release-all` before retrying input; do not rebind a physical input driver.
 - Use the safe cmdline only for diagnosis; it does not change LKG/root state.
 - ARM64 promotion remains constrained by the platform adapter/evidence contract. A static CI image is not physical Pi proof.
 
