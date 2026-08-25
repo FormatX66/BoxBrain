@@ -1,7 +1,7 @@
 {
   "schema": "aurum-tinyseed-flash-request-v1",
   "state": "AUTHORIZED_ONCE",
-  "request_id": "tinyseed-sandisk-flash-20260825-1429-r1",
+  "request_id": "tinyseed-sandisk-flash-20260825-1429-r2",
   "authorized_at_utc": "2026-08-25T14:29:04Z",
   "expires_at_utc": "2026-08-25T15:14:04Z",
   "write_authority": true,
