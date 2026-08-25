@@ -8,6 +8,8 @@
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
+  "retry_sequence": 2,
+  "retry_reason": "Use the checksum-pinned release-local Python fallback after the first self-hosted attempt proved that system Python was absent.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
