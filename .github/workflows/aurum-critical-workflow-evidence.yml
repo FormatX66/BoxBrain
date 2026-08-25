@@ -66,7 +66,7 @@ jobs:
 
           write_receipt_if_newest() {
             python3 - <<'PY'
-          import json, os, pathlib, re
+          import json, os, pathlib, re, subprocess
 
           root = pathlib.Path('Projects/Aurum/Release/critical-workflows')
           root.mkdir(parents=True, exist_ok=True)
@@ -110,6 +110,59 @@ jobs:
               'physical_proof_inferred': False,
               'authority_granted': False,
           }
+
+          # A provenance workflow can be successful and still become stale when a
+          # newer canonical Tiny Seed release is published later. Bind its durable
+          # receipt to the canonical release visible at persistence time and
+          # independently compare the protected payload again. This makes
+          # "fallback is warm/current" a reproducible fact rather than a timestamp
+          # inference. A mismatch is recorded as evidence; it never grants authority.
+          if name == 'Aurum Tiny Seed fallback canonical provenance':
+              handoff_path = pathlib.Path('Projects/Aurum/Release/latest-tinyseed-handoff.json')
+              handoff = json.loads(handoff_path.read_text(encoding='utf-8-sig'))
+              release_source = str(handoff.get('source_commit') or '').strip()
+              release_state = str(handoff.get('state') or '').strip()
+              if handoff.get('schema') != 'aurum-tinyseed-handoff-v1' or not release_source:
+                  raise SystemExit('cannot bind fallback provenance to malformed canonical handoff')
+
+              head_sha = os.environ['RUN_HEAD_SHA']
+              subprocess.run(
+                  ['git', 'fetch', '--no-tags', 'origin', release_source, head_sha],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+              )
+              protected_paths = [
+                  'Projects/Aurum/Germ/build-x86-tinyseed.sh',
+                  'Projects/Aurum/Germ/GENETICS.json',
+                  'Projects/Aurum/Germ/carrier.py',
+                  'Projects/Aurum/Germ/reseed.py',
+                  'Projects/Aurum/Germ/guardian.py',
+                  'Projects/Aurum/Germ/recovery_ledger.py',
+                  'Projects/Aurum/Germ/bridge.py',
+                  'Projects/Aurum/Germ/germ_console.py',
+                  'Projects/Aurum/Germ/machine.py',
+                  'Projects/Aurum/Germ/network.py',
+                  'Projects/Aurum/Germ/installer.py',
+                  'Projects/Aurum/Germ/tinyseed.py',
+                  'Projects/Aurum/Germ/bootstrap_console.py',
+                  'Projects/Aurum/Germ/proof.py',
+                  'Projects/Aurum/Germ/rollback_drill.py',
+                  'Projects/Aurum/Germ/recovery_control.py',
+                  'Projects/Aurum/Germ/recovery_poller.py',
+                  'Projects/Aurum/Germ/triage.py',
+                  'Projects/Aurum/Recovery/trusted-refs.json',
+                  'Projects/Aurum/Recovery/authority-public.pem',
+              ]
+              comparison = subprocess.run(
+                  ['git', 'diff', '--quiet', release_source, head_sha, '--', *protected_paths],
+                  check=False,
+              )
+              if comparison.returncode not in (0, 1):
+                  raise SystemExit(f'fallback provenance comparison failed rc={comparison.returncode}')
+              payload['canonical_release_source_commit'] = release_source
+              payload['canonical_release_state'] = release_state
+              payload['canonical_payload_match'] = comparison.returncode == 0
+
           path.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
           print(json.dumps(payload, sort_keys=True))
           PY
