@@ -169,7 +169,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: true
 
-      - name: Project zero-authority preflight and Future Branch state
+      - name: Project zero-authority preflight, completion plan, and Future Branch state
         shell: bash
         run: |
           set -euo pipefail
@@ -204,11 +204,12 @@ jobs:
           }, sort_keys=True))
           PY
 
+          python3 Admin/sync_aurum_release_status.py
           python3 Admin/sync_aurum_future_branch_evidence.py
 
           git config user.name 'aurum-readonly-recovery[bot]'
           git config user.email 'aurum-readonly-recovery@users.noreply.github.com'
-          git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/future-branches.json
+          git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/completion-plan.json Projects/Aurum/future-branches.json
           if git diff --cached --quiet; then
             exit 0
           fi
@@ -216,8 +217,9 @@ jobs:
           git commit -m "Project read-only recovery state=$state [skip ci]"
           for attempt in 1 2 3; do
             git pull --rebase origin main
+            python3 Admin/sync_aurum_release_status.py
             python3 Admin/sync_aurum_future_branch_evidence.py
-            git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/future-branches.json
+            git add Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json Projects/Aurum/completion-plan.json Projects/Aurum/future-branches.json
             if ! git diff --cached --quiet; then
               git commit --amend --no-edit
             fi
