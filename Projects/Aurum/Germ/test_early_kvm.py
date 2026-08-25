@@ -40,6 +40,7 @@ def authority(path: Path, **overrides) -> dict:
         "allowed_controller_cidrs": ["127.0.0.1/32"],
         "authority_key_hex": "42" * 32,
         "session_seconds": 60,
+        "idle_seconds": 10,
         "allow_framebuffer": False,
         "max_frame_bytes": 1024 * 1024,
         "video_fallback": "hdmi-capture",
@@ -49,6 +50,8 @@ def authority(path: Path, **overrides) -> dict:
         "tls_key_path": str(path.parent / "server.key"),
     }
     value.update(overrides)
+    value["tls_cert_path"] = "/etc/aurum/early-kvm-server.crt"
+    value["tls_key_path"] = "/etc/aurum/early-kvm-server.key"
     path.write_text(json.dumps(value), encoding="utf-8")
     return value
 
@@ -80,8 +83,10 @@ class EarlyKVMTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "authority.json"
             certificate, private_key = fixture_tls_identity(Path(temporary))
-            authority(path, tls_cert_path=str(certificate), tls_key_path=str(private_key))
+            authority(path)
             config = early_kvm.load_authority(path)
+            config["tls_cert_path"] = str(certificate)
+            config["tls_key_path"] = str(private_key)
             config["port"] = 0
             backend = RecordingBackend()
             server = early_kvm.build_server(config, backend=backend)
@@ -147,6 +152,15 @@ class EarlyKVMTests(unittest.TestCase):
             metadata = early_kvm_controller.save_frame(enabled, output)
             self.assertEqual(output.read_bytes(), raw)
             self.assertEqual(metadata["raw_sha256"], __import__("hashlib").sha256(raw).hexdigest())
+            oversized = {
+                "available": True,
+                "encoding": "zlib+base64",
+                "data": base64.b64encode(__import__("zlib").compress(b"X" * 1025)).decode("ascii"),
+                "raw_sha256": __import__("hashlib").sha256(b"X" * 1025).hexdigest(),
+            }
+            with mock.patch.object(early_kvm_controller, "MAX_FRAME_RAW_BYTES", 1024):
+                with self.assertRaises(early_kvm_controller.ControllerError):
+                    early_kvm_controller.save_frame(oversized, root / "oversized.raw")
 
     def test_tls_session_refuses_a_different_physical_pin(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -156,8 +170,10 @@ class EarlyKVMTests(unittest.TestCase):
             wrong_root.mkdir()
             wrong_certificate, _ = fixture_tls_identity(wrong_root)
             config_path = root / "authority.json"
-            authority(config_path, tls_cert_path=str(certificate), tls_key_path=str(private_key))
+            authority(config_path)
             config = early_kvm.load_authority(config_path)
+            config["tls_cert_path"] = str(certificate)
+            config["tls_key_path"] = str(private_key)
             config["port"] = 0
             server = early_kvm.build_server(config, backend=RecordingBackend())
             thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)

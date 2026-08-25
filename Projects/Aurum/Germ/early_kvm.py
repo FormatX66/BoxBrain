@@ -32,6 +32,8 @@ DEFAULT_CONFIG = Path("/etc/aurum/early-kvm.json")
 DEFAULT_RECEIPT = Path("/var/lib/aurum/evidence/early-kvm-events.jsonl")
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_TEXT_LENGTH = 256
+TLS_CERTIFICATE_PATH = Path("/etc/aurum/early-kvm-server.crt")
+TLS_PRIVATE_KEY_PATH = Path("/etc/aurum/early-kvm-server.key")
 
 
 class EarlyKVMError(RuntimeError):
@@ -78,8 +80,8 @@ def load_authority(path: Path | str) -> dict[str, Any]:
         raise EarlyKVMError("authority key is invalid")
 
     raw_networks = value.get("allowed_controller_cidrs")
-    if not isinstance(raw_networks, list) or not raw_networks:
-        raise EarlyKVMError("at least one controller CIDR is required")
+    if not isinstance(raw_networks, list) or not 1 <= len(raw_networks) <= 8:
+        raise EarlyKVMError("from one to eight controller CIDRs are required")
     networks = []
     for raw in raw_networks:
         try:
@@ -99,6 +101,9 @@ def load_authority(path: Path | str) -> dict[str, Any]:
     config["session_seconds"] = _bounded_int(
         value.get("session_seconds", 1800), name="session_seconds", minimum=30, maximum=7200
     )
+    config["idle_seconds"] = _bounded_int(
+        value.get("idle_seconds", 60), name="idle_seconds", minimum=5, maximum=300
+    )
     config["max_frame_bytes"] = _bounded_int(
         value.get("max_frame_bytes", 16 * 1024 * 1024),
         name="max_frame_bytes",
@@ -111,6 +116,8 @@ def load_authority(path: Path | str) -> dict[str, Any]:
         raise EarlyKVMError("early KVM transport must be tls-pinned")
     certificate = Path(str(value.get("tls_cert_path", "")))
     private_key = Path(str(value.get("tls_key_path", "")))
+    if certificate != TLS_CERTIFICATE_PATH or private_key != TLS_PRIVATE_KEY_PATH:
+        raise EarlyKVMError("early KVM TLS identity paths are outside the protected contract")
     config["tls_cert_path"] = str(certificate)
     config["tls_key_path"] = str(private_key)
     return config
@@ -124,6 +131,7 @@ def public_status(config: Mapping[str, Any]) -> dict[str, Any]:
         "port": config["port"],
         "allowed_controller_cidrs": [str(item) for item in config["_controller_networks"]],
         "session_seconds": config["session_seconds"],
+        "idle_seconds": config["idle_seconds"],
         "allow_framebuffer": config["allow_framebuffer"],
         "video_fallback": config["video_fallback"],
         "input_backend": "linux-uinput",
@@ -398,11 +406,17 @@ class AurumKVMServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
     def get_request(self):
         connection, address = super().get_request()
+        if not source_allowed(str(address[0]), self.config):
+            connection.close()
+            self.receipts.append("connection-refused", source=str(address[0]), reason="controller-address")
+            raise ConnectionAbortedError("early KVM controller address is not allowed")
         if self.tls_context is None:
             return connection, address
         try:
+            connection.settimeout(5.0)
             secured = self.tls_context.wrap_socket(connection, server_side=True)
-        except ssl.SSLError:
+            secured.settimeout(None)
+        except (OSError, ssl.SSLError):
             connection.close()
             raise
         return secured, address
@@ -441,6 +455,8 @@ class AurumKVMHandler(socketserver.StreamRequestHandler):
             raise EarlyKVMError("request is not valid JSON") from exc
         if not isinstance(value, dict):
             raise EarlyKVMError("request must be one JSON object")
+        if value.get("schema") != PROTOCOL_SCHEMA:
+            raise EarlyKVMError("request protocol schema is invalid")
         return value
 
     def _authenticate(self, challenge: str) -> tuple[str, str] | None:
@@ -454,7 +470,11 @@ class AurumKVMHandler(socketserver.StreamRequestHandler):
         controller = str(request.get("controller", ""))
         client_nonce = str(request.get("client_nonce", ""))
         supplied = str(request.get("mac", ""))
-        if not controller or len(controller) > 100 or len(client_nonce) != 32:
+        try:
+            nonce_valid = len(bytes.fromhex(client_nonce)) == 16
+        except ValueError:
+            nonce_valid = False
+        if not controller or len(controller) > 100 or not nonce_valid:
             self._send({"schema": PROTOCOL_SCHEMA, "outcome": "refused", "reason": "authentication-fields"})
             return None
         expected = message_mac(self.server.config["_authority_key"], request)
@@ -501,6 +521,7 @@ class AurumKVMHandler(socketserver.StreamRequestHandler):
 
     def handle(self) -> None:
         source = str(self.client_address[0])
+        self.connection.settimeout(float(self.server.config["idle_seconds"]))
         if not source_allowed(source, self.server.config):
             self._send({"schema": PROTOCOL_SCHEMA, "outcome": "refused", "reason": "controller-address"})
             self.server.receipts.append("connection-refused", source=source, reason="controller-address")

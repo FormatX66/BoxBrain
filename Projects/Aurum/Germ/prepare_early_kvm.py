@@ -184,6 +184,7 @@ def provision(
         "allowed_controller_cidrs": [str(network)],
         "authority_key_hex": authority_key.hex(),
         "session_seconds": 1800,
+        "idle_seconds": 60,
         "allow_framebuffer": bool(allow_framebuffer),
         "max_frame_bytes": 16 * 1024 * 1024,
         "video_fallback": "hdmi-capture",

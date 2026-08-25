@@ -15,7 +15,8 @@ from early_kvm import PROTOCOL_SCHEMA, canonical_json, message_mac
 
 
 CONTROLLER_SCHEMA = "aurum-early-kvm-controller-v1"
-MAX_RESPONSE_BYTES = 40 * 1024 * 1024
+MAX_RESPONSE_BYTES = 48 * 1024 * 1024
+MAX_FRAME_RAW_BYTES = 32 * 1024 * 1024
 
 
 class ControllerError(RuntimeError):
@@ -79,6 +80,8 @@ def _receive(handle) -> dict[str, Any]:
         raise ControllerError("early KVM response is invalid") from exc
     if not isinstance(value, dict):
         raise ControllerError("early KVM response must be an object")
+    if value.get("schema") != PROTOCOL_SCHEMA:
+        raise ControllerError("early KVM response protocol schema changed")
     return value
 
 
@@ -172,7 +175,11 @@ def save_frame(frame: Mapping[str, Any], destination: Path) -> dict[str, Any]:
     if frame.get("encoding") != "zlib+base64":
         raise ControllerError("unsupported framebuffer encoding")
     try:
-        raw = zlib.decompress(base64.b64decode(str(frame["data"]), validate=True))
+        compressed = base64.b64decode(str(frame["data"]), validate=True)
+        decompressor = zlib.decompressobj()
+        raw = decompressor.decompress(compressed, MAX_FRAME_RAW_BYTES + 1)
+        if len(raw) > MAX_FRAME_RAW_BYTES or decompressor.unconsumed_tail or decompressor.unused_data or not decompressor.eof:
+            raise ControllerError("framebuffer decompression exceeds the client bound")
     except (ValueError, zlib.error) as exc:
         raise ControllerError("framebuffer payload is invalid") from exc
     digest = __import__("hashlib").sha256(raw).hexdigest()
