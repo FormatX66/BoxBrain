@@ -104,11 +104,12 @@ HeX-Control was a learning scaffold with no remaining unique product
 responsibility identified. Its apparent direction was superseded by
 BrainConnect.
 
-It is therefore an **archive candidate**, not an active parallel controller.
-Before archival, perform one final read-only comparison for unique code,
-decisions, or evidence. Preserve anything unique in the appropriate canonical
-repository; do not merge an obsolete repository's full history into
-BrainConnect merely to retain it.
+It was archived on 2026-08-25 after a final read-only check found no releases,
+issues, consumers, or unique product implementation on `main`. GitHub retains
+both repository branches and the deliberately unmerged `DO NOT MERGE` Chat-to-
+Git bootstrap pull request as inert historical evidence. Do not reactivate or
+merge that scaffold into BrainConnect unless a new requirement first proves a
+unique capability that is not already owned elsewhere.
 
 ## Consolidation rules
 

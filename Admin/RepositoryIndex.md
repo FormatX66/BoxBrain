@@ -12,7 +12,7 @@ This is the canonical registry of repositories currently visible to BoxBrain thr
 | Chat-to-Git-Pipeline — bounded Git request/webhook service surfaced through Arkmatx.com | Active service boundary | `main` | [FormatX66/Chat-to-Git-Pipeline](https://github.com/FormatX66/Chat-to-Git-Pipeline) |
 | aurum-future-branch-quantum — provider-neutral Future Branch quantum test service | Active experimental service | `main` | `FormatX66/aurum-future-branch-quantum` (private) |
 | TypeTriX — standalone Windows adaptive typing implementation | Active experimental product | `main` | `FormatX66/TypeTriX` (private) |
-| HeX-Control — learning scaffold apparently superseded by BrainConnect | Archive candidate after unique-state check | `main` | [FormatX66/HeX-Control](https://github.com/FormatX66/HeX-Control) |
+| HeX-Control — preserved learning scaffold superseded by BrainConnect | Archived 2026-08-25; branches and DO-NOT-MERGE PR retained | `main` | [FormatX66/HeX-Control](https://github.com/FormatX66/HeX-Control) |
 | hex — legacy empty repository | Archive candidate | `master` | `FormatX66/hex` (private) |
 | desktop-tutorial — legacy tutorial repository | Archive candidate | `master` | `FormatX66/desktop-tutorial` (private) |
 
