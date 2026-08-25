@@ -124,6 +124,24 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertLess(preflight_refresh, branch_sync)
         self.assertLess(branch_sync, persisted_state)
 
+    def test_recovery_refresh_projects_the_same_complete_handoff_surface(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (
+            root / ".github" / "workflows" / "aurum-hopper-recovery-readonly-refresh.yml"
+        ).read_text(encoding="utf-8")
+        required = (
+            "Admin/sync_aurum_release_status.py",
+            "Admin/sync_aurum_future_branch_evidence.py",
+            "Admin/sync_aurum_fallback_evidence.py",
+            "Admin/materialize_aurum_next_interaction.py",
+            "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json",
+            "Projects/Aurum/completion-plan.json",
+            "Projects/Aurum/future-branches.json",
+            "Projects/Aurum/next-interaction-packet.json",
+        )
+        for token in required:
+            self.assertIn(token, workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
