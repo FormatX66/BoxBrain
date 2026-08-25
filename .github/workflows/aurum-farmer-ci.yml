@@ -47,12 +47,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Install, start, and verify Farmer service contract
+      - name: Install, start, and verify Farmer service contract with release-local Python
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          & .\installer\install-aurum-farmer.ps1
+          & .\installer\install-aurum-farmer.ps1 -ForceEmbeddedPython
           $receiptPath = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime\install-receipt.json'
           if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
             throw "Farmer install receipt missing: $receiptPath"
@@ -64,6 +64,9 @@ jobs:
           if ([string]$receipt.source_commit -ne (& git rev-parse HEAD).Trim()) {
             throw 'Farmer install receipt source commit does not match checkout HEAD.'
           }
+          if ([string]$receipt.python_runtime -ne 'embedded' -or -not (Test-Path -LiteralPath ([string]$receipt.python_exe) -PathType Leaf)) {
+            throw 'Farmer installer did not prove the release-local embedded Python fallback.'
+          }
           $task = Get-ScheduledTask -TaskName 'Aurum Farmer' -ErrorAction Stop
           if ([string]$task.State -notin @('Ready','Running')) {
             throw "Unexpected Farmer scheduled-task state: $($task.State)"
@@ -72,7 +75,7 @@ jobs:
           if ($health.status -ne 'healthy' -or $health.event_chain_valid -ne $true) {
             throw 'Farmer loopback health endpoint failed after installation.'
           }
-          'AURUM_FARMER_WINDOWS_INSTALL_OK'
+          'AURUM_FARMER_WINDOWS_EMBEDDED_PYTHON_INSTALL_OK'
       - name: Remove ephemeral task while preserving durable-state semantics
         if: always()
         shell: pwsh
