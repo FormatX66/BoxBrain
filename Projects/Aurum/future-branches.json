@@ -159,7 +159,7 @@
         "is the ISO still the wrong way?",
         "should we use direct UEFI or the universal carrier instead?"
       ],
-      "prepared_response": "The fallback payload is re-proven against the current canonical release, but same-head fallback build/boot publication is not yet current. Keep the method prepared but cool until the matrix succeeds on that exact experimental head.",
+      "prepared_response": "The x86 fallback carrier has current-release canonical-provenance proof and successful same-head virtual build/boot proof. Keep it warm as an isolated experimental fallback; this is not physical HP proof and grants no write authority.",
       "action_if_safe": "Compare fresh physical carrier evidence and expected total cost while preserving the same Germ/genetics/LKG contract. Never promote the experimental carrier from virtual evidence alone."
     },
     {
@@ -369,9 +369,9 @@
       "canonical_payload_match": true,
       "matrix_receipt_present": true,
       "matrix_success": true,
-      "matrix_head_sha": "ef137007d04a8d511ab8cdee6b3699ba0ad132a6",
-      "same_experimental_head": false,
-      "warm_current": false,
+      "matrix_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
+      "same_experimental_head": true,
+      "warm_current": true,
       "physical_proof_inferred": false,
       "authority_granted": false
     }
@@ -391,7 +391,7 @@
     "flash_authorization_eligible": true,
     "write_authority": false,
     "destructive_action_allowed": false,
-    "fallback_carrier_current": false,
+    "fallback_carrier_current": true,
     "fallback_carrier_provenance_current": true
   }
 }
