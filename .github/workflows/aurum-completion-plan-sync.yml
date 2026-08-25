@@ -21,9 +21,11 @@ on:
       # A projector-authored follow-up commit causes at most one no-op rerun.
       - 'Projects/Aurum/completion-plan.json'
       - 'Projects/Aurum/future-branches.json'
+      - 'Prompts/FutureBranchSeed.txt'
       - 'Admin/sync_aurum_release_status.py'
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - 'Admin/sync_aurum_fallback_evidence.py'
+      - 'Admin/materialize_aurum_next_interaction.py'
       - '.github/workflows/aurum-completion-plan-sync.yml'
 
 permissions:
@@ -53,18 +55,21 @@ jobs:
       - name: Project fallback freshness into Future Branch
         run: python Admin/sync_aurum_fallback_evidence.py
 
+      - name: Materialize next-interaction handoff packet
+        run: python Admin/materialize_aurum_next_interaction.py
+
       - name: Persist synchronized Aurum state
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'aurum-completion-plan[bot]'
           git config user.email 'aurum-completion-plan@users.noreply.github.com'
-          git add Projects/Aurum/completion-plan.json Projects/Aurum/future-branches.json
+          git add Projects/Aurum/completion-plan.json Projects/Aurum/future-branches.json Projects/Aurum/next-interaction-packet.json
           if git diff --cached --quiet; then
             echo 'AURUM_STATE_SYNC unchanged=true'
             exit 0
           fi
-          git commit -m 'Synchronize Aurum canonical evidence [skip ci]'
+          git commit -m 'Synchronize Aurum canonical evidence and interaction handoff [skip ci]'
           git pull --rebase origin main
           git push origin HEAD:main
           echo 'AURUM_STATE_SYNC persisted=true'
