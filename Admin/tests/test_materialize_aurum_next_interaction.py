@@ -120,6 +120,9 @@ class MaterializeAurumNextInteractionTests(unittest.TestCase):
             root = Path(temporary_directory)
             branch_path, packet_path, seed_path = self.paths(root)
             branch = self.branch()
+            branch["current_program"] = (
+                "Stale preflight says next_gate=explicit-guarded-flash-authorization and asks for another flash."
+            )
             branch["live_controls"].update(
                 {
                     "flash_receipt_matches_current_release": True,
@@ -149,7 +152,7 @@ class MaterializeAurumNextInteractionTests(unittest.TestCase):
                     {
                         "rank": 3,
                         "input_family": "generic-prompt-intent-expansion",
-                        "prepared_response": "Continue from canonical state.",
+                        "prepared_response": "Continue from next_gate=explicit-guarded-flash-authorization.",
                         "action_if_safe": "Advance safe work.",
                     },
                 ]
@@ -166,6 +169,7 @@ class MaterializeAurumNextInteractionTests(unittest.TestCase):
                 result = materializer.materialize()
 
             packet = result["packet"]
+            saved_branch = json.loads(branch_path.read_text(encoding="utf-8"))
             families = [item["input_family"] for item in packet["frontier"]]
             self.assertEqual(
                 families,
@@ -184,7 +188,20 @@ class MaterializeAurumNextInteractionTests(unittest.TestCase):
             )
             self.assertEqual(packet["live_controls_snapshot"]["frontier_mode"], "post-flash-physical-boot")
             self.assertIn("effective next gate=physical-hopper-boot-proof", packet["current_program"])
+            self.assertIn("Physical Hopper boot proof", packet["current_program"])
+            self.assertNotIn("next_gate=explicit-guarded-flash-authorization", packet["current_program"])
             self.assertNotIn("explicit-guarded-flash-authorization", families)
+            status = next(item for item in packet["frontier"] if item["input_family"] == "status-or-so")
+            generic = next(
+                item for item in packet["frontier"] if item["input_family"] == "generic-prompt-intent-expansion"
+            )
+            self.assertIn("physical-hopper-boot-proof", status["prepared_response"])
+            self.assertNotIn("explicit-guarded-flash-authorization", status["prepared_response"])
+            self.assertIn("physical-hopper-boot-proof", generic["prepared_response"])
+            saved_families = [item["input_family"] for item in saved_branch["likely_user_inputs"][:5]]
+            self.assertEqual(saved_families, families)
+            self.assertNotEqual(saved_branch["likely_user_inputs"][0]["input_family"], "explicit-guarded-flash-authorization")
+            self.assertNotIn("next_gate=explicit-guarded-flash-authorization", saved_branch["current_program"])
             self.assertFalse(packet["authority_granted"])
             self.assertFalse(packet["physical_proof_inferred"])
 
