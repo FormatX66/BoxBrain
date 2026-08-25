@@ -19,6 +19,9 @@ permissions:
   contents: write
 
 concurrency:
+  # Different workflow runs may finish almost simultaneously. They are allowed to
+  # race here because the persistence loop below re-reads main and refuses to
+  # replace a newer run/attempt with an older one.
   group: aurum-critical-workflow-evidence-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
 
@@ -33,7 +36,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Persist terminal lifecycle evidence
+      - name: Persist newest terminal lifecycle evidence monotonically
         env:
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
@@ -49,18 +52,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          git config user.name 'aurum-critical-evidence[bot]'
+          git config user.email 'aurum-critical-evidence@users.noreply.github.com'
+
+          write_receipt_if_newest() {
+            python3 - <<'PY'
           import json, os, pathlib, re
+
           root = pathlib.Path('Projects/Aurum/Release/critical-workflows')
           root.mkdir(parents=True, exist_ok=True)
           name = os.environ['WORKFLOW_NAME']
           slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+          path = root / f'{slug}.json'
+          incoming_key = (
+              int(os.environ['RUN_NUMBER']),
+              int(os.environ.get('RUN_ATTEMPT') or '1'),
+          )
+
+          if path.exists():
+              try:
+                  existing = json.loads(path.read_text(encoding='utf-8'))
+                  existing_key = (
+                      int(existing.get('run_number') or 0),
+                      int(existing.get('run_attempt') or 0),
+                  )
+              except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                  raise SystemExit(f'refusing to overwrite malformed critical evidence {path}: {exc}')
+              if incoming_key < existing_key:
+                  print(
+                      'AURUM_CRITICAL_EVIDENCE_STALE_EVENT '
+                      f'incoming={incoming_key} existing={existing_key} path={path}'
+                  )
+                  raise SystemExit(3)
+
           payload = {
               'schema': 'aurum-critical-workflow-evidence-v1',
               'workflow': name,
               'run_id': int(os.environ['WORKFLOW_ID']),
-              'run_number': int(os.environ['RUN_NUMBER']),
-              'run_attempt': int(os.environ.get('RUN_ATTEMPT') or '1'),
+              'run_number': incoming_key[0],
+              'run_attempt': incoming_key[1],
               'status': os.environ['RUN_STATUS'],
               'conclusion': os.environ.get('RUN_CONCLUSION') or None,
               'event': os.environ['RUN_EVENT'],
@@ -71,19 +101,39 @@ jobs:
               'physical_proof_inferred': False,
               'authority_granted': False,
           }
-          (root / f'{slug}.json').write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+          path.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
           print(json.dumps(payload, sort_keys=True))
           PY
-          git config user.name 'aurum-critical-evidence[bot]'
-          git config user.email 'aurum-critical-evidence@users.noreply.github.com'
-          git add Projects/Aurum/Release/critical-workflows
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "Record critical workflow evidence: ${WORKFLOW_NAME}=${RUN_STATUS}/${RUN_CONCLUSION:-none} [skip ci]"
+          }
+
+          # Rebase-and-push is insufficient here: a lower-numbered run can finish
+          # later, rebase its stale receipt on top of a newer receipt, and silently
+          # regress canonical evidence. Re-evaluate the monotonic key from fresh
+          # origin/main before every push attempt instead.
           for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git fetch origin main
+            git reset --hard origin/main
+            set +e
+            write_receipt_if_newest
+            rc=$?
+            set -e
+            if [ "$rc" -eq 3 ]; then
+              echo 'AURUM_CRITICAL_EVIDENCE no-op=stale-terminal-event'
+              exit 0
+            fi
+            if [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
+            git add Projects/Aurum/Release/critical-workflows
+            if git diff --cached --quiet; then
+              echo 'AURUM_CRITICAL_EVIDENCE no-op=unchanged'
+              exit 0
+            fi
+            git commit -m "Record critical workflow evidence: ${WORKFLOW_NAME}=${RUN_STATUS}/${RUN_CONCLUSION:-none} [skip ci]"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
             sleep $((attempt * 2))
           done
-          echo 'failed to persist critical workflow evidence after retries' >&2
+          echo 'failed to persist monotonic critical workflow evidence after retries' >&2
           exit 1
