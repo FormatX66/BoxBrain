@@ -22,7 +22,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from Admin.reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
+try:
+    from Admin.reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
+except ModuleNotFoundError:  # Support `python Admin/checkpoint_aurum_runtime.py`.
+    from reconstruct_aurum_state import ROOT, ReconstructionError, reconstruct
 
 DEFAULT_OUTPUT = ROOT / "data/aurum/runtime-checkpoint.json"
 ALLOWED_JOB_STATES = {"running", "runnable", "blocked", "failed", "retrying", "completed"}
