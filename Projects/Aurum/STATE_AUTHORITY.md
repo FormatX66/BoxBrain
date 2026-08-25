@@ -66,6 +66,14 @@ Aurum should be able to stop, restart, move between model providers, lose a conv
 
 without asking a human to reconstruct prior conversations.
 
+The repository carries an executable continuity proof at `Admin/reconstruct_aurum_state.py`. It reconstructs those answers from the committed completion plan, verified Tiny Seed handoff, current zero-authority physical preflight, and Future Branch state only. It deliberately does not infer a live process, destructive authority, physical proof, or LKG mutation from stored snapshots. Canonical release provenance disagreement or broken gate dependencies fail closed. The proof is part of repository CI through `Admin.tests.test_reconstruct_aurum_state`.
+
+A direct operator or recovery check is:
+
+`python Admin/reconstruct_aurum_state.py`
+
+The emitted `aurum-restart-reconstruction-v1` object is a reconstruction artifact, not an authorization token. Any human-only, physical, destructive, or time-sensitive boundary still requires fresh live evidence and Action Ownership checks.
+
 ## Design consequence
 
 ChatGPT memory failures are non-critical unless they reveal that important state exists only in chat. The fix for that condition is not to make chat memory authoritative; it is to move the missing state into Aurum's durable project/runtime stores.
