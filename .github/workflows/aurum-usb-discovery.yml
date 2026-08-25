@@ -27,6 +27,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Heal stale self-hosted Git transaction state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # The self-hosted Windows worktree persists its .git metadata between
+          # jobs. A prior interrupted receipt rebase can therefore poison a later
+          # read-only discovery even though actions/checkout refreshed the files.
+          # Clear only unfinished Git transaction metadata, then re-pin the
+          # worktree to the just-fetched main ref before generating evidence.
+          foreach ($stateDir in @('.git/rebase-merge', '.git/rebase-apply')) {
+            if (Test-Path -LiteralPath $stateDir) {
+              Write-Host "AURUM_USB_DISCOVERY_GIT_HEAL stale=$stateDir"
+              git rebase --abort 2>$null
+              if ($LASTEXITCODE -ne 0 -and (Test-Path -LiteralPath $stateDir)) {
+                Remove-Item -LiteralPath $stateDir -Recurse -Force
+              }
+            }
+          }
+          git reset --hard origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_GIT_HEAL reset-failed' }
+          git status --porcelain
+          if ($LASTEXITCODE -ne 0) { throw 'AURUM_USB_DISCOVERY_GIT_HEAL status-failed' }
+
       - name: Install pinned Python for the canonical preflight evaluator
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
