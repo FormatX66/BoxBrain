@@ -53,9 +53,41 @@ def require_seed_contract(text: str) -> None:
         raise ValueError(f"Future Branch interaction/handoff contract incomplete: {missing}")
 
 
+def _post_flash_frontier(candidates: list[dict], live_controls: dict | None) -> list[dict]:
+    """Promote physical-boot outcomes after current-release raw readback is proven.
+
+    A stale preflight may still name flash authorization as its historical next gate.
+    Once a matching current-release READY_TO_BOOT receipt exists, interaction planning
+    must stop treating another flash as the leading future. This changes prediction
+    order only; it grants no authority and infers no boot success.
+    """
+
+    if not isinstance(live_controls, dict) or not live_controls.get("current_release_flash_ready_to_boot"):
+        return sorted(candidates, key=lambda item: item["rank"])
+
+    preferred = {
+        "physical-result-success": 0,
+        "physical-result-mixed": 1,
+        "physical-result-failure": 2,
+        "status-or-so": 3,
+        "generic-prompt-intent-expansion": 4,
+    }
+    ordered = sorted(
+        candidates,
+        key=lambda item: (preferred.get(item["input_family"], 100), item["rank"]),
+    )
+    for rank, item in enumerate(ordered, start=1):
+        item["rank"] = rank
+    return ordered
+
+
 def materialize() -> dict:
     branch = read_json(BRANCH)
     require_seed_contract(SEED.read_text(encoding="utf-8"))
+
+    canonical = branch.get("canonical_evidence")
+    live_controls = branch.get("live_controls")
+    release = canonical.get("release") if isinstance(canonical, dict) else None
 
     inputs = branch.get("likely_user_inputs")
     if not isinstance(inputs, list):
@@ -78,14 +110,10 @@ def materialize() -> dict:
             "action_if_safe": action if isinstance(action, str) else None,
             "authority": "prediction-only-requires-live-consumption-recheck",
         })
-    candidates.sort(key=lambda item: item["rank"])
+    candidates = _post_flash_frontier(candidates, live_controls if isinstance(live_controls, dict) else None)
     candidates = candidates[:5]
     if not candidates:
         raise ValueError("no renderable interaction candidates")
-
-    canonical = branch.get("canonical_evidence")
-    live_controls = branch.get("live_controls")
-    release = canonical.get("release") if isinstance(canonical, dict) else None
 
     base_program = branch.get("current_program")
     if not isinstance(base_program, str):
@@ -93,6 +121,20 @@ def materialize() -> dict:
     marker = " Future Branch handoff:"
     if marker in base_program:
         base_program = base_program.split(marker, 1)[0].rstrip()
+
+    post_flash_ready = bool(
+        isinstance(live_controls, dict)
+        and live_controls.get("current_release_flash_ready_to_boot") is True
+        and live_controls.get("flash_receipt_matches_current_release") is True
+    )
+    if post_flash_ready:
+        operational_prefix = (
+            "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; "
+            "effective next gate=physical-hopper-boot-proof. Do not reflash unless later evidence "
+            "invalidates the media/provenance or a new bounded flash cycle is explicitly started."
+        )
+        base_program = f"{operational_prefix} {base_program}".strip()
+
     visible_program = f"{base_program} {HANDOFF_SENTENCE}".strip()
 
     handoff_state = {
@@ -117,7 +159,12 @@ def materialize() -> dict:
         branch["interaction_handoff"] = handoff_state
         BRANCH.write_text(json.dumps(branch, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
-    live_snapshot = live_controls if isinstance(live_controls, dict) else None
+    live_snapshot = dict(live_controls) if isinstance(live_controls, dict) else None
+    if post_flash_ready and live_snapshot is not None:
+        live_snapshot["physical_preflight_next_gate"] = live_snapshot.get("next_gate")
+        live_snapshot["next_gate"] = "physical-hopper-boot-proof"
+        live_snapshot["frontier_mode"] = "post-flash-physical-boot"
+
     packet = {
         "schema": "aurum-next-interaction-packet-v1",
         "activation": "next-real-interaction-not-clock",
