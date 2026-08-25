@@ -1,8 +1,8 @@
 {
   "mode": "read-only",
   "purpose": "Automatically refresh privacy-safe USB identity evidence after a newly verified Tiny Seed handoff so physical preparation stays current without granting media-selection or write authority.",
-  "reason": "A new canonical READY_TO_FLASH release invalidates older release-bound physical evidence. Re-enumerate USB media read-only against this exact release and stop before any destructive authority boundary.",
-  "request_id": "tinyseed-auto-release-0cdeae61f2e4-32816097051",
+  "reason": "The current READY_TO_FLASH release is still missing a same-release discovery receipt after the prior system-owned refresh. Retry read-only enumeration against this exact release; do not grant selection or write authority and stop before any destructive boundary.",
+  "request_id": "tinyseed-auto-release-0cdeae61f2e4-retry-20260825T0745Z",
   "required_release_source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051",
   "required_release_state": "READY_TO_FLASH",
   "schema": "aurum-usb-discovery-request-v1",
