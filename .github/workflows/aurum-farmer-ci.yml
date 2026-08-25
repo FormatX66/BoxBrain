@@ -1,0 +1,39 @@
+name: Aurum Farmer CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Projects/AurumFarmer/**'
+      - 'installer/install-aurum-farmer.ps1'
+      - 'installer/uninstall-aurum-farmer.ps1'
+      - 'installer/aurum-farmer.service'
+      - '.github/workflows/aurum-farmer-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Projects/AurumFarmer/**'
+      - 'installer/install-aurum-farmer.ps1'
+      - 'installer/uninstall-aurum-farmer.ps1'
+      - 'installer/aurum-farmer.service'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Compile Farmer runtime
+        env:
+          PYTHONPATH: Projects/AurumFarmer
+        run: python -m compileall -q Projects/AurumFarmer/aurum_farmer
+      - name: Verify ledger, watchdog, scheduler, evidence, LKG, and adapters
+        env:
+          PYTHONPATH: Projects/AurumFarmer
+        run: python -m unittest discover -s Projects/AurumFarmer/tests -v

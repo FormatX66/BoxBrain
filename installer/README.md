@@ -112,3 +112,24 @@ redacted logs, retry/backoff, stale-lock recovery, and automated security tests.
 See [`docs/GIT_LOCAL_CODEX_BRIDGE.md`](../docs/GIT_LOCAL_CODEX_BRIDGE.md) for the
 threat model, task format, local approval process, installation commands, and
 recovery guide.
+
+## Aurum Farmer persistent orchestrator
+
+Install the current-user Farmer supervisor, watchdog, loopback API, durable
+ledger, and restart-on-failure scheduled task:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\install-aurum-farmer.ps1
+```
+
+The installer tests the versioned release before switching the task, preserves
+all previous releases and runtime state, restricts the signing/API secret files
+to the current user and SYSTEM, starts the service, and verifies its loopback
+health response. Remove only the task while retaining the ledger:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\uninstall-aurum-farmer.ps1
+```
+
+See [`Projects/AurumFarmer/README.md`](../Projects/AurumFarmer/README.md) for the
+state machine, evidence contract, executor adapters, and job submission format.
