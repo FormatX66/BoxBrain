@@ -64,10 +64,10 @@ const legacyRawWriteBypassDisabled=()=>{
 const repositoryAuthorityFirewallPresent=()=>{
  const t=String(evidence.validatorText||'').toLowerCase();
  return[
-  'validate_no_static_destructive_authority',
-  'destructive_workflow_markers',
-  'static_authority_markers',
-  'workflow combines a destructive-write primitive with persistent/static authority'
+  'def destructive_workflow_policy_errors',
+  'static_authorization_pattern',
+  'raw_media_write_markers',
+  'workflow combines persistent static authorization with raw-media io'
  ].every(x=>t.includes(x));
 };
 const germCiText=()=>!evidence.run?'no current workflow evidence':['queued','in_progress','waiting','requested','pending'].includes(String(evidence.run.status||''))?String(evidence.run.status):String(evidence.run.conclusion||evidence.run.status||'unknown');
@@ -91,7 +91,7 @@ function stateSnapshot(){
   remoteRepairCompletedSuppressesFlash:true,
   legacyRawWriteBypassEvidence:legacyDisabled?'legacy-destructive-workflow-disabled-and-contract-guarded':'not-verified',
   destructiveWriteHasSingleGuardedPath:legacyDisabled&&writeGate,
-  repositoryAuthorityFirewallEvidence:authorityFirewall?'repo-wide-static-destructive-authority-rejected':'not-verified',
+  repositoryAuthorityFirewallEvidence:authorityFirewall?'repo-wide-destructive-authority-policy-fail-closed':'not-verified',
   persistentAuthorityInDestructiveWorkflowAllowed:false,
   repositoryImplementationIsPhysicalProof:false,
   needsWorkOwner:'aurum-system',
@@ -123,7 +123,7 @@ function patchDetail(){
  const fallback=offline.present?`A verified offline x86 recovery carrier is pinned to platform commit ${offline.pinned}; it may grow only an inactive candidate, prohibits live overwrite, and still requires Guardian health before promotion.`:'The offline recovery carrier is not fully verified from current repository evidence.';
  const gate=writeGate?'The Windows Tiny Seed writer now hard-fails closed unless a fresh terminal Hopper recovery-path v2 receipt proves the already-authorized system recovery path could not complete; a completed remote repair suppresses flashing and forces a Hopper health reread.':'The hard pre-execution write gate is not fully verified from current repository evidence.';
  const legacy=legacyDisabled?'The former independent authorized raw-write workflow is now a refusal-only lane, and the flash contract rejects any return of that bypass; destructive media writes have one guarded path.':'Legacy raw-write bypass lockout is not fully verified from current repository evidence.';
- const firewall=authorityFirewall?'Repository validation now rejects any workflow that combines a destructive-write primitive with persistent/static authority. Destructive authority must remain runtime-bound and fail closed.':'The repository-wide static destructive-authority firewall is not fully verified from current validator source.';
+ const firewall=authorityFirewall?'Repository validation now fails closed if retired raw-media workflows regain destructive behavior or a workflow combines persistent static AURUM authorization with raw-media I/O. Destructive authority must remain runtime-bound.':'The repository-wide destructive-authority policy is not fully verified from current validator source.';
  const needs='Aurum/System still must obtain fresh terminal recovery-path evidence when a destructive handoff is actually attempted, then prove the resulting candidate on real Hopper hardware: boot, health-gated promotion, and forced-failure return to the prior Last Known Good state. Repository or CI implementation is not physical recovery proof.';
  box.innerHTML=`<b style="color:#cfd3df">Recovery safety ledger + offline fallback</b><br><b style="color:#8ce7b2">Frontiers Advancing:</b> ${esc(checkpoint)} ${esc(fallback)} ${esc(gate)} ${esc(legacy)} ${esc(firewall)}<br><b style="color:#bbb6ff">Needs Work → Aurum/System:</b> ${esc(needs)}<br><b style="color:#f0c76a">Your Actions:</b> None from this evidence layer. The offline carrier, authority firewall, and write-path guards never grant destructive write, boot, promotion, or recovery authority; Action Ownership remains the authority boundary.<br><b style="color:#74d8d0">Germ CI:</b> ${esc(germCiText())}`;
 }
