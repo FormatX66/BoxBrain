@@ -115,6 +115,79 @@ class MaterializeAurumNextInteractionTests(unittest.TestCase):
             self.assertFalse(saved_branch["interaction_handoff"]["authority_snapshot_authoritative"])
             self.assertIn("must be revalidated live at consumption", saved_branch["current_program"])
 
+    def test_ready_to_boot_receipt_promotes_physical_boot_frontier_without_granting_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            branch_path, packet_path, seed_path = self.paths(root)
+            branch = self.branch()
+            branch["live_controls"].update(
+                {
+                    "flash_receipt_matches_current_release": True,
+                    "current_release_flash_ready_to_boot": True,
+                }
+            )
+            branch["likely_user_inputs"].extend(
+                [
+                    {
+                        "rank": 7,
+                        "input_family": "physical-result-success",
+                        "prepared_response": "Verify formal boot proof.",
+                        "action_if_safe": "Continue protected regrow after boot proof.",
+                    },
+                    {
+                        "rank": 5,
+                        "input_family": "physical-result-mixed",
+                        "prepared_response": "Preserve boot progress and repair only the deferred gate.",
+                        "action_if_safe": "Collect evidence and repair the failed stage.",
+                    },
+                    {
+                        "rank": 6,
+                        "input_family": "physical-result-failure",
+                        "prepared_response": "Classify the boot failure without touching LKG.",
+                        "action_if_safe": "Use prepared diagnostics and fallback evidence.",
+                    },
+                    {
+                        "rank": 3,
+                        "input_family": "generic-prompt-intent-expansion",
+                        "prepared_response": "Continue from canonical state.",
+                        "action_if_safe": "Advance safe work.",
+                    },
+                ]
+            )
+            self.write_json(branch_path, branch)
+            seed_path.parent.mkdir(parents=True, exist_ok=True)
+            seed_path.write_text(SEED_CONTRACT, encoding="utf-8")
+
+            with (
+                patch.object(materializer, "BRANCH", branch_path),
+                patch.object(materializer, "PACKET", packet_path),
+                patch.object(materializer, "SEED", seed_path),
+            ):
+                result = materializer.materialize()
+
+            packet = result["packet"]
+            families = [item["input_family"] for item in packet["frontier"]]
+            self.assertEqual(
+                families,
+                [
+                    "physical-result-success",
+                    "physical-result-mixed",
+                    "physical-result-failure",
+                    "status-or-so",
+                    "generic-prompt-intent-expansion",
+                ],
+            )
+            self.assertEqual(packet["live_controls_snapshot"]["next_gate"], "physical-hopper-boot-proof")
+            self.assertEqual(
+                packet["live_controls_snapshot"]["physical_preflight_next_gate"],
+                "explicit-guarded-flash-authorization",
+            )
+            self.assertEqual(packet["live_controls_snapshot"]["frontier_mode"], "post-flash-physical-boot")
+            self.assertIn("effective next gate=physical-hopper-boot-proof", packet["current_program"])
+            self.assertNotIn("explicit-guarded-flash-authorization", families)
+            self.assertFalse(packet["authority_granted"])
+            self.assertFalse(packet["physical_proof_inferred"])
+
     def test_materialization_is_idempotent_after_packet_and_handoff_are_current(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
