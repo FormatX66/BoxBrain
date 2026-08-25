@@ -32,6 +32,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Revalidation is intentionally tied to origin/main at run time, not to
+          # the PR's original base SHA. A newer canonical READY_TO_FLASH handoff
+          # must therefore re-prove that this warm fallback still carries the same
+          # protected Germ/recovery payload before Future Branch treats it as
+          # current rather than merely historical virtual evidence.
+          #
           # The experimental loader may differ, but the protected Germ, genetics,
           # offline-carrier policy and recovery trust inputs must be byte-for-byte
           # identical to the source commit of the current canonical READY_TO_FLASH
