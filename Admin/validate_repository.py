@@ -97,6 +97,20 @@ IGNORED_DIRECTORY_NAMES = frozenset(
 # creates a false repository-integrity failure.
 IGNORED_FILE_NAMES = frozenset({"AGENTS.md", "pull_request_template.md"})
 
+# This historical workflow once embedded a persistent destructive authorization
+# and auto-triggered after image builds. It is retained only as a fail-closed
+# tombstone so receipts/history remain understandable. Never let it regain a raw
+# write path or automatic trigger; current writes belong to the canonical
+# release/device-bound one-shot guarded-flash flow.
+LEGACY_PC01_FLASH_WORKFLOW = Path(".github/workflows/aurum-pc01-flash-authorized.yml")
+LEGACY_PC01_FORBIDDEN_TOKENS = (
+    "workflow_run:",
+    "AURUM_FLASH_AUTHORIZATION:",
+    "\\\\.\\PhysicalDrive",
+    "diskpart.exe",
+    "FileAccess]::ReadWrite",
+)
+
 
 def repository_markdown_files(root: Path = ROOT) -> list[Path]:
     """Return project Markdown while excluding generated and ignored trees."""
@@ -119,6 +133,23 @@ def local_link_target(document: Path, raw_target: str) -> Path | None:
     if not path_text:
         return None
     return (document.parent / path_text).resolve()
+
+
+def destructive_workflow_policy_errors(root: Path = ROOT) -> list[str]:
+    """Fail closed if the retired PC-01 workflow regains persistent write authority."""
+    workflow = root / LEGACY_PC01_FLASH_WORKFLOW
+    if not workflow.is_file():
+        return []
+
+    text = workflow.read_text(encoding="utf-8")
+    errors: list[str] = []
+    for token in LEGACY_PC01_FORBIDDEN_TOKENS:
+        if token in text:
+            errors.append(
+                "Retired PC-01 flash workflow regained forbidden destructive behavior: "
+                f"{token}"
+            )
+    return errors
 
 
 def main() -> int:
@@ -164,6 +195,8 @@ def main() -> int:
         resolved = document.resolve()
         if resolved != root_readme and resolved not in linked_files:
             errors.append(f"Orphan Markdown file: {document.relative_to(ROOT)}")
+
+    errors.extend(destructive_workflow_policy_errors())
 
     if errors:
         print("BoxBrain validation failed:")
