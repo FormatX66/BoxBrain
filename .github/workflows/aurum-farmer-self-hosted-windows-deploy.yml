@@ -19,10 +19,10 @@ jobs:
     runs-on: [self-hosted, Windows, X64, aurum-elevated]
     timeout-minutes: 20
     steps:
-      - name: Check out current main
+      - name: Check out exact requested main revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Validate reversible deployment request
@@ -45,7 +45,7 @@ jobs:
             throw "AURUM_FARMER_DEPLOY_REFUSED reason=runner-name expected=$($request.expected_runner_name) actual=$env:RUNNER_NAME"
           }
           if ([string]$request.required_os -ne 'Windows') { throw 'AURUM_FARMER_DEPLOY_REFUSED reason=os-contract' }
-          Write-Host "AURUM_FARMER_DEPLOY_REQUEST_OK runner=$env:RUNNER_NAME"
+          Write-Host "AURUM_FARMER_DEPLOY_REQUEST_OK runner=$env:RUNNER_NAME source=$env:GITHUB_SHA"
 
       - name: Install or upgrade persistent Farmer and verify live restart resume
         id: proof
@@ -64,6 +64,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "AURUM_FARMER_DEPLOY_FAILED installer_exit=$LASTEXITCODE" }
           $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
           if ([string]$install.schema -ne 'aurum.farmer.install-receipt.v1') { throw 'AURUM_FARMER_DEPLOY_FAILED reason=install-receipt-schema' }
+          if ([string]$install.source_commit -ne [string]$env:GITHUB_SHA) { throw "AURUM_FARMER_DEPLOY_FAILED reason=source-drift expected=$env:GITHUB_SHA actual=$($install.source_commit)" }
           if (-not [bool]$install.health_verified) { throw 'AURUM_FARMER_DEPLOY_FAILED reason=initial-health' }
           if (-not [bool]$install.previous_releases_preserved) { throw 'AURUM_FARMER_DEPLOY_FAILED reason=release-preservation' }
           if ([string]$install.task_state -ne 'Running') { throw "AURUM_FARMER_DEPLOY_FAILED reason=task-state state=$($install.task_state)" }
@@ -76,10 +77,14 @@ jobs:
           if (-not (Test-Path -LiteralPath (Join-Path $releaseRoot 'aurum_farmer') -PathType Container)) {
             throw 'AURUM_FARMER_DEPLOY_FAILED reason=installed-release-missing'
           }
+          $runtimeConfig = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+          $leaseSeconds = [double]$runtimeConfig.lease_seconds
+          $restartProofSeconds = [Math]::Max(30.0, $leaseSeconds + 30.0)
 
-          # Prove a real service/process boundary: queue durable work while the
-          # supervisor is stopped, restart the scheduled task, and require that
-          # the same ledger job is recovered and completed with a sealed receipt.
+          # Prove a real abrupt service/process boundary: queue durable work while
+          # the supervisor is stopped, restart the task, then allow the previous
+          # supervisor lease to expire before requiring takeover. A READY job during
+          # the old healthy lease is correct fail-closed behavior, not a failure.
           Stop-ScheduledTask -TaskName $taskName -ErrorAction Stop
           $stopDeadline = (Get-Date).AddSeconds(15)
           do {
@@ -105,7 +110,7 @@ jobs:
             if ([string]$before.state -eq 'SUCCEEDED') { throw 'AURUM_FARMER_DEPLOY_FAILED reason=job-ran-while-supervisor-stopped' }
 
             Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
-            $deadline = (Get-Date).AddSeconds(60)
+            $deadline = (Get-Date).AddSeconds($restartProofSeconds)
             $after = $null
             do {
               Start-Sleep -Milliseconds 500
@@ -113,7 +118,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw 'AURUM_FARMER_DEPLOY_FAILED reason=post-restart-status' }
               $after = ($statusRaw -join "`n") | ConvertFrom-Json
             } until ([string]$after.state -eq 'SUCCEEDED' -or [string]$after.state -eq 'FAILED_FINAL' -or (Get-Date) -ge $deadline)
-            if ([string]$after.state -ne 'SUCCEEDED') { throw "AURUM_FARMER_DEPLOY_FAILED reason=restart-resume state=$($after.state)" }
+            if ([string]$after.state -ne 'SUCCEEDED') { throw "AURUM_FARMER_DEPLOY_FAILED reason=restart-resume state=$($after.state) lease_seconds=$leaseSeconds" }
 
             $receiptRaw = & $python -m aurum_farmer --config $configPath receipts --job $jobId
             if ($LASTEXITCODE -ne 0) { throw 'AURUM_FARMER_DEPLOY_FAILED reason=receipt-export' }
@@ -125,13 +130,12 @@ jobs:
             $env:PYTHONPATH = $previousPythonPath
           }
 
-          $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
           $health = $null
           $healthDeadline = (Get-Date).AddSeconds(30)
           do {
             Start-Sleep -Milliseconds 500
             try {
-              $health = Invoke-RestMethod -Method Get -Uri ("http://{0}:{1}/health" -f $config.api_host, $config.api_port) -TimeoutSec 2
+              $health = Invoke-RestMethod -Method Get -Uri ("http://{0}:{1}/health" -f $runtimeConfig.api_host, $runtimeConfig.api_port) -TimeoutSec 2
             } catch { $health = $null }
           } until (($health -and $health.status -eq 'healthy' -and $health.event_chain_valid -eq $true) -or (Get-Date) -ge $healthDeadline)
           if (-not $health -or $health.status -ne 'healthy' -or $health.event_chain_valid -ne $true) {
@@ -150,12 +154,16 @@ jobs:
             runtime_root = [string]$install.runtime_root
             python_exe = [string]$install.python_exe
             python_runtime = [string]$install.python_runtime
+            windows_identity = [string]$install.windows_identity
+            scheduled_task_principal_mode = [string]$install.scheduled_task_principal_mode
             task_name = $taskName
             task_state = [string]$task.State
             initial_health_verified = [bool]$install.health_verified
             post_restart_health_verified = $true
             event_chain_valid = [bool]$health.event_chain_valid
             queued_while_supervisor_stopped = $true
+            supervisor_lease_seconds = $leaseSeconds
+            restart_proof_window_seconds = $restartProofSeconds
             restart_resume_job_id = $jobId
             restart_resume_job_state = [string]$after.state
             sealed_receipt_count = [int]$receiptCount
@@ -167,7 +175,7 @@ jobs:
           $proofPath = 'Projects/AurumFarmer/Deploy/latest-windows-runtime-proof.json'
           New-Item -ItemType Directory -Path (Split-Path -Parent $proofPath) -Force | Out-Null
           $proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $proofPath -Encoding utf8
-          Write-Host "AURUM_FARMER_SELF_HOSTED_RUNTIME_PROOF_OK runner=$env:RUNNER_NAME job_id=$jobId"
+          Write-Host "AURUM_FARMER_SELF_HOSTED_RUNTIME_PROOF_OK runner=$env:RUNNER_NAME job_id=$jobId lease_seconds=$leaseSeconds"
 
       - name: Persist verified self-hosted runtime proof
         shell: powershell
