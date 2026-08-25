@@ -13,7 +13,7 @@
 - x86 Tiny Seed media builder and GitHub Actions build/UEFI+BIOS smoke workflow exist.
 - Raspberry Pi ARM64 Tiny Seed image builder and GitHub Actions static build/verification workflow exist.
 - A guarded Windows flash path verifies image checksum, requires unique USB serial identity and explicit confirmation, refuses boot/system disks, re-proves identity immediately before write, and performs a full image-length raw readback hash.
-- The current isolated direct-UEFI fallback carrier experiment is draft PR #78. It reuses the protected Tiny Seed germ/live payload, includes the policy-pinned offline recovery phenotype, and constructs a raw GPT USB image with a FAT ESP and `EFI/BOOT/BOOTX64.EFI`, independent of the ISO-hybrid/GRUB carrier.
+- The current isolated x86 fallback-carrier experiment is draft PR #83. It builds two raw GPT USB candidates from the same protected Tiny Seed germ/live payload and policy-pinned offline phenotype: a systemd-stub UKI virtual reference with known HP physical risk, and an independent systemd-boot -> Debian kernel EFI-stub + separate initrd path intended to avoid the previously observed systemd-stub inner-kernel handoff failure. Neither candidate changes the canonical release or grants physical write authority.
 
 ## Evidence currently established in repository
 
@@ -27,7 +27,8 @@
 - **Canonical current artifact identity, source commit, hashes, workflow runs, gate results, next gate, and handoff state live only in `Projects/Aurum/Release/latest-tinyseed-handoff.json`.** Read that file for the current values instead of duplicating them here.
 - A handoff may report `READY_TO_FLASH` only after same-revision x86 and Pi artifacts are published and their hashes are reverified by the combined handoff.
 - `READY_TO_FLASH` does **not** mean physically booted or recovery-proven. The physical-flash/readback, hardware boot, and forced-rollback gates remain independent evidence.
-- The current direct-UEFI offline-carrier experiment on draft PR #78, head `c23761e4a2dfa9590ec2b3200bd62d42445a5b4c`, passed its protected Germ suite including offline-carrier tests, raw GPT/FAT-ESP layout and checksum checks, extraction of `/live/filesystem.squashfs` from the raw image, cryptographic verification of the embedded offline phenotype, and OVMF removable-media boot smoke requiring Tiny Seed ready, boot-proof, and network-ready markers. GitHub Actions run `32776033043` published `Aurum-TinySeed-amd64-direct-UEFI-offline-experimental` with artifact digest `sha256:613c8cc017a3ca1adccccafd39290d4b372957518040796628962a100d91e103`. This is **experimental Passed + Published** evidence only; PR #78 remains draft/isolated and does not change the canonical release, grant write authority, or claim physical proof.
+- The refreshed fallback matrix on draft PR #83, head `062bd1c961aa19f5e44af385eff93abf65647554`, passed the protected Germ suite, built both raw-GPT candidates, cryptographically reverified the embedded offline phenotype from each raw image, and passed OVMF removable-media boot smoke for both loader families while requiring Tiny Seed ready, boot-proof, and network-ready markers. GitHub Actions run `32814057176` published artifact `Aurum-TinySeed-amd64-fallback-matrix-experimental` with artifact id `9551064087` and digest `sha256:4c38c96de56990dcf5b067be0c6db02febdd2ebf75c5cacd3a3152b5a9cda817`. This is **experimental Passed + Published** evidence only; it does not promote either fallback, grant write authority, or claim physical HP compatibility.
+- The older direct-UEFI offline-carrier PR #78 remains historical evidence and was closed after PR #83 produced the stronger current-head loader matrix.
 
 ## Physical evidence already known
 
@@ -36,6 +37,7 @@
 - Hopper Gen0 Git workspace is intentionally not initialized.
 - The existing 64 GB Gen0 recovery USB remains the physical fallback and must **not** be overwritten during Tiny Seed testing.
 - On 2026-08-24, the separate Crayola x86 Tiny Seed physically reached the `READY` console on Hopper, preserved the existing germ as slot A, installed the bridge on `/dev/nvme0n1p2`, and reported `regrow.status=deferred-offline`. This proves the user-visible boot/install boundary and exposed the network-dependent recovery gap addressed by the offline phenotype carrier; it does not replace the pending formal boot-proof marker or Guardian rollback proof.
+- Earlier HP PC-01 physical evidence showed the direct systemd-stub/UKI family reaching firmware but failing at the UKI -> embedded-kernel start boundary with `EFI_INVALID_PARAMETER`. The new systemd-boot candidate has only virtual evidence so far; OVMF success must not be treated as proof that this HP-specific physical failure is fixed.
 
 ## Unresolved frontier
 
@@ -53,9 +55,9 @@
    - promote on proof or automatically roll back to Gen0.
 4. Prove Guardian forced rollback physically with a deliberately bad disposable candidate while preserving the proven LKG.
 5. Flash and physically boot the Pi ARM64 Tiny Seed. ARM64 local A/B promotion stays disabled until a Pi-specific runtime/health adapter is proven.
-6. Keep the direct-UEFI offline-capable fallback carrier warm but isolated. Promote it toward physical testing only if Hopper evidence shows the canonical ISO-hybrid carrier has higher expected total cost or a carrier-specific failure; do not pivot merely because the fallback now passes virtually.
+6. Keep the PR #83 fallback matrix warm but isolated. If Hopper later shows a carrier-specific canonical failure or higher expected total cost, prefer the systemd-boot -> kernel EFI-stub candidate for the next bounded physical compatibility test because it avoids the already-observed systemd-stub inner-kernel boundary. Do not pivot merely because both candidates pass virtually.
 7. After physical proof, build the combined physical universal carrier so one drive can expose architecture-specific boot frontends while sharing the same germ/genetics protocol.
 
 ## State classification
 
-The canonical classification is the `state` plus `next_gate` in `Projects/Aurum/Release/latest-tinyseed-handoff.json`. Prose in this file intentionally does not duplicate mutable artifact hashes or source revisions.
+The canonical classification is the `state` plus `next_gate` in `Projects/Aurum/Release/latest-tinyseed-handoff.json`. Prose in this file intentionally does not duplicate mutable canonical artifact hashes or source revisions.
