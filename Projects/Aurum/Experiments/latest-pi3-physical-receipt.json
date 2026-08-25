@@ -1,6 +1,6 @@
 ﻿{
     "schema":  "aurum-pi3-read-only-probe-result-v1",
-    "observed_at_utc":  "2026-08-25T19:39:26.3870450Z",
+    "observed_at_utc":  "2026-08-25T20:04:37.0456350Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
     "request_id":  "pi3-readonly-linkdiag-20260824-1335",
     "state":  "NO_REACHABLE_PI3_RECEIPT",
@@ -36,10 +36,10 @@
                                                    "dhcp":  "Enabled",
                                                    "default_route_count":  0,
                                                    "dns_server_count":  0,
-                                                   "neighbor_count":  1
+                                                   "neighbor_count":  0
                                                }
                                            ],
-                     "passive_neighbor_candidates":  1
+                     "passive_neighbor_candidates":  0
                  },
     "attempts":  [
                      {
@@ -69,14 +69,6 @@
                      {
                          "target_name":  "raspberrypi",
                          "target_source":  "known-name",
-                         "tcp22_reachable":  false,
-                         "ssh_probe_state":  "not-reachable",
-                         "ssh_batch_mode":  false,
-                         "pi3_model_match":  false
-                     },
-                     {
-                         "target_name":  "usb-neighbor:2caa72506a3c",
-                         "target_source":  "passive-usb-neighbor",
                          "tcp22_reachable":  false,
                          "ssh_probe_state":  "not-reachable",
                          "ssh_batch_mode":  false,
