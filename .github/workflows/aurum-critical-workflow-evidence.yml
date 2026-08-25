@@ -7,7 +7,10 @@ on:
       - 'Aurum Hopper Recovery Request Dispatcher'
       - 'Aurum Tiny Seed Flash Contract'
       - 'Aurum Tiny Seed direct UEFI offline-carrier experiment'
-    types: [requested, in_progress, completed]
+    # Durable main-branch receipts are terminal evidence, not a live progress
+    # ticker. Queued/in-progress state is available from Actions/Failsafe
+    # readback; committing every lifecycle transition creates evidence churn.
+    types: [completed]
 
 permissions:
   contents: write
@@ -27,7 +30,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Persist current lifecycle evidence
+      - name: Persist terminal lifecycle evidence
         env:
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
