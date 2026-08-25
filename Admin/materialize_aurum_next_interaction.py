@@ -5,6 +5,11 @@ This is a zero-authority projection. It turns the current Future Branch interact
 frontier into a compact packet that can be consumed on the user's next real
 interaction. It never schedules a message, grants authority, changes recovery
 state, mutates LKG, or infers physical proof.
+
+Important: authority/action freshness can expire without a repository write. The
+packet therefore treats all authority-like live-control values as a snapshot only
+and requires a fresh Action Ownership / canonical-evidence read at consumption
+before any human-only or destructive step may be surfaced.
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ SEED = ROOT / "Prompts/FutureBranchSeed.txt"
 HANDOFF_SENTENCE = (
     "Future Branch handoff: next-interaction packet materialized from current canonical "
     "evidence; activation is the next real interaction, not a clock; consumption proof "
-    "is not yet verified."
+    "is not yet verified; any human/destructive boundary must be revalidated live at consumption."
 )
 
 
@@ -71,6 +76,7 @@ def materialize() -> dict:
             "input_family": family,
             "prepared_response": prepared,
             "action_if_safe": action if isinstance(action, str) else None,
+            "authority": "prediction-only-requires-live-consumption-recheck",
         })
     candidates.sort(key=lambda item: item["rank"])
     candidates = candidates[:5]
@@ -95,6 +101,8 @@ def materialize() -> dict:
         "activation": "next-real-interaction-not-clock",
         "materialization_evidence": "packet-file-rendered-from-current-future-branch-state",
         "consumption_evidence": "not-verified",
+        "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
+        "authority_snapshot_authoritative": False,
         "scheduled_simulation_allowed": False,
         "authority_granted": False,
         "human_action_inferred": False,
@@ -109,17 +117,21 @@ def materialize() -> dict:
         branch["interaction_handoff"] = handoff_state
         BRANCH.write_text(json.dumps(branch, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
+    live_snapshot = live_controls if isinstance(live_controls, dict) else None
     packet = {
         "schema": "aurum-next-interaction-packet-v1",
         "activation": "next-real-interaction-not-clock",
         "refresh_rule": "refresh-when-future-branch-or-canonical-evidence-changes",
+        "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
         "source": "Projects/Aurum/future-branches.json",
         "source_schema": branch.get("schema"),
         "source_evidence_sha256": stable_digest(canonical),
         "release_source_commit": release.get("source_commit") if isinstance(release, dict) else None,
         "current_program": visible_program,
         "frontier": candidates,
-        "live_controls": live_controls if isinstance(live_controls, dict) else None,
+        "live_controls_snapshot": live_snapshot,
+        "authority_snapshot_authoritative": False,
+        "time_sensitive_authority_requires_live_recheck": True,
         "materialization_evidence": "packet-file-rendered-from-current-future-branch-state",
         "consumption_evidence": "not-verified",
         "scheduled_simulation_allowed": False,
@@ -145,5 +157,6 @@ if __name__ == "__main__":
         "activation": result["packet"]["activation"],
         "frontier_count": len(result["packet"]["frontier"]),
         "authority_granted": result["packet"]["authority_granted"],
+        "authority_snapshot_authoritative": result["packet"]["authority_snapshot_authoritative"],
         "consumption_evidence": result["packet"]["consumption_evidence"],
     }, sort_keys=True))
