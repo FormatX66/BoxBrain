@@ -1,6 +1,6 @@
 {
   "schema": "aurum-early-kvm-semantic-state-v1",
-  "observed_at_utc": "2026-08-25T22:53:34.6239976Z",
+  "observed_at_utc": "2026-08-25T23:09:32.1227551Z",
   "state": "REPOSITORY_VERIFIED_PHYSICAL_PENDING",
   "capability": {
     "status": "repository-implemented",
@@ -19,9 +19,11 @@
       "f214d9ba0762bda2758648f9be0a352bf055cc74",
       "45420fabc1e92a8fd49645e7546b77cb75b65b55",
       "fe3ff0b0efaf671197fda13ee0fa2c924d22c5a3",
-      "7ebf9cffa07bb55e1475c74f1ddf474da6aaac35"
+      "7ebf9cffa07bb55e1475c74f1ddf474da6aaac35",
+      "d0ece94c022e6696819b2f7e4a233eb305a03347"
     ],
     "pull_request": "https://github.com/FormatX66/BoxBrain/pull/89",
+    "merge_commit": "6280fbf18c6109f9cb596d8a60f34c8c9ee91093",
     "local_linux_tests": {
       "suite": "Projects/Aurum/Germ python unittest discovery",
       "passed": 79,
@@ -54,6 +56,44 @@
         "expires_at_utc": "2026-09-24T22:52:24Z"
       }
     },
+    "canonical_main_pi_image_run": {
+      "run_id": 32908408135,
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32908408135",
+      "source_commit": "6280fbf18c6109f9cb596d8a60f34c8c9ee91093",
+      "image_build": "passed",
+      "compressed_image_verification": "passed",
+      "embedded_image_inspection": "passed",
+      "artifact_publication": "passed",
+      "artifact": {
+        "id": 9585821811,
+        "name": "Aurum-TinySeed-Pi-arm64",
+        "size_bytes": 737550061,
+        "digest": "sha256:88c56ab96d3fb0248c0bd6560fa58a5ca66c4d88f89ccd9fb8a2d2f04c50e0f5",
+        "payload_name": "Aurum-TinySeed-Pi-arm64.img.xz",
+        "payload_sha256": "c17705ce12b26c05d9b77b3595f14cbbb58fa7939fa5a8afa676252e9f7592f8",
+        "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32908408135/artifacts/9585821811",
+        "expires_at_utc": "2026-09-24T23:01:57Z"
+      }
+    },
+    "canonical_handoff": {
+      "state": "READY_TO_FLASH",
+      "physical_boot": "pending",
+      "write_authority": "NONE",
+      "run_id": 32909312323,
+      "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32909312323",
+      "source_commit": "6280fbf18c6109f9cb596d8a60f34c8c9ee91093",
+      "artifact": {
+        "id": 9585974190,
+        "name": "Aurum-TinySeed-Handoff",
+        "size_bytes": 1474270594,
+        "digest": "sha256:79077ba7055c95a849a45c3190f1ca29cda553d925fb24cc3b0ce90e26290391",
+        "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32909312323/artifacts/9585974190",
+        "expires_at_utc": "2026-09-24T23:07:30Z"
+      },
+      "release_receipt": "Projects/Aurum/Release/latest-tinyseed-handoff.json",
+      "physical_preflight_state": "WAIT_USB_DISCOVERY",
+      "physical_preflight_reason": "release-identity-changed"
+    },
     "farmer": {
       "registration_run_id": 32893530148,
       "registration_run_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32893530148",
@@ -76,6 +116,13 @@
     "adaptive_kernel_pi3_qpu_comparison": {
       "reported_state": "active-building-in-sibling-task",
       "repository_run_observed": false,
+      "repository_observed_at_utc": "2026-08-25T23:09:32.1227551Z",
+      "latest_observed_workflow_run": {
+        "run_id": 32424885374,
+        "created_at_utc": "2026-08-20T22:34:42Z",
+        "conclusion": "success",
+        "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32424885374"
+      },
       "duplicate_harness_allowed": false,
       "early_kvm_overlap": "none"
     },
@@ -91,9 +138,10 @@
     "physical_promotion_allowed": false
   },
   "frontier": [
-    "merge PR only after required checks pass",
-    "require explicit test-media identity and write authority before flashing",
-    "prove Pi3 input and disconnect release through the pinned controller plus USB3 HDMI capture"
+    "complete physical Pi3 identity, pinned-host, and key-only access proof in the user-owned split task",
+    "require explicit dedicated test-media identity and write authority before flashing; current authority is NONE",
+    "prove Pi3 early-KVM input and disconnect release through the pinned controller plus USB3 HDMI capture",
+    "hold the QPU comparison in the sibling task and do not create a duplicate harness"
   ],
   "receipt_path": "Projects/Aurum/Experiments/latest-early-kvm-semantic-state.json"
 }
