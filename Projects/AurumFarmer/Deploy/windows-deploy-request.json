@@ -1,0 +1,19 @@
+{
+  "schema": "aurum.farmer.windows-deploy-request.v1",
+  "state": "REQUESTED",
+  "purpose": "Install or upgrade Aurum Farmer on the already-enrolled self-hosted Windows execution node, verify loopback health, then prove a durable Farmer job queued while the supervisor is stopped resumes to sealed success after the scheduled task restarts.",
+  "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
+  "required_os": "Windows",
+  "reversible_install_allowed": true,
+  "destructive_action_allowed": false,
+  "lkg_mutation_allowed": false,
+  "physical_proof_inferred": false,
+  "proof_required": [
+    "scheduled-task-running",
+    "loopback-health",
+    "event-chain-valid",
+    "queued-while-stopped-job-resumes-after-restart",
+    "sealed-farmer-receipt",
+    "previous-releases-preserved"
+  ]
+}
