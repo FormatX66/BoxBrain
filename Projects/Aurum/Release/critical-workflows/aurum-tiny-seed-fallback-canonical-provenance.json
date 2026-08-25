@@ -1,0 +1,16 @@
+{
+  "schema": "aurum-critical-workflow-evidence-v1",
+  "workflow": "Aurum Tiny Seed fallback canonical provenance",
+  "run_id": 32838156216,
+  "run_number": 2,
+  "run_attempt": 1,
+  "status": "completed",
+  "conclusion": "success",
+  "event": "pull_request",
+  "head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
+  "head_branch": "experiment/tinyseed-direct-uefi-current-20260825",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32838156216",
+  "updated_at": "2026-08-25T10:37:41Z",
+  "physical_proof_inferred": false,
+  "authority_granted": false
+}
