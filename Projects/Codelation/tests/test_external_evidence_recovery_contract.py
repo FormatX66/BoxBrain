@@ -147,6 +147,15 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertNotIn("apt install", repair)
         self.assertNotIn("apt-get", repair)
 
+    def test_module_repair_quiesces_fail_closed_socket_before_reverification(self) -> None:
+        workflow = RECOVERY.read_text(encoding="utf-8")
+        marker = "AURUM_EXTERNAL_EVIDENCE restart_quiescence=65s"
+
+        self.assertIn(marker, workflow)
+        self.assertIn("Start-Sleep -Seconds 65", workflow)
+        self.assertLess(workflow.index("$repairMarker ="), workflow.index(marker))
+        self.assertLess(workflow.index(marker), workflow.index("$verifiedTrial = Invoke-GuiCollector"))
+
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
         self.assertIn("aurum-external-evidence-recovery.yml", workflow)
