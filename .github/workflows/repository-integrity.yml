@@ -9,10 +9,21 @@ on:
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - 'Admin/sync_aurum_fallback_evidence.py'
       - 'Admin/materialize_aurum_next_interaction.py'
+      - 'Admin/reconstruct_aurum_state.py'
+      - 'Admin/checkpoint_aurum_runtime.py'
+      - 'Admin/checkpoint_farmer_runtime.py'
+      - 'Admin/resume_aurum_runtime.py'
+      - 'Admin/tinyseed_refresh_policy.py'
+      - 'Admin/tests/test_validate_repository.py'
       - 'Admin/tests/test_sync_aurum_release_status.py'
       - 'Admin/tests/test_sync_aurum_future_branch_evidence.py'
       - 'Admin/tests/test_sync_aurum_fallback_evidence.py'
       - 'Admin/tests/test_materialize_aurum_next_interaction.py'
+      - 'Admin/tests/test_reconstruct_aurum_state.py'
+      - 'Admin/tests/test_checkpoint_aurum_runtime.py'
+      - 'Admin/tests/test_checkpoint_farmer_runtime.py'
+      - 'Admin/tests/test_resume_aurum_runtime.py'
+      - 'Admin/tests/test_tinyseed_refresh_policy.py'
       - 'Projects/**'
       - 'Prompts/FutureBranchSeed.txt'
       - 'README.md'
@@ -22,6 +33,7 @@ on:
       - 'CONTRIBUTING.md'
       - 'LICENSE'
       - '.github/workflows/repository-integrity.yml'
+      - '.circleci/config.yml'
 
 permissions:
   contents: write
@@ -53,6 +65,11 @@ jobs:
             Admin.tests.test_sync_aurum_future_branch_evidence \
             Admin.tests.test_sync_aurum_fallback_evidence \
             Admin.tests.test_materialize_aurum_next_interaction \
+            Admin.tests.test_reconstruct_aurum_state \
+            Admin.tests.test_checkpoint_aurum_runtime \
+            Admin.tests.test_checkpoint_farmer_runtime \
+            Admin.tests.test_resume_aurum_runtime \
+            Admin.tests.test_tinyseed_refresh_policy \
             > "$RUNNER_TEMP/sync-tests.txt" 2>&1
           tests_rc=$?
           set -e
