@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Tiny Seed x86 fallback carrier matrix experiment",
-  "run_id": 32814050737,
-  "run_number": 11,
+  "run_id": 32814057176,
+  "run_number": 12,
   "run_attempt": 1,
   "status": "completed",
   "conclusion": "success",
-  "event": "push",
+  "event": "pull_request",
   "head_sha": "062bd1c961aa19f5e44af385eff93abf65647554",
   "head_branch": "experiment/tinyseed-direct-uefi-current-20260825",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32814050737",
-  "updated_at": "2026-08-25T05:58:09Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32814057176",
+  "updated_at": "2026-08-25T05:58:30Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
