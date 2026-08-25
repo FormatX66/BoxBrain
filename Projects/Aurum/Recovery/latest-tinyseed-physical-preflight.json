@@ -24,7 +24,7 @@
   "physical_boot_proven": false,
   "preexecution_recovery": {
     "manual_handoff_released": true,
-    "observed_at": "2026-08-25T05:45:39.8831522Z",
+    "observed_at": "2026-08-25T05:51:44.3867565Z",
     "reason": "fresh terminal unrepaired Hopper recovery receipt and current release-bound unique USB evidence are present",
     "remote_repair": "unavailable",
     "required_schema": "aurum.hopper.recovery-path-probe.v2",
