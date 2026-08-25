@@ -32,8 +32,16 @@ class ReconstructionError(ValueError):
 
 
 def read_json(path: Path) -> dict[str, Any]:
+    """Read durable JSON while tolerating a UTF-8 BOM from Windows producers.
+
+    Aurum's canonical state can be emitted by both Linux and Windows runners.
+    Windows PowerShell 5 may write ``-Encoding UTF8`` with a BOM.  That marker is
+    encoding metadata, not authority-bearing content, so accepting it here keeps
+    restart reconstruction portable without weakening any provenance/state gate.
+    Malformed JSON still fails closed.
+    """
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError as exc:
         raise ReconstructionError(f"required durable state missing: {path}") from exc
     except json.JSONDecodeError as exc:
