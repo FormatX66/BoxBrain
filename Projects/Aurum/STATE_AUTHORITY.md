@@ -16,7 +16,7 @@ Important design decisions discovered in conversation should be converted into r
 
 ### 2. Aurum local operational state — authoritative runtime state
 
-Aurum should maintain its own machine-readable operational state for active execution, including:
+Aurum maintains machine-readable operational state for active execution, including:
 
 - current build graph and atomic jobs
 - completed, runnable, blocked, failed, and retrying work
@@ -29,21 +29,47 @@ Aurum should maintain its own machine-readable operational state for active exec
 - recovery/fallback state
 - provenance linking operational state back to committed requirements
 
-Operational state should be persisted locally and checkpointed frequently enough that Aurum can restart without reconstructing its state from a conversation.
+Operational state must be persisted locally and checkpointed frequently enough that Aurum can restart without reconstructing its state from a conversation.
 
 Where practical, durable summaries/checkpoints that define project behavior should be synchronized into versioned project artifacts.
 
-The local checkpoint writer is `Admin/checkpoint_aurum_runtime.py`. By default it atomically writes `data/aurum/runtime-checkpoint.json`, which is intentionally ignored by Git. It starts from the durable repository reconstruction, then adds local jobs, resumable positions, hardware/software fingerprints, hypotheses, and local artifact references supplied by the runtime. Stored checkpoint state can resume work, but it cannot grant destructive authority, promote a candidate, or mutate LKG; those boundaries always require fresh live evidence.
+#### Production controller: Aurum Farmer
 
-Example local checkpoint refresh:
+On a node where **Aurum Farmer is deployed as the persistent controller**, Farmer's SQLite WAL ledger plus its local signing key is the production local operational-state authority. The ledger owns durable jobs, Future Branch candidates, attempts, leases, retries/recovery, human boundaries, append-only signed evidence/event records, sealed receipts, and scoped Last Known Good records.
+
+This is an explicit architecture decision: **do not maintain Farmer and `runtime-checkpoint.json` as two peer authorities.** Duplicate writable authorities would create a split-brain failure mode more dangerous than losing a cache.
+
+The production order inside the local operational layer is therefore:
+
+1. a live Farmer ledger whose event chain and signing material validate;
+2. a compatibility checkpoint derived from that Farmer ledger;
+3. the generic local checkpoint only when Farmer is not the active controller for that node.
+
+If a Farmer-derived compatibility checkpoint disagrees with the validating Farmer ledger, the Farmer ledger wins and the compatibility snapshot must be regenerated. If the Farmer ledger cannot be validated, fail closed rather than silently falling back to a stale peer snapshot for side-effecting work.
+
+The deployed Windows proof in `Projects/AurumFarmer/Deploy/latest-windows-runtime-proof.json` demonstrates a real process/service boundary: Farmer was stopped, a durable job was queued, the supervisor restarted after the old leader lease expired, and the same ledger job completed with a sealed receipt while the event chain remained valid. That is deployed operational restart/resume evidence for the production local state implementation. It does not grant destructive authority or imply unrelated physical proof.
+
+#### Generic compatibility/fallback checkpoint
+
+`Admin/checkpoint_aurum_runtime.py` writes the repository-ignored `data/aurum/runtime-checkpoint.json`. It starts from the durable repository reconstruction, then adds local jobs, resumable positions, hardware/software fingerprints, hypotheses, and local artifact references supplied by the runtime. Stored checkpoint state can resume work, but it cannot grant destructive authority, promote a candidate, or mutate LKG; those boundaries always require fresh live evidence.
+
+On non-Farmer nodes this file is the bounded generic local operational checkpoint. On Farmer-controlled nodes it is a **compatibility/reconstruction projection only**, not a second authoritative scheduler state.
+
+`Admin/checkpoint_farmer_runtime.py` is the fail-closed bridge from Farmer into the generic checkpoint contract. It requires the Farmer ledger and signing key to already exist, verifies the append-only Farmer event chain, maps durable Farmer job states into the generic resumable-state vocabulary, and emits a zero-authority compatibility snapshot. It refuses a missing signing key instead of creating replacement signing material.
+
+Example generic checkpoint refresh on a non-Farmer node:
 
 `python Admin/checkpoint_aurum_runtime.py`
 
-A runtime may pass a JSON overlay with `--runtime-overlay <path>` to persist active jobs and local fingerprints without moving those ephemeral details into Git.
+Example Farmer compatibility projection:
+
+`python Admin/checkpoint_farmer_runtime.py --ledger <farmer-ledger.sqlite3>`
+
+A runtime may pass a JSON overlay to the generic writer with `--runtime-overlay <path>` only when that runtime is itself the intended local operational source. A Farmer-controlled node should project from Farmer rather than hand-maintain an independent overlay.
 
 The restart-side companion is `Admin/resume_aurum_runtime.py`. It first reconstructs current canonical repository truth, then accepts a local checkpoint only if its durable-state digest, release provenance, canonical next gate, schema, freshness, and zero-authority contract still match. It restores checkpointed running/retrying/runnable/blocked/failed job evidence and resume hints without claiming those processes are currently live. Repository-head drift is surfaced for job revalidation rather than silently treated as proof that old work is still executing.
 
-Example restart reconstruction using both authority layers:
+Example restart reconstruction using the generic compatibility/fallback layer:
 
 `python Admin/resume_aurum_runtime.py`
 
@@ -69,10 +95,12 @@ Aurum should assume external AI memory can be missing, stale, unavailable, or co
 When sources disagree:
 
 1. Verify the current repository/project state.
-2. Verify Aurum's current runtime checkpoint and hardware/software fingerprint.
-3. Treat chat/external memory as a hint, not a fact.
-4. Preserve conflicting evidence rather than silently overwriting it.
-5. Commit intentional architecture/requirement changes so the durable source of truth advances explicitly.
+2. If Farmer is the active controller, verify Farmer's ledger, signing material, event chain, and current leases/jobs.
+3. Otherwise verify the generic local runtime checkpoint and current hardware/software fingerprint.
+4. Treat derived Farmer compatibility checkpoints as caches/reconstruction artifacts, not peer truth.
+5. Treat chat/external memory as a hint, not a fact.
+6. Preserve conflicting evidence rather than silently overwriting it.
+7. Commit intentional architecture/requirement changes so the durable source of truth advances explicitly.
 
 ## Continuity rule
 
@@ -90,13 +118,15 @@ A direct operator or recovery check is:
 
 The emitted `aurum-restart-reconstruction-v1` object is a reconstruction artifact, not an authorization token. Any human-only, physical, destructive, or time-sensitive boundary still requires fresh live evidence and Action Ownership checks.
 
-The local operational layer is exercised in both directions. `Admin.tests.test_checkpoint_aurum_runtime` covers atomic persistence, resumable-job capture, invalid-state refusal, duplicate-job refusal, and proof that an overlay cannot smuggle destructive authority or LKG mutation into a checkpoint. `Admin.tests.test_resume_aurum_runtime` covers the restart-side round trip: restoring checkpointed runtime evidence, refusing stale/tampered/provenance-mismatched checkpoints, refusing authority-bearing checkpoints, and preserving the rule that checkpointed jobs are not claimed live until re-observed.
+The generic local operational layer is exercised in both directions. `Admin.tests.test_checkpoint_aurum_runtime` covers atomic persistence, resumable-job capture, invalid-state refusal, duplicate-job refusal, explicit source metadata, and proof that an overlay cannot smuggle destructive authority or LKG mutation into a checkpoint. `Admin.tests.test_checkpoint_farmer_runtime` covers Farmer-to-generic projection, preserved zero authority, job-state projection, validated event-chain provenance, and missing-signing-key refusal. `Admin.tests.test_resume_aurum_runtime` covers the restart-side round trip: restoring checkpointed runtime evidence, refusing stale/tampered/provenance-mismatched checkpoints, refusing authority-bearing checkpoints, and preserving the rule that checkpointed jobs are not claimed live until re-observed.
 
-Implementation/CI proof of this contract is distinct from deployment proof. A real controller/process restart must still demonstrate that its local checkpoint survives the process boundary and is consumed correctly in the deployed runtime before `live restart continuity` is labeled physically/operationally verified.
+Implementation/CI proof remains distinct from deployed proof. The generic checkpoint/resume primitive has process-boundary CI proof. Farmer additionally has a real deployed process-boundary restart/resume receipt on the self-hosted Windows node. That deployed receipt proves local operational continuity for Farmer; it does not infer any Tiny Seed physical boot, Guardian rollback, destructive authority, or candidate promotion.
 
 ## Design consequence
 
 ChatGPT memory failures are non-critical unless they reveal that important state exists only in chat. The fix for that condition is not to make chat memory authoritative; it is to move the missing state into Aurum's durable project/runtime stores.
+
+Likewise, adding another state file is not automatically safer. Aurum should prefer **one writable authority with many verifiable projections** over multiple competing writable authorities.
 
 ## Relation to autonomous builds
 
