@@ -101,6 +101,29 @@ class RepositoryValidatorTests(unittest.TestCase):
 
             self.assertEqual(destructive_workflow_policy_errors(root), [])
 
+    def test_usb_discovery_atomically_projects_canonical_future_branch_state(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github" / "workflows" / "aurum-usb-discovery.yml").read_text(
+            encoding="utf-8"
+        )
+        required = (
+            "Admin/sync_aurum_release_status.py",
+            "Admin/sync_aurum_future_branch_evidence.py",
+            "Admin/sync_aurum_fallback_evidence.py",
+            "Admin/materialize_aurum_next_interaction.py",
+            "Projects/Aurum/completion-plan.json",
+            "Projects/Aurum/future-branches.json",
+            "Projects/Aurum/next-interaction-packet.json",
+        )
+        for token in required:
+            self.assertIn(token, workflow)
+
+        preflight_refresh = workflow.index("AURUM_USB_DISCOVERY_RECEIPT preflight-refresh-failed")
+        branch_sync = workflow.index("Admin/sync_aurum_future_branch_evidence.py")
+        persisted_state = workflow.index("Projects/Aurum/next-interaction-packet.json")
+        self.assertLess(preflight_refresh, branch_sync)
+        self.assertLess(branch_sync, persisted_state)
+
 
 if __name__ == "__main__":
     unittest.main()
