@@ -1,6 +1,6 @@
 ﻿{
     "schema":  "aurum-pi3-identity-continuity-result-v1",
-    "observed_at_utc":  "2026-08-24T17:47:14.1842795Z",
+    "observed_at_utc":  "2026-08-25T20:03:23.6334152Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
     "request_id":  "pi3-strict-alias-continuity-20260824-1347",
     "state":  "NO_REACHABLE_PASSIVE_USB_ENDPOINT",
