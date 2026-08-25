@@ -25,7 +25,7 @@
     "execute_shared_safe_prefix_before_clarification": true,
     "inferred_intent_never_grants_authority": true
   },
-  "current_program": "Aurum Tiny Seed is canonically READY_TO_FLASH from source b582d70605d93f8be12df7e261336839c260fb1e with x86 SHA-256 1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4. The mandatory pre-execution Hopper recovery pass has now resolved terminal unrepaired: BoxBrain is unreachable, remote repair is unavailable, and manual_handoff_released=true with zero write authority. Fresh release-bound read-only discovery proves one unique eligible USB SanDisk 3.2 Gen (~61.5 GB), non-boot, non-system, writable, and not protected. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT. The prior one-shot authorization is expired, no destructive action has occurred, and the next real boundary is a fresh explicit guarded-flash authorization bound to this exact release and current USB evidence. The direct-UEFI fallback remains experimentally Passed + Published but noncanonical unless physical evidence justifies a carrier pivot.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source b582d70605d93f8be12df7e261336839c260fb1e with x86 SHA-256 1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -74,63 +74,102 @@
     {
       "rank": 1,
       "input_family": "explicit-guarded-flash-authorization",
-      "examples": ["go ahead and flash the test USB", "authorize the flash", "use that USB"],
+      "examples": [
+        "go ahead and flash the test USB",
+        "authorize the flash",
+        "use that USB"
+      ],
       "prepared_response": "The safe system-side recovery and current-release USB discovery work are complete. Bind any new authority only to source b582d70605d93f8be12df7e261336839c260fb1e and the currently proven USB candidate; never reuse the expired prior request.",
       "action_if_safe": "On fresh explicit one-shot authority, re-read canonical release and protected-media registry, re-enumerate the USB live, require the same physical identity/provenance, verify the artifact checksum, run guarded dry-run/preflight, and only then allow the bounded write plus full raw-device readback."
     },
     {
       "rank": 2,
       "input_family": "status-or-so",
-      "examples": ["so?", "how's it going?", "what's the status now?"],
+      "examples": [
+        "so?",
+        "how's it going?",
+        "what's the status now?"
+      ],
       "prepared_response": "Report the exact boundary: canonical Tiny Seed is READY_TO_FLASH, mandatory Hopper recovery resolved unrepaired, one safe release-bound USB is proven, physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT, and the only missing authority is a fresh explicit one-shot guarded flash authorization. Physical boot and Guardian rollback proof remain pending.",
       "action_if_safe": "Re-read handoff, physical preflight, current USB evidence, authorization freshness, and any flash receipt before reporting; advance only zero-authority preparation until a fresh destructive boundary is explicitly crossed."
     },
     {
       "rank": 3,
       "input_family": "generic-prompt-intent-expansion",
-      "examples": ["keep going", "do the obvious next thing", "use Future Branch here", "fix it"],
+      "examples": [
+        "keep going",
+        "do the obvious next thing",
+        "use Future Branch here",
+        "fix it"
+      ],
       "prepared_response": "Treat the prompt as direction against the active Aurum state and do all safe reversible work shared by likely intents. Do not interpret a generic prompt as destructive disk-write authority.",
       "action_if_safe": "Refresh evidence, prepare the guarded write/readback/boot-proof chain, and stop at explicit destructive authority."
     },
     {
       "rank": 4,
       "input_family": "physical-media-change-before-flash",
-      "examples": ["I unplugged it", "I moved the USB", "a different drive is connected"],
+      "examples": [
+        "I unplugged it",
+        "I moved the USB",
+        "a different drive is connected"
+      ],
       "prepared_response": "Any device change invalidates the candidate assumption and any authority bound to it.",
       "action_if_safe": "Discard stale identity and repeat read-only discovery; keep write authority false until the exact current candidate is uniquely re-proven."
     },
     {
       "rank": 5,
       "input_family": "physical-result-mixed",
-      "examples": ["it booted but Wi-Fi isn't working", "I'm in but it says offline", "READY but regrow didn't finish"],
+      "examples": [
+        "it booted but Wi-Fi isn't working",
+        "I'm in but it says offline",
+        "READY but regrow didn't finish"
+      ],
       "prepared_response": "Treat boot/install progress as durable evidence, preserve LKG and completed stages, then repair only the failed or deferred next gate.",
       "action_if_safe": "Use retry/rescan or Join Wi-Fi, resume regrow against the prepared root, and still require formal boot-proof plus Guardian evidence before promotion claims."
     },
     {
       "rank": 6,
       "input_family": "physical-result-failure",
-      "examples": ["it didn't boot", "blank screen", "nothing happened", "setup is stuck", "network won't connect"],
+      "examples": [
+        "it didn't boot",
+        "blank screen",
+        "nothing happened",
+        "setup is stuck",
+        "network won't connect"
+      ],
       "prepared_response": "Use boot-proof markers, safe/verbose boot, read-only triage, and preserved diagnostics to classify the exact failed stage without touching LKG. The direct-UEFI fallback is warm but remains isolated until evidence shows a carrier-specific problem.",
       "action_if_safe": "Apply the smallest evidence-driven fix to a candidate path and promote the alternate carrier only when observed failure or expected total cost justifies it."
     },
     {
       "rank": 7,
       "input_family": "physical-result-success",
-      "examples": ["it booted", "I'm in", "that worked"],
+      "examples": [
+        "it booted",
+        "I'm in",
+        "that worked"
+      ],
       "prepared_response": "Verify ready/boot-proof receipts and continue the protected Repair/Reseed flow immediately rather than asking what to do next.",
       "action_if_safe": "Confirm Gen0 as slot A/LKG, grow current genetics only into inactive slot B, collect health evidence, and stop at any real reboot/physical boundary that cannot be crossed remotely."
     },
     {
       "rank": 8,
       "input_family": "seed-method-pivot",
-      "examples": ["should we switch seed methods?", "is the ISO still the wrong way?", "should we use direct UEFI or the universal carrier instead?"],
+      "examples": [
+        "should we switch seed methods?",
+        "is the ISO still the wrong way?",
+        "should we use direct UEFI or the universal carrier instead?"
+      ],
       "prepared_response": "The direct-UEFI fallback has virtual Passed + Published proof but remains experimental. Keep it warm; do not replace the canonical release without physical carrier-specific evidence or a clear expected-cost advantage.",
       "action_if_safe": "Compare fresh physical evidence and preserve the same Germ/genetics/LKG contract across any candidate pivot."
     },
     {
       "rank": 9,
       "input_family": "future-branch-self-audit",
-      "examples": ["did it predict that?", "was that branch warm?", "what did predictions actually save?"],
+      "examples": [
+        "did it predict that?",
+        "was that branch warm?",
+        "what did predictions actually save?"
+      ],
       "prepared_response": "Score the just-resolved recovery branch exactly: the prior live field ranked Hopper pre-execution recovery resolution first and separately predicted terminal-unrepaired release of the Tiny Seed boundary; the actual result matched and execution stopped correctly at explicit destructive authority.",
       "action_if_safe": "Persist calibration without upgrading virtual or post-hoc matches and continue measuring preparation completeness separately from prediction accuracy."
     }
@@ -139,58 +178,129 @@
     {
       "rank": 1,
       "state": "fresh-authority-triggers-live-reproof-and-guarded-preflight",
-      "prepared": ["canonical READY_TO_FLASH source/hash", "fresh USB candidate model/size/serial hash", "protected-media registry", "artifact checksum", "guarded dry-run", "live USB identity re-enumeration", "system/boot-disk refusal"],
+      "prepared": [
+        "canonical READY_TO_FLASH source/hash",
+        "fresh USB candidate model/size/serial hash",
+        "protected-media registry",
+        "artifact checksum",
+        "guarded dry-run",
+        "live USB identity re-enumeration",
+        "system/boot-disk refusal"
+      ],
       "next": "write only if every live proof still matches the one-shot authority; otherwise fail closed and return to read-only discovery"
     },
     {
       "rank": 2,
       "state": "media-identity-release-or-protection-state-changes-before-write",
-      "prepared": ["fail-closed provenance checks", "read-only rediscovery", "authorization invalidation", "zero stale-candidate reuse"],
+      "prepared": [
+        "fail-closed provenance checks",
+        "read-only rediscovery",
+        "authorization invalidation",
+        "zero stale-candidate reuse"
+      ],
       "next": "refuse the write, invalidate stale authority/preflight as needed, and rebuild evidence without destructive action"
     },
     {
       "rank": 3,
       "state": "x86-physical-flash-readback-passes-after-explicit-authority",
-      "prepared": ["verified x86 artifact checksum", "exact release provenance", "unique USB targeting", "guarded write", "full raw-device readback hash", "boot-proof collection"],
+      "prepared": [
+        "verified x86 artifact checksum",
+        "exact release provenance",
+        "unique USB targeting",
+        "guarded write",
+        "full raw-device readback hash",
+        "boot-proof collection"
+      ],
       "next": "physical Hopper boot and Tiny Seed ready/boot-proof evidence"
     },
     {
       "rank": 4,
       "state": "guarded-flash-refuses-or-readback-mismatches",
-      "prepared": ["no LKG mutation", "failure receipt", "device identity evidence", "artifact checksum evidence", "readback mismatch diagnostics", "safe retry only after cause is known"],
+      "prepared": [
+        "no LKG mutation",
+        "failure receipt",
+        "device identity evidence",
+        "artifact checksum evidence",
+        "readback mismatch diagnostics",
+        "safe retry only after cause is known"
+      ],
       "next": "treat refusal as protection success, diagnose the smallest failing gate, and never weaken target-safety or readback verification"
     },
     {
       "rank": 5,
       "state": "physical-boot-success-with-possible-network-or-regrow-defer",
-      "prepared": ["Tiny Seed ready marker", "boot-proof receipt", "network retry/join", "bridge/LKG preservation", "regrow resume", "mixed-outcome classification"],
+      "prepared": [
+        "Tiny Seed ready marker",
+        "boot-proof receipt",
+        "network retry/join",
+        "bridge/LKG preservation",
+        "regrow resume",
+        "mixed-outcome classification"
+      ],
       "next": "preserve completed boot/install work, repair only the deferred stage, and continue toward healthy inactive-slot regrow"
     },
     {
       "rank": 6,
       "state": "canonical-carrier-fails-while-direct-uefi-fallback-remains-virtually-proven",
-      "prepared": ["isolated direct-UEFI GPT/FAT ESP image", "EFI/BOOT/BOOTX64.EFI", "protected Germ tests", "raw-image checksum/layout proof", "OVMF removable-media boot proof", "experimental published artifact"],
+      "prepared": [
+        "isolated direct-UEFI GPT/FAT ESP image",
+        "EFI/BOOT/BOOTX64.EFI",
+        "protected Germ tests",
+        "raw-image checksum/layout proof",
+        "OVMF removable-media boot proof",
+        "experimental published artifact"
+      ],
       "next": "promote toward bounded physical comparison only if the observed failure is carrier-specific or expected total cost favors the fallback"
     },
     {
       "rank": 7,
       "state": "healthy-regrow-arms-trial",
-      "prepared": ["Gen0 slot A/LKG preservation", "inactive slot B regrow", "boot proof", "selftest and critical-service gates", "Guardian quarantine/rollback"],
+      "prepared": [
+        "Gen0 slot A/LKG preservation",
+        "inactive slot B regrow",
+        "boot proof",
+        "selftest and critical-service gates",
+        "Guardian quarantine/rollback"
+      ],
       "next": "reboot trial only at the physical boundary; promote only on fresh health proof, otherwise roll back automatically"
     },
     {
       "rank": 8,
       "state": "physical-success-unlocks-universal-carrier-and-arm64-canaries",
-      "prepared": ["universal-carrier architecture", "Pi artifact/static proof", "StateWeave independent experiment", "adaptive-kernel independent experiment"],
+      "prepared": [
+        "universal-carrier architecture",
+        "Pi artifact/static proof",
+        "StateWeave independent experiment",
+        "adaptive-kernel independent experiment"
+      ],
       "next": "prove x86 formal boot/recovery and Pi physical boundaries before promoting broader experimental capabilities"
     }
   ],
   "calibration": {
-    "prediction_score_classes": ["exact", "partial", "miss"],
-    "execution_score_classes": ["complete", "prepared", "partial", "miss", "boundary-correct"],
+    "prediction_score_classes": [
+      "exact",
+      "partial",
+      "miss"
+    ],
+    "execution_score_classes": [
+      "complete",
+      "prepared",
+      "partial",
+      "miss",
+      "boundary-correct"
+    ],
     "rule": "A useful hit requires both prediction and preparation/execution. A broader neighboring family does not count as exact. Prepared state that no longer matches canonical provenance or live physical reality is invalid, not warm. Mixed success/defer outcomes must be represented explicitly to earn exact credit. A manual handoff is not complete while a safe tool-side branch remains executable.",
     "latest_resolved_sample": "The prior live field ranked hopper-preexecution-recovery-pass-resolves first and terminal-unrepaired-pass-releases-current-tinyseed-boundary third. The fresh v2 receipt resolved terminal unrepaired with boxbrain-unreachable and manual_handoff_released=true; fresh current-release USB evidence then advanced automatically to READY_FOR_GUARDED_FLASH_PREFLIGHT. Score: exact prediction, boundary-correct execution. The system now stops at fresh explicit one-shot destructive authority.",
-    "metrics": ["prediction_accuracy", "execution_completeness", "useful_hit_rate", "prepared_action_hit_rate", "user_turns_avoided", "estimated_wait_time_saved", "speculative_cost", "assumptions_corrected_early"]
+    "metrics": [
+      "prediction_accuracy",
+      "execution_completeness",
+      "useful_hit_rate",
+      "prepared_action_hit_rate",
+      "user_turns_avoided",
+      "estimated_wait_time_saved",
+      "speculative_cost",
+      "assumptions_corrected_early"
+    ]
   },
   "real_boundaries": [
     "explicit one-shot destructive disk write authority after all safe tool-side recovery and live current-release media discovery are complete",
@@ -198,5 +308,41 @@
     "credentials/secrets not already enrolled",
     "personal preference choices",
     "irreversible or materially risky hardware/system changes"
-  ]
+  ],
+  "canonical_evidence": {
+    "release": {
+      "source_commit": "b582d70605d93f8be12df7e261336839c260fb1e",
+      "state": "READY_TO_FLASH",
+      "x86_artifact": "Aurum-TinySeed-amd64.iso",
+      "x86_sha256": "1afb8659eda15b2c2acd1b0c4ce70b99fb7a9bd8c0489b8b10be59acfaf9dee4"
+    },
+    "physical_preflight": {
+      "present": true,
+      "matches_current_release": true,
+      "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
+      "next_gate": "explicit-guarded-flash-authorization",
+      "write_authority": false,
+      "destructive_action_allowed": false,
+      "destructive_action_performed": false,
+      "eligible_count": 1,
+      "usb_candidate": {
+        "disk_number": 1,
+        "model": "USB SanDisk 3.2 Gen",
+        "size_bytes": 61524148224,
+        "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+        "is_boot": false,
+        "is_system": false,
+        "is_read_only": false,
+        "protected": false,
+        "eligible_for_preflight_only": true
+      }
+    },
+    "preexecution_recovery": {
+      "terminal_receipt_present": true,
+      "manual_handoff_released": true,
+      "remote_repair": "unavailable",
+      "terminal_reason": "boxbrain-unreachable",
+      "observed_at": "2026-08-24T21:09:24.3307021Z"
+    }
+  }
 }
