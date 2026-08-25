@@ -1,8 +1,10 @@
 """Build an auditable Future Branch recovery manifest without changing a machine.
 
 This helper is intentionally proposal-only. It describes the candidate, Last Known
-Good, rollback, and wait-for-health futures that exist immediately before an Aurum
-seed reconciliation. BrainConnect/State Guardian remains the decision authority.
+Good, rollback, protected offline recovery, and wait-for-health futures that exist
+immediately before an Aurum seed reconciliation. Remote desired state is evidence
+and a constraint, never direct mutation authority. BrainConnect/State Guardian
+remains the decision authority for this compatibility path.
 """
 
 from __future__ import annotations
@@ -39,8 +41,8 @@ def recovery_manifest(
     """Return the bounded pre-mutation Future Branch field.
 
     No branch is promoted here. The manifest records what can be considered and
-    what evidence exists before mutation so rollback/LKG is a first-class future,
-    not merely an exception handler after failure.
+    what evidence exists before mutation so rollback/LKG/offline recovery are
+    first-class futures, not merely exception handlers after failure.
     """
 
     if not candidate_state:
@@ -89,6 +91,39 @@ def recovery_manifest(
             "is_last_known_good": current_seed_present,
         },
         {
+            "branch_id": "seed-rollback",
+            "proposed_state": lkg_state,
+            "confidence": 0.90 if rollback_target else 0.35,
+            "risk": 0.05,
+            "cost": 0.10,
+            "reversibility": "full" if rollback_target else "partial",
+            "evidence": [
+                _evidence("rollback.snapshot-created", supports=bool(rollback_target)),
+            ],
+            "status": "warm" if rollback_target else "waiting",
+            "requires_authorization": False,
+            "authorized": bool(rollback_target),
+            "rollback_target": rollback_target,
+            "is_last_known_good": False,
+        },
+        {
+            "branch_id": "seed-offline-recovery",
+            "proposed_state": "enter-protected-offline-recovery",
+            "confidence": 0.78 if current_seed_present else 0.58,
+            "risk": 0.05,
+            "cost": 0.12,
+            "reversibility": "full" if current_seed_present or rollback_target else "partial",
+            "evidence": [
+                _evidence("offline.protected-germ-contract", supports=True, quality=0.90),
+                _evidence("lkg.current-seed-present", supports=current_seed_present),
+            ],
+            "status": "warm",
+            "requires_authorization": False,
+            "authorized": True,
+            "rollback_target": rollback_target or (lkg_state if current_seed_present else None),
+            "is_last_known_good": False,
+        },
+        {
             "branch_id": "seed-wait-health",
             "proposed_state": "gather-independent-health-evidence",
             "confidence": 0.72,
@@ -104,37 +139,19 @@ def recovery_manifest(
         },
     ]
 
-    if rollback_target:
-        branches.append(
-            {
-                "branch_id": "seed-rollback",
-                "proposed_state": lkg_state,
-                "confidence": 0.90,
-                "risk": 0.05,
-                "cost": 0.10,
-                "reversibility": "full",
-                "evidence": [
-                    _evidence("rollback.snapshot-created", supports=True),
-                ],
-                "status": "warm",
-                "requires_authorization": False,
-                "authorized": True,
-                "rollback_target": rollback_target,
-                "is_last_known_good": False,
-            }
-        )
-
     return {
         "schema": "aurum-future-branch-recovery-v1",
         "phase": "pre-mutation",
         "decision_authority": "BrainConnect/StateGuardian",
         "promotion_performed": False,
         "desired_state_constraint": desired_state,
+        "desired_state_is_evidence_not_authority": True,
         "branches": branches,
         "invariants": {
             "lkg_destroy_allowed": False,
             "candidate_direct_promotion_allowed": False,
             "rollback_must_remain_available": bool(rollback_target),
+            "offline_recovery_must_remain_available": True,
             "verification_required_after_mutation": True,
         },
     }
