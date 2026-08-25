@@ -41,6 +41,14 @@ Example local checkpoint refresh:
 
 A runtime may pass a JSON overlay with `--runtime-overlay <path>` to persist active jobs and local fingerprints without moving those ephemeral details into Git.
 
+The restart-side companion is `Admin/resume_aurum_runtime.py`. It first reconstructs current canonical repository truth, then accepts a local checkpoint only if its durable-state digest, release provenance, canonical next gate, schema, freshness, and zero-authority contract still match. It restores checkpointed running/retrying/runnable/blocked/failed job evidence and resume hints without claiming those processes are currently live. Repository-head drift is surfaced for job revalidation rather than silently treated as proof that old work is still executing.
+
+Example restart reconstruction using both authority layers:
+
+`python Admin/resume_aurum_runtime.py`
+
+A stale, tampered, incomplete, provenance-mismatched, or authority-bearing checkpoint is refused. A valid checkpoint is still evidence only: every resumed side-effecting job must re-observe current dependencies and authority before execution.
+
 ### 3. ChatGPT / external AI memory — supplemental context only
 
 Conversation memory, summaries, model context, and other external AI memory may help interpret intent or accelerate work, but they must never be the only copy of:
@@ -82,7 +90,9 @@ A direct operator or recovery check is:
 
 The emitted `aurum-restart-reconstruction-v1` object is a reconstruction artifact, not an authorization token. Any human-only, physical, destructive, or time-sensitive boundary still requires fresh live evidence and Action Ownership checks.
 
-The local operational layer is separately exercised by `Admin.tests.test_checkpoint_aurum_runtime`, including atomic persistence, resumable-job capture, invalid-state refusal, duplicate-job refusal, and proof that an overlay cannot smuggle destructive authority or LKG mutation into a checkpoint.
+The local operational layer is exercised in both directions. `Admin.tests.test_checkpoint_aurum_runtime` covers atomic persistence, resumable-job capture, invalid-state refusal, duplicate-job refusal, and proof that an overlay cannot smuggle destructive authority or LKG mutation into a checkpoint. `Admin.tests.test_resume_aurum_runtime` covers the restart-side round trip: restoring checkpointed runtime evidence, refusing stale/tampered/provenance-mismatched checkpoints, refusing authority-bearing checkpoints, and preserving the rule that checkpointed jobs are not claimed live until re-observed.
+
+Implementation/CI proof of this contract is distinct from deployment proof. A real controller/process restart must still demonstrate that its local checkpoint survives the process boundary and is consumed correctly in the deployed runtime before `live restart continuity` is labeled physically/operationally verified.
 
 ## Design consequence
 
