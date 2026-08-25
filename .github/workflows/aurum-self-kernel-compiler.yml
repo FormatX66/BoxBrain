@@ -1,0 +1,99 @@
+name: Aurum Self-Kernel Compiler
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-self-kernel-compiler.yml'
+      - 'Projects/AurumKernel/**'
+      - 'Projects/Codelation/kernel_selfbuild/**'
+      - 'Projects/Codelation/tests/test_self_kernel_compiler_executor.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-self-kernel-compiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install build and isolated boot tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            linux-source build-essential bc bison flex libssl-dev libelf-dev \
+            cpio gzip xz-utils kmod rsync busybox-static qemu-system-x86
+
+      - name: Validate compiler contracts
+        run: |
+          sh -n Projects/AurumKernel/build-kernel.sh
+          sh -n Projects/AurumKernel/boot-test.sh
+          python3 -m py_compile Projects/Codelation/kernel_selfbuild/*.py
+          python3 -m unittest discover -s Projects/Codelation/tests \
+            -p 'test_self_kernel_compiler_executor.py' -v
+
+      - name: Build self-kernel boot profile
+        env:
+          AURUM_BUILD_JOBS: '4'
+          AURUM_BUILD_MODULES: '0'
+        run: sh Projects/AurumKernel/build-kernel.sh
+
+      - name: Verify kernel boot
+        run: sh Projects/AurumKernel/boot-test.sh
+
+      - name: Publish boot-verified bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Kernel-v0.02-x86_64
+          path: dist/Aurum-Kernel-v0.02-x86_64/**
+          if-no-files-found: error
+          retention-days: 14
+
+  build-and-boot-pi3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install ARM64 kernel and Pi 3 boot tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev cpio gzip \
+            kmod git gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            libc6-dev-arm64-cross device-tree-compiler qemu-system-arm
+
+      - name: Validate Pi 3 lane contracts
+        run: |
+          sh -n Projects/AurumKernel/build-pi3-kernel.sh
+          sh -n Projects/AurumKernel/package-pi3-kernel.sh
+          sh -n Projects/AurumKernel/boot-test-pi3.sh
+          sh -n Projects/AurumKernel/prepare-pi3-image.sh
+          sh -n Projects/AurumKernel/verify-pi3-image.sh
+          python3 -m unittest \
+            Projects.Codelation.tests.test_self_kernel_compiler_executor -v
+
+      - name: Build self-kernel Pi 3 profile
+        env:
+          AURUM_BUILD_JOBS: '4'
+        run: sh Projects/AurumKernel/build-pi3-kernel.sh
+
+      - name: Verify Pi 3 kernel boot
+        run: sh Projects/AurumKernel/boot-test-pi3.sh
+
+      - name: Publish Pi 3 boot-verified kernel bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Pi3-Kernel-v0.02-arm64
+          path: dist/Aurum-Pi3-Kernel-v0.02-arm64/**
+          if-no-files-found: error
+          retention-days: 14
