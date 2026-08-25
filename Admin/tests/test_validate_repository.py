@@ -52,13 +52,31 @@ class RepositoryValidatorTests(unittest.TestCase):
                 (workflow_dir / name).write_text(text, encoding="utf-8")
 
             errors = destructive_workflow_policy_errors(root)
-            self.assertGreaterEqual(len(errors), 9)
+            self.assertGreaterEqual(len(errors), 12)
             self.assertTrue(any("workflow_run:" in error for error in errors))
             self.assertTrue(any("push:" in error for error in errors))
             self.assertTrue(any("AURUM_FLASH_AUTHORIZATION:" in error for error in errors))
             self.assertTrue(any("AURUM_REFLASH_AUTHORIZATION:" in error for error in errors))
             self.assertTrue(any("aurum-pc01-grub-flash-once.yml" in error for error in errors))
             self.assertTrue(any("aurum-pc01-reflash-once.yml" in error for error in errors))
+            self.assertTrue(any("persistent static authorization" in error for error in errors))
+
+    def test_repo_wide_scan_rejects_unknown_static_raw_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            workflow = root / ".github" / "workflows" / "unexpected-media-writer.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(
+                "on:\n  workflow_dispatch:\n"
+                "env:\n  AURUM_MEDIA_AUTHORIZATION: bruce-old-static-token\n"
+                "jobs:\n  write:\n    steps:\n      - run: echo \\\\.\\PhysicalDrive9\n",
+                encoding="utf-8",
+            )
+
+            errors = destructive_workflow_policy_errors(root)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("unexpected-media-writer.yml", errors[0])
+            self.assertIn("persistent static authorization", errors[0])
 
     def test_retired_pc01_media_tombstones_are_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
