@@ -12,6 +12,12 @@ on:
     paths:
       - 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
       - 'Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json'
+      # These two files also contain non-canonical planning/calibration fields that
+      # are legitimately edited by other lanes. Re-run the projector after those
+      # edits so their embedded canonical release/preflight truth cannot drift.
+      # A projector-authored follow-up commit causes at most one no-op rerun.
+      - 'Projects/Aurum/completion-plan.json'
+      - 'Projects/Aurum/future-branches.json'
       - 'Admin/sync_aurum_release_status.py'
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - '.github/workflows/aurum-completion-plan-sync.yml'
