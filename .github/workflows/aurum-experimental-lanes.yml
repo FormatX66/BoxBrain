@@ -28,12 +28,12 @@ jobs:
         run: python -m unittest discover -s Projects/StateWeave/tests -p 'test_*.py' -v
 
   adaptive-kernel:
-    name: Adaptive Kernel standalone
+    name: Adaptive Kernel generation 1
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Test Adaptive Kernel generation 0
+      - name: Test Adaptive Kernel planning and bounded runtime
         run: python -m unittest discover -s Projects/AdaptiveKernel/tests -p 'test_*.py' -v
 
   combined:

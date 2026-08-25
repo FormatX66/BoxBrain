@@ -69,7 +69,7 @@ jobs:
           python-version: "3.13"
       - name: Test StateWeave branch records
         run: python -m unittest discover -s Projects/StateWeave/tests -v
-      - name: Test Adaptive Kernel branch proposals
+      - name: Test Adaptive Kernel planning and generation-1 runtime
         run: python -m unittest discover -s Projects/AdaptiveKernel/tests -v
       - name: Test combined StateWeave + kernel bridge
         run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v

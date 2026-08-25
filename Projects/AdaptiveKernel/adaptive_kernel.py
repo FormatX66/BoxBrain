@@ -1,7 +1,8 @@
 """Adaptive Kernel generation-0 prototype.
 
-This lane produces *plans only*. It does not bind drivers, write firmware, change
-boot state, or perform privileged hardware operations.
+This module's generation-0 layer produces *plans only*. The bounded generation-1
+simulator lives in ``runtime.py``. Neither layer binds drivers, writes firmware,
+changes boot state, or performs privileged hardware operations.
 
 Future Branch integration emits auditable candidate proposals and a bounded
 canary decision field. It never mutates the proven implementation itself: the

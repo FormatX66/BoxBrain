@@ -1,6 +1,10 @@
 import unittest
 
 from Projects.AdaptiveKernel.adaptive_kernel import CapabilityRule
+from Projects.AdaptiveKernel.runtime import (
+    AdaptiveKernelRuntime,
+    RealizationCandidate,
+)
 from Projects.StateWeave.stateweave import State
 from Projects.StateWeaveKernel.bridge import (
     describe_future_branches_in_state,
@@ -73,6 +77,34 @@ class StateWeaveKernelBridgeTests(unittest.TestCase):
             recorded["future.branch.kernel-pointer-next.evidence.1.supports"]
         )
         self.assertEqual(recorded["kernel.active"], "proven-A")
+
+    def test_stateweave_plan_can_enter_bounded_generation_one_runtime(self):
+        state = State.from_mapping(
+            {
+                "fact.input.pointer": True,
+                "kernel.active": "proven-A",
+            }
+        )
+        rules = [CapabilityRule("pointer", ("input.pointer",), ("pointer",))]
+        kernel_plan = plan_from_state(state, rules)
+        runtime = AdaptiveKernelRuntime(state.as_dict())
+        realization = RealizationCandidate(
+            candidate_id="pointer-simulated",
+            rule_name="pointer",
+            propose=lambda current: {
+                **current,
+                "kernel.capability.pointer": True,
+            },
+            confidence=0.8,
+            cost=0.2,
+        )
+
+        run = runtime.adapt(kernel_plan, [realization])
+
+        self.assertEqual(run.status, "success")
+        self.assertTrue(run.final_state["kernel.capability.pointer"])
+        self.assertEqual(run.final_state["kernel.active"], "proven-A")
+        self.assertEqual(run.attempts[0].reason, "verified")
 
 
 if __name__ == "__main__":
