@@ -1,4 +1,5 @@
-/* AURUM_TINYSEED_MEDIA_HANDOFF_V1_4_CANONICAL
+/* AURUM_TINYSEED_MEDIA_HANDOFF_V1_5_CANONICAL
+ * AURUM_TINYSEED_MEDIA_HANDOFF_V1_4_CANONICAL compatibility marker.
  * AURUM_TINYSEED_MEDIA_HANDOFF_V1_3_CANONICAL compatibility marker.
  * AURUM_TINYSEED_MEDIA_HANDOFF_V1_2_CANONICAL compatibility marker.
  * AURUM_TINYSEED_MEDIA_HANDOFF_V1_CANONICAL compatibility marker.
@@ -6,6 +7,8 @@
  * Refines Recovery Guardian at the physical-media boundary using read-only
  * USB discovery, exact guarded preflight, one-shot write authority, raw-readback
  * proof, and current-release end-to-end network-regrow readiness evidence.
+ * Physical-preflight receipts are schema-roll-forward compatible so newer
+ * evidence cannot regress the dashboard into an obsolete connect-media action.
  * A matching post-write receipt can retire an older authorization carrier.
  * Evidence can retire a human task; it never invents one.
  */
@@ -44,6 +47,7 @@ const helperProof=t=>[
   'AMBIGUOUS_MULTIPLE_ELIGIBLE'
 ].every(x=>String(t||'').includes(x));
 const recoverySchemaCompatible=s=>/^aurum-command-center-recovery-guardian-v1\.\d+$/.test(String(s?.schema||''));
+const physicalPreflightSchemaCompatible=p=>/^aurum-tinyseed-physical-preflight-v\d+$/.test(String(p?.schema||''));
 const ready=s=>Boolean(
   s&&recoverySchemaCompatible(s)&&
   s.tinySeedReleaseState==='READY_TO_FLASH'&&
@@ -52,7 +56,7 @@ const ready=s=>Boolean(
   s.physicalRecoveryProofInferred===false
 );
 const releaseMatches=(s,p)=>Boolean(
-  ready(s)&&p?.schema==='aurum-tinyseed-physical-preflight-v1'&&
+  ready(s)&&physicalPreflightSchemaCompatible(p)&&
   p?.state==='READY_FOR_GUARDED_FLASH_PREFLIGHT'&&
   p?.release?.state==='READY_TO_FLASH'&&
   String(p?.release?.source_commit||'').toLowerCase()===String(s?.tinySeedReleaseSourceCommit||'').toLowerCase()&&
@@ -207,7 +211,7 @@ function enrich(){
   };
   window.__aurumRecoveryGuardianState=s;
   window.__aurumTinySeedMediaHandoffState={
-    schema:'aurum-command-center-tinyseed-media-handoff-v1.4',
+    schema:'aurum-command-center-tinyseed-media-handoff-v1.5',
     helperState,
     phase:p,
     preflightState:s.tinySeedPhysicalPreflightState,
