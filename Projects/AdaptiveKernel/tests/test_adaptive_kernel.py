@@ -1,8 +1,10 @@
 import unittest
 
 from Projects.AdaptiveKernel.adaptive_kernel import (
+    CanaryEvidence,
     CapabilityRule,
     future_branch_proposals,
+    kernel_canary_branch_field,
     plan,
 )
 
@@ -47,6 +49,65 @@ class AdaptiveKernelTests(unittest.TestCase):
         self.assertGreater(proposal["risk"], 0.8)
         self.assertTrue(proposal["requires_authorization"])
         self.assertFalse(proposal["authorized"])
+
+    def test_canary_field_preserves_proven_rollback_and_gather_branches(self):
+        proposals = future_branch_proposals(
+            {"input.pointer": True},
+            [CapabilityRule("pointer", ("input.pointer",), ("pointer",))],
+        )
+        field = kernel_canary_branch_field(proposals, {})
+        by_id = {item["branch_id"]: item for item in field["branches"]}
+        self.assertTrue(by_id["kernel-proven-lkg"]["is_last_known_good"])
+        self.assertEqual(by_id["kernel-proven-lkg"]["status"], "verified")
+        self.assertEqual(by_id["kernel-rollback"]["rollback_target"], "current-proven-kernel")
+        self.assertEqual(by_id["kernel-gather-evidence"]["status"], "warm")
+        self.assertFalse(field["promotion_performed"])
+        self.assertFalse(field["invariants"]["proven_state_destroy_allowed"])
+
+    def test_strong_regression_vetoes_candidate_despite_other_positive_dimensions(self):
+        proposals = future_branch_proposals(
+            {"input.pointer": True},
+            [CapabilityRule("pointer", ("input.pointer",), ("pointer",))],
+        )
+        field = kernel_canary_branch_field(
+            proposals,
+            {
+                "kernel-pointer": CanaryEvidence(
+                    boot=True,
+                    resume=True,
+                    hardware=True,
+                    performance=True,
+                    regression=False,
+                )
+            },
+            guardian_approved_branches=("kernel-pointer",),
+        )
+        candidate = next(item for item in field["branches"] if item["branch_id"] == "kernel-pointer")
+        self.assertEqual(candidate["status"], "rejected")
+        self.assertEqual(candidate["hold_reason"], "strong-regression-evidence")
+        self.assertFalse(candidate["promotion_eligible"])
+        self.assertFalse(field["promotion_performed"])
+
+    def test_complete_positive_canary_requires_guardian_before_promotion_eligibility(self):
+        proposals = future_branch_proposals(
+            {"input.pointer": True},
+            [CapabilityRule("pointer", ("input.pointer",), ("pointer",))],
+        )
+        proof = CanaryEvidence(True, True, True, True, True)
+        held = kernel_canary_branch_field(proposals, {"kernel-pointer": proof})
+        held_candidate = next(item for item in held["branches"] if item["branch_id"] == "kernel-pointer")
+        self.assertEqual(held_candidate["status"], "verified")
+        self.assertEqual(held_candidate["hold_reason"], "guardian-approval-required")
+        self.assertFalse(held_candidate["promotion_eligible"])
+
+        approved = kernel_canary_branch_field(
+            proposals,
+            {"kernel-pointer": proof},
+            guardian_approved_branches=("kernel-pointer",),
+        )
+        approved_candidate = next(item for item in approved["branches"] if item["branch_id"] == "kernel-pointer")
+        self.assertTrue(approved_candidate["promotion_eligible"])
+        self.assertFalse(approved["promotion_performed"])
 
 
 if __name__ == "__main__":
