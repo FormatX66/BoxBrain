@@ -6,6 +6,7 @@ on:
     workflows:
       - 'Aurum Tiny Seed Handoff'
       - 'Aurum Read-Only USB Discovery'
+      - 'Aurum Tiny Seed One-Shot Flash Request'
     types: [completed]
   push:
     branches: [main]
