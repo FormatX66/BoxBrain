@@ -68,6 +68,19 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertNotIn("ssh-keyscan", workflow)
         self.assertNotIn("ssh-keyscan", collector)
 
+    def test_collector_uses_native_ssh_exit_code_instead_of_treating_stderr_as_failure(self) -> None:
+        collector = COLLECTOR.read_text(encoding="utf-8")
+
+        self.assertIn("$savedErrorActionPreference = $ErrorActionPreference", collector)
+        self.assertIn('$ErrorActionPreference = "Continue"', collector)
+        self.assertIn("$exitCode = $LASTEXITCODE", collector)
+        self.assertIn("$ErrorActionPreference = $savedErrorActionPreference", collector)
+        self.assertIn("if ($exitCode -ne 0 -and -not $AllowFailure)", collector)
+        self.assertLess(
+            collector.index('$ErrorActionPreference = "Continue"'),
+            collector.index("$exitCode = $LASTEXITCODE"),
+        )
+
     def test_runtime_contract_failure_reports_content_free_reason_codes(self) -> None:
         collector = COLLECTOR.read_text(encoding="utf-8")
 
