@@ -1,1 +1,81 @@
-﻿{"authorization": {"authorization_state": "EXPIRED", "destructive_action_allowed": false, "expires_at_utc": "2026-08-24T12:20:00+00:00", "request_id": "tinyseed-crayola-flash-20260824-0739", "request_write_authority": false}, "destructive_action_allowed": false, "destructive_action_performed": false, "discovery_request_id": "tinyseed-auto-release-0cdeae61f2e4-retry-20260825T0846Z", "discovery_selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY", "eligible_count": 1, "guardian_forced_rollback_proven": false, "invariants": {"full_raw_readback_required_after_write": true, "guardian_forced_rollback_proof_required": true, "physical_boot_proof_required_after_flash": true, "preexecution_toolside_recovery_before_manual_handoff": true, "preserve_hopper_existing_recovery_media": true, "reprove_raw_usb_identity_before_write": true}, "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt", "physical_boot_proven": false, "preexecution_recovery": {"manual_handoff_released": false, "observed_at": "2026-08-25T06:15:19.7789075Z", "reason": "Hopper recovery receipt is not fresh", "remote_repair": "unavailable", "required_schema": "aurum.hopper.recovery-path-probe.v2", "terminal_reason": "boxbrain-unreachable", "terminal_receipt_present": true}, "preflight_state": "WAIT_HOPPER_PREEXECUTION_RECOVERY", "release": {"source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051", "state": "READY_TO_FLASH", "x86_artifact": "Aurum-TinySeed-amd64.iso", "x86_sha256": "91f2f14c94819447bcfbdf89e921998fa5b39a5e542114ce66fda88a93c95966"}, "release_source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051", "release_state": "READY_TO_FLASH", "schema": "aurum-tinyseed-physical-preflight-v2", "state": "WAIT_HOPPER_PREEXECUTION_RECOVERY", "usb_candidate": {"disk_number": 1, "eligible_for_preflight_only": true, "is_boot": false, "is_read_only": false, "is_system": false, "model": "USB SanDisk 3.2 Gen", "protected": false, "refusal_reasons": [], "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5", "size_bytes": 61524148224}, "usb_discovery": {"candidate": {"disk_number": 1, "eligible_for_preflight_only": true, "is_boot": false, "is_read_only": false, "is_system": false, "model": "USB SanDisk 3.2 Gen", "protected": false, "refusal_reasons": [], "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5", "size_bytes": 61524148224}, "eligible_count": 1, "observed_at_utc": "2026-08-25T08:46:42.0165259Z", "release_request_match": true, "release_source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051", "request_id": "tinyseed-auto-release-0cdeae61f2e4-retry-20260825T0846Z", "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY", "write_authority": false}, "write_authority": false, "x86_artifact": "Aurum-TinySeed-amd64.iso", "x86_sha256": "91f2f14c94819447bcfbdf89e921998fa5b39a5e542114ce66fda88a93c95966"}
+{
+  "authorization": {
+    "authorization_state": "EXPIRED",
+    "destructive_action_allowed": false,
+    "expires_at_utc": "2026-08-24T12:20:00+00:00",
+    "request_id": "tinyseed-crayola-flash-20260824-0739",
+    "request_write_authority": false
+  },
+  "destructive_action_allowed": false,
+  "destructive_action_performed": false,
+  "discovery_request_id": "tinyseed-auto-release-0cdeae61f2e4-retry-20260825T0846Z",
+  "discovery_selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
+  "eligible_count": 1,
+  "guardian_forced_rollback_proven": false,
+  "invariants": {
+    "full_raw_readback_required_after_write": true,
+    "guardian_forced_rollback_proof_required": true,
+    "physical_boot_proof_required_after_flash": true,
+    "preexecution_toolside_recovery_before_manual_handoff": true,
+    "preserve_hopper_existing_recovery_media": true,
+    "reprove_raw_usb_identity_before_write": true
+  },
+  "next_gate": "explicit-guarded-flash-authorization",
+  "physical_boot_proven": false,
+  "preexecution_recovery": {
+    "manual_handoff_released": true,
+    "observed_at": "2026-08-25T08:48:03.4482678Z",
+    "reason": "fresh terminal unrepaired Hopper recovery receipt and current release-bound unique USB evidence are present",
+    "remote_repair": "unavailable",
+    "required_schema": "aurum.hopper.recovery-path-probe.v2",
+    "terminal_reason": "boxbrain-unreachable",
+    "terminal_receipt_present": true
+  },
+  "preflight_state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
+  "release": {
+    "source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051",
+    "state": "READY_TO_FLASH",
+    "x86_artifact": "Aurum-TinySeed-amd64.iso",
+    "x86_sha256": "91f2f14c94819447bcfbdf89e921998fa5b39a5e542114ce66fda88a93c95966"
+  },
+  "release_source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051",
+  "release_state": "READY_TO_FLASH",
+  "schema": "aurum-tinyseed-physical-preflight-v2",
+  "state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
+  "usb_candidate": {
+    "disk_number": 1,
+    "eligible_for_preflight_only": true,
+    "is_boot": false,
+    "is_read_only": false,
+    "is_system": false,
+    "model": "USB SanDisk 3.2 Gen",
+    "protected": false,
+    "refusal_reasons": [],
+    "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+    "size_bytes": 61524148224
+  },
+  "usb_discovery": {
+    "candidate": {
+      "disk_number": 1,
+      "eligible_for_preflight_only": true,
+      "is_boot": false,
+      "is_read_only": false,
+      "is_system": false,
+      "model": "USB SanDisk 3.2 Gen",
+      "protected": false,
+      "refusal_reasons": [],
+      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+      "size_bytes": 61524148224
+    },
+    "eligible_count": 1,
+    "observed_at_utc": "2026-08-25T08:46:42.0165259Z",
+    "release_request_match": true,
+    "release_source_commit": "0cdeae61f2e4eaddbef342731adc06a5c8e9a051",
+    "request_id": "tinyseed-auto-release-0cdeae61f2e4-retry-20260825T0846Z",
+    "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY",
+    "write_authority": false
+  },
+  "write_authority": false,
+  "x86_artifact": "Aurum-TinySeed-amd64.iso",
+  "x86_sha256": "91f2f14c94819447bcfbdf89e921998fa5b39a5e542114ce66fda88a93c95966"
+}
