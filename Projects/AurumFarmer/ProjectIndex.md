@@ -17,15 +17,26 @@ single-leader supervisor lease, runner watchdog, bounded retry classification,
 branch quarantine, LKG promotion, a loopback authenticated API, and Windows and
 Linux service installers.
 
-Hosted Windows installation is now CI-proven. GitHub Actions run `32878837340`
-on source commit `da4239ab301c5fb2d6748145dae75b03e3589bed` successfully exercised the
-real Windows installer, persisted a matching source/health receipt, registered
-and started the `Aurum Farmer` scheduled task, verified the authenticated
-loopback health endpoint and event chain, then removed the ephemeral CI task
-through the real uninstaller. This is **installer/service-contract proof on a
-hosted Windows machine**, not evidence that Farmer is already installed and
-running on the operator's long-lived physical computer. Live deployed-runtime
-proof remains a separate boundary.
+The Windows installer/service contract is CI-proven on hosted Windows, including
+the checksum-pinned release-local Python fallback used when no suitable system
+Python exists.
+
+A real persistent self-hosted Windows deployment is now also proven on runner
+`AURUM-LAPTOP-EBD8CG8P`. GitHub Actions run `32887137300`, pinned to source
+commit `fd243eb4da45b19f413ffe055c71202e20fa92ca`, installed Farmer under the
+actual `NT AUTHORITY\SYSTEM` service identity with a startup scheduled task and
+the release-local embedded Python runtime. Initial loopback health passed. The
+workflow then stopped the supervisor, queued durable canary job
+`AF-0900243f0605488ca58e`, restarted the scheduled task, allowed the prior
+90-second single-leader lease to expire, and verified that the restarted
+supervisor recovered the same job to `SUCCEEDED` with a sealed receipt. Final
+loopback health and the event chain both passed, the task remained `Running`,
+and previous releases were preserved. The durable proof is
+`Deploy/latest-windows-runtime-proof.json`.
+
+This is deployed process-boundary restart/resume evidence for Farmer. It does
+not infer destructive authority, LKG mutation, Tiny Seed physical boot proof, or
+any unrelated physical proof.
 
 ## Canonical implementation
 
@@ -37,10 +48,14 @@ proof remains a separate boundary.
 - `aurum_farmer/api.py` — loopback control surface
 - `tests/test_farmer.py` — restart, recovery, retry, evidence, LKG, boundary,
   scheduler, dedupe, and Chat-to-Git adapter regression proof
-- `installer/install-aurum-farmer.ps1` — current-user Windows service install
+- `installer/install-aurum-farmer.ps1` — Windows install supporting interactive
+  users and service-hosted/system runners, with a checksum-pinned release-local
+  Python fallback
 - `installer/aurum-farmer.service` — Linux/Pi systemd unit template
 - `.github/workflows/aurum-farmer-ci.yml` — Linux runtime regression plus hosted
   Windows install/start/health/uninstall proof
+- `.github/workflows/aurum-farmer-self-hosted-windows-deploy.yml` — reversible
+  deployed Windows install plus abrupt process-boundary restart/resume proof
 
 ## Invariants
 
