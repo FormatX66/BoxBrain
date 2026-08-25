@@ -6,12 +6,14 @@
   "nearest_prior_family": "prepared-state-invalidated-by-new-canonical-evidence",
   "prediction": "partial",
   "execution": "complete",
-  "reason": "Future Branch already treated stale release/device/authorization provenance as invalid, but the live field had not explicitly predicted that a separate legacy PC-01 workflow still carried an August 18 static destructive authorization and an automatic workflow_run trigger. A fresh automatic run reached ALREADY_COMPLETE only because a same-image sentinel existed; a changed head/image could otherwise have reached the raw-write path without fresh one-shot authority.",
-  "correction": "Treat every destructive executor as part of the authority graph, not only the canonical handoff. No raw-media workflow may auto-trigger with persistent human authorization. Legacy destructive paths must be retired or require fresh release/device-bound one-shot authority and live identity reproof.",
+  "reason": "Future Branch already treated stale release/device/authorization provenance as invalid, but the live field had not explicitly predicted that legacy PC-01 executors outside the canonical Tiny Seed handoff still retained static August 18-19 destructive authorizations. The first discovered workflow auto-triggered after image builds and reached ALREADY_COMPLETE only because a same-image sentinel existed; two sibling one-time GRUB/reflash workflows also retained push-triggered raw-write paths with stale static authority. A changed image/workflow state could otherwise have reached raw media mutation without the current fresh one-shot authority contract.",
+  "correction": "Treat every destructive executor as part of one authority graph, not only the canonical handoff. When one stale executor is discovered, immediately fan out across sibling executors for the same invariant. No raw-media workflow may auto-trigger or remain push-triggered with persistent human authorization. Legacy destructive paths must be retired or require fresh release/device-bound one-shot authority and live identity reproof.",
   "safe_work_completed": [
     "retired the legacy PC-01 automatic raw-write workflow",
-    "removed the static authorization and workflow_run trigger from the executable path",
-    "added repository-integrity regression checks that refuse restoration of automatic/raw-write behavior"
+    "retired the legacy push-triggered GRUB raw-write workflow",
+    "retired the legacy push-triggered direct-UEFI reflash workflow",
+    "removed static August 18-19 destructive authority from all three executable paths",
+    "added repository-integrity regression checks covering all three retired PC-01 raw-media writers"
   ],
   "destructive_action_performed_by_correction": false,
   "assumption_corrections": 1,
