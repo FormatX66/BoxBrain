@@ -5,7 +5,9 @@ that describes an Adaptive Kernel plan. It has no authority to alter a real OS.
 
 Future Branch integration keeps the experiment boundaries explicit: Adaptive
 Kernel emits candidate proposals, StateWeave records them, and this bridge only
-translates between the two. It does not rank/promote candidates.
+translates between the two. It does not rank/promote candidates. Each translated
+branch is bound to the StateWeave digest it was derived from so a later verified
+state change can expire stale speculative futures without erasing their evidence.
 """
 
 from __future__ import annotations
@@ -62,7 +64,7 @@ def future_branches_from_state(
     )
 
 
-def _record_from_proposal(proposal: dict) -> BranchRecord:
+def _record_from_proposal(proposal: dict, *, basis_state_digest: str | None = None) -> BranchRecord:
     evidence = tuple(
         BranchEvidenceRecord(
             ref=item["ref"],
@@ -82,6 +84,7 @@ def _record_from_proposal(proposal: dict) -> BranchRecord:
         evidence=evidence,
         rollback_target=proposal.get("rollback_target"),
         is_last_known_good=bool(proposal.get("is_last_known_good", False)),
+        basis_state_digest=basis_state_digest,
     )
 
 
@@ -91,7 +94,11 @@ def describe_future_branches_in_state(
 ) -> State:
     """Persist the auditable candidate field without declaring a winner."""
 
-    return record_branch_set(state, (_record_from_proposal(item) for item in proposals))
+    basis = state.digest()
+    return record_branch_set(
+        state,
+        (_record_from_proposal(item, basis_state_digest=basis) for item in proposals),
+    )
 
 
 def describe_plan_in_state(state: State, kernel_plan: KernelPlan) -> State:
