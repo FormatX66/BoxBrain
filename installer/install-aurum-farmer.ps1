@@ -107,19 +107,44 @@ finally {
 }
 
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-$identity = "{0}\{1}" -f $env:USERDOMAIN, $env:USERNAME
+$currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentIdentity -or -not $currentIdentity.User) {
+    throw "Could not resolve the current Windows security identity."
+}
+$identity = [string]$currentIdentity.Name
+$identitySid = [string]$currentIdentity.User.Value
+$isServiceAccount = $identity -like 'NT AUTHORITY\*' -or $identity -like 'NT SERVICE\*' -or $identitySid -in @('S-1-5-18','S-1-5-19','S-1-5-20')
+
 foreach ($secretPath in @([string]$config.api_token_path, [string]$config.signing_key_path)) {
     if (-not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
         throw "Expected Farmer secret file is missing: $secretPath"
     }
-    & icacls.exe $secretPath /inheritance:r /grant:r "${identity}:(F)" "SYSTEM:(F)" | Out-Null
+    # Use SIDs rather than environment-derived account names. Self-hosted runners
+    # frequently execute as SYSTEM/NetworkService, where USERNAME can be the
+    # machine account and cannot be resolved by icacls as a local principal.
+    $aclArgs = @($secretPath, '/inheritance:r', '/grant:r', "*${identitySid}:(F)")
+    if ($identitySid -ne 'S-1-5-18') {
+        $aclArgs += '*S-1-5-18:(F)'
+    }
+    & icacls.exe @aclArgs | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Could not restrict Farmer secret ACL: $secretPath" }
 }
 
 $arguments = '-m aurum_farmer --config "{0}" daemon' -f $configPath
 $action = New-ScheduledTaskAction -Execute $python -Argument $arguments -WorkingDirectory $releaseRoot
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
-$principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
+if ($isServiceAccount) {
+    # A service-hosted runner has no dependable interactive logon. Install Farmer
+    # as a startup service-style scheduled task under the actual current service
+    # identity so it persists across user logoff and host restart.
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType ServiceAccount -RunLevel Highest
+    $principalMode = 'service-account-startup'
+}
+else {
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
+    $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
+    $principalMode = 'interactive-logon'
+}
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 `
     -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -MultipleInstances IgnoreNew
@@ -158,6 +183,9 @@ $receipt = [ordered]@{
     runtime_root = $runtimeRoot
     python_exe = $python
     python_runtime = $pythonRuntime
+    windows_identity = $identity
+    windows_identity_sid = $identitySid
+    scheduled_task_principal_mode = $principalMode
     task_name = $TaskName
     task_state = [string]$task.State
     health_verified = $healthy
