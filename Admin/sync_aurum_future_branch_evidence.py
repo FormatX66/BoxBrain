@@ -2,8 +2,8 @@
 
 This helper projects only already-proven evidence. It never grants write authority,
 changes recovery state, promotes a candidate, or infers physical proof. Operational
-Future Branch prescriptions are projected from the same evidence so stale release
-or boundary text cannot survive beside a newer canonical state.
+Future Branch prescriptions are projected from the same evidence so stale release,
+flash-receipt, or boundary text cannot survive beside a newer canonical state.
 """
 
 from __future__ import annotations
@@ -17,10 +17,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HANDOFF_RELATIVE = Path("Projects/Aurum/Release/latest-tinyseed-handoff.json")
 PREFLIGHT_RELATIVE = Path("Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json")
+FLASH_RECEIPT_RELATIVE = Path("Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json")
 BRANCH_RELATIVE = Path("Projects/Aurum/future-branches.json")
 HANDOFF_SCHEMA = "aurum-tinyseed-handoff-v1"
+FLASH_RECEIPT_SCHEMA = "aurum-tinyseed-flash-request-receipt-v1"
 READY_PREFLIGHT = "READY_FOR_GUARDED_FLASH_PREFLIGHT"
 WAIT_RECOVERY = "WAIT_HOPPER_PREEXECUTION_RECOVERY"
+READY_TO_BOOT = "READY_TO_BOOT"
 
 
 class FutureBranchEvidenceError(ValueError):
@@ -62,6 +65,20 @@ def _optional_candidate(preflight: dict) -> dict | None:
     }
 
 
+def _optional_flash_device(receipt: dict) -> dict | None:
+    device = receipt.get("device")
+    if device is None:
+        return None
+    if not isinstance(device, dict):
+        raise FutureBranchEvidenceError("flash receipt device must be an object or null")
+    return {
+        "disk_number": device.get("disk_number"),
+        "model": device.get("model"),
+        "size_bytes": device.get("size_bytes"),
+        "serial_sha256": device.get("serial_sha256"),
+    }
+
+
 def _update_input_family(branch: dict, family: str, **values: object) -> None:
     entries = branch.get("likely_user_inputs")
     if entries is None:
@@ -98,11 +115,19 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
     release = evidence["release"]
     physical = evidence["physical_preflight"]
     recovery = evidence["preexecution_recovery"]
+    flash = evidence["flash_receipt"]
     source = release["source_commit"]
     state = physical["state"] or "missing"
     next_gate = physical["next_gate"] or "none"
     eligible_count = physical["eligible_count"]
     candidate = physical["usb_candidate"]
+
+    current_release_flash_ready_to_boot = bool(
+        flash["present"]
+        and flash["matches_current_release"]
+        and flash["state"] == READY_TO_BOOT
+        and flash["raw_readback_verified"]
+    )
 
     flash_authorization_eligible = bool(
         release["state"] == "READY_TO_FLASH"
@@ -115,6 +140,7 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         and not physical["write_authority"]
         and not physical["destructive_action_allowed"]
         and not physical["destructive_action_performed"]
+        and not current_release_flash_ready_to_boot
     )
 
     live = {
@@ -126,12 +152,39 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         "eligible_usb_count": eligible_count,
         "terminal_recovery_receipt": recovery["terminal_receipt_present"],
         "manual_handoff_released": recovery["manual_handoff_released"],
+        "flash_receipt_present": flash["present"],
+        "flash_receipt_matches_current_release": flash["matches_current_release"],
+        "current_release_flash_ready_to_boot": current_release_flash_ready_to_boot,
         "flash_authorization_eligible": flash_authorization_eligible,
         "write_authority": False,
         "destructive_action_allowed": False,
     }
 
-    if flash_authorization_eligible:
+    if current_release_flash_ready_to_boot:
+        authorization_response = (
+            f"Do not request another flash by default. Canonical Tiny Seed release {source} "
+            "already has a matching readback-verified READY_TO_BOOT flash receipt. "
+            "That receipt proves the media write only; physical boot proof is still separate."
+        )
+        authorization_action = (
+            "Keep new write authority false. Re-read the matching flash receipt and proceed "
+            "to physical boot/boot-proof collection. Reflash only if later evidence invalidates "
+            "the media or the operator explicitly starts a new bounded flash cycle."
+        )
+        top_state = "current-release-flash-readback-proven-awaiting-physical-boot"
+        top_prepared = [
+            "current release provenance",
+            "matching flash receipt",
+            "full raw readback proof",
+            "Tiny Seed ready marker collection",
+            "boot-proof receipt",
+            "LKG-preserving repair/reseed continuation",
+        ]
+        top_next = (
+            "boot the proven current-release media on the physical x86 target and collect "
+            "formal Tiny Seed ready/boot-proof evidence without inferring success from the flash receipt"
+        )
+    elif flash_authorization_eligible:
         authorization_response = (
             f"Canonical Tiny Seed release {source} is READY_TO_FLASH and the current "
             "preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT with one current-release "
@@ -215,7 +268,7 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         prepared_response=summary,
         action_if_safe=(
             "Re-read canonical handoff, physical preflight, current USB evidence, "
-            "recovery receipt, authorization freshness, and any flash receipt before "
+            "recovery receipt, authorization freshness, and flash-receipt provenance before "
             "reporting; advance only safe zero-authority work until the proven next gate changes."
         ),
     )
@@ -224,12 +277,21 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         "generic-prompt-intent-expansion",
         prepared_response=(
             f"Treat a generic continuation prompt against the live canonical state: "
-            f"preflight={state}, next_gate={next_gate}. Do all shared safe reversible "
-            "work, but never infer destructive disk-write authority."
+            f"preflight={state}, next_gate={next_gate}, "
+            f"current_release_flash_ready_to_boot={str(current_release_flash_ready_to_boot).lower()}. "
+            "Do all shared safe reversible work, but never infer destructive disk-write authority "
+            "or physical boot proof."
         ),
         action_if_safe=(
-            f"Advance the safe prefix through {next_gate}, refresh canonical evidence, "
-            "and stop before any boundary that requires explicit new authority."
+            (
+                "Advance to physical boot-proof collection from the matching readback-verified "
+                "current-release flash receipt, without granting a new write."
+            )
+            if current_release_flash_ready_to_boot
+            else (
+                f"Advance the safe prefix through {next_gate}, refresh canonical evidence, "
+                "and stop before any boundary that requires explicit new authority."
+            )
         ),
     )
     _update_top_machine_outcome(
@@ -242,7 +304,7 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
 
 
 def sync_future_branch_evidence(root: Path = ROOT) -> dict:
-    """Project canonical handoff and physical-preflight evidence into Future Branch."""
+    """Project canonical handoff, preflight, and flash receipt evidence into Future Branch."""
 
     handoff = _read_json(root / HANDOFF_RELATIVE)
     if handoff.get("schema") != HANDOFF_SCHEMA:
@@ -265,6 +327,13 @@ def sync_future_branch_evidence(root: Path = ROOT) -> dict:
     if preexecution is not None and not isinstance(preexecution, dict):
         raise FutureBranchEvidenceError("preexecution_recovery must be an object or null")
     preexecution = preexecution or {}
+
+    flash_path = root / FLASH_RECEIPT_RELATIVE
+    flash = _read_json(flash_path) if flash_path.is_file() else {}
+    if flash and flash.get("schema") != FLASH_RECEIPT_SCHEMA:
+        raise FutureBranchEvidenceError("unexpected Tiny Seed flash receipt schema")
+    flash_source = _required_text(flash.get("source_commit"), "flash receipt source_commit") if flash else None
+    flash_matches_release = flash_source == source_commit if flash else False
 
     evidence = {
         "release": {
@@ -291,9 +360,21 @@ def sync_future_branch_evidence(root: Path = ROOT) -> dict:
             "terminal_reason": preexecution.get("terminal_reason"),
             "observed_at": preexecution.get("observed_at"),
         },
+        "flash_receipt": {
+            "present": bool(flash),
+            "matches_current_release": flash_matches_release,
+            "source_commit": flash_source,
+            "state": flash.get("state") if flash else None,
+            "image_sha256": flash.get("image_sha256") if flash else None,
+            "raw_readback_verified": bool(flash.get("raw_readback_verified", False)) if flash else False,
+            "write_authority_consumed": bool(flash.get("write_authority_consumed", False)) if flash else False,
+            "observed_at_utc": flash.get("observed_at_utc") if flash else None,
+            "device": _optional_flash_device(flash) if flash else None,
+        },
     }
 
     terminal = evidence["preexecution_recovery"]
+    flash_evidence = evidence["flash_receipt"]
     preflight_state = evidence["physical_preflight"]["state"] or "missing"
     summary = (
         f"Aurum Tiny Seed canonical release is {release_state} from source {source_commit} "
@@ -303,6 +384,10 @@ def sync_future_branch_evidence(root: Path = ROOT) -> dict:
         f"terminal_reason={terminal['terminal_reason'] or 'none'}, "
         f"manual_handoff_released={str(terminal['manual_handoff_released']).lower()}, "
         f"eligible_usb_count={evidence['physical_preflight']['eligible_count']}, "
+        f"flash_receipt_present={str(flash_evidence['present']).lower()}, "
+        f"flash_receipt_matches_current_release={str(flash_evidence['matches_current_release']).lower()}, "
+        f"flash_receipt_state={flash_evidence['state'] or 'none'}, "
+        f"raw_readback_verified={str(flash_evidence['raw_readback_verified']).lower()}, "
         f"write_authority={str(evidence['physical_preflight']['write_authority']).lower()}, "
         f"destructive_action_performed={str(evidence['physical_preflight']['destructive_action_performed']).lower()}, "
         f"next_gate={evidence['physical_preflight']['next_gate'] or 'none'}. "
@@ -329,6 +414,7 @@ def sync_future_branch_evidence(root: Path = ROOT) -> dict:
         "release_state": release_state,
         "preflight_state": preflight_state,
         "preflight_matches_release": preflight_matches_release,
+        "flash_receipt_matches_release": flash_matches_release,
         "before": {
             "canonical_evidence": branch.get("canonical_evidence"),
             "current_program": branch.get("current_program"),
@@ -354,7 +440,8 @@ def main() -> int:
         f"source_commit={result['source_commit']} "
         f"release_state={result['release_state']} "
         f"preflight_state={result['preflight_state']} "
-        f"preflight_matches_release={str(result['preflight_matches_release']).lower()}"
+        f"preflight_matches_release={str(result['preflight_matches_release']).lower()} "
+        f"flash_receipt_matches_release={str(result['flash_receipt_matches_release']).lower()}"
     )
     return 0
 
