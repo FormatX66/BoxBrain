@@ -122,8 +122,12 @@ class Session:
         if accepted.get("outcome") != "authenticated":
             self.close()
             raise ControllerError(f"early KVM authentication refused: {accepted.get('reason', 'unknown')}")
-        self.session = str(accepted["session"])
-        self.sequence = int(accepted["next_sequence"])
+        try:
+            self.session = str(accepted["session"])
+            self.sequence = int(accepted["next_sequence"])
+        except (KeyError, TypeError, ValueError) as exc:
+            self.close()
+            raise ControllerError("early KVM authentication receipt is incomplete") from exc
 
     def _write(self, value: Mapping[str, Any]) -> None:
         self.writer.write(canonical_json(value) + b"\n")
@@ -180,7 +184,7 @@ def save_frame(frame: Mapping[str, Any], destination: Path) -> dict[str, Any]:
         raw = decompressor.decompress(compressed, MAX_FRAME_RAW_BYTES + 1)
         if len(raw) > MAX_FRAME_RAW_BYTES or decompressor.unconsumed_tail or decompressor.unused_data or not decompressor.eof:
             raise ControllerError("framebuffer decompression exceeds the client bound")
-    except (ValueError, zlib.error) as exc:
+    except (KeyError, ValueError, zlib.error) as exc:
         raise ControllerError("framebuffer payload is invalid") from exc
     digest = __import__("hashlib").sha256(raw).hexdigest()
     if digest != frame.get("raw_sha256"):

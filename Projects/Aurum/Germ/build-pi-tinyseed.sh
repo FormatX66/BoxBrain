@@ -65,9 +65,6 @@ chroot "$ROOT_MNT" /usr/bin/qemu-aarch64-static /bin/sh -lc '
     useradd --create-home --shell /bin/bash aurum
   fi
   passwd --lock aurum
-  for group in video input render netdev gpio; do
-    getent group "$group" >/dev/null && usermod -aG "$group" aurum || true
-  done
   apt-get clean
   rm -rf /var/lib/apt/lists/*
 '

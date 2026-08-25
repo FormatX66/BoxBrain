@@ -279,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(receipt, indent=2, sort_keys=True))
         return 0
-    except ProvisionError as exc:
+    except (ProvisionError, OSError, UnicodeError) as exc:
         print(json.dumps({"schema": "aurum-early-kvm-provision-receipt-v1", "state": "refused", "reason": str(exc)}, sort_keys=True))
         return 2
 

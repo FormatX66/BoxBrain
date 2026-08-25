@@ -11,7 +11,7 @@ import ssl
 from pathlib import Path
 from typing import Any
 
-from early_kvm import load_authority
+from early_kvm import EarlyKVMError, load_authority
 
 
 class BootstrapError(RuntimeError):
@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         print(json.dumps(bootstrap(args.root), indent=2, sort_keys=True))
         return 0
-    except (BootstrapError, OSError, ValueError) as exc:
+    except (BootstrapError, EarlyKVMError, OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"schema": "aurum-early-kvm-bootstrap-v1", "state": "refused", "reason": str(exc)}, sort_keys=True))
         return 2
 
