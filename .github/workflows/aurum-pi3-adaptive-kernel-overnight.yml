@@ -1,0 +1,290 @@
+name: Aurum Pi3 Adaptive Kernel Overnight
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: Physical laboratory duration; leaves time inside GitHub's six-hour job ceiling
+        required: true
+        type: number
+        default: 330
+      risk_ceiling:
+        description: Highest reversible experiment stage permitted
+        required: true
+        type: choice
+        default: smsc95xx-feature-canary
+        options:
+          - observe
+          - userspace-adaptation
+          - virtual-driver
+          - exact-header-module
+          - smsc95xx-feature-canary
+      allow_reversible_kernel_mutation:
+        description: Permit only locally watched, auto-restored sysctl/module/driver-feature canaries
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-adaptive-kernel-overnight
+  cancel-in-progress: false
+
+jobs:
+  physical-pi3-laboratory:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 360
+    steps:
+      - name: Check out exact overnight source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Prove rollback artifact before physical mutation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'overnight-evidence' | Out-Null
+          $manifestPath = 'C:\Arkmatx_Knowledge_Hub\Backups\Aurum-Pi3\ADAPTIVE-DRIVER-001-LKG-2026-08-25\rollback-manifest.json'
+          $expectedRawHash = '61a4c6bfc03e7ea3444ce67de20c506dbc57a7fc7e34da250b3bfab8d2845c62'
+          $expectedArchiveHash = 'c45bb76d88867b1c3552791f9b992068bccd2c9f2f9b83c2fcab3d0cc79ee984'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            throw 'Verified Pi3 rollback manifest is unavailable.'
+          }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          if (
+            [string]$manifest.state -ne 'verified' -or
+            [string]$manifest.model -ne 'Raspberry Pi 3 Model B Rev 1.2' -or
+            [string]$manifest.serial -ne '00000000a6a7df7f' -or
+            [long]$manifest.raw_image.size_bytes -ne 15931539456 -or
+            [string]$manifest.raw_image.sha256 -ne $expectedRawHash -or
+            [string]$manifest.archive.sha256 -ne $expectedArchiveHash -or
+            [string]$manifest.archive.integrity_test -ne 'passed'
+          ) {
+            throw 'Rollback manifest does not match the pinned verified Pi3 artifact.'
+          }
+          $rawPath = [string]$manifest.raw_image.path
+          $archivePath = [string]$manifest.archive.path
+          if (
+            -not (Test-Path -LiteralPath $rawPath -PathType Leaf) -or
+            -not (Test-Path -LiteralPath $archivePath -PathType Leaf) -or
+            (Get-Item -LiteralPath $rawPath).Length -ne 15931539456 -or
+            (Get-Item -LiteralPath $archivePath).Length -ne 506166404
+          ) {
+            throw 'Rollback image or archive is missing or has changed size.'
+          }
+          $rawHash = (Get-FileHash -LiteralPath $rawPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($rawHash -ne $expectedRawHash -or $archiveHash -ne $expectedArchiveHash) {
+            throw 'Fresh rollback artifact hash verification failed.'
+          }
+          $receipt = [ordered]@{
+            schema = 'aurum-pi3-overnight-control-v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'rollback-verified'
+            run_id = [string]$env:GITHUB_RUN_ID
+            source_commit = [string]$env:GITHUB_SHA
+            duration_minutes = [double]'${{ inputs.duration_minutes }}'
+            risk_ceiling = [string]'${{ inputs.risk_ceiling }}'
+            reversible_mutation_requested = ('${{ inputs.allow_reversible_kernel_mutation }}' -eq 'true')
+            rollback = [ordered]@{
+              manifest = $manifestPath
+              raw_size_bytes = 15931539456
+              raw_sha256 = $rawHash
+              archive_size_bytes = 506166404
+              archive_sha256 = $archiveHash
+              archive_integrity_test = 'passed'
+            }
+            target = [ordered]@{
+              address = '169.254.129.122'
+              user = 'aurum'
+              model = 'Raspberry Pi 3 Model B Rev 1.2'
+              serial = '00000000a6a7df7f'
+            }
+            lan_scan_performed = $false
+            firmware_write_allowed = $false
+            boot_configuration_write_allowed = $false
+            replacement_kernel_install_allowed = $false
+          }
+          $receipt | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath 'overnight-evidence/control-receipt.json' -Encoding utf8
+
+      - name: Stage pinned SSH identity for the runner account
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) {
+            throw 'Pinned Pi3 SSH identity key is unavailable.'
+          }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-overnight-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) {
+            throw 'Refusing to overwrite an existing staged SSH identity.'
+          }
+          $complete = $false
+          try {
+            Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+            $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $acl = New-Object Security.AccessControl.FileSecurity
+            $acl.SetOwner($runnerSid)
+            $acl.SetAccessRuleProtection($true, $false)
+            [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+              $runnerSid,
+              [Security.AccessControl.FileSystemRights]::FullControl,
+              [Security.AccessControl.AccessControlType]::Allow
+            ))
+            Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+            [IO.File]::AppendAllText($env:GITHUB_ENV, "PI3_RUNTIME_KEY=$runtimeKeyPath`n", [Text.UTF8Encoding]::new($false))
+            $complete = $true
+          } finally {
+            if (-not $complete -and (Test-Path -LiteralPath $runtimeKeyPath)) {
+              Remove-Item -LiteralPath $runtimeKeyPath -Force
+            }
+          }
+
+      - name: Verify exact Pi3 identity and execute staged laboratory
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $duration = [double]'${{ inputs.duration_minutes }}'
+          if ($duration -lt 1 -or $duration -gt 330) {
+            throw 'Duration must stay between 1 and 330 minutes.'
+          }
+          $targetAddress = '169.254.129.122'
+          $target = 'aurum@169.254.129.122'
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
+          $expectedFingerprint = 'SHA256:HUeYvmzLc5X487o4EnfNAqmANJFnsbUU6uc3oON+vlQ'
+          $keygenOutput = @(& ssh-keygen -lf $knownHosts -E sha256 2>$null)
+          $fingerprint = [regex]::Match(($keygenOutput -join "`n"), 'SHA256:[A-Za-z0-9+/]+={0,2}').Value.TrimEnd('=')
+          if ($fingerprint -ne $expectedFingerprint) {
+            throw 'Pinned known-host fingerprint changed.'
+          }
+
+          # Exactly one bounded endpoint check; no address discovery or LAN scan.
+          $tcp = [Net.Sockets.TcpClient]::new()
+          try {
+            $connect = $tcp.ConnectAsync($targetAddress, 22)
+            $reachable = $connect.Wait(3000) -and $tcp.Connected
+          } finally {
+            $tcp.Dispose()
+          }
+          if (-not $reachable) {
+            throw 'Pinned Pi3 TCP/22 is not reachable.'
+          }
+
+          $sshArgs = @(
+            '-o','BatchMode=yes',
+            '-o','PasswordAuthentication=no',
+            '-o','KbdInteractiveAuthentication=no',
+            '-o','PreferredAuthentications=publickey',
+            '-o','IdentitiesOnly=yes',
+            '-o','StrictHostKeyChecking=yes',
+            '-o',"UserKnownHostsFile=$knownHosts",
+            '-o','ConnectTimeout=5',
+            '-o','ConnectionAttempts=1',
+            '-i',$keyPath
+          )
+          $identityScript = @'
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          root="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+          driver="$(basename "$(readlink -f /sys/class/net/eth0/device/driver 2>/dev/null)" 2>/dev/null || true)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+          printf '%s\n%s\n%s\n%s\n%s\n' "$model" "$serial" "$root" "$driver" "$boot_id"
+          '@
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($identityScript))
+          $identityCommand = "printf '%s' '$encoded' | base64 -d | sh"
+          $identityLines = @(& ssh @sshArgs $target $identityCommand)
+          if ($LASTEXITCODE -ne 0 -or $identityLines.Count -lt 5) {
+            throw 'Strict key-only Pi3 identity session failed.'
+          }
+          if (
+            -not ([string]$identityLines[0]).Contains('Raspberry Pi 3') -or
+            ([string]$identityLines[1]).Trim() -ne '00000000a6a7df7f' -or
+            ([string]$identityLines[2]).Trim() -ne '/dev/mmcblk0p2' -or
+            ([string]$identityLines[3]).Trim() -ne 'smsc95xx'
+          ) {
+            throw 'Pi3 model, serial, root source, or reference driver gate failed.'
+          }
+
+          $remoteState = "/tmp/aurum-adaptive-kernel-overnight-$env:GITHUB_RUN_ID"
+          $mutation = if ('${{ inputs.allow_reversible_kernel_mutation }}' -eq 'true') { '--allow-mutation' } else { '' }
+          $remoteCommand = "python3 - --state-dir '$remoteState' --duration-minutes $duration --sample-seconds 60 --benchmark-seconds 1.5 --risk-ceiling '${{ inputs.risk_ceiling }}' $mutation"
+          $source = Get-Content -LiteralPath 'Projects/AdaptiveKernel/pi3_overnight_lab.py' -Raw
+          $prior = $ErrorActionPreference
+          $ErrorActionPreference = 'Continue'
+          try {
+            $source | & ssh @sshArgs $target $remoteCommand
+            $labExit = $LASTEXITCODE
+          } finally {
+            $ErrorActionPreference = $prior
+          }
+
+          New-Item -ItemType Directory -Force -Path 'overnight-evidence/remote' | Out-Null
+          $scpArgs = @(
+            '-o','BatchMode=yes',
+            '-o','PasswordAuthentication=no',
+            '-o','KbdInteractiveAuthentication=no',
+            '-o','PreferredAuthentications=publickey',
+            '-o','IdentitiesOnly=yes',
+            '-o','StrictHostKeyChecking=yes',
+            '-o',"UserKnownHostsFile=$knownHosts",
+            '-o','ConnectTimeout=5',
+            '-i',$keyPath
+          )
+          foreach ($name in @('summary.json','events.jsonl','samples.jsonl')) {
+            & scp @scpArgs "${target}:$remoteState/$name" "overnight-evidence/remote/$name"
+            if ($LASTEXITCODE -ne 0 -and $name -eq 'summary.json') {
+              throw 'Remote laboratory did not publish a summary.'
+            }
+          }
+          $summary = Get-Content -LiteralPath 'overnight-evidence/remote/summary.json' -Raw | ConvertFrom-Json
+          $controlPath = 'overnight-evidence/control-receipt.json'
+          $control = Get-Content -LiteralPath $controlPath -Raw | ConvertFrom-Json
+          $control.state = [string]$summary.state
+          $control | Add-Member -NotePropertyName remote_boot_id -NotePropertyValue ([string]$identityLines[4]).Trim() -Force
+          $control | Add-Member -NotePropertyName laboratory_exit -NotePropertyValue $labExit -Force
+          $control | Add-Member -NotePropertyName invariant_checks -NotePropertyValue $summary.invariant_checks -Force
+          $control | Add-Member -NotePropertyName passed_stages -NotePropertyValue @($summary.passed_stages) -Force
+          $control | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $controlPath -Encoding utf8
+          if ([string]$summary.state -eq 'quarantined') {
+            throw 'Overnight laboratory final invariant failed; evidence was quarantined.'
+          }
+          Write-Host "AURUM_PI3_OVERNIGHT state=$($summary.state) stages=$(@($summary.passed_stages) -join ',') persistent_change=$($summary.persistent_kernel_or_driver_change)"
+
+      - name: Publish semantic morning summary
+        if: always()
+        shell: powershell
+        run: |
+          if (Test-Path -LiteralPath 'overnight-evidence/remote/summary.json') {
+            $summary = Get-Content -LiteralPath 'overnight-evidence/remote/summary.json' -Raw | ConvertFrom-Json
+            @(
+              '# Pi3 Adaptive Kernel Overnight'
+              ''
+              "- Semantic state: ``$($summary.state)``"
+              "- Adaptive claim: ``$($summary.adaptive_kernel_claim)``"
+              "- Passed stages: ``$(@($summary.passed_stages) -join ', ')``"
+              "- Persistent kernel/driver change: ``$($summary.persistent_kernel_or_driver_change)``"
+              "- Kernel unchanged: ``$($summary.invariant_checks.kernel_unchanged)``"
+              "- Reference driver unchanged: ``$($summary.invariant_checks.reference_driver_unchanged)``"
+              "- Ethernet carrier present: ``$($summary.invariant_checks.ethernet_carrier_present)``"
+            ) -join "`n" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Retain overnight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurum-pi3-adaptive-kernel-overnight-${{ github.run_id }}
+          path: overnight-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) {
+            Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force
+          }
