@@ -1,0 +1,59 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "candidate_receipt_sha256": "7aac038b289cf159a3c0a48bc5e65a8f0daed31cad8ff1f76f0496465c460f19",
+  "candidate_source_sha256": "554a3b5502ee6865255df9f36414c316fafa7c5550dfad00889250f7fc40a332",
+  "fuzz_seed": 2501176320,
+  "input_packet_model_receipt_sha256": "3ce94fecc637d6b5469fb8b4cf1e7c08eedcfe08b8e1845f51df48c930247b0b",
+  "invariants": {
+    "driver_binding_changed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "packet_buffer_allocated": false,
+    "packet_buffer_mutated": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "next_gate": "offline-usbnet-lifecycle-and-fault-state-machine-model",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "reason": "The finite packet matrix is exhaustively and deterministically evaluated classically.",
+    "used": false
+  },
+  "receipt_sha256": "564ee84a8d796f92b9659177a3feb22e4322b4673eafb58c93f1354614df487f",
+  "scenario_count": 40966,
+  "scenario_counts": {
+    "deterministic_fuzz": 4096,
+    "rx_exhaustive": 32768,
+    "tx_boundaries": 8,
+    "tx_exhaustive": 4094
+  },
+  "scenario_matrix_sha256": "63dd0c1401b0a99c6e22f0d26aec9a13178ddae45961033c8810bce6ab0294e1",
+  "schema": "aurum.pi3.smsc95xx.packet-transfer-differential.v1",
+  "state": "controlled-source-referenced-packet-differential-passed",
+  "strongest_claim": "A source-hash-pinned portable C packet candidate matches the sealed smsc95xx TX/RX shadow across every representable TX frame length, every RX frame length, checksum fallback boundaries, and a deterministic bounded fuzz matrix. This remains host-only and is not a USB driver, kernel module, binding proof, hardware digital twin, or promotion authorization.",
+  "verification": {
+    "all_rx_frame_lengths": true,
+    "all_tx_frame_lengths": true,
+    "deterministic_bounded_fuzz": true,
+    "host_compilation": true,
+    "rpi_upstream_source_semantics": true,
+    "rx_alignment_and_error_summary": true,
+    "shared_library_execution": true,
+    "tx_checksum_fallback_boundaries": true
+  }
+}

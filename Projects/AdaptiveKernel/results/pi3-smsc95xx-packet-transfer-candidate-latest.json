@@ -1,0 +1,39 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "input_packet_model_receipt_sha256": "3ce94fecc637d6b5469fb8b4cf1e7c08eedcfe08b8e1845f51df48c930247b0b",
+  "invariants": {
+    "driver_binding_path_present": false,
+    "kernel_module_entrypoint_present": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "packet_buffer_allocated": false,
+    "packet_buffer_mutated": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "next_gate": "compiled-exhaustive-and-deterministic-fuzz-differential",
+  "receipt_sha256": "7aac038b289cf159a3c0a48bc5e65a8f0daed31cad8ff1f76f0496465c460f19",
+  "reference_sources": {
+    "hashes": {
+      "raspberry-pi-linux-smsc95xx-c": "9dcf8096d30f8ae04045db3cb3bc424e22ee083e860a308a4cd4f4b9583888d0",
+      "upstream-linux-v6.18-smsc95xx-c": "5ca28cb24d226c81d2de133083a21cee796f2d008328e9a650fce752df8f280c"
+    },
+    "rpi_upstream_semantic_token_mismatches": 0,
+    "semantic_tokens_checked_per_source": 11
+  },
+  "schema": "aurum.pi3.smsc95xx.packet-transfer-candidate.v1",
+  "source_sha256": "554a3b5502ee6865255df9f36414c316fafa7c5550dfad00889250f7fc40a332",
+  "state": "synthesized-source-referenced-packet-candidate"
+}
