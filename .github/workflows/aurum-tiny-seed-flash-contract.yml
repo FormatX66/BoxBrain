@@ -11,6 +11,7 @@ on:
       - '.github/workflows/aurum-tiny-seed-flash-windows.yml'
       - '.github/workflows/aurum-tiny-seed-flash-authorized.yml'
       - '.github/workflows/aurum-tiny-seed-flash-request.yml'
+      - '.github/workflows/aurum-tiny-seed-windows-cache-stage.yml'
       - '.github/workflows/aurum-tiny-seed-flash-contract.yml'
 
 permissions:
@@ -50,7 +51,9 @@ jobs:
           $recovery = Get-Content 'Projects/AurumBridge/Refresh-HopperRecoveryReadOnly.ps1' -Raw
           $workflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-windows.yml' -Raw
           $requestWorkflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-request.yml' -Raw
+          $cacheWorkflow = Get-Content '.github/workflows/aurum-tiny-seed-windows-cache-stage.yml' -Raw
           $legacy = Get-Content '.github/workflows/aurum-tiny-seed-flash-authorized.yml' -Raw
+
           $requiredScript = @(
             '[switch]$Write',
             'AURUM_TINYSEED_FLASH_DRY_RUN',
@@ -71,6 +74,7 @@ jobs:
           foreach ($needle in $requiredScript) {
             if (-not $script.Contains($needle)) { throw "missing flasher safety invariant: $needle" }
           }
+
           $requiredRecovery = @(
             'aurum.hopper.recovery-path-probe.v2',
             'read_only_probe = $true',
@@ -81,9 +85,27 @@ jobs:
           foreach ($needle in $requiredRecovery) {
             if (-not $recovery.Contains($needle)) { throw "missing recovery refresh invariant: $needle" }
           }
+
           if (-not $workflow.Contains('default: false')) { throw 'flash workflow must default write=false' }
           if (-not $workflow.Contains('READY_TO_FLASH')) { throw 'flash workflow must require READY_TO_FLASH manifest' }
           if (-not $workflow.Contains('source-commit-mismatch')) { throw 'flash workflow must pin source commit' }
+
+          $requiredCacheWorkflow = @(
+            'aurum-tinyseed-windows-cache-v1',
+            'hash_verified = $true',
+            'destructive_media_write = $false',
+            'write_authority = $false',
+            'AURUM_TINYSEED_CACHE_STAGED',
+            'AURUM_TINYSEED_CACHE_HIT',
+            'handoff_run_id',
+            'handoff_artifact_id'
+          )
+          foreach ($needle in $requiredCacheWorkflow) {
+            if (-not $cacheWorkflow.Contains($needle)) { throw "missing zero-authority cache invariant: $needle" }
+          }
+          if ($cacheWorkflow.Contains('PhysicalDrive') -or $cacheWorkflow.Contains('IO.FileStream') -or $cacheWorkflow.Contains('-ConfirmText $confirm -Write')) {
+            throw 'cache preparation must not contain a destructive media-write implementation'
+          }
 
           $requiredRequestWorkflow = @(
             'Refresh-HopperRecoveryReadOnly.ps1',
@@ -95,7 +117,13 @@ jobs:
             'helper-did-not-prove-raw-readback',
             "state = 'READY_TO_BOOT'",
             'raw_readback_verified = $true',
-            'write_authority_consumed = $true'
+            'write_authority_consumed = $true',
+            'aurum-tinyseed-windows-cache-v1',
+            'AURUM_TINYSEED_FLASH_CACHE_HIT',
+            '-not [bool]$meta.destructive_media_write',
+            '-not [bool]$meta.write_authority',
+            '[long]$meta.handoff_run_id -eq $handoffRunId',
+            '[long]$meta.handoff_artifact_id -eq $artifactId'
           )
           foreach ($needle in $requiredRequestWorkflow) {
             if (-not $requestWorkflow.Contains($needle)) { throw "missing one-shot flash invariant: $needle" }
@@ -106,6 +134,7 @@ jobs:
           if ($claimIndex -lt 0 -or $writeIndex -lt 0 -or $proofIndex -lt 0 -or -not ($claimIndex -lt $writeIndex -and $writeIndex -lt $proofIndex)) {
             throw 'one-shot authority must be claimed before raw write and READY_TO_BOOT proof must follow the verified write'
           }
+
           if (-not $legacy.Contains('AURUM_TINYSEED_FLASH_REFUSED reason=legacy-authorized-workflow-disabled')) { throw 'legacy raw-write workflow must remain fail-closed' }
           if ($legacy.Contains('PhysicalDrive') -or $legacy.Contains('IO.FileStream')) { throw 'legacy workflow must not contain an independent raw-write implementation' }
-          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true recovery_refreshed_at_write_boundary=true one_shot_claim_ordered=true raw_readback_required=true legacy_bypass_disabled=true'
+          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true recovery_refreshed_at_write_boundary=true zero_authority_cache=true one_shot_claim_ordered=true raw_readback_required=true legacy_bypass_disabled=true'
