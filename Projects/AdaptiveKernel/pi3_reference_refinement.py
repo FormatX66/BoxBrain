@@ -13,29 +13,13 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-try:
-    from Projects.AdaptiveKernel.pi3_reference_correlation import (
-        EXPECTED_DRIVER,
-        EXPECTED_KERNEL,
-        EXPECTED_MODEL,
-        EXPECTED_SERIAL,
-        RECEIPT_SCHEMA as BASE_SCHEMA,
-        verify_reference_correlation_receipt,
-    )
-except ModuleNotFoundError:
-    # Support direct execution from Projects/AdaptiveKernel on self-hosted runners
-    # without changing import behavior when the module is loaded as part of the repo.
-    from pi3_reference_correlation import (  # type: ignore[no-redef]
-        EXPECTED_DRIVER,
-        EXPECTED_KERNEL,
-        EXPECTED_MODEL,
-        EXPECTED_SERIAL,
-        RECEIPT_SCHEMA as BASE_SCHEMA,
-        verify_reference_correlation_receipt,
-    )
-
 SCHEMA = "aurum-pi3-reference-correlation-refinement-v1"
+BASE_SCHEMA = "aurum-pi3-reference-correlation-v1"
 FINGERPRINT_SCHEMA = "aurum.pi3.controller-link-fingerprint.v1"
+EXPECTED_MODEL = "Raspberry Pi 3 Model B Rev 1.2"
+EXPECTED_SERIAL = "00000000a6a7df7f"
+EXPECTED_KERNEL = "6.18.34+rpt-rpi-v8"
+EXPECTED_DRIVER = "smsc95xx"
 _REQUIRED_FALSE = (
     "mutation_allowed",
     "driver_binding_change_allowed",
@@ -66,22 +50,21 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
-def verify_fingerprint_receipt(value: Mapping[str, Any]) -> bool:
+def _verify_sealed_receipt(value: Mapping[str, Any]) -> bool:
     claimed = value.get("receipt_sha256")
     if not isinstance(claimed, str):
         return False
     unsealed = dict(value)
     unsealed.pop("receipt_sha256", None)
     return claimed == _canonical_sha256(unsealed)
+
+
+def verify_fingerprint_receipt(value: Mapping[str, Any]) -> bool:
+    return _verify_sealed_receipt(value)
 
 
 def verify_refinement_receipt(value: Mapping[str, Any]) -> bool:
-    claimed = value.get("receipt_sha256")
-    if not isinstance(claimed, str):
-        return False
-    unsealed = dict(value)
-    unsealed.pop("receipt_sha256", None)
-    return claimed == _canonical_sha256(unsealed)
+    return _verify_sealed_receipt(value)
 
 
 def _mapping(value: Any, name: str) -> Mapping[str, Any]:
@@ -97,7 +80,7 @@ def _false_authority(authority: Mapping[str, Any]) -> bool:
 def refine_reference_correlation(
     base: Mapping[str, Any], fingerprint: Mapping[str, Any]
 ) -> dict[str, Any]:
-    if base.get("schema") != BASE_SCHEMA or not verify_reference_correlation_receipt(base):
+    if base.get("schema") != BASE_SCHEMA or not _verify_sealed_receipt(base):
         raise ValueError("base reference correlation is not a valid sealed receipt")
     if fingerprint.get("schema") != FINGERPRINT_SCHEMA or not verify_fingerprint_receipt(fingerprint):
         raise ValueError("Pi3 fingerprint is not a valid sealed receipt")
