@@ -76,6 +76,9 @@ jobs:
           [ -f "$build/Module.symvers" ] && symvers=true
           printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$model" "$serial" "$kernel" "$arch" "$headers" "$make_ok" "$cc_ok" "$symvers"
           '@
+          # Windows PowerShell here-strings use CRLF. POSIX sh treats the CR in
+          # `set -eu` as an invalid option, so normalize the transport payload.
+          $probeScript = $probeScript.Replace("`r`n", "`n")
           $probeEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($probeScript))
           $probeCmd = "printf '%s' '$probeEncoded' | base64 -d | sh"
           $probe = @(& $ssh.Source @sshArgs $probeCmd 2>$null)
@@ -124,6 +127,7 @@ jobs:
             echo 'modinfo-unavailable'
           fi
           '@
+            $moduleScript = $moduleScript.Replace("`r`n", "`n")
             $moduleEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($moduleScript))
             $moduleCmd = "printf '%s' '$moduleEncoded' | base64 -d | sh"
             $buildOutput = @(& $ssh.Source @sshArgs $moduleCmd 2>&1)
