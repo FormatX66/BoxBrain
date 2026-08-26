@@ -25,6 +25,8 @@ class TinySeedBootContractTests(unittest.TestCase):
         self.assertNotIn("vesamenu.c32", self.build)
         self.assertNotIn("gfxterm", self.build)
         self.assertIn("ui menu.c32", self.build)
+        self.assertIn("insmod all_video", self.build)
+        self.assertIn("set gfxpayload=keep", self.build)
         self.assertIn('menuentry "Aurum Tiny Seed"', self.build)
         self.assertIn('menuentry "Aurum Tiny Seed (safe verbose)"', self.build)
         self.assertIn('menuentry "Aurum Tiny Seed (spoken / blind)"', self.build)

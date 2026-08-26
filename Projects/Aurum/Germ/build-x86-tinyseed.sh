@@ -87,6 +87,12 @@ for grub_dir in grub-pc grub-efi; do
 serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1
 terminal_input console serial
 terminal_output console serial
+# EFI has no native VGA text handoff. Register its video adapters for the
+# Linux boot protocol, but keep GRUB itself on the compact firmware console.
+if [ "$grub_platform" = "efi" ]; then
+    insmod all_video
+    set gfxpayload=keep
+fi
 set default=0
 set timeout=3
 set color_normal=light-gray/black

@@ -145,6 +145,7 @@ class TinySeedNetworkTests(unittest.TestCase):
         self.assertIn("\033[", rendered)
         self.assertIn("A U R U M", rendered)
         self.assertIn("TINY SEED", rendered)
+        self.assertIn("/\\", rendered)
         self.assertLessEqual(len(rendered.splitlines()), 7)
 
     def test_blind_ui_has_words_without_escapes_or_decorations(self) -> None:
@@ -158,7 +159,7 @@ class TinySeedNetworkTests(unittest.TestCase):
         self.assertIn("AURUM TINY SEED", rendered)
         self.assertIn("NETWORK: Choose a connection.", rendered)
         self.assertNotIn("\033", rendered)
-        self.assertNotIn("◇", rendered)
+        self.assertNotIn("/\\", rendered)
         self.assertNotIn("─", rendered)
 
     def test_offline_result_can_join_and_resume_without_reinstall(self) -> None:

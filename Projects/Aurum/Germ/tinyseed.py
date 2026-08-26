@@ -71,7 +71,7 @@ def _title(step: str, subtitle: str) -> None:
     cyan = "38;5;45"
     gold = "38;5;220"
     dim = "38;5;250"
-    print(_paint(cyan, "        ◇"))
+    print(_paint(cyan, "       /\\"))
     print(_paint(cyan, "   A U R U M") + "  " + _paint(gold, "TINY SEED"))
     print(_paint(dim, "   ─────────────────────────────────────────"))
     print(f"   {_paint(gold, step)}")
