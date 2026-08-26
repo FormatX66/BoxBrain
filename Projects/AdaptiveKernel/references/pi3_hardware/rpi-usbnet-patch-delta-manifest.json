@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "expected_relation": "identical",
+      "path": "drivers/net/usb/usbnet.c",
+      "raspberry_pi_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+      "signed_stable_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220"
+    },
+    {
+      "expected_relation": "identical",
+      "path": "drivers/usb/core/urb.c",
+      "raspberry_pi_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333",
+      "signed_stable_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333"
+    }
+  ],
+  "raspberry_pi": {
+    "commit": "16f1da3c4e94437449d6aa151589ca0ad4b388bb",
+    "expected_commit_message": "Merge remote-tracking branch 'stable/linux-6.18.y' into rpi-6.18.y",
+    "parents": [
+      "65495647821026e14223095d1b0124aa3d502dec",
+      "1f99e9ab748fc5c32120de9c4eca31abfe54a4d5"
+    ],
+    "ref": "rpi-6.18.y",
+    "repository": "raspberrypi/linux"
+  },
+  "schema": "aurum.pi3.smsc95xx.rpi-usbnet-patch-delta-manifest.v1",
+  "signed_stable": {
+    "commit": "18ad16ce4a6b2714583fd1e1044c6ea8e53b3519",
+    "repository": "gregkh/linux",
+    "tag": "v6.18.34",
+    "tag_object_sha": "71659eca49870e2f9d33412084034abe9c3e453f"
+  },
+  "target": {
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1"
+  }
+}
