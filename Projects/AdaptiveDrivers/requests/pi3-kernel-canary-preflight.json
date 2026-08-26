@@ -1,0 +1,18 @@
+{
+  "schema": "aurum-pi3-kernel-canary-preflight-request-v1",
+  "target": "raspberry-pi-3-experimental",
+  "purpose": "Resolve compile/recovery prerequisites for a future kernel canary without loading a module or granting mutation authority.",
+  "allowed": {
+    "strict_read_only_identity_probe": true,
+    "compile_inert_module_in_tmp": true,
+    "publish_evidence": true
+  },
+  "forbidden": {
+    "load_kernel_module": true,
+    "change_driver_binding": true,
+    "change_firmware": true,
+    "change_boot_state": true,
+    "change_persistent_trust": true,
+    "grant_kernel_mutation_authority": true
+  }
+}
