@@ -43,6 +43,8 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
                 "kernel_packages": ["linux-image-rpi-v8 1.2.3 arm64"],
                 "modules_package_owner": "linux-image-rpi-v8: /lib/modules/6.18.34+rpt-rpi-v8",
                 "headers_package_owner": "linux-headers-rpi-v8: /usr/src/linux-headers-6.18.34+rpt-rpi-v8",
+                "driver_module_mode": "module",
+                "driver_modinfo_filename": "/lib/modules/6.18.34+rpt-rpi-v8/kernel/drivers/net/usb/smsc95xx.ko.xz",
             },
             "authority": {
                 "mutation_allowed": False,
@@ -61,17 +63,31 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
         self.assertEqual(receipt["gaps"], [])
         self.assertTrue(receipt["checks"]["pinned_identity_match"])
         self.assertTrue(receipt["checks"]["protected_driver_match"])
+        self.assertTrue(receipt["checks"]["driver_binary_provenance_observed"])
         self.assertFalse(receipt["authority"]["mutation_allowed"])
         self.assertFalse(receipt["authority"]["promotion_allowed"])
+
+    def test_builtin_driver_uses_kernel_package_provenance(self):
+        raw = self.raw()
+        raw["provenance"]["modules_package_owner"] = ""
+        raw["provenance"]["driver_module_mode"] = "builtin"
+        raw["provenance"]["driver_modinfo_filename"] = "(builtin)"
+        receipt = validate_fingerprint(raw, self.identity())
+        self.assertEqual(receipt["state"], "completed-read-only-fingerprint")
+        self.assertTrue(receipt["checks"]["driver_builtin_observed"])
+        self.assertTrue(receipt["checks"]["driver_binary_provenance_observed"])
+        self.assertNotIn("running-driver-binary-provenance", receipt["gaps"])
 
     def test_missing_package_provenance_is_gap_not_permission(self):
         raw = self.raw()
         raw["provenance"]["kernel_packages"] = []
         raw["provenance"]["modules_package_owner"] = ""
+        raw["provenance"]["driver_module_mode"] = "unknown"
+        raw["provenance"]["driver_modinfo_filename"] = ""
         receipt = validate_fingerprint(raw, self.identity())
         self.assertEqual(receipt["state"], "completed-with-read-only-gaps")
         self.assertIn("kernel-package-candidates", receipt["gaps"])
-        self.assertIn("running-modules-package-owner", receipt["gaps"])
+        self.assertIn("running-driver-binary-provenance", receipt["gaps"])
         self.assertFalse(receipt["authority"]["driver_binding_change_allowed"])
 
     def test_identity_mismatch_quarantines(self):
@@ -97,6 +113,13 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
             "observed-speed-outside-smsc95xx-fast-ethernet-envelope",
             receipt["quarantine_reasons"],
         )
+
+    def test_invalid_driver_module_mode_quarantines(self):
+        raw = self.raw()
+        raw["provenance"]["driver_module_mode"] = "maybe"
+        receipt = validate_fingerprint(raw, self.identity())
+        self.assertEqual(receipt["state"], "quarantined")
+        self.assertIn("invalid-driver-module-mode", receipt["quarantine_reasons"])
 
     def test_truthy_authority_is_rejected(self):
         raw = self.raw()
