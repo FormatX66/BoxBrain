@@ -1,5 +1,5 @@
 {
-  "event_count": 26,
+  "event_count": 27,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -734,6 +734,49 @@
       "subject_kind": "experiment",
       "summary": "GitHub-hosted correlation verified ten pinned official/Linux references against sealed Pi3 telemetry, compile-only candidate evidence, and the preserved Future Branch QPU router. Four agreement points and four actionable gaps were sealed; no Pi or QPU hardware was contacted and smsc95xx/LKG were preserved.",
       "timestamp": "2026-08-26T13:25:27.724639Z"
+    },
+    "pi3-smsc95xx-functional-model-32983510998": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-reference-correlation-32973834534",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-current-card-rollback"
+      ],
+      "event_id": "evt-fa4e6f2922bd47b4838c1e48b220ed91",
+      "evidence_refs": [
+        "github:actions:run:32983510998",
+        "github:actions:job:98225732479",
+        "github:artifact:9612422975",
+        "github:artifact-digest:sha256:ce61a4dd370990ed40d121e5d32a5ff7a5ec458bd66d323edb8c8dcd9ca669a4",
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json",
+        "receipt-sha256:c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+        "repo:Projects/AdaptiveKernel/results/pi3-reference-correlation-complete-latest.json",
+        "receipt-sha256:f32cef3efee11af00a5cf3b6a56ca667cb490bf0d622424faa2e59288222547c"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "agreement_count": 8,
+        "driver_binding_changed": false,
+        "functional_scenarios_passed": 7,
+        "gap_count": 0,
+        "kernel_changed": false,
+        "last_known_good_preserved": true,
+        "live_pi_contacted": false,
+        "mutation_authority_granted": false,
+        "native_driver_implementation_state": "not-yet-functional-native-driver",
+        "promotion_authority_granted": false,
+        "protected_reference_driver": "smsc95xx",
+        "qpu_hardware_used": false,
+        "semantic_state": "reference-model-gaps-closed"
+      },
+      "source": "github-hosted-functional-model-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-functional-model-32983510998",
+      "subject_kind": "experiment",
+      "summary": "The pinned Pi3 reference ledger now has eight agreements and zero tracked model-layer gaps after a hash-pinned, non-actuating LAN9514/smsc95xx functional model passed in GitHub. It contacted no Pi or QPU hardware, changed no driver or kernel, and grants no mutation or promotion authority.",
+      "timestamp": "2026-08-26T15:21:59.706243Z"
     }
   }
 }
