@@ -1,7 +1,7 @@
 {
   "schema": "aurum-completion-plan-v1",
   "goal": "Aurum can be seeded or reseeded from minimal x86/ARM64 media, preserve Last Known Good state, prove boot and rollback on physical hardware, recover Hopper, and advance adaptive-kernel/StateWeave experiments without confusing experiments with production proof.",
-  "latest_release_source_commit": "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
+  "latest_release_source_commit": "8812634ae2296db673b9de135c43a1119e885647",
   "release_state": "READY_TO_FLASH",
   "policy": {
     "prepare_downstream_before_dependency_is_green": true,
@@ -94,8 +94,8 @@
       "depends_on": [
         "tinyseed-combined-handoff"
       ],
-      "state": "passed-readback-verified",
-      "ready_now": true,
+      "state": "blocked-on-current-release-flash-proof",
+      "ready_now": false,
       "proof": "explicitly selected non-system media is flashed and readback-verified"
     },
     {
@@ -104,7 +104,7 @@
       "depends_on": [
         "x86-physical-flash"
       ],
-      "state": "ready-for-physical-boot-proof",
+      "state": "blocked-on-current-release-flash",
       "ready_now": false,
       "proof": "real x86 target produces Tiny Seed ready marker and boot-proof receipt"
     },
