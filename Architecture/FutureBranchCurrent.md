@@ -1,21 +1,29 @@
 # Future Branch — Current Canonical Workflow
 
-Future Branch is the operating spine for Aurum/BoxBrain. It is not only prediction. It combines state awareness, anticipatory branching, execution routing, uncertainty scaling, unattended preparation, safety, and proof.
+Future Branch is the operating spine for Aurum/BoxBrain. It is not only prediction. It combines state awareness, anticipatory branching, execution routing, uncertainty scaling, unattended preparation, safety, proof, and durable conversation/process routing.
 
 ## Canonical loop
 
 ```text
 observe verified state
   -> separate facts / assumptions / unknowns / authority
+  -> read shared live state + evidence receipts
+       chat memory is context, not runtime truth
+       running_verified / succeeded require evidence
   -> expand short/generic prompt into likely required outcome from live context
   -> execute the safe prefix shared by plausible intents before asking
   -> infer likely goal + likely next questions
+  -> route the human topic:
+       same objective -> continue current chat node
+       real subproblem -> child split
+       materially new objective -> sibling split
   -> fan out useful futures:
        success / failure / likely causes / recovery / next actions / alternates
   -> persist the chat/process tree:
        keep sibling machine lanes active behind one human focus path
        pin concepts / decisions / evidence / blockers to durable nodes
        merge results with source provenance instead of erasing branches
+       inherit only relevant state when a topic splits
   -> score uncertainty:
        Reality Gap
        Surprise Reserve
@@ -38,6 +46,8 @@ observe verified state
   -> real physical/authority boundary stops effect only, not preparation
   -> preserve Last Known Good / Guardian invariants
   -> execute only with valid authority and fresh state
+  -> emit evidence-backed receipt to shared state
+  -> let changed shared state wake dependent lanes
   -> verify independently: ran != worked
   -> collapse successful branches
   -> journal/quarantine failures
@@ -76,6 +86,14 @@ observe verified state
 17. Human focus is linear; machine work is not. Changing the visible chat path must
     not collapse sibling processes, pinned concepts, evidence, blockers, or merge
     provenance. The process tree records concurrency but never grants authority.
+18. Material topic changes split the durable conversation tree instead of polluting
+    one ever-growing chat context. Subproblems become children; independent
+    objectives become siblings; same-objective work continues in place.
+19. Chat/process cross-talk is mediated by shared state and evidence receipts. Never
+    claim that one chat knows another process is running merely because the intent
+    exists in memory.
+20. `running_verified` and `succeeded` are proof-bearing statuses. Dispatch, model
+    output, timestamps, or conversational assertions alone cannot produce them.
 
 ## Human availability behavior
 
@@ -85,11 +103,26 @@ Human availability is a soft prior, never authority. A likely unavailable human 
 
 When a likely future physical action is known, use human-unavailable time to reduce uncertainty until the next true physical/authority boundary. Produce a compact physical-session packet rather than starting diagnosis when the human returns.
 
+## Chat Tree + shared-state behavior
+
+The durable Chat Process Tree separates human organization from machine concurrency.
+When the human changes subject, the visible focus may move to another node while
+existing sibling process lanes continue independently.
+
+The shared state bus is the cross-talk substrate. Devices, runners, chats, Future
+Branch, and dashboards publish small append-only receipts; consumers project the
+latest evidence-backed state. A changed receipt may unblock/warm dependent Future
+Branches, but it cannot grant execution authority or bypass State Guardian/LKG.
+
+This pairing provides a provider-neutral path to a later ChatGPT App/plugin or other
+UI: the UI renders/routes the same durable tree and state instead of becoming the
+source of truth itself.
+
 ## Relationship to implementation
 
 Canonical supporting pieces:
 - `Architecture/FutureBranch.md` — original architecture and branch families.
-- [ChatProcessTree.md](ChatProcessTree.md) — durable conversation/process lanes and merge provenance.
+- [ChatProcessTree.md](ChatProcessTree.md) — durable conversation/process lanes, topic splitting, shared-state contract, and merge provenance.
 - `Architecture/ExecutionRoutes.md` — route ranking.
 - `Prompts/FutureBranchSeed.txt` — portable compact seed.
 - `Projects/Aurum/Experiments/speculative_feasibility.py` — expected information value.
@@ -100,6 +133,9 @@ Canonical supporting pieces:
 - `Projects/Aurum/Experiments/gap_stack.py` — compounded uncertainty gaps.
 - `Projects/Aurum/Experiments/unattended_precompute.py` — night-before / human-unavailable preparation.
 - `Projects/Aurum/Experiments/chat_process_tree.py` — concurrent process/concept tree implementation.
+- `Projects/Aurum/Experiments/chat_topic_router.py` — continue/child/sibling topic-boundary classifier.
+- `Projects/Aurum/Experiments/shared_state_bus.py` — evidence-backed append-only cross-talk state bus.
+- `Projects/Aurum/Experiments/chat_tree_bridge.py` — transport-neutral JSON bridge for GPT, runners, devices, and local agents.
 
 This document is the reconciliation point. If later Future Branch work changes behavior, update this spine and its regression test in the same change.
 
