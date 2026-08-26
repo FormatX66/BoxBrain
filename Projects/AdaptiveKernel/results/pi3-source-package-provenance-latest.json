@@ -1,0 +1,69 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "comparisons": {
+    "drivers/net/usb/usbnet.c": {
+      "pinned_raspberry_pi_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+      "raspberry_pi_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+      "rpi_source_matches_pinned_receipt": true,
+      "source_package_matches_rpi_git": true,
+      "source_package_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220"
+    },
+    "drivers/usb/core/urb.c": {
+      "pinned_raspberry_pi_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333",
+      "raspberry_pi_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333",
+      "rpi_source_matches_pinned_receipt": true,
+      "source_package_matches_rpi_git": true,
+      "source_package_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333"
+    }
+  },
+  "full_source_package_git_commit_binding_proven": false,
+  "invariants": {
+    "driver_binding_changed": false,
+    "kernel_code_executed": false,
+    "live_pi_contacted": false,
+    "register_access_performed": false,
+    "source_compiled_or_executed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "mismatches": [],
+  "next_safe_gate": "whole-tree-build-recipe-provenance-or-bounded-virtual-module-integration",
+  "official_source_package": {
+    "package": "linux-source-6.18",
+    "package_sha256": "14bbaebbba008913fcd5a7b9b7863c38c3961b18724d0d12371dd621ce0cffe9",
+    "package_url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux-source-6.18_6.18.34-1+rpt1_all.deb",
+    "source_archive_sha256": "16c722a6f617448eb0f8ccef2e97f325dded32a35564a5a2549ac725710ef46b",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1",
+    "version": "1:6.18.34-1+rpt1"
+  },
+  "patch_delta_receipt_sha256": "5e960860b167237f140493603f84aa2f0d24e5fd32721a8314a5b185a57a26a7",
+  "protected_source_path_binding_proven": true,
+  "raspberry_pi_reference": {
+    "commit": "16f1da3c4e94437449d6aa151589ca0ad4b388bb",
+    "repository": "raspberrypi/linux"
+  },
+  "receipt_sha256": "04c065a6ff3a98c4d70b6bbfab3d442887a8314ca075662e3d83391456fbfc42",
+  "schema": "aurum.pi3.source-package-provenance.v1",
+  "source_equivalence_receipt_sha256": "593f3e3625a64ab12245554bd855cfb260aa18e9ba41c78e877f2166de2dbe68",
+  "state": "running-package-protected-source-bound-to-rpi-git",
+  "strongest_claim": "The exact official Raspberry Pi linux-source package corresponding to the running kernel source version contains USBNet and URB source bytes identical to the pinned Raspberry Pi Git commit already verified against signed stable Linux. This binds the protected reference paths used by the candidate model to the running package lineage, but does not prove whole-tree build reproducibility or grant hardware/kernel/mutation/promotion authority.",
+  "target": {
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1"
+  }
+}

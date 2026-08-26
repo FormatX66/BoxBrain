@@ -1,0 +1,175 @@
+name: Aurum Pi3 Source Package Provenance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-source-package-provenance.yml'
+      - 'Projects/AdaptiveKernel/pi3_source_package_provenance.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_source_package_provenance.py'
+      - 'Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-rpi-usbnet-patch-delta-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-source-package-provenance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  protected-source-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact provenance revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run fail-closed provenance tests
+        shell: bash
+        env:
+          PYTHONPATH: Projects/AdaptiveKernel
+        run: |
+          set -euo pipefail
+          python -m unittest -v Projects/AdaptiveKernel/tests/test_pi3_source_package_provenance.py
+
+      - name: Download exact official Raspberry Pi source package and pinned Git sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='pi3-source-package-provenance'
+          mkdir -p "$evidence/package" "$evidence/extracted" "$evidence/rpi"
+
+          package='linux-source-6.18'
+          version='6.18.34-1+rpt1'
+          filename="${package}_${version}_all.deb"
+          base='https://archive.raspberrypi.com/debian/pool/main/l/linux'
+          url="$base/$filename"
+          deb="$evidence/package/$filename"
+          curl --fail --location --retry 3 --retry-delay 2 --output "$deb" "$url"
+
+          actual_package="$(dpkg-deb -f "$deb" Package)"
+          actual_version="$(dpkg-deb -f "$deb" Version)"
+          actual_source="$(dpkg-deb -f "$deb" Source || true)"
+          actual_arch="$(dpkg-deb -f "$deb" Architecture)"
+          [ "$actual_package" = "$package" ] || { echo "unexpected source binary package: $actual_package" >&2; exit 20; }
+          [ "${actual_version#*:}" = "$version" ] || { echo "unexpected source binary version: $actual_version" >&2; exit 21; }
+          [ "$actual_arch" = 'all' ] || { echo "unexpected source binary architecture: $actual_arch" >&2; exit 22; }
+
+          dpkg-deb -x "$deb" "$evidence/extracted/package-root"
+          archive="$(find "$evidence/extracted/package-root/usr/src" -maxdepth 1 -type f -name 'linux-source-6.18.tar.*' -print -quit)"
+          [ -n "$archive" ] && [ -f "$archive" ] || { echo 'embedded linux-source-6.18 archive missing' >&2; exit 23; }
+          mkdir -p "$evidence/extracted/source-tree"
+          tar -xf "$archive" -C "$evidence/extracted/source-tree"
+          source_root="$(find "$evidence/extracted/source-tree" -mindepth 1 -maxdepth 1 -type d -name 'linux-source-*' -print -quit)"
+          [ -n "$source_root" ] || { echo 'extracted source root missing' >&2; exit 24; }
+
+          for path in drivers/net/usb/usbnet.c drivers/usb/core/urb.c; do
+            [ -f "$source_root/$path" ] || { echo "official source package missing $path" >&2; exit 25; }
+          done
+
+          rpi_commit='16f1da3c4e94437449d6aa151589ca0ad4b388bb'
+          rpi_raw="https://raw.githubusercontent.com/raspberrypi/linux/$rpi_commit"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$evidence/rpi/usbnet.c" "$rpi_raw/drivers/net/usb/usbnet.c"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$evidence/rpi/urb.c" "$rpi_raw/drivers/usb/core/urb.c"
+
+          source_package="$(printf '%s\n' "$actual_source" | awk '{print $1}')"
+          [ -n "$source_package" ] || source_package='linux'
+          source_version="$(printf '%s\n' "$actual_source" | sed -n 's/^[^(]*(\([^)]*\)).*$/\1/p')"
+          [ -n "$source_version" ] || source_version="$actual_version"
+          deb_sha="$(sha256sum "$deb" | awk '{print $1}')"
+          archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
+          python - "$evidence/package-metadata.json" "$actual_package" "$actual_version" "$source_package" "$source_version" "$actual_arch" "$url" "$deb_sha" "$archive_sha" <<'PY'
+          import json, sys
+          out, package, version, source_package, source_version, arch, url, deb_sha, archive_sha = sys.argv[1:]
+          value = {
+              'schema': 'aurum.pi3.official-linux-source-package.v1',
+              'package': package,
+              'version': version,
+              'source_package': source_package,
+              'source_version': source_version,
+              'architecture': arch,
+              'package_url': url,
+              'package_sha256': deb_sha,
+              'source_archive_sha256': archive_sha,
+          }
+          with open(out, 'w', encoding='utf-8') as handle:
+              json.dump(value, handle, indent=2, sort_keys=True)
+              handle.write('\n')
+          PY
+          printf 'AURUM_PACKAGE_USBNET=%s\n' "$source_root/drivers/net/usb/usbnet.c" >> "$GITHUB_ENV"
+          printf 'AURUM_PACKAGE_URB=%s\n' "$source_root/drivers/usb/core/urb.c" >> "$GITHUB_ENV"
+          echo "AURUM_PI3_SOURCE_PACKAGE package=$actual_package version=$actual_version source=$source_package source_version=$source_version package_sha256=$deb_sha source_archive_sha256=$archive_sha"
+
+      - name: Seal protected source-package to Raspberry Pi Git binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='pi3-source-package-provenance'
+          python Projects/AdaptiveKernel/pi3_source_package_provenance.py \
+            --source-equivalence Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json \
+            --patch-delta Projects/AdaptiveKernel/results/pi3-smsc95xx-rpi-usbnet-patch-delta-latest.json \
+            --package-metadata "$evidence/package-metadata.json" \
+            --package-usbnet "$AURUM_PACKAGE_USBNET" \
+            --package-urb "$AURUM_PACKAGE_URB" \
+            --rpi-usbnet "$evidence/rpi/usbnet.c" \
+            --rpi-urb "$evidence/rpi/urb.c" \
+            --output "$evidence/receipt.json"
+          python - "$evidence/receipt.json" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          if value.get('state') != 'running-package-protected-source-bound-to-rpi-git':
+              raise SystemExit('protected source-package provenance did not pass')
+          if value.get('protected_source_path_binding_proven') is not True:
+              raise SystemExit('protected source binding is not proven')
+          if value.get('full_source_package_git_commit_binding_proven') is not False:
+              raise SystemExit('receipt overclaims whole-tree Git provenance')
+          if any(v is not False for v in (value.get('authority') or {}).values()):
+              raise SystemExit('source-package provenance unexpectedly grants authority')
+          if any(v is not False for v in (value.get('invariants') or {}).values()):
+              raise SystemExit('source-package provenance zero-authority invariant failed')
+          print(
+              'AURUM_PI3_SOURCE_PACKAGE_PROVENANCE '
+              f"state={value['state']} mismatches=0 receipt_sha256={value['receipt_sha256']} "
+              'protected_binding=true full_tree_binding=false write_authority=false'
+          )
+          PY
+
+      - name: Publish sealed source-package provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-source-package-provenance
+          path: |
+            pi3-source-package-provenance/package-metadata.json
+            pi3-source-package-provenance/receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist source-package provenance into durable lineage
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/results
+          cp pi3-source-package-provenance/receipt.json \
+            Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json
+          git config user.name 'aurum-pi3-source-package-provenance[bot]'
+          git config user.email 'aurum-pi3-source-package-provenance@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SOURCE_PACKAGE_PROVENANCE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 source-package provenance [skip ci]'
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo 'AURUM_PI3_SOURCE_PACKAGE_PROVENANCE_RECEIPT persisted=true'
