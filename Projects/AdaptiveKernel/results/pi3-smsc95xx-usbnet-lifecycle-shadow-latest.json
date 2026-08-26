@@ -1,0 +1,699 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "canonical_paths": {
+    "healthy_lifecycle": {
+      "actions": [
+        "probe_success",
+        "open_success",
+        "link_up",
+        "stop",
+        "disconnect"
+      ],
+      "final_state": {
+        "bound": false,
+        "carrier": false,
+        "disconnected": true,
+        "opened": false,
+        "present": false,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      "steps": [
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "open_success",
+          "reason": "usbnet-open-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "link_up",
+          "reason": "carrier-on-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "stop",
+          "reason": "usbnet-stop-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "disconnect",
+          "reason": "usbnet-disconnect-shadow",
+          "state": {
+            "bound": false,
+            "carrier": false,
+            "disconnected": true,
+            "opened": false,
+            "present": false,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        }
+      ]
+    },
+    "reprobe_after_disconnect": {
+      "actions": [
+        "probe_success",
+        "disconnect",
+        "probe_success",
+        "open_success"
+      ],
+      "final_state": {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      "steps": [
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "disconnect",
+          "reason": "usbnet-disconnect-shadow",
+          "state": {
+            "bound": false,
+            "carrier": false,
+            "disconnected": true,
+            "opened": false,
+            "present": false,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "open_success",
+          "reason": "usbnet-open-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        }
+      ]
+    },
+    "rx_fault_recovery": {
+      "actions": [
+        "probe_success",
+        "open_success",
+        "link_up",
+        "rx_halt",
+        "recover_rx"
+      ],
+      "final_state": {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      "steps": [
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "open_success",
+          "reason": "usbnet-open-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "link_up",
+          "reason": "carrier-on-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "rx_halt",
+          "reason": "rx-halt-deferred-event-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": true,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "recover_rx",
+          "reason": "rx-halt-clear-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        }
+      ]
+    },
+    "suspend_resume_disconnect": {
+      "actions": [
+        "probe_success",
+        "open_success",
+        "link_up",
+        "suspend",
+        "resume_success",
+        "disconnect"
+      ],
+      "final_state": {
+        "bound": false,
+        "carrier": false,
+        "disconnected": true,
+        "opened": false,
+        "present": false,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      "steps": [
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "open_success",
+          "reason": "usbnet-open-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "link_up",
+          "reason": "carrier-on-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "suspend",
+          "reason": "usbnet-suspend-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": true,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "resume_success",
+          "reason": "usbnet-resume-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "disconnect",
+          "reason": "usbnet-disconnect-shadow",
+          "state": {
+            "bound": false,
+            "carrier": false,
+            "disconnected": true,
+            "opened": false,
+            "present": false,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        }
+      ]
+    },
+    "tx_fault_link_reset": {
+      "actions": [
+        "probe_success",
+        "open_success",
+        "link_up",
+        "tx_halt",
+        "link_reset"
+      ],
+      "final_state": {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      "steps": [
+        {
+          "accepted": true,
+          "action": "probe_success",
+          "reason": "device-probed-and-shadow-bound",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": false,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "open_success",
+          "reason": "usbnet-open-shadow",
+          "state": {
+            "bound": true,
+            "carrier": false,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "link_up",
+          "reason": "carrier-on-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        },
+        {
+          "accepted": true,
+          "action": "tx_halt",
+          "reason": "tx-halt-deferred-event-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": true
+          }
+        },
+        {
+          "accepted": true,
+          "action": "link_reset",
+          "reason": "link-reset-work-item-shadow",
+          "state": {
+            "bound": true,
+            "carrier": true,
+            "disconnected": false,
+            "opened": true,
+            "present": true,
+            "rx_halted": false,
+            "suspended": false,
+            "tx_halted": false
+          }
+        }
+      ]
+    }
+  },
+  "graph": {
+    "accepted_transition_count": 81,
+    "initial_state": "00000000",
+    "invariants": {
+      "carrier_requires_open_awake_bound_device": true,
+      "disconnect_clears_operational_state": true,
+      "halt_requires_open_awake_bound_device": true,
+      "invalid_transitions_are_refused_without_state_change": true,
+      "recovery_clears_only_modeled_halt": true,
+      "suspend_clears_carrier_and_halts": true
+    },
+    "refused_transition_count": 88,
+    "state_count": 13,
+    "states": [
+      {
+        "bound": false,
+        "carrier": false,
+        "disconnected": false,
+        "id": "00000000",
+        "opened": false,
+        "present": false,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": false,
+        "carrier": false,
+        "disconnected": true,
+        "id": "00000001",
+        "opened": false,
+        "present": false,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11000000",
+        "opened": false,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11010000",
+        "opened": false,
+        "present": true,
+        "rx_halted": false,
+        "suspended": true,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11100000",
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11100010",
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": true
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11100100",
+        "opened": true,
+        "present": true,
+        "rx_halted": true,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11100110",
+        "opened": true,
+        "present": true,
+        "rx_halted": true,
+        "suspended": false,
+        "tx_halted": true
+      },
+      {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "id": "11101000",
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "id": "11101010",
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": false,
+        "tx_halted": true
+      },
+      {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "id": "11101100",
+        "opened": true,
+        "present": true,
+        "rx_halted": true,
+        "suspended": false,
+        "tx_halted": false
+      },
+      {
+        "bound": true,
+        "carrier": true,
+        "disconnected": false,
+        "id": "11101110",
+        "opened": true,
+        "present": true,
+        "rx_halted": true,
+        "suspended": false,
+        "tx_halted": true
+      },
+      {
+        "bound": true,
+        "carrier": false,
+        "disconnected": false,
+        "id": "11110000",
+        "opened": true,
+        "present": true,
+        "rx_halted": false,
+        "suspended": true,
+        "tx_halted": false
+      }
+    ],
+    "transition_count": 169,
+    "transition_matrix_sha256": "dbc2e54820ee7033b7dc1eb86a09645aeb65a5a82500b049cdfe5ed9ceb118d6"
+  },
+  "inputs": {
+    "packet_differential_receipt_sha256": "564ee84a8d796f92b9659177a3feb22e4322b4673eafb58c93f1354614df487f",
+    "qpu_router_receipt_sha256": "482aae52c852e8c786fc8686bc9a4383a433b61ac8c06845eb42051e83f1ebb7"
+  },
+  "invariants": {
+    "driver_binding_changed": false,
+    "driver_probe_performed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "network_configuration_changed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "next_gate": "host-compiled-usbnet-lifecycle-candidate-differential",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "preserved_router_available": true,
+    "reason": "The finite lifecycle graph is exactly reachable by classical breadth-first exploration; the preserved router concerns experiment-path selection, not controller lifecycle emulation.",
+    "router_candidate_kind": "machine-experiment-paths",
+    "router_is_hardware_digital_twin": false,
+    "used": false
+  },
+  "receipt_sha256": "67c01f8a9554cf3bd2859681b188d146a88c91167b7adc732c2e47d72c3ea318",
+  "schema": "aurum.pi3.smsc95xx.usbnet-lifecycle-shadow.v1",
+  "source_verification": {
+    "rpi_upstream_semantic_token_mismatches": 0,
+    "smsc95xx_tokens_checked_per_source": 7,
+    "source_hashes": {
+      "raspberry-pi-linux-smsc95xx-c": "9dcf8096d30f8ae04045db3cb3bc424e22ee083e860a308a4cd4f4b9583888d0",
+      "raspberry-pi-linux-usbnet-c": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+      "upstream-linux-v6.18-smsc95xx-c": "5ca28cb24d226c81d2de133083a21cee796f2d008328e9a650fce752df8f280c",
+      "upstream-linux-v6.18-usbnet-c": "cf942bfa8c2fbcfb1635c239754226f948ddfab808011c27422ca168f68a6e69"
+    },
+    "usbnet_tokens_checked_per_source": 10
+  },
+  "state": "verified-offline-usbnet-lifecycle-fault-model",
+  "strongest_claim": "Hash-pinned Raspberry Pi and upstream smsc95xx/usbnet sources support a finite offline lifecycle and fault shadow whose complete reachable graph preserves probe/open/stop, link, halt recovery, suspend/resume, disconnect, and re-probe invariants. It performs no USB or driver operation and is not a kernel driver, binding proof, hardware digital twin, or promotion authorization."
+}
