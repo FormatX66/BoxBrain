@@ -1,9 +1,9 @@
 {
   "schema": "aurum-tinyseed-flash-request-v1",
   "state": "AUTHORIZED_ONCE",
-  "request_id": "tinyseed-sandisk-flash-20260826-0924-8812634a",
-  "authorized_at_utc": "2026-08-26T09:24:26Z",
-  "expires_at_utc": "2026-08-26T10:09:26Z",
+  "request_id": "tinyseed-sandisk-flash-20260826-1137-8812634a",
+  "authorized_at_utc": "2026-08-26T11:37:00Z",
+  "expires_at_utc": "2026-08-26T14:37:00Z",
   "write_authority": true,
   "confirmation": "FLASH_TINY_SEED_TEST_USB",
   "purpose": "Overwrite only the explicitly authorized, freshly reverified 61.5 GB SanDisk USB with the exact current Aurum Tiny Seed x86 release; then require full raw readback verification.",
