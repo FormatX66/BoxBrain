@@ -1,0 +1,177 @@
+{
+  "authority": {
+    "boot_configuration_change_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_change_allowed": false,
+    "kernel_change_allowed": false,
+    "network_configuration_change_allowed": false,
+    "persistent_change_allowed": false,
+    "reboot_allowed": false
+  },
+  "cleanup": {
+    "dd_processes_after": 0,
+    "files_saved": false,
+    "timeout_processes_after": 0
+  },
+  "controller": {
+    "elapsed_ms": 7867,
+    "exact_bytes_consumed": 67108864,
+    "ssh_exit_clean": true
+  },
+  "failed_attempt": {
+    "accounted_as_evidence": false,
+    "direction": "controller-to-pi",
+    "failure": "local-pipe-ended-before-completion",
+    "network_state_after_clean": true,
+    "orphan_processes_after": 0,
+    "partial_rx_bytes_observed": 272678
+  },
+  "identity": {
+    "address": "169.254.129.122",
+    "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f"
+  },
+  "invariants": {
+    "boot_configuration_changed": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "network_configuration_changed": false,
+    "persistent_change": false,
+    "reboot_performed": false
+  },
+  "measurement_timestamp_local": null,
+  "measurement_timestamp_utc": null,
+  "measurement_timestamp_note": "The exact experiment timestamp was not retained in captured output and is intentionally not inferred.",
+  "network_before": {
+    "carrier": 1,
+    "driver": "smsc95xx",
+    "duplex": "full",
+    "interface": "eth0",
+    "operstate": "up",
+    "rx_bytes": 23421111,
+    "rx_dropped": 0,
+    "rx_errors": 0,
+    "speed_mbps": 100,
+    "tx_bytes": 1097150,
+    "tx_dropped": 0,
+    "tx_errors": 0
+  },
+  "network_after": {
+    "carrier": 1,
+    "driver": "smsc95xx",
+    "interface": "eth0",
+    "operstate": "up",
+    "rx_bytes": 24325222,
+    "rx_bytes_delta": 904111,
+    "rx_dropped": 0,
+    "rx_dropped_delta": 0,
+    "rx_errors": 0,
+    "rx_errors_delta": 0,
+    "tx_bytes": 71345181,
+    "tx_bytes_delta": 70248031,
+    "tx_dropped": 0,
+    "tx_dropped_delta": 0,
+    "tx_errors": 0,
+    "tx_errors_delta": 0
+  },
+  "physical_guard": {
+    "command_shape": "timeout --signal=TERM --kill-after=2s 25s dd if=/dev/zero bs=1048576 count=64 status=none",
+    "hard_temperature_ceiling_c": 65.0,
+    "kill_after_seconds": 2,
+    "timeout_seconds": 25
+  },
+  "receipt_recorded_at_utc": "2026-08-26T23:24:02.4725466Z",
+  "rollback": {
+    "archive_integrity": "passed",
+    "archive_sha256": "c45bb76d88867b1c3552791f9b992068bccd2c9f2f9b83c2fcab3d0cc79ee984",
+    "archive_size": 506166404,
+    "independent_post_capture_image_hash": "passed",
+    "manifest_file_sha256": "12a0d8025b3396d97318d161a336d83043293489c8f2d484f22692c934faf17c",
+    "manifest_path": "C:\\Arkmatx_Knowledge_Hub\\Backups\\Aurum-Pi3\\ADAPTIVE-DRIVER-001-LKG-2026-08-25\\rollback-manifest.json",
+    "post_backup_boot_canary": "passed",
+    "raw_sha256": "61a4c6bfc03e7ea3444ce67de20c506dbc57a7fc7e34da250b3bfab8d2845c62",
+    "raw_size": 15931539456,
+    "schema": "aurum-pi3-rollback-image-v1",
+    "state": "verified"
+  },
+  "samples": [
+    {
+      "carrier": 1,
+      "controller_bytes": 0,
+      "current_throttle_low_nibble": 0,
+      "driver": "smsc95xx",
+      "phase": "before",
+      "rx_dropped": 0,
+      "rx_errors": 0,
+      "temperature_c": 52.616,
+      "throttle_raw": "0x50000",
+      "tx_dropped": 0,
+      "tx_errors": 0
+    },
+    {
+      "carrier": 1,
+      "controller_bytes": 16809984,
+      "current_throttle_low_nibble": 0,
+      "driver": "smsc95xx",
+      "phase": "during",
+      "rx_dropped": 0,
+      "rx_errors": 0,
+      "temperature_c": 53.692,
+      "throttle_raw": "0x50000",
+      "tx_dropped": 0,
+      "tx_errors": 0
+    },
+    {
+      "carrier": 1,
+      "controller_bytes": 33566720,
+      "current_throttle_low_nibble": 0,
+      "driver": "smsc95xx",
+      "phase": "during",
+      "rx_dropped": 0,
+      "rx_errors": 0,
+      "temperature_c": 54.23,
+      "throttle_raw": "0x50000",
+      "tx_dropped": 0,
+      "tx_errors": 0
+    },
+    {
+      "carrier": 1,
+      "controller_bytes": 50360320,
+      "current_throttle_low_nibble": 0,
+      "driver": "smsc95xx",
+      "phase": "during",
+      "rx_dropped": 0,
+      "rx_errors": 0,
+      "temperature_c": 54.768,
+      "throttle_raw": "0x50000",
+      "tx_dropped": 0,
+      "tx_errors": 0
+    },
+    {
+      "carrier": 1,
+      "controller_bytes": 67108864,
+      "current_throttle_low_nibble": 0,
+      "driver": "smsc95xx",
+      "phase": "after",
+      "rx_dropped": 0,
+      "rx_errors": 0,
+      "temperature_c": 54.768,
+      "throttle_raw": "0x50000",
+      "tx_dropped": 0,
+      "tx_errors": 0
+    }
+  ],
+  "schema": "aurum.pi3.smsc95xx.physical-ethernet-canary.v1",
+  "source_thread_id": "01a03afd-4c1c-71c1-a78a-22e10d43c5ac",
+  "state": "bounded-physical-ethernet-canary-passed",
+  "strongest_claim": "The exact pinned Pi3 transferred 64 MiB through the currently bound Linux smsc95xx Ethernet path under a Pi-local timeout and live thermal, throttle, carrier, driver, error, and drop gates. This proves one bounded data-path canary only; it does not prove long-duration stress, fault recovery, driver mutation, or replacement-kernel safety.",
+  "transfer": {
+    "direction": "pi-to-controller-over-strict-key-only-ssh",
+    "payload_bytes": 67108864,
+    "pattern": "zeros",
+    "remote_duration_ms": 7151,
+    "throughput_mbps": 75.076
+  }
+}

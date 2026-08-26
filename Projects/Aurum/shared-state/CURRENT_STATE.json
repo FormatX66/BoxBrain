@@ -1,5 +1,5 @@
 {
-  "event_count": 33,
+  "event_count": 35,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -902,6 +902,90 @@
       "subject_kind": "experiment",
       "summary": "A source-hash-pinned portable C packet candidate matched the sealed TX/RX shadow in 40,966 deterministic scenarios with zero mismatches, covering every TX and RX length, checksum fallback boundaries, and bounded fuzz. No device, USB, kernel, binding, QPU, mutation, or promotion authority was used.",
       "timestamp": "2026-08-26T20:20:42.281143Z"
+    },
+    "pi3-smsc95xx-physical-ethernet-canary-20260826": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": "user-reflashable-sd-parallel-testing-20260826",
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-smsc95xx-usbnet-lifecycle-candidate-33011122833"
+      ],
+      "event_id": "evt-pi3-physical-ethernet-canary-20260826",
+      "evidence_refs": [
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-physical-ethernet-canary-20260826.json",
+        "receipt-file-sha256:e01692ce8f84c24c677747a155716bad65ce0e647430f80fe7378e9cd30d3daf",
+        "rollback-manifest-file-sha256:12a0d8025b3396d97318d161a336d83043293489c8f2d484f22692c934faf17c",
+        "physical-boot-id:3488238f-e35d-4249-9d53-6133eeed4b8a",
+        "source-thread:01a03afd-4c1c-71c1-a78a-22e10d43c5ac"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "carrier_loss_samples": 0,
+        "current_throttle_fault_samples": 0,
+        "dd_processes_after": 0,
+        "direction": "pi-to-controller",
+        "driver_binding_changed": false,
+        "driver_mismatch_samples": 0,
+        "failed_first_attempt_counted": false,
+        "kernel_changed": false,
+        "max_temperature_c": 54.768,
+        "network_configuration_changed": false,
+        "network_error_or_drop_delta": 0,
+        "payload_bytes": 67108864,
+        "persistent_change": false,
+        "remote_duration_ms": 7151,
+        "state": "bounded-physical-ethernet-canary-passed",
+        "strongest_claim": "one bounded 64 MiB real smsc95xx Ethernet data-path canary; not long-duration stress, fault recovery, driver mutation, or replacement-kernel safety",
+        "temperature_ceiling_c": 65.0,
+        "throughput_mbps": 75.076,
+        "timeout_processes_after": 0
+      },
+      "source": "strict-ssh-pinned-pi3-bounded-canary",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-physical-ethernet-canary-20260826",
+      "subject_kind": "experiment",
+      "summary": "The exact pinned Pi3 passed a guarded 64 MiB Pi-to-controller Ethernet transfer through the currently bound Linux smsc95xx driver. Identity, rollback, thermal, current-throttle, carrier, driver, network-counter, exact-byte, clean-exit, and orphan-process gates passed; no persistent change occurred.",
+      "timestamp": "2026-08-26T23:26:16.547524Z"
+    },
+    "pi3-smsc95xx-rpi-usbnet-patch-delta-33023033056": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-usbnet-lifecycle-candidate-33011122833"
+      ],
+      "event_id": "evt-pi3-rpi-usbnet-patch-delta-33023033056",
+      "evidence_refs": [
+        "github:actions:run:33023033056",
+        "github:actions:job:98357777090",
+        "github:artifact:9627278756",
+        "github:artifact-digest:sha256:89b493f9556c46e99847dc322d5ac3437d9b4002833e5028547482fa119bfb51",
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-rpi-usbnet-patch-delta-latest.json",
+        "receipt-sha256:5e960860b167237f140493603f84aa2f0d24e5fd32721a8314a5b185a57a26a7",
+        "git:commit:707b3d7b375bc060ad839a96f6fe1ae66a9f1b42"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "live_pi_contacted": false,
+        "mismatch_count": 0,
+        "mutation_authority_granted": false,
+        "next_safe_gate": "source-package-patch-series-provenance-for-running-kernel",
+        "promotion_authority_granted": false,
+        "raspberry_pi_commit": "16f1da3c4e94437449d6aa151589ca0ad4b388bb",
+        "running_source_package_to_rpi_git_commit_binding_proven": false,
+        "signed_stable_commit": "18ad16ce4a6b2714583fd1e1044c6ea8e53b3519",
+        "state": "raspberry-pi-usbnet-urb-no-patch-delta",
+        "urb_byte_identical": true,
+        "usbnet_byte_identical": true
+      },
+      "source": "github-hosted-source-patch-delta-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-rpi-usbnet-patch-delta-33023033056",
+      "subject_kind": "experiment",
+      "summary": "At pinned immutable commits, Raspberry Pi linux and signed stable Linux v6.18.34 contain byte-identical usbnet.c and urb.c files. The source-package-to-Raspberry-Pi-Git binding remains explicitly unproven, and the gate grants no hardware, kernel, mutation, or promotion authority.",
+      "timestamp": "2026-08-26T23:26:17.634749Z"
     },
     "pi3-smsc95xx-usbnet-lifecycle-33010429948": {
       "actor": "codex-thread-01a03afd",
