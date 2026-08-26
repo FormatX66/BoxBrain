@@ -22,6 +22,39 @@ The later kernel-module canary remains held until matching headers, an
 out-of-band watchdog, reboot/recovery proof, and a fresh explicit mutation gate
 are all present.
 
+## Physical Pi3 evidence
+
+Generation 1 has been exercised on the pinned experimental Raspberry Pi 3 through
+strict key-only SSH. The candidate matched the Linux reference observation at a
+score of 100 while leaving the system driver unchanged.
+
+Generation 2 is now physically proven at the same userspace-only boundary. GitHub
+Actions run `32923966393` on source `426745e0b8d543b12b36db45db6195e0de24ab0e`
+strictly re-proved the pinned Pi3 model, serial, host key, boot ID, and root
+source, then:
+
+- promoted `pi3-net-sysfs-tolerant-v2` after complete read evidence and a 100.0
+  functional score;
+- injected a missing `carrier` read into the synthesized observer and verified
+  that the candidate was quarantined with
+  `required-read-only-field-unavailable`;
+- verified the LKG metadata SHA-256 was byte-identical before and after the
+  quarantined fault;
+- exercised the isolated metadata rollback back to
+  `pi3-linux-reference-driver`;
+- proved that no kernel module was loaded, no driver binding changed, no firmware
+  mutation was allowed, and no system driver changed.
+
+The durable evidence is
+`evidence/pi3-generation2-physical.json`. This is **physical userspace adaptive
+-driver proof**, not a kernel-module canary and not production ARM64 Tiny Seed
+proof.
+
+Separately, the exact current Pi3 microSD card has a tested rollback image/archive
+and the original card passed a fresh physical reboot canary. That removes the
+old "physical hardware unavailable" assumption for safe Pi3 experiments, but it
+does not grant kernel mutation authority.
+
 ## Aurum Farmer and Future Branch ownership
 
 The persistent Aurum Farmer owns physical completion through
