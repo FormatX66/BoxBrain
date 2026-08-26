@@ -68,7 +68,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu \
+            libc6-dev-arm64-cross
           aarch64-linux-gnu-gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
             -c candidate-evidence/pi3-smsc95xx-nonbinding-candidate.c \
             -o candidate-evidence/pi3-smsc95xx-nonbinding-candidate.aarch64.o

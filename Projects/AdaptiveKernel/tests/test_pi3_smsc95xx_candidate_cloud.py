@@ -25,6 +25,7 @@ class Pi3Smsc95xxCandidateCloudTests(unittest.TestCase):
         self.assertNotIn("modules_install", lower)
         self.assertNotIn(".ko", lower)
         self.assertIn("aarch64-linux-gnu-gcc", lower)
+        self.assertIn("libc6-dev-arm64-cross", lower)
         self.assertIn("[skip ci]", lower)
 
     def test_workflow_invokes_package_modules_from_repo_root(self):
