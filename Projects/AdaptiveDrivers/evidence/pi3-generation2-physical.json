@@ -1,0 +1,57 @@
+{
+  "schema": "aurum.pi3.adaptive-driver.generation2.physical.v1",
+  "state": "passed-physical-userspace-generation2",
+  "observed_at_utc": "2026-08-26T02:46:40.5872597Z",
+  "repository": "FormatX66/BoxBrain",
+  "source_commit": "426745e0b8d543b12b36db45db6195e0de24ab0e",
+  "workflow_run_id": 32923966393,
+  "workflow_artifact_id": 9590805373,
+  "workflow_artifact_digest": "sha256:e670bdcfe4e0d9904cb3a2715b70a1778b5553207526ed1d9ad881cb4b8a408a",
+  "target": {
+    "address": "169.254.129.122",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+    "root_source": "/dev/mmcblk0p2",
+    "host_key_sha256": "SHA256:HUeYvmzLc5X487o4EnfNAqmANJFnsbUU6uc3oON+vlQ",
+    "strict_key_only_ssh": true
+  },
+  "generation2": {
+    "candidate_id": "pi3-net-sysfs-tolerant-v2",
+    "generation": 2,
+    "decision": "promoted",
+    "score": 100.0,
+    "read_evidence_complete": true,
+    "lkg_preserved_during_test": true
+  },
+  "fault_injection": {
+    "candidate_id": "pi3-net-sysfs-tolerant-v2-missing-field-fixture",
+    "decision": "quarantined",
+    "reason": "required-read-only-field-unavailable",
+    "missing_fields": ["carrier"],
+    "lkg_preserved_during_test": true,
+    "lkg_sha256_before": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c",
+    "lkg_sha256_after": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c"
+  },
+  "isolated_metadata_rollback": {
+    "restored_profile_id": "pi3-linux-reference-driver",
+    "passed": true
+  },
+  "safety": {
+    "system_driver_changed": false,
+    "kernel_module_loaded": false,
+    "kernel_driver_binding_changed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_driver_mutation_allowed": false,
+    "production_nodes_allowed": false,
+    "persistent_trust_changed": false
+  },
+  "proof_scope": "physical userspace adaptive-driver generation-2 observer, fault quarantine, LKG metadata preservation, and isolated metadata rollback only",
+  "not_proven": [
+    "kernel-module adaptive driver",
+    "kernel driver binding mutation",
+    "firmware mutation",
+    "production ARM64 Tiny Seed boot",
+    "Guardian physical kernel rollback"
+  ]
+}
