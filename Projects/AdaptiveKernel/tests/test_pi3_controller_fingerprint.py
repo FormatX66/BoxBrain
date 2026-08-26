@@ -37,6 +37,8 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
                 "usb_product": "SMSC9512/9514 Fast Ethernet Adapter",
                 "usb_manufacturer": "Standard Microsystems Corp.",
                 "device_path": "/sys/devices/example",
+                "parent_hub_vendor_id": "0424",
+                "parent_hub_product_id": "9514",
             },
             "provenance": {
                 "proc_version": "Linux version 6.18.34+rpt-rpi-v8",
@@ -66,6 +68,8 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
         self.assertEqual(receipt["gaps"], [])
         self.assertTrue(receipt["checks"]["pinned_identity_match"])
         self.assertTrue(receipt["checks"]["protected_driver_match"])
+        self.assertTrue(receipt["checks"]["parent_hub_identity_observed"])
+        self.assertTrue(receipt["checks"]["lan9514_parent_hub_match"])
         self.assertTrue(receipt["checks"]["running_image_package_observed"])
         self.assertTrue(receipt["checks"]["driver_binary_provenance_observed"])
         self.assertFalse(receipt["authority"]["mutation_allowed"])
@@ -99,6 +103,25 @@ class Pi3ControllerFingerprintTests(unittest.TestCase):
         self.assertIn("running-driver-kernel-config", receipt["gaps"])
         self.assertIn("running-driver-binary-provenance", receipt["gaps"])
         self.assertFalse(receipt["authority"]["driver_binding_change_allowed"])
+
+    def test_missing_parent_hub_identity_is_gap_not_permission(self):
+        raw = self.raw()
+        raw["ethernet"].pop("parent_hub_vendor_id")
+        raw["ethernet"].pop("parent_hub_product_id")
+        receipt = validate_fingerprint(raw, self.identity())
+        self.assertEqual(receipt["state"], "completed-with-read-only-gaps")
+        self.assertIn("usb-parent-hub-identity", receipt["gaps"])
+        self.assertIn("lan9514-parent-hub-match", receipt["gaps"])
+        self.assertEqual(receipt["quarantine_reasons"], [])
+        self.assertFalse(receipt["authority"]["mutation_allowed"])
+
+    def test_parent_hub_mismatch_quarantines(self):
+        raw = self.raw()
+        raw["ethernet"]["parent_hub_product_id"] = "2514"
+        receipt = validate_fingerprint(raw, self.identity())
+        self.assertEqual(receipt["state"], "quarantined")
+        self.assertIn("lan9514-parent-hub-reference-mismatch", receipt["quarantine_reasons"])
+        self.assertFalse(receipt["authority"]["mutation_allowed"])
 
     def test_identity_mismatch_quarantines(self):
         raw = self.raw()
