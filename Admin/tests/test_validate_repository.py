@@ -164,6 +164,31 @@ class RepositoryValidatorTests(unittest.TestCase):
         enforcement = workflow.index("Enforce validator result")
         self.assertLess(publication, enforcement)
 
+    def test_completion_state_sync_reprojects_instead_of_rebasing_stale_state(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (
+            root / ".github" / "workflows" / "aurum-completion-plan-sync.yml"
+        ).read_text(encoding="utf-8")
+
+        required = (
+            "for attempt in 1 2 3",
+            'projected_head="$(git rev-parse HEAD)"',
+            "if git push origin HEAD:main; then",
+            "converged_after_race=true",
+            "retrying_reason=main-advanced",
+            "git checkout --detach origin/main",
+            "project_latest_state",
+            "waiting_reason=main-advanced retry_exhausted=true",
+            "deferred_reason=publication-failed",
+        )
+        for token in required:
+            self.assertIn(token, workflow)
+
+        self.assertNotIn("git pull --rebase origin main", workflow)
+        retry_checkout = workflow.index("git checkout --detach origin/main")
+        retry_projection = workflow.rindex("project_latest_state")
+        self.assertLess(retry_checkout, retry_projection)
+
 
 if __name__ == "__main__":
     unittest.main()

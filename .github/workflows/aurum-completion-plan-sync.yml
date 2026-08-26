@@ -75,12 +75,54 @@ jobs:
           set -euo pipefail
           git config user.name 'aurum-completion-plan[bot]'
           git config user.email 'aurum-completion-plan@users.noreply.github.com'
-          git add Projects/Aurum/completion-plan.json Projects/Aurum/future-branches.json Projects/Aurum/next-interaction-packet.json
-          if git diff --cached --quiet; then
-            echo 'AURUM_STATE_SYNC unchanged=true'
-            exit 0
-          fi
-          git commit -m 'Synchronize Aurum canonical evidence and interaction handoff [skip ci]'
-          git pull --rebase origin main
-          git push origin HEAD:main
-          echo 'AURUM_STATE_SYNC persisted=true'
+
+          projected_files=(
+            Projects/Aurum/completion-plan.json
+            Projects/Aurum/future-branches.json
+            Projects/Aurum/next-interaction-packet.json
+          )
+
+          project_latest_state() {
+            python Admin/sync_aurum_release_status.py
+            python Admin/sync_aurum_pi3_status.py
+            python Admin/sync_aurum_future_branch_evidence.py
+            python Admin/sync_aurum_fallback_evidence.py
+            python Admin/materialize_aurum_next_interaction.py
+          }
+
+          for attempt in 1 2 3; do
+            projected_head="$(git rev-parse HEAD)"
+            git add "${projected_files[@]}"
+            if git diff --cached --quiet; then
+              echo "AURUM_STATE_SYNC unchanged=true attempt=${attempt} projected_head=${projected_head}"
+              exit 0
+            fi
+
+            git commit -m 'Synchronize Aurum canonical evidence and interaction handoff [skip ci]'
+            projected_commit="$(git rev-parse HEAD)"
+            if git push origin HEAD:main; then
+              echo "AURUM_STATE_SYNC persisted=true attempt=${attempt} projected_head=${projected_head} projected_commit=${projected_commit}"
+              exit 0
+            fi
+
+            git fetch origin main
+            remote_head="$(git rev-parse origin/main)"
+            if git diff --quiet "${projected_commit}" origin/main -- "${projected_files[@]}"; then
+              echo "AURUM_STATE_SYNC converged_after_race=true attempt=${attempt} projected_head=${projected_head} remote_head=${remote_head}"
+              exit 0
+            fi
+
+            if [[ "${remote_head}" == "${projected_head}" ]]; then
+              echo "::error::AURUM_STATE_SYNC deferred_reason=publication-failed projected_head=${projected_head}"
+              exit 1
+            fi
+
+            if [[ "${attempt}" == 3 ]]; then
+              echo "::warning::AURUM_STATE_SYNC waiting_reason=main-advanced retry_exhausted=true projected_head=${projected_head} remote_head=${remote_head}"
+              exit 0
+            fi
+
+            echo "::notice::AURUM_STATE_SYNC retrying_reason=main-advanced attempt=${attempt} projected_head=${projected_head} remote_head=${remote_head}"
+            git checkout --detach origin/main
+            project_latest_state
+          done
