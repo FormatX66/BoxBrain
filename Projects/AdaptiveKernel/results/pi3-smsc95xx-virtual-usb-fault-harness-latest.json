@@ -1,0 +1,51 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "deterministic_sequence_seed": 2501179927,
+  "deterministic_sequence_steps": 16384,
+  "fault_classes": [
+    "success",
+    "timeout",
+    "io-error",
+    "stall",
+    "short-transfer",
+    "disconnect"
+  ],
+  "invariants": {
+    "clear_halt_submitted": false,
+    "driver_binding_changed": false,
+    "live_pi_contacted": false,
+    "register_access_performed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "matrix_scenarios": 18,
+  "mismatch_count": 0,
+  "next_safe_gate": "virtual-usb-timing-and-concurrency-model",
+  "receipt_sha256": "94495d859d24c4172c2974768e7d7196a584f3789a293a5ad83e6ec695ab34b7",
+  "retry_budget": 2,
+  "scenario_count": 16402,
+  "schema": "aurum.pi3.smsc95xx.virtual-usb-fault-harness.v1",
+  "state": "controlled-virtual-usb-fault-harness-passed",
+  "strongest_claim": "The sealed integrated Pi3 smsc95xx candidate has deterministic host-only fault/retry behavior for success, timeout, transient I/O error, endpoint stall, short transfer, and disconnect. Retries are bounded and terminal faults quarantine without any real USB or Pi actuation.",
+  "terminal_counts": {
+    "backend-evidence-exhausted": 3056,
+    "delivered": 4141,
+    "disconnected": 4051,
+    "retry-budget-exhausted": 1040,
+    "short-transfer-quarantined": 4114
+  },
+  "trace_sha256": "10c94192631b87555c23335be8e4331a46bd2afb5373df7c4308ca3fb17e3d8d",
+  "upstream_integrated_receipt_sha256": "da152c9d93d27f30fb34e835d483aa40f0df87b75feadb1fe3941054f5477cd8"
+}
