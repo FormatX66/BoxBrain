@@ -1,0 +1,45 @@
+{
+  "archives": {
+    "debian": {
+      "filename": "linux_6.18.34-1+rpt1.debian.tar.xz",
+      "sha256": "39a4e826d7e0f3e79ddd042f37c1ac7b09f1116e71250171aedee0d8268ec4e8",
+      "size": 2469644,
+      "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux_6.18.34-1+rpt1.debian.tar.xz"
+    },
+    "orig": {
+      "filename": "linux_6.18.34.orig.tar.xz",
+      "sha256": "640c4732fb42842166db97e032c1fe7e5ff72c85a8982c75b40f74be3555d760",
+      "size": 154486284,
+      "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux_6.18.34.orig.tar.xz"
+    }
+  },
+  "dsc": {
+    "filename": "linux_6.18.34-1+rpt1.dsc",
+    "format": "3.0 (quilt)",
+    "sha256": "35d7c13c50dedef33a88b5e90fd2198ac480ef3ffca6dfe5f8516a2e6de747fb",
+    "signature_issuer_fingerprint": "D148028716CAA03283161E8873746DAF1817BDB0",
+    "size": 20229,
+    "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux_6.18.34-1+rpt1.dsc",
+    "vcs_git": "https://github.com/RPi-Distro/linux-packaging.git"
+  },
+  "protected_sources": {
+    "drivers/net/usb/usbnet.c": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+    "drivers/usb/core/urb.c": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333"
+  },
+  "quilt": {
+    "entry_count": 32,
+    "inventory_sha256": "4b25e5db18a974bb46ea5ede6ffcba0a5c4625c0481027ad62f084d1fc9e88d3",
+    "protected_paths": [
+      "drivers/net/usb/usbnet.c",
+      "drivers/usb/core/urb.c"
+    ],
+    "series_path": "debian/patches/series",
+    "series_sha256": "bb5c00dd4de1d7b5508915d4aa485f82b52c7c38b9d7ba488dbab1720b37e491",
+    "series_size": 2358
+  },
+  "schema": "aurum.pi3.source-package-recipe-manifest.v1",
+  "target": {
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1"
+  }
+}

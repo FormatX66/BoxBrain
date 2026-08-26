@@ -1,0 +1,139 @@
+name: Aurum Pi3 Source Package Recipe Provenance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-source-package-recipe-provenance.yml'
+      - 'Projects/AdaptiveKernel/pi3_source_package_recipe_provenance.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_source_package_recipe_provenance.py'
+      - 'Projects/AdaptiveKernel/references/pi3_hardware/source-package-recipe-manifest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-source-package-recipe-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bounded-source-recipe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact provenance revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run fail-closed recipe tests
+        shell: bash
+        env:
+          PYTHONPATH: Projects/AdaptiveKernel
+        run: |
+          set -euo pipefail
+          python -m unittest -v Projects/AdaptiveKernel/tests/test_pi3_source_package_recipe_provenance.py
+
+      - name: Fetch exact official source recipe inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='pi3-source-package-recipe'
+          manifest='Projects/AdaptiveKernel/references/pi3_hardware/source-package-recipe-manifest.json'
+          mkdir -p "$evidence"
+          python - "$manifest" "$evidence/inputs.tsv" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          rows = [('dsc', value['dsc'])] + list(value['archives'].items())
+          with open(sys.argv[2], 'w', encoding='utf-8') as out:
+              for label, item in rows:
+                  out.write('\t'.join((label, item['url'], item['filename'], item['sha256'], str(item['size']))) + '\n')
+          PY
+          while IFS=$'\t' read -r label url filename expected_sha expected_size; do
+            output="$evidence/$filename"
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+              --output "$output" "$url"
+            actual_sha="$(sha256sum "$output" | awk '{print $1}')"
+            actual_size="$(stat -c '%s' "$output")"
+            [ "$actual_sha" = "$expected_sha" ] || { echo "$label SHA-256 mismatch" >&2; exit 20; }
+            [ "$actual_size" = "$expected_size" ] || { echo "$label size mismatch" >&2; exit 21; }
+            echo "AURUM_SOURCE_RECIPE_INPUT label=$label sha256=$actual_sha size=$actual_size"
+          done < "$evidence/inputs.tsv"
+
+      - name: Seal bounded DSC and quilt provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='pi3-source-package-recipe'
+          python Projects/AdaptiveKernel/pi3_source_package_recipe_provenance.py \
+            --upstream Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json \
+            --manifest Projects/AdaptiveKernel/references/pi3_hardware/source-package-recipe-manifest.json \
+            --dsc "$evidence/linux_6.18.34-1+rpt1.dsc" \
+            --orig-archive "$evidence/linux_6.18.34.orig.tar.xz" \
+            --debian-archive "$evidence/linux_6.18.34-1+rpt1.debian.tar.xz" \
+            --output "$evidence/receipt.json"
+          python - "$evidence/receipt.json" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          if value.get('state') != 'official-source-recipe-protected-paths-proven':
+              raise SystemExit('bounded source-recipe provenance did not pass')
+          if value.get('mismatch_count') != 0:
+              raise SystemExit('bounded source-recipe provenance contains mismatches')
+          quilt = value.get('quilt') or {}
+          if quilt.get('entry_count') != 32 or quilt.get('protected_patch_hits') != []:
+              raise SystemExit('quilt inventory is incomplete or touches a protected path')
+          if quilt.get('protected_paths_unmodified_by_series') is not True:
+              raise SystemExit('quilt series does not preserve both protected paths')
+          if value.get('protected_path_source_recipe_binding_proven') is not True:
+              raise SystemExit('protected source-recipe binding is not proven')
+          for held in ('dsc_signer_key_trust_binding_proven', 'full_source_package_git_commit_binding_proven',
+                       'whole_tree_build_recipe_equivalence_proven'):
+              if value.get(held) is not False:
+                  raise SystemExit(f'receipt overclaims held field: {held}')
+          if any(v is not False for v in (value.get('authority') or {}).values()):
+              raise SystemExit('source-recipe receipt unexpectedly grants authority')
+          if any(v is not False for v in (value.get('invariants') or {}).values()):
+              raise SystemExit('source-recipe zero-authority invariant failed')
+          print(
+              'AURUM_PI3_SOURCE_RECIPE_PROVENANCE '
+              f"state={value['state']} mismatches=0 receipt_sha256={value['receipt_sha256']} "
+              'patch_entries=32 protected_patch_hits=0 signer_trust=false whole_tree=false write_authority=false'
+          )
+          PY
+
+      - name: Publish sealed recipe evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-source-package-recipe-provenance
+          path: |
+            pi3-source-package-recipe/linux_6.18.34-1+rpt1.dsc
+            pi3-source-package-recipe/receipt.json
+            Projects/AdaptiveKernel/references/pi3_hardware/source-package-recipe-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist source-recipe receipt into durable lineage
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/results
+          cp pi3-source-package-recipe/receipt.json \
+            Projects/AdaptiveKernel/results/pi3-source-package-recipe-provenance-latest.json
+          git config user.name 'aurum-pi3-source-recipe[bot]'
+          git config user.email 'aurum-pi3-source-recipe@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-source-package-recipe-provenance-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SOURCE_RECIPE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 source-package recipe provenance [skip ci]'
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo 'AURUM_PI3_SOURCE_RECIPE_RECEIPT persisted=true'
