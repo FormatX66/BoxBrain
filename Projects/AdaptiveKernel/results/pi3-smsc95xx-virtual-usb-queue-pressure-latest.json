@@ -1,0 +1,60 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "deterministic_sequence_seed": 2501163724,
+  "deterministic_sequence_steps": 32768,
+  "invariants": {
+    "clear_halt_submitted": false,
+    "driver_binding_changed": false,
+    "live_pi_contacted": false,
+    "register_access_performed": false,
+    "usb_cancel_submitted": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false,
+    "wall_clock_or_sleep_used": false
+  },
+  "matrix_scenarios": 17,
+  "max_observed_depth": {
+    "rx": 8,
+    "tx": 8
+  },
+  "max_queue_depth": 8,
+  "next_safe_gate": "linux-usbnet-urb-lifecycle-reference-differential",
+  "operation_counts": {
+    "backpressure": 1778,
+    "cancel": 5353,
+    "complete": 5521,
+    "disconnect": 2282,
+    "reconnect": 2630,
+    "submit": 16982
+  },
+  "queue_contract": {
+    "active_cancel_is_intent_only": true,
+    "backpressure_fail_closed": true,
+    "cancelled_completion_quarantined": true,
+    "disconnect_invalidates_outstanding_work": true,
+    "queue_depth_bounded": true,
+    "queued_cancel_removes_work": true,
+    "reconnect_requires_fresh_submission": true,
+    "tx_rx_queues_independent": true
+  },
+  "receipt_sha256": "9e544192addd419d194bdef56ce0252b58e70153305916f81b7291770e293d91",
+  "scenario_count": 32785,
+  "schema": "aurum.pi3.smsc95xx.virtual-usb-queue-pressure.v1",
+  "state": "controlled-virtual-usb-queue-pressure-passed",
+  "strongest_claim": "The sealed virtual USB timing model now has deterministic bounded queue-pressure and cancellation behavior: queue depth never exceeds its configured limit, saturation returns backpressure, queued cancellations remove work, active cancellation remains intent-only, cancelled/stale completions quarantine, and disconnect clears outstanding work.",
+  "trace_sha256": "de340310eba595b17f8a800418aa73d7b9e2f74e7671f74dbd338e2619555462",
+  "upstream_timing_receipt_sha256": "125acc2e57c755fc02ceb78578e0893e88477b3c63d40775885350f97af85f5d",
+  "violation_count": 0
+}
