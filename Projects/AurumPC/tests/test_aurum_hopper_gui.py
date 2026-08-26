@@ -3,6 +3,9 @@ from __future__ import annotations
 import importlib.util
 import hashlib
 import json
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -51,6 +54,22 @@ finally:
 
 
 class HopperGuiTests(unittest.TestCase):
+    def test_inline_javascript_parses(self) -> None:
+        node = shutil.which("node") or shutil.which("nodejs")
+        if node is None:
+            self.skipTest("Node.js is required for the Hopper JavaScript syntax gate")
+        scripts = re.findall(r"<script[^>]*>(.*?)</script>", hopper.PAGE, re.DOTALL)
+        self.assertTrue(scripts)
+        for script in scripts:
+            result = subprocess.run(
+                [node, "--check", "-"],
+                input=script,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_html_projection_has_conversation_receipts_and_no_browser_key(self) -> None:
         page = hopper.PAGE
         self.assertIn("Aurum · Hopper", page)
