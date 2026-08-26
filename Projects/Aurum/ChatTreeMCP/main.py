@@ -36,6 +36,8 @@ TOOL_NAMES = frozenset(
     {
         "get_tree",
         "get_state",
+        "plan_consolidation",
+        "consolidate_branch",
         "route_topic",
         "post_receipt",
         "publish_live_state",
@@ -60,6 +62,12 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
 MUTATING = ToolAnnotations(
     read_only_hint=False,
     destructive_hint=False,
+    idempotent_hint=False,
+    open_world_hint=False,
+)
+DESTRUCTIVE = ToolAnnotations(
+    read_only_hint=False,
+    destructive_hint=True,
     idempotent_hint=False,
     open_world_hint=False,
 )
@@ -189,6 +197,56 @@ def read_live_state(
     if node_id is not None:
         args["node_id"] = node_id
     return dispatch("read_live_state", args)
+
+
+@mcp.tool(
+    title="Plan Chat Branch Consolidation",
+    description=(
+        "Find completed or failed Chat Tree nodes that share the exact same parent group "
+        "and branch lane. This is read-only and does not archive ChatGPT conversation history."
+    ),
+    annotations=READ_ONLY,
+    structured_output=True,
+)
+def plan_consolidation(
+    parent_id: str | None = None,
+    lane_id: str | None = None,
+) -> dict[str, Any]:
+    args: dict[str, object] = {}
+    if parent_id is not None:
+        args["parent_id"] = parent_id
+    if lane_id is not None:
+        args["lane_id"] = lane_id
+    return dispatch("plan_consolidation", args)
+
+
+@mcp.tool(
+    title="Consolidate and Archive Chat Tree Branch",
+    description=(
+        "Create one provenance-preserving checkpoint from an exact reviewed consolidation "
+        "plan and archive its source Chat Tree nodes. This does not archive the underlying "
+        "conversations in ChatGPT history."
+    ),
+    annotations=DESTRUCTIVE,
+    structured_output=True,
+)
+def consolidate_branch(
+    source_node_ids: list[str],
+    plan_token: str,
+    new_node_id: str,
+    title: str,
+    summary: str = "",
+) -> dict[str, Any]:
+    return dispatch(
+        "consolidate_branch",
+        {
+            "source_node_ids": source_node_ids,
+            "plan_token": plan_token,
+            "new_node_id": new_node_id,
+            "title": title,
+            "summary": summary,
+        },
+    )
 
 
 @mcp.tool(

@@ -306,6 +306,49 @@ def handle_request(
             "chat_memory_used_as_source": False,
         }
 
+    if command == "plan_consolidation":
+        tree = _load_tree(tree_path)
+        parent_id = None if request.get("parent_id") is None else str(request["parent_id"])
+        lane_id = None if request.get("lane_id") is None else str(request["lane_id"])
+        candidates = tree.consolidation_candidates(parent_id=parent_id, lane_id=lane_id)
+        return {
+            "ok": True,
+            "command": command,
+            "tree_revision": tree.revision,
+            "candidate_count": len(candidates),
+            "candidates": list(candidates),
+            "matching_policy": "exact-parent-and-lane-terminal-nodes",
+            "tree_archive_supported": True,
+            "underlying_chat_history_supported": False,
+            "side_effects_performed": False,
+        }
+
+    if command == "consolidate_branch":
+        tree = _load_tree(tree_path)
+        raw_sources = _require(request, "source_node_ids")
+        if not isinstance(raw_sources, list):
+            raise BridgeError("source_node_ids must be a list")
+        source_node_ids = tuple(str(item) for item in raw_sources)
+        changed = tree.consolidate_branch(
+            source_node_ids,
+            plan_token=str(_require(request, "plan_token")),
+            node_id=str(_require(request, "new_node_id")),
+            title=str(_require(request, "title")),
+            summary=str(request.get("summary", "")),
+        )
+        new_node_id = str(request["new_node_id"])
+        _write_tree(tree_path, changed, new_node_id)
+        return {
+            "ok": True,
+            "command": command,
+            "focus_id": new_node_id,
+            "tree_revision": changed.revision,
+            "tree_changed": True,
+            "archived_source_ids": list(source_node_ids),
+            "consolidated_node_id": new_node_id,
+            "underlying_chat_history_archived": False,
+        }
+
     if command == "project_human_futures":
         futures = []
         for item in _mapping_list(request, "likely_next"):

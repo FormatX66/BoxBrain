@@ -10,6 +10,7 @@ on:
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-mcp.yml'
@@ -19,6 +20,7 @@ on:
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-mcp.yml'
@@ -50,6 +52,7 @@ jobs:
             Projects/Aurum/Experiments/chat_process_tree.py \
             Projects/Aurum/Experiments/chat_topic_router.py \
             Projects/Aurum/Experiments/chat_tree_bridge.py \
+            Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py \
             Projects/Aurum/Experiments/shared_state_bus.py
 
       - name: Run MCP adapter tests
@@ -61,4 +64,5 @@ jobs:
         run: |
           python -m unittest -v \
             test_chat_process_tree.py \
+            test_chat_tree_consolidation_bridge.py \
             test_chat_tree_shared_state.py

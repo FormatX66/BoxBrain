@@ -15,8 +15,37 @@ try {
   const names = new Set((listed.tools ?? []).map((tool) => tool.name));
   requireInvariant(names.has("publish_live_state"), "cross-chat live-state publisher missing");
   requireInvariant(names.has("read_live_state"), "cross-chat live-state consumer missing");
+  requireInvariant(names.has("show_chat_tree"), "Chat Tree display tool missing");
+  requireInvariant(names.has("plan_chat_branch_consolidation"), "consolidation planner missing");
+  requireInvariant(names.has("consolidate_chat_branch"), "consolidation action missing");
   requireInvariant(names.has("project_future_branch_status"), "human Future Branch tool missing");
   requireInvariant(names.has("plan_operational_futures"), "operational Future Branch tool missing");
+  const listedByName = new Map((listed.tools ?? []).map((tool) => [tool.name, tool]));
+  requireInvariant(listedByName.get("plan_chat_branch_consolidation")?.annotations?.readOnlyHint === true, "consolidation planner is not read-only");
+  requireInvariant(listedByName.get("consolidate_chat_branch")?.annotations?.destructiveHint === true, "consolidation action does not require destructive approval");
+
+  const consolidationPlan = await client.callTool({
+    name: "plan_chat_branch_consolidation",
+    arguments: {},
+  });
+  requireInvariant(consolidationPlan.structuredContent?.consolidation?.side_effects_performed === false, "consolidation planner changed state");
+  requireInvariant(consolidationPlan.structuredContent?.consolidation?.underlying_chat_history_supported === false, "plugin claimed ChatGPT history access");
+  if (process.env.AURUM_CHAT_TREE_MUTATION_SMOKE === "1") {
+    const candidate = consolidationPlan.structuredContent?.consolidation?.candidates?.[0];
+    requireInvariant(candidate?.source_node_ids?.length >= 2, "mutation smoke fixture has no consolidation candidate");
+    const consolidated = await client.callTool({
+      name: "consolidate_chat_branch",
+      arguments: {
+        sourceNodeIds: candidate.source_node_ids,
+        planToken: candidate.plan_token,
+        newNodeId: "smoke-archive",
+        title: "Smoke archive",
+        summary: "Mutation smoke test archive",
+      },
+    });
+    requireInvariant(consolidated.structuredContent?.consolidationResult?.archived_source_ids?.length === 2, "sources were not archived");
+    requireInvariant(consolidated.structuredContent?.consolidationResult?.underlying_chat_history_archived === false, "plugin claimed ChatGPT history mutation");
+  }
 
   const published = await client.callTool({
     name: "publish_live_state",

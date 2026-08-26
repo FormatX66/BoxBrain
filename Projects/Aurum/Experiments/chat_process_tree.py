@@ -11,6 +11,7 @@ physical boundary, or promote a candidate merely because branches were merged.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import hashlib
 import json
 from typing import Iterable, Mapping
 
@@ -21,6 +22,7 @@ NODE_STATES = frozenset(
     {"queued", "active", "running", "waiting", "blocked", "completed", "failed", "archived"}
 )
 ACTIVE_STATES = frozenset({"queued", "active", "running", "waiting", "blocked"})
+CONSOLIDATABLE_STATES = frozenset({"completed", "failed"})
 
 _TRANSITIONS = {
     "queued": frozenset({"active", "waiting", "blocked", "archived"}),
@@ -238,6 +240,158 @@ class ChatProcessTree:
             shared.intersection_update(node.node_id for node in path)
         return max(shared, key=lambda node_id: self.nodes[node_id].sequence)
 
+    def _consolidation_token(
+        self,
+        *,
+        parent_id: str,
+        lane_id: str,
+        source_node_ids: tuple[str, ...],
+    ) -> str:
+        payload = {
+            "thread_id": self.thread_id,
+            "revision": self.revision,
+            "parent_id": parent_id,
+            "lane_id": lane_id,
+            "source_node_ids": list(source_node_ids),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def consolidation_candidates(
+        self,
+        *,
+        parent_id: str | None = None,
+        lane_id: str | None = None,
+    ) -> tuple[dict, ...]:
+        """Return strict, deterministic terminal-node consolidation groups.
+
+        Automatic matching is deliberately limited to nodes with the exact same
+        parent (group) and lane (branch). Fuzzy title or concept similarity must
+        never silently archive unrelated work.
+        """
+
+        groups: dict[tuple[str, str], list[ProcessNode]] = {}
+        for node in self.nodes.values():
+            if node.parent_id is None or node.state not in CONSOLIDATABLE_STATES:
+                continue
+            if parent_id is not None and node.parent_id != parent_id:
+                continue
+            if lane_id is not None and node.lane_id != lane_id:
+                continue
+            groups.setdefault((node.parent_id, node.lane_id), []).append(node)
+
+        candidates: list[dict] = []
+        for (group_parent_id, group_lane_id), nodes in sorted(groups.items()):
+            if len(nodes) < 2:
+                continue
+            ordered = tuple(sorted(nodes, key=lambda item: (item.sequence, item.node_id)))
+            source_node_ids = tuple(node.node_id for node in ordered)
+            external_chat_refs = tuple(
+                dict.fromkeys(
+                    ref
+                    for node in ordered
+                    for ref in node.evidence_refs
+                    if ref.startswith("chatgpt-conversation:")
+                    or ref.startswith("https://chatgpt.com/c/")
+                )
+            )
+            candidates.append(
+                {
+                    "parent_id": group_parent_id,
+                    "parent_title": self.nodes[group_parent_id].title,
+                    "lane_id": group_lane_id,
+                    "source_node_ids": list(source_node_ids),
+                    "source_titles": [node.title for node in ordered],
+                    "source_states": [node.state for node in ordered],
+                    "source_count": len(ordered),
+                    "external_chat_refs": list(external_chat_refs),
+                    "plan_token": self._consolidation_token(
+                        parent_id=group_parent_id,
+                        lane_id=group_lane_id,
+                        source_node_ids=source_node_ids,
+                    ),
+                }
+            )
+        return tuple(candidates)
+
+    def consolidate_branch(
+        self,
+        node_ids: Iterable[str],
+        *,
+        plan_token: str,
+        node_id: str,
+        title: str,
+        summary: str = "",
+    ) -> "ChatProcessTree":
+        """Create one checkpoint and archive exact same-group/same-lane sources."""
+
+        requested = _strings(node_ids)
+        if len(requested) < 2:
+            raise ChatProcessTreeError("at least two nodes are required for consolidation")
+        if node_id in self.nodes:
+            raise ChatProcessTreeError(f"node already exists: {node_id}")
+        if any(source not in self.nodes for source in requested):
+            raise ChatProcessTreeError("all consolidation sources must exist")
+
+        ordered_nodes = tuple(
+            sorted((self.nodes[source] for source in requested), key=lambda item: (item.sequence, item.node_id))
+        )
+        ordered_ids = tuple(node.node_id for node in ordered_nodes)
+        parents = {node.parent_id for node in ordered_nodes}
+        lanes = {node.lane_id for node in ordered_nodes}
+        if None in parents or len(parents) != 1 or len(lanes) != 1:
+            raise ChatProcessTreeError("consolidation sources must share the same group and branch")
+        if any(node.state not in CONSOLIDATABLE_STATES for node in ordered_nodes):
+            raise ChatProcessTreeError("only completed or failed nodes can be consolidated")
+
+        group_parent_id = next(iter(parents))
+        group_lane_id = next(iter(lanes))
+        expected_token = self._consolidation_token(
+            parent_id=group_parent_id,
+            lane_id=group_lane_id,
+            source_node_ids=ordered_ids,
+        )
+        if not plan_token or plan_token != expected_token:
+            raise ChatProcessTreeError("consolidation plan is stale or does not match the exact sources")
+
+        evidence_ref = f"consolidation:{node_id}"
+        archived_nodes: dict[str, ProcessNode] = {}
+        for source in ordered_nodes:
+            archived_nodes[source.node_id] = replace(
+                source,
+                state="archived",
+                evidence_refs=tuple(dict.fromkeys((*source.evidence_refs, evidence_ref))),
+                state_history=(*(source.state_history or (source.state,)), "archived"),
+            )
+
+        boundaries = tuple(dict.fromkeys(node.boundary for node in ordered_nodes if node.boundary))
+        boundary = boundaries[0] if len(boundaries) == 1 else "mixed" if boundaries else None
+        checkpoint = ProcessNode(
+            node_id=node_id,
+            title=title,
+            kind="checkpoint",
+            state="completed",
+            lane_id=group_lane_id,
+            sequence=max(node.sequence for node in self.nodes.values()) + 1,
+            parent_id=group_parent_id,
+            summary=summary.strip() or f"Consolidated {len(ordered_nodes)} terminal Chat Tree nodes.",
+            concepts=tuple(
+                dict.fromkeys(concept for source in ordered_nodes for concept in source.concepts)
+            ),
+            evidence_refs=tuple(
+                dict.fromkeys(
+                    (evidence_ref, *(ref for source in ordered_nodes for ref in source.evidence_refs))
+                )
+            ),
+            merged_from=ordered_ids,
+            boundary=boundary,
+            effect_allowed=False,
+            authority_ref=None,
+            state_history=("completed",),
+        )
+        changed = tuple(archived_nodes.get(node.node_id, node) for node in self.nodes.values())
+        return self._copy((*changed, checkpoint))
+
     def merge_lanes(
         self,
         node_ids: Iterable[str],
@@ -298,6 +452,9 @@ class ChatProcessTree:
                 "human_focus_collapses_machine_lanes": False,
                 "completed_or_archived_nodes_are_deleted": False,
                 "merge_preserves_source_provenance": True,
+                "consolidation_requires_exact_group_and_branch": True,
+                "consolidation_deletes_source_nodes": False,
+                "tree_archive_changes_chatgpt_history": False,
                 "tree_grants_execution_authority": False,
                 "tree_resolves_physical_boundaries": False,
             },

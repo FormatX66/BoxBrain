@@ -13,6 +13,7 @@ on:
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/Experiments/test_chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/test_chat_tree_shared_state.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-shared-state.yml'
@@ -25,6 +26,7 @@ on:
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/Experiments/test_chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/test_chat_tree_shared_state.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-shared-state.yml'
@@ -60,4 +62,5 @@ jobs:
         run: |
           python -m unittest -v \
             test_chat_process_tree.py \
+            test_chat_tree_consolidation_bridge.py \
             test_chat_tree_shared_state.py
