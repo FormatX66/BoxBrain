@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from Projects.AdaptiveKernel.pi3_overnight_lab import (
     RISK_LEVELS,
@@ -8,10 +9,17 @@ from Projects.AdaptiveKernel.pi3_overnight_lab import (
     parse_throttled,
     risk_index,
     stage_for_fraction,
+    tool_path,
 )
 
 
 class Pi3OvernightLabTests(unittest.TestCase):
+    def test_admin_tool_resolution_includes_sbin(self):
+        with mock.patch("Projects.AdaptiveKernel.pi3_overnight_lab.shutil.which", return_value=None), mock.patch(
+            "Projects.AdaptiveKernel.pi3_overnight_lab.Path.is_file", return_value=True
+        ), mock.patch("Projects.AdaptiveKernel.pi3_overnight_lab.os.access", return_value=True):
+            self.assertEqual((tool_path("modinfo") or "").replace("\\", "/"), "/usr/sbin/modinfo")
+
     def test_stages_increase_monotonically_with_elapsed_fraction(self):
         observed = [
             stage_for_fraction(value)

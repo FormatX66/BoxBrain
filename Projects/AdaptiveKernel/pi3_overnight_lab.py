@@ -531,10 +531,16 @@ class Pi3OvernightLab:
             loaded = inserted.returncode == 0 and Path("/sys/module/aurum_probe").exists()
             if not loaded:
                 return {"state": "held", "reason": "custom-module-load-refused", "stderr": inserted.stderr[-500:]}
+            modinfo = tool_path("modinfo")
+            vermagic = None
+            if modinfo:
+                vermagic_result = command((modinfo, "-F", "vermagic", str(module)), timeout=5)
+                if vermagic_result.returncode == 0:
+                    vermagic = vermagic_result.stdout.strip()
             return {
                 "state": "passed",
                 "module_sha256": sha256_file(module),
-                "vermagic": command(("modinfo", "-F", "vermagic", str(module)), timeout=5).stdout.strip(),
+                "vermagic": vermagic,
                 "reference_driver_during": reference_driver(),
             }
         finally:
