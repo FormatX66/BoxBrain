@@ -1,5 +1,5 @@
 {
-  "event_count": 7,
+  "event_count": 10,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -81,41 +81,72 @@
       "confidence": 1.0,
       "dependency_ids": [
         "pi3-current-card-rollback",
-        "pi3-experimental-00000000a6a7df7f",
-        "pi3-adaptive-driver-generation2"
+        "pi3-experimental-00000000a6a7df7f"
       ],
-      "event_id": "evt-b3245ed18c8f42da83cc8cc2a5bcbc4b",
+      "event_id": "evt-989711df557043a7ba9375b2dcd5c75c",
       "evidence_refs": [
         "github:actions:run:32925514155",
-        "github:actions:job:98047510911",
-        "git:commit:1db49435",
-        "git:commit:0be592cf",
-        "github:actions:run:32924126448"
+        "git:commit:7bbec6c4"
       ],
       "node_id": "adaptive-kernel",
       "payload": {
+        "last_stage": "observe",
+        "orphan_process_terminated": true,
+        "persistent_change": false,
+        "physical_mutation_started": false,
+        "replacement_run_id": 32926370691,
+        "workflow_conclusion": "cancelled"
+      },
+      "source": "controller-observation-restart",
+      "status": "no_change",
+      "subject_id": "pi3-adaptive-kernel-overnight-32925514155",
+      "subject_kind": "experiment",
+      "summary": "Initial overnight run was cancelled during observation to incorporate the final admin-tool resolution; its exact orphan process was terminated and no mutation stage had begun.",
+      "timestamp": "2026-08-26T03:29:39.546066Z"
+    },
+    "pi3-adaptive-kernel-overnight-32926370691": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-adaptive-driver-generation2",
+        "pi3-kernel-canary-preflight-32926239577"
+      ],
+      "event_id": "evt-5c8ed6a3a88546e2919e08dff814ac0e",
+      "evidence_refs": [
+        "github:actions:run:32926370691",
+        "github:actions:job:98050003503",
+        "git:commit:7bbec6c4",
+        "github:actions:run:32926239577",
+        "github:artifact:9591615066"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
         "current_stage": "observe",
-        "duration_minutes": 330,
-        "laboratory_step_started_at_utc": "2026-08-26T03:14:52Z",
+        "current_throttle_fault": false,
+        "ethernet_carrier": "1",
+        "historical_throttle_seen": true,
+        "laboratory_started_at_runner_utc": "2026-08-26T03:28:05Z",
         "persistent_kernel_or_driver_change_allowed": false,
         "physical_mutation_started": false,
-        "preflight_fix_commit": "0be592cf",
-        "preflight_rerun_gate": "after-overnight-run",
-        "preflight_result": "failed-control-transport-crlf",
-        "preflight_run_id": 32924485415,
-        "qpu_run_id": 32924126448,
-        "qpu_run_state": "succeeded",
-        "rollback_hash_step": "passed",
-        "ssh_identity_staging": "passed",
-        "started_at_utc": "2026-08-26T03:13:38Z",
+        "reference_driver": "smsc95xx",
+        "rx_dropped": 0,
+        "rx_errors": 0,
+        "stage_state": "passed",
+        "temperature_c": 50.464,
+        "tx_dropped": 0,
+        "tx_errors": 0,
         "workflow_state": "in_progress"
       },
       "source": "github-physical-pi3-overnight-live",
       "status": "running_verified",
-      "subject_id": "pi3-adaptive-kernel-overnight-32925514155",
+      "subject_id": "pi3-adaptive-kernel-overnight-32926370691",
       "subject_kind": "experiment",
-      "summary": "Pinned Pi3 overnight laboratory is running after fresh rollback hashes, strict identity staging, and physical control-path gates passed; it remains in the initial observation window.",
-      "timestamp": "2026-08-26T03:16:38.032476Z"
+      "summary": "Clean pinned-Pi3 overnight laboratory is running from the corrected harness after fresh rollback hashes and exact identity gates passed; observation stage has passed with healthy thermal, power, Ethernet, and reference-driver evidence.",
+      "timestamp": "2026-08-26T03:29:42.139188Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
@@ -182,6 +213,42 @@
       "subject_kind": "device",
       "summary": "Pinned experimental Pi3 is visibly booted from the preserved card and strictly verified by model, serial, host key, and root device.",
       "timestamp": "2026-08-26T02:26:37.033403Z"
+    },
+    "pi3-kernel-canary-preflight-32926239577": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-adaptive-driver-generation2"
+      ],
+      "event_id": "evt-e1b865105ef5498dab5444fbc9fb7486",
+      "evidence_refs": [
+        "github:actions:run:32926239577",
+        "github:artifact:9591615066",
+        "github:artifact-digest:sha256:226c98fb5bc501c8b2bb8f523930e2f6e0bfb1e7e9c747ed907e4750886871df",
+        "git:commit:7bbec6c4"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "arch": "aarch64",
+        "compile_only_canary_passed": true,
+        "kernel": "6.18.34+rpt-rpi-v8",
+        "matching_headers_present": true,
+        "module_loaded": false,
+        "module_symvers_present": true,
+        "out_of_band_watchdog_proven": false,
+        "semantic_state": "held-out-of-band-watchdog-unproven",
+        "system_driver_changed": false,
+        "workflow_conclusion": "success"
+      },
+      "source": "github-pi3-kernel-canary-preflight",
+      "status": "blocked",
+      "subject_id": "pi3-kernel-canary-preflight-32926239577",
+      "subject_kind": "experiment",
+      "summary": "Exact Pi3 headers, Module.symvers, compiler, and inert module compilation passed; kernel replacement and driver binding remain held because an automatic out-of-band watchdog is unproven.",
+      "timestamp": "2026-08-26T03:29:40.834526Z"
     }
   }
 }
