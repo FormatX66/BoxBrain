@@ -29,10 +29,41 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'pi3-driver-candidate-evidence' | Out-Null
-          python Projects/AdaptiveKernel/driver_candidates/verify_contract.py | Set-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Encoding utf8
-          if ($LASTEXITCODE -ne 0) { throw 'Static driver-candidate contract refused the source.' }
-          $static = Get-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Raw | ConvertFrom-Json
-          if ($static.state -ne 'verified-inert-compile-only' -or [bool]$static.invariants.load_allowed) { throw 'Candidate is not proven inert and compile-only.' }
+          $runnerControlPath = 'pi3-driver-candidate-evidence/runner-control.json'
+          $runnerControl = [ordered]@{
+            schema = 'aurum.pi3.driver-candidate.runner-control.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'resolving-python'
+            source_commit = [string]$env:GITHUB_SHA
+            python_source = 'aurum-farmer-install-receipt'
+            authority_granted = $false
+          }
+          function Save-RunnerControl {
+            $runnerControl.observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            $runnerControl | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $runnerControlPath -Encoding utf8
+          }
+          try {
+            Save-RunnerControl
+            $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
+            $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
+            if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) { throw 'Aurum Farmer install receipt is unavailable.' }
+            $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
+            $pythonPath = [string]$install.python_exe
+            if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) { throw 'Aurum Farmer Python executable is unavailable.' }
+            $staticOutput = @(& $pythonPath Projects/AdaptiveKernel/driver_candidates/verify_contract.py 2>&1)
+            $staticExit = $LASTEXITCODE
+            $staticOutput | Set-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Encoding utf8
+            if ($staticExit -ne 0) { throw 'Static driver-candidate contract refused the source.' }
+            $static = Get-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Raw | ConvertFrom-Json
+            if ($static.state -ne 'verified-inert-compile-only' -or [bool]$static.invariants.load_allowed) { throw 'Candidate is not proven inert and compile-only.' }
+            $runnerControl.state = 'verified-inert-contract'
+            Save-RunnerControl
+          } catch {
+            $runnerControl.state = 'refused'
+            $runnerControl.reason = $_.Exception.Message
+            Save-RunnerControl
+            throw
+          }
 
       - name: Stage pinned Pi3 SSH identity
         shell: powershell
@@ -182,8 +213,19 @@ jobs:
           $sshTarget = "$($identity.ssh_user)@$($identity.pinned_ipv4)"
           $ssh = Get-Command ssh -ErrorAction Stop
           $sshOptions = @('-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no','-o','PreferredAuthentications=publickey','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',[string]$env:PI3_RUNTIME_KEY)
-          $cleanupScript = "set -eu; d='$remoteDir'; case \"`$d\" in /tmp/aurum-pi3-driver-candidate.*) ;; *) exit 42 ;; esac; if [ -e \"`$d\" ]; then rm -rf -- \"`$d\"; fi"
-          & $ssh.Source @sshOptions $sshTarget $cleanupScript
+          $cleanupScript = @"
+          set -eu
+          d='$remoteDir'
+          case "`$d" in
+            /tmp/aurum-pi3-driver-candidate.*) ;;
+            *) exit 42 ;;
+          esac
+          if [ -e "`$d" ]; then rm -rf -- "`$d"; fi
+          "@
+          $cleanupScript = $cleanupScript.Replace("`r`n", "`n")
+          $cleanupEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cleanupScript))
+          $cleanupCommand = "printf '%s' '$cleanupEncoded' | base64 -d | sh"
+          & $ssh.Source @sshOptions $sshTarget $cleanupCommand
           if ($LASTEXITCODE -ne 0) { throw 'Remote temporary compile cleanup failed.' }
 
       - name: Retain compile-only evidence

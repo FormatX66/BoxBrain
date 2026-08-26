@@ -63,6 +63,17 @@ class Pi3DriverCompileWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(token, self.text)
 
+    def test_windows_runner_uses_farmer_python_and_base64_cleanup_script(self):
+        for token in (
+            "AurumFarmer\\runtime",
+            "install-receipt.json",
+            "python_exe",
+            "runner-control.json",
+            "$cleanupEncoded",
+            "base64 -d | sh",
+        ):
+            self.assertIn(token, self.text)
+
 
 if __name__ == "__main__":
     unittest.main()
