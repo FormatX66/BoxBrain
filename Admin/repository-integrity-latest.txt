@@ -1,7 +1,7 @@
 Repository Integrity Mirror
 
 == repository validator ==
-BoxBrain validation passed: 318 required files and 399 Markdown files.
+BoxBrain validation passed: 318 required files and 402 Markdown files.
 
 == canonical Aurum state-sync tests ==
 .....................................................
