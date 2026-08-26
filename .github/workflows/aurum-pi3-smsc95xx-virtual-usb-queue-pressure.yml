@@ -1,0 +1,122 @@
+name: Aurum Pi3 smsc95xx Virtual USB Queue Pressure
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-smsc95xx-virtual-usb-queue-pressure.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_virtual_usb_queue_pressure.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_virtual_usb_queue_pressure.py'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-timing-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-smsc95xx-virtual-usb-queue-pressure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-queue-pressure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run queue-pressure tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_virtual_usb_queue_pressure
+
+      - name: Run deterministic queue-pressure model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p queue-evidence
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_virtual_usb_queue_pressure \
+            --timing-receipt Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-timing-latest.json \
+            --max-depth 8 \
+            --sequence-seed 0x9514bacc \
+            --sequence-steps 32768 \
+            --output queue-evidence/virtual-usb-queue-pressure.json
+
+      - name: Verify sealed zero-authority queue receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_virtual_usb_queue_pressure import STATE, _verify_sealed
+
+          receipt = json.loads(Path('queue-evidence/virtual-usb-queue-pressure.json').read_text(encoding='utf-8'))
+          if receipt.get('state') != STATE or not _verify_sealed(receipt):
+              raise SystemExit('queue-pressure receipt is not a sealed pass')
+          if receipt.get('deterministic_sequence_steps') != 32768 or receipt.get('violation_count') != 0:
+              raise SystemExit('queue-pressure stress verification failed')
+          if receipt.get('max_queue_depth') != 8:
+              raise SystemExit('unexpected queue-depth contract')
+          if any(depth > 8 for depth in receipt.get('max_observed_depth', {}).values()):
+              raise SystemExit('queue exceeded hard bound')
+          if any(receipt.get('authority', {}).values()) or any(receipt.get('invariants', {}).values()):
+              raise SystemExit('queue-pressure model crossed zero-authority boundary')
+          contract = receipt.get('queue_contract', {})
+          required = (
+              'queue_depth_bounded', 'backpressure_fail_closed', 'queued_cancel_removes_work',
+              'active_cancel_is_intent_only', 'cancelled_completion_quarantined',
+              'disconnect_invalidates_outstanding_work', 'reconnect_requires_fresh_submission',
+              'tx_rx_queues_independent',
+          )
+          if any(contract.get(key) is not True for key in required):
+              raise SystemExit('queue-pressure contract is incomplete')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('\n'.join([
+                  '# Pi3 smsc95xx Virtual USB Queue Pressure', '',
+                  f"- State: {receipt['state']}",
+                  f"- Scenario count: {receipt['scenario_count']}",
+                  '- Max queue depth: 8',
+                  '- Backpressure / queued cancellation / active cancellation: verified',
+                  '- Disconnect invalidation / reconnect recovery: verified',
+                  '- Violations: 0',
+                  '- Live Pi / USB / cancel / register / mutation authority: false', '',
+                  receipt['strongest_claim'],
+              ]) + '\n')
+          PY
+
+      - name: Publish queue-pressure evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-virtual-usb-queue-pressure-${{ github.run_id }}
+          path: queue-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist verified queue-pressure lineage
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp queue-evidence/virtual-usb-queue-pressure.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-queue-pressure-latest.json
+          git config user.name 'aurum-pi3-virtual-usb-queue[bot]'
+          git config user.email 'aurum-pi3-virtual-usb-queue@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-queue-pressure-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SMSC95XX_VIRTUAL_USB_QUEUE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 virtual USB queue evidence [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SMSC95XX_VIRTUAL_USB_QUEUE_RECEIPT persisted=true'
