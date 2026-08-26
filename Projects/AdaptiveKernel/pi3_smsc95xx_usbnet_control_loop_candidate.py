@@ -29,7 +29,7 @@ LIFECYCLE_SHADOW_SCHEMA = "aurum.pi3.smsc95xx.usbnet-lifecycle-shadow.v1"
 CANDIDATE_SCHEMA = "aurum.pi3.smsc95xx.usbnet-control-loop-candidate.v1"
 DIFFERENTIAL_SCHEMA = "aurum.pi3.smsc95xx.usbnet-control-loop-differential.v1"
 DEFAULT_SEQUENCE_SEED = 0x9514C011
-DEFAULT_SEQUENCE_STEPS = 65536
+DEFAULT_SEQUENCE_STEPS = 65_536
 EVENTS = tuple(ACTIONS) + ("tx_packet", "rx_packet")
 
 _REQUIRED_FALSE = (
@@ -40,7 +40,17 @@ _REQUIRED_FALSE = (
 
 
 def _canonical_sha256(value: Mapping[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode()).hexdigest()
+    data = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode("utf-8")
+    return hashlib.sha256(data).hexdigest()
+
+
+def _verify_local_seal(value: Mapping[str, Any]) -> bool:
+    claimed = value.get("receipt_sha256")
+    if not isinstance(claimed, str):
+        return False
+    body = dict(value)
+    body.pop("receipt_sha256", None)
+    return claimed == _canonical_sha256(body)
 
 
 def _require_zero_authority(value: Mapping[str, Any], label: str) -> None:
@@ -58,35 +68,60 @@ def _require_zero_authority(value: Mapping[str, Any], label: str) -> None:
             raise ValueError(f"{label} crossed no-hardware boundary: {key}")
 
 
-def _validated_inputs(shadow: Mapping[str, Any], emulator: Mapping[str, Any]) -> tuple[list[str], dict[tuple[str, str], tuple[str, bool]]]:
+def _validated_inputs(
+    shadow: Mapping[str, Any], emulator: Mapping[str, Any]
+) -> tuple[list[str], dict[tuple[str, str], tuple[str, bool]]]:
     if shadow.get("schema") != LIFECYCLE_SHADOW_SCHEMA or not _verify_sealed(shadow):
         raise ValueError("lifecycle shadow must be a valid sealed receipt")
     if shadow.get("state") != "verified-offline-usbnet-lifecycle-fault-model":
         raise ValueError("lifecycle shadow gate has not passed")
     _require_zero_authority(shadow, "lifecycle shadow")
+
     if emulator.get("schema") != EVENT_EMULATOR_SCHEMA or not _verify_sealed(emulator):
         raise ValueError("event emulator must be a valid sealed receipt")
     if emulator.get("state") != "controlled-userspace-usbnet-event-emulator-passed" or emulator.get("mismatch_count") != 0:
         raise ValueError("event emulator gate has not passed")
     _require_zero_authority(emulator, "event emulator")
-    if emulator.get("inputs", {}).get("lifecycle_shadow") != shadow.get("receipt_sha256"):
+    inputs = emulator.get("inputs")
+    if not isinstance(inputs, Mapping) or inputs.get("lifecycle_shadow") != shadow.get("receipt_sha256"):
         raise ValueError("event emulator is not bound to the supplied lifecycle shadow")
 
     graph = shadow.get("graph")
-    if not isinstance(graph, Mapping) or not isinstance(graph.get("states"), list) or not isinstance(graph.get("transitions"), list):
+    if not isinstance(graph, Mapping):
+        raise ValueError("lifecycle graph is malformed")
+    state_rows = graph.get("states")
+    transition_rows = graph.get("transitions")
+    if not isinstance(state_rows, list) or not isinstance(transition_rows, list):
         raise ValueError("lifecycle graph is incomplete")
-    states = sorted(str(row.get("id")) for row in graph["states"] if isinstance(row, Mapping))
-    if len(states) != graph.get("state_count") or len(set(states)) != len(states):
+
+    states: list[str] = []
+    for row in state_rows:
+        if not isinstance(row, Mapping):
+            raise ValueError("lifecycle state row is malformed")
+        state_id = row.get("id")
+        if not isinstance(state_id, str) or len(state_id) != 8 or set(state_id) - {"0", "1"}:
+            raise ValueError("lifecycle state id is malformed")
+        states.append(state_id)
+    states.sort()
+    known = set(states)
+    if len(states) != graph.get("state_count") or len(known) != len(states):
         raise ValueError("lifecycle state accounting is inconsistent")
+
     matrix: dict[tuple[str, str], tuple[str, bool]] = {}
-    for row in graph["transitions"]:
+    for row in transition_rows:
         if not isinstance(row, Mapping):
             raise ValueError("lifecycle transition row is malformed")
-        key = (str(row.get("from")), str(row.get("action")))
+        before = row.get("from")
+        after = row.get("to")
+        action = row.get("action")
+        accepted = row.get("accepted")
+        if before not in known or after not in known or action not in ACTIONS or not isinstance(accepted, bool):
+            raise ValueError("lifecycle transition row is outside the sealed graph contract")
+        key = (str(before), str(action))
         if key in matrix:
             raise ValueError("duplicate lifecycle transition")
-        matrix[key] = (str(row.get("to")), bool(row.get("accepted")))
-    if len(matrix) != len(states) * len(ACTIONS):
+        matrix[key] = (str(after), accepted)
+    if len(matrix) != len(states) * len(ACTIONS) or graph.get("transition_count") != len(matrix):
         raise ValueError("lifecycle transition matrix is incomplete")
     return states, matrix
 
@@ -98,7 +133,9 @@ def _state_from_id(state_id: str) -> LifecycleState:
     return LifecycleState(**{name: state_id[index] == "1" for index, name in enumerate(names)})
 
 
-def _event_matrix(states: list[str], lifecycle: Mapping[tuple[str, str], tuple[str, bool]]) -> dict[tuple[str, str], tuple[str, bool]]:
+def _event_matrix(
+    states: list[str], lifecycle: Mapping[tuple[str, str], tuple[str, bool]]
+) -> dict[tuple[str, str], tuple[str, bool]]:
     matrix: dict[tuple[str, str], tuple[str, bool]] = {}
     for state_id in states:
         for action in ACTIONS:
@@ -111,28 +148,59 @@ def _event_matrix(states: list[str], lifecycle: Mapping[tuple[str, str], tuple[s
     return matrix
 
 
-def synthesize_control_loop_candidate(shadow: Mapping[str, Any], emulator: Mapping[str, Any]) -> tuple[str, dict[str, Any], dict[tuple[str, str], tuple[str, bool]]]:
+def synthesize_control_loop_candidate(
+    shadow: Mapping[str, Any], emulator: Mapping[str, Any]
+) -> tuple[str, dict[str, Any], dict[tuple[str, str], tuple[str, bool]]]:
     states, lifecycle = _validated_inputs(shadow, emulator)
     matrix = _event_matrix(states, lifecycle)
     indexes = {state: index for index, state in enumerate(states)}
-    next_rows = []
-    accept_rows = []
+    next_rows: list[str] = []
+    accept_rows: list[str] = []
     for state in states:
         next_rows.append("    {" + ", ".join(str(indexes[matrix[(state, event)][0]]) for event in EVENTS) + "}")
         accept_rows.append("    {" + ", ".join("1" if matrix[(state, event)][1] else "0" for event in EVENTS) + "}")
-    source = f'''/* Aurum generated host-only USBNet control-loop candidate.\n * ZERO AUTHORITY: pure state/event table lookup.\n */\n#include <stdint.h>\n#define AURUM_STATE_COUNT {len(states)}u\n#define AURUM_EVENT_COUNT {len(EVENTS)}u\ntypedef struct {{ uint32_t next_state; uint32_t accepted; }} aurum_usbnet_step_result;\nstatic const uint8_t NEXT[{len(states)}][{len(EVENTS)}] = {{\n{',\n'.join(next_rows)}\n}};\nstatic const uint8_t ACCEPT[{len(states)}][{len(EVENTS)}] = {{\n{',\n'.join(accept_rows)}\n}};\nint aurum_usbnet_control_step(uint32_t state, uint32_t event, aurum_usbnet_step_result *out) {{\n    if (!out || state >= AURUM_STATE_COUNT || event >= AURUM_EVENT_COUNT) return -1;\n    out->next_state = NEXT[state][event];\n    out->accepted = ACCEPT[state][event];\n    return 0;\n}}\n'''
+    next_table = ",\n".join(next_rows)
+    accept_table = ",\n".join(accept_rows)
+    source = f'''/* Aurum generated host-only USBNet control-loop candidate.
+ * ZERO AUTHORITY: pure state/event table lookup.
+ */
+#include <stdint.h>
+#define AURUM_STATE_COUNT {len(states)}u
+#define AURUM_EVENT_COUNT {len(EVENTS)}u
+typedef struct {{ uint32_t next_state; uint32_t accepted; }} aurum_usbnet_step_result;
+static const uint8_t NEXT[{len(states)}][{len(EVENTS)}] = {{
+{next_table}
+}};
+static const uint8_t ACCEPT[{len(states)}][{len(EVENTS)}] = {{
+{accept_table}
+}};
+int aurum_usbnet_control_step(uint32_t state, uint32_t event, aurum_usbnet_step_result *out) {{
+    if (!out || state >= AURUM_STATE_COUNT || event >= AURUM_EVENT_COUNT) return -1;
+    out->next_state = NEXT[state][event];
+    out->accepted = ACCEPT[state][event];
+    return 0;
+}}
+'''
     receipt: dict[str, Any] = {
         "schema": CANDIDATE_SCHEMA,
         "state": "synthesized-zero-authority-usbnet-control-loop-candidate",
         "input_lifecycle_shadow_receipt_sha256": shadow.get("receipt_sha256"),
         "input_event_emulator_receipt_sha256": emulator.get("receipt_sha256"),
-        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
         "state_ids": states,
         "events": list(EVENTS),
         "state_count": len(states),
         "event_count": len(EVENTS),
         "authority": {key: False for key in _REQUIRED_FALSE},
-        "invariants": {"live_pi_contacted": False, "usb_device_opened": False, "usb_transfer_submitted": False, "driver_binding_changed": False, "kernel_module_entrypoint_present": False, "device_io_primitive_present": False, "last_known_good_preserved": True},
+        "invariants": {
+            "live_pi_contacted": False,
+            "usb_device_opened": False,
+            "usb_transfer_submitted": False,
+            "driver_binding_changed": False,
+            "kernel_module_entrypoint_present": False,
+            "device_io_primitive_present": False,
+            "last_known_good_preserved": True,
+        },
         "next_gate": "compiled-complete-control-loop-differential",
     }
     receipt["receipt_sha256"] = _canonical_sha256(receipt)
@@ -150,15 +218,25 @@ def _compile(source: str, directory: Path) -> ctypes.CDLL:
     c_path = directory / "usbnet-control-loop-candidate.c"
     so_path = directory / "usbnet-control-loop-candidate.so"
     c_path.write_text(source, encoding="utf-8")
-    subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-shared", "-fPIC", str(c_path), "-o", str(so_path)], check=True)
+    subprocess.run(
+        [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-shared", "-fPIC", str(c_path), "-o", str(so_path)],
+        check=True,
+    )
     library = ctypes.CDLL(str(so_path))
     library.aurum_usbnet_control_step.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(_Result)]
     library.aurum_usbnet_control_step.restype = ctypes.c_int
     return library
 
 
-def run_control_loop_differential(*, shadow: Mapping[str, Any], emulator: Mapping[str, Any], sequence_seed: int = DEFAULT_SEQUENCE_SEED, sequence_steps: int = DEFAULT_SEQUENCE_STEPS, output_dir: Path | None = None) -> dict[str, Any]:
-    if sequence_steps < 1 or sequence_seed < 0:
+def run_control_loop_differential(
+    *,
+    shadow: Mapping[str, Any],
+    emulator: Mapping[str, Any],
+    sequence_seed: int = DEFAULT_SEQUENCE_SEED,
+    sequence_steps: int = DEFAULT_SEQUENCE_STEPS,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
+    if not isinstance(sequence_steps, int) or sequence_steps < 1 or not isinstance(sequence_seed, int) or sequence_seed < 0:
         raise ValueError("invalid deterministic sequence parameters")
     source, candidate, matrix = synthesize_control_loop_candidate(shadow, emulator)
     states = candidate["state_ids"]
@@ -167,6 +245,7 @@ def run_control_loop_differential(*, shadow: Mapping[str, Any], emulator: Mappin
     event_indexes = {event: index for index, event in enumerate(EVENTS)}
     mismatches = 0
     matrix_digest = hashlib.sha256()
+
     target_dir = output_dir or Path(tempfile.mkdtemp(prefix="aurum-usbnet-control-"))
     target_dir.mkdir(parents=True, exist_ok=True)
     library = _compile(source, target_dir)
@@ -178,12 +257,12 @@ def run_control_loop_differential(*, shadow: Mapping[str, Any], emulator: Mappin
             rc = library.aurum_usbnet_control_step(indexes[state], event_indexes[event], ctypes.byref(result))
             observed = (reverse.get(int(result.next_state)), bool(result.accepted))
             expected = (expected_state, expected_accepted)
-            matrix_digest.update(json.dumps([state, event, expected], separators=(",", ":")).encode())
+            matrix_digest.update(json.dumps([state, event, expected], separators=(",", ":")).encode("utf-8"))
             if rc != 0 or observed != expected:
                 mismatches += 1
 
     rng = random.Random(sequence_seed)
-    current = states.index("00000000")
+    current = indexes["00000000"]
     sequence_digest = hashlib.sha256()
     for _ in range(sequence_steps):
         event = rng.choice(EVENTS)
@@ -192,9 +271,11 @@ def run_control_loop_differential(*, shadow: Mapping[str, Any], emulator: Mappin
         result = _Result()
         rc = library.aurum_usbnet_control_step(current, event_indexes[event], ctypes.byref(result))
         observed_state = reverse.get(int(result.next_state))
-        sequence_digest.update(json.dumps([state, event, expected_state, expected_accepted], separators=(",", ":")).encode())
+        sequence_digest.update(json.dumps([state, event, expected_state, expected_accepted], separators=(",", ":")).encode("utf-8"))
         if rc != 0 or observed_state != expected_state or bool(result.accepted) != expected_accepted:
             mismatches += 1
+        if int(result.next_state) not in reverse:
+            raise ValueError("candidate produced a state outside the sealed state set")
         current = int(result.next_state)
 
     receipt: dict[str, Any] = {
@@ -210,11 +291,32 @@ def run_control_loop_differential(*, shadow: Mapping[str, Any], emulator: Mappin
         "event_matrix_sha256": matrix_digest.hexdigest(),
         "sequence_sha256": sequence_digest.hexdigest(),
         "authority": {key: False for key in _REQUIRED_FALSE},
-        "invariants": {"live_pi_contacted": False, "usb_device_opened": False, "usb_transfer_submitted": False, "driver_binding_changed": False, "kernel_module_built": False, "kernel_module_loaded": False, "last_known_good_preserved": True},
-        "qpu": {"used": False, "hardware_submission_performed": False, "reason": "The finite state/event matrix and deterministic sequence are exactly evaluated classically."},
-        "verification": {"host_compilation": True, "shared_library_execution": True, "all_state_event_pairs": True, "deterministic_multi_step_sequences": True},
+        "invariants": {
+            "live_pi_contacted": False,
+            "usb_device_opened": False,
+            "usb_transfer_submitted": False,
+            "driver_binding_changed": False,
+            "kernel_module_built": False,
+            "kernel_module_loaded": False,
+            "last_known_good_preserved": True,
+        },
+        "qpu": {
+            "used": False,
+            "hardware_submission_performed": False,
+            "reason": "The finite state/event matrix and deterministic sequence are exactly evaluated classically.",
+        },
+        "verification": {
+            "host_compilation": True,
+            "shared_library_execution": True,
+            "all_state_event_pairs": True,
+            "deterministic_multi_step_sequences": True,
+        },
         "next_gate": "integrated-host-compiled-packet-framing-control-loop",
-        "strongest_claim": "A generated portable C control-loop candidate matches every sealed USBNet lifecycle and packet-admission state/event pair plus a deterministic multi-step sequence. It remains host-only and has no USB, kernel, register, binding, mutation, or promotion capability.",
+        "strongest_claim": (
+            "A generated portable C control-loop candidate matches every sealed USBNet lifecycle and packet-admission "
+            "state/event pair plus a deterministic multi-step sequence. It remains host-only and has no USB, kernel, "
+            "register, binding, mutation, or promotion capability."
+        ),
     }
     receipt["receipt_sha256"] = _canonical_sha256(receipt)
     if output_dir is not None:
@@ -239,7 +341,13 @@ def main() -> None:
     parser.add_argument("--sequence-seed", type=lambda value: int(value, 0), default=DEFAULT_SEQUENCE_SEED)
     parser.add_argument("--sequence-steps", type=int, default=DEFAULT_SEQUENCE_STEPS)
     args = parser.parse_args()
-    receipt = run_control_loop_differential(shadow=_load(args.lifecycle_shadow), emulator=_load(args.event_emulator), sequence_seed=args.sequence_seed, sequence_steps=args.sequence_steps, output_dir=args.output_dir)
+    receipt = run_control_loop_differential(
+        shadow=_load(args.lifecycle_shadow),
+        emulator=_load(args.event_emulator),
+        sequence_seed=args.sequence_seed,
+        sequence_steps=args.sequence_steps,
+        output_dir=args.output_dir,
+    )
     if receipt["mismatch_count"]:
         raise SystemExit("control-loop differential mismatch")
 
