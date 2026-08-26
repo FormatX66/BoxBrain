@@ -60,7 +60,7 @@ class KernelShadowContractTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         source = candidate / "aurum_pi3_smsc95xx_kernel_shadow.c"
         source.write_text(source.read_text().replace("return -EPERM;", "return 0;", 1))
-        with self.assertRaisesRegex(ContractError, "hard -EPERM"):
+        with self.assertRaisesRegex(ContractError, "only return -EPERM"):
             validate_candidate(candidate, root)
 
     def test_kbuild_extra_object_is_refused(self):
