@@ -22,9 +22,9 @@ The later kernel-module canary has now cleared the exact-running-kernel build
 prerequisites: matching headers, `Module.symvers`, compiler/build tools, and an
 inert compile-only module were physically re-proven on the pinned Pi3. It remains
 held on the stronger safety boundary: an automatic out-of-band watchdog/recovery
-path must be proven, and any actual kernel-module load still requires a fresh
-explicit mutation gate. The persisted preflight itself grants no mutation
-authority.
+path must be proven, and any actual replacement-kernel or persistent driver-binding
+mutation still requires a fresh explicit mutation gate. The persisted preflight
+and reversible runtime experiments grant no such authority.
 
 ## Physical Pi3 evidence
 
@@ -66,12 +66,32 @@ and the original card passed a fresh physical reboot canary. That removes the
 old "physical hardware unavailable" assumption for safe Pi3 experiments, but it
 does not grant kernel mutation authority.
 
-The bounded overnight physical laboratory has also advanced through a temporary
-virtual-driver stage. The Linux `dummy` module and `dummy0` interface were brought
-up only under a locally scheduled rollback, then removed; the real `smsc95xx`
-reference driver and Ethernet remained healthy and no persistent change was
-retained. This is additional reversible physical-experiment evidence, not the
-out-of-band recovery proof required for the real kernel canary.
+### 330-minute reversible runtime laboratory
+
+GitHub Actions run `32926370691` completed successfully after approximately
+19,800 seconds on the pinned Pi3. All five authorized stages passed:
+
+- passive observation;
+- reversible userspace adaptation;
+- temporary Linux `dummy` virtual-driver exercise;
+- exact-running-kernel `aurum_probe` inert module load/unload;
+- live `smsc95xx` RX-checksum feature canary with restoration.
+
+Terminal evidence records kernel `6.18.34+rpt-rpi-v8`, the same boot ID and
+`/dev/mmcblk0p2` root source, unchanged `smsc95xx` reference-driver file hash,
+zero carrier-loss/network-fault/reference-driver-mismatch samples across 328
+samples, zero final RX/TX error or drop counters, and a maximum observed
+temperature of 50.464 C. RX checksumming was restored to `on`; no canary process,
+`aurum_probe`, `dummy` module, or rollback timer remained after the run; boot
+configuration and firmware were unchanged; and no replacement kernel was
+installed.
+
+The terminal artifact is `github:artifact:9599926710` with workflow artifact
+digest `sha256:9a79ed658cfa10305de4cd86471420046eba4f8f92658d49aa0ba70c961d0157`.
+This is **physical Generation-1 reversible adaptive-kernel/runtime evidence**. It
+still does **not** prove an independent out-of-band watchdog, authorize a
+replacement kernel or persistent driver binding, or constitute production
+promotion. Those stronger branches remain held.
 
 ## Aurum Farmer and Future Branch ownership
 
