@@ -38,6 +38,13 @@ without registering or loading a driver. The bounded failed-assumption and
 corrected direct-compile receipt is preserved at
 `../results/pi3-driver-candidate-direct-compile-20260826.json`.
 
+Independent workflow run `32958005908` repeated the corrected compile through
+the Aurum runner path and retained artifact `9602758019`, digest
+`sha256:2b80a65ac91c1208d9f62a7cf37174208a409d45a39e97dc1991b1f8087a8a18`.
+The workflow and direct paths produced the same temporary module SHA-256 while
+both separately proved it was never loaded or retained. The bounded CI receipt
+is `../results/pi3-driver-candidate-ci-32958005908.json`.
+
 ## Offline checks
 
 ```text

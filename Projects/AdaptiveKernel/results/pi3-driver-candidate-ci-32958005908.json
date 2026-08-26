@@ -1,0 +1,71 @@
+{
+  "schema": "aurum.pi3.driver-candidate.ci-evidence.v1",
+  "observed_at_utc": "2026-08-26T10:24:35.9442156Z",
+  "state": "verified-compile-only",
+  "github": {
+    "repository": "FormatX66/BoxBrain",
+    "run_id": 32958005908,
+    "job_id": 98143890750,
+    "source_commit": "b8d0d4085e2f8418238a996f924aba55cee50624",
+    "workflow_conclusion": "success",
+    "artifact_id": 9602758019,
+    "artifact_digest": "sha256:2b80a65ac91c1208d9f62a7cf37174208a409d45a39e97dc1991b1f8087a8a18"
+  },
+  "target": {
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "architecture": "aarch64",
+    "root_source": "/dev/mmcblk0p2",
+    "reference_driver": "smsc95xx",
+    "strict_key_only_ssh": true
+  },
+  "candidate": {
+    "candidate_id": "pi3-usbnet-api-surface-compile-probe-v1",
+    "repository_source_sha256": "c8a32f42b925b579c1abf3941be876b750fae82a3fc97ff98941f2714b13dc32",
+    "kbuild_sha256": "bed3ff3f69183f7aa91d871d16e860dbccdb2f22e9b10ea5b3731e9302bf8b6c",
+    "manifest_sha256": "46c8af29dcfbcb5b78116c4d00f36e1861d953009a732252aafb95e6a9fc1b8a",
+    "module_sha256": "b82c791835738badcf4756204c726a3215ef5cf10cd7d5292cb2128f143cc86e",
+    "module_size_bytes": 5184,
+    "vermagic": "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64"
+  },
+  "receipt_files": {
+    "compile_receipt_sha256": "430e026e7a948eb9a4709d8a92562e4864b59de71083e2bd765d276d96ef5463",
+    "control_receipt_sha256": "58a99460e0670c7a2fc301bbb1243b541e4875f74fe774455baaf72024bc6ea8",
+    "runner_control_sha256": "2a90840251dacc3ec17638d56a461a7367deeb9e164324abc535643f7a179953",
+    "static_contract_sha256": "71171831119af5247dc305f96633bcef9befeccb61019b53cd9ac6539f03c403"
+  },
+  "artifact_inspection": {
+    "state": "verified-inert-artifact",
+    "exact_vermagic": true,
+    "aliases": [],
+    "device_table_symbols": [],
+    "unresolved_symbol_count": 0,
+    "forbidden_unresolved_symbols": [],
+    "modinfo_present": true,
+    "nm_present": true
+  },
+  "invariants": {
+    "boot_id_unchanged": true,
+    "reference_driver_unchanged": true,
+    "module_loaded": false,
+    "temporary_build_removed": true,
+    "artifact_retained": false,
+    "loader_invoked": false,
+    "installer_invoked": false,
+    "firmware_changed": false,
+    "boot_configuration_changed": false,
+    "network_configuration_changed": false
+  },
+  "authority": {
+    "module_load_allowed": false,
+    "driver_binding_change_allowed": false,
+    "replacement_kernel_allowed": false,
+    "mutation_authority_granted": false
+  },
+  "correlation": {
+    "direct_compile_receipt": "Projects/AdaptiveKernel/results/pi3-driver-candidate-direct-compile-20260826.json",
+    "direct_and_ci_module_sha256_match": true,
+    "claim": "independent direct and workflow compile-only paths produced the same inert temporary module hash; neither path loaded or retained it"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "event_count": 21,
+  "event_count": 22,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -353,6 +353,61 @@
       "subject_kind": "artifact",
       "summary": "Exact current Pi3 microSD rollback image and tested archive are complete; the original card passed a fresh physical reboot canary.",
       "timestamp": "2026-08-26T02:26:36.414933Z"
+    },
+    "pi3-driver-candidate-ci-32958005908": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-driver-candidate-direct-compile-20260826",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-current-card-rollback"
+      ],
+      "event_id": "evt-38488b93cfb54c9e886026c20c6263b4",
+      "evidence_refs": [
+        "github:actions:run:32958005908",
+        "github:actions:job:98143890750",
+        "github:artifact:9602758019",
+        "github:artifact-digest:sha256:2b80a65ac91c1208d9f62a7cf37174208a409d45a39e97dc1991b1f8087a8a18",
+        "artifact-file-sha256:430e026e7a948eb9a4709d8a92562e4864b59de71083e2bd765d276d96ef5463",
+        "artifact-file-sha256:58a99460e0670c7a2fc301bbb1243b541e4875f74fe774455baaf72024bc6ea8",
+        "temporary-module-sha256:b82c791835738badcf4756204c726a3215ef5cf10cd7d5292cb2128f143cc86e",
+        "repo:Projects/AdaptiveKernel/results/pi3-driver-candidate-ci-32958005908.json",
+        "git:commit:b8d0d4085e2f8418238a996f924aba55cee50624"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "aliases_present": false,
+        "artifact_digest": "sha256:2b80a65ac91c1208d9f62a7cf37174208a409d45a39e97dc1991b1f8087a8a18",
+        "artifact_id": 9602758019,
+        "artifact_retained": false,
+        "boot_configuration_changed": false,
+        "boot_id_unchanged": true,
+        "candidate_id": "pi3-usbnet-api-surface-compile-probe-v1",
+        "compile_state": "verified-compile-only",
+        "device_table_symbols_present": false,
+        "direct_and_ci_module_sha256_match": true,
+        "driver_binding_change_authorized": false,
+        "exact_vermagic": true,
+        "firmware_changed": false,
+        "kernel": "6.18.34+rpt-rpi-v8",
+        "module_loaded": false,
+        "module_sha256": "b82c791835738badcf4756204c726a3215ef5cf10cd7d5292cb2128f143cc86e",
+        "mutation_authority_granted": false,
+        "network_configuration_changed": false,
+        "reference_driver": "smsc95xx",
+        "reference_driver_unchanged": true,
+        "replacement_kernel_authorized": false,
+        "temporary_build_removed": true,
+        "unresolved_symbol_count": 0,
+        "workflow_conclusion": "success"
+      },
+      "source": "github-pi3-driver-candidate-compile-only-terminal-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-driver-candidate-ci-32958005908",
+      "subject_kind": "experiment",
+      "summary": "Independent workflow run 32958005908 verified the corrected Pi 6.18 inert USB-network API candidate through the Aurum runner path. Exact pinned identity, kernel, root, and smsc95xx gates passed; compile, vermagic, alias/device-table/symbol inspection, cleanup, and post-run invariants passed. The direct and workflow paths produced the same temporary module hash, and neither loaded or retained it.",
+      "timestamp": "2026-08-26T10:26:51.187740Z"
     },
     "pi3-driver-candidate-direct-compile-20260826": {
       "actor": "codex-thread-01a03afd",
