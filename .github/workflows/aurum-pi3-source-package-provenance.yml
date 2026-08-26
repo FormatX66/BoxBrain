@@ -82,10 +82,10 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 \
             --output "$evidence/rpi/urb.c" "$rpi_raw/drivers/usb/core/urb.c"
 
-          source_package="${actual_source%% *}"
+          source_package="$(printf '%s\n' "$actual_source" | awk '{print $1}')"
           [ -n "$source_package" ] || source_package='linux'
-          source_version="$actual_version"
-          if [[ "$actual_source" =~ \(([^)]+)\) ]]; then source_version="${BASH_REMATCH[1]}"; fi
+          source_version="$(printf '%s\n' "$actual_source" | sed -n 's/^[^(]*(\([^)]*\)).*$/\1/p')"
+          [ -n "$source_version" ] || source_version="$actual_version"
           deb_sha="$(sha256sum "$deb" | awk '{print $1}')"
           archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
           python - "$evidence/package-metadata.json" "$actual_package" "$actual_version" "$source_package" "$source_version" "$actual_arch" "$url" "$deb_sha" "$archive_sha" <<'PY'
