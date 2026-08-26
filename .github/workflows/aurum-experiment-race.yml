@@ -36,8 +36,8 @@ jobs:
         include:
           - name: conventional-aurum
             ref: main
-            install: python -m pip install -e controller
-            command: python -m unittest discover -s controller/tests -p 'test_*.py' -v
+            install: cd controller && python -m pip install -e '.[dev]'
+            command: cd controller && python -m pytest -q
             loc_paths: controller/src ui/lib
           - name: stateweave
             ref: stateweave-experimental
