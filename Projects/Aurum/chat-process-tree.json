@@ -2,7 +2,7 @@
   "schema": "aurum-chat-process-tree-v1",
   "thread_id": "parallel-hopper-kernel-chat-tree",
   "root_id": "everything-at-once",
-  "revision": 3,
+  "revision": 4,
   "focus_path": [
     "everything-at-once",
     "chat-tree"
@@ -34,6 +34,9 @@
     "human-chat-can-focus": [
       "everything-at-once",
       "chat-tree"
+    ],
+    "mcp-adapter": [
+      "gpt-chat-tree-bridge"
     ],
     "parallel-safe-work": [
       "adaptive-kernel",
@@ -209,19 +212,23 @@
       "lane_id": "gpt-chat-tree-bridge",
       "sequence": 3,
       "parent_id": "chat-tree",
-      "summary": "Expose the durable tree and evidence-backed shared state through a narrow transport-neutral JSON interface suitable for GPT, Future Branch, runners, and later ChatGPT App/MCP wrapping.",
+      "summary": "Expose Chat Tree and evidence-backed shared state through the transport-neutral bridge plus a tool-only MCP v2 adapter. Repository-side adapter is implemented; external HTTPS deployment and ChatGPT connector registration remain unverified boundaries.",
       "concepts": [
         "gpt-bridge",
-        "shared-state"
+        "shared-state",
+        "mcp-adapter"
       ],
       "dependency_ids": [
         "chat-tree"
       ],
       "evidence_refs": [
-        "Projects/Aurum/Experiments/chat_tree_bridge.py"
+        "Projects/Aurum/Experiments/chat_tree_bridge.py",
+        "Projects/Aurum/ChatTreeMCP/main.py",
+        "Projects/Aurum/ChatTreeMCP/test_server.py",
+        ".github/workflows/aurum-chat-tree-mcp.yml"
       ],
       "merged_from": [],
-      "boundary": "external-chat-ui-integration",
+      "boundary": "external-https-deployment-and-chatgpt-connector-registration",
       "effect_allowed": false,
       "authority_ref": null,
       "state_history": [
