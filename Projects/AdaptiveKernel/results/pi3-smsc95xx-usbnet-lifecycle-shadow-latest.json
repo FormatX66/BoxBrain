@@ -653,7 +653,1192 @@
       }
     ],
     "transition_count": 169,
-    "transition_matrix_sha256": "dbc2e54820ee7033b7dc1eb86a09645aeb65a5a82500b049cdfe5ed9ceb118d6"
+    "transition_matrix_sha256": "dbc2e54820ee7033b7dc1eb86a09645aeb65a5a82500b049cdfe5ed9ceb118d6",
+    "transitions": [
+      {
+        "accepted": false,
+        "action": "disconnect",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "link_down",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "link_reset",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "link_up",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": true,
+        "action": "probe_success",
+        "from": "00000000",
+        "reason": "device-probed-and-shadow-bound",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "rx_halt",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "stop",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "suspend",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "tx_halt",
+        "from": "00000000",
+        "reason": "precondition-refused",
+        "to": "00000000"
+      },
+      {
+        "accepted": false,
+        "action": "disconnect",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_down",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_reset",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_up",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "probe_success",
+        "from": "00000001",
+        "reason": "device-probed-and-shadow-bound",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "rx_halt",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "stop",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "suspend",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "tx_halt",
+        "from": "00000001",
+        "reason": "precondition-refused",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11000000",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_down",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "link_reset",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "link_up",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "open_success",
+        "from": "11000000",
+        "reason": "usbnet-open-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "rx_halt",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "stop",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11000000",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "tx_halt",
+        "from": "11000000",
+        "reason": "precondition-refused",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11010000",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_down",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "link_reset",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "link_up",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": true,
+        "action": "resume_success",
+        "from": "11010000",
+        "reason": "usbnet-resume-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": false,
+        "action": "rx_halt",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "stop",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "suspend",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": false,
+        "action": "tx_halt",
+        "from": "11010000",
+        "reason": "precondition-refused",
+        "to": "11010000"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11100000",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11100000",
+        "reason": "carrier-off-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11100000",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11100000",
+        "reason": "carrier-on-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11100000",
+        "reason": "precondition-refused",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11100000",
+        "reason": "precondition-refused",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11100000",
+        "reason": "precondition-refused",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11100000",
+        "reason": "precondition-refused",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11100000",
+        "reason": "precondition-refused",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11100000",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11100000",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11100000",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11100000",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11100010",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11100010",
+        "reason": "carrier-off-shadow",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11100010",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11100010",
+        "reason": "carrier-on-shadow",
+        "to": "11101010"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11100010",
+        "reason": "precondition-refused",
+        "to": "11100010"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11100010",
+        "reason": "precondition-refused",
+        "to": "11100010"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11100010",
+        "reason": "precondition-refused",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "recover_tx",
+        "from": "11100010",
+        "reason": "tx-halt-clear-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11100010",
+        "reason": "precondition-refused",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11100010",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11100010",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11100010",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11100010",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11100100",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11100100",
+        "reason": "carrier-off-shadow",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11100100",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11100100",
+        "reason": "carrier-on-shadow",
+        "to": "11101100"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11100100",
+        "reason": "precondition-refused",
+        "to": "11100100"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11100100",
+        "reason": "precondition-refused",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "recover_rx",
+        "from": "11100100",
+        "reason": "rx-halt-clear-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11100100",
+        "reason": "precondition-refused",
+        "to": "11100100"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11100100",
+        "reason": "precondition-refused",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11100100",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11100100",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11100100",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11100100",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11100110",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11100110",
+        "reason": "carrier-off-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11100110",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11100110",
+        "reason": "carrier-on-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11100110",
+        "reason": "precondition-refused",
+        "to": "11100110"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11100110",
+        "reason": "precondition-refused",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "recover_rx",
+        "from": "11100110",
+        "reason": "rx-halt-clear-shadow",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "recover_tx",
+        "from": "11100110",
+        "reason": "tx-halt-clear-shadow",
+        "to": "11100100"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11100110",
+        "reason": "precondition-refused",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11100110",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11100110",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11100110",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11100110",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11101000",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11101000",
+        "reason": "carrier-off-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11101000",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11101000",
+        "reason": "carrier-on-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11101000",
+        "reason": "precondition-refused",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11101000",
+        "reason": "precondition-refused",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11101000",
+        "reason": "precondition-refused",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11101000",
+        "reason": "precondition-refused",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11101000",
+        "reason": "precondition-refused",
+        "to": "11101000"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11101000",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11101100"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11101000",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11101000",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11101000",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11101010"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11101010",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11101010",
+        "reason": "carrier-off-shadow",
+        "to": "11100010"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11101010",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11101010",
+        "reason": "carrier-on-shadow",
+        "to": "11101010"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11101010",
+        "reason": "precondition-refused",
+        "to": "11101010"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11101010",
+        "reason": "precondition-refused",
+        "to": "11101010"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11101010",
+        "reason": "precondition-refused",
+        "to": "11101010"
+      },
+      {
+        "accepted": true,
+        "action": "recover_tx",
+        "from": "11101010",
+        "reason": "tx-halt-clear-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11101010",
+        "reason": "precondition-refused",
+        "to": "11101010"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11101010",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11101010",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11101010",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11101010",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11101010"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11101100",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11101100",
+        "reason": "carrier-off-shadow",
+        "to": "11100100"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11101100",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11101100",
+        "reason": "carrier-on-shadow",
+        "to": "11101100"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11101100",
+        "reason": "precondition-refused",
+        "to": "11101100"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11101100",
+        "reason": "precondition-refused",
+        "to": "11101100"
+      },
+      {
+        "accepted": true,
+        "action": "recover_rx",
+        "from": "11101100",
+        "reason": "rx-halt-clear-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11101100",
+        "reason": "precondition-refused",
+        "to": "11101100"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11101100",
+        "reason": "precondition-refused",
+        "to": "11101100"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11101100",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11101100"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11101100",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11101100",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11101100",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11101110",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": true,
+        "action": "link_down",
+        "from": "11101110",
+        "reason": "carrier-off-shadow",
+        "to": "11100110"
+      },
+      {
+        "accepted": true,
+        "action": "link_reset",
+        "from": "11101110",
+        "reason": "link-reset-work-item-shadow",
+        "to": "11101000"
+      },
+      {
+        "accepted": true,
+        "action": "link_up",
+        "from": "11101110",
+        "reason": "carrier-on-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11101110",
+        "reason": "precondition-refused",
+        "to": "11101110"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11101110",
+        "reason": "precondition-refused",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "recover_rx",
+        "from": "11101110",
+        "reason": "rx-halt-clear-shadow",
+        "to": "11101010"
+      },
+      {
+        "accepted": true,
+        "action": "recover_tx",
+        "from": "11101110",
+        "reason": "tx-halt-clear-shadow",
+        "to": "11101100"
+      },
+      {
+        "accepted": false,
+        "action": "resume_success",
+        "from": "11101110",
+        "reason": "precondition-refused",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "rx_halt",
+        "from": "11101110",
+        "reason": "rx-halt-deferred-event-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "stop",
+        "from": "11101110",
+        "reason": "usbnet-stop-shadow",
+        "to": "11000000"
+      },
+      {
+        "accepted": true,
+        "action": "suspend",
+        "from": "11101110",
+        "reason": "usbnet-suspend-shadow",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "tx_halt",
+        "from": "11101110",
+        "reason": "tx-halt-deferred-event-shadow",
+        "to": "11101110"
+      },
+      {
+        "accepted": true,
+        "action": "disconnect",
+        "from": "11110000",
+        "reason": "usbnet-disconnect-shadow",
+        "to": "00000001"
+      },
+      {
+        "accepted": false,
+        "action": "link_down",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "link_reset",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "link_up",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "open_success",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "probe_success",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_rx",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "recover_tx",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": true,
+        "action": "resume_success",
+        "from": "11110000",
+        "reason": "usbnet-resume-shadow",
+        "to": "11100000"
+      },
+      {
+        "accepted": false,
+        "action": "rx_halt",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "stop",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "suspend",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      },
+      {
+        "accepted": false,
+        "action": "tx_halt",
+        "from": "11110000",
+        "reason": "precondition-refused",
+        "to": "11110000"
+      }
+    ]
   },
   "inputs": {
     "packet_differential_receipt_sha256": "564ee84a8d796f92b9659177a3feb22e4322b4673eafb58c93f1354614df487f",
@@ -681,7 +1866,7 @@
     "router_is_hardware_digital_twin": false,
     "used": false
   },
-  "receipt_sha256": "67c01f8a9554cf3bd2859681b188d146a88c91167b7adc732c2e47d72c3ea318",
+  "receipt_sha256": "2f2a3f96ca09c0bfecac2501d30ad6eeb008ea90ccda213e6129b17acfe0f4e5",
   "schema": "aurum.pi3.smsc95xx.usbnet-lifecycle-shadow.v1",
   "source_verification": {
     "rpi_upstream_semantic_token_mismatches": 0,
