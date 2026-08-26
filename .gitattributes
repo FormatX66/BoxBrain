@@ -1,3 +1,9 @@
 # Linux-deployed edge-agent files must remain LF in Git archives built on Windows.
 edge/kali-pi-agent/** text eol=lf
 edge/kali-pi-agent/onboarding/windows-link.ps1 text eol=crlf
+
+# Farmer v3.2 and Chat Tree releases are deployed to Linux and include reviewed
+# byte-for-byte hashes. Keep archives produced on Windows from exporting CRLF.
+Projects/Aurum/Core/Farmer-v3/** text eol=lf
+Projects/Aurum/ChatTreePlugin/** text eol=lf
+Projects/Aurum/ChatTreeMCP/** text eol=lf
