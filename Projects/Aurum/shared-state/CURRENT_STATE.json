@@ -1,5 +1,5 @@
 {
-  "event_count": 19,
+  "event_count": 20,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -396,23 +396,26 @@
         "pi3-experimental-00000000a6a7df7f",
         "pi3-adaptive-driver-generation2"
       ],
-      "event_id": "evt-e1b865105ef5498dab5444fbc9fb7486",
+      "event_id": "evt-4b0e14007d334df2a4b943ad9c2d7a63",
       "evidence_refs": [
         "github:actions:run:32926239577",
         "github:artifact:9591615066",
         "github:artifact-digest:sha256:226c98fb5bc501c8b2bb8f523930e2f6e0bfb1e7e9c747ed907e4750886871df",
-        "git:commit:7bbec6c4"
+        "git:commit:a8c09190a1ee5d08497ed6632ea2682a240a80f4"
       ],
       "node_id": "adaptive-kernel",
       "payload": {
         "arch": "aarch64",
         "compile_only_canary_passed": true,
+        "driver_binding_change_authorized": false,
+        "explicit_kernel_mutation_authority": false,
         "kernel": "6.18.34+rpt-rpi-v8",
         "matching_headers_present": true,
         "module_loaded": false,
         "module_symvers_present": true,
         "out_of_band_watchdog_proven": false,
-        "semantic_state": "held-out-of-band-watchdog-unproven",
+        "replacement_kernel_authorized": false,
+        "semantic_state": "held-on-watchdog-and-kernel-authority",
         "system_driver_changed": false,
         "workflow_conclusion": "success"
       },
@@ -420,8 +423,8 @@
       "status": "blocked",
       "subject_id": "pi3-kernel-canary-preflight-32926239577",
       "subject_kind": "experiment",
-      "summary": "Exact Pi3 headers, Module.symvers, compiler, and inert module compilation passed; kernel replacement and driver binding remain held because an automatic out-of-band watchdog is unproven.",
-      "timestamp": "2026-08-26T03:29:40.834526Z"
+      "summary": "Exact Pi3 headers, Module.symvers, compiler, and inert module compilation remain proven with no module load or driver change. Kernel mutation is held by two independent locks: automatic out-of-band watchdog/recovery is unproven, and no fresh explicit kernel-mutation authority exists.",
+      "timestamp": "2026-08-26T10:05:50.551327Z"
     },
     "pi3-out-of-band-recovery-controller-simulation": {
       "actor": "codex-thread-01a03afd",
