@@ -1,0 +1,132 @@
+name: Aurum Pi3 smsc95xx USBNet Control Loop Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-smsc95xx-usbnet-control-loop-candidate.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_usbnet_control_loop_candidate.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_usbnet_control_loop_candidate.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_usbnet_event_emulator.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_usbnet_lifecycle_model.py'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-lifecycle-shadow-latest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-event-emulator-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-smsc95xx-usbnet-control-loop-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-control-loop-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact control-loop revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run fail-closed control-loop tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_usbnet_event_emulator \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_usbnet_control_loop_candidate
+
+      - name: Compile and run complete control-loop differential
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_usbnet_control_loop_candidate \
+            --lifecycle-shadow Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-lifecycle-shadow-latest.json \
+            --event-emulator Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-event-emulator-latest.json \
+            --sequence-seed 0x9514c011 \
+            --sequence-steps 65536 \
+            --output-dir control-loop-evidence
+
+      - name: Verify zero-authority differential receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_usbnet_control_loop_candidate import _verify_local_seal
+
+          receipt = json.loads(Path('control-loop-evidence/usbnet-control-loop-differential.json').read_text())
+          if receipt.get('state') != 'controlled-host-compiled-usbnet-control-loop-differential-passed':
+              raise SystemExit('control-loop differential did not pass')
+          if not _verify_local_seal(receipt):
+              raise SystemExit('control-loop receipt seal failed')
+          if receipt.get('complete_event_scenarios') != 195:
+              raise SystemExit('complete 13-state x 15-event coverage is missing')
+          if receipt.get('deterministic_sequence_steps') != 65536 or receipt.get('scenario_count') != 65731:
+              raise SystemExit('deterministic sequence coverage is incomplete')
+          if receipt.get('mismatch_count') != 0:
+              raise SystemExit('control-loop candidate has mismatches')
+          if receipt['qpu']['used'] or receipt['qpu']['hardware_submission_performed']:
+              raise SystemExit('finite control-loop verification unexpectedly used QPU hardware')
+          if receipt['invariants']['live_pi_contacted'] or receipt['invariants']['usb_transfer_submitted']:
+              raise SystemExit('control-loop crossed the no-hardware boundary')
+          if any(receipt['authority'].values()):
+              raise SystemExit('control-loop candidate gained authority')
+          summary = [
+              '# Pi3 smsc95xx USBNet Control Loop Candidate',
+              '',
+              f"- State: {receipt['state']}",
+              '- Complete state/event scenarios: 195',
+              '- Deterministic sequence steps: 65,536',
+              '- Mismatches: 0',
+              '- Live Pi / USB transfer: false',
+              '- Mutation / promotion / write authority: false',
+              '',
+              receipt['strongest_claim'],
+          ]
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('\n'.join(summary) + '\n')
+          PY
+
+      - name: Publish sealed control-loop artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-usbnet-control-loop-${{ github.run_id }}
+          path: control-loop-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist verified control-loop lineage
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/driver_candidates/generated
+          cp control-loop-evidence/usbnet-control-loop-candidate.c \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-usbnet-control-loop-candidate.c
+          cp control-loop-evidence/usbnet-control-loop-candidate.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-control-loop-candidate-latest.json
+          cp control-loop-evidence/usbnet-control-loop-differential.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-control-loop-differential-latest.json
+          git config user.name 'aurum-pi3-usbnet-control-loop[bot]'
+          git config user.email 'aurum-pi3-usbnet-control-loop@users.noreply.github.com'
+          git add \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-usbnet-control-loop-candidate.c \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-control-loop-candidate-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-control-loop-differential-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SMSC95XX_USBNET_CONTROL_LOOP_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 smsc95xx USBNet control-loop candidate [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SMSC95XX_USBNET_CONTROL_LOOP_RECEIPT persisted=true'
