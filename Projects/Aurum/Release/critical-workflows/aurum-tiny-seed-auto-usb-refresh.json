@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Tiny Seed Auto USB Refresh",
-  "run_id": 32909407875,
-  "run_number": 34,
+  "run_id": 32920596523,
+  "run_number": 35,
   "run_attempt": 1,
   "status": "completed",
   "conclusion": "success",
   "event": "workflow_run",
-  "head_sha": "bd2bebf783f8496155079c53a73d22e1ad64235c",
+  "head_sha": "0e07e68310f3714b68ad71623b909b4ec0435c24",
   "head_branch": "main",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32909407875",
-  "updated_at": "2026-08-25T23:08:36Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32920596523",
+  "updated_at": "2026-08-26T01:52:40Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
