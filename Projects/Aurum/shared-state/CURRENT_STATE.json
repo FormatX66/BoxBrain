@@ -1,5 +1,5 @@
 {
-  "event_count": 11,
+  "event_count": 12,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -114,7 +114,7 @@
         "pi3-adaptive-driver-generation2",
         "pi3-kernel-canary-preflight-32926239577"
       ],
-      "event_id": "evt-ff2cd82a4c3346cb82aef14e41bf9372",
+      "event_id": "evt-c5f826372ace467dbb5f7daae9a7b177",
       "evidence_refs": [
         "github:actions:run:32926370691",
         "github:actions:job:98050003503",
@@ -122,35 +122,19 @@
       ],
       "node_id": "adaptive-kernel",
       "payload": {
-        "current_stage": "userspace-adaptation",
+        "current_stage": "virtual-driver",
         "current_throttle_fault": false,
+        "dummy0_present_after": false,
+        "dummy0_present_during": true,
+        "dummy_module_present_after": false,
         "ethernet_carrier": "1",
-        "measured_candidates": [
-          [
-            5,
-            10
-          ],
-          [
-            8,
-            16
-          ],
-          [
-            10,
-            20
-          ]
-        ],
-        "original_dirty_background_ratio": 10,
-        "original_dirty_ratio": 20,
-        "original_restored": true,
+        "local_timed_rollback": "scheduled-and-cleared",
+        "module": "dummy",
         "persistent_change": false,
-        "recommended_candidate": [
-          10,
-          20
-        ],
         "reference_driver": "smsc95xx",
         "rx_errors": 0,
         "stage_state": "passed",
-        "temperature_c": 48.312,
+        "temperature_c": 48.85,
         "tx_errors": 0,
         "workflow_state": "in_progress"
       },
@@ -158,8 +142,8 @@
       "status": "running_verified",
       "subject_id": "pi3-adaptive-kernel-overnight-32926370691",
       "subject_kind": "experiment",
-      "summary": "Userspace adaptation stage passed on the pinned Pi3; all three dirty-page candidates were measured under timed rollback, the original 10/20 setting ranked best, and it was restored with no persistent change.",
-      "timestamp": "2026-08-26T04:38:05.417165Z"
+      "summary": "Virtual-driver stage passed on the pinned Pi3: the dummy module and dummy0 interface appeared under a local timed rollback, then were removed; smsc95xx and Ethernet remained healthy.",
+      "timestamp": "2026-08-26T06:34:13.898789Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
