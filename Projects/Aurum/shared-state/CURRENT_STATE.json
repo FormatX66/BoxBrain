@@ -1,5 +1,5 @@
 {
-  "event_count": 31,
+  "event_count": 33,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -947,6 +947,89 @@
       "subject_kind": "experiment",
       "summary": "Hash-pinned Raspberry Pi and upstream smsc95xx/usbnet sources produced a sealed 13-state, 169-transition offline lifecycle and fault graph with all invariants passing. The QPU router was preserved as comparison evidence but correctly not used as a hardware twin or submission path.",
       "timestamp": "2026-08-26T20:28:12.731857Z"
+    },
+    "pi3-smsc95xx-usbnet-lifecycle-candidate-33011122833": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-usbnet-lifecycle-matrix-33010926461"
+      ],
+      "event_id": "evt-9305756dd3f44b2bb2b36f70dcb6651c",
+      "evidence_refs": [
+        "github:actions:run:33011122833",
+        "github:actions:job:98317355963",
+        "github:artifact:9622546376",
+        "github:artifact-digest:sha256:9aacdbe8d938558c2b15eb445d44e328c3b273ad4a69639dafad9a845ed7cdd5",
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-lifecycle-differential-latest.json",
+        "receipt-sha256:5b83a1d6383f6d9e8588556f78ed4887577c6547bea892921ea692d09af780f7",
+        "scenario-matrix-sha256:f3dde14fd20e8c3d06640d8d566573ac7934ce8a06b8e246369670796eacc626",
+        "candidate-source-sha256:36109b7dd7a8600a066ab42b651bc810826b9157d4647218d3c860feecc76198",
+        "git-commit:0a76064d"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "complete_transition_scenarios": 169,
+        "deterministic_sequence_steps": 65536,
+        "driver_binding_changed": false,
+        "driver_probe_performed": false,
+        "kernel_module_built": false,
+        "last_known_good_preserved": true,
+        "live_pi_contacted": false,
+        "mismatch_count": 0,
+        "mutation_authority_granted": false,
+        "promotion_authority_granted": false,
+        "qpu_hardware_used": false,
+        "scenario_count": 65705,
+        "semantic_state": "controlled-usbnet-lifecycle-candidate-differential-passed",
+        "usb_transfer_submitted": false
+      },
+      "source": "github-hosted-usbnet-lifecycle-candidate-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-usbnet-lifecycle-candidate-33011122833",
+      "subject_kind": "experiment",
+      "summary": "A portable table-driven C candidate matched all 169 sealed USBNet lifecycle transitions and 65,536 deterministic multi-step transitions with zero mismatches. It remains a host-only scalar state transform with no USB, probe, kernel, binding, QPU, mutation, or promotion path.",
+      "timestamp": "2026-08-26T20:37:02.098600Z"
+    },
+    "pi3-smsc95xx-usbnet-lifecycle-matrix-33010926461": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-usbnet-lifecycle-33010429948"
+      ],
+      "event_id": "evt-c5c0e05d511041369be58d6890c087fc",
+      "evidence_refs": [
+        "github:actions:run:33010926461",
+        "github:actions:job:98316673937",
+        "github:artifact:9622469165",
+        "github:artifact-digest:sha256:c5d850bb8c71df8e9280caf08aab0e7850023b6eaa3e6d3603a4021503e75c23",
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-lifecycle-shadow-latest.json",
+        "receipt-sha256:2f2a3f96ca09c0bfecac2501d30ad6eeb008ea90ccda213e6129b17acfe0f4e5",
+        "transition-matrix-sha256:dbc2e54820ee7033b7dc1eb86a09645aeb65a5a82500b049cdfe5ed9ceb118d6",
+        "git-commit:0c75ba5e"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "driver_binding_changed": false,
+        "independently_replayable": true,
+        "last_known_good_preserved": true,
+        "live_pi_contacted": false,
+        "mutation_authority_granted": false,
+        "persisted_transition_count": 169,
+        "promotion_authority_granted": false,
+        "qpu_hardware_used": false,
+        "reachable_state_count": 13,
+        "semantic_state": "verified-offline-usbnet-lifecycle-fault-model",
+        "transition_count": 169,
+        "usb_transfer_submitted": false
+      },
+      "source": "github-hosted-usbnet-lifecycle-matrix-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-usbnet-lifecycle-matrix-33010926461",
+      "subject_kind": "experiment",
+      "summary": "The sealed USBNet lifecycle receipt now persists all 169 source-derived state/action transitions, making the previously verified 13-state graph independently replayable by downstream candidates while retaining zero hardware and mutation authority.",
+      "timestamp": "2026-08-26T20:37:02.098600Z"
     }
   }
 }
