@@ -1,5 +1,5 @@
 {
-  "event_count": 17,
+  "event_count": 18,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -8,6 +8,51 @@
   },
   "schema": "aurum-shared-state-v1",
   "subjects": {
+    "AF-PI3-ADAPTIVE-DRIVER-001": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-f8e711fe96624b9d80e54602f5a1dd43",
+      "evidence_refs": [
+        "github:actions:run:32922653601",
+        "github:actions:job:98039102276",
+        "github:artifact:9590354650",
+        "github:artifact-digest:sha256:a5440f251539aac52bba2b2913917c49f416f956117e35eb4e8391f759328752",
+        "source-result-sha256:83085564b19e1c2eea450f4c491e1985386a0ee64d795f619187beefa7db0aca",
+        "farmer-receipt:EVD-1b9b225d15004eae934710922e3f6d62",
+        "farmer-receipt-sha256:11f2b21bdc39d14a2a1e0a5c43a0cf3bf99a313f74fbc4ac307149568a7916c3"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "attempt_count": 2,
+        "event_chain_valid": true,
+        "evidence_count": 4,
+        "evidence_mirrored": true,
+        "farmer_state": "SUCCEEDED",
+        "invalid_seal_count": 0,
+        "kernel_canary_authority_ready": false,
+        "kernel_canary_branch_state": "CANDIDATE",
+        "physical_branch_authority_ready": true,
+        "physical_branch_state": "SUCCEEDED",
+        "progression_verified": true,
+        "qpu_ordering_authority_ready": false,
+        "qpu_ordering_branch_state": "CANDIDATE",
+        "result_decision": "promoted",
+        "result_state": "completed",
+        "sealed_receipt_count": 2,
+        "system_driver_changed": false
+      },
+      "source": "github-artifact-verified-aurum-farmer-ledger",
+      "status": "succeeded",
+      "subject_id": "AF-PI3-ADAPTIVE-DRIVER-001",
+      "subject_kind": "job",
+      "summary": "Aurum Farmer job AF-PI3-ADAPTIVE-DRIVER-001 is durably SUCCEEDED. The physical Generation-1 branch has verified and sealed evidence, the Farmer event chain is valid, and the kernel-canary and QPU-ordering branches remain candidate-held with authority_ready=false.",
+      "timestamp": "2026-08-26T10:02:09.896410Z"
+    },
     "cross-chat-context-cache": {
       "actor": "codex-thread-01a03afd",
       "authority_ref": null,
