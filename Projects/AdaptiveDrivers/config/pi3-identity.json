@@ -8,7 +8,7 @@
   "pinned_ipv4": "169.254.129.122",
   "historical_ipv6": "fe80::14fa:7c36:2469:c06c",
   "host_key_algorithm": "ssh-ed25519",
-  "host_key_sha256": "SHA256:gOiSjGMmyxunQCR4ykqQwFjJUQReMmUw8QPAn0PN9P8",
+  "host_key_sha256": "SHA256:HUeYvmzLc5X487o4EnfNAqmANJFnsbUU6uc3oON+vlQ",
   "windows_key_locator": "C:\\Users\\bruce\\.ssh\\id_ed25519",
   "scope": "experimental-pi3-only",
   "production_nodes_allowed": false
