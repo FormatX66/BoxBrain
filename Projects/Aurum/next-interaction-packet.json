@@ -5,9 +5,9 @@
   "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
   "source": "Projects/Aurum/future-branches.json",
   "source_schema": "aurum-future-branch-state-v11",
-  "source_evidence_sha256": "65dd6f7f886e51c8c1846054d7175f8ad39086bf463ce6a5b6f54d62e0006579",
+  "source_evidence_sha256": "a2c3953dac6e87d88dd55cdfeb6d4327ed391000b2754dd36ce81b9b16ec9712",
   "release_source_commit": "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
-  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source be94bb832b8e6fb2a05a6adcfd797f8a7922c655 with x86 SHA-256 4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e. Physical preflight is WAIT_USB_MEDIA; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=eligible-test-usb-presence. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source be94bb832b8e6fb2a05a6adcfd797f8a7922c655 with x86 SHA-256 4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "frontier": [
     {
       "rank": 1,
@@ -33,31 +33,31 @@
     {
       "rank": 4,
       "input_family": "status-or-so",
-      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source be94bb832b8e6fb2a05a6adcfd797f8a7922c655 with x86 SHA-256 4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e. Physical preflight is WAIT_USB_MEDIA; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=eligible-test-usb-presence. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source be94bb832b8e6fb2a05a6adcfd797f8a7922c655 with x86 SHA-256 4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
       "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
       "rank": 5,
       "input_family": "generic-prompt-intent-expansion",
-      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=WAIT_USB_MEDIA, next_gate=eligible-test-usb-presence, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
-      "action_if_safe": "Advance the safe prefix through eligible-test-usb-presence, refresh canonical evidence, and stop before any boundary that requires explicit new authority.",
+      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=READY_FOR_GUARDED_FLASH_PREFLIGHT, next_gate=explicit-guarded-flash-authorization, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
+      "action_if_safe": "Advance the safe prefix through explicit-guarded-flash-authorization, refresh canonical evidence, and stop before any boundary that requires explicit new authority.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     }
   ],
   "live_controls_snapshot": {
     "release_source_commit": "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
     "release_state": "READY_TO_FLASH",
-    "preflight_state": "WAIT_USB_MEDIA",
-    "next_gate": "eligible-test-usb-presence",
+    "preflight_state": "READY_FOR_GUARDED_FLASH_PREFLIGHT",
+    "next_gate": "explicit-guarded-flash-authorization",
     "preflight_matches_current_release": true,
-    "eligible_usb_count": 0,
-    "terminal_recovery_receipt": false,
-    "manual_handoff_released": false,
+    "eligible_usb_count": 1,
+    "terminal_recovery_receipt": true,
+    "manual_handoff_released": true,
     "flash_receipt_present": true,
     "flash_receipt_matches_current_release": false,
     "current_release_flash_ready_to_boot": false,
-    "flash_authorization_eligible": false,
+    "flash_authorization_eligible": true,
     "write_authority": false,
     "destructive_action_allowed": false,
     "fallback_carrier_current": false,
