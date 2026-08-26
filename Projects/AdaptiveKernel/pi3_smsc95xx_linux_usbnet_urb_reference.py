@@ -58,7 +58,23 @@ def _sha256_bytes(data: bytes) -> str:
 
 
 def _normalize_source(text: str) -> str:
-    return " ".join(text.replace("\t", " ").split())
+    """Normalize whitespace and C comment line decoration, never code tokens.
+
+    Semantic anchors intentionally span kernel-doc line wraps. Strip only the
+    leading/trailing comment decoration at line boundaries so an inserted `*`
+    from kernel-doc formatting cannot make an otherwise exact phrase disappear.
+    """
+    lines: list[str] = []
+    for raw in text.replace("\t", " ").splitlines():
+        line = raw.strip()
+        if line.startswith("/*"):
+            line = line[2:].lstrip("*").strip()
+        elif line.startswith("*"):
+            line = line[1:].strip()
+        if line.endswith("*/"):
+            line = line[:-2].strip()
+        lines.append(line)
+    return " ".join(" ".join(lines).split())
 
 
 def _require_all(text: str, anchors: Mapping[str, tuple[str, ...]]) -> dict[str, bool]:
