@@ -1,0 +1,121 @@
+name: Aurum Pi3 Offline smsc95xx Functional Model
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-functional-model.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_behavior_model.py'
+      - 'Projects/AdaptiveKernel/pi3_reference_behavior_refinement.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_behavior_model.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_reference_behavior_refinement.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-functional-model
+  cancel-in-progress: false
+
+jobs:
+  offline-functional-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact functional-model revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage Python for deterministic model verification
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Resolve hash-pinned Raspberry Pi smsc95xx references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pi3-functional-model-evidence/reference
+          python - <<'PY' > pi3-functional-model-evidence/reference/manifest.env
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json').read_text())
+          wanted = {
+              'raspberry-pi-linux-smsc95xx-c': ('C_URL', 'C_SHA'),
+              'raspberry-pi-linux-smsc95xx-h': ('H_URL', 'H_SHA'),
+          }
+          found = {}
+          for item in manifest['sources']:
+              if item.get('id') in wanted:
+                  u, s = wanted[item['id']]
+                  found[u] = item['url']
+                  found[s] = item['sha256']
+          missing = [name for pair in wanted.values() for name in pair if name not in found]
+          if missing:
+              raise SystemExit('missing pinned reference metadata: ' + ','.join(missing))
+          for key in ('C_URL','C_SHA','H_URL','H_SHA'):
+              value = found[key]
+              if "'" in value or '\n' in value:
+                  raise SystemExit('unsafe manifest value')
+              print(f"{key}='{value}'")
+          PY
+          source pi3-functional-model-evidence/reference/manifest.env
+          curl --fail --location --retry 3 --retry-delay 2 --output pi3-functional-model-evidence/reference/smsc95xx.c "$C_URL"
+          curl --fail --location --retry 3 --retry-delay 2 --output pi3-functional-model-evidence/reference/smsc95xx.h "$H_URL"
+          printf '%s  %s\n' "$C_SHA" 'pi3-functional-model-evidence/reference/smsc95xx.c' | sha256sum --check --strict
+          printf '%s  %s\n' "$H_SHA" 'pi3-functional-model-evidence/reference/smsc95xx.h' | sha256sum --check --strict
+
+      - name: Build and verify non-actuating functional model
+        shell: bash
+        run: |
+          set -euo pipefail
+          python Projects/AdaptiveKernel/pi3_smsc95xx_behavior_model.py \
+            --source-refinement Projects/AdaptiveKernel/results/pi3-reference-correlation-source-equivalent-latest.json \
+            --reference-manifest Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json \
+            --smsc95xx-c pi3-functional-model-evidence/reference/smsc95xx.c \
+            --smsc95xx-h pi3-functional-model-evidence/reference/smsc95xx.h \
+            --output pi3-functional-model-evidence/functional-model.json
+          python Projects/AdaptiveKernel/pi3_reference_behavior_refinement.py \
+            --base Projects/AdaptiveKernel/results/pi3-reference-correlation-source-equivalent-latest.json \
+            --model pi3-functional-model-evidence/functional-model.json \
+            --output pi3-functional-model-evidence/reference-complete.json
+
+      - name: Run focused fail-closed functional-model tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_behavior_model \
+            Projects.AdaptiveKernel.tests.test_pi3_reference_behavior_refinement
+
+      - name: Publish functional-model evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-functional-model
+          path: |
+            pi3-functional-model-evidence/functional-model.json
+            pi3-functional-model-evidence/reference-complete.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist functional model into durable lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/results
+          cp pi3-functional-model-evidence/functional-model.json Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json
+          cp pi3-functional-model-evidence/reference-complete.json Projects/AdaptiveKernel/results/pi3-reference-correlation-complete-latest.json
+          git config user.name 'aurum-pi3-functional-model[bot]'
+          git config user.email 'aurum-pi3-functional-model@users.noreply.github.com'
+          git add \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json \
+            Projects/AdaptiveKernel/results/pi3-reference-correlation-complete-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_FUNCTIONAL_MODEL_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 smsc95xx functional model [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_FUNCTIONAL_MODEL_RECEIPT persisted=true'
