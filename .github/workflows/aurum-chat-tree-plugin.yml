@@ -1,0 +1,69 @@
+name: Aurum Chat Tree Plugin
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/chat-tree-plugin-*'
+    paths:
+      - 'Projects/Aurum/ChatTreePlugin/**'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-plugin.yml'
+  pull_request:
+    paths:
+      - 'Projects/Aurum/ChatTreePlugin/**'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-plugin.yml'
+
+jobs:
+  plugin-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install plugin dependencies
+        working-directory: Projects/Aurum/ChatTreePlugin
+        run: npm install --no-audit --no-fund
+      - name: Syntax check
+        working-directory: Projects/Aurum/ChatTreePlugin
+        run: npm run check
+      - name: Verify canonical Chat Tree bridge
+        run: |
+          printf '%s\n' '{"command":"get_tree","focus_id":"chat-tree"}' | python Projects/Aurum/Experiments/chat_tree_bridge.py > /tmp/tree.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/tree.json', encoding='utf-8'))
+          assert p['ok'] is True
+          assert p['tree']['schema'] == 'aurum-chat-process-tree-v1'
+          PY
+      - name: Start plugin and probe health
+        working-directory: Projects/Aurum/ChatTreePlugin
+        run: |
+          node server.js > /tmp/chat-tree-plugin.log 2>&1 &
+          pid=$!
+          trap 'kill $pid || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8788/ > /tmp/health.json; then break; fi
+            sleep 0.5
+          done
+          cat /tmp/health.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/health.json', encoding='utf-8'))
+          assert p['ok'] is True
+          assert p['mcp'] == '/mcp'
+          PY
