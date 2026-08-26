@@ -6,9 +6,11 @@ on:
   push:
     paths:
       - 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
+      - 'Projects/AurumBridge/Refresh-HopperRecoveryReadOnly.ps1'
       - 'Projects/Aurum/Recovery/protected-media.json'
       - '.github/workflows/aurum-tiny-seed-flash-windows.yml'
       - '.github/workflows/aurum-tiny-seed-flash-authorized.yml'
+      - '.github/workflows/aurum-tiny-seed-flash-request.yml'
       - '.github/workflows/aurum-tiny-seed-flash-contract.yml'
 
 permissions:
@@ -22,17 +24,22 @@ jobs:
       - name: Check out flash tooling
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Parse guarded flasher without executing it
+      - name: Parse guarded flash scripts without executing them
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $path = (Resolve-Path 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1').Path
-          $tokens = $null
-          $errors = $null
-          [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            throw 'PowerShell parser rejected Tiny Seed flasher'
+          foreach ($relative in @(
+            'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1',
+            'Projects/AurumBridge/Refresh-HopperRecoveryReadOnly.ps1'
+          )) {
+            $path = (Resolve-Path $relative).Path
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$relative : $($_.Message)" }
+              throw "PowerShell parser rejected $relative"
+            }
           }
 
       - name: Assert destructive gates remain explicit
@@ -40,7 +47,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $script = Get-Content 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1' -Raw
+          $recovery = Get-Content 'Projects/AurumBridge/Refresh-HopperRecoveryReadOnly.ps1' -Raw
           $workflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-windows.yml' -Raw
+          $requestWorkflow = Get-Content '.github/workflows/aurum-tiny-seed-flash-request.yml' -Raw
           $legacy = Get-Content '.github/workflows/aurum-tiny-seed-flash-authorized.yml' -Raw
           $requiredScript = @(
             '[switch]$Write',
@@ -62,9 +71,41 @@ jobs:
           foreach ($needle in $requiredScript) {
             if (-not $script.Contains($needle)) { throw "missing flasher safety invariant: $needle" }
           }
+          $requiredRecovery = @(
+            'aurum.hopper.recovery-path-probe.v2',
+            'read_only_probe = $true',
+            "mutation_if_authorized = 'none-read-only-refresh'",
+            'StrictHostKeyChecking=yes',
+            'AURUM_HOPPER_RECOVERY_REFRESH_OK'
+          )
+          foreach ($needle in $requiredRecovery) {
+            if (-not $recovery.Contains($needle)) { throw "missing recovery refresh invariant: $needle" }
+          }
           if (-not $workflow.Contains('default: false')) { throw 'flash workflow must default write=false' }
           if (-not $workflow.Contains('READY_TO_FLASH')) { throw 'flash workflow must require READY_TO_FLASH manifest' }
           if (-not $workflow.Contains('source-commit-mismatch')) { throw 'flash workflow must pin source commit' }
+
+          $requiredRequestWorkflow = @(
+            'Refresh-HopperRecoveryReadOnly.ps1',
+            'request-expired-before-write',
+            "state = 'CLAIMED'",
+            'request-already-consumed-without-ready-proof',
+            '-ConfirmText $confirm -Write',
+            'AURUM_TINYSEED_FLASH_OK',
+            'helper-did-not-prove-raw-readback',
+            "state = 'READY_TO_BOOT'",
+            'raw_readback_verified = $true',
+            'write_authority_consumed = $true'
+          )
+          foreach ($needle in $requiredRequestWorkflow) {
+            if (-not $requestWorkflow.Contains($needle)) { throw "missing one-shot flash invariant: $needle" }
+          }
+          $claimIndex = $requestWorkflow.IndexOf("state = 'CLAIMED'")
+          $writeIndex = $requestWorkflow.IndexOf('-ConfirmText $confirm -Write')
+          $proofIndex = $requestWorkflow.IndexOf("state = 'READY_TO_BOOT'")
+          if ($claimIndex -lt 0 -or $writeIndex -lt 0 -or $proofIndex -lt 0 -or -not ($claimIndex -lt $writeIndex -and $writeIndex -lt $proofIndex)) {
+            throw 'one-shot authority must be claimed before raw write and READY_TO_BOOT proof must follow the verified write'
+          }
           if (-not $legacy.Contains('AURUM_TINYSEED_FLASH_REFUSED reason=legacy-authorized-workflow-disabled')) { throw 'legacy raw-write workflow must remain fail-closed' }
           if ($legacy.Contains('PhysicalDrive') -or $legacy.Contains('IO.FileStream')) { throw 'legacy workflow must not contain an independent raw-write implementation' }
-          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true preexecution_recovery_fail_closed=true legacy_bypass_disabled=true raw_readback=true'
+          Write-Host 'AURUM_TINYSEED_FLASH_CONTRACT_OK destructive_default=false exact_identity=true protected_media_fail_closed=true recovery_refreshed_at_write_boundary=true one_shot_claim_ordered=true raw_readback_required=true legacy_bypass_disabled=true'
