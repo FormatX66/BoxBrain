@@ -1,7 +1,7 @@
 """Validate a read-only Raspberry Pi 3 Ethernet/controller fingerprint.
 
 This module consumes evidence collected from the pinned experimental Pi3 and turns it
-into a fail-closed receipt.  It never contacts hardware and never grants mutation,
+into a fail-closed receipt. It never contacts hardware and never grants mutation,
 driver-binding, promotion, or recovery authority.
 """
 from __future__ import annotations
@@ -84,6 +84,10 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
     package_owner = str(provenance.get("modules_package_owner") or "").strip()
     headers_owner = str(provenance.get("headers_package_owner") or "").strip()
     proc_version = str(provenance.get("proc_version") or "").strip()
+    driver_module_mode = str(provenance.get("driver_module_mode") or "").strip().lower()
+    driver_modinfo_filename = str(provenance.get("driver_modinfo_filename") or "").strip()
+    built_in_driver = driver_module_mode == "builtin" or driver_modinfo_filename.lower() == "(builtin)"
+    driver_binary_provenance = bool(package_owner) or (built_in_driver and bool(packages) and bool(proc_version))
 
     checks = {
         "pinned_identity_match": identity_match,
@@ -98,6 +102,8 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         "proc_version_observed": bool(proc_version),
         "kernel_package_candidates_observed": bool(packages),
         "modules_package_owner_observed": bool(package_owner),
+        "driver_builtin_observed": built_in_driver,
+        "driver_binary_provenance_observed": driver_binary_provenance,
         "headers_package_owner_observed": bool(headers_owner),
     }
 
@@ -108,6 +114,8 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         quarantine_reasons.append("protected-driver-mismatch")
     if speed_mbps is not None and speed_mbps > 100:
         quarantine_reasons.append("observed-speed-outside-smsc95xx-fast-ethernet-envelope")
+    if driver_module_mode and driver_module_mode not in {"builtin", "module", "unknown"}:
+        quarantine_reasons.append("invalid-driver-module-mode")
 
     gaps: list[str] = []
     for check, gap in (
@@ -115,7 +123,7 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         ("link_speed_observed", "negotiated-link-speed"),
         ("duplex_observed", "negotiated-duplex"),
         ("kernel_package_candidates_observed", "kernel-package-candidates"),
-        ("modules_package_owner_observed", "running-modules-package-owner"),
+        ("driver_binary_provenance_observed", "running-driver-binary-provenance"),
         ("headers_package_owner_observed", "running-headers-package-owner"),
     ):
         if not checks[check]:
@@ -141,6 +149,8 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
             "kernel_packages": packages,
             "modules_package_owner": package_owner,
             "headers_package_owner": headers_owner,
+            "driver_module_mode": driver_module_mode,
+            "driver_modinfo_filename": driver_modinfo_filename,
         },
         "checks": checks,
         "gaps": gaps,
@@ -152,7 +162,7 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
             else "correlate-observed-controller-link-and-package-provenance-with-pinned-references"
         ),
         "strongest_claim": (
-            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel package provenance where available; it grants no mutation or promotion authority."
+            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel/driver package provenance where available; it grants no mutation or promotion authority."
             if not quarantine_reasons
             else "The read-only physical fingerprint failed a pinned identity/driver safety check and is quarantined; no mutation or promotion authority exists."
         ),
