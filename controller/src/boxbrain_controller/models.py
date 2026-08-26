@@ -548,7 +548,14 @@ class ModelRuntimeStatus(BaseModel):
     execution_mode: Literal["openai-agents-sdk"] = "openai-agents-sdk"
     external_side_effects_enabled: Literal[False] = False
 
-ChatOrganizerSource = Literal["chatgpt_app_index", "chatgpt_data_export"]
+ChatOrganizerSource = Literal[
+    "chatgpt_app_index",
+    "chatgpt_data_export",
+    "codex_app_index",
+    "unified_app_index",
+    "knowledge_hub_index",
+]
+ChatSurface = Literal["chatgpt", "codex"]
 ChatClassificationConfidence = Literal["high", "medium", "low"]
 
 
@@ -568,17 +575,38 @@ class ChatSourceProject(BaseModel):
 class ChatSourceRecord(BaseModel):
     external_id: str = Field(min_length=1, max_length=500)
     title: str = Field(min_length=1, max_length=500)
+    surface: ChatSurface = "chatgpt"
+    summary: str | None = Field(default=None, max_length=4_000)
+    keywords: list[str] = Field(default_factory=list, max_length=64)
     updated_at: datetime
     project_external_id: str | None = Field(default=None, max_length=500)
     pinned_index: int | None = Field(default=None, ge=1)
 
-    @field_validator("external_id", "title", "project_external_id")
+    @field_validator(
+        "external_id",
+        "title",
+        "summary",
+        "project_external_id",
+    )
     @classmethod
     def normalize_chat_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         normalized = " ".join(value.split())
         return normalized or None
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            keyword = " ".join(value.split()).casefold()
+            if not keyword or len(keyword) > 80 or keyword in seen:
+                continue
+            seen.add(keyword)
+            normalized.append(keyword)
+        return normalized
 
 
 class ChatOrganizerImportRequest(BaseModel):
@@ -591,6 +619,9 @@ class ChatOrganizerImportRequest(BaseModel):
 class OrganizedChatRecord(BaseModel):
     external_id: str
     title: str
+    surface: ChatSurface
+    summary: str | None
+    keywords: list[str]
     current_project_id: str | None
     current_project: str | None
     suggested_project: str
@@ -599,6 +630,18 @@ class OrganizedChatRecord(BaseModel):
     pinned_index: int | None
     updated_at: datetime
     last_seen_at: datetime
+
+
+class ChatContextMatch(BaseModel):
+    external_id: str
+    surface: ChatSurface
+    title: str
+    summary: str | None
+    project: str
+    matched_terms: list[str]
+    score: int = Field(ge=1)
+    pinned_index: int | None
+    updated_at: datetime
 
 
 class ChatOrganizerImportResult(BaseModel):

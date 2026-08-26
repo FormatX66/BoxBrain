@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -8,11 +10,29 @@ from uuid import uuid4
 
 from .models import (
     ChatOrganizerDashboard,
+    ChatContextMatch,
     ChatOrganizerImportRequest,
     ChatOrganizerImportResult,
     ChatProjectBucket,
     ChatSourceRecord,
     OrganizedChatRecord,
+)
+
+
+_SEARCH_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "for",
+        "from",
+        "in",
+        "of",
+        "on",
+        "the",
+        "to",
+        "with",
+    }
 )
 
 
@@ -154,6 +174,9 @@ class ChatOrganizerService:
 
                 values = (
                     chat.title,
+                    chat.surface,
+                    chat.summary,
+                    json.dumps(chat.keywords, separators=(",", ":")),
                     chat.project_external_id,
                     current_project,
                     suggestion,
@@ -165,7 +188,8 @@ class ChatOrganizerService:
                 )
                 existing = connection.execute(
                     """
-                    SELECT title, current_project_id, current_project,
+                    SELECT title, surface, summary, keywords_json,
+                           current_project_id, current_project,
                            suggested_project, classification_reason,
                            confidence, pinned_index, updated_at
                     FROM organized_chats
@@ -184,13 +208,17 @@ class ChatOrganizerService:
                 connection.execute(
                     """
                     INSERT INTO organized_chats (
-                        external_id, title, current_project_id,
+                        external_id, title, surface, summary, keywords_json,
+                        current_project_id,
                         current_project, suggested_project,
                         classification_reason, confidence, pinned_index,
                         updated_at, last_seen_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(external_id) DO UPDATE SET
                         title = excluded.title,
+                        surface = excluded.surface,
+                        summary = excluded.summary,
+                        keywords_json = excluded.keywords_json,
                         current_project_id = excluded.current_project_id,
                         current_project = excluded.current_project,
                         suggested_project = excluded.suggested_project,
@@ -332,7 +360,8 @@ class ChatOrganizerService:
         with self._lock, self._connect() as connection:
             rows = connection.execute(
                 f"""
-                SELECT external_id, title, current_project_id,
+                SELECT external_id, title, surface, summary, keywords_json,
+                       current_project_id,
                        current_project, suggested_project,
                        classification_reason, confidence, pinned_index,
                        updated_at, last_seen_at
@@ -347,6 +376,94 @@ class ChatOrganizerService:
                 parameters,
             ).fetchall()
         return [_chat_from_row(row) for row in rows]
+
+    def search_context(
+        self,
+        *,
+        query: str,
+        surface: str | None = None,
+        limit: int = 20,
+    ) -> list[ChatContextMatch]:
+        """Return deterministic metadata matches without reading chat bodies."""
+
+        terms = _search_terms(query)
+        if not terms:
+            return []
+        clauses: list[str] = []
+        parameters: list[object] = []
+        if surface is not None:
+            clauses.append("surface = ?")
+            parameters.append(surface)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT external_id, title, surface, summary, keywords_json,
+                       current_project, suggested_project, pinned_index,
+                       updated_at
+                FROM organized_chats
+                {where}
+                """,
+                parameters,
+            ).fetchall()
+
+        matches: list[ChatContextMatch] = []
+        normalized_query = _normalized_search_text(query)
+        for row in rows:
+            title = _normalized_search_text(row[1])
+            summary = _normalized_search_text(row[3] or "")
+            keywords = json.loads(row[4] or "[]")
+            project = row[5] or row[6]
+            project_text = _normalized_search_text(project)
+            title_terms = set(_search_terms(title))
+            summary_terms = set(_search_terms(summary))
+            project_terms = set(_search_terms(project_text))
+            matched_terms: list[str] = []
+            score = 0
+            if len(terms) > 1 and normalized_query in title:
+                score += 40
+            elif len(terms) > 1 and normalized_query in summary:
+                score += 20
+            for term in terms:
+                term_score = 0
+                if term in keywords:
+                    term_score += 18
+                if term in title_terms:
+                    term_score += 12
+                if term in project_terms:
+                    term_score += 5
+                if term in summary_terms:
+                    term_score += 4
+                if term_score:
+                    matched_terms.append(term)
+                    score += term_score
+            if not matched_terms:
+                continue
+            if len(matched_terms) == len(terms):
+                score += 10
+            if row[7] is not None:
+                score += 1
+            matches.append(
+                ChatContextMatch(
+                    external_id=row[0],
+                    surface=row[2],
+                    title=row[1],
+                    summary=row[3],
+                    project=project,
+                    matched_terms=matched_terms,
+                    score=score,
+                    pinned_index=row[7],
+                    updated_at=datetime.fromisoformat(row[8]),
+                )
+            )
+        matches.sort(
+            key=lambda match: (
+                -match.score,
+                -match.updated_at.timestamp(),
+                match.title.casefold(),
+            )
+        )
+        return matches[:limit]
 
     def list_imports(
         self,
@@ -397,6 +514,9 @@ class ChatOrganizerService:
                 CREATE TABLE IF NOT EXISTS organized_chats (
                     external_id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
+                    surface TEXT NOT NULL DEFAULT 'chatgpt',
+                    summary TEXT,
+                    keywords_json TEXT NOT NULL DEFAULT '[]',
                     current_project_id TEXT,
                     current_project TEXT,
                     suggested_project TEXT NOT NULL,
@@ -428,6 +548,28 @@ class ChatOrganizerService:
                 );
                 """
             )
+            columns = {
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(organized_chats)"
+                ).fetchall()
+            }
+            migrations = {
+                "surface": (
+                    "ALTER TABLE organized_chats ADD COLUMN surface TEXT "
+                    "NOT NULL DEFAULT 'chatgpt'"
+                ),
+                "summary": (
+                    "ALTER TABLE organized_chats ADD COLUMN summary TEXT"
+                ),
+                "keywords_json": (
+                    "ALTER TABLE organized_chats ADD COLUMN keywords_json "
+                    "TEXT NOT NULL DEFAULT '[]'"
+                ),
+            }
+            for column, statement in migrations.items():
+                if column not in columns:
+                    connection.execute(statement)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
@@ -471,12 +613,42 @@ def _chat_from_row(row: sqlite3.Row | tuple) -> OrganizedChatRecord:
     return OrganizedChatRecord(
         external_id=row[0],
         title=row[1],
-        current_project_id=row[2],
-        current_project=row[3],
-        suggested_project=row[4],
-        classification_reason=row[5],
-        confidence=row[6],
-        pinned_index=row[7],
-        updated_at=datetime.fromisoformat(row[8]),
-        last_seen_at=datetime.fromisoformat(row[9]),
+        surface=row[2],
+        summary=row[3],
+        keywords=json.loads(row[4] or "[]"),
+        current_project_id=row[5],
+        current_project=row[6],
+        suggested_project=row[7],
+        classification_reason=row[8],
+        confidence=row[9],
+        pinned_index=row[10],
+        updated_at=datetime.fromisoformat(row[11]),
+        last_seen_at=datetime.fromisoformat(row[12]),
     )
+
+
+def _search_terms(query: str) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for term in re.findall(
+        r"[a-z0-9][a-z0-9+.#_-]*",
+        _normalized_search_text(query),
+    ):
+        if term in _SEARCH_STOP_WORDS or term in seen:
+            continue
+        seen.add(term)
+        terms.append(term)
+    return terms[:24]
+
+
+def _normalized_search_text(value: str) -> str:
+    normalized = " ".join(value.casefold().split())
+    aliases = {
+        "box brain": "boxbrain",
+        "future branch": "futurebranch",
+        "pi 3": "pi3",
+        "pi 4": "pi4",
+    }
+    for phrase, alias in aliases.items():
+        normalized = normalized.replace(phrase, alias)
+    return normalized

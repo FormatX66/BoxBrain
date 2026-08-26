@@ -41,6 +41,7 @@ from .models import (
     AgentTaskStatusUpdate,
     AuditEvent,
     ChatOrganizerDashboard,
+    ChatContextMatch,
     ChatOrganizerImportRequest,
     ChatOrganizerImportResult,
     DiagnosticExecuteRequest,
@@ -610,6 +611,22 @@ def list_chat_organizer_imports(
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[ChatOrganizerImportResult]:
     return chat_organizer_service.list_imports(limit=limit)
+
+
+@router.get(
+    "/chat-organizer/search",
+    response_model=list[ChatContextMatch],
+)
+def search_chat_context(
+    q: str = Query(min_length=2, max_length=500),
+    surface: str | None = Query(default=None, pattern="^(chatgpt|codex)$"),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[ChatContextMatch]:
+    return chat_organizer_service.search_context(
+        query=q,
+        surface=surface,
+        limit=limit,
+    )
 
 
 @router.get("/projects", response_model=list[ProjectSummary])

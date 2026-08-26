@@ -36,6 +36,9 @@ def _snapshot() -> ChatOrganizerImportRequest:
                 {
                     "external_id": "chat-boxbrain",
                     "title": "BoxBrain Repo Access",
+                    "surface": "codex",
+                    "summary": "Repository access and packaging decisions",
+                    "keywords": ["repository", "access", "boxbrain"],
                     "updated_at": captured_at - timedelta(minutes=1),
                 },
                 {
@@ -76,6 +79,15 @@ def test_import_preserves_projects_classifies_loose_chats_and_deduplicates(
     assert chats["chat-project"].suggested_project == "Wet Beard website"
     assert chats["chat-project"].confidence == "high"
     assert chats["chat-boxbrain"].suggested_project == "10 BoxBrain & Automation"
+    assert chats["chat-boxbrain"].surface == "codex"
+    assert chats["chat-boxbrain"].summary == (
+        "Repository access and packaging decisions"
+    )
+    assert chats["chat-boxbrain"].keywords == [
+        "repository",
+        "access",
+        "boxbrain",
+    ]
     assert chats["chat-website"].suggested_project == "20 Web Production"
     assert chats["chat-review"].suggested_project == "00 Inbox & Ideas"
     assert dashboard.total_chat_count == 4
@@ -138,6 +150,10 @@ def test_chat_organizer_api_end_to_end(tmp_path, monkeypatch) -> None:
             params={"unassigned_only": True},
         )
         imports = client.get("/api/v1/chat-organizer/imports")
+        search = client.get(
+            "/api/v1/chat-organizer/search",
+            params={"q": "repository packaging", "surface": "codex"},
+        )
 
     assert imported.status_code == 200
     assert imported.json()["chat_count"] == 4
@@ -145,6 +161,66 @@ def test_chat_organizer_api_end_to_end(tmp_path, monkeypatch) -> None:
     assert dashboard.json()["total_chat_count"] == 4
     assert len(unassigned.json()) == 3
     assert imports.json()[0]["id"] == imported.json()["id"]
+    assert search.status_code == 200
+    assert [match["external_id"] for match in search.json()] == [
+        "chat-boxbrain"
+    ]
+
+
+def test_search_context_scores_title_summary_keywords_and_surface(tmp_path) -> None:
+    service = ChatOrganizerService(tmp_path / "boxbrain.sqlite3")
+    service.import_snapshot(_snapshot())
+
+    all_matches = service.search_context(query="boxbrain repository packaging")
+    codex_matches = service.search_context(
+        query="repository access",
+        surface="codex",
+    )
+    chatgpt_matches = service.search_context(
+        query="repository packaging",
+        surface="chatgpt",
+    )
+
+    assert all_matches[0].external_id == "chat-boxbrain"
+    assert all_matches[0].matched_terms == [
+        "boxbrain",
+        "repository",
+        "packaging",
+    ]
+    assert [match.external_id for match in codex_matches] == [
+        "chat-boxbrain"
+    ]
+    assert chatgpt_matches == []
+
+
+def test_existing_chat_database_migrates_to_cross_surface_cache(tmp_path) -> None:
+    database_path = tmp_path / "boxbrain.sqlite3"
+    import sqlite3
+
+    with sqlite3.connect(database_path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE organized_chats (
+                external_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                current_project_id TEXT,
+                current_project TEXT,
+                suggested_project TEXT NOT NULL,
+                classification_reason TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                pinned_index INTEGER,
+                updated_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL
+            );
+            """
+        )
+
+    service = ChatOrganizerService(database_path)
+    service.import_snapshot(_snapshot())
+
+    match = service.search_context(query="BoxBrain")[0]
+    assert match.external_id == "chat-boxbrain"
+    assert match.surface == "codex"
 
 def test_production_taxonomy_routes_brand_and_web_work(tmp_path) -> None:
     service = ChatOrganizerService(tmp_path / "boxbrain.sqlite3")

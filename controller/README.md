@@ -55,6 +55,7 @@ python -m uvicorn boxbrain_controller.main:app --reload
 - `GET /api/v1/chat-organizer`
 - `GET /api/v1/chat-organizer/chats`
 - `GET /api/v1/chat-organizer/imports`
+- `GET /api/v1/chat-organizer/search`
 - `GET /api/v1/projects`
 - `GET /api/v1/memory`
 - `GET /api/v1/memory/search`
@@ -114,6 +115,11 @@ preserves existing project membership, classifies loose chats with inspectable
 local rules, and records deduplicated sync history. It has no ChatGPT mutation
 or browser-storage capability. See
 [`docs/CHATGPT_ORGANIZER.md`](../docs/CHATGPT_ORGANIZER.md).
+
+The same local store can cache visible ChatGPT and Codex metadata together and
+retrieve relevant source thread IDs with deterministic keyword scoring. It does
+not copy full conversations or interpret cached text as instructions. See
+[`docs/CROSS_CHAT_CACHE.md`](../docs/CROSS_CHAT_CACHE.md).
 
 The optional model endpoint layers one typed OpenAI Agents SDK orchestrator over
 that durable local path. It loads `OPENAI_API_KEY` from the process environment
