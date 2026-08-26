@@ -1,5 +1,5 @@
 {
-  "event_count": 6,
+  "event_count": 7,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -84,40 +84,38 @@
         "pi3-experimental-00000000a6a7df7f",
         "pi3-adaptive-driver-generation2"
       ],
-      "event_id": "evt-c032f4f7b614447c99b24e3c6819287e",
+      "event_id": "evt-b3245ed18c8f42da83cc8cc2a5bcbc4b",
       "evidence_refs": [
         "github:actions:run:32925514155",
-        "github:actions:run:32924485415",
-        "github:actions:run:32924126448",
+        "github:actions:job:98047510911",
         "git:commit:1db49435",
-        "repo:Projects/AdaptiveKernel/OVERNIGHT_PI3_LAB.md"
+        "git:commit:0be592cf",
+        "github:actions:run:32924126448"
       ],
       "node_id": "adaptive-kernel",
       "payload": {
+        "current_stage": "observe",
         "duration_minutes": 330,
+        "laboratory_step_started_at_utc": "2026-08-26T03:14:52Z",
         "persistent_kernel_or_driver_change_allowed": false,
         "physical_mutation_started": false,
+        "preflight_fix_commit": "0be592cf",
+        "preflight_rerun_gate": "after-overnight-run",
+        "preflight_result": "failed-control-transport-crlf",
         "preflight_run_id": 32924485415,
-        "preflight_state": "queued",
-        "qpu_hardware_submission": false,
         "qpu_run_id": 32924126448,
         "qpu_run_state": "succeeded",
-        "reversible_mutation_authorized": true,
-        "risk_ceiling": "smsc95xx-feature-canary",
-        "strict_target": {
-          "address": "169.254.129.122",
-          "model": "Raspberry Pi 3 Model B Rev 1.2",
-          "reference_driver": "smsc95xx",
-          "serial": "00000000a6a7df7f"
-        },
-        "workflow_state": "queued"
+        "rollback_hash_step": "passed",
+        "ssh_identity_staging": "passed",
+        "started_at_utc": "2026-08-26T03:13:38Z",
+        "workflow_state": "in_progress"
       },
-      "source": "github-physical-pi3-overnight-dispatch",
-      "status": "queued",
+      "source": "github-physical-pi3-overnight-live",
+      "status": "running_verified",
       "subject_id": "pi3-adaptive-kernel-overnight-32925514155",
       "subject_kind": "experiment",
-      "summary": "Six-hour pinned Pi3 adaptive-kernel laboratory is queued behind existing serialized runner work; no overnight mutation has begun.",
-      "timestamp": "2026-08-26T03:13:10.702569Z"
+      "summary": "Pinned Pi3 overnight laboratory is running after fresh rollback hashes, strict identity staging, and physical control-path gates passed; it remains in the initial observation window.",
+      "timestamp": "2026-08-26T03:16:38.032476Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
