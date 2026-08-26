@@ -33,6 +33,13 @@ def _path_environment(name: str, default: Path) -> tuple[Path, ...]:
     )
 
 
+def _single_path_environment(name: str, default: Path) -> Path:
+    value = getenv(name)
+    if value is None or not value.strip():
+        return default.resolve()
+    return Path(value.strip()).expanduser().resolve()
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     repository_root: Path = _REPOSITORY_ROOT
@@ -52,26 +59,26 @@ class Settings:
             "https://127.0.0.1:8080"
         ),
     )
-    plugin_dir: Path = Path(
-        getenv("BOXBRAIN_PLUGIN_DIR", "../plugins")
-    ).resolve()
+    plugin_dir: Path = _single_path_environment(
+        "BOXBRAIN_PLUGIN_DIR",
+        _REPOSITORY_ROOT / "plugins",
+    )
     observer_plugin_id: str = getenv(
         "BOXBRAIN_OBSERVER_PLUGIN_ID",
         "boxbrain.windows-sandbox-observer",
     )
-    observation_policy_path: Path = Path(
-        getenv(
-            "BOXBRAIN_OBSERVATION_POLICY",
-            "../policies/observation.json",
-        )
-    ).resolve()
-    data_dir: Path = Path(getenv("BOXBRAIN_DATA_DIR", "./data")).resolve()
-    sandbox_profile: Path = Path(
-        getenv(
-            "BOXBRAIN_SANDBOX_PROFILE",
-            "../sandbox/BoxBrain-Isolated.wsb",
-        )
-    ).resolve()
+    observation_policy_path: Path = _single_path_environment(
+        "BOXBRAIN_OBSERVATION_POLICY",
+        _REPOSITORY_ROOT / "policies" / "observation.json",
+    )
+    data_dir: Path = _single_path_environment(
+        "BOXBRAIN_DATA_DIR",
+        _REPOSITORY_ROOT / "controller" / "data",
+    )
+    sandbox_profile: Path = _single_path_environment(
+        "BOXBRAIN_SANDBOX_PROFILE",
+        _REPOSITORY_ROOT / "sandbox" / "BoxBrain-Isolated.wsb",
+    )
     sandbox_launch_enabled: bool = _bool_environment(
         "BOXBRAIN_SANDBOX_LAUNCH_ENABLED",
         getenv("BOXBRAIN_ENVIRONMENT", "development") == "development",
