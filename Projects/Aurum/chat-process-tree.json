@@ -1,0 +1,157 @@
+{
+  "schema": "aurum-chat-process-tree-v1",
+  "thread_id": "parallel-hopper-kernel-chat-tree",
+  "root_id": "everything-at-once",
+  "revision": 1,
+  "focus_path": [
+    "everything-at-once",
+    "chat-tree"
+  ],
+  "active_frontier": [
+    "everything-at-once",
+    "hopper-reachability",
+    "adaptive-kernel",
+    "chat-tree"
+  ],
+  "concept_index": {
+    "canary-before-promotion": [
+      "adaptive-kernel"
+    ],
+    "computers-are-not-one-lane": [
+      "everything-at-once"
+    ],
+    "durable-concept-memory": [
+      "chat-tree"
+    ],
+    "human-chat-can-focus": [
+      "everything-at-once",
+      "chat-tree"
+    ],
+    "parallel-safe-work": [
+      "hopper-reachability",
+      "adaptive-kernel"
+    ],
+    "physical-evidence": [
+      "hopper-reachability",
+      "adaptive-kernel"
+    ],
+    "provenance-preserving-merge": [
+      "chat-tree"
+    ],
+    "read-only-observability": [
+      "hopper-reachability"
+    ]
+  },
+  "nodes": [
+    {
+      "node_id": "everything-at-once",
+      "title": "Everything at once",
+      "kind": "conversation",
+      "state": "active",
+      "lane_id": "conversation",
+      "sequence": 0,
+      "parent_id": null,
+      "summary": "Keep concurrent computer work visible while the human conversation follows one readable path.",
+      "concepts": [
+        "computers-are-not-one-lane",
+        "human-chat-can-focus"
+      ],
+      "dependency_ids": [],
+      "evidence_refs": [],
+      "merged_from": [],
+      "boundary": null,
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active"
+      ]
+    },
+    {
+      "node_id": "adaptive-kernel",
+      "title": "Adaptive kernel",
+      "kind": "process",
+      "state": "active",
+      "lane_id": "adaptive-kernel",
+      "sequence": 1,
+      "parent_id": "everything-at-once",
+      "summary": "Continue repository and CI work while physical promotion remains gated.",
+      "concepts": [
+        "parallel-safe-work",
+        "physical-evidence",
+        "canary-before-promotion"
+      ],
+      "dependency_ids": [],
+      "evidence_refs": [
+        "Projects/AdaptiveKernel/adaptive_kernel.py"
+      ],
+      "merged_from": [],
+      "boundary": "physical-promotion",
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active"
+      ]
+    },
+    {
+      "node_id": "chat-tree",
+      "title": "Durable chat process tree",
+      "kind": "process",
+      "state": "active",
+      "lane_id": "chat-tree",
+      "sequence": 1,
+      "parent_id": "everything-at-once",
+      "summary": "Preserve concepts, branch state, evidence, and merge provenance across changes in human focus.",
+      "concepts": [
+        "human-chat-can-focus",
+        "durable-concept-memory",
+        "provenance-preserving-merge"
+      ],
+      "dependency_ids": [],
+      "evidence_refs": [
+        "Architecture/ChatProcessTree.md",
+        "Projects/Aurum/Experiments/chat_process_tree.py"
+      ],
+      "merged_from": [],
+      "boundary": null,
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active"
+      ]
+    },
+    {
+      "node_id": "hopper-reachability",
+      "title": "Hopper reachability",
+      "kind": "process",
+      "state": "waiting",
+      "lane_id": "hopper-recovery",
+      "sequence": 1,
+      "parent_id": "everything-at-once",
+      "summary": "Runner observability is restored; physical Hopper reachability remains unproven.",
+      "concepts": [
+        "parallel-safe-work",
+        "physical-evidence",
+        "read-only-observability"
+      ],
+      "dependency_ids": [],
+      "evidence_refs": [
+        "Web/Aurum-Arkmatx/hopper-status.json"
+      ],
+      "merged_from": [],
+      "boundary": "physical-or-network-reachability",
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active",
+        "waiting"
+      ]
+    }
+  ],
+  "invariants": {
+    "human_focus_collapses_machine_lanes": false,
+    "completed_or_archived_nodes_are_deleted": false,
+    "merge_preserves_source_provenance": true,
+    "tree_grants_execution_authority": false,
+    "tree_resolves_physical_boundaries": false
+  }
+}

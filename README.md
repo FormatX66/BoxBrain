@@ -47,6 +47,7 @@ repositories.
 - [Session index](Admin/SessionIndex.md)
 - [Cross-project architecture](Architecture/SystemArchitecture.md)
 - [Knowledge and execution data flow](Architecture/DataFlow.md)
+- [Durable chat process tree](Architecture/ChatProcessTree.md)
 - [Agent role index](Agents/README.md)
 - [Prompt library](PromptLibrary/README.md)
 - [Templates](Templates/README.md)

@@ -12,6 +12,10 @@ observe verified state
   -> infer likely goal + likely next questions
   -> fan out useful futures:
        success / failure / likely causes / recovery / next actions / alternates
+  -> persist the chat/process tree:
+       keep sibling machine lanes active behind one human focus path
+       pin concepts / decisions / evidence / blockers to durable nodes
+       merge results with source provenance instead of erasing branches
   -> score uncertainty:
        Reality Gap
        Surprise Reserve
@@ -69,6 +73,9 @@ observe verified state
     branches. Execute shared safe work first; act on a strong safe leader; ask only
     after useful preparation is exhausted or a real boundary remains. Inferred
     intent never grants authority.
+17. Human focus is linear; machine work is not. Changing the visible chat path must
+    not collapse sibling processes, pinned concepts, evidence, blockers, or merge
+    provenance. The process tree records concurrency but never grants authority.
 
 ## Human availability behavior
 
@@ -82,6 +89,7 @@ When a likely future physical action is known, use human-unavailable time to red
 
 Canonical supporting pieces:
 - `Architecture/FutureBranch.md` — original architecture and branch families.
+- [ChatProcessTree.md](ChatProcessTree.md) — durable conversation/process lanes and merge provenance.
 - `Architecture/ExecutionRoutes.md` — route ranking.
 - `Prompts/FutureBranchSeed.txt` — portable compact seed.
 - `Projects/Aurum/Experiments/speculative_feasibility.py` — expected information value.
@@ -91,6 +99,7 @@ Canonical supporting pieces:
 - `Projects/Aurum/Experiments/reality_gap.py` — concept-to-reality uncertainty scaling.
 - `Projects/Aurum/Experiments/gap_stack.py` — compounded uncertainty gaps.
 - `Projects/Aurum/Experiments/unattended_precompute.py` — night-before / human-unavailable preparation.
+- `Projects/Aurum/Experiments/chat_process_tree.py` — concurrent process/concept tree implementation.
 
 This document is the reconciliation point. If later Future Branch work changes behavior, update this spine and its regression test in the same change.
 
