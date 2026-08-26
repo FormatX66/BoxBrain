@@ -1,0 +1,44 @@
+{
+  "schema": "aurum.pi3.kernel-canary.preflight.v1",
+  "observed_at_utc": "2026-08-26T03:24:02.1854018Z",
+  "source_commit": "7bbec6c44f6632220fa45bbd74c8c4bbd70205ab",
+  "run_id": "32926239577",
+  "state": "held-out-of-band-watchdog-unproven",
+  "target": {
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "arch": "aarch64",
+    "strict_key_only_ssh": true
+  },
+  "build_prerequisites": {
+    "matching_headers_present": true,
+    "make_available": true,
+    "compiler_available": true,
+    "module_symvers_present": true,
+    "compile_attempted": true,
+    "compile_only_canary_passed": true,
+    "vermagic": "modinfo-unavailable"
+  },
+  "recovery": {
+    "exact_current_card_rollback_image_proven": true,
+    "post_backup_boot_canary_proven": true,
+    "camera_boot_gate_proven": true,
+    "out_of_band_automatic_watchdog_proven": false
+  },
+  "authority": {
+    "explicit_kernel_mutation_authority": false,
+    "kernel_module_load_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "mutation_ready": false
+  },
+  "safety": {
+    "module_loaded": false,
+    "system_driver_changed": false,
+    "persistent_trust_changed": false,
+    "production_nodes_allowed": false,
+    "remote_build_path": "/tmp only and removed after compile"
+  },
+  "next_gate": "prove-automatic-out-of-band-watchdog-and-recovery"
+}
