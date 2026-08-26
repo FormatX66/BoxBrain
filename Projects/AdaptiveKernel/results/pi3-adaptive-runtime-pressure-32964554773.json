@@ -1,0 +1,97 @@
+{
+  "artifact": {
+    "control_receipt_sha256": "b625be092558b138ade36ad096de3b37254f8155239297d663782d7b3a733e22",
+    "digest": "sha256:5ec90bdf6c9606bfbd6a481d453326323cfc292c07f2c6248a31729acc1b1740",
+    "events_sha256": "79944c09c8cf349044ca35eb30a1a40b4bd9b36725d6a7a82dcf7338e6ed6545",
+    "id": 9605841913,
+    "samples_sha256": "6aff4f9fffd1ddbed291500d78267c627e29a2033a3a6aa95ce6ef72d3c23ad0",
+    "summary_sha256": "ef7eeefb8d7d3a88cd6f2729a529876958b9414accdf967169b6ca13f7fda431"
+  },
+  "authority": {
+    "adaptive_runtime_policy_authorized": true,
+    "boot_configuration_write_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_write_allowed": false,
+    "network_configuration_write_allowed": false,
+    "replacement_kernel_allowed": false,
+    "scope": "bounded-reversible-runtime-policy-only"
+  },
+  "decision": {
+    "active_policy_applied": false,
+    "governor_evaluated": false,
+    "reason": "pressure-thermal-stop-before-live-policy",
+    "rollback_timer_armed": false,
+    "semantic_state": "held-thermal-before-live-policy"
+  },
+  "identity": {
+    "address": "169.254.129.122",
+    "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "reference_driver": "smsc95xx",
+    "root_source": "/dev/mmcblk0p2",
+    "serial": "00000000a6a7df7f"
+  },
+  "invariants": {
+    "boot_configuration_changed": false,
+    "boot_id_unchanged": true,
+    "carrier_present_after": true,
+    "driver_binding_unchanged": true,
+    "firmware_changed": false,
+    "kernel_unchanged": true,
+    "network_error_or_drop_count_after": 0,
+    "persistent_kernel_or_driver_change": false,
+    "post_canary_dirty_background_ratio": 10,
+    "post_canary_dirty_ratio": 20,
+    "post_canary_dummy_module_loaded": false,
+    "post_canary_probe_module_loaded": false,
+    "post_canary_pressure_workers": 0,
+    "post_canary_rollback_units": 0,
+    "post_canary_temperature_c": 49.926,
+    "reference_driver_file_hash_unchanged": true,
+    "replacement_kernel_installed": false,
+    "root_source_unchanged": true
+  },
+  "passed_stages": [
+    "observe",
+    "userspace-adaptation",
+    "virtual-driver",
+    "exact-header-module",
+    "smsc95xx-feature-canary"
+  ],
+  "pressure_evidence": [
+    {
+      "current_throttled": false,
+      "ethernet_clean": true,
+      "load_1m": 1.62,
+      "memory_available_bytes": 771305472,
+      "sample_id": "pressure-1",
+      "temperature_c": 69.832
+    },
+    {
+      "current_throttled": false,
+      "ethernet_clean": true,
+      "load_1m": 2.56,
+      "memory_available_bytes": 766029824,
+      "sample_id": "pressure-2",
+      "temperature_c": 77.902
+    }
+  ],
+  "receipt_sha256": "b67d7aef16127bd77b037469494b78142331bc611de22932f4de12a3266de1d7",
+  "rollback": {
+    "archive_integrity_test": "passed",
+    "archive_sha256": "c45bb76d88867b1c3552791f9b992068bccd2c9f2f9b83c2fcab3d0cc79ee984",
+    "raw_image_sha256": "61a4c6bfc03e7ea3444ce67de20c506dbc57a7fc7e34da250b3bfab8d2845c62",
+    "verified_fresh_before_physical_contact": true
+  },
+  "run": {
+    "actual_duration_seconds": 1200.057,
+    "conclusion": "success",
+    "id": 32964554773,
+    "job_id": 98164098219,
+    "source_commit": "cc1d74b3d6c747ff5de08c99e1d57b622ebc9e21",
+    "url": "https://github.com/FormatX66/BoxBrain/actions/runs/32964554773"
+  },
+  "schema": "aurum-pi3-adaptive-runtime-pressure-result-v1",
+  "strongest_claim": "The pinned Pi3 safely exercised the full prior reversible ladder and a new bounded four-core pressure rung. The thermal gate refused live governor execution before any adaptive policy mutation, and all LKG, identity, kernel, boot, driver, tuning, process, timer, carrier, and network-counter invariants were subsequently proven intact."
+}

@@ -1,5 +1,5 @@
 {
-  "event_count": 23,
+  "event_count": 24,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -271,6 +271,64 @@
       "subject_kind": "experiment",
       "summary": "The clean 330-minute pinned-Pi3 overnight laboratory completed successfully. All five authorized stages passed, no stages were held or quarantined, all identity and rollback invariants passed, and strict post-run inspection found the original kernel, boot, root, smsc95xx binding, RX checksumming, carrier, and clean network counters intact with no canary process/module/timer remaining.",
       "timestamp": "2026-08-26T09:05:39.090593Z"
+    },
+    "pi3-adaptive-runtime-pressure-32964554773": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": "user-risky-runtime-20260826",
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-adaptive-kernel-overnight-32926370691",
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-fc01b76352284c11a68b0a30305eb814",
+      "evidence_refs": [
+        "github:actions:run:32964554773",
+        "github:actions:job:98164098219",
+        "github:artifact:9605841913",
+        "github:artifact-digest:sha256:5ec90bdf6c9606bfbd6a481d453326323cfc292c07f2c6248a31729acc1b1740",
+        "artifact-summary-sha256:ef7eeefb8d7d3a88cd6f2729a529876958b9414accdf967169b6ca13f7fda431",
+        "repo:Projects/AdaptiveKernel/results/pi3-adaptive-runtime-pressure-32964554773.json",
+        "receipt-sha256:b67d7aef16127bd77b037469494b78142331bc611de22932f4de12a3266de1d7",
+        "git:commit:cc1d74b3d6c747ff5de08c99e1d57b622ebc9e21"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "active_policy_applied": false,
+        "boot_id_unchanged": true,
+        "current_throttle_seen": false,
+        "driver_binding_unchanged": true,
+        "final_temperature_c": 49.926,
+        "governor_evaluated": false,
+        "kernel_unchanged": true,
+        "max_pressure_temperature_c": 77.902,
+        "network_error_or_drop_count_after": 0,
+        "passed_stages": [
+          "observe",
+          "userspace-adaptation",
+          "virtual-driver",
+          "exact-header-module",
+          "smsc95xx-feature-canary"
+        ],
+        "persistent_change": false,
+        "post_canary_dirty_background_ratio": 10,
+        "post_canary_dirty_ratio": 20,
+        "post_canary_pressure_workers": 0,
+        "post_canary_rollback_units": 0,
+        "pressure_load_1m_max": 2.56,
+        "pressure_stage_state": "held",
+        "reason": "pressure-thermal-stop-before-live-policy",
+        "replacement_kernel_installed": false,
+        "rollback_timer_armed": false,
+        "semantic_state": "held-thermal-before-live-policy",
+        "workflow_conclusion": "success"
+      },
+      "source": "github-pi3-pressure-artifact-and-live-post-canary",
+      "status": "refused",
+      "subject_id": "pi3-adaptive-runtime-pressure-32964554773",
+      "subject_kind": "experiment",
+      "summary": "The pinned Pi3 passed the five previously proven reversible stages, then safely refused live adaptive-policy execution when bounded four-core pressure raised temperature from 69.832 C to 77.902 C. No live governor policy was applied. Fresh post-run inspection proved the original boot, kernel, root, smsc95xx binding, 10/20 tuning, clean carrier/counters, and no test processes, modules, or rollback timers at 49.926 C.",
+      "timestamp": "2026-08-26T12:06:16.2919171Z"
     },
     "pi3-adaptive-runtime-shadow-32926370691": {
       "actor": "codex-thread-01a03afd",
