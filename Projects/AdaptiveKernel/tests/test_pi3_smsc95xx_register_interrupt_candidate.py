@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import unittest
 
 from Projects.AdaptiveKernel.pi3_smsc95xx_register_interrupt_candidate import (
@@ -52,6 +53,10 @@ def fixture_model() -> dict:
 
 
 class RegisterInterruptCandidateTests(unittest.TestCase):
+    def require_c_compiler(self):
+        if not (shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")):
+            self.skipTest("C compiler required")
+
     def test_candidate_is_host_only_and_zero_authority(self):
         source, receipt = synthesize_candidate(fixture_model())
         self.assertIn("aurum_smsc95xx_decode_interrupts", source)
@@ -64,6 +69,7 @@ class RegisterInterruptCandidateTests(unittest.TestCase):
         self.assertFalse(receipt["invariants"]["register_write_performed"])
 
     def test_differential_covers_gating_w1c_read_only_and_unknown_bits(self):
+        self.require_c_compiler()
         result = run_differential(fixture_model())
         self.assertEqual(result["state"], "controlled-register-interrupt-differential-passed")
         self.assertEqual(result["mismatch_count"], 0)
@@ -96,6 +102,7 @@ class RegisterInterruptCandidateTests(unittest.TestCase):
             synthesize_candidate(model)
 
     def test_overlapping_status_and_endpoint_semantics_fail_differential(self):
+        self.require_c_compiler()
         model = fixture_model()
         # Preserve a sealed but suspicious model. A read-only source is forced onto
         # the W1C status bit while retaining a different endpoint gate. The host
