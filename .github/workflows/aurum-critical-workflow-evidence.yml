@@ -81,6 +81,7 @@ jobs:
               int(os.environ['RUN_NUMBER']),
               int(os.environ.get('RUN_ATTEMPT') or '1'),
           )
+          existing = None
 
           if path.exists():
               try:
@@ -114,6 +115,44 @@ jobs:
               'physical_proof_inferred': False,
               'authority_granted': False,
           }
+
+          # Auto USB refresh can finish successfully many times while doing no
+          # new work. Preserve a new durable receipt only when its terminal
+          # result or release-bound discovery request semantics actually change.
+          # This prevents workflow metadata (run id/head/timestamp) from becoming
+          # a self-sustaining evidence churn source while still recording a new
+          # release, a changed safety mode/authority boundary, or any failure.
+          if name == 'Aurum Tiny Seed Auto USB Refresh':
+              request_path = pathlib.Path('Projects/Aurum/Recovery/usb-discovery-request.json')
+              semantic = {
+                  'status': payload['status'],
+                  'conclusion': payload['conclusion'],
+                  'request_schema': None,
+                  'request_mode': None,
+                  'required_release_state': None,
+                  'required_release_source_commit': None,
+                  'write_authority': None,
+              }
+              if request_path.is_file():
+                  try:
+                      request = json.loads(request_path.read_text(encoding='utf-8-sig'))
+                  except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                      request = None
+                  if isinstance(request, dict):
+                      semantic.update({
+                          'request_schema': request.get('schema'),
+                          'request_mode': request.get('mode'),
+                          'required_release_state': request.get('required_release_state'),
+                          'required_release_source_commit': request.get('required_release_source_commit'),
+                          'write_authority': request.get('write_authority'),
+                      })
+              payload['semantic_terminal_state'] = semantic
+              if isinstance(existing, dict) and existing.get('semantic_terminal_state') == semantic:
+                  print(
+                      'AURUM_CRITICAL_EVIDENCE no-op=semantic-terminal-state-unchanged '
+                      f'workflow={name} release={semantic.get("required_release_source_commit")}'
+                  )
+                  raise SystemExit(4)
 
           # A provenance workflow can be successful and still become stale when a
           # newer canonical Tiny Seed release is published later. Bind its durable
@@ -185,6 +224,10 @@ jobs:
             set -e
             if [ "$rc" -eq 3 ]; then
               echo 'AURUM_CRITICAL_EVIDENCE no-op=stale-terminal-event'
+              exit 0
+            fi
+            if [ "$rc" -eq 4 ]; then
+              echo 'AURUM_CRITICAL_EVIDENCE no-op=semantic-terminal-state-unchanged'
               exit 0
             fi
             if [ "$rc" -ne 0 ]; then
