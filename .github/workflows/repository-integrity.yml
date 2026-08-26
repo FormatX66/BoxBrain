@@ -3,6 +3,8 @@ name: Repository Integrity Mirror
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'Admin/validate_repository.py'
       - 'Admin/sync_aurum_release_status.py'
@@ -73,6 +75,11 @@ jobs:
             > "$RUNNER_TEMP/sync-tests.txt" 2>&1
           tests_rc=$?
           set -e
+
+          # Elapsed test time is diagnostic noise, not repository state. Normalize it
+          # before persistence so repeated green runs do not create new commits solely
+          # because one runner took a few milliseconds longer than another.
+          sed -E -i 's/^(Ran [0-9]+ tests) in [0-9.]+s$/\1/' "$RUNNER_TEMP/sync-tests.txt"
 
           {
             echo 'Repository Integrity Mirror'
