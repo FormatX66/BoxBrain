@@ -13,8 +13,45 @@ try {
   await client.connect(transport);
   const listed = await client.listTools();
   const names = new Set((listed.tools ?? []).map((tool) => tool.name));
+  requireInvariant(names.has("publish_live_state"), "cross-chat live-state publisher missing");
+  requireInvariant(names.has("read_live_state"), "cross-chat live-state consumer missing");
   requireInvariant(names.has("project_future_branch_status"), "human Future Branch tool missing");
   requireInvariant(names.has("plan_operational_futures"), "operational Future Branch tool missing");
+
+  const published = await client.callTool({
+    name: "publish_live_state",
+    arguments: {
+      subjectId: "chat:plugin-smoke",
+      subjectKind: "chat",
+      status: "running_verified",
+      currentAction: "Exercise the public-shaped MCP publisher",
+      blocker: "Production deployment is outside this smoke test",
+      evidence: ["test:Projects/Aurum/ChatTreePlugin/smoke-client.js"],
+      nextAction: "Read the event through the MCP consumer",
+      actor: "chat:plugin-smoke",
+      source: "mcp-smoke-client",
+      nodeId: "cross-chat-context-cache",
+      eventId: "evt-chat-tree-plugin-live-sync-smoke",
+    },
+  });
+  requireInvariant(published.structuredContent?.event_count === 1, "publisher did not append exactly one event");
+  requireInvariant(published.structuredContent?.authority_granted === false, "publisher granted execution authority");
+
+  const consumed = await client.callTool({
+    name: "read_live_state",
+    arguments: {
+      subjectId: "chat:plugin-smoke",
+      includeHistory: true,
+    },
+  });
+  const live = consumed.structuredContent?.live_state?.subjects?.["chat:plugin-smoke"];
+  requireInvariant(live?.status === "running_verified", "consumer did not read the published status");
+  requireInvariant(live?.current_action === "Exercise the public-shaped MCP publisher", "current action did not round-trip");
+  requireInvariant(live?.blocker === "Production deployment is outside this smoke test", "blocker did not round-trip");
+  requireInvariant(live?.evidence?.[0] === "test:Projects/Aurum/ChatTreePlugin/smoke-client.js", "evidence did not round-trip");
+  requireInvariant(live?.next_action === "Read the event through the MCP consumer", "next action did not round-trip");
+  requireInvariant(live?.grants_execution_authority === false, "consumer state grants execution authority");
+  requireInvariant(consumed.structuredContent?.chat_memory_used_as_source === false, "consumer used chat memory as truth");
 
   const human = await client.callTool({
     name: "project_future_branch_status",
@@ -75,7 +112,7 @@ try {
   requireInvariant(branches.get("inspect-ci-logs")?.disposition === "prepare", "safe read-only branch was not prepared");
   requireInvariant(branches.get("publish-site")?.disposition === "wait-boundary", "external effect did not stop at authority boundary");
 
-  console.log("AURUM_CHAT_TREE_FUTURE_BRANCH_MCP_OK");
+  console.log("AURUM_CHAT_TREE_LIVE_SYNC_AND_FUTURE_BRANCH_MCP_OK");
 } finally {
   await client.close();
 }

@@ -79,9 +79,14 @@ jobs:
       - name: Start plugin and exercise live MCP tools
         working-directory: Projects/Aurum/ChatTreePlugin
         run: |
+          state_root=$(mktemp -d)
+          cp ../chat-process-tree.json "$state_root/chat-process-tree.json"
+          export CHAT_TREE_TREE_PATH="$state_root/chat-process-tree.json"
+          export CHAT_TREE_EVENTS_PATH="$state_root/events.jsonl"
+          export CHAT_TREE_PROJECTION_PATH="$state_root/CURRENT_STATE.json"
           node server.js > /tmp/chat-tree-plugin.log 2>&1 &
           pid=$!
-          trap 'kill $pid 2>/dev/null || true' EXIT
+          trap 'kill $pid 2>/dev/null || true; rm -rf "$state_root"' EXIT
           for i in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:8788/ > /tmp/health.json; then break; fi
             sleep 0.5

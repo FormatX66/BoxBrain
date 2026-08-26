@@ -30,19 +30,29 @@ class ChatTreeMCPTests(unittest.TestCase):
             clear=False,
         )
 
-    def test_tool_contract_exposes_four_tools_with_annotations(self):
+    def test_tool_contract_exposes_live_sync_tools_with_annotations(self):
         tools = asyncio.run(main.mcp.list_tools())
         self.assertEqual(
             {tool.name for tool in tools},
-            {"get_tree", "get_state", "route_topic", "post_receipt"},
+            {
+                "get_tree",
+                "get_state",
+                "route_topic",
+                "post_receipt",
+                "publish_live_state",
+                "read_live_state",
+            },
         )
         by_name = {tool.name: tool for tool in tools}
         self.assertTrue(by_name["get_tree"].annotations.read_only_hint)
         self.assertTrue(by_name["get_state"].annotations.read_only_hint)
+        self.assertTrue(by_name["read_live_state"].annotations.read_only_hint)
         self.assertFalse(by_name["route_topic"].annotations.read_only_hint)
         self.assertFalse(by_name["route_topic"].annotations.destructive_hint)
         self.assertFalse(by_name["route_topic"].annotations.idempotent_hint)
         self.assertFalse(by_name["post_receipt"].annotations.destructive_hint)
+        self.assertFalse(by_name["publish_live_state"].annotations.read_only_hint)
+        self.assertFalse(by_name["publish_live_state"].annotations.destructive_hint)
 
     def test_streamable_http_app_has_mcp_and_health_routes(self):
         paths = {route.path for route in main.app.routes}
@@ -120,6 +130,49 @@ class ChatTreeMCPTests(unittest.TestCase):
                         source="unit-test",
                         confidence=1.5,
                     )
+
+    def test_publish_and_read_live_state_round_trip(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tree, events, projection = self._paths(Path(folder))
+            with self._env(tree, events, projection):
+                with self.assertRaises(Exception):
+                    main.publish_live_state(
+                        subject_id="chat:mcp-test",
+                        status="running_verified",
+                        current_action="Exercise the MCP publisher",
+                        blocker="No public deployment in this fixture",
+                        evidence=[],
+                        next_action="Read through the MCP consumer",
+                        actor="chat:mcp-test",
+                        source="mcp-unit-test",
+                    )
+
+                published = main.publish_live_state(
+                    subject_id="chat:mcp-test",
+                    status="running_verified",
+                    current_action="Exercise the MCP publisher",
+                    blocker="No public deployment in this fixture",
+                    evidence=["test:test_server.py"],
+                    next_action="Read through the MCP consumer",
+                    actor="chat:mcp-test",
+                    source="mcp-unit-test",
+                    node_id="cross-chat-context-cache",
+                    event_id="evt-mcp-live-sync-e2e",
+                )
+                consumed = main.read_live_state(
+                    subject_id="chat:mcp-test",
+                    include_history=True,
+                )
+
+                self.assertFalse(published["authority_granted"])
+                state = consumed["live_state"]["subjects"]["chat:mcp-test"]
+                self.assertEqual(state["event_id"], "evt-mcp-live-sync-e2e")
+                self.assertEqual(state["current_action"], "Exercise the MCP publisher")
+                self.assertEqual(state["blocker"], "No public deployment in this fixture")
+                self.assertEqual(state["evidence"], ["test:test_server.py"])
+                self.assertEqual(state["next_action"], "Read through the MCP consumer")
+                self.assertFalse(state["grants_execution_authority"])
+                self.assertEqual(consumed["live_state"]["event_count"], 1)
 
 
 if __name__ == "__main__":

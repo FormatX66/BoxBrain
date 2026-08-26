@@ -1,0 +1,5 @@
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule ^$ index.php?route=health [QSA,L]
+RewriteRule ^healthz/?$ index.php?route=health [QSA,L]
+RewriteRule ^mcp/?$ index.php?route=mcp [QSA,L]

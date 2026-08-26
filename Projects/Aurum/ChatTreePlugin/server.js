@@ -18,9 +18,34 @@ const BRIDGE = path.join(AURUM_ROOT, "Experiments", "chat_tree_bridge.py");
 const WIDGET = readFileSync(path.join(HERE, "public", "chat-tree-widget.html"), "utf8");
 const TEMPLATE_URI = "ui://aurum/chat-tree/v4.html";
 const PYTHON = process.env.PYTHON ?? (process.platform === "win32" ? "python" : "python3");
+const STATUS = z.enum([
+  "planned",
+  "queued",
+  "running_unverified",
+  "running_verified",
+  "waiting",
+  "blocked",
+  "succeeded",
+  "failed",
+  "no_change",
+  "refused",
+]);
+
+function bridgeArguments() {
+  const args = [BRIDGE];
+  const overrides = [
+    ["CHAT_TREE_TREE_PATH", "--tree"],
+    ["CHAT_TREE_EVENTS_PATH", "--events"],
+    ["CHAT_TREE_PROJECTION_PATH", "--projection"],
+  ];
+  for (const [variable, flag] of overrides) {
+    if (process.env[variable]) args.push(flag, process.env[variable]);
+  }
+  return args;
+}
 
 function bridge(request) {
-  const result = spawnSync(PYTHON, [BRIDGE], {
+  const result = spawnSync(PYTHON, bridgeArguments(), {
     cwd: AURUM_ROOT,
     input: JSON.stringify(request),
     encoding: "utf8",
@@ -123,6 +148,84 @@ function createChatTreeServer() {
     });
     const data = snapshot(routed.focus_id);
     return reply({ ...data, route: routed }, `${args.title} is now a ${args.relation} Chat Tree branch.`);
+  });
+
+  server.registerTool("publish_live_state", {
+    title: "Publish Aurum Cross-Chat Live State",
+    description: "Append a chat/process status, current action, blocker, evidence, and next action to the evidence-backed shared-state bus. Verified runtime/success claims require evidence; the bus grants no execution authority.",
+    inputSchema: {
+      subjectId: z.string().min(1),
+      status: STATUS,
+      currentAction: z.string().min(1),
+      blocker: z.string().min(1).nullable(),
+      evidence: z.array(z.string().min(1)).max(64),
+      nextAction: z.string().min(1),
+      actor: z.string().min(1),
+      source: z.string().min(1),
+      subjectKind: z.string().min(1).optional(),
+      nodeId: z.string().min(1).optional(),
+      summary: z.string().optional(),
+      dependencyIds: z.array(z.string().min(1)).max(64).optional(),
+      confidence: z.number().min(0).max(1).optional(),
+      authorityRef: z.string().min(1).optional(),
+      eventId: z.string().min(1).optional(),
+      payload: z.record(z.unknown()).optional(),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  }, async (args) => {
+    const published = bridge({
+      command: "publish_live_state",
+      subject_id: args.subjectId,
+      subject_kind: args.subjectKind ?? "chat",
+      status: args.status,
+      current_action: args.currentAction,
+      blocker: args.blocker,
+      evidence: args.evidence,
+      next_action: args.nextAction,
+      actor: args.actor,
+      source: args.source,
+      ...(args.nodeId ? { node_id: args.nodeId } : {}),
+      summary: args.summary ?? "",
+      dependency_ids: args.dependencyIds ?? [],
+      ...(args.confidence === undefined ? {} : { confidence: args.confidence }),
+      ...(args.authorityRef ? { authority_ref: args.authorityRef } : {}),
+      ...(args.eventId ? { event_id: args.eventId } : {}),
+      payload: args.payload ?? {},
+    });
+    return reply(published, "Live state appended to the evidence-backed bus; no execution authority was granted.");
+  });
+
+  server.registerTool("read_live_state", {
+    title: "Read Aurum Cross-Chat Live State",
+    description: "Read the newest evidence-backed status, current action, blocker, evidence, and next action from the shared-state bus instead of relying on chat memory.",
+    inputSchema: {
+      subjectId: z.string().min(1).optional(),
+      nodeId: z.string().min(1).optional(),
+      verifiedOnly: z.boolean().optional(),
+      includeHistory: z.boolean().optional(),
+      limit: z.number().int().min(1).max(500).optional(),
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  }, async (args) => {
+    const consumed = bridge({
+      command: "read_live_state",
+      ...(args.subjectId ? { subject_id: args.subjectId } : {}),
+      ...(args.nodeId ? { node_id: args.nodeId } : {}),
+      verified_only: args.verifiedOnly ?? false,
+      include_history: args.includeHistory ?? false,
+      limit: args.limit ?? 50,
+    });
+    return reply(consumed, "Read the newest matching state from the append-only shared-state bus.");
   });
 
   server.registerTool("project_future_branch_status", {

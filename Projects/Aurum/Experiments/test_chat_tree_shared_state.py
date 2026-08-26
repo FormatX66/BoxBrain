@@ -148,6 +148,54 @@ class SharedStateTests(unittest.TestCase):
         loaded = SharedStateBus.from_jsonl(bus.to_jsonl())
         self.assertEqual(loaded.latest("chat-tree").status, "queued")
 
+    def test_stale_writers_reload_under_lock_and_keep_both_events(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            events_path = root / "events.jsonl"
+            projection_path = root / "CURRENT_STATE.json"
+            first_writer = SharedStateBus.load(events_path)
+            second_writer = SharedStateBus.load(events_path)
+
+            first_writer.append_file(
+                events_path,
+                StateEvent(
+                    event_id="evt-writer-1",
+                    timestamp="2026-08-26T12:00:00Z",
+                    subject_id="cross-chat-live-sync",
+                    subject_kind="process",
+                    status="running_unverified",
+                    actor="chat-a",
+                    source="unit-test",
+                ),
+                projection_path=projection_path,
+            )
+            first_journal_bytes = events_path.read_bytes()
+            second_writer.append_file(
+                events_path,
+                StateEvent(
+                    event_id="evt-writer-2",
+                    timestamp="2026-08-26T12:01:00Z",
+                    subject_id="cross-chat-live-sync",
+                    subject_kind="process",
+                    status="running_verified",
+                    actor="chat-b",
+                    source="unit-test",
+                    evidence_refs=("test:writer-2-readback",),
+                ),
+                projection_path=projection_path,
+            )
+
+            loaded = SharedStateBus.load(events_path)
+            projection = json.loads(projection_path.read_text(encoding="utf-8"))
+            self.assertTrue(events_path.read_bytes().startswith(first_journal_bytes))
+            self.assertEqual(len(loaded.events), 2)
+            self.assertEqual(loaded.latest("cross-chat-live-sync").event_id, "evt-writer-2")
+            self.assertEqual(projection["event_count"], 2)
+            self.assertEqual(
+                projection["subjects"]["cross-chat-live-sync"]["event_id"],
+                "evt-writer-2",
+            )
+
 
 class BridgeTests(unittest.TestCase):
     def test_bridge_routes_topic_and_posts_verified_receipt(self):
@@ -218,6 +266,95 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(posted["state"]["status"], "running_verified")
             projected = json.loads(projection_path.read_text(encoding="utf-8"))
             self.assertEqual(projected["subjects"]["pi3"]["status"], "running_verified")
+
+    def test_live_state_publish_and_readback_preserve_required_fields_and_invariants(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tree_path = root / "tree.json"
+            events_path = root / "events.jsonl"
+            projection_path = root / "CURRENT_STATE.json"
+            tree_path.write_text(self._minimal_tree().to_json(focus_id="live-sync"), encoding="utf-8")
+
+            request = {
+                "command": "publish_live_state",
+                "event_id": "evt-live-sync-e2e",
+                "subject_id": "chat:test-publisher",
+                "subject_kind": "chat",
+                "status": "running_verified",
+                "current_action": "Publish the live state contract",
+                "blocker": "Public connector not deployed yet",
+                "evidence": ["test:test_chat_tree_shared_state.py"],
+                "next_action": "Read the event through the consumer action",
+                "actor": "chat:test-publisher",
+                "source": "unit-test:e2e",
+                "node_id": "live-sync",
+            }
+            without_evidence = dict(request, event_id="evt-missing-evidence", evidence=[])
+            with self.assertRaises(SharedStateError):
+                handle_request(
+                    without_evidence,
+                    tree_path=tree_path,
+                    events_path=events_path,
+                    projection_path=projection_path,
+                )
+
+            published = handle_request(
+                request,
+                tree_path=tree_path,
+                events_path=events_path,
+                projection_path=projection_path,
+            )
+            consumed = handle_request(
+                {
+                    "command": "read_live_state",
+                    "subject_id": "chat:test-publisher",
+                    "include_history": True,
+                },
+                tree_path=tree_path,
+                events_path=events_path,
+                projection_path=projection_path,
+            )
+
+            self.assertEqual(published["event_count"], 1)
+            self.assertFalse(published["authority_granted"])
+            live = consumed["live_state"]["subjects"]["chat:test-publisher"]
+            self.assertEqual(live["status"], "running_verified")
+            self.assertEqual(live["current_action"], request["current_action"])
+            self.assertEqual(live["blocker"], request["blocker"])
+            self.assertEqual(live["evidence"], request["evidence"])
+            self.assertEqual(live["next_action"], request["next_action"])
+            self.assertTrue(live["verified_runtime"])
+            self.assertFalse(live["grants_execution_authority"])
+            self.assertEqual(consumed["live_state"]["events"][0]["event_id"], "evt-live-sync-e2e")
+            self.assertFalse(consumed["chat_memory_used_as_source"])
+
+    @staticmethod
+    def _minimal_tree() -> ChatProcessTree:
+        return ChatProcessTree(
+            thread_id="aurum",
+            root_id="root",
+            nodes=(
+                ProcessNode(
+                    node_id="root",
+                    title="Aurum",
+                    kind="conversation",
+                    state="active",
+                    lane_id="root",
+                    sequence=0,
+                    state_history=("active",),
+                ),
+                ProcessNode(
+                    node_id="live-sync",
+                    title="Cross-Chat Live Sync",
+                    kind="process",
+                    state="active",
+                    lane_id="live-sync",
+                    sequence=1,
+                    parent_id="root",
+                    state_history=("active",),
+                ),
+            ),
+        )
 
 
 if __name__ == "__main__":

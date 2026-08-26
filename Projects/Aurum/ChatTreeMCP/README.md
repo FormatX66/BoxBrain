@@ -10,10 +10,19 @@ It does not replace the Chat Tree, Future Branch, or the evidence journal. It gi
 | --- | --- | --- |
 | `get_tree` | Read the durable conversation/process tree and focus path. | No |
 | `get_state` | Read evidence-backed live state. | No |
+| `read_live_state` | Consume the newest status/current action/blocker/evidence/next action from the append-only bus, with optional filtered history. | No |
 | `route_topic` | Continue the current topic or materialize a child/sibling split. | Yes, tree only |
 | `post_receipt` | Append a process/device evidence receipt and refresh the projection. | Yes, state journal |
+| `publish_live_state` | Publish a chat/process status/current action/blocker/evidence/next action update. | Yes, state journal |
 
 `running_verified` and `succeeded` receipts require evidence references. The MCP server never grants execution authority and never erases physical/LKG boundaries.
+
+`publish_live_state` requires the five cross-chat continuity fields on every
+update: `status`, `current_action`, `blocker` (which may be null), `evidence`, and
+`next_action`. The consumer reads the journal rather than chat memory and marks
+whether the returned runtime status is one of the evidence-required verified
+states. Multiple publisher processes coordinate through a journal lock; the
+projection is replaced atomically while prior JSONL events remain untouched.
 
 ## Run locally
 
@@ -82,3 +91,7 @@ The server delegates to:
 - `../Experiments/shared_state_bus.py`
 
 That keeps ChatGPT, Future Branch, runners, and BoxBrain processes on one state model instead of creating a new plugin-specific memory silo.
+
+The registered Bluehost endpoint uses the source-controlled
+[PHP compatibility adapter](../ChatTreePlugin/deploy/README.md) while delegating
+to these same bridge and state-bus modules.
