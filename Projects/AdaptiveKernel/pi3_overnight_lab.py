@@ -40,6 +40,7 @@ RISK_LEVELS = (
     "virtual-driver",
     "exact-header-module",
     "smsc95xx-feature-canary",
+    "adaptive-runtime-pressure-canary",
 )
 
 OFFICIAL_REFERENCES = (
@@ -65,15 +66,27 @@ def risk_index(value: str) -> int:
 def stage_for_fraction(fraction: float) -> str:
     """Return the monotonically increasing stage for elapsed run fraction."""
 
-    if fraction < 0.20:
+    if fraction < 0.15:
         return "observe"
-    if fraction < 0.50:
+    if fraction < 0.30:
         return "userspace-adaptation"
-    if fraction < 0.70:
+    if fraction < 0.45:
         return "virtual-driver"
-    if fraction < 0.85:
+    if fraction < 0.60:
         return "exact-header-module"
-    return "smsc95xx-feature-canary"
+    if fraction < 0.75:
+        return "smsc95xx-feature-canary"
+    return "adaptive-runtime-pressure-canary"
+
+
+def policy_tunables(policy_id: str) -> tuple[int, int] | None:
+    """Map a governor policy to the already-proven reversible sysctl surface."""
+
+    return {
+        "runtime-gen2-conserve-v1": (5, 10),
+        "runtime-gen2-balanced-v1": (8, 16),
+        "runtime-gen3-opportunistic-v1": (10, 20),
+    }.get(policy_id)
 
 
 def parse_throttled(value: str | None) -> dict[str, Any]:
@@ -589,6 +602,298 @@ class Pi3OvernightLab:
             command(("sudo", "-n", ethtool, "-K", EXPECTED_INTERFACE, feature, original_word), timeout=15)
             self.cancel_rollback(unit)
 
+    def adaptive_sample(self, sample_id: str) -> dict[str, Any]:
+        """Collect the exact evidence shape consumed by the offline governor."""
+
+        memory = memory_stats()
+        network = network_stats()
+        load_text = read_text(Path("/proc/loadavg"), "") or ""
+        try:
+            load_1m = float(load_text.split()[0])
+        except (IndexError, ValueError):
+            load_1m = -1.0
+        return {
+            "sample_id": sample_id,
+            "temperature_c": temperature_c(),
+            "current_throttled": bool(throttled_state().get("current_fault")),
+            "memory_available_bytes": memory.get("MemAvailable", -1) * 1024,
+            "memory_total_bytes": memory.get("MemTotal", -1) * 1024,
+            "load_1m": load_1m,
+            "cpu_count": os.cpu_count() or 1,
+            "ethernet": {
+                "carrier": network.get("carrier") == "1",
+                "operstate": network.get("operstate"),
+                "reference_driver": reference_driver(),
+                "rx_errors": network.get("rx_errors"),
+                "tx_errors": network.get("tx_errors"),
+                "rx_dropped": network.get("rx_dropped"),
+                "tx_dropped": network.get("tx_dropped"),
+            },
+        }
+
+    def stage_adaptive_runtime_pressure(self) -> dict[str, Any]:
+        """Run a receipt-bound live policy under bounded, self-expiring pressure."""
+
+        if not self.config.allow_mutation:
+            return {"state": "held", "reason": "mutation-not-authorized"}
+        sysctl = tool_path("sysctl")
+        if not self.sudo_ready or not sysctl or not tool_path("systemd-run"):
+            return {"state": "held", "reason": "sysctl-authority-or-local-watchdog-unavailable"}
+        try:
+            from adaptive_runtime import (
+                ReversibleAuthority,
+                evaluate_shadow_window,
+                execute_runtime_recommendation,
+                verify_receipt,
+            )
+        except ImportError:
+            return {"state": "held", "reason": "adaptive-runtime-governor-unavailable"}
+
+        keys = ("vm.dirty_background_ratio", "vm.dirty_ratio")
+        originals: dict[str, str] = {}
+        for key in keys:
+            observed = command((sysctl, "-n", key), timeout=5)
+            if observed.returncode != 0:
+                return {"state": "held", "reason": f"sysctl-unavailable:{key}"}
+            originals[key] = observed.stdout.strip()
+
+        pressure_seconds = 150.0
+        worker_count = max(1, min(4, os.cpu_count() or 1))
+        worker_source = (
+            "import hashlib,sys,time\n"
+            "deadline=time.monotonic()+float(sys.argv[1])\n"
+            "value=b'aurum-pi3-runtime-pressure'\n"
+            "while time.monotonic()<deadline:\n"
+            "    value=hashlib.sha256(value).digest()\n"
+        )
+        workers: list[subprocess.Popen[Any]] = []
+        evidence: list[dict[str, Any]] = []
+        pressure_started = time.monotonic()
+        try:
+            for _ in range(worker_count):
+                workers.append(
+                    subprocess.Popen(
+                        (sys.executable, "-c", worker_source, str(pressure_seconds)),
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True,
+                    )
+                )
+            for index in range(5):
+                target_elapsed = (index + 1) * (pressure_seconds / 5.0)
+                while time.monotonic() - pressure_started < target_elapsed:
+                    if self.stop_requested:
+                        return {"state": "held", "reason": "stop-requested-during-pressure"}
+                    time.sleep(0.5)
+                observed = self.adaptive_sample(f"pressure-{index + 1}")
+                evidence.append(observed)
+                temperature = observed.get("temperature_c")
+                if isinstance(temperature, (int, float)) and temperature >= 72.0:
+                    return {
+                        "state": "held",
+                        "reason": "pressure-thermal-stop-before-live-policy",
+                        "pressure_evidence": evidence,
+                    }
+                ethernet = observed.get("ethernet", {})
+                if (
+                    observed.get("current_throttled")
+                    or ethernet.get("carrier") is not True
+                    or ethernet.get("operstate") != "up"
+                    or ethernet.get("reference_driver") != EXPECTED_REFERENCE_DRIVER
+                    or any(
+                        ethernet.get(name) != 0
+                        for name in ("rx_errors", "tx_errors", "rx_dropped", "tx_dropped")
+                    )
+                ):
+                    return {
+                        "state": "held",
+                        "reason": "pressure-physical-gate-failed-before-live-policy",
+                        "pressure_evidence": evidence,
+                    }
+        finally:
+            for worker in workers:
+                if worker.poll() is None:
+                    worker.terminate()
+            for worker in workers:
+                try:
+                    worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    worker.kill()
+                    worker.wait(timeout=5)
+
+        shadow = evaluate_shadow_window(evidence, expected_reference_driver=EXPECTED_REFERENCE_DRIVER)
+        if not verify_receipt(shadow):
+            return {"state": "quarantined", "reason": "governor-shadow-receipt-invalid"}
+        if shadow.get("decision", {}).get("state") == "quarantined":
+            return {
+                "state": "held",
+                "reason": "governor-refused-pressure-window",
+                "pressure_evidence": evidence,
+                "shadow_receipt": shadow,
+            }
+        selected_id = str(shadow.get("decision", {}).get("selected_policy_id", ""))
+        selected_tunables = policy_tunables(selected_id)
+        if shadow.get("decision", {}).get("recommendation") != "shadow-change" or selected_tunables is None:
+            return {
+                "state": "passed",
+                "reason": "governor-preserved-baseline-under-pressure",
+                "pressure_evidence": evidence,
+                "shadow_receipt": shadow,
+                "execution_performed": False,
+                "persistent_change": False,
+            }
+
+        rollback_target = f"{keys[0]}={originals[keys[0]]};{keys[1]}={originals[keys[1]]}"
+        rollback_metadata = {
+            "schema": "aurum-pi3-runtime-rollback-v1",
+            "target": rollback_target,
+            "originals": originals,
+            "watchdog_seconds": 90,
+            "reference_driver": EXPECTED_REFERENCE_DRIVER,
+        }
+        rollback_sha256 = hashlib.sha256(
+            json.dumps(rollback_metadata, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        authority = ReversibleAuthority(
+            authority_ref="user-risky-runtime-20260826",
+            authorized=True,
+            scope="adaptive-runtime-policy",
+            reversible=True,
+            shadow_receipt_sha256=str(shadow["receipt_sha256"]),
+            rollback_target=rollback_target,
+            rollback_receipt_sha256=rollback_sha256,
+        )
+        unit = f"aurum-runtime-rollback-{os.getpid()}"
+        rollback_armed = False
+        restored = False
+
+        def executor(policy: dict[str, Any], rollback: dict[str, Any]) -> dict[str, Any]:
+            nonlocal rollback_armed
+            tunables = policy_tunables(str(policy.get("policy_id", "")))
+            if tunables is None:
+                return {"applied": False, "rollback_armed": False}
+            rollback_args = (
+                sysctl,
+                "-w",
+                f"{keys[0]}={originals[keys[0]]}",
+                f"{keys[1]}={originals[keys[1]]}",
+            )
+            rollback_armed = self.timed_rollback(unit, 90, rollback_args)
+            if not rollback_armed:
+                return {"applied": False, "rollback_armed": False}
+            changed = command(
+                (
+                    "sudo",
+                    "-n",
+                    sysctl,
+                    "-w",
+                    f"{keys[0]}={tunables[0]}",
+                    f"{keys[1]}={tunables[1]}",
+                ),
+                timeout=10,
+            )
+            return {
+                "applied": changed.returncode == 0,
+                "rollback_armed": rollback_armed,
+                "rollback_target": rollback["target"],
+                "policy_id": policy.get("policy_id"),
+                "applied_tunables": {keys[0]: tunables[0], keys[1]: tunables[1]},
+                "network_prefetch_executed": False,
+            }
+
+        execution: dict[str, Any] = {}
+        dwell_evidence: list[dict[str, Any]] = []
+        failure_reason: str | None = None
+        try:
+            execution = execute_runtime_recommendation(
+                shadow,
+                active=True,
+                authority=authority,
+                executor=executor,
+            )
+            if execution.get("state") != "executed" or not verify_receipt(execution):
+                failure_reason = "active-runtime-execution-not-proven"
+            else:
+                for index in range(3):
+                    time.sleep(10)
+                    observed = self.adaptive_sample(f"active-dwell-{index + 1}")
+                    dwell_evidence.append(observed)
+                    ethernet = observed.get("ethernet", {})
+                    temperature = observed.get("temperature_c")
+                    if (
+                        (isinstance(temperature, (int, float)) and temperature >= 72.0)
+                        or observed.get("current_throttled")
+                        or ethernet.get("carrier") is not True
+                        or ethernet.get("operstate") != "up"
+                        or ethernet.get("reference_driver") != EXPECTED_REFERENCE_DRIVER
+                        or any(
+                            ethernet.get(name) != 0
+                            for name in ("rx_errors", "tx_errors", "rx_dropped", "tx_dropped")
+                        )
+                    ):
+                        failure_reason = "live-policy-dwell-gate-failed"
+                        break
+        finally:
+            restore = command(
+                (
+                    "sudo",
+                    "-n",
+                    sysctl,
+                    "-w",
+                    f"{keys[0]}={originals[keys[0]]}",
+                    f"{keys[1]}={originals[keys[1]]}",
+                ),
+                timeout=10,
+            )
+            restored = restore.returncode == 0
+            if rollback_armed:
+                self.cancel_rollback(unit)
+
+        observed_after: dict[str, str] = {}
+        for key in keys:
+            observed = command((sysctl, "-n", key), timeout=5)
+            observed_after[key] = observed.stdout.strip() if observed.returncode == 0 else ""
+        restored = restored and observed_after == originals
+        if not restored:
+            return {
+                "state": "quarantined",
+                "reason": "runtime-policy-rollback-not-proven",
+                "original": originals,
+                "observed_after": observed_after,
+                "shadow_receipt": shadow,
+                "execution_receipt": execution,
+            }
+        if failure_reason:
+            return {
+                "state": "quarantined",
+                "reason": failure_reason,
+                "pressure_evidence": evidence,
+                "dwell_evidence": dwell_evidence,
+                "shadow_receipt": shadow,
+                "execution_receipt": execution,
+                "original": originals,
+                "observed_after": observed_after,
+                "rollback_proven": True,
+            }
+        return {
+            "state": "passed",
+            "reason": "receipt-bound-live-policy-executed-and-restored",
+            "pressure_worker_count": worker_count,
+            "pressure_seconds": pressure_seconds,
+            "pressure_evidence": evidence,
+            "shadow_receipt": shadow,
+            "execution_receipt": execution,
+            "dwell_evidence": dwell_evidence,
+            "rollback_metadata": rollback_metadata,
+            "rollback_receipt_sha256": rollback_sha256,
+            "original": originals,
+            "observed_after": observed_after,
+            "execution_performed": True,
+            "persistent_change": False,
+            "network_prefetch_executed": False,
+        }
+
     def run_stage(self, stage: str) -> dict[str, Any]:
         if stage in self.stages:
             return self.stages[stage]
@@ -601,6 +906,7 @@ class Pi3OvernightLab:
                 "virtual-driver": self.stage_virtual_driver,
                 "exact-header-module": self.stage_exact_header_module,
                 "smsc95xx-feature-canary": self.stage_smsc95xx_feature,
+                "adaptive-runtime-pressure-canary": self.stage_adaptive_runtime_pressure,
             }
             try:
                 result = handlers[stage]()
@@ -654,7 +960,10 @@ class Pi3OvernightLab:
                 stop_reason = unsafe_reason
                 self.emit("safety-stop", reason=unsafe_reason, sample=sample)
                 break
-            self.run_stage(stage)
+            stage_result = self.run_stage(stage)
+            if stage_result.get("state") == "quarantined":
+                stop_reason = f"stage-quarantined:{stage}"
+                break
             if elapsed >= next_benchmark:
                 self.emit("benchmark", stage=stage, result=microbenchmark(self.config.benchmark_seconds))
                 next_benchmark = elapsed + max(self.config.sample_seconds * 5, 60.0)
@@ -687,7 +996,15 @@ class Pi3OvernightLab:
         passed = [name for name, result in self.stages.items() if result.get("state") == "passed"]
         summary = {
             "schema": "aurum-pi3-adaptive-kernel-overnight-v1",
-            "state": "safety-stopped" if stop_reason else ("completed" if verified else "quarantined"),
+            "state": (
+                "quarantined"
+                if stop_reason and stop_reason.startswith("stage-quarantined:")
+                else "safety-stopped"
+                if stop_reason
+                else "completed"
+                if verified
+                else "quarantined"
+            ),
             "reason": stop_reason if stop_reason else (None if verified else "final-invariant-failed"),
             "started_at": started_at,
             "completed_at": utc_now(),
@@ -710,7 +1027,9 @@ class Pi3OvernightLab:
             "boot_configuration_changed": False,
             "replacement_kernel_installed": False,
             "adaptive_kernel_claim": (
-                "generation-1 reversible runtime adaptation prototype"
+                "receipt-bound reversible live adaptive runtime canary under bounded pressure"
+                if self.stages.get("adaptive-runtime-pressure-canary", {}).get("execution_performed")
+                else "generation-1 reversible runtime adaptation prototype"
                 if "userspace-adaptation" in passed
                 else "observation-only prototype"
             ),

@@ -19,6 +19,7 @@ on:
           - virtual-driver
           - exact-header-module
           - smsc95xx-feature-canary
+          - adaptive-runtime-pressure-canary
       allow_reversible_kernel_mutation:
         description: Permit only locally watched, auto-restored sysctl/module/driver-feature canaries
         required: true
@@ -210,7 +211,13 @@ jobs:
 
           $remoteState = "/tmp/aurum-adaptive-kernel-overnight-$env:GITHUB_RUN_ID"
           $mutation = if ('${{ inputs.allow_reversible_kernel_mutation }}' -eq 'true') { '--allow-mutation' } else { '' }
-          $remoteCommand = "python3 - --state-dir '$remoteState' --duration-minutes $duration --sample-seconds 60 --benchmark-seconds 1.5 --risk-ceiling '${{ inputs.risk_ceiling }}' $mutation"
+          $runtimeSource = Get-Content -LiteralPath 'Projects/AdaptiveKernel/adaptive_runtime.py' -Raw
+          $runtimeRemoteCommand = "mkdir -p '$remoteState' && cat > '$remoteState/adaptive_runtime.py'"
+          $runtimeSource | & ssh @sshArgs $target $runtimeRemoteCommand
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to stage the bounded adaptive-runtime governor.'
+          }
+          $remoteCommand = "PYTHONPATH='$remoteState' python3 - --state-dir '$remoteState' --duration-minutes $duration --sample-seconds 30 --benchmark-seconds 1.5 --risk-ceiling '${{ inputs.risk_ceiling }}' $mutation"
           $source = Get-Content -LiteralPath 'Projects/AdaptiveKernel/pi3_overnight_lab.py' -Raw
           $prior = $ErrorActionPreference
           $ErrorActionPreference = 'Continue'

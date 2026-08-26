@@ -18,6 +18,12 @@ The stages are time-ordered and monotonic:
 5. `smsc95xx-feature-canary` — late offload-feature toggle on the proven USB
    Ethernet driver, only when `ethtool`, passwordless authority, and a Pi-local
    timed restore are all available.
+6. `adaptive-runtime-pressure-canary` — a self-expiring four-core pressure
+   workload supplies a meaningfully different live evidence window to the
+   Generation-3-capable governor. If the sealed result recommends change, the
+   executor may briefly apply only the already-proven dirty-page sysctl mapping.
+   A Pi-local timer is armed first; exact original values are then restored and
+   verified. Network-prefetch metadata is never executed.
 
 A held prerequisite is an expected semantic state, not a reason to improvise a
 less safe mutation. The workflow never installs a replacement kernel or writes
