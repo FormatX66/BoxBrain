@@ -1,0 +1,13 @@
+{
+  "name": "dispatch_farmer_objective",
+  "description": "Dispatch one bounded Aurum Farmer objective into the GitHub event-driven completion controller. No shell/code/repository/token/URL fields are accepted.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["objective_id", "objective"],
+    "properties": {
+      "objective_id": {"type": "string", "minLength": 3, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$"},
+      "objective": {"type": "string", "minLength": 1, "maxLength": 4000}
+    }
+  }
+}

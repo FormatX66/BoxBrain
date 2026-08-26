@@ -44,6 +44,8 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [Usage bottleneck experiment](usage-bottleneck-answer.md)
 - [Aurum dashboard and voice status mirrors](../../Web/Aurum-Arkmatx/README.md)
 - [Durable Aurum Voice Status](../../AURUM_VOICE_STATUS.md)
+- [Aurum Farmer v3.2 host package](Core/Farmer-v3/README.md)
+- [Aurum Farmer ChatGPT actuator](Core/Farmer-v3/ChatGPT-Actuator-v1/README.md)
 - [Aurum PC Bridge](../AurumBridge/ProjectIndex.md)
 - [Codelation seed](../Codelation/ProjectIndex.md)
 

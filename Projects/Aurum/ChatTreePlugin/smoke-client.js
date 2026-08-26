@@ -18,11 +18,13 @@ try {
   requireInvariant(names.has("show_chat_tree"), "Chat Tree display tool missing");
   requireInvariant(names.has("plan_chat_branch_consolidation"), "consolidation planner missing");
   requireInvariant(names.has("consolidate_chat_branch"), "consolidation action missing");
+  requireInvariant(names.has("dispatch_farmer_objective"), "Farmer execution actuator missing");
   requireInvariant(names.has("project_future_branch_status"), "human Future Branch tool missing");
   requireInvariant(names.has("plan_operational_futures"), "operational Future Branch tool missing");
   const listedByName = new Map((listed.tools ?? []).map((tool) => [tool.name, tool]));
   requireInvariant(listedByName.get("plan_chat_branch_consolidation")?.annotations?.readOnlyHint === true, "consolidation planner is not read-only");
   requireInvariant(listedByName.get("consolidate_chat_branch")?.annotations?.destructiveHint === true, "consolidation action does not require destructive approval");
+  requireInvariant(listedByName.get("dispatch_farmer_objective")?.inputSchema?.additionalProperties === false, "Farmer actuator accepts arbitrary fields");
 
   const consolidationPlan = await client.callTool({
     name: "plan_chat_branch_consolidation",

@@ -1,0 +1,11 @@
+{
+  "schema": "aurum.farmer.chatgpt-actuator.v1",
+  "version": 1,
+  "tool": "dispatch_farmer_objective",
+  "target_repository": "FormatX66/Chat-to-Git-Pipeline",
+  "event_type": "aurum_farmer_event",
+  "continuation": "event_driven_no_polling",
+  "input_surface": ["objective_id", "objective"],
+  "forbidden_user_fields": ["command", "shell", "code", "repository", "url", "token", "workflow", "payload"],
+  "terminal_states": ["verified_completion", "proven_human_only_blocker"]
+}
