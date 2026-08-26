@@ -16,7 +16,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AURUM_ROOT = path.resolve(HERE, "..");
 const BRIDGE = path.join(AURUM_ROOT, "Experiments", "chat_tree_bridge.py");
 const WIDGET = readFileSync(path.join(HERE, "public", "chat-tree-widget.html"), "utf8");
-const TEMPLATE_URI = "ui://aurum/chat-tree/v1.html";
+const TEMPLATE_URI = "ui://aurum/chat-tree/v4.html";
 const PYTHON = process.env.PYTHON ?? (process.platform === "win32" ? "python" : "python3");
 
 function bridge(request) {

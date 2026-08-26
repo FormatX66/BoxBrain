@@ -1,102 +1,686 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aurum Chat Tree</title>
   <style>
-    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
-    body { margin: 0; padding: 12px; }
-    .wrap { display: grid; gap: 10px; }
-    .head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-    .title { font-weight: 700; font-size: 16px; }
-    .sub { opacity: .72; font-size: 12px; }
-    .node { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 10px; padding: 10px; }
-    .focus { border-width: 2px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .name { font-weight: 650; }
-    .state { font-size: 11px; opacity: .75; }
-    .section { font-size: 11px; text-transform: uppercase; opacity: .6; margin-top: 2px; }
-    button { border: 1px solid color-mix(in srgb, currentColor 20%, transparent); background: transparent; color: inherit; border-radius: 8px; padding: 7px 9px; cursor: pointer; }
-    button:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
-    .tree { display: grid; gap: 7px; }
-    .muted { opacity: .68; }
+    :root {
+      color-scheme: light dark;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #f7f7f5;
+      --panel: #ffffff;
+      --panel-soft: #f1f1ee;
+      --text: #20201e;
+      --muted: #74746e;
+      --line: #deded8;
+      --hover: #ecece8;
+      --active: #e5efe8;
+      --active-text: #174f2a;
+      --accent: #2f7a47;
+      --focus-ring: #3b82f6;
+      --shadow: 0 8px 28px rgba(27, 31, 28, .10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171816;
+        --panel: #1f211e;
+        --panel-soft: #292b27;
+        --text: #f2f2ed;
+        --muted: #aaa9a1;
+        --line: #3a3c37;
+        --hover: #30332e;
+        --active: #243d2d;
+        --active-text: #c8f2d3;
+        --accent: #75c58d;
+        --focus-ring: #7db0ff;
+        --shadow: 0 8px 28px rgba(0, 0, 0, .28);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 4px;
+      background: transparent;
+      color: var(--text);
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+    .sidebar {
+      width: min(100%, 340px);
+      height: min(560px, calc(100vh - 8px));
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      box-shadow: var(--shadow);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 11px 11px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      background: var(--active);
+      border-radius: 6px;
+    }
+    .brand-text { min-width: 0; }
+    .title {
+      overflow: hidden;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 720;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .revision {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.25;
+    }
+    .top-actions { display: flex; gap: 3px; }
+    .icon-button {
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .icon-button:hover { background: var(--hover); }
+    .icon-button svg { width: 15px; height: 15px; }
+    .search-wrap { padding: 8px 10px 7px; }
+    .search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search svg {
+      position: absolute;
+      left: 9px;
+      width: 14px;
+      height: 14px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .search input {
+      width: 100%;
+      height: 32px;
+      padding: 0 30px;
+      color: var(--text);
+      background: var(--panel-soft);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .search input::placeholder { color: var(--muted); }
+    .search input:focus { background: var(--panel); border-color: var(--line); }
+    .clear-search {
+      position: absolute;
+      right: 4px;
+      width: 25px;
+      height: 25px;
+      display: none;
+      place-items: center;
+      padding: 0;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .clear-search.visible { display: grid; }
+    .clear-search:hover { color: var(--text); background: var(--hover); }
+    .tree-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 12px 5px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .tree-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      padding: 0 6px 8px;
+      scrollbar-width: thin;
+    }
+    .tree-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .tree-node { margin: 0; padding: 0; }
+    .node-row {
+      min-height: 31px;
+      display: flex;
+      align-items: center;
+      padding: 2px 5px 2px calc(5px + var(--depth, 0) * 15px);
+      border-radius: 7px;
+    }
+    .node-row:hover { background: var(--hover); }
+    .node-row.selected {
+      color: var(--active-text);
+      background: var(--active);
+    }
+    .node-row.canonical .node-label { font-weight: 680; }
+    .toggle {
+      width: 20px;
+      height: 25px;
+      flex: 0 0 20px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .toggle:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+    .toggle.placeholder { cursor: default; opacity: .32; }
+    .toggle svg {
+      width: 12px;
+      height: 12px;
+      transition: transform 120ms ease;
+    }
+    .toggle.open svg { transform: rotate(90deg); }
+    .node-button {
+      flex: 1 1 auto;
+      min-width: 0;
+      height: 27px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 3px;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .folder-icon {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      color: var(--muted);
+    }
+    .selected .folder-icon, .canonical .folder-icon { color: var(--accent); }
+    .node-label {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .state-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      margin-left: auto;
+      background: var(--muted);
+      border-radius: 50%;
+    }
+    .state-dot.active { background: #39a45a; }
+    .state-dot.waiting { background: #d79a2b; }
+    mark {
+      color: inherit;
+      background: color-mix(in srgb, #eab308 36%, transparent);
+      border-radius: 2px;
+    }
+    .empty {
+      padding: 24px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .details {
+      flex: 0 0 auto;
+      padding: 9px 10px 10px;
+      background: var(--bg);
+      border-top: 1px solid var(--line);
+    }
+    .details-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .details-title {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .details-state {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .details-summary {
+      display: -webkit-box;
+      margin-top: 4px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.35;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .node-actions {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 5px;
+      margin-top: 8px;
+    }
+    .action {
+      min-width: 0;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0 8px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+    .action:hover { background: var(--hover); }
+    .action.primary {
+      color: var(--active-text);
+      background: var(--active);
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+      font-weight: 650;
+    }
+    .action svg { width: 13px; height: 13px; }
+    .loading {
+      width: min(100%, 340px);
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      font-size: 12px;
+    }
+    @media (max-width: 360px) {
+      body { padding: 0; }
+      .sidebar { width: 100%; height: 100vh; border-radius: 0; }
+    }
+    @media (max-height: 440px) {
+      .topbar { padding-top: 8px; }
+      .search-wrap { padding-top: 6px; padding-bottom: 5px; }
+      .details { padding-top: 7px; padding-bottom: 7px; }
+      .details-summary { -webkit-line-clamp: 1; }
+      .node-actions { margin-top: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .toggle svg { transition: none; }
+    }
   </style>
 </head>
 <body>
-  <main id="app" class="wrap"><div class="muted">Loading Chat Tree…</div></main>
+  <main id="app" class="loading" aria-live="polite">Loading Chat Tree…</main>
   <script>
     const app = document.getElementById('app');
     let latest = window.openai?.toolOutput ?? null;
     const saved = window.openai?.widgetState ?? {};
+    const savedTreeState = saved.aurumChatTree ?? {};
+    const pending = new Map();
+    let nextRequestId = 1;
+    let bridgeReady = false;
+    let selectedId = typeof savedTreeState.selectedId === 'string' ? savedTreeState.selectedId : null;
+    let expandedIds = new Set(Array.isArray(savedTreeState.expandedIds) ? savedTreeState.expandedIds : []);
+    let expansionRestored = Array.isArray(savedTreeState.expandedIds);
+    let searchQuery = typeof savedTreeState.searchQuery === 'string' ? savedTreeState.searchQuery : '';
 
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[character]));
+
+    function icon(name, className) {
+      const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      const paths = {
+        tree: '<path d="M6 3v12"/><path d="M6 8h7"/><path d="M6 15h7"/><rect x="13" y="5" width="6" height="6" rx="1.5"/><rect x="13" y="12" width="6" height="6" rx="1.5"/>',
+        search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
+        chevron: '<path d="m9 6 6 6-6 6"/>',
+        folder: '<path d="M3.5 7.5h6l2-2h3.5a2 2 0 0 1 2 2v1"/><path d="M3.5 7.5h16l-2 10h-16z"/>',
+        panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M13 4v16"/>',
+        expand: '<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>',
+        refresh: '<path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 8A7 7 0 0 1 18.5 6L20 8M4 16l1.5 2A7 7 0 0 0 18 16"/>',
+        close: '<path d="m7 7 10 10M17 7 7 17"/>',
+        continue: '<path d="M5 12h13M13 7l5 5-5 5"/>',
+        branch: '<path d="M7 4v10a4 4 0 0 0 4 4h6"/><path d="m14 15 3 3-3 3"/><circle cx="7" cy="4" r="2"/>',
+        sibling: '<path d="M5 5h5a3 3 0 0 1 3 3v11"/><path d="M5 19h12"/><path d="m14 16 3 3-3 3"/>'
+      };
+      return '<svg' + (className ? ' class="' + className + '"' : '') + ' ' + attrs + '>' + paths[name] + '</svg>';
+    }
+
+    function notify(method, params) {
+      const message = { jsonrpc: '2.0', method };
+      if (params !== undefined) message.params = params;
+      window.parent.postMessage(message, '*');
+    }
+
+    function request(method, params) {
+      const id = nextRequestId++;
+      window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+      return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+    }
+
+    function persistState(extra) {
+      if (!window.openai?.setWidgetState) return;
+      const currentState = window.openai.widgetState ?? {};
+      window.openai.setWidgetState({
+        ...currentState,
+        aurumChatTree: {
+          ...(currentState.aurumChatTree ?? {}),
+          selectedId,
+          expandedIds: Array.from(expandedIds),
+          searchQuery,
+          ...extra
+        }
+      });
+    }
+
+    function reportSize() {
+      if (!bridgeReady) return;
+      const panel = document.querySelector('.sidebar') ?? app;
+      const rect = panel.getBoundingClientRect();
+      notify('ui/notifications/size-changed', {
+        width: Math.ceil(rect.width),
+        height: Math.ceil(rect.height)
+      });
+    }
 
     async function setMode(mode) {
-      if (!window.openai?.requestDisplayMode) return;
-      await window.openai.requestDisplayMode({ mode });
-      if (window.openai?.setWidgetState) {
-        await window.openai.setWidgetState({ ...(window.openai.widgetState ?? {}), preferredDisplayMode: mode });
+      if (bridgeReady) {
+        await request('ui/request-display-mode', { mode });
+      } else if (window.openai?.requestDisplayMode) {
+        await window.openai.requestDisplayMode({ mode });
+      } else {
+        return;
       }
+      persistState({ preferredDisplayMode: mode });
     }
 
     async function followUp(text) {
-      if (window.openai?.sendFollowUpMessage) {
-        await window.openai.sendFollowUpMessage({ prompt: text });
+      if (bridgeReady) {
+        await request('ui/message', { role: 'user', content: [{ type: 'text', text }] });
         return;
       }
-      window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text }] } }, '*');
+      if (window.openai?.sendFollowUpMessage) {
+        await window.openai.sendFollowUpMessage({ prompt: text });
+      }
+    }
+
+    function normalizedSearchText(node) {
+      return [
+        node.title,
+        node.node_id,
+        node.summary,
+        node.state,
+        node.kind,
+        ...(Array.isArray(node.concepts) ? node.concepts : [])
+      ].join(' ').toLocaleLowerCase();
+    }
+
+    function highlight(label, query) {
+      const clean = String(label ?? '');
+      if (!query) return esc(clean);
+      const lower = clean.toLocaleLowerCase();
+      const index = lower.indexOf(query);
+      if (index < 0) return esc(clean);
+      return esc(clean.slice(0, index)) + '<mark>' + esc(clean.slice(index, index + query.length)) + '</mark>' + esc(clean.slice(index + query.length));
+    }
+
+    function getAncestors(nodeId, byId) {
+      const ancestors = [];
+      const visited = new Set();
+      let current = byId.get(nodeId);
+      while (current?.parent_id && !visited.has(current.parent_id)) {
+        visited.add(current.parent_id);
+        ancestors.push(current.parent_id);
+        current = byId.get(current.parent_id);
+      }
+      return ancestors;
     }
 
     function render(data) {
       latest = data;
       const tree = data?.tree ?? {};
-      const nodes = tree.nodes ?? [];
-      const focusId = data?.focusId ?? tree.focus_path?.[tree.focus_path.length - 1];
-      const focus = nodes.find(n => n.node_id === focusId) ?? nodes.find(n => n.node_id === tree.root_id);
-      if (!focus) { app.innerHTML = '<div class="muted">No Chat Tree state available.</div>'; return; }
-      const parent = nodes.find(n => n.node_id === focus.parent_id);
-      const children = nodes.filter(n => n.parent_id === focus.node_id);
-      const siblings = nodes.filter(n => n.parent_id === focus.parent_id && n.node_id !== focus.node_id);
-      const nodeCard = (n, cls='') => `<div class="node ${cls}"><div class="row"><span class="name">${esc(n.title)}</span><span class="state">${esc(n.state)}</span></div><div class="sub">${esc(n.summary || n.node_id)}</div></div>`;
-      app.innerHTML = `
-        <div class="head">
-          <div><div class="title">Aurum Chat Tree</div><div class="sub">Pop-out topic navigator</div></div>
-          <div class="row"><button id="panel">Panel</button><button id="expand">Expand</button><button id="refresh">Refresh</button></div>
-        </div>
-        <div class="section">Current</div>${nodeCard(focus,'focus')}
-        <div class="row"><button id="continue">Continue here</button><button id="child">Split child</button><button id="sibling">Split sibling</button></div>
-        ${parent ? `<div class="section">Parent</div>${nodeCard(parent)}` : ''}
-        ${children.length ? `<div class="section">Children</div><div class="tree">${children.map(n => nodeCard(n)).join('')}</div>` : ''}
-        ${siblings.length ? `<div class="section">Siblings</div><div class="tree">${siblings.map(n => nodeCard(n)).join('')}</div>` : ''}
-      `;
+      const nodes = Array.isArray(tree.nodes) ? tree.nodes : [];
+      const byId = new Map(nodes.map((node) => [node.node_id, node]));
+      const canonicalFocusId = data?.focusId ?? tree.focus_path?.[tree.focus_path.length - 1] ?? tree.root_id;
+      if (!nodes.length || !byId.has(tree.root_id)) {
+        app.className = 'loading';
+        app.innerHTML = 'No Chat Tree state available.';
+        reportSize();
+        return;
+      }
+
+      if (!selectedId || !byId.has(selectedId)) selectedId = byId.has(canonicalFocusId) ? canonicalFocusId : tree.root_id;
+      if (!expansionRestored) {
+        expandedIds.add(tree.root_id);
+        const focusPath = Array.isArray(tree.focus_path) ? tree.focus_path : [];
+        focusPath.forEach((nodeId) => expandedIds.add(nodeId));
+        getAncestors(selectedId, byId).forEach((nodeId) => expandedIds.add(nodeId));
+        expansionRestored = true;
+      }
+
+      const childrenByParent = new Map();
+      nodes.forEach((node) => {
+        const parentId = byId.has(node.parent_id) ? node.parent_id : null;
+        if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+        childrenByParent.get(parentId).push(node);
+      });
+      childrenByParent.forEach((children) => children.sort((a, b) => {
+        const sequenceDifference = Number(a.sequence ?? 0) - Number(b.sequence ?? 0);
+        return sequenceDifference || String(a.title).localeCompare(String(b.title));
+      }));
+
+      const query = searchQuery.trim().toLocaleLowerCase();
+      const matches = new Set();
+      const visible = new Set();
+      if (query) {
+        nodes.forEach((node) => {
+          if (normalizedSearchText(node).includes(query)) {
+            matches.add(node.node_id);
+            visible.add(node.node_id);
+            getAncestors(node.node_id, byId).forEach((ancestorId) => visible.add(ancestorId));
+          }
+        });
+      }
+
+      const branchHtml = (node, depth) => {
+        if (query && !visible.has(node.node_id)) return '';
+        const children = childrenByParent.get(node.node_id) ?? [];
+        const hasChildren = children.some((child) => !query || visible.has(child.node_id));
+        const open = query ? hasChildren : expandedIds.has(node.node_id);
+        const selected = node.node_id === selectedId;
+        const canonical = node.node_id === canonicalFocusId;
+        const rowClass = ['node-row', selected ? 'selected' : '', canonical ? 'canonical' : ''].filter(Boolean).join(' ');
+        const toggle = hasChildren
+          ? '<button class="toggle ' + (open ? 'open' : '') + '" data-toggle="' + esc(node.node_id) + '" aria-label="' + (open ? 'Collapse ' : 'Expand ') + esc(node.title) + '" aria-expanded="' + open + '">' + icon('chevron') + '</button>'
+          : '<span class="toggle placeholder" aria-hidden="true"></span>';
+        const childHtml = open ? children.map((child) => branchHtml(child, depth + 1)).join('') : '';
+        return '<li class="tree-node" role="none">' +
+          '<div class="' + rowClass + '" style="--depth:' + depth + '" role="treeitem" aria-level="' + (depth + 1) + '"' + (hasChildren ? ' aria-expanded="' + open + '"' : '') + '>' +
+            toggle +
+            '<button class="node-button" data-select="' + esc(node.node_id) + '" title="' + esc(node.title) + '">' +
+              icon('folder', 'folder-icon') +
+              '<span class="node-label">' + highlight(node.title || node.node_id, query) + '</span>' +
+              '<span class="state-dot ' + esc(node.state) + '" title="' + esc(node.state || 'unknown') + '"></span>' +
+            '</button>' +
+          '</div>' +
+          (childHtml ? '<ul class="tree-list" role="group">' + childHtml + '</ul>' : '') +
+        '</li>';
+      };
+
+      const roots = childrenByParent.get(null) ?? [byId.get(tree.root_id)];
+      const renderedTree = roots.map((root) => branchHtml(root, 0)).join('');
+      const selected = byId.get(selectedId);
+      const resultLabel = query ? matches.size + (matches.size === 1 ? ' match' : ' matches') : nodes.length + (nodes.length === 1 ? ' node' : ' nodes');
+
+      app.className = 'sidebar';
+      app.innerHTML =
+        '<header class="topbar">' +
+          '<div class="brand">' +
+            '<span class="brand-mark">' + icon('tree') + '</span>' +
+            '<div class="brand-text"><div class="title">Aurum Chat Tree</div><div class="revision">revision ' + esc(tree.revision ?? '—') + '</div></div>' +
+          '</div>' +
+          '<div class="top-actions">' +
+            '<button id="panel" class="icon-button" aria-label="Open as side panel" title="Open as side panel">' + icon('panel') + '</button>' +
+            '<button id="expand" class="icon-button" aria-label="Open fullscreen" title="Open fullscreen">' + icon('expand') + '</button>' +
+            '<button id="refresh" class="icon-button" aria-label="Refresh tree" title="Refresh tree">' + icon('refresh') + '</button>' +
+          '</div>' +
+        '</header>' +
+        '<div class="search-wrap"><label class="search" aria-label="Search Chat Tree">' +
+          icon('search') +
+          '<input id="tree-search" type="search" value="' + esc(searchQuery) + '" placeholder="Search nodes, summaries, concepts…" autocomplete="off" spellcheck="false" />' +
+          '<button id="clear-search" class="clear-search ' + (searchQuery ? 'visible' : '') + '" aria-label="Clear search" title="Clear search">' + icon('close') + '</button>' +
+        '</label></div>' +
+        '<div class="tree-meta"><span>' + esc(resultLabel) + '</span><span>' + esc(canonicalFocusId === selectedId ? 'current focus' : 'selected') + '</span></div>' +
+        '<div class="tree-scroll">' +
+          (renderedTree ? '<ul class="tree-list" role="tree" aria-label="Chat process directory">' + renderedTree + '</ul>' : '<div class="empty">No nodes match “' + esc(searchQuery) + '”.</div>') +
+        '</div>' +
+        '<section class="details" aria-label="Selected node">' +
+          '<div class="details-head"><span class="details-title">' + esc(selected.title || selected.node_id) + '</span><span class="details-state">' + esc(selected.state) + '</span></div>' +
+          '<div class="details-summary">' + esc(selected.summary || selected.node_id) + '</div>' +
+          '<div class="node-actions">' +
+            '<button id="continue" class="action primary" title="Continue this branch">' + icon('continue') + '<span>Continue here</span></button>' +
+            '<button id="child" class="action" aria-label="Split child branch" title="Split child branch">' + icon('branch') + '</button>' +
+            '<button id="sibling" class="action" aria-label="Split sibling branch" title="Split sibling branch">' + icon('sibling') + '</button>' +
+          '</div>' +
+        '</section>';
+
       document.getElementById('panel').onclick = () => setMode('pip');
       document.getElementById('expand').onclick = () => setMode('fullscreen');
-      document.getElementById('continue').onclick = () => followUp(`Continue the Chat Tree node "${focus.title}" (${focus.node_id}). Keep this chat scoped to that objective and read current shared state before making runtime claims.`);
-      document.getElementById('child').onclick = () => followUp(`Split the current Chat Tree node "${focus.title}" (${focus.node_id}) into a new child branch for the new subproblem I describe next. Preserve a compact handoff and only inherit relevant state.`);
-      document.getElementById('sibling').onclick = () => followUp(`Split away from "${focus.title}" (${focus.node_id}) into a new sibling Chat Tree branch for the new topic I describe next. Preserve a compact handoff and keep the existing branch active separately.`);
+      document.getElementById('continue').onclick = () => followUp('Continue the Chat Tree node "' + selected.title + '" (' + selected.node_id + '). Keep this chat scoped to that objective and read current shared state before making runtime claims.');
+      document.getElementById('child').onclick = () => followUp('Split the Chat Tree node "' + selected.title + '" (' + selected.node_id + ') into a new child branch for the new subproblem I describe next. Preserve a compact handoff and only inherit relevant state.');
+      document.getElementById('sibling').onclick = () => followUp('Split away from "' + selected.title + '" (' + selected.node_id + ') into a new sibling Chat Tree branch for the new topic I describe next. Preserve a compact handoff and keep the existing branch active separately.');
       document.getElementById('refresh').onclick = async () => {
-        if (window.openai?.callTool) {
-          const result = await window.openai.callTool('show_chat_tree', { focusId: focus.node_id });
+        if (bridgeReady) {
+          const result = await request('tools/call', { name: 'show_chat_tree', arguments: { focusId: selected.node_id } });
+          if (result?.structuredContent) render(result.structuredContent);
+        } else if (window.openai?.callTool) {
+          const result = await window.openai.callTool('show_chat_tree', { focusId: selected.node_id });
           if (result?.structuredContent) render(result.structuredContent);
         } else {
           followUp('Refresh and show the current Aurum Chat Tree.');
         }
       };
+
+      document.querySelectorAll('[data-toggle]').forEach((button) => {
+        button.onclick = () => {
+          const nodeId = button.dataset.toggle;
+          if (expandedIds.has(nodeId)) expandedIds.delete(nodeId);
+          else expandedIds.add(nodeId);
+          persistState();
+          render(latest);
+        };
+      });
+      document.querySelectorAll('[data-select]').forEach((button) => {
+        button.onclick = () => {
+          selectedId = button.dataset.select;
+          getAncestors(selectedId, byId).forEach((ancestorId) => expandedIds.add(ancestorId));
+          persistState();
+          render(latest);
+        };
+      });
+
+      const searchInput = document.getElementById('tree-search');
+      searchInput.oninput = () => {
+        searchQuery = searchInput.value;
+        persistState();
+        render(latest);
+        const restored = document.getElementById('tree-search');
+        restored.focus();
+        restored.setSelectionRange(restored.value.length, restored.value.length);
+      };
+      document.getElementById('clear-search').onclick = () => {
+        searchQuery = '';
+        persistState();
+        render(latest);
+        document.getElementById('tree-search').focus();
+      };
+      reportSize();
     }
 
     window.addEventListener('message', (event) => {
+      if (event.source !== window.parent) return;
       const msg = event.data;
-      if (msg?.method === 'ui/notifications/tool-result') {
-        const data = msg.params?.structuredContent ?? msg.params?.result?.structuredContent;
+      if (!msg || msg.jsonrpc !== '2.0') return;
+      if (msg.id !== undefined && pending.has(msg.id)) {
+        const waiter = pending.get(msg.id);
+        pending.delete(msg.id);
+        if (msg.error) waiter.reject(msg.error);
+        else waiter.resolve(msg.result);
+        return;
+      }
+      if (msg.method === 'ui/notifications/tool-result') {
+        const data = msg.params?.structuredContent;
         if (data) render(data);
       }
-    });
+    }, { passive: true });
 
     if (latest) render(latest);
-    if (saved.preferredDisplayMode && window.openai?.requestDisplayMode) {
-      window.openai.requestDisplayMode({ mode: saved.preferredDisplayMode }).catch(() => {});
+    if (savedTreeState.preferredDisplayMode && window.openai?.requestDisplayMode) {
+      window.openai.requestDisplayMode({ mode: savedTreeState.preferredDisplayMode }).catch(() => {});
     }
+
+    (async () => {
+      try {
+        await request('ui/initialize', {
+          protocolVersion: '2026-01-26',
+          appInfo: { name: 'Aurum Chat Tree', version: '1.1.1' },
+          appCapabilities: {}
+        });
+        notify('ui/notifications/initialized');
+        bridgeReady = true;
+        const resizeTarget = document.querySelector('.sidebar') ?? document.documentElement;
+        new ResizeObserver(reportSize).observe(resizeTarget);
+        reportSize();
+      } catch (error) {
+        app.className = 'loading';
+        app.textContent = 'Chat Tree panel could not connect to the host.';
+      }
+    })();
   </script>
 </body>
 </html>
