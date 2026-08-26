@@ -116,3 +116,29 @@ submission. The receipt therefore records that QPU use was considered and
 skipped. A future catalog must reach at least 64 candidates before this lane can
 mark QPU exploration eligible, and eligibility still grants no hardware access
 or physical-apply authority.
+
+## Hardware and known-driver correlation
+
+`pi3_reference_correlation.py` adds a separate reference-aware lane without
+replacing raw empirical testing. The `Aurum Pi3 Reference Correlation` workflow
+downloads ten hash-pinned inputs: the official reduced Pi3B Rev 1.2 schematic,
+the LAN9514 controller datasheet, Raspberry Pi Linux sources at an immutable
+`rpi-6.18.y` commit, and upstream Linux sources at the immutable v6.18 commit.
+It compares the Raspberry Pi and upstream `smsc95xx`, `usbnet`, and related
+sources, then reconciles their explicit capabilities with the preserved sealed
+physical artifact and the compile-only Aurum candidate.
+
+The reduced schematic proves the board class and BCM2837 but does not itself
+name LAN9514. The analyzer therefore treats the datasheet as a controller-family
+reference until a read-only USB identity receipt proves the controller on this
+exact Pi. It likewise refuses to equate a later `rpi-6.18.y` source snapshot with
+the running `6.18.34+rpt-rpi-v8` binary without exact package/source provenance.
+
+The earlier Future Branch three-qubit model is retained as a sealed comparison
+input. It ranks machine-experiment paths; it is not a Pi3 electrical, kernel, or
+driver digital twin. It may guide experiment ordering, but official references
+and physical telemetry remain authoritative for hardware claims. This comparison
+is small enough for exact classical evaluation, so it performs no QPU submission.
+The workflow is GitHub-hosted, has no Pi address or SSH path, and grants no
+kernel, driver-binding, boot, firmware, network, or other physical mutation
+authority.

@@ -1,0 +1,199 @@
+name: Aurum Pi3 Reference Correlation
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Sealed physical Pi3 source run
+        required: true
+        type: number
+        default: 32964554773
+      artifact_id:
+        description: Exact physical evidence artifact ID
+        required: true
+        type: number
+        default: 9605841913
+      artifact_digest:
+        description: Exact physical evidence artifact SHA-256 digest
+        required: true
+        type: string
+        default: sha256:5ec90bdf6c9606bfbd6a481d453326323cfc292c07f2c6248a31729acc1b1740
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: aurum-pi3-reference-correlation-${{ inputs.source_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  sealed-reference-correlation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
+      ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+    steps:
+      - name: Check out analyzer and pinned reference manifest
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify exact physical artifact metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p physical-evidence reference-input correlation-output
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/$ARTIFACT_ID" > correlation-output/artifact-metadata.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = json.loads(Path("correlation-output/artifact-metadata.json").read_text())
+          expected_id = int(os.environ["ARTIFACT_ID"])
+          expected_run = int(os.environ["SOURCE_RUN_ID"])
+          expected_digest = os.environ["ARTIFACT_DIGEST"]
+          if artifact.get("id") != expected_id:
+              raise SystemExit("artifact id mismatch")
+          if artifact.get("digest") != expected_digest:
+              raise SystemExit("artifact digest mismatch")
+          if artifact.get("expired") is not False:
+              raise SystemExit("artifact is expired")
+          workflow_run = artifact.get("workflow_run") or {}
+          if workflow_run.get("id") != expected_run:
+              raise SystemExit("artifact workflow run mismatch")
+          expected_name = f"aurum-pi3-adaptive-kernel-overnight-{expected_run}"
+          if artifact.get("name") != expected_name:
+              raise SystemExit("artifact name mismatch")
+          Path("correlation-output/artifact-name.txt").write_text(expected_name + "\n")
+          PY
+
+      - name: Download preserved physical evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_name="$(tr -d '\r\n' < correlation-output/artifact-name.txt)"
+          gh run download "$SOURCE_RUN_ID" --name "$artifact_name" --dir physical-evidence
+
+      - name: Download and hash-pin official and Linux references
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import urllib.request
+          from urllib.parse import urlparse
+
+          manifest = json.loads(
+              Path("Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json").read_text()
+          )
+          allowed_hosts = {
+              "datasheets.raspberrypi.com",
+              "raw.githubusercontent.com",
+              "ww1.microchip.com",
+          }
+          output = Path("reference-input")
+          for source in manifest["sources"]:
+              parsed = urlparse(source["url"])
+              if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
+                  raise SystemExit(f"reference host refused: {source['id']}")
+              request = urllib.request.Request(
+                  source["url"], headers={"User-Agent": "Aurum-Pi3-reference-correlation/1"}
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  body = response.read(4 * 1024 * 1024 + 1)
+              if not body or len(body) > 4 * 1024 * 1024:
+                  raise SystemExit(f"reference size refused: {source['id']}")
+              digest = hashlib.sha256(body).hexdigest()
+              if digest != source["sha256"]:
+                  raise SystemExit(f"reference hash mismatch: {source['id']}")
+              (output / source["filename"]).write_bytes(body)
+          PY
+
+      - name: Extract bounded PDF reference text
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pypdfium2==5.12.1
+          PYTHONIOENCODING=utf-8 python -m pypdfium2_cli extract-text \
+            reference-input/pi3-reduced-schematic.pdf \
+            > reference-input/pi3-reduced-schematic.pdf.txt
+          PYTHONIOENCODING=utf-8 python -m pypdfium2_cli extract-text \
+            reference-input/lan9514-datasheet.pdf \
+            > reference-input/lan9514-datasheet.pdf.txt
+
+      - name: Correlate schematic, known drivers, telemetry, and QPU router
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m Projects.AdaptiveKernel.pi3_reference_correlation \
+            --reference-dir reference-input \
+            --manifest Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json \
+            --pressure-result Projects/AdaptiveKernel/results/pi3-adaptive-runtime-pressure-32964554773.json \
+            --cloud-result Projects/AdaptiveKernel/results/pi3-cloud-policy-32970792618.json \
+            --evidence-dir physical-evidence \
+            --candidate-manifest Projects/AdaptiveKernel/driver_candidates/candidate.json \
+            --direct-compile Projects/AdaptiveKernel/results/pi3-driver-candidate-direct-compile-20260826.json \
+            --ci-compile Projects/AdaptiveKernel/results/pi3-driver-candidate-ci-32958005908.json \
+            --qpu-model Projects/AdaptiveKernel/references/pi3_hardware/qpu-routing-model-32924126448.json \
+            --output correlation-output/pi3-reference-correlation.json
+
+      - name: Verify sealed result and publish summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_reference_correlation import (
+              verify_reference_correlation_receipt,
+          )
+
+          receipt = json.loads(
+              Path("correlation-output/pi3-reference-correlation.json").read_text()
+          )
+          if receipt.get("state") != "completed":
+              raise SystemExit("reference correlation did not complete")
+          if not verify_reference_correlation_receipt(receipt):
+              raise SystemExit("reference correlation receipt seal failed")
+          invariants = receipt["invariants"]
+          if invariants["live_pi_contacted"] or invariants["mutation_authority_granted"]:
+              raise SystemExit("cloud comparison crossed its zero-authority boundary")
+          if receipt["qpu_comparison"]["hardware_submission_performed"]:
+              raise SystemExit("comparison unexpectedly submitted QPU hardware work")
+          summary = [
+              "# Pi3 Hardware and Known-Driver Correlation",
+              "",
+              f"- Semantic state: `{receipt['semantic_state']}`",
+              f"- Verified references: `{receipt['inputs']['verified_reference_count']}`",
+              f"- Agreement points: `{receipt['correlation']['agreement_count']}`",
+              f"- Explicit evidence gaps: `{receipt['correlation']['gap_count']}`",
+              f"- Protected physical driver: `{receipt['known_driver_comparison']['protected_physical_driver']}`",
+              f"- QPU model available: `{receipt['qpu_comparison']['model_available']}`",
+              f"- QPU used: `{receipt['qpu_comparison']['used']}`",
+              "- Live Pi contacted: `false`",
+              "- Physical mutation authority: `false`",
+              "",
+              receipt["strongest_claim"],
+          ]
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as handle:
+              handle.write("\n".join(summary) + "\n")
+          PY
+
+      - name: Retain sealed comparison
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-reference-correlation-${{ github.run_id }}
+          path: correlation-output/
+          if-no-files-found: error
+          retention-days: 30

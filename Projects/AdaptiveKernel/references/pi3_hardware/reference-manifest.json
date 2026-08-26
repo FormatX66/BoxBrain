@@ -1,0 +1,152 @@
+{
+  "schema": "aurum-pi3-hardware-reference-manifest-v1",
+  "target": {
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "reference_driver": "smsc95xx",
+    "serial": "00000000a6a7df7f"
+  },
+  "source_scope": {
+    "raspberry_pi_linux_commit": "16f1da3c4e94437449d6aa151589ca0ad4b388bb",
+    "raspberry_pi_linux_ref": "rpi-6.18.y",
+    "running_kernel_source_equivalence_proven": false,
+    "upstream_linux_commit": "7d0a66e4bb9081d75c82ec4957c50034cb0ea449",
+    "upstream_linux_ref": "v6.18"
+  },
+  "sources": [
+    {
+      "filename": "pi3-reduced-schematic.pdf",
+      "id": "raspberry-pi-3b-rev12-reduced-schematic",
+      "kind": "pdf",
+      "required_tokens": [
+        "Raspberry Pi 3 Model B (Reduced Schematics)",
+        "RPI-3B 1.2",
+        "BCM2837"
+      ],
+      "sha256": "59ab7a171a199975525169b233bc2918d5b9208e3b42e456439da6dbbff82626",
+      "text_filename": "pi3-reduced-schematic.pdf.txt",
+      "url": "https://datasheets.raspberrypi.com/rpi3/raspberry-pi-3-b-reduced-schematics.pdf"
+    },
+    {
+      "filename": "lan9514-datasheet.pdf",
+      "id": "microchip-lan9514-datasheet-00002306a",
+      "kind": "pdf",
+      "required_tokens": [
+        "LAN9514/LAN9514i",
+        "USB 2.0 Hub and 10/100 Ethernet Controller",
+        "TCP/UDP checksum offload support"
+      ],
+      "sha256": "0cba1bc6249079d920750d8072e01f67996a67ec8cdaf605db975b9790ee341f",
+      "text_filename": "lan9514-datasheet.pdf.txt",
+      "url": "https://ww1.microchip.com/downloads/en/DeviceDoc/00002306A.pdf"
+    },
+    {
+      "comparison_group": "smsc95xx-c",
+      "filename": "rpi-smsc95xx.c",
+      "id": "raspberry-pi-linux-smsc95xx-c",
+      "implementation": "raspberry-pi-rpi-6.18.y",
+      "kind": "source",
+      "required_tokens": [
+        "#define SMSC_CHIPNAME",
+        "\"smsc95xx\"",
+        "DEFAULT_RX_CSUM_ENABLE",
+        "static int packetsize = 2560",
+        "MODULE_DEVICE_TABLE(usb, products)"
+      ],
+      "sha256": "9dcf8096d30f8ae04045db3cb3bc424e22ee083e860a308a4cd4f4b9583888d0",
+      "url": "https://raw.githubusercontent.com/raspberrypi/linux/16f1da3c4e94437449d6aa151589ca0ad4b388bb/drivers/net/usb/smsc95xx.c"
+    },
+    {
+      "comparison_group": "smsc95xx-c",
+      "filename": "upstream-smsc95xx.c",
+      "id": "upstream-linux-v6.18-smsc95xx-c",
+      "implementation": "upstream-linux-v6.18",
+      "kind": "source",
+      "required_tokens": [
+        "#define SMSC_CHIPNAME",
+        "\"smsc95xx\"",
+        "DEFAULT_RX_CSUM_ENABLE",
+        "MODULE_DEVICE_TABLE(usb, products)"
+      ],
+      "sha256": "5ca28cb24d226c81d2de133083a21cee796f2d008328e9a650fce752df8f280c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/7d0a66e4bb9081d75c82ec4957c50034cb0ea449/drivers/net/usb/smsc95xx.c"
+    },
+    {
+      "comparison_group": "smsc95xx-h",
+      "filename": "rpi-smsc95xx.h",
+      "id": "raspberry-pi-linux-smsc95xx-h",
+      "implementation": "raspberry-pi-rpi-6.18.y",
+      "kind": "source",
+      "required_tokens": [
+        "#define RX_CFG",
+        "#define HW_CFG"
+      ],
+      "sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+      "url": "https://raw.githubusercontent.com/raspberrypi/linux/16f1da3c4e94437449d6aa151589ca0ad4b388bb/drivers/net/usb/smsc95xx.h"
+    },
+    {
+      "comparison_group": "smsc95xx-h",
+      "filename": "upstream-smsc95xx.h",
+      "id": "upstream-linux-v6.18-smsc95xx-h",
+      "implementation": "upstream-linux-v6.18",
+      "kind": "source",
+      "required_tokens": [
+        "#define RX_CFG",
+        "#define HW_CFG"
+      ],
+      "sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/7d0a66e4bb9081d75c82ec4957c50034cb0ea449/drivers/net/usb/smsc95xx.h"
+    },
+    {
+      "comparison_group": "usbnet-c",
+      "filename": "rpi-usbnet.c",
+      "id": "raspberry-pi-linux-usbnet-c",
+      "implementation": "raspberry-pi-rpi-6.18.y",
+      "kind": "source",
+      "required_tokens": [
+        "usbnet_probe",
+        "usbnet_disconnect"
+      ],
+      "sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+      "url": "https://raw.githubusercontent.com/raspberrypi/linux/16f1da3c4e94437449d6aa151589ca0ad4b388bb/drivers/net/usb/usbnet.c"
+    },
+    {
+      "comparison_group": "usbnet-c",
+      "filename": "upstream-usbnet.c",
+      "id": "upstream-linux-v6.18-usbnet-c",
+      "implementation": "upstream-linux-v6.18",
+      "kind": "source",
+      "required_tokens": [
+        "usbnet_probe",
+        "usbnet_disconnect"
+      ],
+      "sha256": "cf942bfa8c2fbcfb1635c239754226f948ddfab808011c27422ca168f68a6e69",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/7d0a66e4bb9081d75c82ec4957c50034cb0ea449/drivers/net/usb/usbnet.c"
+    },
+    {
+      "filename": "rpi-lan78xx.c",
+      "id": "raspberry-pi-linux-lan78xx-family-comparator",
+      "implementation": "raspberry-pi-rpi-6.18.y",
+      "kind": "source",
+      "required_tokens": [
+        "lan78xx_probe",
+        "module_usb_driver(lan78xx_driver)"
+      ],
+      "sha256": "be592ba195356b56cc2da4ff8780daa9279e0a9fc221562038ecf8b95f48bdcb",
+      "url": "https://raw.githubusercontent.com/raspberrypi/linux/16f1da3c4e94437449d6aa151589ca0ad4b388bb/drivers/net/usb/lan78xx.c"
+    },
+    {
+      "filename": "rpi-bcm2835_defconfig",
+      "id": "raspberry-pi-linux-bcm2835-defconfig",
+      "implementation": "raspberry-pi-rpi-6.18.y",
+      "kind": "source",
+      "required_tokens": [
+        "CONFIG_USB_USBNET=y",
+        "CONFIG_USB_NET_SMSC95XX=y",
+        "CONFIG_USB_LAN78XX=y"
+      ],
+      "sha256": "ef995b459fff13354fe478f53386069a4f399617268e9754a231a01ab1428557",
+      "url": "https://raw.githubusercontent.com/raspberrypi/linux/16f1da3c4e94437449d6aa151589ca0ad4b388bb/arch/arm/configs/bcm2835_defconfig"
+    }
+  ]
+}

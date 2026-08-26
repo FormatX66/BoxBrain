@@ -1,0 +1,28 @@
+{
+  "model": {
+    "candidate_kind": "machine-experiment-paths",
+    "hardware_digital_twin": false,
+    "hardware_submission_performed": false,
+    "original_schema": "aurum-future-branch-qpu-candidate-v1",
+    "population_size": 8,
+    "qpu_eligible": true,
+    "qpu_eligibility_basis": {
+      "strict_failure_rate": 0.6666666666666666,
+      "strict_failure_threshold": 0.5
+    },
+    "qubits": 3,
+    "selected_path": "fresh-authority-triggers-live-reproof-and-guarded-preflight",
+    "submission": null,
+    "weighting_scope": "full-field-weighting-before-top-probability-execution-pruning"
+  },
+  "provenance": {
+    "artifact_digest": "sha256:a727a98df50528dd77c6c3487043248b3c61b6e224dbb2aec2fab2c488664cb1",
+    "artifact_file_sha256": "f93e709381964944a699fd737436242afbdef920ced47faa3b2a44a841368e80",
+    "artifact_id": 9590881116,
+    "repository": "FormatX66/aurum-future-branch-quantum",
+    "run_id": 32924126448,
+    "source_commit": "06d8dd2552a7f04fe0c6b5cc816727698b98bdb7"
+  },
+  "receipt_sha256": "482aae52c852e8c786fc8686bc9a4383a433b61ac8c06845eb42051e83f1ebb7",
+  "schema": "aurum-pi3-qpu-routing-reference-v1"
+}
