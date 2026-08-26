@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aurum Chat Tree</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; padding: 12px; }
+    .wrap { display: grid; gap: 10px; }
+    .head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .title { font-weight: 700; font-size: 16px; }
+    .sub { opacity: .72; font-size: 12px; }
+    .node { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 10px; padding: 10px; }
+    .focus { border-width: 2px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .name { font-weight: 650; }
+    .state { font-size: 11px; opacity: .75; }
+    .section { font-size: 11px; text-transform: uppercase; opacity: .6; margin-top: 2px; }
+    button { border: 1px solid color-mix(in srgb, currentColor 20%, transparent); background: transparent; color: inherit; border-radius: 8px; padding: 7px 9px; cursor: pointer; }
+    button:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
+    .tree { display: grid; gap: 7px; }
+    .muted { opacity: .68; }
+  </style>
+</head>
+<body>
+  <main id="app" class="wrap"><div class="muted">Loading Chat Tree…</div></main>
+  <script>
+    const app = document.getElementById('app');
+    let latest = window.openai?.toolOutput ?? null;
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+    async function followUp(text) {
+      if (window.openai?.sendFollowUpMessage) {
+        await window.openai.sendFollowUpMessage({ prompt: text });
+        return;
+      }
+      window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text }] } }, '*');
+    }
+
+    function render(data) {
+      latest = data;
+      const tree = data?.tree ?? {};
+      const nodes = tree.nodes ?? [];
+      const focusId = data?.focusId ?? tree.focus_path?.[tree.focus_path.length - 1];
+      const focus = nodes.find(n => n.node_id === focusId) ?? nodes.find(n => n.node_id === tree.root_id);
+      if (!focus) { app.innerHTML = '<div class="muted">No Chat Tree state available.</div>'; return; }
+      const parent = nodes.find(n => n.node_id === focus.parent_id);
+      const children = nodes.filter(n => n.parent_id === focus.node_id);
+      const siblings = nodes.filter(n => n.parent_id === focus.parent_id && n.node_id !== focus.node_id);
+      const nodeCard = (n, cls='') => `<div class="node ${cls}"><div class="row"><span class="name">${esc(n.title)}</span><span class="state">${esc(n.state)}</span></div><div class="sub">${esc(n.summary || n.node_id)}</div></div>`;
+      app.innerHTML = `
+        <div class="head"><div><div class="title">Aurum Chat Tree</div><div class="sub">Focused conversation lane</div></div><button id="refresh">Refresh</button></div>
+        <div class="section">Current</div>${nodeCard(focus,'focus')}
+        <div class="row"><button id="continue">Continue here</button><button id="child">Split child</button><button id="sibling">Split sibling</button></div>
+        ${parent ? `<div class="section">Parent</div>${nodeCard(parent)}` : ''}
+        ${children.length ? `<div class="section">Children</div><div class="tree">${children.map(n => nodeCard(n)).join('')}</div>` : ''}
+        ${siblings.length ? `<div class="section">Siblings</div><div class="tree">${siblings.map(n => nodeCard(n)).join('')}</div>` : ''}
+      `;
+      document.getElementById('continue').onclick = () => followUp(`Continue the Chat Tree node "${focus.title}" (${focus.node_id}). Keep this chat scoped to that objective and read current shared state before making runtime claims.`);
+      document.getElementById('child').onclick = () => followUp(`Split the current Chat Tree node "${focus.title}" (${focus.node_id}) into a new child branch for the new subproblem I describe next. Preserve a compact handoff and only inherit relevant state.`);
+      document.getElementById('sibling').onclick = () => followUp(`Split away from "${focus.title}" (${focus.node_id}) into a new sibling Chat Tree branch for the new topic I describe next. Preserve a compact handoff and keep the existing branch active separately.`);
+      document.getElementById('refresh').onclick = async () => {
+        if (window.openai?.callTool) {
+          const result = await window.openai.callTool('show_chat_tree', { focusId: focus.node_id });
+          if (result?.structuredContent) render(result.structuredContent);
+        } else {
+          followUp('Refresh and show the current Aurum Chat Tree.');
+        }
+      };
+    }
+
+    window.addEventListener('message', (event) => {
+      const msg = event.data;
+      if (msg?.method === 'ui/notifications/tool-result') {
+        const data = msg.params?.structuredContent ?? msg.params?.result?.structuredContent;
+        if (data) render(data);
+      }
+    });
+
+    if (latest) render(latest);
+  </script>
+</body>
+</html>
