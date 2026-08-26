@@ -1,0 +1,101 @@
+{
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "correlation": {
+    "agreement_count": 8,
+    "agreements": [
+      {
+        "id": "board-model-and-soc",
+        "physical": "exact model and serial gates passed",
+        "reference": "Pi3B Rev 1.2 reduced schematic names the board and BCM2837",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-binding",
+        "physical": "smsc95xx remained bound before, during, and after the run",
+        "reference": "Raspberry Pi kernel config and source include built-in smsc95xx over usbnet",
+        "state": "agrees"
+      },
+      {
+        "id": "checksum-offload-capability",
+        "physical": "rx-checksumming canary passed and restored without persistent change",
+        "reference": "LAN9514 datasheet and smsc95xx source expose checksum support",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-health",
+        "physical": "carrier remained present with zero final errors and drops",
+        "reference": "protected Linux branch remains the baseline",
+        "state": "agrees"
+      },
+      {
+        "id": "lan9514-controller-assembly",
+        "physical": "pinned Pi3 sysfs topology observed parent hub 0424:9514 and Ethernet function 0424:ec00",
+        "reference": "LAN9514 reference identifies USB hub 0424:9514 with SMSC95xx Ethernet function 0424:ec00",
+        "state": "agrees"
+      },
+      {
+        "id": "negotiated-fast-ethernet-link",
+        "physical": "pinned Pi3 negotiated 100 Mbps full duplex on protected smsc95xx",
+        "reference": "LAN9514 Ethernet capability is 10/100",
+        "state": "agrees"
+      },
+      {
+        "id": "official-running-kernel-package-equivalence",
+        "physical": "pinned Pi3 running kernel 9cf86cfbe4e8e47b3c30ee4d1dedf805354637c1e90508d880aa5cea9a69935a matches the exact kernel bytes extracted from that official package",
+        "reference": "official Raspberry Pi archive package linux-image-6.18.34+rpt-rpi-v8 1:6.18.34-1+rpt1 / source linux 1:6.18.34-1+rpt1",
+        "state": "agrees"
+      },
+      {
+        "id": "offline-functional-smsc95xx-lan9514-model",
+        "model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+        "physical": "sealed Pi3 identity/link/checksum observations reproduced by the non-actuating model",
+        "reference": "hash-pinned Raspberry Pi smsc95xx source plus sealed LAN9514/reference evidence",
+        "state": "agrees"
+      }
+    ],
+    "closed_gap_ids": [
+      "candidate-driver-hardware-behavior",
+      "controller-identity",
+      "negotiated-link-speed",
+      "running-driver-source-provenance"
+    ],
+    "gap_count": 0,
+    "gaps": []
+  },
+  "inputs": {
+    "functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+    "source_refinement_receipt_sha256": "fc4ccafd3b2001eaa90e79bbb57bb2ec7db6d1007675cac045e23e60e77e350f"
+  },
+  "invariants": {
+    "device_io_performed_by_refinement": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted_by_refinement": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "promotion_authority_granted": false,
+    "reference_driver_preserved": true
+  },
+  "proposal": {
+    "native_driver_implementation_state": "not-yet-functional-native-driver",
+    "next_experiment": "synthesize-minimal-nonbinding-smsc95xx-candidate-from-functional-model",
+    "physical_binding_allowed": false,
+    "physical_driver_change": "no-change",
+    "reference_model_state": "complete-for-current-bounded-first-milestone"
+  },
+  "receipt_sha256": "f32cef3efee11af00a5cf3b6a56ca667cb490bf0d622424faa2e59288222547c",
+  "schema": "aurum-pi3-reference-behavior-refinement-v1",
+  "semantic_state": "reference-model-gaps-closed",
+  "state": "completed",
+  "strongest_claim": "All currently tracked Pi3 reference-model gaps are closed at the non-actuating model layer: exact controller identity/link, official package-to-running-kernel provenance, and a functional LAN9514/smsc95xx shadow model now agree with sealed physical/reference evidence. This does not prove an Aurum native driver implementation, physical binding safety, or promotion eligibility."
+}

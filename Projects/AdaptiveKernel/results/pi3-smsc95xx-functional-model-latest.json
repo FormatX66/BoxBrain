@@ -1,0 +1,162 @@
+{
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "constants": {
+    "tx_overhead_bytes": 8,
+    "tx_overhead_checksum_bytes": 12
+  },
+  "defaults": {
+    "rx_checksum_enabled": true,
+    "tx_checksum_enabled": true
+  },
+  "forbidden_actions": [
+    "write_eeprom",
+    "bind_candidate",
+    "load_module",
+    "replace_kernel",
+    "firmware_write"
+  ],
+  "invariants": {
+    "device_io_performed": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "promotion_authority_granted": false
+  },
+  "next_gate": "synthesize-minimal-nonbinding-driver-candidate-from-functional-model",
+  "receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+  "reference_evidence": {
+    "physical_feature_evidence": "sealed correlation includes reversible rx-checksumming on/off/on canary and healthy final carrier",
+    "reference_manifest_source_commit": "16f1da3c4e94437449d6aa151589ca0ad4b388bb",
+    "rpi_smsc95xx_c_sha256": "9dcf8096d30f8ae04045db3cb3bc424e22ee083e860a308a4cd4f4b9583888d0",
+    "rpi_smsc95xx_h_sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+    "source_refinement_receipt_sha256": "fc4ccafd3b2001eaa90e79bbb57bb2ec7db6d1007675cac045e23e60e77e350f"
+  },
+  "schema": "aurum.pi3.smsc95xx.functional-model.v1",
+  "scope": {
+    "controller": "LAN9514/LAN9514i",
+    "duplex_modes": [
+      "half",
+      "full"
+    ],
+    "link_speeds_mbps": [
+      10,
+      100
+    ],
+    "mode": "non-actuating-shadow-model",
+    "protected_reference_driver": "smsc95xx",
+    "usb_ethernet_function": "0424:ec00",
+    "usb_parent": "0424:9514"
+  },
+  "state": "verified-offline-functional-model",
+  "strongest_claim": "Aurum now has a deterministic non-actuating LAN9514/smsc95xx functional model whose controller identity, 10/100 link envelope, reversible RX-checksum behavior, and TX checksum framing agree with sealed physical/reference evidence and hash-pinned Raspberry Pi Linux source. It is not a production driver and grants no mutation or promotion authority.",
+  "supported_actions": [
+    "identify",
+    "attach_reference",
+    "link",
+    "set_rx_checksum",
+    "tx_prepare"
+  ],
+  "verification": {
+    "canonical_replay": {
+      "outputs": [
+        {
+          "accepted": true,
+          "state": "identified"
+        },
+        {
+          "accepted": true,
+          "state": "attached"
+        },
+        {
+          "accepted": true,
+          "duplex": "full",
+          "speed_mbps": 100,
+          "state": "link-up"
+        },
+        {
+          "accepted": true,
+          "rx_checksum_enabled": false
+        },
+        {
+          "accepted": true,
+          "rx_checksum_enabled": true
+        },
+        {
+          "accepted": true,
+          "checksum_partial": false,
+          "framed_len": 1508,
+          "payload_len": 1500,
+          "tx_overhead_bytes": 8
+        },
+        {
+          "accepted": true,
+          "checksum_partial": true,
+          "framed_len": 1512,
+          "payload_len": 1500,
+          "tx_overhead_bytes": 12
+        }
+      ],
+      "state": {
+        "carrier": true,
+        "duplex": "full",
+        "identity_verified": true,
+        "reference_attached": true,
+        "rx_checksum_enabled": true,
+        "speed_mbps": 100
+      }
+    },
+    "canonical_trace": [
+      {
+        "kind": "identify",
+        "parent_product": "9514",
+        "parent_vendor": "0424",
+        "usb_product": "ec00",
+        "usb_vendor": "0424"
+      },
+      {
+        "driver": "smsc95xx",
+        "kind": "attach_reference"
+      },
+      {
+        "carrier": true,
+        "duplex": "full",
+        "kind": "link",
+        "speed_mbps": 100
+      },
+      {
+        "enabled": false,
+        "kind": "set_rx_checksum"
+      },
+      {
+        "enabled": true,
+        "kind": "set_rx_checksum"
+      },
+      {
+        "checksum_partial": false,
+        "kind": "tx_prepare",
+        "payload_len": 1500
+      },
+      {
+        "checksum_partial": true,
+        "kind": "tx_prepare",
+        "payload_len": 1500
+      }
+    ],
+    "functional_scenarios_passed": 7,
+    "physical_state_reproduced": true,
+    "reference_tx_framing_reproduced": true,
+    "reversible_rx_checksum_sequence_reproduced": true
+  }
+}
