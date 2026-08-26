@@ -34,6 +34,8 @@ jobs:
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_HANDOFF_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
@@ -58,10 +60,45 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
           }
           $repo = $env:GITHUB_REPOSITORY
-          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?branch=main&status=success&per_page=20"
-          $handoffRun = @($runs.workflow_runs | Where-Object { [string]$_.head_sha -eq $seedSha } | Sort-Object {[long]$_.id} -Descending | Select-Object -First 1)
-          if ($handoffRun.Count -ne 1) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=same-source-handoff-run-missing' }
-          $handoffRunId = [long]$handoffRun[0].id
+          $handoffRunId = [long]0
+
+          # A workflow_run event is the strongest zero-authority provenance link.
+          if ($env:EVENT_NAME -eq 'workflow_run' -and $env:EVENT_HANDOFF_RUN_ID -match '^\d+$') {
+            $handoffRunId = [long]$env:EVENT_HANDOFF_RUN_ID
+          }
+
+          # A still-present request may carry the canonical handoff run identity
+          # even after its write authority expires. Treat that field as provenance
+          # only; it never grants cache-stage write authority.
+          if ($handoffRunId -le 0) {
+            $requestPath = 'Projects/Aurum/Recovery/tinyseed-flash-request.json'
+            if (Test-Path -LiteralPath $requestPath -PathType Leaf) {
+              try { $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json } catch { $request = $null }
+              if (
+                $null -ne $request -and
+                ([string]$request.seed_sha).Trim().ToLowerInvariant() -eq $seedSha -and
+                ([string]$request.image_sha256).Trim().ToLowerInvariant() -eq $imageSha -and
+                [long]$request.handoff_run_id -gt 0
+              ) {
+                $handoffRunId = [long]$request.handoff_run_id
+              }
+            }
+          }
+
+          # Last-resort discovery is safe/read-only: select the newest successful
+          # handoff and then require its downloaded manifest to match the canonical
+          # release exactly before anything enters the persistent cache.
+          if ($handoffRunId -le 0) {
+            $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?branch=main&status=success&per_page=10"
+            $latest = @($runs.workflow_runs | Sort-Object {[long]$_.id} -Descending | Select-Object -First 1)
+            if ($latest.Count -ne 1) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-run-missing' }
+            $handoffRunId = [long]$latest[0].id
+          }
+
+          $run = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId"
+          if ([string]$run.path -ne '.github/workflows/aurum-tiny-seed-handoff.yml' -or [string]$run.conclusion -ne 'success') {
+            throw 'AURUM_TINYSEED_CACHE_REFUSED reason=bound-handoff-run-not-successful'
+          }
           $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
           $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
           if ($artifact.Count -ne 1) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-artifact-missing' }
@@ -79,10 +116,14 @@ jobs:
               [string]$existingMeta.schema -eq 'aurum-tinyseed-windows-cache-v1' -and
               ([string]$existingMeta.source_commit).ToLowerInvariant() -eq $seedSha -and
               ([string]$existingMeta.image_sha256).ToLowerInvariant() -eq $imageSha -and
+              [long]$existingMeta.handoff_run_id -eq $handoffRunId -and
+              [long]$existingMeta.handoff_artifact_id -eq [long]$artifact[0].id -and
               [bool]$existingMeta.hash_verified -and
+              -not [bool]$existingMeta.destructive_media_write -and
+              -not [bool]$existingMeta.write_authority -and
               $existingHash -eq $imageSha
             ) {
-              Write-Host "AURUM_TINYSEED_CACHE_HIT source=$seedSha image_sha256=$imageSha destructive_media_write=false write_authority=false"
+              Write-Host "AURUM_TINYSEED_CACHE_HIT source=$seedSha image_sha256=$imageSha handoff_run_id=$handoffRunId destructive_media_write=false write_authority=false"
               exit 0
             }
           }
@@ -102,6 +143,9 @@ jobs:
             if ([string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $seedSha) {
               throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-manifest-mismatch'
             }
+            foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
+              if ([string]$manifest.gates.$gate -ne 'passed') { throw "AURUM_TINYSEED_CACHE_REFUSED reason=manifest-gate-$gate" }
+            }
             $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
             $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($expected -ne $imageSha -or $actual -ne $imageSha -or ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant() -ne $imageSha) {
@@ -110,24 +154,28 @@ jobs:
 
             $staging = $cacheRoot + '.staging-' + [Guid]::NewGuid().ToString('N')
             New-Item -ItemType Directory -Path $staging -Force | Out-Null
-            Copy-Item -LiteralPath $image.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso')
-            Copy-Item -LiteralPath $shaFile.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso.sha256')
-            Copy-Item -LiteralPath $manifestFile.FullName -Destination (Join-Path $staging 'AURUM-TINYSEED-RELEASE.json')
-            $meta = [ordered]@{
-              schema = 'aurum-tinyseed-windows-cache-v1'
-              source_commit = $seedSha
-              image_sha256 = $imageSha
-              handoff_run_id = $handoffRunId
-              handoff_artifact_id = [long]$artifact[0].id
-              hash_verified = $true
-              destructive_media_write = $false
-              write_authority = $false
-              cached_at_utc = [DateTime]::UtcNow.ToString('o')
+            try {
+              Copy-Item -LiteralPath $image.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso')
+              Copy-Item -LiteralPath $shaFile.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso.sha256')
+              Copy-Item -LiteralPath $manifestFile.FullName -Destination (Join-Path $staging 'AURUM-TINYSEED-RELEASE.json')
+              $meta = [ordered]@{
+                schema = 'aurum-tinyseed-windows-cache-v1'
+                source_commit = $seedSha
+                image_sha256 = $imageSha
+                handoff_run_id = $handoffRunId
+                handoff_artifact_id = [long]$artifact[0].id
+                hash_verified = $true
+                destructive_media_write = $false
+                write_authority = $false
+                cached_at_utc = [DateTime]::UtcNow.ToString('o')
+              }
+              $metaJson = $meta | ConvertTo-Json -Depth 5
+              [IO.File]::WriteAllText((Join-Path $staging 'cache-metadata.json'), $metaJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
+              if (Test-Path $cacheRoot) { Remove-Item -LiteralPath $cacheRoot -Recurse -Force }
+              Move-Item -LiteralPath $staging -Destination $cacheRoot
+            } finally {
+              if (Test-Path $staging) { Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue }
             }
-            $metaJson = $meta | ConvertTo-Json -Depth 5
-            [IO.File]::WriteAllText((Join-Path $staging 'cache-metadata.json'), $metaJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
-            if (Test-Path $cacheRoot) { Remove-Item -LiteralPath $cacheRoot -Recurse -Force }
-            Move-Item -LiteralPath $staging -Destination $cacheRoot
           } finally {
             Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
           }
