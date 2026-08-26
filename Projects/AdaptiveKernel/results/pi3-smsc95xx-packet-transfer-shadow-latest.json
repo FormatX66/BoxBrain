@@ -25,7 +25,7 @@
     "usb_transfer_submitted": false
   },
   "next_gate": "source-referenced-packet-transfer-differential-before-native-binding",
-  "receipt_sha256": "ac462fe8d4e9a1f2e2f506ee544e64c27288eb7cb347a19f8f1f3306ebf650e3",
+  "receipt_sha256": "3ce94fecc637d6b5469fb8b4cf1e7c08eedcfe08b8e1845f51df48c930247b0b",
   "register_control_transfer": {
     "read_request": 161,
     "read_request_type": 192,
@@ -50,9 +50,11 @@
     "buffer_size_mask": 2047,
     "checksum_enable_mask": 16384,
     "checksum_preamble_bytes": 4,
+    "checksum_trailing_guard_bytes": 5,
     "command_word_bytes": 8,
     "first_segment_mask": 8192,
     "frame_length_mask": 2047,
+    "hardware_checksum_min_frame_length_exclusive": 45,
     "last_segment_mask": 4096
   }
 }

@@ -15,7 +15,7 @@
   "inputs": {
     "cloud_arm64_candidate_receipt_sha256": "4b92836f0d2f3610fd40dd76e6f29721685a9f908c5b693a737ace3a6f01e277",
     "functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
-    "packet_model_receipt_sha256": "ac462fe8d4e9a1f2e2f506ee544e64c27288eb7cb347a19f8f1f3306ebf650e3",
+    "packet_model_receipt_sha256": "3ce94fecc637d6b5469fb8b4cf1e7c08eedcfe08b8e1845f51df48c930247b0b",
     "register_candidate_receipt_sha256": "6dea420e1e001f6ca331e89a8b80c99a60a7607f4dae1675efcc2dfc66c697b5",
     "register_differential_receipt_sha256": "cfdadb73e5170230a3af0cc504d20519a1151e67d2cf91b36692dbb918500815",
     "register_model_receipt_sha256": "763c6e8959367ff5ccf210e9a974a55fedb680110af70f84aaf9286928c404ed"
@@ -42,7 +42,7 @@
     "reason": "The bounded deterministic register and packet matrices are exhaustively evaluated classically.",
     "used": false
   },
-  "receipt_sha256": "5de8c3634c4d9c3bd05236ed8e79102c5cb6ce5dda4aa46fec3db649a86c5560",
+  "receipt_sha256": "13e91aa6131f30b3654033be677b340f363c3b31f4994bd1e1b982f05e58035f",
   "schema": "aurum.pi3.smsc95xx.offline-stack.v2",
   "state": "verified-offline-register-interrupt-packet-stack",
   "strongest_claim": "The sealed Pi3 smsc95xx offline stack now extends the verified ARM64 nonbinding candidate through hash-pinned register and interrupt semantics, a compiled C decoder differential, and deterministic USB control/TX/RX packet shadows. It remains host-only and is not a kernel module, device driver, hardware digital twin, binding proof, or promotion authorization.",
