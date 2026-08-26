@@ -164,13 +164,17 @@ def _project_kernel_preflight(plan: dict, evidence: dict) -> None:
         raise Pi3StatusError("unexpected Pi3 kernel-canary preflight schema")
     target = evidence.get("target")
     authority = evidence.get("authority")
+    build = evidence.get("build_prerequisites")
+    recovery = evidence.get("recovery")
     safety = evidence.get("safety")
-    if not all(isinstance(item, dict) for item in (target, authority, safety)):
+    if not all(isinstance(item, dict) for item in (target, authority, build, recovery, safety)):
         raise Pi3StatusError("Pi3 kernel-canary preflight evidence is incomplete")
     if target.get("serial") != PINNED_SERIAL or target.get("strict_key_only_ssh") is not True:
         raise Pi3StatusError("Pi3 kernel-canary preflight target is not pinned")
     if (
-        authority.get("kernel_module_load_allowed") is not False
+        authority.get("explicit_kernel_mutation_authority") is not False
+        or authority.get("mutation_ready") is not False
+        or authority.get("kernel_module_load_allowed") is not False
         or authority.get("driver_binding_change_allowed") is not False
         or authority.get("firmware_mutation_allowed") is not False
         or safety.get("module_loaded") is not False
@@ -192,14 +196,39 @@ def _project_kernel_preflight(plan: dict, evidence: dict) -> None:
     }
     if state not in allowed_states:
         raise Pi3StatusError("unexpected Pi3 kernel-canary preflight state")
-    # Even a preflight that has resolved every technical prerequisite does not itself
-    # contain the operator's fresh kernel-mutation authorization.
-    gate["state"] = str(state)
-    gate["ready_now"] = False
-    gate["proof"] = (
-        "kernel-canary prerequisite probe is persisted; no module was loaded and no "
-        "system driver changed. Current technical boundary: " + str(evidence.get("next_gate", "unknown"))
+
+    compile_proven = (
+        build.get("matching_headers_present") is True
+        and build.get("module_symvers_present") is True
+        and build.get("compile_only_canary_passed") is True
     )
+    watchdog_proven = recovery.get("out_of_band_automatic_watchdog_proven") is True
+
+    # A persisted preflight is technical evidence, never mutation authority.  When
+    # compilation is proven, preserve both remaining independent locks in the
+    # generated plan instead of copying the preflight's older single-blocker label.
+    if compile_proven and watchdog_proven:
+        gate["state"] = "held-on-explicit-kernel-mutation-authority"
+        proof = (
+            f"physical Pi3 baseline and userspace Generation-2 recovery are proven; exact running kernel {target.get('kernel')} "
+            "matching headers, Module.symvers, and inert compile-only canary are proven with no module load or driver change; "
+            "automatic out-of-band watchdog/recovery is proven, but fresh explicit kernel-mutation authority is still required"
+        )
+    elif compile_proven:
+        gate["state"] = "held-on-watchdog-and-kernel-authority"
+        proof = (
+            f"physical Pi3 baseline and userspace Generation-2 recovery are proven; exact running kernel {target.get('kernel')} "
+            "matching headers, Module.symvers, and inert compile-only canary are proven with no module load or driver change; "
+            "kernel mutation remains held until an automatic out-of-band watchdog/recovery path and fresh explicit kernel-mutation authority are separately proven"
+        )
+    else:
+        gate["state"] = str(state)
+        proof = (
+            "kernel-canary prerequisite probe is persisted; no module was loaded and no "
+            "system driver changed. Current technical boundary: " + str(evidence.get("next_gate", "unknown"))
+        )
+    gate["ready_now"] = False
+    gate["proof"] = proof
 
 
 def sync_pi3_status(root: Path = ROOT) -> dict:

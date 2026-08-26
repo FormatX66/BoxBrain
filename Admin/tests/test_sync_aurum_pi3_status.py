@@ -108,8 +108,20 @@ class SyncAurumPi3StatusTests(unittest.TestCase):
         preflight = {
             "schema": "aurum.pi3.kernel-canary.preflight.v1",
             "state": "held-out-of-band-watchdog-unproven",
-            "target": {"serial": "00000000a6a7df7f", "strict_key_only_ssh": True},
+            "target": {
+                "serial": "00000000a6a7df7f",
+                "kernel": "6.18.34+rpt-rpi-v8",
+                "strict_key_only_ssh": True,
+            },
+            "build_prerequisites": {
+                "matching_headers_present": True,
+                "module_symvers_present": True,
+                "compile_only_canary_passed": True,
+            },
+            "recovery": {"out_of_band_automatic_watchdog_proven": False},
             "authority": {
+                "explicit_kernel_mutation_authority": False,
+                "mutation_ready": False,
                 "kernel_module_load_allowed": False,
                 "driver_binding_change_allowed": False,
                 "firmware_mutation_allowed": False,
@@ -120,11 +132,48 @@ class SyncAurumPi3StatusTests(unittest.TestCase):
         path = root / "Projects/AdaptiveDrivers/evidence/pi3-kernel-canary-preflight.json"
         path.write_text(json.dumps(preflight), encoding="utf-8")
         result = sync_pi3_status(root)
-        self.assertEqual(result["kernel_state"], "held-out-of-band-watchdog-unproven")
+        self.assertEqual(result["kernel_state"], "held-on-watchdog-and-kernel-authority")
         plan = json.loads((root / "Projects/Aurum/completion-plan.json").read_text())
         kernel = next(item for item in plan["gates"] if item["id"] == "pi3-kernel-canary")
         self.assertFalse(kernel["ready_now"])
-        self.assertIn("out-of-band-watchdog", kernel["state"])
+        self.assertIn("watchdog", kernel["state"])
+        self.assertIn("kernel-authority", kernel["state"])
+
+    def test_watchdog_proof_still_cannot_grant_kernel_mutation_authority(self):
+        root = self.root()
+        self.write_generation2(root)
+        preflight = {
+            "schema": "aurum.pi3.kernel-canary.preflight.v1",
+            "state": "held-explicit-kernel-mutation-authority",
+            "target": {
+                "serial": "00000000a6a7df7f",
+                "kernel": "6.18.34+rpt-rpi-v8",
+                "strict_key_only_ssh": True,
+            },
+            "build_prerequisites": {
+                "matching_headers_present": True,
+                "module_symvers_present": True,
+                "compile_only_canary_passed": True,
+            },
+            "recovery": {"out_of_band_automatic_watchdog_proven": True},
+            "authority": {
+                "explicit_kernel_mutation_authority": False,
+                "mutation_ready": False,
+                "kernel_module_load_allowed": False,
+                "driver_binding_change_allowed": False,
+                "firmware_mutation_allowed": False,
+            },
+            "safety": {"module_loaded": False, "system_driver_changed": False, "production_nodes_allowed": False},
+            "next_gate": "obtain-fresh-explicit-kernel-mutation-authority",
+        }
+        path = root / "Projects/AdaptiveDrivers/evidence/pi3-kernel-canary-preflight.json"
+        path.write_text(json.dumps(preflight), encoding="utf-8")
+        result = sync_pi3_status(root)
+        self.assertEqual(result["kernel_state"], "held-on-explicit-kernel-mutation-authority")
+        plan = json.loads((root / "Projects/Aurum/completion-plan.json").read_text())
+        kernel = next(item for item in plan["gates"] if item["id"] == "pi3-kernel-canary")
+        self.assertFalse(kernel["ready_now"])
+        self.assertIn("fresh explicit kernel-mutation authority", kernel["proof"])
 
 
 if __name__ == "__main__":
