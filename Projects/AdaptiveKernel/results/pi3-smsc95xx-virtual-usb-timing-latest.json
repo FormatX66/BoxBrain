@@ -1,0 +1,55 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "deterministic_sequence_seed": 2501165278,
+  "deterministic_sequence_steps": 32768,
+  "invariants": {
+    "clear_halt_submitted": false,
+    "driver_binding_changed": false,
+    "live_pi_contacted": false,
+    "register_access_performed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false,
+    "wall_clock_or_sleep_used": false
+  },
+  "matrix_scenarios": 11,
+  "mismatch_count": 0,
+  "next_safe_gate": "virtual-usb-cancellation-and-queue-pressure-model",
+  "operation_counts": {
+    "complete": 16050,
+    "disconnect": 2655,
+    "reconnect": 2636,
+    "retry-backoff": 1930,
+    "submit": 9497
+  },
+  "receipt_sha256": "125acc2e57c755fc02ceb78578e0893e88477b3c63d40775885350f97af85f5d",
+  "retry_budget": 2,
+  "scenario_count": 32779,
+  "schema": "aurum.pi3.smsc95xx.virtual-usb-timing-concurrency.v1",
+  "state": "controlled-virtual-usb-timing-concurrency-passed",
+  "strongest_claim": "The sealed virtual USB fault model now has deterministic zero-authority timing/concurrency semantics: same-endpoint transfers serialize, TX and RX may overlap, early/stale completions fail closed, disconnect invalidates the prior generation, and retry backoff is bounded.",
+  "timing_contract": {
+    "disconnect_invalidates_prior_generation": true,
+    "early_completion_refused": true,
+    "retry_backoff_bounded_ms": [
+      5,
+      40
+    ],
+    "same_endpoint_serialized": true,
+    "stale_completion_quarantined": true,
+    "tx_rx_overlap_allowed": true
+  },
+  "trace_sha256": "07582319c86fe389cb96b271f6d615095e2c3f2e8c03d757a68543f0684f4dbd",
+  "upstream_fault_receipt_sha256": "94495d859d24c4172c2974768e7d7196a584f3789a293a5ad83e6ec695ab34b7"
+}
