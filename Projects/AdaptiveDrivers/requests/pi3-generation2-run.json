@@ -1,0 +1,24 @@
+{
+  "schema": "aurum-pi3-adaptive-driver-generation2-request-v1",
+  "requested_state": "physical-userspace-generation2-proof",
+  "target": "raspberry-pi-3-experimental",
+  "candidate": "pi3-net-sysfs-tolerant-v2",
+  "fault_probe": "pi3-net-sysfs-tolerant-v2-missing-field-fixture",
+  "safety": {
+    "production_nodes_allowed": false,
+    "system_driver_mutation_allowed": false,
+    "kernel_module_mutation_allowed": false,
+    "firmware_mutation_allowed": false,
+    "persistent_trust_change_allowed": false,
+    "metadata_promotion_only": true,
+    "isolated_state_only": true
+  },
+  "proof_required": [
+    "strict-pinned-pi3-identity",
+    "generation2-complete-read-promotion",
+    "missing-field-quarantine",
+    "byte-identical-lkg-through-fault",
+    "isolated-metadata-rollback-to-linux-reference",
+    "zero-system-driver-change"
+  ]
+}
