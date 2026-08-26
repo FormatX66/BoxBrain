@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p candidate-evidence
-          python Projects/AdaptiveKernel/pi3_smsc95xx_candidate_synth.py \
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_candidate_synth \
             --model Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json \
             --source-output candidate-evidence/pi3-smsc95xx-nonbinding-candidate.c \
             --receipt-output candidate-evidence/pi3-smsc95xx-nonbinding-candidate.json
@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python Projects/AdaptiveKernel/pi3_smsc95xx_candidate_differential.py \
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_candidate_differential \
             --model Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json \
             --output candidate-evidence/pi3-smsc95xx-candidate-differential.json
 
@@ -68,7 +68,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu \
+            binutils-aarch64-linux-gnu \
+            libc6-dev-arm64-cross
           aarch64-linux-gnu-gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
             -c candidate-evidence/pi3-smsc95xx-nonbinding-candidate.c \
             -o candidate-evidence/pi3-smsc95xx-nonbinding-candidate.aarch64.o
@@ -86,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python Projects/AdaptiveKernel/pi3_smsc95xx_candidate_cloud.py \
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_candidate_cloud \
             --candidate candidate-evidence/pi3-smsc95xx-nonbinding-candidate.json \
             --differential candidate-evidence/pi3-smsc95xx-candidate-differential.json \
             --qpu Projects/AdaptiveKernel/references/pi3_hardware/qpu-routing-model-32924126448.json \
@@ -145,6 +148,7 @@ jobs:
           retention-days: 30
 
       - name: Persist candidate source and receipts into durable lineage
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail

@@ -25,7 +25,20 @@ class Pi3Smsc95xxCandidateCloudTests(unittest.TestCase):
         self.assertNotIn("modules_install", lower)
         self.assertNotIn(".ko", lower)
         self.assertIn("aarch64-linux-gnu-gcc", lower)
+        self.assertIn("libc6-dev-arm64-cross", lower)
         self.assertIn("[skip ci]", lower)
+
+    def test_workflow_invokes_package_modules_from_repo_root(self):
+        for module in (
+            "pi3_smsc95xx_candidate_synth",
+            "pi3_smsc95xx_candidate_differential",
+            "pi3_smsc95xx_candidate_cloud",
+        ):
+            self.assertIn(f"python -m Projects.AdaptiveKernel.{module}", self.workflow)
+            self.assertNotIn(f"python Projects/AdaptiveKernel/{module}.py", self.workflow)
+
+    def test_workflow_persists_only_from_main(self):
+        self.assertIn("if: github.ref == 'refs/heads/main'", self.workflow)
 
 
 if __name__ == "__main__":
