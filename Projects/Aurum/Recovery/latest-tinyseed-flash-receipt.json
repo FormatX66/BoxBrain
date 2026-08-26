@@ -1,10 +1,10 @@
-﻿{
+{
     "schema":  "aurum-tinyseed-flash-request-receipt-v1",
     "state":  "READY_TO_BOOT",
-    "request_id":  "tinyseed-sandisk-flash-20260826-0248-be94",
-    "source_commit":  "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
-    "image_sha256":  "4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e",
-    "handoff_run_id":  32920807865,
+    "request_id":  "tinyseed-sandisk-flash-20260826-1137-8812634a",
+    "source_commit":  "8812634ae2296db673b9de135c43a1119e885647",
+    "image_sha256":  "b5c1bfa6f6ca2945d0e95c42f0302e5e6def18e7b415e8fb701fe6f90a99dd32",
+    "handoff_run_id":  32935021418,
     "device":  {
                    "disk_number":  1,
                    "model":  "USB SanDisk 3.2 Gen",
@@ -13,5 +13,5 @@
                },
     "raw_readback_verified":  true,
     "write_authority_consumed":  true,
-    "observed_at_utc":  "2026-08-26T03:13:10.1375333Z"
+    "observed_at_utc":  "2026-08-26T11:38:45.6101612Z"
 }
