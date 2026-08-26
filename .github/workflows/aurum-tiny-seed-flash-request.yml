@@ -86,15 +86,35 @@ jobs:
             finally { $sha.Dispose() }
           }
 
-          $candidateRows = @()
-          foreach ($disk in @(Get-Disk | Where-Object { $_.BusType -eq 'USB' })) {
-            $rawSerial = ([string]$disk.SerialNumber).Trim()
-            if (-not $rawSerial) { continue }
-            $candidateRows += [pscustomobject]@{
-              disk = $disk
-              raw_serial = $rawSerial
-              serial_sha256 = Get-SerialHash $rawSerial
+          function Assert-VerifiedPacket(
+            [string]$ImagePath,
+            [string]$ChecksumPath,
+            [string]$ManifestPath,
+            [string]$ExpectedSeed,
+            [string]$ExpectedImage
+          ) {
+            if (-not (Test-Path -LiteralPath $ImagePath -PathType Leaf) -or -not (Test-Path -LiteralPath $ChecksumPath -PathType Leaf) -or -not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
+              throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=packet-files-missing'
             }
+            $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+            if ([string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $ExpectedSeed) {
+              throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=manifest'
+            }
+            foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
+              if ([string]$manifest.gates.$gate -ne 'passed') { throw "AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=gate-$gate" }
+            }
+            $expected = ((Get-Content -LiteralPath $ChecksumPath -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+            $actual = (Get-FileHash -LiteralPath $ImagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($expected -ne $ExpectedImage -or $actual -ne $ExpectedImage -or ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant() -ne $ExpectedImage) {
+              throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=image-sha'
+            }
+          }
+
+          $candidateRows = @()
+          foreach ($diskItem in @(Get-Disk | Where-Object { $_.BusType -eq 'USB' })) {
+            $raw = ([string]$diskItem.SerialNumber).Trim()
+            if (-not $raw) { continue }
+            $candidateRows += [pscustomobject]@{ disk = $diskItem; raw_serial = $raw; serial_sha256 = Get-SerialHash $raw }
           }
           $matches = @($candidateRows | Where-Object { $_.serial_sha256 -eq $serialHashWanted })
           if ($matches.Count -ne 1) { throw "AURUM_TINYSEED_FLASH_REFUSED reason=hashed-target-not-unique count=$($matches.Count)" }
@@ -135,10 +155,6 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
           }
           $repo = $env:GITHUB_REPOSITORY
-          # workflow_run jobs execute under the controller commit, while the
-          # handoff manifest is intentionally assembled for the exact completed
-          # x86/Pi source commit. Bind the request to one successful handoff run,
-          # then let the downloaded manifest and image hashes prove seed identity.
           $run = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId"
           if ([string]$run.path -ne '.github/workflows/aurum-tiny-seed-handoff.yml' -or [string]$run.conclusion -ne 'success') {
             throw 'AURUM_TINYSEED_FLASH_WAITING reason=bound-handoff-run-not-successful'
@@ -146,54 +162,105 @@ jobs:
           $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
           $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
           if ($artifact.Count -ne 1) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-artifact-missing' }
+          $artifactId = [long]$artifact[0].id
 
-          $cacheRoot = Join-Path $env:RUNNER_TEMP "aurum-tinyseed-request-$requestId"
-          if (Test-Path -LiteralPath $cacheRoot) { Remove-Item -LiteralPath $cacheRoot -Recurse -Force }
-          New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
-          $zip = Join-Path $cacheRoot 'handoff.zip'
-          Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$([long]$artifact[0].id)/zip" -OutFile $zip
-          $expanded = Join-Path $cacheRoot 'expanded'
-          Expand-Archive -LiteralPath $zip -DestinationPath $expanded -Force
-
-          $manifestFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
-          $image = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
-          $shaFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
-          if (-not $manifestFile -or -not $image -or -not $shaFile) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-packet-incomplete' }
-          $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
-          if ([string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $seedSha) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=manifest' }
-          foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
-            if ([string]$manifest.gates.$gate -ne 'passed') { throw "AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=gate-$gate" }
+          # Prefer a packet that was fully downloaded and hash-verified before
+          # destructive authority existed. Cache state is deliberately
+          # non-authoritative and is reverified here before use.
+          $persistentCache = Join-Path $env:ProgramData "Aurum\TinySeedFlash\cache\$imageSha"
+          $imagePath = Join-Path $persistentCache 'Aurum-TinySeed-amd64.iso'
+          $shaPath = Join-Path $persistentCache 'Aurum-TinySeed-amd64.iso.sha256'
+          $manifestPath = Join-Path $persistentCache 'AURUM-TINYSEED-RELEASE.json'
+          $metaPath = Join-Path $persistentCache 'cache-metadata.json'
+          $cacheUsable = $false
+          if ((Test-Path $imagePath) -and (Test-Path $shaPath) -and (Test-Path $manifestPath) -and (Test-Path $metaPath)) {
+            try {
+              $meta = Get-Content -LiteralPath $metaPath -Raw | ConvertFrom-Json
+              if (
+                [string]$meta.schema -eq 'aurum-tinyseed-windows-cache-v1' -and
+                ([string]$meta.source_commit).ToLowerInvariant() -eq $seedSha -and
+                ([string]$meta.image_sha256).ToLowerInvariant() -eq $imageSha -and
+                [long]$meta.handoff_run_id -eq $handoffRunId -and
+                [long]$meta.handoff_artifact_id -eq $artifactId -and
+                [bool]$meta.hash_verified -and
+                -not [bool]$meta.destructive_media_write -and
+                -not [bool]$meta.write_authority
+              ) {
+                Assert-VerifiedPacket $imagePath $shaPath $manifestPath $seedSha $imageSha
+                $cacheUsable = $true
+              }
+            } catch {
+              Write-Host "AURUM_TINYSEED_FLASH_CACHE_REJECTED reason=$($_.Exception.Message)"
+              $cacheUsable = $false
+            }
           }
-          $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
-          $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($expected -ne $imageSha -or $actual -ne $imageSha -or ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant() -ne $imageSha) {
-            throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=image-sha'
+
+          if ($cacheUsable) {
+            Write-Host "AURUM_TINYSEED_FLASH_CACHE_HIT source=$seedSha image_sha256=$imageSha handoff_run_id=$handoffRunId write_authority=false"
+          } else {
+            Write-Host 'AURUM_TINYSEED_FLASH_CACHE_MISS action=download-and-verify-before-write-boundary'
+            $tempRoot = Join-Path $env:RUNNER_TEMP "aurum-tinyseed-request-$requestId"
+            if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force }
+            New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+            try {
+              $zip = Join-Path $tempRoot 'handoff.zip'
+              Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$artifactId/zip" -OutFile $zip
+              $expanded = Join-Path $tempRoot 'expanded'
+              Expand-Archive -LiteralPath $zip -DestinationPath $expanded -Force
+              $manifestFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
+              $imageFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
+              $checksumFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
+              if (-not $manifestFile -or -not $imageFile -or -not $checksumFile) { throw 'AURUM_TINYSEED_FLASH_INTEGRITY_FAILURE reason=handoff-packet-incomplete' }
+              Assert-VerifiedPacket $imageFile.FullName $checksumFile.FullName $manifestFile.FullName $seedSha $imageSha
+
+              $staging = $persistentCache + '.staging-' + [Guid]::NewGuid().ToString('N')
+              New-Item -ItemType Directory -Path $staging -Force | Out-Null
+              try {
+                Copy-Item $imageFile.FullName (Join-Path $staging 'Aurum-TinySeed-amd64.iso')
+                Copy-Item $checksumFile.FullName (Join-Path $staging 'Aurum-TinySeed-amd64.iso.sha256')
+                Copy-Item $manifestFile.FullName (Join-Path $staging 'AURUM-TINYSEED-RELEASE.json')
+                $meta = [ordered]@{
+                  schema = 'aurum-tinyseed-windows-cache-v1'
+                  source_commit = $seedSha
+                  image_sha256 = $imageSha
+                  handoff_run_id = $handoffRunId
+                  handoff_artifact_id = $artifactId
+                  hash_verified = $true
+                  destructive_media_write = $false
+                  write_authority = $false
+                  cached_at_utc = [DateTime]::UtcNow.ToString('o')
+                }
+                [IO.File]::WriteAllText((Join-Path $staging 'cache-metadata.json'), (($meta | ConvertTo-Json -Depth 5) + [Environment]::NewLine), (New-Object Text.UTF8Encoding($false)))
+                if (Test-Path $persistentCache) { Remove-Item $persistentCache -Recurse -Force }
+                Move-Item $staging $persistentCache
+              } finally {
+                if (Test-Path $staging) { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue }
+              }
+            } finally {
+              Remove-Item $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            $imagePath = Join-Path $persistentCache 'Aurum-TinySeed-amd64.iso'
+            $shaPath = Join-Path $persistentCache 'Aurum-TinySeed-amd64.iso.sha256'
+            $manifestPath = Join-Path $persistentCache 'AURUM-TINYSEED-RELEASE.json'
+            Assert-VerifiedPacket $imagePath $shaPath $manifestPath $seedSha $imageSha
+            Write-Host "AURUM_TINYSEED_FLASH_CACHE_STAGED source=$seedSha image_sha256=$imageSha write_authority=false"
           }
 
-          # Use the exact PowerShell host GitHub Actions selected. Some
-          # self-hosted Windows runners provide Windows PowerShell but do not
-          # put PowerShell 7's `pwsh` alias on PATH.
           $shellExe = (Get-Process -Id $PID -ErrorAction Stop).Path
           if ((Split-Path -Leaf $shellExe) -notin @('powershell.exe', 'pwsh.exe')) {
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=untrusted-powershell-host'
           }
 
-          # Artifact retrieval is the slow part of this job. Re-observe the
-          # already-authorized recovery boundary only after that work is done so
-          # the destructive gate is based on fresh read-only evidence rather
-          # than a receipt that may age out while the packet downloads.
+          # Refresh recovery only after potentially slow packet preparation. This
+          # makes destructive proof fresh at the point where it actually matters.
           $recoveryScript = 'Projects/AurumBridge/Refresh-HopperRecoveryReadOnly.ps1'
           $recoveryReceipt = 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
           & $shellExe -NoProfile -File $recoveryScript -OutputPath $recoveryReceipt
           if ($LASTEXITCODE -ne 0) { throw "AURUM_TINYSEED_FLASH_REFUSED reason=preexecution-recovery-refresh-failed exit=$LASTEXITCODE" }
 
-          # Authorization freshness is a write-time invariant, not merely a
-          # workflow-start invariant. Never let a long download carry expired
-          # authority across the destructive boundary.
           if ([DateTime]::UtcNow -gt $expires) { throw 'AURUM_TINYSEED_FLASH_REFUSED reason=request-expired-before-write' }
 
-          # Re-prove exact local identity immediately before consuming the
-          # one-shot authority and invoking the destructive helper.
+          # Re-prove exact target immediately before consuming the one-shot.
           $live = Get-Disk -Number ([int]$disk.Number) -ErrorAction Stop
           if ($live.BusType -ne 'USB' -or [bool]$live.IsBoot -or [bool]$live.IsSystem -or [bool]$live.IsReadOnly -or [int64]$live.Size -ne $sizeWanted -or (Get-SerialHash (([string]$live.SerialNumber).Trim())) -ne $serialHashWanted) {
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=target-identity-changed-before-helper'
@@ -202,10 +269,8 @@ jobs:
             throw 'AURUM_TINYSEED_FLASH_REFUSED reason=target-became-protected-before-helper'
           }
 
-          # Consume authority at the last safe moment. If the raw write or its
-          # readback fails or the process crashes, the request remains consumed
-          # and cannot be silently retried. A new destructive attempt then needs
-          # fresh explicit authority.
+          # Consume authority at the last safe moment. Any subsequent failure
+          # requires new explicit authority; no automatic destructive retry.
           $claim = [ordered]@{
             schema = 'aurum-tinyseed-flash-claim-v1'
             state = 'CLAIMED'
@@ -215,12 +280,11 @@ jobs:
             write_authority_consumed = $true
             claimed_at_utc = [DateTime]::UtcNow.ToString('o')
           }
-          $claimJson = $claim | ConvertTo-Json -Depth 5
-          [IO.File]::WriteAllText($sentinel, $claimJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
+          [IO.File]::WriteAllText($sentinel, ((($claim | ConvertTo-Json -Depth 5)) + [Environment]::NewLine), (New-Object Text.UTF8Encoding($false)))
 
           $confirm = "FLASH_TINYSEED_$($imageSha.Substring(0,8).ToUpperInvariant())"
           $script = 'Projects/Aurum/Germ/handoff/Flash-TinySeed-Windows.ps1'
-          $childOutput = & $shellExe -NoProfile -File $script -ImagePath $image.FullName -ChecksumPath $shaFile.FullName -DiskSerial $rawSerial -ConfirmText $confirm -Write 2>&1
+          $childOutput = & $shellExe -NoProfile -File $script -ImagePath $imagePath -ChecksumPath $shaPath -DiskSerial $rawSerial -ConfirmText $confirm -Write 2>&1
           $childExit = $LASTEXITCODE
           foreach ($line in @($childOutput)) { Write-Host (([string]$line).Replace($rawSerial, '<redacted-serial>')) }
           if ($childExit -ne 0) { throw "AURUM_TINYSEED_FLASH_FAILED helper_exit=$childExit" }
