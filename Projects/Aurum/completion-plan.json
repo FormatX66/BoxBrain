@@ -187,15 +187,34 @@
       "proof": "pre-change StateWeave receipt is bound to a candidate kernel plan with explicit rollback target and branch bridge"
     },
     {
+      "id": "pi3-physical-baseline",
+      "lane": "physical-experiment",
+      "depends_on": [],
+      "state": "passed-physical-experiment",
+      "ready_now": true,
+      "proof": "pinned experimental Pi3 identity, exact current-card rollback image/archive, and post-backup physical reboot canary are proven"
+    },
+    {
+      "id": "pi3-adaptive-driver-userspace-generation2",
+      "lane": "physical-experiment",
+      "depends_on": [
+        "pi3-physical-baseline"
+      ],
+      "state": "passed-physical-experiment",
+      "ready_now": true,
+      "proof": "generation-2 read-only userspace driver observer matched reference behavior, missing-field fault quarantined with byte-identical LKG metadata, and isolated metadata rollback restored the Linux reference profile"
+    },
+    {
       "id": "pi3-kernel-canary",
       "lane": "physical-experiment",
       "depends_on": [
-        "pi-physical-boot",
+        "pi3-physical-baseline",
+        "pi3-adaptive-driver-userspace-generation2",
         "adaptive-kernel-independent"
       ],
-      "state": "blocked-on-physical-hardware",
+      "state": "held-on-kernel-mutation-prerequisites",
       "ready_now": false,
-      "proof": "adaptive-kernel canary runs on experimental Pi3 without affecting production nodes"
+      "proof": "experimental Pi3 hardware and userspace generation-2 recovery are proven; a kernel-module canary still requires exact matching headers, an automatic out-of-band watchdog/recovery path, and fresh explicit kernel-mutation authority"
     },
     {
       "id": "pi3-stateweave-canary",
