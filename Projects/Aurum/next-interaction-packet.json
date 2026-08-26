@@ -5,7 +5,7 @@
   "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
   "source": "Projects/Aurum/future-branches.json",
   "source_schema": "aurum-future-branch-state-v11",
-  "source_evidence_sha256": "a2c3953dac6e87d88dd55cdfeb6d4327ed391000b2754dd36ce81b9b16ec9712",
+  "source_evidence_sha256": "80af9e6764ab3fd2901485a521395fe0aa72a04d02f10a02a631c7eb1993856a",
   "release_source_commit": "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
   "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source be94bb832b8e6fb2a05a6adcfd797f8a7922c655 with x86 SHA-256 4f9c680461adf3cd88850283e2e4494a22c412212ccc7d12ade269806603e68e. Physical preflight is READY_FOR_GUARDED_FLASH_PREFLIGHT; preflight_matches_current_release=true, terminal_recovery_receipt=true, terminal_reason=boxbrain-unreachable, manual_handoff_released=true, eligible_usb_count=1, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=explicit-guarded-flash-authorization. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "frontier": [
