@@ -1,0 +1,46 @@
+name: Aurum Pi3 Kernel Shadow Static Contract
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-kernel-shadow-static.yml'
+      - 'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/**'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_kernel_shadow_contract.py'
+      - 'Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json'
+      - 'Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-nonbinding-candidate.c'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-kernel-shadow-static-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact kernel-shadow source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Stage Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Run fail-closed kernel-shadow contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v Projects/AdaptiveKernel/tests/test_pi3_kernel_shadow_contract.py
+          python Projects/AdaptiveKernel/driver_candidates/kernel_shadow/verify_kernel_shadow.py \
+            | tee kernel-shadow-static-receipt.json
+          python - <<'PY'
+          import json
+          value = json.load(open('kernel-shadow-static-receipt.json', encoding='utf-8'))
+          if value.get('state') != 'verified-inert-kernel-shadow-compile-only':
+              raise SystemExit('kernel-shadow static contract did not pass')
+          if any(v is not False for v in (value.get('invariants') or {}).values()):
+              raise SystemExit('kernel-shadow static contract unexpectedly grants capability')
+          print('AURUM_PI3_KERNEL_SHADOW_STATIC state=verified-inert-kernel-shadow-compile-only write_authority=false')
+          PY
