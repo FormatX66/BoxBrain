@@ -39,7 +39,7 @@
       "local_ab_slots": true,
       "offline_carrier": {
         "enabled": true,
-        "pinned_commit": "41d480cd2a7b5530a5720c353ceb479b4df5f59a"
+        "pinned_commit": "e39609d112e5268bf1437dca297d1a095b80eb03"
       }
     },
     "arm64": {
