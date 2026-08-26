@@ -11,6 +11,7 @@ import {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { handleFarmerToolCall } from "./farmer-actuator.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AURUM_ROOT = path.resolve(HERE, "..");
@@ -89,7 +90,7 @@ function closeQuietly(resource) {
 }
 
 function createChatTreeServer() {
-  const server = new McpServer({ name: "aurum-chat-tree-plugin", version: "0.2.0" });
+  const server = new McpServer({ name: "aurum-chat-tree-plugin", version: "0.3.0" });
 
   registerAppResource(server, "aurum-chat-tree-widget", TEMPLATE_URI, {}, async () => ({
     contents: [{
@@ -307,6 +308,29 @@ function createChatTreeServer() {
     return reply(
       { ...snapshot(consolidated.focus_id), consolidationResult: consolidated },
       `Consolidated and archived ${consolidated.archived_source_ids.length} Chat Tree nodes. ChatGPT conversation history was not changed.`,
+    );
+  });
+
+  server.registerTool("dispatch_farmer_objective", {
+    title: "Dispatch Aurum Farmer Objective",
+    description: "Dispatch one bounded Aurum Farmer objective into the verified GitHub event-driven completion controller. This tool never accepts shell commands, code, workflow names, repository names, tokens, URLs, or arbitrary execution payloads.",
+    inputSchema: {
+      objective_id: z.string().min(3).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/),
+      objective: z.string().min(1).max(4000),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  }, async (args) => {
+    const dispatched = await handleFarmerToolCall("dispatch_farmer_objective", args);
+    return reply(
+      dispatched,
+      dispatched.status === "dispatch_accepted"
+        ? "Aurum Farmer accepted the objective and will continue through GitHub executor and verifier receipts."
+        : "Aurum Farmer dispatch is machine-blocked; no human relay is required.",
     );
   });
 

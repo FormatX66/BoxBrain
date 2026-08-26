@@ -16,8 +16,14 @@ It does not replace the Chat Tree, Future Branch, or the evidence journal. It gi
 | `route_topic` | Continue the current topic or materialize a child/sibling split. | Yes, tree only |
 | `post_receipt` | Append a process/device evidence receipt and refresh the projection. | Yes, state journal |
 | `publish_live_state` | Publish a chat/process status/current action/blocker/evidence/next action update. | Yes, state journal |
+| `dispatch_farmer_objective` | Dispatch a bounded objective to the fixed Farmer GitHub controller. | Yes, external event only |
 
-`running_verified` and `succeeded` receipts require evidence references. The MCP server never grants execution authority and never erases physical/LKG boundaries.
+`running_verified` and `succeeded` receipts require evidence references. The MCP
+server never grants arbitrary execution authority and never erases physical/LKG
+boundaries. Its only execution action is the v3.2 Farmer actuator, which rejects
+repository, URL, workflow, token, code, command, and arbitrary payload fields.
+Set `GITHUB_TOKEN` or the server-owned `AURUM_FARMER_GITHUB_TOKEN_FILE`; neither
+credential is ever returned to clients.
 
 `publish_live_state` requires the five cross-chat continuity fields on every
 update: `status`, `current_action`, `blocker` (which may be null), `evidence`, and

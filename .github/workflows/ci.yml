@@ -127,6 +127,38 @@ jobs:
           foreach($port in @(22,80,443,5985,5986,3389)){if($result.probe_ports -notcontains $port){throw "missing probe port $port"}}
           if([int]$result.discovery_limit -gt 32){throw "discovery limit too broad: $($result.discovery_limit)"}
 
+  aurum-farmer-v3:
+    name: Aurum Farmer v3.2 and Chat Tree actuator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Verify reviewed host package and core behavior
+        working-directory: Projects/Aurum/Core/Farmer-v3
+        run: |
+          sha256sum --check SHA256SUMS
+          python -m unittest -v test_aurum_farmer_core.py
+          node --test ChatGPT-Actuator-v1/tests/farmer-actuator.test.mjs
+      - name: Verify Node Chat Tree actuator integration
+        working-directory: Projects/Aurum/ChatTreePlugin
+        run: |
+          npm test
+          npm run check
+      - name: Verify canonical Python MCP integration
+        working-directory: Projects/Aurum/ChatTreeMCP
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m unittest -v test_server.py
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest

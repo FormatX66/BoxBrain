@@ -43,6 +43,7 @@ class ChatTreeMCPTests(unittest.TestCase):
                 "post_receipt",
                 "publish_live_state",
                 "read_live_state",
+                "dispatch_farmer_objective",
             },
         )
         by_name = {tool.name: tool for tool in tools}
@@ -58,6 +59,38 @@ class ChatTreeMCPTests(unittest.TestCase):
         self.assertFalse(by_name["post_receipt"].annotations.destructive_hint)
         self.assertFalse(by_name["publish_live_state"].annotations.read_only_hint)
         self.assertFalse(by_name["publish_live_state"].annotations.destructive_hint)
+        self.assertFalse(by_name["dispatch_farmer_objective"].annotations.read_only_hint)
+        self.assertTrue(by_name["dispatch_farmer_objective"].annotations.open_world_hint)
+
+    def test_farmer_dispatch_is_objective_only_and_returns_ingress_receipt(self):
+        class Response:
+            status = 204
+            headers = {"x-github-request-id": "REQ_TEST"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _limit):
+                return b""
+
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "test-token"}, clear=False):
+            with patch.object(main.urlrequest, "urlopen", return_value=Response()) as opened:
+                result = main.dispatch_farmer_objective("farmer-test", "Reach verified completion.")
+        self.assertEqual(result["status"], "dispatch_accepted")
+        self.assertEqual(result["github_request_id"], "REQ_TEST")
+        self.assertEqual(len(result["dispatch_receipt"]), 32)
+        payload = json.loads(opened.call_args.args[0].data)
+        self.assertEqual(payload["event_type"], "aurum_farmer_event")
+        self.assertEqual(payload["client_payload"]["objective_id"], "farmer-test")
+
+    def test_farmer_missing_credential_remains_machine_only(self):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "", "AURUM_FARMER_GITHUB_TOKEN_FILE": ""}, clear=False):
+            result = main.dispatch_farmer_objective("farmer-test", "Continue.")
+        self.assertEqual(result["status"], "machine_blocked")
+        self.assertFalse(result["human_required"])
 
     def test_streamable_http_app_has_mcp_and_health_routes(self):
         paths = {route.path for route in main.app.routes}

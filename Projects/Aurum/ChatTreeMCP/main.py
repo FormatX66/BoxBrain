@@ -8,9 +8,14 @@ those same primitives through Streamable HTTP at ``/mcp``.
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 from pathlib import Path
+import re
 import sys
 from typing import Any, Literal, Mapping
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
@@ -31,6 +36,9 @@ from chat_tree_bridge import handle_request  # noqa: E402
 DEFAULT_TREE = AURUM_ROOT / "chat-process-tree.json"
 DEFAULT_EVENTS = AURUM_ROOT / "shared-state" / "events.jsonl"
 DEFAULT_PROJECTION = AURUM_ROOT / "shared-state" / "CURRENT_STATE.json"
+FARMER_REPOSITORY = "FormatX66/Chat-to-Git-Pipeline"
+FARMER_EVENT_TYPE = "aurum_farmer_event"
+FARMER_OBJECTIVE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 TOOL_NAMES = frozenset(
     {
@@ -70,6 +78,12 @@ DESTRUCTIVE = ToolAnnotations(
     destructive_hint=True,
     idempotent_hint=False,
     open_world_hint=False,
+)
+EXECUTING = ToolAnnotations(
+    read_only_hint=False,
+    destructive_hint=False,
+    idempotent_hint=False,
+    open_world_hint=True,
 )
 
 
@@ -127,6 +141,17 @@ def dispatch(tool_name: str, arguments: Mapping[str, object] | None = None) -> d
         events_path=events_path,
         projection_path=projection_path,
     )
+
+
+def _farmer_token() -> str:
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    token_file = os.getenv("AURUM_FARMER_GITHUB_TOKEN_FILE", "").strip()
+    if not token and token_file:
+        try:
+            token = Path(token_file).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return token
 
 
 mcp = MCPServer(
@@ -197,6 +222,110 @@ def read_live_state(
     if node_id is not None:
         args["node_id"] = node_id
     return dispatch("read_live_state", args)
+
+
+@mcp.tool(
+    title="Dispatch Aurum Farmer Objective",
+    description=(
+        "Dispatch one bounded Aurum Farmer objective into the verified GitHub event-driven "
+        "completion controller. Repository, event type, credential, and safety constraints "
+        "are server-owned; arbitrary commands and payloads are not accepted."
+    ),
+    annotations=EXECUTING,
+    structured_output=True,
+)
+def dispatch_farmer_objective(objective_id: str, objective: str) -> dict[str, Any]:
+    if not FARMER_OBJECTIVE_ID.fullmatch(objective_id):
+        raise ValueError("objective_id is invalid")
+    objective = objective.strip()
+    if not objective or len(objective) > 4000:
+        raise ValueError("objective must contain 1 to 4000 characters")
+    token = _farmer_token()
+    if not token:
+        return {
+            "status": "machine_blocked",
+            "human_required": False,
+            "blocker": {"kind": "github_execution_credential_unavailable"},
+        }
+    body = json.dumps(
+        {
+            "event_type": FARMER_EVENT_TYPE,
+            "client_payload": {
+                "schema": "aurum.farmer.dispatch.v1",
+                "objective_id": objective_id,
+                "source": "chatgpt",
+                "completion_definition": {
+                    "no_further_human_input": True,
+                    "no_known_bugs_or_glitches": True,
+                    "fully_functional": True,
+                    "no_required_changes_remaining": True,
+                    "verification_passed": True,
+                },
+                "constraints": {
+                    "continuation": "event_driven_no_polling",
+                    "no_user_relay": True,
+                    "no_arbitrary_shell": True,
+                    "independent_verification_required": True,
+                    "last_known_good_required": True,
+                },
+                "event": {"type": "farmer_request", "objective": objective, "work": []},
+            },
+        },
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = urlrequest.Request(
+        f"https://api.github.com/repos/{FARMER_REPOSITORY}/dispatches",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+            "User-Agent": "aurum-farmer-actuator/1",
+        },
+    )
+    try:
+        with urlrequest.urlopen(request, timeout=30) as response:
+            status = response.status
+            github_request_id = response.headers.get("x-github-request-id")
+            detail = response.read(1000).decode("utf-8", "replace")
+    except urlerror.HTTPError as exc:
+        return {
+            "status": "machine_blocked",
+            "human_required": False,
+            "blocker": {
+                "kind": "github_repository_dispatch_failed",
+                "http_status": exc.code,
+                "detail": exc.read(1000).decode("utf-8", "replace"),
+            },
+        }
+    except OSError as exc:
+        return {
+            "status": "machine_blocked",
+            "human_required": False,
+            "blocker": {"kind": "github_repository_dispatch_failed", "http_status": 0, "detail": str(exc)[:1000]},
+        }
+    if not 200 <= status < 300:
+        return {
+            "status": "machine_blocked",
+            "human_required": False,
+            "blocker": {"kind": "github_repository_dispatch_failed", "http_status": status, "detail": detail},
+        }
+    receipt = hashlib.sha256(
+        FARMER_REPOSITORY.encode() + b"\0" + objective_id.encode() + b"\0" + (github_request_id or "").encode() + b"\0" + body
+    ).hexdigest()[:32]
+    return {
+        "status": "dispatch_accepted",
+        "human_required": False,
+        "objective_id": objective_id,
+        "repository": FARMER_REPOSITORY,
+        "event_type": FARMER_EVENT_TYPE,
+        "github_request_id": github_request_id,
+        "dispatch_receipt": receipt,
+        "continuation": "event_driven_no_polling",
+        "terminal_states": ["verified_completion", "proven_human_only_blocker"],
+    }
 
 
 @mcp.tool(
@@ -396,6 +525,9 @@ async def health(_: Request) -> Response:
             "tree_exists": tree_path.exists(),
             "events_exists": events_path.exists(),
             "projection_exists": projection_path.exists(),
+            "farmer_dispatch_ready": bool(_farmer_token()),
+            "farmer_repository": FARMER_REPOSITORY,
+            "farmer_event_type": FARMER_EVENT_TYPE,
         }
     )
 
