@@ -95,6 +95,20 @@ Projects/Aurum/shared-state/CURRENT_STATE.json # deterministic latest projection
 Each event includes subject, actor, source, timestamp, status, optional tree node,
 dependencies, confidence, payload, and evidence references.
 
+Cross-chat publishers use the narrower live update shape:
+
+- `status`
+- `current_action`
+- `blocker` (nullable)
+- `evidence`
+- `next_action`
+
+`publish_live_state` appends that update under an inter-process journal lock and
+atomically refreshes the derived projection. `read_live_state` reconstructs the
+newest matching state from the append-only journal, with optional bounded history.
+This closes the publisher/consumer loop without making chat memory operational
+truth or turning shared state into permission to act.
+
 Runtime state vocabulary includes:
 
 - `planned`
@@ -122,8 +136,10 @@ commands are:
 
 - `get_tree`
 - `get_state`
+- `read_live_state`
 - `route_topic`
 - `post_receipt`
+- `publish_live_state`
 
 The current MCP v2 wrapper is documented in
 [Aurum Chat Tree MCP](../Projects/Aurum/ChatTreeMCP/README.md). It exposes the same

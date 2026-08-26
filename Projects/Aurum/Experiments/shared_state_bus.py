@@ -9,12 +9,13 @@ The bus does not grant authority. Verified runtime states require evidence.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import BinaryIO, Iterable, Iterator, Mapping
 from uuid import uuid4
 
 
@@ -57,6 +58,64 @@ def _nonempty(value: object, name: str) -> str:
 def _unique_strings(values: Iterable[object]) -> tuple[str, ...]:
     result = tuple(_nonempty(value, "reference") for value in values)
     return tuple(dict.fromkeys(result))
+
+
+@contextmanager
+def _exclusive_path_lock(path: Path) -> Iterator[None]:
+    """Serialize journal writers without changing the append-only journal itself."""
+
+    lock_path = path.with_name(f"{path.name}.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as handle:
+        _lock_handle(handle)
+        try:
+            yield
+        finally:
+            _unlock_handle(handle)
+
+
+def _lock_handle(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        return
+
+    import fcntl
+
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_handle(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+
+    import fcntl
+
+    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
 @dataclass(frozen=True)
@@ -276,22 +335,43 @@ class SharedStateBus:
             return cls()
         return cls.from_jsonl(file_path.read_text(encoding="utf-8"))
 
-    def append_file(self, path: str | Path, event: StateEvent) -> None:
-        """Validate, append, flush, then update the in-memory projection.
+    @classmethod
+    def load_consistent(cls, path: str | Path) -> "SharedStateBus":
+        """Read a complete journal snapshot without racing an in-flight append."""
 
-        This intentionally writes one complete JSON object per line so interrupted
-        producers cannot rewrite prior evidence. Callers needing multi-writer
-        coordination should add their platform's lock around this method.
+        file_path = Path(path)
+        with _exclusive_path_lock(file_path):
+            return cls.load(file_path)
+
+    def append_file(
+        self,
+        path: str | Path,
+        event: StateEvent,
+        *,
+        projection_path: str | Path | None = None,
+    ) -> None:
+        """Append one event under an inter-process lock and refresh projection.
+
+        The journal is reloaded only after the writer lock is held. This prevents
+        two chats/processes that started from the same stale snapshot from losing
+        one another's event or publishing an older latest-state projection.
         """
 
         event.validate()
-        if event.event_id in self._ids:
-            raise SharedStateError(f"duplicate event id: {event.event_id}")
         file_path = Path(path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         encoded = json.dumps(event.to_dict(), sort_keys=True) + "\n"
-        with file_path.open("a", encoding="utf-8", newline="\n") as handle:
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        self.apply(event)
+
+        with _exclusive_path_lock(file_path):
+            current = SharedStateBus.load(file_path)
+            current.apply(event)
+            with file_path.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            if projection_path is not None:
+                _write_text_atomic(Path(projection_path), current.to_projection_json())
+
+            self._events = list(current._events)
+            self._ids = set(current._ids)
+            self._projection = dict(current._projection)

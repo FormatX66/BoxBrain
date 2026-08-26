@@ -32,7 +32,16 @@ DEFAULT_TREE = AURUM_ROOT / "chat-process-tree.json"
 DEFAULT_EVENTS = AURUM_ROOT / "shared-state" / "events.jsonl"
 DEFAULT_PROJECTION = AURUM_ROOT / "shared-state" / "CURRENT_STATE.json"
 
-TOOL_NAMES = frozenset({"get_tree", "get_state", "route_topic", "post_receipt"})
+TOOL_NAMES = frozenset(
+    {
+        "get_tree",
+        "get_state",
+        "route_topic",
+        "post_receipt",
+        "publish_live_state",
+        "read_live_state",
+    }
+)
 STATUS = Literal[
     "planned",
     "queued",
@@ -152,6 +161,37 @@ def get_state() -> dict[str, Any]:
 
 
 @mcp.tool(
+    title="Read Aurum Cross-Chat Live State",
+    description=(
+        "Use this consumer action to read the newest shared status/current action, "
+        "blocker, evidence, and next action for one chat/process or the live frontier. "
+        "The append-only bus, not chat memory, is the source of truth."
+    ),
+    annotations=READ_ONLY,
+    structured_output=True,
+)
+def read_live_state(
+    subject_id: str | None = None,
+    node_id: str | None = None,
+    verified_only: bool = False,
+    include_history: bool = False,
+    limit: int = 50,
+) -> dict[str, Any]:
+    if not 1 <= limit <= 500:
+        raise ValueError("limit must be between 1 and 500")
+    args: dict[str, object] = {
+        "verified_only": verified_only,
+        "include_history": include_history,
+        "limit": limit,
+    }
+    if subject_id is not None:
+        args["subject_id"] = subject_id
+    if node_id is not None:
+        args["node_id"] = node_id
+    return dispatch("read_live_state", args)
+
+
+@mcp.tool(
     title="Route Aurum Topic",
     description=(
         "Use this when the conversation objective may have changed and Chat Tree must "
@@ -229,6 +269,62 @@ def post_receipt(
     if authority_ref is not None:
         args["authority_ref"] = authority_ref
     return dispatch("post_receipt", args)
+
+
+@mcp.tool(
+    title="Publish Aurum Cross-Chat Live State",
+    description=(
+        "Use this publisher action when a chat or process has a real live-state update. "
+        "Append status, current action, blocker, evidence, and next action to the shared "
+        "journal. Verified runtime/success states are refused without evidence, and this "
+        "action never grants execution authority."
+    ),
+    annotations=MUTATING,
+    structured_output=True,
+)
+def publish_live_state(
+    subject_id: str,
+    status: STATUS,
+    current_action: str,
+    next_action: str,
+    actor: str,
+    source: str,
+    evidence: list[str],
+    blocker: str | None = None,
+    subject_kind: str = "chat",
+    node_id: str | None = None,
+    summary: str = "",
+    dependency_ids: list[str] | None = None,
+    confidence: float | None = None,
+    authority_ref: str | None = None,
+    event_id: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if confidence is not None and not 0.0 <= confidence <= 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+    args: dict[str, object] = {
+        "subject_id": subject_id,
+        "subject_kind": subject_kind,
+        "status": status,
+        "current_action": current_action,
+        "blocker": blocker,
+        "evidence": evidence,
+        "next_action": next_action,
+        "actor": actor,
+        "source": source,
+        "summary": summary,
+        "dependency_ids": dependency_ids or [],
+        "payload": payload or {},
+    }
+    if node_id is not None:
+        args["node_id"] = node_id
+    if confidence is not None:
+        args["confidence"] = confidence
+    if authority_ref is not None:
+        args["authority_ref"] = authority_ref
+    if event_id is not None:
+        args["event_id"] = event_id
+    return dispatch("publish_live_state", args)
 
 
 @mcp.custom_route("/healthz", methods=["GET"], include_in_schema=False)
