@@ -88,6 +88,8 @@ class PacketTransferShadowTests(unittest.TestCase):
         self.assertEqual(tx["tx_cmd_a"] & TX_CMD_A_FIRST_SEG, TX_CMD_A_FIRST_SEG)
         self.assertEqual(tx["tx_cmd_a"] & TX_CMD_A_LAST_SEG, TX_CMD_A_LAST_SEG)
         self.assertEqual(tx["tx_cmd_b"] & TX_CMD_B_CSUM_ENABLE, 0)
+        self.assertFalse(tx["checksum_requested"])
+        self.assertFalse(tx["software_checksum_fallback"])
         self.assertFalse(tx["usb_transfer_performed"])
 
     def test_tx_checksum_preamble_and_overhead_are_modeled(self):
@@ -97,6 +99,23 @@ class PacketTransferShadowTests(unittest.TestCase):
         self.assertEqual(tx["framing_overhead_bytes"], 12)
         self.assertEqual(tx["usb_buffer_length"], 524)
         self.assertEqual(tx["tx_cmd_b"] & TX_CMD_B_CSUM_ENABLE, TX_CMD_B_CSUM_ENABLE)
+
+    def test_tx_checksum_uses_source_derived_software_fallback_guards(self):
+        short = model_tx_frame(frame_length=45, checksum_start_offset=20, checksum_field_offset=2)
+        self.assertTrue(short["checksum_requested"])
+        self.assertFalse(short["checksum_enabled"])
+        self.assertTrue(short["software_checksum_fallback"])
+        self.assertEqual(short["framing_overhead_bytes"], 8)
+        self.assertEqual(short["tx_cmd_b"] & TX_CMD_B_CSUM_ENABLE, 0)
+
+        trailing = model_tx_frame(frame_length=128, checksum_start_offset=100, checksum_field_offset=23)
+        self.assertFalse(trailing["checksum_enabled"])
+        self.assertTrue(trailing["software_checksum_fallback"])
+
+        eligible = model_tx_frame(frame_length=128, checksum_start_offset=34, checksum_field_offset=16)
+        self.assertTrue(eligible["checksum_enabled"])
+        self.assertFalse(eligible["software_checksum_fallback"])
+        self.assertEqual(eligible["framing_overhead_bytes"], 12)
 
     def test_tx_frame_rejects_unrepresentable_lengths_and_checksum_offsets(self):
         with self.assertRaisesRegex(ValueError, "11-bit"):

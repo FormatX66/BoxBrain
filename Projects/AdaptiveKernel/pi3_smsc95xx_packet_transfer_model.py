@@ -43,6 +43,8 @@ TX_CMD_B_CSUM_ENABLE = 0x00004000
 TX_CMD_B_FRAME_LENGTH = 0x000007FF
 TX_OVERHEAD_BYTES = 8
 TX_OVERHEAD_CSUM_BYTES = 12
+TX_CHECKSUM_MIN_FRAME_LENGTH_EXCLUSIVE = 45
+TX_CHECKSUM_TRAILING_GUARD_BYTES = 5
 
 RX_STS_FRAME_LENGTH = 0x3FFF0000
 RX_STS_ERROR_SUMMARY = 0x00008000
@@ -138,6 +140,8 @@ def model_tx_frame(
     tx_cmd_a = frame_length | TX_CMD_A_FIRST_SEG | TX_CMD_A_LAST_SEG
     tx_cmd_b = frame_length
     checksum_preamble = None
+    checksum_enabled = False
+    software_checksum_fallback = False
     overhead = TX_OVERHEAD_BYTES
     if checksum_requested:
         assert checksum_start_offset is not None and checksum_field_offset is not None
@@ -146,15 +150,25 @@ def model_tx_frame(
         checksum_end = checksum_start_offset + checksum_field_offset
         if checksum_end > 0xFFFF:
             raise ValueError("checksum end offset must fit uint16")
-        checksum_preamble = (checksum_end << 16) | checksum_start_offset
-        tx_cmd_a += 4
-        tx_cmd_b += 4
-        tx_cmd_b |= TX_CMD_B_CSUM_ENABLE
-        overhead = TX_OVERHEAD_CSUM_BYTES
+        payload_after_start = frame_length - checksum_start_offset
+        checksum_enabled = (
+            frame_length > TX_CHECKSUM_MIN_FRAME_LENGTH_EXCLUSIVE
+            and payload_after_start > TX_CHECKSUM_TRAILING_GUARD_BYTES
+            and checksum_field_offset < payload_after_start - TX_CHECKSUM_TRAILING_GUARD_BYTES
+        )
+        software_checksum_fallback = not checksum_enabled
+        if checksum_enabled:
+            checksum_preamble = (checksum_end << 16) | checksum_start_offset
+            tx_cmd_a += 4
+            tx_cmd_b += 4
+            tx_cmd_b |= TX_CMD_B_CSUM_ENABLE
+            overhead = TX_OVERHEAD_CSUM_BYTES
 
     return {
         "frame_length": frame_length,
-        "checksum_enabled": checksum_requested,
+        "checksum_requested": checksum_requested,
+        "checksum_enabled": checksum_enabled,
+        "software_checksum_fallback": software_checksum_fallback,
         "checksum_preamble": checksum_preamble,
         "tx_cmd_a": tx_cmd_a,
         "tx_cmd_b": tx_cmd_b,
@@ -208,6 +222,8 @@ def build_packet_transfer_model(register_model: Mapping[str, Any]) -> dict[str, 
             "buffer_size_mask": TX_CMD_A_BUF_SIZE,
             "frame_length_mask": TX_CMD_B_FRAME_LENGTH,
             "checksum_enable_mask": TX_CMD_B_CSUM_ENABLE,
+            "hardware_checksum_min_frame_length_exclusive": TX_CHECKSUM_MIN_FRAME_LENGTH_EXCLUSIVE,
+            "checksum_trailing_guard_bytes": TX_CHECKSUM_TRAILING_GUARD_BYTES,
         },
         "rx_packet_framing": {
             "status_word_bytes": RX_STATUS_WORD_BYTES,
