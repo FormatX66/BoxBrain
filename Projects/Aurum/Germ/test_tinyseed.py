@@ -236,7 +236,7 @@ class TinySeedNetworkTests(unittest.TestCase):
             with (
                 mock.patch.object(tinyseed, "INSTALLED_MARKER", root / "not-installed"),
                 mock.patch.object(tinyseed, "LIVE_MEDIUM", root / "live-medium"),
-                mock.patch.object(tinyseed.os, "geteuid", return_value=0),
+                mock.patch.object(tinyseed.os, "geteuid", return_value=0, create=True),
                 mock.patch.object(tinyseed.machine, "detect", return_value={"architecture": "x86_64"}),
                 mock.patch.object(tinyseed, "_network_step", return_value=True),
                 mock.patch.object(tinyseed, "_installed_roots", return_value=[]),
