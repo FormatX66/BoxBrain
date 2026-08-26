@@ -1,0 +1,67 @@
+{
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "checks": {
+    "official_archive_url": true,
+    "package_architecture_match": true,
+    "package_name_match": true,
+    "package_version_match": true,
+    "running_kernel_bytes_match_official_package": true,
+    "source_package_match": true,
+    "source_version_match": true
+  },
+  "inputs": {
+    "fingerprint_receipt_sha256": "cca9db44a73ba751ef032a69053cdf99c7ba482af237c1193aac703cca1604bd",
+    "physical_source_commit": "eecf995b14bd3805951aca29569be53a2c604f66",
+    "physical_source_run_id": "32982667879"
+  },
+  "invariants": {
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted_by_official_comparison": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "promotion_authority_granted": false
+  },
+  "next_gate": "build-offline-functional-smsc95xx-lan9514-behavior-model",
+  "official": {
+    "architecture": "arm64",
+    "deb_sha256": "687315225328ff1a4cd2be43f0582c0b6c7c20c9b8900142c5d6b20393f21b1f",
+    "deb_url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux-image-6.18.34+rpt-rpi-v8_6.18.34-1+rpt1_arm64.deb",
+    "kernel_binary_path": "/boot/vmlinuz-6.18.34+rpt-rpi-v8",
+    "kernel_binary_sha256": "9cf86cfbe4e8e47b3c30ee4d1dedf805354637c1e90508d880aa5cea9a69935a",
+    "package": "linux-image-6.18.34+rpt-rpi-v8",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1",
+    "version": "1:6.18.34-1+rpt1"
+  },
+  "physical": {
+    "architecture": "arm64",
+    "kernel_binary_path": "/boot/vmlinuz-6.18.34+rpt-rpi-v8",
+    "kernel_binary_sha256": "9cf86cfbe4e8e47b3c30ee4d1dedf805354637c1e90508d880aa5cea9a69935a",
+    "package": "linux-image-6.18.34+rpt-rpi-v8",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1",
+    "version": "1:6.18.34-1+rpt1"
+  },
+  "quarantine_reasons": [],
+  "receipt_sha256": "593f3e3625a64ab12245554bd855cfb260aa18e9ba41c78e877f2166de2dbe68",
+  "schema": "aurum.pi3.source-equivalence.v1",
+  "state": "passed-official-package-binary-equivalence",
+  "strongest_claim": "The exact running-kernel bytes read from the pinned Pi3 match the kernel image shipped in the exact official Raspberry Pi archive binary package, and binary/source package metadata matches. This establishes official package/source-version-to-running-binary equivalence without granting mutation or promotion authority.",
+  "target": {
+    "architecture": "aarch64",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f"
+  }
+}
