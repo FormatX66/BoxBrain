@@ -1,5 +1,5 @@
 {
-  "event_count": 5,
+  "event_count": 6,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -37,6 +37,87 @@
       "subject_kind": "process",
       "summary": "Metadata-only cross-chat cache refreshed after the Pi3 rollback milestone; 77 visible ChatGPT/Codex conversations are indexed.",
       "timestamp": "2026-08-26T02:37:23.612164Z"
+    },
+    "pi3-adaptive-driver-generation2": {
+      "actor": "aurum-completion-loop",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-pi3-g2-32923966393",
+      "evidence_refs": [
+        "github:actions:run:32923966393",
+        "github:artifact:9590805373",
+        "github:artifact-digest:sha256:e670bdcfe4e0d9904cb3a2715b70a1778b5553207526ed1d9ad881cb4b8a408a",
+        "repo:Projects/AdaptiveDrivers/evidence/pi3-generation2-physical.json"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "candidate_id": "pi3-net-sysfs-tolerant-v2",
+        "decision": "promoted",
+        "fault_candidate_id": "pi3-net-sysfs-tolerant-v2-missing-field-fixture",
+        "fault_decision": "quarantined",
+        "fault_reason": "required-read-only-field-unavailable",
+        "generation": 2,
+        "isolated_metadata_rollback": "passed",
+        "lkg_preserved_during_test": true,
+        "lkg_sha256_after": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c",
+        "lkg_sha256_before": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c",
+        "score": 100.0,
+        "system_driver_changed": false
+      },
+      "source": "github-physical-pi3-generation2-proof",
+      "status": "succeeded",
+      "subject_id": "pi3-adaptive-driver-generation2",
+      "subject_kind": "experiment",
+      "summary": "Pinned physical Pi3 passed the Generation-2 userspace adaptive-driver observer, quarantined missing-field evidence without changing LKG metadata, and restored the isolated metadata LKG to the Linux reference profile without any system-driver mutation.",
+      "timestamp": "2026-08-26T02:46:40.5872597Z"
+    },
+    "pi3-adaptive-kernel-overnight-32925514155": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-adaptive-driver-generation2"
+      ],
+      "event_id": "evt-c032f4f7b614447c99b24e3c6819287e",
+      "evidence_refs": [
+        "github:actions:run:32925514155",
+        "github:actions:run:32924485415",
+        "github:actions:run:32924126448",
+        "git:commit:1db49435",
+        "repo:Projects/AdaptiveKernel/OVERNIGHT_PI3_LAB.md"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "duration_minutes": 330,
+        "persistent_kernel_or_driver_change_allowed": false,
+        "physical_mutation_started": false,
+        "preflight_run_id": 32924485415,
+        "preflight_state": "queued",
+        "qpu_hardware_submission": false,
+        "qpu_run_id": 32924126448,
+        "qpu_run_state": "succeeded",
+        "reversible_mutation_authorized": true,
+        "risk_ceiling": "smsc95xx-feature-canary",
+        "strict_target": {
+          "address": "169.254.129.122",
+          "model": "Raspberry Pi 3 Model B Rev 1.2",
+          "reference_driver": "smsc95xx",
+          "serial": "00000000a6a7df7f"
+        },
+        "workflow_state": "queued"
+      },
+      "source": "github-physical-pi3-overnight-dispatch",
+      "status": "queued",
+      "subject_id": "pi3-adaptive-kernel-overnight-32925514155",
+      "subject_kind": "experiment",
+      "summary": "Six-hour pinned Pi3 adaptive-kernel laboratory is queued behind existing serialized runner work; no overnight mutation has begun.",
+      "timestamp": "2026-08-26T03:13:10.702569Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
@@ -103,43 +184,6 @@
       "subject_kind": "device",
       "summary": "Pinned experimental Pi3 is visibly booted from the preserved card and strictly verified by model, serial, host key, and root device.",
       "timestamp": "2026-08-26T02:26:37.033403Z"
-    },
-    "pi3-adaptive-driver-generation2": {
-      "actor": "aurum-completion-loop",
-      "authority_ref": null,
-      "confidence": 1.0,
-      "dependency_ids": [
-        "pi3-current-card-rollback",
-        "pi3-experimental-00000000a6a7df7f"
-      ],
-      "event_id": "evt-pi3-g2-32923966393",
-      "evidence_refs": [
-        "github:actions:run:32923966393",
-        "github:artifact:9590805373",
-        "github:artifact-digest:sha256:e670bdcfe4e0d9904cb3a2715b70a1778b5553207526ed1d9ad881cb4b8a408a",
-        "repo:Projects/AdaptiveDrivers/evidence/pi3-generation2-physical.json"
-      ],
-      "node_id": "pi3-adaptive-driver-tests",
-      "payload": {
-        "candidate_id": "pi3-net-sysfs-tolerant-v2",
-        "decision": "promoted",
-        "fault_candidate_id": "pi3-net-sysfs-tolerant-v2-missing-field-fixture",
-        "fault_decision": "quarantined",
-        "fault_reason": "required-read-only-field-unavailable",
-        "generation": 2,
-        "isolated_metadata_rollback": "passed",
-        "lkg_preserved_during_test": true,
-        "lkg_sha256_before": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c",
-        "lkg_sha256_after": "ad38b13ee8be0a9ca48c4e960b6fc8c3ba2a20f9864de6f1525f704b204d783c",
-        "score": 100.0,
-        "system_driver_changed": false
-      },
-      "source": "github-physical-pi3-generation2-proof",
-      "status": "succeeded",
-      "subject_id": "pi3-adaptive-driver-generation2",
-      "subject_kind": "experiment",
-      "summary": "Pinned physical Pi3 passed the Generation-2 userspace adaptive-driver observer, quarantined missing-field evidence without changing LKG metadata, and restored the isolated metadata LKG to the Linux reference profile without any system-driver mutation.",
-      "timestamp": "2026-08-26T02:46:40.5872597Z"
     }
   }
 }
