@@ -1,0 +1,34 @@
+{
+  "schema": "aurum-web-static-mirror-receipt-v1",
+  "state": "WEB_STATIC_MIRROR_OK",
+  "github_workflow_run": 32977823142,
+  "github_run_attempt": 1,
+  "source_commit": "b3ac79601758878b8a2091435453eb67bdb3afe1",
+  "observed_at": "2026-08-26T14:02:30.639456+00:00",
+  "hosted_deployment": {
+    "configured": false,
+    "missing": [
+      "HOST",
+      "USER",
+      "KEY",
+      "HOST_KEY",
+      "REMOTE_PATH",
+      "PUBLIC_URL"
+    ]
+  },
+  "public_sources": {
+    "text": "https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.txt",
+    "json": "https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Web/Aurum-Arkmatx/voice-status.json",
+    "repository": "https://github.com/FormatX66/BoxBrain/blob/main/AURUM_VOICE_STATUS.md"
+  },
+  "verified": {
+    "dashboard_truth_banner": true,
+    "dashboard_reads_static_json": true,
+    "plain_text_voice_status": true,
+    "json_voice_status": true,
+    "browser_static_voice_view": true,
+    "seven_human_capabilities": true,
+    "six_evidence_gates": true,
+    "seeded_floor": "4/6"
+  }
+}
