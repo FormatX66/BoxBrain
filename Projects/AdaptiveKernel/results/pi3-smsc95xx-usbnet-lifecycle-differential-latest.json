@@ -1,0 +1,52 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "candidate_receipt_sha256": "19f2cd14fc6fdbd2a45c8bb140413133417132d0b7fae7a4deeedec661471bcb",
+  "candidate_source_sha256": "36109b7dd7a8600a066ab42b651bc810826b9157d4647218d3c860feecc76198",
+  "complete_transition_scenarios": 169,
+  "deterministic_sequence_steps": 65536,
+  "input_lifecycle_receipt_sha256": "2f2a3f96ca09c0bfecac2501d30ad6eeb008ea90ccda213e6129b17acfe0f4e5",
+  "invariants": {
+    "driver_binding_changed": false,
+    "driver_probe_performed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "next_gate": "nonbinding-userspace-usbnet-event-emulator",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "preserved_router_available": true,
+    "reason": "The complete finite transition table and deterministic sequences are exactly evaluated classically.",
+    "used": false
+  },
+  "receipt_sha256": "5b83a1d6383f6d9e8588556f78ed4887577c6547bea892921ea692d09af780f7",
+  "scenario_count": 65705,
+  "scenario_matrix_sha256": "f3dde14fd20e8c3d06640d8d566573ac7934ce8a06b8e246369670796eacc626",
+  "schema": "aurum.pi3.smsc95xx.usbnet-lifecycle-differential.v1",
+  "sequence_seed": 156321511,
+  "state": "controlled-usbnet-lifecycle-candidate-differential-passed",
+  "strongest_claim": "A portable table-driven C lifecycle candidate matches every sealed reachable USBNet state/action pair and a deterministic multi-step sequence matrix. It remains a host-only state transform with no USB, kernel, probe, binding, mutation, or promotion capability.",
+  "verification": {
+    "accepted_and_refused_transitions": true,
+    "all_reachable_state_action_pairs": true,
+    "deterministic_multi_step_sequences": true,
+    "host_compilation": true,
+    "shared_library_execution": true
+  }
+}
