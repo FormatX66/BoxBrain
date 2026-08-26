@@ -142,6 +142,28 @@ class RepositoryValidatorTests(unittest.TestCase):
         for token in required:
             self.assertIn(token, workflow)
 
+    def test_integrity_receipt_race_cannot_mask_validator_result(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (
+            root / ".github" / "workflows" / "repository-integrity.yml"
+        ).read_text(encoding="utf-8")
+
+        required = (
+            'validated_head="$(git rev-parse HEAD)"',
+            "if git push origin HEAD:main; then",
+            "unchanged_after_race=true",
+            "deferred_reason=main-advanced",
+            "deferred_reason=publication-failed",
+            "steps.validate.outputs.rc",
+        )
+        for token in required:
+            self.assertIn(token, workflow)
+
+        self.assertNotIn("git pull --rebase origin main", workflow)
+        publication = workflow.index("Publish changed diagnostic receipt")
+        enforcement = workflow.index("Enforce validator result")
+        self.assertLess(publication, enforcement)
+
 
 if __name__ == "__main__":
     unittest.main()

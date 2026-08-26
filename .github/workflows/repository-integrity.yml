@@ -104,6 +104,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          validated_head="$(git rev-parse HEAD)"
           git config user.name 'repository-integrity-mirror[bot]'
           git config user.email 'repository-integrity-mirror@users.noreply.github.com'
           git add Admin/repository-integrity-latest.txt
@@ -112,9 +113,27 @@ jobs:
             exit 0
           fi
           git commit -m 'Record repository integrity diagnostic [skip ci]'
-          git pull --rebase origin main
-          git push origin HEAD:main
-          echo 'REPOSITORY_INTEGRITY_RECEIPT published=true'
+          if git push origin HEAD:main; then
+            echo 'REPOSITORY_INTEGRITY_RECEIPT published=true'
+            exit 0
+          fi
+
+          # The receipt is bookkeeping for the validation above. A concurrent
+          # main update must not turn a passing validator red or rebase an old
+          # receipt onto source that this job did not validate. The newer main
+          # push will run this workflow again when it changes the integrity
+          # surface; otherwise the next integrity run can refresh the receipt.
+          git fetch origin main
+          remote_head="$(git rev-parse origin/main)"
+          if git diff --quiet origin/main -- Admin/repository-integrity-latest.txt; then
+            echo 'REPOSITORY_INTEGRITY_RECEIPT unchanged_after_race=true'
+          elif [ "$remote_head" != "$validated_head" ]; then
+            echo '::warning::Repository validation passed, but main advanced before its diagnostic receipt could be published; stale publication was deferred.'
+            echo "REPOSITORY_INTEGRITY_RECEIPT deferred_reason=main-advanced validated_head=$validated_head remote_head=$remote_head"
+          else
+            echo '::warning::Repository validation completed, but its diagnostic receipt could not be published; validation outcome remains authoritative.'
+            echo "REPOSITORY_INTEGRITY_RECEIPT deferred_reason=publication-failed validated_head=$validated_head"
+          fi
 
       - name: Enforce validator result
         if: always()
