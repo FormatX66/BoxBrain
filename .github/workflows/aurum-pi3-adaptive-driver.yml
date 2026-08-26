@@ -24,6 +24,27 @@ jobs:
       - name: Check out exact experiment source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      - name: Initialize machine-readable control evidence
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'adaptive-driver-evidence' | Out-Null
+          $receipt = [ordered]@{
+            schema = 'aurum.pi3.adaptive-driver.control.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'initialized'
+            reason = $null
+            repository = [string]$env:GITHUB_REPOSITORY
+            workflow = [string]$env:GITHUB_WORKFLOW
+            run_id = [string]$env:GITHUB_RUN_ID
+            run_attempt = [string]$env:GITHUB_RUN_ATTEMPT
+            source_commit = [string]$env:GITHUB_SHA
+            runner_name = [string]$env:RUNNER_NAME
+            persistent_trust_changed = $false
+            mutation_allowed = $false
+          }
+          $receipt | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath 'adaptive-driver-evidence/control-receipt.json' -Encoding utf8
+
       - name: Stage the pinned SSH identity for the runner account
         shell: powershell
         run: |
@@ -69,15 +90,113 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          $evidenceRoot = 'adaptive-driver-evidence'
+          $controlPath = Join-Path $evidenceRoot 'control-receipt.json'
+          $resultPath = Join-Path $evidenceRoot 'result.json'
+          New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
+
+          $control = [ordered]@{
+            schema = 'aurum.pi3.adaptive-driver.control.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'observing'
+            reason = $null
+            repository = [string]$env:GITHUB_REPOSITORY
+            workflow = [string]$env:GITHUB_WORKFLOW
+            run_id = [string]$env:GITHUB_RUN_ID
+            run_attempt = [string]$env:GITHUB_RUN_ATTEMPT
+            source_commit = [string]$env:GITHUB_SHA
+            runner_name = [string]$env:RUNNER_NAME
+            target = $null
+            trust = $null
+            identity = $null
+            human_gate = $null
+            attempts = @()
+            persistent_trust_changed = $false
+            mutation_allowed = $false
+          }
+          function Save-ControlReceipt {
+            $temporary = "$controlPath.tmp"
+            $control.observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            $control | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $temporary -Encoding utf8
+            Move-Item -LiteralPath $temporary -Destination $controlPath -Force
+          }
+          function Save-WaitingResult([string]$State, [string]$Reason, [object[]]$Attempts) {
+            $receipt = [ordered]@{
+              schema = 'aurum-adaptive-driver-runner-receipt-v1'
+              state = $State
+              reason = $Reason
+              target = 'raspberry-pi-3-experimental'
+              runner = [string]$env:RUNNER_NAME
+              attempts = @($Attempts)
+              mutation_allowed = $false
+              system_driver_changed = $false
+            }
+            $receipt | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resultPath -Encoding utf8
+          }
+
           $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
           if ([bool]$identity.production_nodes_allowed) { throw 'Pi3 identity config must exclude production nodes.' }
           $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
           $keyPath = [string]$env:PI3_RUNTIME_KEY
           if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
-          $fingerprint = (& ssh-keygen -lf $knownHosts 2>$null) -join "`n"
-          if ($LASTEXITCODE -ne 0 -or -not $fingerprint.Contains([string]$identity.host_key_sha256)) {
-            throw 'Pinned Pi3 known-host fingerprint does not match the identity contract.'
+
+          $identityPath = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json').Path
+          $identityContractSha256 = (Get-FileHash -LiteralPath $identityPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $knownHostsSha256 = (Get-FileHash -LiteralPath $knownHosts -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedFingerprint = ([string]$identity.host_key_sha256).Trim().TrimEnd('=')
+          $knownHostLines = @(
+            Get-Content -LiteralPath $knownHosts |
+              ForEach-Object { ([string]$_).Trim() } |
+              Where-Object { $_ -and -not $_.StartsWith('#') }
+          )
+          $knownHostParts = if ($knownHostLines.Count -eq 1) { @($knownHostLines[0] -split '\s+') } else { @() }
+          $keygen = Get-Command ssh-keygen -ErrorAction Stop
+          $fingerprintOutput = @(& $keygen.Source -lf $knownHosts -E sha256 2>$null)
+          $fingerprintExit = $LASTEXITCODE
+          $fingerprintMatch = [regex]::Match(($fingerprintOutput -join "`n"), 'SHA256:[A-Za-z0-9+/]+={0,2}')
+          $pinnedFingerprint = if ($fingerprintMatch.Success) { $fingerprintMatch.Value.TrimEnd('=') } else { $null }
+          $trustContractValid = (
+            $knownHostLines.Count -eq 1 -and
+            $knownHostParts.Count -eq 3 -and
+            [string]$knownHostParts[0] -eq [string]$identity.pinned_ipv4 -and
+            [string]$knownHostParts[1] -eq [string]$identity.host_key_algorithm -and
+            $fingerprintExit -eq 0 -and
+            $pinnedFingerprint -eq $expectedFingerprint
+          )
+          $control.target = [ordered]@{
+            address = [string]$identity.pinned_ipv4
+            ssh_user = [string]$identity.ssh_user
+            model_marker = [string]$identity.model_marker
+            serial = [string]$identity.serial
+            scope = [string]$identity.scope
+            production_nodes_allowed = [bool]$identity.production_nodes_allowed
           }
+          $control.trust = [ordered]@{
+            state = if ($trustContractValid) { 'pinned-contract-match' } else { 'local-contract-invalid' }
+            host_key_algorithm = [string]$identity.host_key_algorithm
+            expected_host_key_sha256 = $expectedFingerprint
+            pinned_host_key_sha256 = $pinnedFingerprint
+            observed_host_key_sha256 = $null
+            observed_key_source = $null
+            identity_contract_sha256 = $identityContractSha256
+            known_hosts_sha256 = $knownHostsSha256
+            known_hosts_single_exact_entry = ($knownHostLines.Count -eq 1 -and $knownHostParts.Count -eq 3)
+            strict_host_key_checking = $true
+            batch_mode = $true
+            identities_only = $true
+            confirmation_required = $false
+            confirmation_must_be_independent = $false
+            enrollment_basis = 'versioned-pinned-exact-fingerprint'
+          }
+          if (-not $trustContractValid) {
+            $control.state = 'refused'
+            $control.reason = 'local-pinned-trust-contract-invalid'
+            Save-ControlReceipt
+            Save-WaitingResult -State 'refused' -Reason $control.reason -Attempts @()
+            Write-Host 'AURUM_ADAPTIVE_DRIVER state=refused reason=local-pinned-trust-contract-invalid persistent_trust_changed=false'
+            exit 0
+          }
+
           $targets = @([string]$identity.pinned_ipv4)
           $ssh = Get-Command ssh -ErrorAction Stop
           $verifiedTarget = $null
@@ -124,21 +243,80 @@ jobs:
             if ($verifiedTarget) { break }
           }
 
-          New-Item -ItemType Directory -Force -Path 'adaptive-driver-evidence' | Out-Null
+          $control.attempts = @($attempts)
           if (-not $verifiedTarget) {
-            $receipt = [ordered]@{
-              schema = 'aurum-adaptive-driver-runner-receipt-v1'
-              state = 'waiting'
-              reason = 'no-strictly-trusted-pi3-endpoint'
-              runner = $env:RUNNER_NAME
-              attempts = $attempts
-              mutation_allowed = $false
-              system_driver_changed = $false
+            $presentedFingerprint = $null
+            $scanState = 'not-attempted-endpoint-unreachable'
+            if (@($attempts | Where-Object { $_.tcp22 }).Count -eq 1) {
+              $scanState = 'untrusted-observation-unavailable'
+              $keyscan = Get-Command ssh-keyscan -ErrorAction SilentlyContinue
+              if ($keyscan) {
+                $scanLines = @(& $keyscan.Source -T 5 -t ed25519 ([string]$identity.pinned_ipv4) 2>$null)
+                $scanLine = @(
+                  $scanLines |
+                    ForEach-Object { ([string]$_).Trim() } |
+                    Where-Object {
+                      $_ -and
+                      -not $_.StartsWith('#') -and
+                      $_ -match ('^' + [regex]::Escape([string]$identity.pinned_ipv4) + '\s+ssh-ed25519\s+')
+                    } |
+                    Select-Object -First 1
+                )
+                if ($scanLine.Count -eq 1) {
+                  $scanFile = Join-Path $env:RUNNER_TEMP "aurum-pi3-observed-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT.known_hosts"
+                  try {
+                    [IO.File]::WriteAllText($scanFile, $scanLine[0] + "`n", [Text.UTF8Encoding]::new($false))
+                    $scanFingerprintOutput = @(& $keygen.Source -lf $scanFile -E sha256 2>$null)
+                    $scanFingerprintExit = $LASTEXITCODE
+                    $scanFingerprintMatch = [regex]::Match(($scanFingerprintOutput -join "`n"), 'SHA256:[A-Za-z0-9+/]+={0,2}')
+                    if ($scanFingerprintExit -eq 0 -and $scanFingerprintMatch.Success) {
+                      $presentedFingerprint = $scanFingerprintMatch.Value.TrimEnd('=')
+                      $scanState = 'untrusted-network-observation'
+                    }
+                  } finally {
+                    Remove-Item -LiteralPath $scanFile -Force -ErrorAction SilentlyContinue
+                  }
+                }
+              }
             }
-            $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Encoding utf8
-            Write-Host 'AURUM_ADAPTIVE_DRIVER state=waiting reason=no-strictly-trusted-pi3-endpoint'
+
+            $hostKeyChanged = $presentedFingerprint -and $presentedFingerprint -ne $expectedFingerprint
+            $control.state = 'waiting'
+            $control.reason = if ($hostKeyChanged) { 'host-key-confirmation-required' } else { 'strict-key-only-auth-or-identity-not-verified' }
+            $control.trust.state = if ($hostKeyChanged) { 'presented-key-does-not-match-pin' } else { 'pinned-key-not-proven-by-strict-session' }
+            $control.trust.observed_host_key_sha256 = $presentedFingerprint
+            $control.trust.observed_key_source = $scanState
+            $control.trust.confirmation_required = [bool]$hostKeyChanged
+            $control.trust.confirmation_must_be_independent = [bool]$hostKeyChanged
+            $control.human_gate = if ($hostKeyChanged) {
+              [ordered]@{
+                kind = 'exact-host-key-fingerprint-confirmation'
+                authority = 'operator'
+                required_value = $presentedFingerprint
+                untrusted_network_observation_is_not_confirmation = $true
+                acceptable_independent_sources = @('provisioning-receipt', 'kvm-display', 'local-console-display')
+                pi_console_typing_required = $false
+              }
+            } else { $null }
+            $control.identity = [ordered]@{
+              strict_session_established = $false
+              model_match = $false
+              serial_match = $false
+            }
+            Save-ControlReceipt
+            Save-WaitingResult -State 'waiting' -Reason $control.reason -Attempts $attempts
+            Write-Host "AURUM_ADAPTIVE_DRIVER state=waiting reason=$($control.reason) persistent_trust_changed=false"
             exit 0
           }
+
+          $control.state = 'authorized'
+          $control.reason = $null
+          $control.identity = [ordered]@{
+            strict_session_established = $true
+            model_match = $true
+            serial_match = $true
+          }
+          Save-ControlReceipt
 
           $promotion = if ('${{ inputs.allow_metadata_promotion }}' -eq 'true') { '--allow-promotion' } else { '' }
           $source = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/adaptive_driver_loop.py' -Raw
@@ -151,11 +329,42 @@ jobs:
           } finally {
             $ErrorActionPreference = $prior
           }
-          $output | Set-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Encoding utf8
-          if ($exitCode -ne 0) { throw "Pi3 adaptive-driver loop failed with exit code $exitCode" }
-          $parsed = Get-Content -LiteralPath 'adaptive-driver-evidence/result.json' -Raw | ConvertFrom-Json
-          if ($parsed.target -ne 'raspberry-pi-3-experimental') { throw 'Unexpected adaptive-driver target.' }
-          if ($parsed.system_driver_changed) { throw 'System driver changed during safe test.' }
+          $output | Set-Content -LiteralPath $resultPath -Encoding utf8
+          if ($exitCode -ne 0) {
+            $control.state = 'failed'
+            $control.reason = 'remote-adaptive-driver-loop-failed'
+            Save-ControlReceipt
+            throw "Pi3 adaptive-driver loop failed with exit code $exitCode"
+          }
+          try {
+            $parsed = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+          } catch {
+            $control.state = 'failed'
+            $control.reason = 'remote-result-invalid-json'
+            Save-ControlReceipt
+            throw
+          }
+          if ($parsed.target -ne 'raspberry-pi-3-experimental') {
+            $control.state = 'failed'
+            $control.reason = 'remote-result-target-mismatch'
+            Save-ControlReceipt
+            throw 'Unexpected adaptive-driver target.'
+          }
+          if ($parsed.system_driver_changed) {
+            $control.state = 'failed'
+            $control.reason = 'system-driver-change-detected'
+            Save-ControlReceipt
+            throw 'System driver changed during safe test.'
+          }
+          $control.state = 'completed'
+          $control.reason = $null
+          $control.semantic_result = [ordered]@{
+            state = [string]$parsed.state
+            decision = [string]$parsed.decision
+            score = $parsed.score.score
+            system_driver_changed = [bool]$parsed.system_driver_changed
+          }
+          Save-ControlReceipt
           Write-Host "AURUM_ADAPTIVE_DRIVER state=$($parsed.state) decision=$($parsed.decision) score=$($parsed.score.score) system_driver_changed=false"
 
       - name: Mirror semantic evidence into Aurum Farmer and resume on changed evidence
@@ -163,14 +372,74 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'adaptive-driver-evidence' | Out-Null
+          $farmerReceiptPath = 'adaptive-driver-evidence/farmer-state.json'
+          $farmer = [ordered]@{
+            schema = 'aurum.pi3.adaptive-driver.farmer-progression.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'observing'
+            reason = $null
+            job_id = 'AF-PI3-ADAPTIVE-DRIVER-001'
+            source_commit = [string]$env:GITHUB_SHA
+            run_id = [string]$env:GITHUB_RUN_ID
+            runner_name = [string]$env:RUNNER_NAME
+            source_result_sha256 = $null
+            result_semantic = $null
+            evidence_mirrored = $false
+            resume_requested = $false
+            pre_resume = $null
+            post_resume = $null
+            progression_verified = $false
+            event_chain_valid = $null
+            sealed_receipts = @()
+          }
+          function Save-FarmerReceipt {
+            $temporaryReceipt = "$farmerReceiptPath.tmp"
+            $farmer.observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            $farmer | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $temporaryReceipt -Encoding utf8
+            Move-Item -LiteralPath $temporaryReceipt -Destination $farmerReceiptPath -Force
+          }
+          function Select-FarmerState([object]$Status) {
+            if ($null -eq $Status) { return $null }
+            return [ordered]@{
+              state = [string]$Status.state
+              current_branch_id = [string]$Status.current_branch_id
+              next_action = [string]$Status.next_action
+              lkg_ref = [string]$Status.lkg_ref
+              attempt_count = @($Status.attempts).Count
+              evidence_count = @($Status.evidence).Count
+              branches = @(
+                $Status.branches | ForEach-Object {
+                  [ordered]@{
+                    logical_id = [string]$_.logical_id
+                    state = [string]$_.state
+                    authority_ready = [bool]$_.authority_ready
+                  }
+                }
+              )
+            }
+          }
+
           $resultPath = 'adaptive-driver-evidence/result.json'
           if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+            $farmer.state = 'unavailable'
+            $farmer.reason = 'result-missing'
+            Save-FarmerReceipt
             Write-Host 'AURUM_FARMER_EVIDENCE mirrored=false reason=result-missing'
             exit 0
           }
           $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+          $farmer.source_result_sha256 = (Get-FileHash -LiteralPath $resultPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $farmer.result_semantic = [ordered]@{
+            state = [string]$result.state
+            decision = [string]$result.decision
+            system_driver_changed = [bool]$result.system_driver_changed
+          }
           $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
           if (-not (Test-Path -LiteralPath $runtimeRoot -PathType Container)) {
+            $farmer.state = 'unavailable'
+            $farmer.reason = 'runtime-missing'
+            Save-FarmerReceipt
             Write-Host 'AURUM_FARMER_EVIDENCE mirrored=false reason=runtime-missing'
             exit 0
           }
@@ -180,6 +449,7 @@ jobs:
           $temporary = Join-Path $evidenceRoot 'pi3-adaptive-driver-result.json.tmp'
           Copy-Item -LiteralPath $resultPath -Destination $temporary -Force
           Move-Item -LiteralPath $temporary -Destination $evidencePath -Force
+          $farmer.evidence_mirrored = $true
           Write-Host "AURUM_FARMER_EVIDENCE mirrored=true state=$($result.state) decision=$($result.decision)"
 
           $semanticSuccess = (
@@ -187,24 +457,106 @@ jobs:
             [string]$result.decision -eq 'promoted' -and
             -not [bool]$result.system_driver_changed
           )
-          if (-not $semanticSuccess) { exit 0 }
+          if (-not $semanticSuccess) {
+            $farmer.state = 'evidence-mirrored'
+            $farmer.reason = 'semantic-success-gate-not-satisfied'
+            Save-FarmerReceipt
+            exit 0
+          }
           $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
           $configPath = Join-Path $runtimeRoot 'farmer.json'
-          if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) { exit 0 }
+          if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) {
+            $farmer.state = 'unavailable'
+            $farmer.reason = 'install-receipt-missing'
+            Save-FarmerReceipt
+            exit 0
+          }
           $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
           $python = [string]$install.python_exe
           $releaseRoot = [string]$install.release_root
-          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { exit 0 }
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+            $farmer.state = 'unavailable'
+            $farmer.reason = 'farmer-python-missing'
+            Save-FarmerReceipt
+            exit 0
+          }
           $previousPythonPath = $env:PYTHONPATH
           try {
             $env:PYTHONPATH = $releaseRoot
             $statusRaw = @(& $python -m aurum_farmer --config $configPath status --job 'AF-PI3-ADAPTIVE-DRIVER-001' 2>$null)
-            if ($LASTEXITCODE -ne 0) { exit 0 }
+            if ($LASTEXITCODE -ne 0) {
+              $farmer.state = 'unavailable'
+              $farmer.reason = 'pre-resume-status-unavailable'
+              Save-FarmerReceipt
+              exit 0
+            }
             $status = ($statusRaw -join "`n") | ConvertFrom-Json
+            $farmer.pre_resume = Select-FarmerState $status
             if ([string]$status.state -in @('WAITING', 'RETRYING', 'RECOVERING', 'BLOCKED_HUMAN')) {
+              $farmer.resume_requested = $true
               & $python -m aurum_farmer --config $configPath resume --job 'AF-PI3-ADAPTIVE-DRIVER-001' --changed-dimension evidence --note 'Strict Pi3 physical adaptive-driver evidence changed to promoted success.' | Out-Null
               if ($LASTEXITCODE -ne 0) { throw 'Failed to resume the durable adaptive-driver Farmer job.' }
             }
+
+            $deadline = (Get-Date).AddSeconds(30)
+            $postStatus = $status
+            do {
+              $postRaw = @(& $python -m aurum_farmer --config $configPath status --job 'AF-PI3-ADAPTIVE-DRIVER-001' 2>$null)
+              if ($LASTEXITCODE -ne 0) { break }
+              $postStatus = ($postRaw -join "`n") | ConvertFrom-Json
+              if ([string]$postStatus.state -in @('SUCCEEDED', 'FAILED_FINAL', 'WAITING', 'BLOCKED_HUMAN')) { break }
+              Start-Sleep -Milliseconds 500
+            } while ((Get-Date) -lt $deadline)
+            $farmer.post_resume = Select-FarmerState $postStatus
+
+            try {
+              $health = Invoke-RestMethod -Method Get -Uri 'http://127.0.0.1:19466/health' -TimeoutSec 3
+              $farmer.event_chain_valid = ([string]$health.status -eq 'healthy' -and [bool]$health.event_chain_valid)
+            } catch {
+              $farmer.event_chain_valid = $false
+            }
+
+            $receiptsRaw = @(& $python -m aurum_farmer --config $configPath receipts --job 'AF-PI3-ADAPTIVE-DRIVER-001' 2>$null)
+            if ($LASTEXITCODE -eq 0) {
+              $receipts = ($receiptsRaw -join "`n") | ConvertFrom-Json
+              $farmer.sealed_receipts = @(
+                $receipts.receipts | ForEach-Object {
+                  [ordered]@{
+                    id = [string]$_.id
+                    payload_sha256 = [string]$_.payload_sha256
+                    seal_valid = [bool]$_.seal_valid
+                    outcome = [string]$_.payload.outcome
+                    branch_id = [string]$_.payload.branch_id
+                    attempt_number = [int]$_.payload.attempt_number
+                  }
+                }
+              )
+            }
+
+            $physicalEvidence = @(
+              $postStatus.evidence | Where-Object {
+                [string]$_.kind -eq 'adaptive_driver_physical_result' -and
+                [bool]$_.verified -and
+                [bool]$_.seal_valid
+              }
+            )
+            $invalidSeals = @($farmer.sealed_receipts | Where-Object { -not [bool]$_.seal_valid })
+            $farmer.progression_verified = (
+              [string]$postStatus.state -eq 'SUCCEEDED' -and
+              [bool]$farmer.event_chain_valid -and
+              @($farmer.sealed_receipts).Count -gt 0 -and
+              $invalidSeals.Count -eq 0 -and
+              $physicalEvidence.Count -gt 0
+            )
+            $farmer.state = if ($farmer.progression_verified) { 'verified-succeeded' } else { 'observed' }
+            $farmer.reason = if ($farmer.progression_verified) { $null } else { 'post-resume-terminal-evidence-gate-not-satisfied' }
+            Save-FarmerReceipt
+            Write-Host "AURUM_FARMER_POST_RESUME state=$($postStatus.state) verified=$($farmer.progression_verified) event_chain_valid=$($farmer.event_chain_valid) receipts=$(@($farmer.sealed_receipts).Count)"
+          } catch {
+            $farmer.state = 'observation-error'
+            $farmer.reason = [string]$_.Exception.Message
+            Save-FarmerReceipt
+            Write-Warning "AURUM_FARMER_POST_RESUME state=observation-error reason=$($farmer.reason)"
           } finally {
             $env:PYTHONPATH = $previousPythonPath
           }
@@ -214,7 +566,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aurum-pi3-adaptive-driver-test-001
-          path: adaptive-driver-evidence/result.json
+          path: adaptive-driver-evidence/*.json
           if-no-files-found: error
           retention-days: 30
 
