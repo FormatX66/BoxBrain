@@ -10,6 +10,8 @@
   },
   "checks": {
     "carrier_observed": true,
+    "driver_binary_provenance_observed": false,
+    "driver_builtin_observed": false,
     "duplex_observed": true,
     "headers_package_owner_observed": true,
     "interface_observed": true,
@@ -37,11 +39,13 @@
     "usb_vendor_id": "0424"
   },
   "gaps": [
-    "running-modules-package-owner"
+    "running-driver-binary-provenance"
   ],
   "next_gate": "correlate-observed-controller-link-and-package-provenance-with-pinned-references",
-  "observed_at_utc": "2026-08-26T13:57:20.8468623Z",
+  "observed_at_utc": "2026-08-26T14:01:24.9890958Z",
   "provenance": {
+    "driver_modinfo_filename": "",
+    "driver_module_mode": "",
     "headers_package_owner": "linux-headers-6.18.34+rpt-rpi-v8: /usr/src/linux-headers-6.18.34+rpt-rpi-v8/Makefile",
     "kernel_packages": [
       "linux-base\t4.12.1\tall",
@@ -63,12 +67,12 @@
     "proc_version": "Linux version 6.18.34+rpt-rpi-v8 (serge@raspberrypi.com) (aarch64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09)"
   },
   "quarantine_reasons": [],
-  "receipt_sha256": "f643cef1af5a018b54cbc6ba97a30c0efbb311eaeeb7df0daee878e58d2ea11e",
+  "receipt_sha256": "08bca0b8964cfd5c0c0383b4a83ee8cb9c1bb8ef0235c148309f877a037478f9",
   "schema": "aurum.pi3.controller-link-fingerprint.v1",
-  "source_commit": "7ba946170eda70692b5b7a57bb9d432e3cc2a827",
-  "source_run_id": "32977237754",
+  "source_commit": "efef4f55642f28c42a84c8621365a8b55b39768d",
+  "source_run_id": "32977666070",
   "state": "completed-with-read-only-gaps",
-  "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel package provenance where available; it grants no mutation or promotion authority.",
+  "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel/driver package provenance where available; it grants no mutation or promotion authority.",
   "target": {
     "arch": "aarch64",
     "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
