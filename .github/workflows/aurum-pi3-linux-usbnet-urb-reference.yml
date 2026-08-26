@@ -1,0 +1,168 @@
+name: Aurum Pi3 Linux USBNet URB Reference Differential
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-linux-usbnet-urb-reference.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_linux_usbnet_urb_reference.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_linux_usbnet_urb_reference.py'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-queue-pressure-latest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-linux-usbnet-urb-reference-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reference-differential:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact experiment revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run fail-closed unit tests
+        shell: bash
+        env:
+          PYTHONPATH: Projects/AdaptiveKernel
+        run: |
+          set -euo pipefail
+          python -m unittest -v Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_linux_usbnet_urb_reference.py
+
+      - name: Verify signed Linux stable reference and fetch immutable source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          evidence='pi3-linux-usbnet-urb-reference'
+          mkdir -p "$evidence"
+          tag='v6.18.34'
+          expected_tag_object='71659eca49870e2f9d33412084034abe9c3e453f'
+          expected_commit='18ad16ce4a6b2714583fd1e1044c6ea8e53b3519'
+          api='https://api.github.com/repos/gregkh/linux'
+          auth=(-H "Authorization: Bearer $GH_TOKEN" -H 'X-GitHub-Api-Version: 2022-11-28')
+
+          curl --fail --silent --show-error --location --retry 3 \
+            "${auth[@]}" "$api/git/ref/tags/$tag" > "$evidence/tag-ref.json"
+          tag_object="$(python - "$evidence/tag-ref.json" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          obj = value.get('object') or {}
+          if value.get('ref') != 'refs/tags/v6.18.34' or obj.get('type') != 'tag':
+              raise SystemExit('signed stable tag ref is malformed')
+          print(obj.get('sha', ''))
+          PY
+          )"
+          test "$tag_object" = "$expected_tag_object"
+
+          curl --fail --silent --show-error --location --retry 3 \
+            "${auth[@]}" "$api/git/tags/$tag_object" > "$evidence/tag-object.json"
+          python - "$evidence/tag-object.json" "$evidence/tag-verification.json" <<'PY'
+          import json, sys
+          source = json.load(open(sys.argv[1], encoding='utf-8'))
+          obj = source.get('object') or {}
+          verification = source.get('verification') or {}
+          expected_tag = 'v6.18.34'
+          expected_tag_object = '71659eca49870e2f9d33412084034abe9c3e453f'
+          expected_commit = '18ad16ce4a6b2714583fd1e1044c6ea8e53b3519'
+          if source.get('tag') != expected_tag or source.get('sha') != expected_tag_object:
+              raise SystemExit('signed stable tag object changed')
+          if obj.get('type') != 'commit' or obj.get('sha') != expected_commit:
+              raise SystemExit('signed stable tag commit changed')
+          if verification.get('verified') is not True:
+              raise SystemExit('GitHub API did not verify the stable tag signature')
+          result = {
+              'schema': 'aurum.linux-stable-tag-verification.v1',
+              'repository': 'gregkh/linux',
+              'tag': expected_tag,
+              'tag_object_sha': expected_tag_object,
+              'commit': expected_commit,
+              'verified': True,
+          }
+          json.dump(result, open(sys.argv[2], 'w', encoding='utf-8'), indent=2, sort_keys=True)
+          open(sys.argv[2], 'a', encoding='utf-8').write('\n')
+          PY
+
+          raw="https://raw.githubusercontent.com/gregkh/linux/$expected_commit"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$evidence/usbnet.c" "$raw/drivers/net/usb/usbnet.c"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$evidence/urb.c" "$raw/drivers/usb/core/urb.c"
+          sha256sum "$evidence/usbnet.c" "$evidence/urb.c"
+          echo "AURUM_LINUX_REFERENCE tag=$tag tag_object=$tag_object commit=$expected_commit signature_verified=true"
+
+      - name: Differential virtual queue model against exact Linux source semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='pi3-linux-usbnet-urb-reference'
+          python Projects/AdaptiveKernel/pi3_smsc95xx_linux_usbnet_urb_reference.py \
+            --queue-receipt Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-queue-pressure-latest.json \
+            --source-equivalence Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json \
+            --tag-verification "$evidence/tag-verification.json" \
+            --usbnet-source "$evidence/usbnet.c" \
+            --urb-source "$evidence/urb.c" \
+            --source-commit 18ad16ce4a6b2714583fd1e1044c6ea8e53b3519 \
+            --output "$evidence/receipt.json"
+          python - "$evidence/receipt.json" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          if value.get('state') != 'linux-usbnet-urb-reference-compatible':
+              raise SystemExit('Linux USBNet/URB source differential did not pass')
+          if value.get('mismatch_count') != 0:
+              raise SystemExit('Linux USBNet/URB source differential contains mismatches')
+          if any(v is not False for v in (value.get('authority') or {}).values()):
+              raise SystemExit('reference differential unexpectedly grants authority')
+          invariants = value.get('invariants') or {}
+          for key in ('live_pi_contacted','usb_device_opened','usb_transfer_submitted','usb_cancel_submitted',
+                      'clear_halt_submitted','register_access_performed','kernel_code_executed','driver_binding_changed'):
+              if invariants.get(key) is not False:
+                  raise SystemExit(f'zero-authority invariant failed: {key}')
+          print(
+              'AURUM_PI3_LINUX_USBNET_URB_REFERENCE '
+              f"state={value['state']} mismatches={value['mismatch_count']} "
+              f"receipt_sha256={value['receipt_sha256']} write_authority=false mutation_allowed=false"
+          )
+          PY
+
+      - name: Publish sealed reference differential
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-linux-usbnet-urb-reference
+          path: |
+            pi3-linux-usbnet-urb-reference/tag-verification.json
+            pi3-linux-usbnet-urb-reference/receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist reference differential into durable lineage
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/results
+          cp pi3-linux-usbnet-urb-reference/receipt.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-linux-usbnet-urb-reference-latest.json
+          git config user.name 'aurum-pi3-linux-reference[bot]'
+          git config user.email 'aurum-pi3-linux-reference@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-smsc95xx-linux-usbnet-urb-reference-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_LINUX_REFERENCE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 Linux USBNet URB reference differential [skip ci]'
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo 'AURUM_PI3_LINUX_REFERENCE_RECEIPT persisted=true'
