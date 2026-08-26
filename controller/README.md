@@ -134,8 +134,11 @@ python -m boxbrain_controller.agent_smoke
 ```
 
 The observation policy is loaded from `BOXBRAIN_OBSERVATION_POLICY` (default
-`../policies/observation.json`). It enforces frame size limits, child-process
-redaction, zero disk retention, and a single concurrent frame capture.
+`policies/observation.json` at the repository root). Default policy, plug-in,
+data, and sandbox paths are anchored to the checkout, so launching the
+controller from another working directory does not silently retarget them. The
+policy enforces frame size limits, child-process redaction, zero disk retention,
+and a single concurrent frame capture.
 
 ## Kali Pi edge agent
 
