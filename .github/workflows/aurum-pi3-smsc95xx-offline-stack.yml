@@ -1,0 +1,194 @@
+name: Aurum Pi3 smsc95xx Offline Stack v2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-smsc95xx-offline-stack.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_offline_stack.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_register_interrupt_model.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_register_interrupt_candidate.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_packet_transfer_model.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_offline_stack.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_register_interrupt_model.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_register_interrupt_candidate.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_packet_transfer_model.py'
+      - 'Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-candidate-cloud-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-smsc95xx-offline-stack-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-offline-stack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact offline-stack revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Resolve and verify hash-pinned smsc95xx headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p offline-stack-evidence/reference
+          python - <<'PY' > offline-stack-evidence/reference/manifest.env
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(
+              Path('Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json').read_text()
+          )
+          wanted = {
+              'raspberry-pi-linux-smsc95xx-h': ('RPI_URL', 'RPI_SHA'),
+              'upstream-linux-v6.18-smsc95xx-h': ('UP_URL', 'UP_SHA'),
+          }
+          found = {}
+          for item in manifest['sources']:
+              if item.get('id') in wanted:
+                  url_name, sha_name = wanted[item['id']]
+                  found[url_name] = item['url']
+                  found[sha_name] = item['sha256']
+          missing = [name for pair in wanted.values() for name in pair if name not in found]
+          if missing:
+              raise SystemExit('missing pinned reference metadata: ' + ','.join(missing))
+          for key in ('RPI_URL', 'RPI_SHA', 'UP_URL', 'UP_SHA'):
+              value = found[key]
+              if "'" in value or '\n' in value:
+                  raise SystemExit('unsafe manifest value')
+              print(f"{key}='{value}'")
+          PY
+          source offline-stack-evidence/reference/manifest.env
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output offline-stack-evidence/reference/rpi-smsc95xx.h "$RPI_URL"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output offline-stack-evidence/reference/upstream-smsc95xx.h "$UP_URL"
+          printf '%s  %s\n' "$RPI_SHA" 'offline-stack-evidence/reference/rpi-smsc95xx.h' \
+            | sha256sum --check --strict
+          printf '%s  %s\n' "$UP_SHA" 'offline-stack-evidence/reference/upstream-smsc95xx.h' \
+            | sha256sum --check --strict
+
+      - name: Run fail-closed offline-stack tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_register_interrupt_model \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_register_interrupt_candidate \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_packet_transfer_model \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_offline_stack
+
+      - name: Build sealed register interrupt and packet stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_offline_stack \
+            --functional-model Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json \
+            --cloud-candidate Projects/AdaptiveKernel/results/pi3-smsc95xx-candidate-cloud-latest.json \
+            --manifest Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json \
+            --rpi-header offline-stack-evidence/reference/rpi-smsc95xx.h \
+            --upstream-header offline-stack-evidence/reference/upstream-smsc95xx.h \
+            --output-dir offline-stack-evidence/results
+
+      - name: Verify zero-authority semantic receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_offline_stack import _verify_sealed
+
+          path = Path('offline-stack-evidence/results/offline-stack-v2.json')
+          receipt = json.loads(path.read_text())
+          if receipt.get('state') != 'verified-offline-register-interrupt-packet-stack':
+              raise SystemExit('offline stack did not reach the verified state')
+          if not _verify_sealed(receipt):
+              raise SystemExit('offline stack receipt seal failed')
+          verification = receipt['verification']
+          if verification['register_interrupt_differential_mismatches'] != 0:
+              raise SystemExit('register differential has mismatches')
+          if verification['register_interrupt_differential_scenarios'] < 10:
+              raise SystemExit('register differential coverage is incomplete')
+          if verification['tx_packet_scenarios'] != 6 or verification['rx_packet_scenarios'] != 3:
+              raise SystemExit('packet shadow coverage is incomplete')
+          if receipt['qpu']['used'] or receipt['qpu']['hardware_submission_performed']:
+              raise SystemExit('bounded offline stack unexpectedly used QPU hardware')
+          if receipt['invariants']['live_pi_contacted'] or receipt['invariants']['usb_transfer_submitted']:
+              raise SystemExit('offline stack crossed its no-hardware boundary')
+          if receipt['authority']['mutation_allowed'] or receipt['authority']['write_authority']:
+              raise SystemExit('offline stack gained authority')
+          summary = [
+              '# Pi3 smsc95xx Offline Stack v2',
+              '',
+              f"- State: {receipt['state']}",
+              f"- Register/interrupt scenarios: {verification['register_interrupt_differential_scenarios']}",
+              '- Register/interrupt mismatches: 0',
+              '- TX packet scenarios: 6',
+              '- RX packet scenarios: 3',
+              '- Live Pi / USB device contacted: false',
+              '- QPU hardware used: false',
+              '- Mutation or promotion authority: false',
+              '',
+              receipt['strongest_claim'],
+          ]
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('\n'.join(summary) + '\n')
+          PY
+
+      - name: Publish sealed offline-stack artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-offline-stack-v2-${{ github.run_id }}
+          path: offline-stack-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist verified stack into durable lineage
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/driver_candidates/generated
+          cp offline-stack-evidence/results/register-interrupt-candidate.c \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-register-interrupt-candidate.c
+          cp offline-stack-evidence/results/register-interrupt-shadow.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-shadow-latest.json
+          cp offline-stack-evidence/results/register-interrupt-candidate.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-candidate-latest.json
+          cp offline-stack-evidence/results/register-interrupt-differential.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-differential-latest.json
+          cp offline-stack-evidence/results/packet-transfer-shadow.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-shadow-latest.json
+          cp offline-stack-evidence/results/offline-stack-v2.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-offline-stack-v2-latest.json
+          git config user.name 'aurum-pi3-offline-stack[bot]'
+          git config user.email 'aurum-pi3-offline-stack@users.noreply.github.com'
+          git add \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-register-interrupt-candidate.c \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-shadow-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-candidate-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-register-interrupt-differential-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-shadow-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-offline-stack-v2-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SMSC95XX_OFFLINE_STACK_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 smsc95xx offline stack v2 [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SMSC95XX_OFFLINE_STACK_RECEIPT persisted=true'
