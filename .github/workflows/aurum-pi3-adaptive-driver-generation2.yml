@@ -1,0 +1,285 @@
+name: Aurum Pi3 Adaptive Driver Generation 2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Projects/AdaptiveDrivers/requests/pi3-generation2-run.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-adaptive-driver-generation-2
+  cancel-in-progress: false
+
+jobs:
+  pi3-generation-2:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact experiment source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) {
+            throw 'Generation-2 physical test must exclude production nodes.'
+          }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) {
+            throw 'Pinned Pi3 SSH identity key is unavailable.'
+          }
+
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-g2-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) {
+            throw 'Refusing to overwrite an existing staged Pi3 SSH identity.'
+          }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+            $runnerSid,
+            [Security.AccessControl.FileSystemRights]::FullControl,
+            [Security.AccessControl.AccessControlType]::Allow
+          )
+          [void]$acl.AddAccessRule($rule)
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText(
+            $env:GITHUB_ENV,
+            "PI3_RUNTIME_KEY=$runtimeKeyPath`n",
+            [Text.UTF8Encoding]::new($false)
+          )
+
+      - name: Prove generation-2 observer and fault quarantine on pinned physical Pi3
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'adaptive-driver-generation2-evidence' | Out-Null
+
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) {
+            throw 'Generation-2 physical test must exclude production nodes.'
+          }
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
+          if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+            throw 'Staged Pi3 SSH identity is unavailable.'
+          }
+
+          $expectedFingerprint = ([string]$identity.host_key_sha256).Trim().TrimEnd('=')
+          $knownHostLines = @(
+            Get-Content -LiteralPath $knownHosts |
+              ForEach-Object { ([string]$_).Trim() } |
+              Where-Object { $_ -and -not $_.StartsWith('#') }
+          )
+          if ($knownHostLines.Count -ne 1) {
+            throw 'Pinned known-host contract must contain exactly one active entry.'
+          }
+          $knownHostParts = @($knownHostLines[0] -split '\s+')
+          if ($knownHostParts.Count -ne 3 -or [string]$knownHostParts[0] -ne [string]$identity.pinned_ipv4) {
+            throw 'Pinned known-host endpoint does not match the Pi3 identity contract.'
+          }
+          $keygen = Get-Command ssh-keygen -ErrorAction Stop
+          $fingerprintOutput = @(& $keygen.Source -lf $knownHosts -E sha256 2>$null)
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to verify pinned Pi3 known-host fingerprint.'
+          }
+          $fingerprintMatch = [regex]::Match(($fingerprintOutput -join "`n"), 'SHA256:[A-Za-z0-9+/]+={0,2}')
+          if (-not $fingerprintMatch.Success -or $fingerprintMatch.Value.TrimEnd('=') -ne $expectedFingerprint) {
+            throw 'Pinned Pi3 host-key fingerprint does not match the identity contract.'
+          }
+
+          $target = [string]$identity.pinned_ipv4
+          if (-not (Test-NetConnection -ComputerName $target -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue)) {
+            throw 'Pinned Pi3 SSH endpoint is not reachable.'
+          }
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshTarget = "$($identity.ssh_user)@$target"
+          $sshCommon = @(
+            '-o', 'BatchMode=yes',
+            '-o', 'IdentitiesOnly=yes',
+            '-o', 'StrictHostKeyChecking=yes',
+            '-o', "UserKnownHostsFile=$knownHosts",
+            '-o', 'ConnectTimeout=5',
+            '-o', 'ConnectionAttempts=1',
+            '-i', $keyPath,
+            $sshTarget
+          )
+
+          $identityScript = @'
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+          root_source="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+          printf '%s\n%s\n%s\n%s\n' "$model" "$serial" "$boot_id" "$root_source"
+          '@
+          $identityEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($identityScript))
+          $identityCommand = "printf '%s' '$identityEncoded' | base64 -d | sh"
+          $identityLines = @(& $ssh.Source @sshCommon $identityCommand 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $identityLines.Count -lt 4) {
+            throw 'Strict Pi3 identity session failed.'
+          }
+          if (-not ([string]$identityLines[0]).Contains([string]$identity.model_marker)) {
+            throw 'Strict SSH target is not the pinned Raspberry Pi 3 model.'
+          }
+          if (([string]$identityLines[1]).Trim() -ne ([string]$identity.serial).Trim()) {
+            throw 'Strict SSH target serial does not match the pinned Pi3.'
+          }
+
+          $source = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/adaptive_driver_loop.py' -Raw
+          $stateDir = "/tmp/aurum-adaptive-driver-generation2-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+
+          function Invoke-RemoteLoop([string]$Arguments) {
+            $prior = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+              $lines = @($source | & $ssh.Source @sshCommon "python3 - $Arguments" 2>&1)
+              $exitCode = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $prior
+            }
+            if ($exitCode -ne 0) {
+              throw "Physical Pi3 adaptive-driver loop failed: $($lines -join ' ')"
+            }
+            try {
+              return (($lines -join "`n") | ConvertFrom-Json)
+            } catch {
+              throw "Physical Pi3 adaptive-driver loop returned invalid JSON: $($lines -join ' ')"
+            }
+          }
+
+          $generation2 = Invoke-RemoteLoop "--state-dir $stateDir --root / --candidate pi3-net-sysfs-tolerant-v2 --allow-promotion --run-id physical-g2-$env:GITHUB_RUN_ID"
+          if (
+            [string]$generation2.state -ne 'completed' -or
+            [string]$generation2.decision -ne 'promoted' -or
+            [int]$generation2.candidate.generation -ne 2 -or
+            -not [bool]$generation2.score.functional_match -or
+            -not [bool]$generation2.test.read_evidence_complete -or
+            @($generation2.test.missing_fields).Count -ne 0 -or
+            -not [bool]$generation2.lkg_preserved_during_test -or
+            [bool]$generation2.system_driver_changed -or
+            [bool]$generation2.test.kernel_module_loaded -or
+            [bool]$generation2.test.kernel_driver_binding_changed
+          ) {
+            throw 'Generation-2 physical promotion evidence did not satisfy the safe userspace gate.'
+          }
+
+          $lkgHashBefore = @(& $ssh.Source @sshCommon "sha256sum '$stateDir/lkg.json' | awk '{print `$1}'" 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $lkgHashBefore.Count -lt 1 -or -not ([string]$lkgHashBefore[0]).Trim()) {
+            throw 'Unable to capture generation-2 LKG digest before fault injection.'
+          }
+          $lkgHashBefore = ([string]$lkgHashBefore[0]).Trim()
+
+          $fault = Invoke-RemoteLoop "--state-dir $stateDir --root / --candidate pi3-net-sysfs-tolerant-v2-missing-field-fixture --include-faults --allow-promotion --run-id physical-g2-fault-$env:GITHUB_RUN_ID"
+          $faultBranch = @($fault.future_branches | Where-Object { [string]$_.branch_id -eq 'missing-sysfs-field-fault-injection' } | Select-Object -First 1)
+          if (
+            [string]$fault.state -ne 'completed' -or
+            [string]$fault.decision -ne 'quarantined' -or
+            [string]$fault.reason -ne 'required-read-only-field-unavailable' -or
+            [int]$fault.candidate.generation -ne 2 -or
+            @($fault.test.missing_fields).Count -ne 1 -or
+            [string]$fault.test.missing_fields[0] -ne 'carrier' -or
+            [bool]$fault.test.read_evidence_complete -or
+            -not [bool]$fault.lkg_preserved_during_test -or
+            [string]$fault.lkg.active_after -ne 'pi3-net-sysfs-tolerant-v2' -or
+            [bool]$fault.system_driver_changed -or
+            [bool]$fault.test.kernel_module_loaded -or
+            [bool]$fault.test.kernel_driver_binding_changed -or
+            $faultBranch.Count -ne 1 -or
+            [string]$faultBranch[0].status -ne 'quarantined'
+          ) {
+            throw 'Missing-field fault did not quarantine cleanly while preserving generation-2 LKG metadata.'
+          }
+
+          $lkgHashAfter = @(& $ssh.Source @sshCommon "sha256sum '$stateDir/lkg.json' | awk '{print `$1}'" 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $lkgHashAfter.Count -lt 1) {
+            throw 'Unable to capture generation-2 LKG digest after fault injection.'
+          }
+          $lkgHashAfter = ([string]$lkgHashAfter[0]).Trim()
+          if ($lkgHashAfter -ne $lkgHashBefore) {
+            throw 'Generation-2 LKG metadata changed during quarantined fault injection.'
+          }
+
+          $rollback = Invoke-RemoteLoop "--state-dir $stateDir --rollback"
+          if ([string]$rollback.lkg.active.profile_id -ne 'pi3-linux-reference-driver') {
+            throw 'Isolated generation-2 rollback did not restore the Linux reference metadata LKG.'
+          }
+
+          $cleanup = @(& $ssh.Source @sshCommon "rm -rf '$stateDir'" 2>&1)
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unable to remove isolated Pi3 generation-2 state: $($cleanup -join ' ')"
+          }
+
+          $receipt = [ordered]@{
+            schema = 'aurum.pi3.adaptive-driver.generation2.physical.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            repository = [string]$env:GITHUB_REPOSITORY
+            source_commit = [string]$env:GITHUB_SHA
+            run_id = [string]$env:GITHUB_RUN_ID
+            run_attempt = [string]$env:GITHUB_RUN_ATTEMPT
+            target = [ordered]@{
+              address = $target
+              model = ([string]$identityLines[0]).Trim()
+              serial = ([string]$identityLines[1]).Trim()
+              boot_id = ([string]$identityLines[2]).Trim()
+              root_source = ([string]$identityLines[3]).Trim()
+              host_key_sha256 = $expectedFingerprint
+              strict_key_only_ssh = $true
+            }
+            generation2 = [ordered]@{
+              candidate_id = [string]$generation2.candidate.candidate_id
+              generation = [int]$generation2.candidate.generation
+              decision = [string]$generation2.decision
+              score = $generation2.score.score
+              read_evidence_complete = [bool]$generation2.test.read_evidence_complete
+              lkg_preserved_during_test = [bool]$generation2.lkg_preserved_during_test
+            }
+            fault_injection = [ordered]@{
+              candidate_id = [string]$fault.candidate.candidate_id
+              decision = [string]$fault.decision
+              reason = [string]$fault.reason
+              missing_fields = @($fault.test.missing_fields)
+              lkg_preserved_during_test = [bool]$fault.lkg_preserved_during_test
+              lkg_sha256_before = $lkgHashBefore
+              lkg_sha256_after = $lkgHashAfter
+            }
+            isolated_metadata_rollback = [ordered]@{
+              restored_profile_id = [string]$rollback.lkg.active.profile_id
+              passed = $true
+            }
+            safety = [ordered]@{
+              system_driver_changed = $false
+              kernel_module_loaded = $false
+              kernel_driver_binding_changed = $false
+              firmware_mutation_allowed = $false
+              kernel_driver_mutation_allowed = $false
+              production_nodes_allowed = $false
+              persistent_trust_changed = $false
+            }
+            state = 'passed-physical-userspace-generation2'
+          }
+          $receipt | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath 'adaptive-driver-generation2-evidence/result.json' -Encoding utf8
+          Write-Host 'AURUM_PI3_GENERATION2 state=passed-physical-userspace-generation2 fault_quarantine=passed lkg_preserved=true system_driver_changed=false'
+
+      - name: Publish generation-2 physical evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-adaptive-driver-generation-2
+          path: adaptive-driver-generation2-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) {
+            Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force
+          }
