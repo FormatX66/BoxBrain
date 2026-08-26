@@ -52,6 +52,51 @@ jobs:
           sh -n installer/prepare-hopper-gui-input-test.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -p 'test_*.py' -v
 
+      - name: Exercise live Hopper browser surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          export AURUM_GIT_WORKSPACE="$PWD"
+          export AURUM_RUNTIME_ROOT="$PWD/Projects/AurumPC"
+          python3 Projects/AurumPC/aurum_hopper_gui.py \
+            --root "$RUNNER_TEMP/aurum-gui-smoke" \
+            --host 127.0.0.1 \
+            --port 18765 \
+            >"$RUNNER_TEMP/aurum-gui-smoke.log" 2>&1 &
+          gui_pid=$!
+          cleanup() {
+            kill "$gui_pid" 2>/dev/null || true
+            wait "$gui_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=false
+          for _attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18765/api/status >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat "$RUNNER_TEMP/aurum-gui-smoke.log"
+            exit 1
+          fi
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --user-data-dir="$RUNNER_TEMP/aurum-gui-browser" \
+            --virtual-time-budget=3000 \
+            --dump-dom http://127.0.0.1:18765/ \
+            >"$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'data-hopper-profile="gen1-html"' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'api-key-required' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'Ask Aurum about Hopper' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'Sealed credential pending' "$RUNNER_TEMP/aurum-gui-dom.html"
+
   build-image:
     needs: validate
     runs-on: ubuntu-24.04
