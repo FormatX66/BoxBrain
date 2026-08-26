@@ -1,5 +1,5 @@
 {
-  "event_count": 10,
+  "event_count": 11,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -105,7 +105,7 @@
       "timestamp": "2026-08-26T03:29:39.546066Z"
     },
     "pi3-adaptive-kernel-overnight-32926370691": {
-      "actor": "codex-thread-01a03afd",
+      "actor": "heartbeat-pi3-adaptive-kernel-overnight",
       "authority_ref": null,
       "confidence": 1.0,
       "dependency_ids": [
@@ -114,39 +114,52 @@
         "pi3-adaptive-driver-generation2",
         "pi3-kernel-canary-preflight-32926239577"
       ],
-      "event_id": "evt-5c8ed6a3a88546e2919e08dff814ac0e",
+      "event_id": "evt-ff2cd82a4c3346cb82aef14e41bf9372",
       "evidence_refs": [
         "github:actions:run:32926370691",
         "github:actions:job:98050003503",
-        "git:commit:7bbec6c4",
-        "github:actions:run:32926239577",
-        "github:artifact:9591615066"
+        "git:commit:7bbec6c4"
       ],
       "node_id": "adaptive-kernel",
       "payload": {
-        "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
-        "current_stage": "observe",
+        "current_stage": "userspace-adaptation",
         "current_throttle_fault": false,
         "ethernet_carrier": "1",
-        "historical_throttle_seen": true,
-        "laboratory_started_at_runner_utc": "2026-08-26T03:28:05Z",
-        "persistent_kernel_or_driver_change_allowed": false,
-        "physical_mutation_started": false,
+        "measured_candidates": [
+          [
+            5,
+            10
+          ],
+          [
+            8,
+            16
+          ],
+          [
+            10,
+            20
+          ]
+        ],
+        "original_dirty_background_ratio": 10,
+        "original_dirty_ratio": 20,
+        "original_restored": true,
+        "persistent_change": false,
+        "recommended_candidate": [
+          10,
+          20
+        ],
         "reference_driver": "smsc95xx",
-        "rx_dropped": 0,
         "rx_errors": 0,
         "stage_state": "passed",
-        "temperature_c": 50.464,
-        "tx_dropped": 0,
+        "temperature_c": 48.312,
         "tx_errors": 0,
         "workflow_state": "in_progress"
       },
-      "source": "github-physical-pi3-overnight-live",
+      "source": "pinned-pi3-live-stage-receipt",
       "status": "running_verified",
       "subject_id": "pi3-adaptive-kernel-overnight-32926370691",
       "subject_kind": "experiment",
-      "summary": "Clean pinned-Pi3 overnight laboratory is running from the corrected harness after fresh rollback hashes and exact identity gates passed; observation stage has passed with healthy thermal, power, Ethernet, and reference-driver evidence.",
-      "timestamp": "2026-08-26T03:29:42.139188Z"
+      "summary": "Userspace adaptation stage passed on the pinned Pi3; all three dirty-page candidates were measured under timed rollback, the original 10/20 setting ranked best, and it was restored with no persistent change.",
+      "timestamp": "2026-08-26T04:38:05.417165Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
