@@ -154,3 +154,5 @@ jobs:
           git commit -m 'Record Hopper recovery path probe [skip ci]'
           git pull --rebase origin main
           git push origin HEAD:main
+
+# Manual Future Branch refresh trigger: 2026-08-26T11:31Z
