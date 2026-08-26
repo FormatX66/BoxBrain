@@ -49,7 +49,7 @@
   },
   "gaps": [],
   "next_gate": "correlate-observed-controller-link-and-package-provenance-with-pinned-references",
-  "observed_at_utc": "2026-08-26T14:23:35.2354723Z",
+  "observed_at_utc": "2026-08-26T14:25:30.9718640Z",
   "provenance": {
     "driver_kernel_config": "CONFIG_USB_NET_SMSC95XX=y",
     "driver_modinfo_filename": "",
@@ -77,10 +77,10 @@
     "running_image_package_record": "install ok installed linux-image-6.18.34+rpt-rpi-v8\t1:6.18.34-1+rpt1\tarm64"
   },
   "quarantine_reasons": [],
-  "receipt_sha256": "01f287b5b7fe813afe497b5481b01b55eb70f610e701c0823762c574eedba347",
+  "receipt_sha256": "cca9db44a73ba751ef032a69053cdf99c7ba482af237c1193aac703cca1604bd",
   "schema": "aurum.pi3.controller-link-fingerprint.v1",
-  "source_commit": "3ac06a157b44a3ac61c405eae37f2e754eb6c7fe",
-  "source_run_id": "32979936796",
+  "source_commit": "ecc11358a876d97827225f95188352fe095967f5",
+  "source_run_id": "32980137771",
   "state": "completed-read-only-fingerprint",
   "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial, LAN9514 parent-hub assembly, and protected smsc95xx path. The receipt records USB-function identity, negotiated link state, exact running-image package metadata, kernel config mode, and driver/header provenance where available; it grants no mutation or promotion authority.",
   "target": {

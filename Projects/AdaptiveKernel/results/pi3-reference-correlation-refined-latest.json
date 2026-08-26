@@ -1,0 +1,124 @@
+{
+  "correlation": {
+    "agreement_count": 6,
+    "agreements": [
+      {
+        "id": "board-model-and-soc",
+        "physical": "exact model and serial gates passed",
+        "reference": "Pi3B Rev 1.2 reduced schematic names the board and BCM2837",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-binding",
+        "physical": "smsc95xx remained bound before, during, and after the run",
+        "reference": "Raspberry Pi kernel config and source include built-in smsc95xx over usbnet",
+        "state": "agrees"
+      },
+      {
+        "id": "checksum-offload-capability",
+        "physical": "rx-checksumming canary passed and restored without persistent change",
+        "reference": "LAN9514 datasheet and smsc95xx source expose checksum support",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-health",
+        "physical": "carrier remained present with zero final errors and drops",
+        "reference": "protected Linux branch remains the baseline",
+        "state": "agrees"
+      },
+      {
+        "id": "lan9514-controller-assembly",
+        "physical": "pinned Pi3 sysfs topology observed parent hub 0424:9514 and Ethernet function 0424:ec00",
+        "reference": "LAN9514 reference identifies USB hub 0424:9514 with SMSC95xx Ethernet function 0424:ec00",
+        "state": "agrees"
+      },
+      {
+        "id": "negotiated-fast-ethernet-link",
+        "physical": "pinned Pi3 negotiated 100 Mbps full duplex on protected smsc95xx",
+        "reference": "LAN9514 Ethernet capability is 10/100",
+        "state": "agrees"
+      }
+    ],
+    "closed_gap_ids": [
+      "controller-identity",
+      "negotiated-link-speed"
+    ],
+    "gap_count": 2,
+    "gaps": [
+      {
+        "id": "running-driver-source-provenance",
+        "next_evidence": "exact package source/build commit equivalence",
+        "observed_driver_kernel_config": "CONFIG_USB_NET_SMSC95XX=y",
+        "observed_package": "linux-image-6.18.34+rpt-rpi-v8",
+        "observed_package_record": "install ok installed linux-image-6.18.34+rpt-rpi-v8\t1:6.18.34-1+rpt1\tarm64",
+        "reason": "the exact installed running-image package and built-in smsc95xx kernel-config mode are now observed, but source-commit/build-to-running-binary equivalence is not yet established",
+        "state": "unproven"
+      },
+      {
+        "id": "candidate-driver-hardware-behavior",
+        "next_evidence": "offline functional model before any binding proposal",
+        "reason": "the Aurum candidate is an inert API probe, not a functional driver",
+        "state": "unproven"
+      }
+    ]
+  },
+  "inputs": {
+    "base_reference_correlation_sha256": "0dff3f9aa4bbabba933f2a4a79204f2a06d951778eb2414974d35c815c5eac04",
+    "fingerprint_receipt_sha256": "cca9db44a73ba751ef032a69053cdf99c7ba482af237c1193aac703cca1604bd",
+    "fingerprint_source_commit": "ecc11358a876d97827225f95188352fe095967f5",
+    "fingerprint_source_run_id": "32980137771"
+  },
+  "invariants": {
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted_by_refinement": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "promotion_authority_granted": false,
+    "reference_driver_preserved": true
+  },
+  "physical_observation": {
+    "driver_kernel_config": "CONFIG_USB_NET_SMSC95XX=y",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "negotiated_link": {
+      "carrier": "1",
+      "duplex": "full",
+      "speed_mbps": 100
+    },
+    "reference_driver": "smsc95xx",
+    "running_image_package": "linux-image-6.18.34+rpt-rpi-v8",
+    "serial": "00000000a6a7df7f",
+    "usb_ethernet_function": {
+      "product_id": "ec00",
+      "vendor_id": "0424"
+    },
+    "usb_parent_hub": {
+      "product_id": "9514",
+      "vendor_id": "0424"
+    }
+  },
+  "processing": {
+    "live_pi_contacted": false,
+    "physical_mutation_authority": false,
+    "placement": "repository-receipt-refinement",
+    "qpu_hardware_contacted": false
+  },
+  "proposal": {
+    "next_experiment": "resolve-running-kernel-source-equivalence-and-offline-functional-driver-model",
+    "next_experiment_inputs": [
+      "exact package source/build commit equivalence",
+      "offline functional smsc95xx/LAN9514 behavior model"
+    ],
+    "physical_driver_change": "no-change",
+    "selected_physical_driver": "smsc95xx",
+    "state": "held-for-source-equivalence-and-functional-model"
+  },
+  "receipt_sha256": "0414e8e2d6ce64820496209fcc58f970b124d0af4872d2193b12f96381dc7928",
+  "schema": "aurum-pi3-reference-correlation-refinement-v1",
+  "semantic_state": "completed-with-two-actionable-reference-gaps",
+  "state": "completed",
+  "strongest_claim": "Fresh sealed read-only physical evidence closes the exact LAN9514 controller-assembly and negotiated-link gaps: the pinned Pi3 exposes parent hub 0424:9514, Ethernet function 0424:ec00, and a 100 Mbps full-duplex smsc95xx link. Two stronger proofs remain: source/build equivalence for the running kernel image and functional candidate-driver hardware behavior. No mutation or promotion authority is created."
+}
