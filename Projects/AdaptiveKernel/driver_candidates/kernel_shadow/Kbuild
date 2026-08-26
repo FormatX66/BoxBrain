@@ -1,0 +1,2 @@
+# Inert kernel-shaped shadow candidate only. There are intentionally no install targets.
+obj-m := aurum_pi3_smsc95xx_kernel_shadow.o

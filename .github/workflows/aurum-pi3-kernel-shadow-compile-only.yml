@@ -1,0 +1,226 @@
+name: Aurum Pi3 Kernel Shadow Compile Only
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-kernel-shadow-compile-only.yml'
+      - 'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/**'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_kernel_shadow_contract.py'
+      - 'Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json'
+      - 'Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-nonbinding-candidate.c'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-kernel-shadow-compile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compile-only:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact kernel-shadow source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve pinned Farmer Python and verify zero-authority static contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'pi3-kernel-shadow-evidence' | Out-Null
+          $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
+          $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
+          if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) { throw 'Aurum Farmer install receipt is unavailable.' }
+          $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
+          $pythonPath = [string]$install.python_exe
+          if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) { throw 'Aurum Farmer Python executable is unavailable.' }
+          $staticOutput = @(& $pythonPath Projects/AdaptiveKernel/driver_candidates/kernel_shadow/verify_kernel_shadow.py 2>&1)
+          $staticExit = $LASTEXITCODE
+          $staticOutput | Set-Content -LiteralPath 'pi3-kernel-shadow-evidence/static-receipt.json' -Encoding utf8
+          if ($staticExit -ne 0) { throw 'Kernel-shadow static contract refused the source.' }
+          $static = Get-Content -LiteralPath 'pi3-kernel-shadow-evidence/static-receipt.json' -Raw | ConvertFrom-Json
+          if ($static.state -ne 'verified-inert-kernel-shadow-compile-only') { throw 'Kernel-shadow static receipt did not pass.' }
+          if ([bool]$static.invariants.load_allowed -or [bool]$static.invariants.hardware_io_present -or [bool]$static.invariants.write_authority) {
+            throw 'Kernel-shadow static receipt unexpectedly grants capability.'
+          }
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Kernel-shadow compile must exclude production nodes.' }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-kernel-shadow-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) { throw 'Refusing to overwrite staged Pi3 identity.' }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($runnerSid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_RUNTIME_KEY=$runtimeKeyPath`n",[Text.UTF8Encoding]::new($false))
+
+      - name: Compile and inspect kernel-shaped candidate without loading it
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedModel = 'Raspberry Pi 3 Model B Rev 1.2'
+          $expectedKernel = '6.18.34+rpt-rpi-v8'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $sshTarget = "$($identity.ssh_user)@$($identity.pinned_ipv4)"
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $scp = Get-Command scp -ErrorAction Stop
+          $sshOptions = @('-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no','-o','PreferredAuthentications=publickey','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',[string]$env:PI3_RUNTIME_KEY)
+
+          $probe = @'
+          set -eu
+          model="$(tr -d '\000' </proc/device-tree/model)"
+          serial="$(awk -F': *' '/^Serial/{print $2; exit}' /proc/cpuinfo)"
+          kernel="$(uname -r)"
+          arch="$(uname -m)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+          root="$(findmnt -n -o SOURCE /)"
+          driver="$(basename "$(readlink -f /sys/class/net/eth0/device/driver)")"
+          header_release="$(cat "/lib/modules/$kernel/build/include/config/kernel.release")"
+          module_present=false
+          if grep -q '^aurum_pi3_smsc95xx_kernel_shadow ' /proc/modules; then module_present=true; fi
+          printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$model" "$serial" "$kernel" "$arch" "$boot_id" "$root" "$driver" "$header_release" "$module_present"
+          '@
+          $probe = $probe.Replace("`r`n", "`n")
+          $probeEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($probe))
+          $observed = @(& $ssh.Source @sshOptions $sshTarget "printf '%s' '$probeEncoded' | base64 -d | sh" 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $observed.Count -ne 9) { throw 'Strict Pi3 kernel-shadow preflight failed.' }
+          $model = ([string]$observed[0]).Trim()
+          $serial = ([string]$observed[1]).Trim()
+          $kernel = ([string]$observed[2]).Trim()
+          $arch = ([string]$observed[3]).Trim()
+          $bootBefore = ([string]$observed[4]).Trim()
+          $rootBefore = ([string]$observed[5]).Trim()
+          $driverBefore = ([string]$observed[6]).Trim()
+          $headerRelease = ([string]$observed[7]).Trim()
+          $moduleBefore = ([string]$observed[8]).Trim()
+          if ($model -ne $expectedModel -or $serial -ne ([string]$identity.serial).Trim()) { throw 'Exact Pi3 model or serial mismatch.' }
+          if ($kernel -ne $expectedKernel -or $headerRelease -ne $expectedKernel -or $arch -ne 'aarch64') { throw 'Running kernel/header release or architecture mismatch.' }
+          if ($rootBefore -ne '/dev/mmcblk0p2' -or $driverBefore -ne 'smsc95xx' -or $moduleBefore -ne 'false') { throw 'Pi3 LKG driver/module precondition failed.' }
+
+          $remoteDir = ([string](& $ssh.Source @sshOptions $sshTarget 'mktemp -d /tmp/aurum-pi3-kernel-shadow.XXXXXX' 2>$null)).Trim()
+          if ($LASTEXITCODE -ne 0 -or $remoteDir -notmatch '^/tmp/aurum-pi3-kernel-shadow\.[A-Za-z0-9]+$') { throw 'Remote temporary compile directory is invalid.' }
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_KERNEL_SHADOW_REMOTE_DIR=$remoteDir`n",[Text.UTF8Encoding]::new($false))
+
+          $sourceFiles = @(
+            'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/aurum_pi3_smsc95xx_kernel_shadow.c',
+            'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/Kbuild',
+            'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/kernel_shadow_compile_only.py',
+            'pi3-kernel-shadow-evidence/static-receipt.json'
+          )
+          & $scp.Source @('-q') @sshOptions @sourceFiles "${sshTarget}:$remoteDir/"
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned kernel-shadow source transfer failed.' }
+
+          $build = @"
+          set -eu
+          d='$remoteDir'
+          trap 'rm -rf -- "`$d"' EXIT INT TERM
+          before_boot="`$(cat /proc/sys/kernel/random/boot_id)"
+          before_driver="`$(basename "`$(readlink -f /sys/class/net/eth0/device/driver)")"
+          set +e
+          python3 "`$d/kernel_shadow_compile_only.py" --kernel-build '/lib/modules/$expectedKernel/build' --expected-kernel-release '$expectedKernel' --static-receipt "`$d/static-receipt.json" --receipt "`$d/result.json" >"`$d/compile.log" 2>&1
+          compile_exit=`$?
+          set -e
+          test -f "`$d/result.json"
+          after_boot="`$(cat /proc/sys/kernel/random/boot_id)"
+          after_driver="`$(basename "`$(readlink -f /sys/class/net/eth0/device/driver)")"
+          module_present=false
+          if grep -q '^aurum_pi3_smsc95xx_kernel_shadow ' /proc/modules; then module_present=true; fi
+          result_b64="`$(base64 -w0 "`$d/result.json")"
+          printf '%s\n%s\n%s\n%s\n%s\n%s\n' "`$result_b64" "`$compile_exit" "`$before_boot" "`$after_boot" "`$before_driver" "`$after_driver:`$module_present"
+          "@
+          $build = $build.Replace("`r`n", "`n")
+          $buildEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($build))
+          $built = @(& $ssh.Source @sshOptions $sshTarget "printf '%s' '$buildEncoded' | base64 -d | sh" 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $built.Count -ne 6) { throw 'Remote kernel-shadow compile failed before evidence retrieval.' }
+
+          [IO.File]::WriteAllBytes('pi3-kernel-shadow-evidence/compile-receipt.json',[Convert]::FromBase64String(([string]$built[0]).Trim()))
+          $receipt = Get-Content -LiteralPath 'pi3-kernel-shadow-evidence/compile-receipt.json' -Raw | ConvertFrom-Json
+          $compileExit = [int]([string]$built[1]).Trim()
+          $bootAtBuild = ([string]$built[2]).Trim()
+          $bootAfter = ([string]$built[3]).Trim()
+          $driverAtBuild = ([string]$built[4]).Trim()
+          $post = ([string]$built[5]).Trim().Split(':')
+          if ($post.Count -ne 2) { throw 'Kernel-shadow post-build evidence is malformed.' }
+          $driverAfter = $post[0]
+          $modulePresentAfter = $post[1] -eq 'true'
+          if ($compileExit -ne 0 -or $receipt.state -ne 'verified-kernel-shadow-compile-only') { throw "Kernel-shadow compile receipt did not verify: state=$($receipt.state) exit=$compileExit" }
+          if (-not [bool]$receipt.artifact_inspection.exact_vermagic -or $receipt.artifact_inspection.aliases.Count -ne 0 -or $receipt.artifact_inspection.device_table_symbols.Count -ne 0 -or $receipt.artifact_inspection.forbidden_unresolved_symbols.Count -ne 0) { throw 'Kernel-shadow artifact inspection did not remain inert.' }
+          if (-not [bool]$receipt.build.temporary_build_removed -or [bool]$receipt.build.loader_invoked -or [bool]$receipt.build.installer_invoked) { throw 'Kernel-shadow cleanup/load invariants failed.' }
+          if ($bootAtBuild -ne $bootBefore -or $bootAfter -ne $bootBefore) { throw 'Pi3 boot ID changed during kernel-shadow compile.' }
+          if ($driverAtBuild -ne 'smsc95xx' -or $driverAfter -ne 'smsc95xx' -or $modulePresentAfter) { throw 'Pi3 LKG driver/module state changed during kernel-shadow compile.' }
+
+          $control = [ordered]@{
+            schema = 'aurum.pi3.kernel-shadow.compile-control.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'verified-kernel-shadow-compile-only'
+            run_id = [string]$env:GITHUB_RUN_ID
+            source_commit = [string]$env:GITHUB_SHA
+            target = [ordered]@{ model = $model; serial = $serial; kernel = $kernel; arch = $arch; root_source = $rootBefore; reference_driver = 'smsc95xx' }
+            evidence = [ordered]@{ compile_receipt_sha256 = (Get-FileHash -LiteralPath 'pi3-kernel-shadow-evidence/compile-receipt.json' -Algorithm SHA256).Hash.ToLowerInvariant(); module_sha256 = $receipt.build.module_sha256; vermagic = $receipt.artifact_inspection.vermagic }
+            invariants = [ordered]@{ boot_id_unchanged = $true; reference_driver_unchanged = $true; module_loaded = $false; artifact_retained = $false; usb_transfer_submitted = $false; register_write_performed = $false; firmware_changed = $false; network_configuration_changed = $false }
+            authority = [ordered]@{ module_load_allowed = $false; driver_binding_change_allowed = $false; mutation_authority_granted = $false; promotion_allowed = $false; write_authority = $false }
+          }
+          $control | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-kernel-shadow-evidence/control-receipt.json' -Encoding utf8
+
+      - name: Remove remote temporary directory
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $remoteDir = [string]$env:PI3_KERNEL_SHADOW_REMOTE_DIR
+          if (-not $remoteDir) { exit 0 }
+          if ($remoteDir -notmatch '^/tmp/aurum-pi3-kernel-shadow\.[A-Za-z0-9]+$') { throw 'Refusing cleanup outside kernel-shadow temporary prefix.' }
+          if (-not $env:PI3_RUNTIME_KEY -or -not (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) { throw 'Pinned identity unavailable for cleanup.' }
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $sshTarget = "$($identity.ssh_user)@$($identity.pinned_ipv4)"
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshOptions = @('-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no','-o','PreferredAuthentications=publickey','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',[string]$env:PI3_RUNTIME_KEY)
+          & $ssh.Source @sshOptions $sshTarget "rm -rf -- '$remoteDir'" 2>$null
+          if ($LASTEXITCODE -ne 0) { throw 'Remote kernel-shadow cleanup failed.' }
+
+      - name: Remove staged SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY)) { Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force }
+
+      - name: Upload compile-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-kernel-shadow-compile-only
+          path: pi3-kernel-shadow-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist sealed compile-only receipt
+        if: success() && github.event_name == 'push'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'Projects/AdaptiveKernel/results' | Out-Null
+          Copy-Item -LiteralPath 'pi3-kernel-shadow-evidence/control-receipt.json' -Destination 'Projects/AdaptiveKernel/results/pi3-kernel-shadow-compile-latest.json' -Force
+          git config user.name 'aurum-pi3-kernel-shadow[bot]'
+          git config user.email 'aurum-pi3-kernel-shadow@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-kernel-shadow-compile-latest.json
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'Record Pi3 kernel-shadow compile proof [skip ci]'
+            git pull --rebase origin $env:GITHUB_REF_NAME
+            git push origin "HEAD:$env:GITHUB_REF_NAME"
+          }
