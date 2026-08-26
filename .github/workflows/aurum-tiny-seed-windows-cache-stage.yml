@@ -65,6 +65,15 @@ jobs:
           # A workflow_run event is the strongest zero-authority provenance link.
           if ($env:EVENT_NAME -eq 'workflow_run' -and $env:EVENT_HANDOFF_RUN_ID -match '^\d+$') {
             $handoffRunId = [long]$env:EVENT_HANDOFF_RUN_ID
+            $eventArtifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
+            $eventHandoff = @($eventArtifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired })
+            if ($eventHandoff.Count -eq 0) {
+              # A successful handoff run may intentionally publish nothing when
+              # the immutable canonical release is unchanged. That is a no-op,
+              # not a cache failure and not authority to touch persistent state.
+              Write-Host "AURUM_TINYSEED_CACHE_NO_CHANGE reason=handoff-not-published handoff_run_id=$handoffRunId destructive_media_write=false write_authority=false"
+              exit 0
+            }
           }
 
           # A still-present request may carry the canonical handoff run identity
