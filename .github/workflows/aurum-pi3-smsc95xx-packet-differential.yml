@@ -1,0 +1,173 @@
+name: Aurum Pi3 smsc95xx Packet Differential
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-smsc95xx-packet-differential.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_packet_transfer_candidate.py'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_packet_transfer_model.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_packet_transfer_candidate.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_packet_transfer_model.py'
+      - 'Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-shadow-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-smsc95xx-packet-differential-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-packet-differential:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact packet-candidate revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Resolve and verify hash-pinned driver sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packet-differential-evidence/reference
+          python - <<'PY' > packet-differential-evidence/reference/manifest.env
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(
+              Path('Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json').read_text()
+          )
+          wanted = {
+              'raspberry-pi-linux-smsc95xx-c': ('RPI_URL', 'RPI_SHA'),
+              'upstream-linux-v6.18-smsc95xx-c': ('UP_URL', 'UP_SHA'),
+          }
+          found = {}
+          for item in manifest['sources']:
+              if item.get('id') in wanted:
+                  url_name, sha_name = wanted[item['id']]
+                  found[url_name] = item['url']
+                  found[sha_name] = item['sha256']
+          missing = [name for pair in wanted.values() for name in pair if name not in found]
+          if missing:
+              raise SystemExit('missing pinned reference metadata: ' + ','.join(missing))
+          for key in ('RPI_URL', 'RPI_SHA', 'UP_URL', 'UP_SHA'):
+              value = found[key]
+              if "'" in value or '\n' in value:
+                  raise SystemExit('unsafe manifest value')
+              print(f"{key}='{value}'")
+          PY
+          source packet-differential-evidence/reference/manifest.env
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output packet-differential-evidence/reference/rpi-smsc95xx.c "$RPI_URL"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output packet-differential-evidence/reference/upstream-smsc95xx.c "$UP_URL"
+          printf '%s  %s\n' "$RPI_SHA" 'packet-differential-evidence/reference/rpi-smsc95xx.c' \
+            | sha256sum --check --strict
+          printf '%s  %s\n' "$UP_SHA" 'packet-differential-evidence/reference/upstream-smsc95xx.c' \
+            | sha256sum --check --strict
+
+      - name: Run fail-closed packet tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_packet_transfer_model \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_packet_transfer_candidate
+
+      - name: Compile and run exhaustive packet differential
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_packet_transfer_candidate \
+            --packet-model Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-shadow-latest.json \
+            --manifest Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json \
+            --rpi-source packet-differential-evidence/reference/rpi-smsc95xx.c \
+            --upstream-source packet-differential-evidence/reference/upstream-smsc95xx.c \
+            --output-dir packet-differential-evidence/results \
+            --fuzz-seed 0x9514ec00 \
+            --fuzz-scenarios 4096
+
+      - name: Verify zero-authority semantic receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_packet_transfer_candidate import _verify_sealed
+
+          path = Path('packet-differential-evidence/results/packet-transfer-differential.json')
+          receipt = json.loads(path.read_text())
+          if receipt.get('state') != 'controlled-source-referenced-packet-differential-passed':
+              raise SystemExit('packet differential did not reach the verified state')
+          if not _verify_sealed(receipt):
+              raise SystemExit('packet differential receipt seal failed')
+          if receipt['mismatch_count'] != 0 or receipt['scenario_count'] != 40966:
+              raise SystemExit('packet differential coverage or agreement is incomplete')
+          if receipt['qpu']['used'] or receipt['qpu']['hardware_submission_performed']:
+              raise SystemExit('finite packet matrix unexpectedly used QPU hardware')
+          if receipt['invariants']['live_pi_contacted'] or receipt['invariants']['usb_transfer_submitted']:
+              raise SystemExit('packet differential crossed its no-hardware boundary')
+          if receipt['authority']['mutation_allowed'] or receipt['authority']['write_authority']:
+              raise SystemExit('packet differential gained authority')
+          summary = [
+              '# Pi3 smsc95xx Packet Differential',
+              '',
+              f"- State: {receipt['state']}",
+              f"- Deterministic scenarios: {receipt['scenario_count']}",
+              '- Mismatches: 0',
+              '- Raspberry Pi / upstream packet semantics: matched',
+              '- Live Pi / USB device contacted: false',
+              '- QPU hardware used: false',
+              '- Mutation or promotion authority: false',
+              '',
+              receipt['strongest_claim'],
+          ]
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('\n'.join(summary) + '\n')
+          PY
+
+      - name: Publish sealed packet-differential artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-packet-differential-${{ github.run_id }}
+          path: packet-differential-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist verified packet lineage
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/driver_candidates/generated
+          cp packet-differential-evidence/results/packet-transfer-candidate.c \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-packet-transfer-candidate.c
+          cp packet-differential-evidence/results/packet-transfer-candidate.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-candidate-latest.json
+          cp packet-differential-evidence/results/packet-transfer-differential.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-differential-latest.json
+          git config user.name 'aurum-pi3-packet-differential[bot]'
+          git config user.email 'aurum-pi3-packet-differential@users.noreply.github.com'
+          git add \
+            Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-packet-transfer-candidate.c \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-candidate-latest.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-packet-transfer-differential-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SMSC95XX_PACKET_DIFFERENTIAL_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 smsc95xx packet differential [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SMSC95XX_PACKET_DIFFERENTIAL_RECEIPT persisted=true'
