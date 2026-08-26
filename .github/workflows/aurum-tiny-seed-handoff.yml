@@ -29,8 +29,24 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
+          canonical_source=$(python3 - <<'PY'
+          import os
+          from Admin.tinyseed_handoff_policy import workflow_run_is_canonical
+          print('true' if workflow_run_is_canonical(
+              os.environ.get('EVENT_NAME'), os.environ.get('SOURCE_BRANCH')
+          ) else 'false')
+          PY
+          )
+          if [ "$canonical_source" != true ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo "target=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "AURUM_TINYSEED_HANDOFF_WAIT reason=non-main-source head_branch=$SOURCE_BRANCH"
+            exit 0
+          fi
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             target='${{ github.event.workflow_run.head_sha }}'
           else
@@ -151,6 +167,25 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p Projects/Aurum/Release
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from Admin.tinyseed_handoff_policy import same_release_identity
+
+          current_path = Path('Projects/Aurum/Release/latest-tinyseed-handoff.json')
+          candidate_path = Path('handoff/AURUM-TINYSEED-RELEASE.json')
+          try:
+              current = json.loads(current_path.read_text(encoding='utf-8-sig'))
+          except Exception:
+              current = None
+          candidate = json.loads(candidate_path.read_text(encoding='utf-8-sig'))
+          if same_release_identity(current, candidate):
+              Path('handoff/.canonical-release-unchanged').touch()
+          PY
+          if [ -f handoff/.canonical-release-unchanged ]; then
+            echo 'AURUM_TINYSEED_HANDOFF_STATE unchanged=true reason=immutable-release-identity-match'
+            exit 0
+          fi
           cp handoff/AURUM-TINYSEED-RELEASE.json Projects/Aurum/Release/latest-tinyseed-handoff.json
 
           # A physical preflight is valid only for the exact release identity it
