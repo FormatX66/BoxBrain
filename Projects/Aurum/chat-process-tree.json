@@ -2,7 +2,7 @@
   "schema": "aurum-chat-process-tree-v1",
   "thread_id": "parallel-hopper-kernel-chat-tree",
   "root_id": "everything-at-once",
-  "revision": 2,
+  "revision": 3,
   "focus_path": [
     "everything-at-once",
     "chat-tree"
@@ -12,7 +12,8 @@
     "adaptive-kernel",
     "chat-tree",
     "hopper-reachability",
-    "pi3-adaptive-driver-tests"
+    "pi3-adaptive-driver-tests",
+    "gpt-chat-tree-bridge"
   ],
   "concept_index": {
     "adaptive-driver-self-build": [
@@ -26,6 +27,9 @@
     ],
     "durable-concept-memory": [
       "chat-tree"
+    ],
+    "gpt-bridge": [
+      "gpt-chat-tree-bridge"
     ],
     "human-chat-can-focus": [
       "everything-at-once",
@@ -48,6 +52,10 @@
     ],
     "read-only-observability": [
       "hopper-reachability"
+    ],
+    "shared-state": [
+      "chat-tree",
+      "gpt-chat-tree-bridge"
     ],
     "topic-split-sibling": [
       "chat-tree",
@@ -117,7 +125,8 @@
         "human-chat-can-focus",
         "durable-concept-memory",
         "provenance-preserving-merge",
-        "topic-split-sibling"
+        "topic-split-sibling",
+        "shared-state"
       ],
       "dependency_ids": [],
       "evidence_refs": [
@@ -190,6 +199,33 @@
       "state_history": [
         "active",
         "waiting"
+      ]
+    },
+    {
+      "node_id": "gpt-chat-tree-bridge",
+      "title": "GPT Chat Tree Bridge",
+      "kind": "process",
+      "state": "active",
+      "lane_id": "gpt-chat-tree-bridge",
+      "sequence": 3,
+      "parent_id": "chat-tree",
+      "summary": "Expose the durable tree and evidence-backed shared state through a narrow transport-neutral JSON interface suitable for GPT, Future Branch, runners, and later ChatGPT App/MCP wrapping.",
+      "concepts": [
+        "gpt-bridge",
+        "shared-state"
+      ],
+      "dependency_ids": [
+        "chat-tree"
+      ],
+      "evidence_refs": [
+        "Projects/Aurum/Experiments/chat_tree_bridge.py"
+      ],
+      "merged_from": [],
+      "boundary": "external-chat-ui-integration",
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active"
       ]
     }
   ],
