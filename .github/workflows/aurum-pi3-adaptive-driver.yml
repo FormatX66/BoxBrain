@@ -24,6 +24,47 @@ jobs:
       - name: Check out exact experiment source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      - name: Stage the pinned SSH identity for the runner account
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) {
+            throw 'Pinned Pi3 SSH identity key is unavailable.'
+          }
+
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) {
+            throw 'Refusing to overwrite an existing staged Pi3 SSH identity.'
+          }
+          $stageComplete = $false
+          try {
+            Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+
+            $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $acl = New-Object Security.AccessControl.FileSecurity
+            $acl.SetOwner($runnerSid)
+            $acl.SetAccessRuleProtection($true, $false)
+            $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+              $runnerSid,
+              [Security.AccessControl.FileSystemRights]::FullControl,
+              [Security.AccessControl.AccessControlType]::Allow
+            )
+            [void]$acl.AddAccessRule($rule)
+            Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+            [IO.File]::AppendAllText(
+              $env:GITHUB_ENV,
+              "PI3_RUNTIME_KEY=$runtimeKeyPath`n",
+              [Text.UTF8Encoding]::new($false)
+            )
+            $stageComplete = $true
+          } finally {
+            if (-not $stageComplete -and (Test-Path -LiteralPath $runtimeKeyPath -PathType Leaf)) {
+              Remove-Item -LiteralPath $runtimeKeyPath -Force
+            }
+          }
+
       - name: Run only through a strictly trusted experimental Pi3 identity
         shell: powershell
         run: |
@@ -31,7 +72,7 @@ jobs:
           $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
           if ([bool]$identity.production_nodes_allowed) { throw 'Pi3 identity config must exclude production nodes.' }
           $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
-          $keyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
           if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
           $fingerprint = (& ssh-keygen -lf $knownHosts 2>$null) -join "`n"
           if ($LASTEXITCODE -ne 0 -or -not $fingerprint.Contains([string]$identity.host_key_sha256)) {
@@ -49,6 +90,7 @@ jobs:
             $attempt = [ordered]@{
               target = $target
               tcp22 = $reachable
+              ssh_exit = $null
               strict_identity = $false
               pi3 = $false
               serial_match = $false
@@ -70,6 +112,7 @@ jobs:
               } finally {
                 $ErrorActionPreference = $prior
               }
+              $attempt.ssh_exit = $exitCode
               if ($exitCode -eq 0 -and $identityLines.Count -ge 2) {
                 $attempt.strict_identity = $true
                 $attempt.pi3 = ([string]$identityLines[0]).Contains([string]$identity.model_marker)
@@ -174,3 +217,11 @@ jobs:
           path: adaptive-driver-evidence/result.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) {
+            Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force
+          }
