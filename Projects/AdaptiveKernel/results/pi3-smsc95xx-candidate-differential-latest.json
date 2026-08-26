@@ -1,0 +1,116 @@
+{
+  "agreement_count": 18,
+  "agreements": [
+    {
+      "id": "exact-controller-identity",
+      "state": "agrees"
+    },
+    {
+      "id": "wrong-controller-rejection",
+      "state": "agrees"
+    },
+    {
+      "id": "link-10-half",
+      "state": "agrees"
+    },
+    {
+      "id": "link-10-full",
+      "state": "agrees"
+    },
+    {
+      "id": "link-100-half",
+      "state": "agrees"
+    },
+    {
+      "id": "link-100-full",
+      "state": "agrees"
+    },
+    {
+      "id": "link-down",
+      "state": "agrees"
+    },
+    {
+      "id": "unproven-gigabit-rejection",
+      "state": "agrees"
+    },
+    {
+      "id": "rx-checksum-off",
+      "state": "agrees"
+    },
+    {
+      "id": "rx-checksum-on",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-0-plain",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-0-csum",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-64-plain",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-64-csum",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-512-plain",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-512-csum",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-1500-plain",
+      "state": "agrees"
+    },
+    {
+      "id": "tx-1500-csum",
+      "state": "agrees"
+    }
+  ],
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "candidate_receipt_sha256": "6d8627d40847139b25f231dfd20898c7c54edbeaf56774f757504cbe14635369",
+  "candidate_source_sha256": "ea6f97ba5531c7b72eabd02ef4ec4ed192c5d4eac1a06046530ea7f42a6a3d64",
+  "input_functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+  "invariants": {
+    "device_io_performed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "physical_driver_changed": false,
+    "promotion_authority_granted": false
+  },
+  "milestone": "first-controlled-nonbinding-candidate-verification-complete",
+  "mismatch_count": 0,
+  "next_gate": "expand-native-candidate-scope-with-register-interrupt-behavior-before-any-binding",
+  "receipt_sha256": "a88ad5d88b316cef1488215ac3c4bc960a609b015df31cd3f7d308f9497467b5",
+  "schema": "aurum.pi3.smsc95xx.candidate-differential.v1",
+  "state": "controlled-differential-passed",
+  "strongest_claim": "The Aurum-generated nonbinding C candidate agrees with the sealed LAN9514/smsc95xx functional model across exact identity, wrong-identity rejection, every proven 10/100 half/full link mode, link-down, unproven-gigabit rejection, RX checksum transitions, and a bounded TX framing matrix. This is controlled host-process evidence only and does not prove a kernel driver, physical binding, interrupt/register behavior, or promotion safety.",
+  "verification": {
+    "all_proven_link_modes_covered": true,
+    "candidate_vs_model_differential": true,
+    "exact_identity_covered": true,
+    "host_compilation": true,
+    "rx_checksum_transitions_covered": true,
+    "shared_library_execution": true,
+    "tx_framing_payload_matrix_covered": true,
+    "unproven_gigabit_rejection_covered": true,
+    "wrong_identity_rejection_covered": true
+  }
+}

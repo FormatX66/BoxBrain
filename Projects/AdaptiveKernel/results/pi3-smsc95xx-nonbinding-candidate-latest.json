@@ -1,0 +1,59 @@
+{
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "candidate_kind": "portable-c-shadow-driver-core",
+  "input_functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+  "invariants": {
+    "device_io_performed": false,
+    "driver_binding_path_present": false,
+    "firmware_or_eeprom_path_present": false,
+    "kernel_module_entrypoint_present": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "network_configuration_path_present": false,
+    "promotion_authority_granted": false
+  },
+  "next_gate": "differential-candidate-vs-functional-model-scenario-suite",
+  "receipt_sha256": "c9aa4eb9adca7adfe1c200000e7e608fd669ef691d7e4d74366eb0d4a448cfcf",
+  "schema": "aurum.pi3.smsc95xx.nonbinding-candidate.v1",
+  "scope": {
+    "controller": "LAN9514/LAN9514i",
+    "duplex_modes": [
+      "half",
+      "full"
+    ],
+    "link_speeds_mbps": [
+      10,
+      100
+    ],
+    "rx_checksum_control": true,
+    "tx_framing_overhead_bytes": [
+      8,
+      12
+    ],
+    "usb_ethernet_function": "0424:ec00",
+    "usb_parent": "0424:9514"
+  },
+  "source_sha256": "ea6f97ba5531c7b72eabd02ef4ec4ed192c5d4eac1a06046530ea7f42a6a3d64",
+  "state": "verified-nonbinding-shadow-candidate",
+  "strongest_claim": "Aurum synthesized a concrete portable C shadow candidate from the sealed LAN9514/smsc95xx functional model. The candidate can reproduce the bounded identity, 10/100 link, RX checksum, and TX framing behaviors in a host process, but it is not a kernel driver, is not bindable, and carries no mutation or promotion authority.",
+  "verification": {
+    "binding_attempted": false,
+    "compiled": true,
+    "controlled_harness_passed": true,
+    "device_io_performed": false,
+    "mutation_authority_granted": false,
+    "rx_checksum_sequence_reproduced": true,
+    "tx_framing_reproduced": true,
+    "unproven_gigabit_rejected": true,
+    "wrong_controller_rejected": true
+  }
+}

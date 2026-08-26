@@ -1,0 +1,60 @@
+{
+  "authority": {
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "candidate": {
+    "arm64_object_sha256": "b66c28cd9607eb5a2cea82fbaf569208a55bf8d27fe25e23abdfe757aad10b53",
+    "arm64_object_type": "ELF64 AArch64 relocatable",
+    "kind": "portable-c-shadow-driver-core",
+    "source_sha256": "ea6f97ba5531c7b72eabd02ef4ec4ed192c5d4eac1a06046530ea7f42a6a3d64",
+    "undefined_external_symbols": 0
+  },
+  "inputs": {
+    "candidate_receipt_sha256": "c9aa4eb9adca7adfe1c200000e7e608fd669ef691d7e4d74366eb0d4a448cfcf",
+    "differential_receipt_sha256": "a88ad5d88b316cef1488215ac3c4bc960a609b015df31cd3f7d308f9497467b5",
+    "functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+    "qpu_reference_receipt_sha256": "482aae52c852e8c786fc8686bc9a4383a433b61ac8c06845eb42051e83f1ebb7"
+  },
+  "invariants": {
+    "device_io_performed": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "kernel_changed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "promotion_authority_granted": false
+  },
+  "next_gate": "expand-register-reset-rx-status-and-interrupt-shadow-behavior",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "preserved_router_available": true,
+    "reason": "The bounded 18-case differential matrix is exhaustively and exactly evaluated classically; the preserved QPU artifact routes experiments and is not a LAN9514 hardware model.",
+    "used": false
+  },
+  "receipt_sha256": "4b92836f0d2f3610fd40dd76e6f29721685a9f908c5b693a737ace3a6f01e277",
+  "schema": "aurum.pi3.smsc95xx.candidate-cloud-verification.v1",
+  "state": "verified-cloud-arm64-nonbinding-candidate",
+  "strongest_claim": "The Aurum-generated nonbinding C candidate passed an 18-case differential matrix against the sealed LAN9514/smsc95xx functional model and cross-compiled to an AArch64 relocatable object with no undefined external symbols. It is still a host-only shadow core, not a kernel module or bindable device driver, and grants no physical mutation or promotion authority.",
+  "verification": {
+    "aarch64_cross_compile": true,
+    "candidate_vs_model_agreements": 18,
+    "candidate_vs_model_mismatches": 0,
+    "device_binding_path": false,
+    "exact_controller_and_rejection_paths": true,
+    "host_compile_and_harness": true,
+    "kernel_module": false,
+    "proven_link_envelope_and_rejection_paths": true,
+    "rx_checksum_transitions": true,
+    "tx_framing_matrix": true
+  }
+}
