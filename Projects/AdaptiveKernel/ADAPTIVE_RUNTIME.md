@@ -98,3 +98,21 @@ conservation behavior without active execution. A later active adapter must
 still target only a previously proven reversible runtime-tunable API, arm a real
 rollback path first, and remain separate from recovery-controller, kernel
 replacement, and adaptive-driver mutation authority.
+
+## GitHub-hosted policy processing
+
+`pi3_cloud_policy.py` moves replay and scenario analysis away from the Pi. The
+manual `Aurum Pi3 Cloud Policy Processing` workflow verifies the exact GitHub
+artifact ID, workflow-run ID, artifact digest, checked-in semantic-result seal,
+individual evidence-file hashes, pinned Pi3 identity, rollback hashes, and final
+physical invariants. It then evaluates every bounded contiguous window and a
+deterministic bootstrap scenario set on a GitHub-hosted runner. The output is a
+sealed, zero-authority proposal; the workflow has no SSH, live collector, Pi
+address, hardware executor, or mutation path.
+
+QPU routing is evidence based. The current catalog contains four policies, so
+exhaustive classical ranking is exact and materially cheaper than a hardware QPU
+submission. The receipt therefore records that QPU use was considered and
+skipped. A future catalog must reach at least 64 candidates before this lane can
+mark QPU exploration eligible, and eligibility still grants no hardware access
+or physical-apply authority.

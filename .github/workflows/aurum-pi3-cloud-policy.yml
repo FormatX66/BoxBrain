@@ -1,0 +1,145 @@
+name: Aurum Pi3 Cloud Policy Processing
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Sealed physical Pi3 source run
+        required: true
+        type: number
+        default: 32964554773
+      artifact_id:
+        description: Exact evidence artifact ID
+        required: true
+        type: number
+        default: 9605841913
+      artifact_digest:
+        description: Exact evidence artifact SHA-256 digest
+        required: true
+        type: string
+        default: sha256:5ec90bdf6c9606bfbd6a481d453326323cfc292c07f2c6248a31729acc1b1740
+      scenario_count:
+        description: Deterministic off-Pi bootstrap scenarios
+        required: true
+        type: number
+        default: 50000
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: aurum-pi3-cloud-policy-${{ inputs.source_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  sealed-cloud-proposal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
+      ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+      SCENARIO_COUNT: ${{ inputs.scenario_count }}
+    steps:
+      - name: Check out proposal code and sealed source result
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Verify exact source artifact metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cloud-evidence cloud-output
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/$ARTIFACT_ID" > cloud-output/artifact-metadata.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = json.loads(Path("cloud-output/artifact-metadata.json").read_text())
+          expected_id = int(os.environ["ARTIFACT_ID"])
+          expected_run = int(os.environ["SOURCE_RUN_ID"])
+          expected_digest = os.environ["ARTIFACT_DIGEST"]
+          if artifact.get("id") != expected_id:
+              raise SystemExit("artifact id mismatch")
+          if artifact.get("digest") != expected_digest:
+              raise SystemExit("artifact digest mismatch")
+          if artifact.get("expired") is not False:
+              raise SystemExit("artifact is expired")
+          workflow_run = artifact.get("workflow_run") or {}
+          if workflow_run.get("id") != expected_run:
+              raise SystemExit("artifact workflow run mismatch")
+          name = artifact.get("name")
+          if name != f"aurum-pi3-adaptive-kernel-overnight-{expected_run}":
+              raise SystemExit("artifact name mismatch")
+          Path("cloud-output/artifact-name.txt").write_text(name + "\n")
+          PY
+
+      - name: Download preserved physical evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_name="$(tr -d '\r\n' < cloud-output/artifact-name.txt)"
+          gh run download "$SOURCE_RUN_ID" --name "$artifact_name" --dir cloud-evidence
+
+      - name: Perform deterministic off-Pi policy analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m Projects.AdaptiveKernel.pi3_cloud_policy \
+            --evidence-dir cloud-evidence \
+            --source-result Projects/AdaptiveKernel/results/pi3-adaptive-runtime-pressure-32964554773.json \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --artifact-id "$ARTIFACT_ID" \
+            --artifact-digest "$ARTIFACT_DIGEST" \
+            --scenario-count "$SCENARIO_COUNT" \
+            --output cloud-output/pi3-cloud-policy-proposal.json
+
+      - name: Verify sealed proposal and publish summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_cloud_policy import verify_cloud_policy_receipt
+
+          path = Path("cloud-output/pi3-cloud-policy-proposal.json")
+          receipt = json.loads(path.read_text())
+          if receipt.get("state") != "completed" or not verify_cloud_policy_receipt(receipt):
+              raise SystemExit("cloud proposal is not a sealed completed receipt")
+          if receipt["invariants"]["mutation_authority_granted"] is not False:
+              raise SystemExit("cloud proposal unexpectedly has mutation authority")
+          if receipt["qpu_routing"]["hardware_submission_performed"] is not False:
+              raise SystemExit("cloud proposal unexpectedly submitted QPU work")
+          summary = [
+              "# Pi3 Cloud Policy Processing",
+              "",
+              f"- Semantic state: `{receipt['semantic_state']}`",
+              f"- Source run: `{receipt['source']['github_run_id']}`",
+              f"- Observation samples: `{receipt['source']['observation_sample_count']}`",
+              f"- Bootstrap scenarios: `{receipt['analysis']['bootstrap']['scenario_count']}`",
+              f"- Proposal: `{receipt['proposal']['recommendation']}`",
+              f"- QPU used: `{receipt['qpu_routing']['used']}`",
+              f"- QPU reason: `{receipt['qpu_routing']['reason']}`",
+              "- Pi contacted: `false`",
+              "- Physical mutation authority: `false`",
+          ]
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as handle:
+              handle.write("\n".join(summary) + "\n")
+          PY
+
+      - name: Retain sealed cloud proposal
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-cloud-policy-${{ github.run_id }}
+          path: cloud-output/
+          if-no-files-found: error
+          retention-days: 30
