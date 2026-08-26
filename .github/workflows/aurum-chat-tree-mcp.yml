@@ -1,0 +1,64 @@
+name: Aurum Chat Tree MCP
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/chat-tree-mcp-*'
+    paths:
+      - 'Projects/Aurum/ChatTreeMCP/**'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-mcp.yml'
+  pull_request:
+    paths:
+      - 'Projects/Aurum/ChatTreeMCP/**'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-mcp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install MCP dependencies
+        run: python -m pip install -r Projects/Aurum/ChatTreeMCP/requirements.txt
+
+      - name: Compile adapter and core modules
+        run: |
+          python -m py_compile \
+            Projects/Aurum/ChatTreeMCP/main.py \
+            Projects/Aurum/ChatTreeMCP/test_server.py \
+            Projects/Aurum/Experiments/chat_process_tree.py \
+            Projects/Aurum/Experiments/chat_topic_router.py \
+            Projects/Aurum/Experiments/chat_tree_bridge.py \
+            Projects/Aurum/Experiments/shared_state_bus.py
+
+      - name: Run MCP adapter tests
+        working-directory: Projects/Aurum/ChatTreeMCP
+        run: python -m unittest -v test_server.py
+
+      - name: Re-run Chat Tree core tests
+        working-directory: Projects/Aurum/Experiments
+        run: |
+          python -m unittest -v \
+            test_chat_process_tree.py \
+            test_chat_tree_shared_state.py
