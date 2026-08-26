@@ -48,4 +48,3 @@ module_init(aurum_pi3_compile_probe_init);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Aurum Pi3 inert exact-header compile-only API probe");
 MODULE_INFO(aurum_mode, "compile-only");
-

@@ -1,3 +1,2 @@
 # Compile-only API-surface probe. There are intentionally no install targets.
 obj-m := aurum_pi3_compile_probe.o
-
