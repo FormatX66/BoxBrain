@@ -54,13 +54,13 @@ Even an injected executor is not called unless all of the following are true:
 
 This gate does not itself grant authority or prove a real rollback mechanism.
 
-## Integration state and next gate
+## Preserved Pi3 integration and calibration
 
-`pi3_artifact_adapter.py` now implements the first half of that integration. It
-accepts only a bounded, already-downloaded overnight `samples.jsonl`, records the
-source file hash and GitHub artifact identity, converts the final evidence window,
-and seals a second provenance receipt around the governor result. It has no live
-collector or executor. Re-run it from the repository root with:
+`pi3_artifact_adapter.py` implements the first integration layer. It accepts only
+a bounded, already-downloaded overnight `samples.jsonl`, records the source file
+hash and GitHub artifact identity, converts an evidence window, and seals a second
+provenance receipt around the governor result. It has no live collector or
+executor. Re-run the canonical final window from the repository root with:
 
 ```text
 python -m Projects.AdaptiveKernel.pi3_artifact_adapter \
@@ -71,13 +71,30 @@ python -m Projects.AdaptiveKernel.pi3_artifact_adapter \
   --output Projects/AdaptiveKernel/results/pi3-adaptive-runtime-shadow-32926370691.json
 ```
 
-The preserved run-32926370691 receipt contains 32 accepted samples, zero
+The canonical final-window receipt contains 32 accepted samples, zero
 quarantines, and a shadow-only recommendation for
 `runtime-gen3-opportunistic-v1`. It explicitly records `change_applied=false`,
 `live_pi_contacted=false`, and `mutation_authority_granted=false`.
 
-The next safe step is to publish sealed shadow receipts across multiple preserved
-windows for calibration. An active adapter remains a separate later change and
-must target only a previously proven reversible runtime-tunable API; it must not
-reuse the recovery-controller, kernel replacement, or adaptive-driver candidate
-paths.
+The same preserved artifact has now been calibrated across eleven 32-sample
+views in
+`results/pi3-adaptive-runtime-calibration-32926370691.json`: ten non-overlapping
+windows cover samples 0-319, plus the canonical final window covers 296-327.
+The tail therefore overlaps the tenth window by 24 samples and is not counted as
+an independent physical run. All eleven windows were quarantine-free and all
+eleven independently ranked `runtime-gen3-opportunistic-v1` above the protected
+baseline in shadow mode. Maximum window temperature stayed at or below 50.464 C,
+minimum available-memory ratio stayed above 0.815, and maximum normalized load
+stayed at or below 0.025 in these preserved windows. The calibration replay of
+the canonical final window reproduced the existing artifact-shadow receipt hash
+`c20da0e9f6ed0914a2b7e89efb8a5e2e615f4dfd1199f0984ab1fab61a31def7`
+exactly before the broader window evidence was persisted.
+
+This is **policy-stability evidence for one physical run**, not proof that the
+Generation-3 policy should be activated. The next high-value evidence is an
+independent physical observation set under meaningfully different load/thermal/
+memory conditions so the governor can demonstrate both promotion and refusal/
+conservation behavior without active execution. A later active adapter must
+still target only a previously proven reversible runtime-tunable API, arm a real
+rollback path first, and remain separate from recovery-controller, kernel
+replacement, and adaptive-driver mutation authority.
