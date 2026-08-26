@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurum Human Adaptation Lab</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#080b10;color:#eef3f8}body{max-width:760px;margin:40px auto;padding:0 20px}.future-branch-card{border:1px solid #35465d;border-radius:16px;background:#101720;padding:18px;cursor:pointer}.fb-detail{display:none;border-top:1px solid #283041;margin-top:12px;padding-top:12px}.future-branch-card[aria-expanded=true] .fb-detail{display:block}.note{color:#9fb0c2;line-height:1.5;font-size:14px}.badge{font-size:11px;color:#d5adff;text-transform:uppercase;letter-spacing:.08em}</style>
+</head>
+<body>
+<p class="badge">Experimental · local browser only</p>
+<h1>Future Branch human adaptation lab</h1>
+<p class="note">This surface exercises one reversible presentation preference: whether repeated, distinct browser sessions support opening Future Branch detail by default. Evidence remains in local browser storage. It cannot infer identity, grant privilege, lower authentication, mutate server state, or authorize an external/destructive action.</p>
+<article class="future-branch-card" data-id="future-branch" role="button" tabindex="0" aria-expanded="false">
+  <h2>Future Branch detail</h2>
+  <p class="note">Click to expand or collapse. A single observation never changes the default.</p>
+  <div class="fb-detail">
+    <p>Repeated evidence may make this detail open by default on this browser. The learned view always has a visible reset.</p>
+  </div>
+</article>
+<script>
+(()=>{const card=document.querySelector('[data-id="future-branch"]');function toggle(event){if(event.type==='keydown'&&!['Enter',' '].includes(event.key))return;if(event.type==='keydown')event.preventDefault();card.setAttribute('aria-expanded',String(card.getAttribute('aria-expanded')!=='true'))}card.addEventListener('click',toggle);card.addEventListener('keydown',toggle)})();
+</script>
+<script src="./human-adaptation-v1.js"></script>
+</body>
+</html>
