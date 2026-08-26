@@ -96,6 +96,16 @@ def _load_runtime_module(filename: str, prefix: str):
     return None
 
 
+def _json_safe_dict(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        return None
+    return value
+
+
 def _battery() -> dict[str, Any]:
     root = Path("/sys/class/power_supply")
     try:
@@ -150,24 +160,59 @@ def _uptime() -> int | None:
 
 def _telemetry() -> dict[str, Any]:
     executor = _load_runtime_module("aurum_gpt_executor.py", "aurum_gpt_executor")
-    state = executor.status_snapshot() if executor and hasattr(executor, "status_snapshot") else {}
+    state: dict[str, Any] = {"status": "unavailable", "detail": "executor-unavailable"}
+    if executor and hasattr(executor, "status_snapshot"):
+        try:
+            candidate = executor.status_snapshot()
+            safe_candidate = _json_safe_dict(candidate)
+            if safe_candidate is not None:
+                state = safe_candidate
+            else:
+                state = {"status": "unavailable", "detail": "invalid-executor-status"}
+        except Exception as exc:
+            state = {
+                "status": "unavailable",
+                "detail": f"{type(exc).__name__}:{exc}",
+            }
 
     network_module = _load_runtime_module("aurum_network.py", "aurum_network")
+    network: dict[str, Any] = {
+        "status": "unavailable",
+        "online": False,
+        "detail": "network-module-unavailable",
+    }
     try:
-        network = network_module.network_status() if network_module else {}
-    except Exception:
-        network = {}
+        if network_module:
+            candidate = network_module.network_status()
+            safe_candidate = _json_safe_dict(candidate)
+            if safe_candidate is not None:
+                network = safe_candidate
+            else:
+                network["detail"] = "invalid-network-status"
+    except Exception as exc:
+        network["detail"] = f"{type(exc).__name__}:{exc}"
 
     time_module = _load_runtime_module("aurum_time.py", "aurum_time")
+    clock: dict[str, Any] = {
+        "status": "unavailable",
+        "synchronized": False,
+        "detail": "time-module-unavailable",
+    }
     try:
-        clock = time_module.time_status() if time_module else {}
-    except Exception:
-        clock = {}
+        if time_module:
+            candidate = time_module.time_status()
+            safe_candidate = _json_safe_dict(candidate)
+            if safe_candidate is not None:
+                clock = safe_candidate
+            else:
+                clock["detail"] = "invalid-time-status"
+    except Exception as exc:
+        clock["detail"] = f"{type(exc).__name__}:{exc}"
 
     return {
         "state": state,
-        "network": network if isinstance(network, dict) else {},
-        "time": clock if isinstance(clock, dict) else {},
+        "network": network,
+        "time": clock,
         "battery": _battery(),
         "memory_percent": _memory_percent(),
         "storage_percent": _storage_percent(),
@@ -191,18 +236,21 @@ def _appearance() -> dict[str, Any]:
             "tracked_source_modified": False,
         }
     try:
-        return dict(executor.appearance_snapshot())
+        candidate = _json_safe_dict(dict(executor.appearance_snapshot()))
+        if candidate is not None:
+            return candidate
     except Exception:
-        return {
-            "schema": "aurum.appearance-preview.v1",
-            "status": "default",
-            "theme": "default",
-            "background_start": "#050706",
-            "background_end": "#070b09",
-            "temporary": True,
-            "resets_on_reboot": True,
-            "tracked_source_modified": False,
-        }
+        pass
+    return {
+        "schema": "aurum.appearance-preview.v1",
+        "status": "default",
+        "theme": "default",
+        "background_start": "#050706",
+        "background_end": "#070b09",
+        "temporary": True,
+        "resets_on_reboot": True,
+        "tracked_source_modified": False,
+    }
 
 
 PAGE = r'''<!doctype html>
@@ -224,7 +272,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background-im
 body{background:radial-gradient(circle at 50% -20%,rgba(19,198,202,.06),transparent 38rem),linear-gradient(180deg,var(--bg),var(--bg-end))}
 </style>
 </head>
-<body>
+<body data-hopper-profile="gen1-html">
 <div class="shell">
 <header class="top">
   <div class="brand"><div class="logo-crop logo-crop--landscape logo-crop--header" aria-label="Aurum"><img data-aurum-logo src="/assets/aurum-seven-leaf-logo.jpeg" alt=""></div></div>
@@ -315,7 +363,7 @@ function openWebBrowser(){webBrowser.hidden=false;document.getElementById('searc
 function closeWebBrowser(){webBrowser.hidden=true;document.querySelectorAll('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav==='home'));document.getElementById('search').focus()}
 function webBrowserHome(){currentWebTarget='';webAddress.value='';document.getElementById('web-home-query').value='';webFrame.src='about:blank';webFrame.hidden=true;webHome.hidden=false;webBrowser.classList.remove('loading');webStatus.innerHTML='<strong>Ready</strong> · browsing stays separate from GPT control';setTimeout(()=>document.getElementById('web-home-query').focus(),0)}
 async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'status unavailable');const h=d.hopper||{},t=h.telemetry||{},s=t.state||{},n=t.network||{},b=t.battery||{},tm=t.time||{},g=h.gpt||{};applyAppearance(h.appearance||{});document.getElementById('machine').textContent=s.machine||'Hopper';document.getElementById('runtime-state').textContent=s.runtime||'Unknown';document.getElementById('desktop').textContent=s.desktop_generation||s.desktop||'Unknown';document.getElementById('autonomy').textContent=s.autonomy||'Unknown';document.getElementById('input-state').textContent=s.input||'Unknown';document.getElementById('uptime').textContent=humanDuration(t.uptime_seconds);pct('memory',t.memory_percent);pct('storage',t.storage_percent);const connected=first(n,['online','connected','status']);document.getElementById('net-state').textContent=connected===true?'Connected':(connected||'Unknown');const ssid=first(n,['ssid','connection','network']);document.getElementById('ssid').textContent=ssid||'Unknown';document.getElementById('wifi').textContent=ssid||'Network';document.getElementById('net-if').textContent=first(n,['interface','device'])||'Unknown';document.getElementById('net-ip').textContent=first(n,['ip','address','ipv4'])||'Unknown';document.getElementById('battery').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-big').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-sub').textContent=b.status||'Unknown';document.getElementById('power-state').textContent=b.charging?'Charging':(b.status||'Unknown');document.getElementById('gpt-state').textContent=g.status==='ready'?'Ready':(g.status||'Unknown');document.getElementById('gpt-tools').textContent=g.function_tools?'Ready':'Unavailable';gptChip.textContent=g.status==='ready'?'GPT ready on Hopper':'Sealed credential pending';document.getElementById('time-state').textContent=tm.synchronized?'Server synchronized':'Local / unknown';if(tm.local_iso){const date=new Date(tm.local_iso);if(!Number.isNaN(date.valueOf()))document.getElementById('clock').textContent=date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}}catch(e){show(`Status: ${e.message||e}`,4)}}
-function applyAppearance(a){const color=/^#[0-9a-f]{6}$/i;const start=color.test(a.background_start||'')?a.background_start:'#050706';const end=color.test(a.background_end||'')?a.background_end:'#070b09';document.documentElement.style.setProperty('--bg',start);document.documentElement.style.setProperty('--bg-end',end);document.documentElement.dataset.appearanceTheme=a.theme||'default'}}
+function applyAppearance(a){const color=/^#[0-9a-f]{6}$/i;const start=color.test(a.background_start||'')?a.background_start:'#050706';const end=color.test(a.background_end||'')?a.background_end:'#070b09';document.documentElement.style.setProperty('--bg',start);document.documentElement.style.setProperty('--bg-end',end);document.documentElement.dataset.appearanceTheme=a.theme||'default'}
 async function action(name){try{show(`${name}…`,2);const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'action failed');show(JSON.stringify(d.result||d,null,2),5);await refresh()}catch(e){show(e.message||String(e),6)}}
 async function ask(){const text=prompt.value.trim();if(!text||send.disabled)return;message('user',text);prompt.value='';send.disabled=true;orb.classList.add('thinking');document.body.classList.add('aurum-thinking');const pending=message('aurum','Aurum is reasoning with Hopper','thinking');try{const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({prompt:text})});const d=await r.json();if(!r.ok)throw new Error(d.error||'GPT unavailable');pending.classList.remove('thinking');pending.textContent=d.response||'Completed';receipts(pending,d.tool_receipts);await refresh()}catch(e){pending.classList.remove('thinking');pending.classList.add('error');pending.textContent=e.message||String(e)}finally{orb.classList.remove('thinking');document.body.classList.remove('aurum-thinking');send.disabled=false;prompt.focus();messages.scrollTop=messages.scrollHeight}}
 document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-nav]').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(b.dataset.nav==='browser'){openWebBrowser();return}webBrowser.hidden=true;show(`${b.textContent.trim()} is projected from the same verified Aurum state.`,3)}));document.getElementById('focus-gpt').addEventListener('click',()=>prompt.focus());document.getElementById('clear-chat').addEventListener('click',()=>{messages.replaceChildren();message('aurum','Conversation cleared. Hopper state and action receipts remain governed by Aurum.');prompt.focus()});document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>{prompt.value=b.dataset.prompt;ask()}));send.addEventListener('click',ask);prompt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask()}});document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter'){const q=e.target.value.trim();if(q){prompt.value=`Show me ${q} on Hopper`;ask();e.target.value=''}}});document.getElementById('web-form').addEventListener('submit',e=>{e.preventDefault();webNavigate(webAddress.value)});document.getElementById('web-home-form').addEventListener('submit',e=>{e.preventDefault();const input=document.getElementById('web-home-query');if(webNavigate(input.value))input.value=''});document.getElementById('web-back').addEventListener('click',()=>{if(webIndex>0){webIndex-=1;webNavigate(webHistory[webIndex],{record:false})}});document.getElementById('web-forward').addEventListener('click',()=>{if(webIndex<webHistory.length-1){webIndex+=1;webNavigate(webHistory[webIndex],{record:false})}});document.getElementById('web-reload').addEventListener('click',()=>{if(currentWebTarget){webBrowser.classList.add('loading');webFrame.src=currentWebTarget}});document.getElementById('web-home-button').addEventListener('click',webBrowserHome);document.getElementById('web-close').addEventListener('click',closeWebBrowser);document.getElementById('web-open').addEventListener('click',()=>{let target=currentWebTarget;try{target=target||normalizeWebTarget(webAddress.value)}catch(error){show(error.message||String(error),5);return}const opened=window.open('about:blank','aurum-web');if(!opened){show('The full-page window was blocked. The page is still available inside Aurum.',5);return}opened.opener=null;opened.location.replace(target)});webFrame.addEventListener('load',()=>{if(webFrame.hidden||!currentWebTarget)return;webBrowser.classList.remove('loading');webStatus.innerHTML='<strong>Page loaded</strong> · isolated from Aurum controls'});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!webBrowser.hidden)closeWebBrowser()});updateWebButtons();
@@ -335,7 +383,9 @@ def _make_handler(gui):
                 payload = {"schema": SCHEMA, "console": {"identity": "Hopper"}}
             trait = _load_runtime_module("aurum_gpt_trait.py", "aurum_gpt_trait")
             try:
-                gpt = trait.status() if trait else {"status": "unavailable"}
+                candidate = trait.status() if trait else None
+                safe_candidate = _json_safe_dict(candidate)
+                gpt = safe_candidate or {"status": "unavailable", "detail": "invalid-trait-status"}
             except Exception as exc:
                 gpt = {"status": "unavailable", "detail": f"{type(exc).__name__}:{exc}"}
             payload["schema"] = SCHEMA
@@ -442,6 +492,8 @@ def _make_handler(gui):
                     return
                 try:
                     result = executor.execute_control(str(payload.get("action") or ""))
+                    if _json_safe_dict(result) is None:
+                        raise TypeError("Aurum executor result was not a JSON-safe object")
                 except Exception as exc:
                     self._error(HTTPStatus.BAD_REQUEST, f"bounded action failed: {type(exc).__name__}:{exc}")
                     return
@@ -471,6 +523,16 @@ def _make_handler(gui):
             with lock:
                 try:
                     result = trait.ask(prompt.strip(), **kwargs)
+                    if not isinstance(result, dict):
+                        raise TypeError("GPT trait result was not an object")
+                    response = result.get("text")
+                    if not isinstance(response, str) or not response.strip():
+                        raise ValueError("GPT trait result did not contain response text")
+                    tool_receipts = result.get("tool_receipts") or []
+                    if not isinstance(tool_receipts, list):
+                        raise TypeError("GPT trait receipts were not a list")
+                    if _json_safe_dict(result) is None:
+                        raise TypeError("GPT trait result was not JSON-safe")
                 except Exception as exc:
                     self._error(HTTPStatus.BAD_GATEWAY, f"GPT unavailable: {type(exc).__name__}:{exc}")
                     return
@@ -479,8 +541,8 @@ def _make_handler(gui):
                 {
                     "schema": SCHEMA,
                     "status": result.get("status"),
-                    "response": result.get("text"),
-                    "tool_receipts": result.get("tool_receipts") or [],
+                    "response": response,
+                    "tool_receipts": tool_receipts,
                     "host_actuation": result.get("host_actuation"),
                     "raw_shell": False,
                     "api_key_persisted": False,

@@ -56,6 +56,16 @@ class AurumCISourceContractTests(unittest.TestCase):
             with self.subTest(path=relative_path, pattern=pattern):
                 self.assert_source_contract(relative_path, pattern)
 
+        hopper_workflow = (REPO / ".github" / "workflows" / "aurum-hopper-gui-input-test.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Exercise live Hopper browser surface", hopper_workflow)
+        self.assertIn("--virtual-time-budget=3000", hopper_workflow)
+        self.assertIn("api-key-required", hopper_workflow)
+        self.assertIn("aurum.input.v3", hopper_workflow)
+        self.assertNotIn("aurum.input.v2", hopper_workflow)
+        self.assertIn("AURUM_HOPPER_IMAGE_CONTRACT_MISSING", hopper_workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

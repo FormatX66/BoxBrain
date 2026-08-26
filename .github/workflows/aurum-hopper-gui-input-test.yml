@@ -52,6 +52,51 @@ jobs:
           sh -n installer/prepare-hopper-gui-input-test.sh
           python3 -m unittest discover -s Projects/AurumPC/tests -p 'test_*.py' -v
 
+      - name: Exercise live Hopper browser surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          export AURUM_GIT_WORKSPACE="$PWD"
+          export AURUM_RUNTIME_ROOT="$PWD/Projects/AurumPC"
+          python3 Projects/AurumPC/aurum_hopper_gui.py \
+            --root "$RUNNER_TEMP/aurum-gui-smoke" \
+            --host 127.0.0.1 \
+            --port 18765 \
+            >"$RUNNER_TEMP/aurum-gui-smoke.log" 2>&1 &
+          gui_pid=$!
+          cleanup() {
+            kill "$gui_pid" 2>/dev/null || true
+            wait "$gui_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=false
+          for _attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18765/api/status >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat "$RUNNER_TEMP/aurum-gui-smoke.log"
+            exit 1
+          fi
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --user-data-dir="$RUNNER_TEMP/aurum-gui-browser" \
+            --virtual-time-budget=3000 \
+            --dump-dom http://127.0.0.1:18765/ \
+            >"$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'data-hopper-profile="gen1-html"' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'api-key-required' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'Ask Aurum about Hopper' "$RUNNER_TEMP/aurum-gui-dom.html"
+          grep -q 'Sealed credential pending' "$RUNNER_TEMP/aurum-gui-dom.html"
+
   build-image:
     needs: validate
     runs-on: ubuntu-24.04
@@ -88,12 +133,24 @@ jobs:
           mkdir -p extracted
           xorriso -osirrox on -indev dist/Aurum-PC-v0.01-amd64.iso \
             -extract /live/filesystem.squashfs extracted/filesystem.squashfs
-          unsquashfs -cat extracted/filesystem.squashfs /opt/aurum/aurum_boot_screen.py | grep -q 'aurum.boot-screen.v1'
-          unsquashfs -cat extracted/filesystem.squashfs /opt/aurum/aurum_hopper_gui.py | grep -q 'data-hopper-profile'
-          unsquashfs -cat extracted/filesystem.squashfs /opt/aurum/aurum_input.py | grep -q 'aurum.input.v2'
-          unsquashfs -cat extracted/filesystem.squashfs /etc/systemd/system/aurum-input-bootstrap.service | grep -q -- '--apply-wake-policy'
-          unsquashfs -cat extracted/filesystem.squashfs /etc/X11/xorg.conf.d/40-aurum-libinput.conf | grep -q 'MatchIsTouchpad'
-          unsquashfs -cat extracted/filesystem.squashfs /usr/lib/systemd/system-sleep/aurum-input-wake | grep -q 'if.*post'
+          verify_payload() {
+            image_path=$1
+            required_text=$2
+            label=$3
+            extracted_path="$RUNNER_TEMP/aurum-payload-$label"
+            unsquashfs -cat extracted/filesystem.squashfs "$image_path" >"$extracted_path"
+            if ! grep -Fq -- "$required_text" "$extracted_path"; then
+              echo "AURUM_HOPPER_IMAGE_CONTRACT_MISSING label=$label path=$image_path text=$required_text" >&2
+              exit 1
+            fi
+            echo "AURUM_HOPPER_IMAGE_CONTRACT_OK label=$label"
+          }
+          verify_payload /opt/aurum/aurum_boot_screen.py 'aurum.boot-screen.v1' boot-screen
+          verify_payload /opt/aurum/aurum_hopper_gui.py 'data-hopper-profile="gen1-html"' hopper-profile
+          verify_payload /opt/aurum/aurum_input.py 'aurum.input.v3' input-schema
+          verify_payload /etc/systemd/system/aurum-input-bootstrap.service '--apply-wake-policy' input-service
+          verify_payload /etc/X11/xorg.conf.d/40-aurum-libinput.conf 'MatchIsTouchpad' libinput
+          verify_payload /usr/lib/systemd/system-sleep/aurum-input-wake 'if [ "${1:-}" = post ]; then' wake-hook
 
       - name: Publish Hopper test image
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
