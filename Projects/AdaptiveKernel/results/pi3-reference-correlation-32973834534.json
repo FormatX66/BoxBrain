@@ -194,4 +194,3 @@
   "state": "completed",
   "strongest_claim": "Pinned official schematic, controller-datasheet, Raspberry Pi Linux, upstream Linux, compile-only candidate, QPU-router, and physical telemetry evidence agree on the exact board class, protected smsc95xx path, checksum capability, and healthy empirical behavior. The comparison also exposes three decisive missing proofs: exact USB controller identity, negotiated link speed, and source-to-running-binary provenance."
 }
-
