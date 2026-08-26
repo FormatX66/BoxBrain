@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 31,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -902,6 +902,51 @@
       "subject_kind": "experiment",
       "summary": "A source-hash-pinned portable C packet candidate matched the sealed TX/RX shadow in 40,966 deterministic scenarios with zero mismatches, covering every TX and RX length, checksum fallback boundaries, and bounded fuzz. No device, USB, kernel, binding, QPU, mutation, or promotion authority was used.",
       "timestamp": "2026-08-26T20:20:42.281143Z"
+    },
+    "pi3-smsc95xx-usbnet-lifecycle-33010429948": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-packet-differential-33009688494"
+      ],
+      "event_id": "evt-6e8563eca4c64af3a0fe4ba55a22a744",
+      "evidence_refs": [
+        "github:actions:run:33010429948",
+        "github:actions:job:98314950692",
+        "github:artifact:9622273063",
+        "github:artifact-digest:sha256:6a06606356e4a93ee7bc00e179c62e26a5a1191a4822e2758f6807922d95bf55",
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-usbnet-lifecycle-shadow-latest.json",
+        "receipt-sha256:67c01f8a9554cf3bd2859681b188d146a88c91167b7adc732c2e47d72c3ea318",
+        "transition-matrix-sha256:dbc2e54820ee7033b7dc1eb86a09645aeb65a5a82500b049cdfe5ed9ceb118d6",
+        "git-commit:5e6e247c"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "accepted_transition_count": 81,
+        "driver_binding_changed": false,
+        "graph_invariants_passed": true,
+        "kernel_module_built": false,
+        "last_known_good_preserved": true,
+        "live_pi_contacted": false,
+        "mutation_authority_granted": false,
+        "promotion_authority_granted": false,
+        "qpu_hardware_used": false,
+        "qpu_router_is_hardware_twin": false,
+        "qpu_router_preserved": true,
+        "reachable_state_count": 13,
+        "refused_transition_count": 88,
+        "rpi_upstream_semantic_token_mismatches": 0,
+        "semantic_state": "verified-offline-usbnet-lifecycle-fault-model",
+        "transition_count": 169,
+        "usb_transfer_submitted": false
+      },
+      "source": "github-hosted-usbnet-lifecycle-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-usbnet-lifecycle-33010429948",
+      "subject_kind": "experiment",
+      "summary": "Hash-pinned Raspberry Pi and upstream smsc95xx/usbnet sources produced a sealed 13-state, 169-transition offline lifecycle and fault graph with all invariants passing. The QPU router was preserved as comparison evidence but correctly not used as a hardware twin or submission path.",
+      "timestamp": "2026-08-26T20:28:12.731857Z"
     }
   }
 }
