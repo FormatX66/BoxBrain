@@ -1,0 +1,137 @@
+name: Aurum Tiny Seed Windows Cache Stage
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Aurum Tiny Seed Handoff']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aurum-tiny-seed-windows-cache-stage.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: aurum-tinyseed-windows-cache-stage
+  cancel-in-progress: true
+
+jobs:
+  stage:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 60
+    steps:
+      - name: Check out canonical release state
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Download and verify current handoff into non-authoritative local cache
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $releasePath = 'Projects/Aurum/Release/latest-tinyseed-handoff.json'
+          $release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+          if ([string]$release.schema -ne 'aurum-tinyseed-handoff-v1' -or [string]$release.state -ne 'READY_TO_FLASH') {
+            throw 'AURUM_TINYSEED_CACHE_REFUSED reason=canonical-release-not-ready'
+          }
+          $seedSha = ([string]$release.source_commit).Trim().ToLowerInvariant()
+          $imageSha = ([string]$release.artifacts.x86.sha256).Trim().ToLowerInvariant()
+          if ($seedSha -notmatch '^[0-9a-f]{40}$' -or $imageSha -notmatch '^[0-9a-f]{64}$') {
+            throw 'AURUM_TINYSEED_CACHE_REFUSED reason=canonical-release-identity'
+          }
+          foreach ($gate in @('x86_build','x86_uefi_boot_smoke','x86_bios_boot_smoke','x86_boot_proof_marker','published_artifacts','combined_hash_reverification')) {
+            if ([string]$release.gates.$gate -ne 'passed') { throw "AURUM_TINYSEED_CACHE_REFUSED reason=gate-$gate" }
+          }
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $repo = $env:GITHUB_REPOSITORY
+          $runs = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/workflows/aurum-tiny-seed-handoff.yml/runs?branch=main&status=success&per_page=20"
+          $handoffRun = @($runs.workflow_runs | Where-Object { [string]$_.head_sha -eq $seedSha } | Sort-Object {[long]$_.id} -Descending | Select-Object -First 1)
+          if ($handoffRun.Count -ne 1) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=same-source-handoff-run-missing' }
+          $handoffRunId = [long]$handoffRun[0].id
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/runs/$handoffRunId/artifacts?per_page=100"
+          $artifact = @($artifacts.artifacts | Where-Object { $_.name -eq 'Aurum-TinySeed-Handoff' -and -not $_.expired } | Select-Object -First 1)
+          if ($artifact.Count -ne 1) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-artifact-missing' }
+
+          $cacheRoot = Join-Path $env:ProgramData "Aurum\TinySeedFlash\cache\$imageSha"
+          $finalImage = Join-Path $cacheRoot 'Aurum-TinySeed-amd64.iso'
+          $finalSha = Join-Path $cacheRoot 'Aurum-TinySeed-amd64.iso.sha256'
+          $finalManifest = Join-Path $cacheRoot 'AURUM-TINYSEED-RELEASE.json'
+          $finalMeta = Join-Path $cacheRoot 'cache-metadata.json'
+
+          if ((Test-Path $finalImage) -and (Test-Path $finalSha) -and (Test-Path $finalManifest) -and (Test-Path $finalMeta)) {
+            $existingMeta = Get-Content -LiteralPath $finalMeta -Raw | ConvertFrom-Json
+            $existingHash = (Get-FileHash -LiteralPath $finalImage -Algorithm SHA256).Hash.ToLowerInvariant()
+            if (
+              [string]$existingMeta.schema -eq 'aurum-tinyseed-windows-cache-v1' -and
+              ([string]$existingMeta.source_commit).ToLowerInvariant() -eq $seedSha -and
+              ([string]$existingMeta.image_sha256).ToLowerInvariant() -eq $imageSha -and
+              [bool]$existingMeta.hash_verified -and
+              $existingHash -eq $imageSha
+            ) {
+              Write-Host "AURUM_TINYSEED_CACHE_HIT source=$seedSha image_sha256=$imageSha destructive_media_write=false write_authority=false"
+              exit 0
+            }
+          }
+
+          $tempRoot = Join-Path $env:RUNNER_TEMP ('aurum-tinyseed-cache-' + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+          try {
+            $zip = Join-Path $tempRoot 'handoff.zip'
+            Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/$repo/actions/artifacts/$([long]$artifact[0].id)/zip" -OutFile $zip
+            $expanded = Join-Path $tempRoot 'expanded'
+            Expand-Archive -LiteralPath $zip -DestinationPath $expanded -Force
+            $manifestFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'AURUM-TINYSEED-RELEASE.json' | Select-Object -First 1
+            $image = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso' | Select-Object -First 1
+            $shaFile = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'Aurum-TinySeed-amd64.iso.sha256' | Select-Object -First 1
+            if (-not $manifestFile -or -not $image -or -not $shaFile) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-packet-incomplete' }
+            $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
+            if ([string]$manifest.state -ne 'READY_TO_FLASH' -or ([string]$manifest.source_commit).ToLowerInvariant() -ne $seedSha) {
+              throw 'AURUM_TINYSEED_CACHE_REFUSED reason=handoff-manifest-mismatch'
+            }
+            $expected = ((Get-Content -LiteralPath $shaFile.FullName -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+            $actual = (Get-FileHash -LiteralPath $image.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($expected -ne $imageSha -or $actual -ne $imageSha -or ([string]$manifest.artifacts.x86.sha256).ToLowerInvariant() -ne $imageSha) {
+              throw 'AURUM_TINYSEED_CACHE_REFUSED reason=image-sha'
+            }
+
+            $staging = $cacheRoot + '.staging-' + [Guid]::NewGuid().ToString('N')
+            New-Item -ItemType Directory -Path $staging -Force | Out-Null
+            Copy-Item -LiteralPath $image.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso')
+            Copy-Item -LiteralPath $shaFile.FullName -Destination (Join-Path $staging 'Aurum-TinySeed-amd64.iso.sha256')
+            Copy-Item -LiteralPath $manifestFile.FullName -Destination (Join-Path $staging 'AURUM-TINYSEED-RELEASE.json')
+            $meta = [ordered]@{
+              schema = 'aurum-tinyseed-windows-cache-v1'
+              source_commit = $seedSha
+              image_sha256 = $imageSha
+              handoff_run_id = $handoffRunId
+              handoff_artifact_id = [long]$artifact[0].id
+              hash_verified = $true
+              destructive_media_write = $false
+              write_authority = $false
+              cached_at_utc = [DateTime]::UtcNow.ToString('o')
+            }
+            $metaJson = $meta | ConvertTo-Json -Depth 5
+            [IO.File]::WriteAllText((Join-Path $staging 'cache-metadata.json'), $metaJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
+            if (Test-Path $cacheRoot) { Remove-Item -LiteralPath $cacheRoot -Recurse -Force }
+            Move-Item -LiteralPath $staging -Destination $cacheRoot
+          } finally {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+          $finalHash = (Get-FileHash -LiteralPath $finalImage -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($finalHash -ne $imageSha) { throw 'AURUM_TINYSEED_CACHE_REFUSED reason=post-cache-hash' }
+          Write-Host "AURUM_TINYSEED_CACHE_STAGED source=$seedSha image_sha256=$imageSha handoff_run_id=$handoffRunId destructive_media_write=false write_authority=false"
