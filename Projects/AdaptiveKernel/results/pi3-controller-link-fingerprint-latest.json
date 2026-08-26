@@ -42,10 +42,10 @@
     "running-driver-binary-provenance"
   ],
   "next_gate": "correlate-observed-controller-link-and-package-provenance-with-pinned-references",
-  "observed_at_utc": "2026-08-26T14:01:24.9890958Z",
+  "observed_at_utc": "2026-08-26T14:02:55.2669468Z",
   "provenance": {
     "driver_modinfo_filename": "",
-    "driver_module_mode": "",
+    "driver_module_mode": "unknown",
     "headers_package_owner": "linux-headers-6.18.34+rpt-rpi-v8: /usr/src/linux-headers-6.18.34+rpt-rpi-v8/Makefile",
     "kernel_packages": [
       "linux-base\t4.12.1\tall",
@@ -67,10 +67,10 @@
     "proc_version": "Linux version 6.18.34+rpt-rpi-v8 (serge@raspberrypi.com) (aarch64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09)"
   },
   "quarantine_reasons": [],
-  "receipt_sha256": "08bca0b8964cfd5c0c0383b4a83ee8cb9c1bb8ef0235c148309f877a037478f9",
+  "receipt_sha256": "8cdc6b8004055edf9d786a84b5467519e687cc7a65a89647fb48a6a49a8bdbc2",
   "schema": "aurum.pi3.controller-link-fingerprint.v1",
-  "source_commit": "efef4f55642f28c42a84c8621365a8b55b39768d",
-  "source_run_id": "32977666070",
+  "source_commit": "9ed9c0baf8309dba689fad318d597cfe36a37fb5",
+  "source_run_id": "32977819132",
   "state": "completed-with-read-only-gaps",
   "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel/driver package provenance where available; it grants no mutation or promotion authority.",
   "target": {
