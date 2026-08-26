@@ -1,0 +1,105 @@
+name: Aurum Pi3 smsc95xx Register Interrupt Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-register-interrupt-shadow.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_register_interrupt_model.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_register_interrupt_model.py'
+      - 'Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-register-interrupt-shadow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  register-interrupt-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact register-shadow revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Stage Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Resolve and verify both hash-pinned smsc95xx headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pi3-register-shadow-evidence/reference
+          python - <<'PY' > pi3-register-shadow-evidence/reference/manifest.env
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json').read_text())
+          wanted = {
+              'raspberry-pi-linux-smsc95xx-h': ('RPI_URL', 'RPI_SHA'),
+              'upstream-linux-v6.18-smsc95xx-h': ('UP_URL', 'UP_SHA'),
+          }
+          found = {}
+          for item in manifest['sources']:
+              if item.get('id') in wanted:
+                  u, s = wanted[item['id']]
+                  found[u] = item['url']
+                  found[s] = item['sha256']
+          missing = [name for pair in wanted.values() for name in pair if name not in found]
+          if missing:
+              raise SystemExit('missing pinned reference metadata: ' + ','.join(missing))
+          for key in ('RPI_URL','RPI_SHA','UP_URL','UP_SHA'):
+              value = found[key]
+              if "'" in value or '\n' in value:
+                  raise SystemExit('unsafe manifest value')
+              print(f"{key}='{value}'")
+          PY
+          source pi3-register-shadow-evidence/reference/manifest.env
+          curl --fail --location --retry 3 --retry-delay 2 --output pi3-register-shadow-evidence/reference/rpi-smsc95xx.h "$RPI_URL"
+          curl --fail --location --retry 3 --retry-delay 2 --output pi3-register-shadow-evidence/reference/upstream-smsc95xx.h "$UP_URL"
+          printf '%s  %s\n' "$RPI_SHA" 'pi3-register-shadow-evidence/reference/rpi-smsc95xx.h' | sha256sum --check --strict
+          printf '%s  %s\n' "$UP_SHA" 'pi3-register-shadow-evidence/reference/upstream-smsc95xx.h' | sha256sum --check --strict
+
+      - name: Build sealed zero-authority register and interrupt shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_register_interrupt_model import build_register_interrupt_model
+
+          functional = json.loads(Path('Projects/AdaptiveKernel/results/pi3-smsc95xx-functional-model-latest.json').read_text(encoding='utf-8-sig'))
+          manifest = json.loads(Path('Projects/AdaptiveKernel/references/pi3_hardware/reference-manifest.json').read_text(encoding='utf-8-sig'))
+          rpi_h = Path('pi3-register-shadow-evidence/reference/rpi-smsc95xx.h').read_text()
+          upstream_h = Path('pi3-register-shadow-evidence/reference/upstream-smsc95xx.h').read_text()
+          result = build_register_interrupt_model(functional, manifest, rpi_h, upstream_h)
+          if result['authority']['register_write_allowed'] is not False:
+              raise SystemExit('register write authority must remain false')
+          if result['authority']['interrupt_ack_write_allowed'] is not False:
+              raise SystemExit('interrupt acknowledgement write authority must remain false')
+          if result['invariants']['device_io_performed'] is not False:
+              raise SystemExit('device I/O must remain false')
+          Path('pi3-register-shadow-evidence/register-interrupt-shadow.json').write_text(
+              json.dumps(result, indent=2, sort_keys=True) + '\n'
+          )
+          print('AURUM_PI3_REGISTER_INTERRUPT_SHADOW_OK receipt=' + result['receipt_sha256'])
+          PY
+
+      - name: Run fail-closed register and interrupt tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_register_interrupt_model
+
+      - name: Publish experimental shadow evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-register-interrupt-shadow
+          path: pi3-register-shadow-evidence/register-interrupt-shadow.json
+          if-no-files-found: error
+          retention-days: 30
