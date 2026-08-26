@@ -1,5 +1,5 @@
 {
-  "event_count": 20,
+  "event_count": 21,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -353,6 +353,54 @@
       "subject_kind": "artifact",
       "summary": "Exact current Pi3 microSD rollback image and tested archive are complete; the original card passed a fresh physical reboot canary.",
       "timestamp": "2026-08-26T02:26:36.414933Z"
+    },
+    "pi3-driver-candidate-direct-compile-20260826": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-experimental-00000000a6a7df7f",
+        "pi3-current-card-rollback",
+        "pi3-kernel-canary-preflight-32926239577"
+      ],
+      "event_id": "evt-b57d15ea980342dba231edd1164722ca",
+      "evidence_refs": [
+        "repo:Projects/AdaptiveKernel/results/pi3-driver-candidate-direct-compile-20260826.json",
+        "git:commit:e449eb424d71eb26521ab9f537df500efec93866",
+        "source-sha256:df1385721089a11a7eab1008ce560e7f33dc22d6fa8c6a22820e04398f849ec1",
+        "compile-receipt-sha256:88252137a82a8be357c7fdf89457fbe256e1b4e4f5f11cbd4810bc9652eb8e98",
+        "temporary-module-sha256:b82c791835738badcf4756204c726a3215ef5cf10cd7d5292cb2128f143cc86e"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "aliases_present": false,
+        "boot_configuration_changed": false,
+        "boot_id_unchanged": true,
+        "candidate_id": "pi3-usbnet-api-surface-compile-probe-v1",
+        "compile_state": "verified-compile-only",
+        "device_table_symbols_present": false,
+        "discovered_struct_urb_actual_length_type": "u32",
+        "discovered_struct_urb_transfer_buffer_length_type": "u32",
+        "driver_binding_change_authorized": false,
+        "exact_vermagic": true,
+        "firmware_changed": false,
+        "forbidden_unresolved_symbols_present": false,
+        "kernel": "6.18.34+rpt-rpi-v8",
+        "module_loaded": false,
+        "mutation_authority_granted": false,
+        "network_configuration_changed": false,
+        "reference_driver": "smsc95xx",
+        "reference_driver_unchanged": true,
+        "replacement_kernel_authorized": false,
+        "root_source": "/dev/mmcblk0p2",
+        "temporary_build_removed": true
+      },
+      "source": "strict-key-only-direct-pi3-compile-receipt",
+      "status": "succeeded",
+      "subject_id": "pi3-driver-candidate-direct-compile-20260826",
+      "subject_kind": "experiment",
+      "summary": "The inert USB-network API probe failed closed on its initial signed-int URB length assumption, revealing that the exact Pi 6.18 headers use u32 for both struct urb length fields. After that compile-only assertion correction, exact-header compilation and read-only artifact inspection passed; the temporary module was destroyed and boot, root, smsc95xx, and unloaded-module invariants remained unchanged.",
+      "timestamp": "2026-08-26T10:17:04.908205Z"
     },
     "pi3-experimental-00000000a6a7df7f": {
       "actor": "codex-thread-01a03afd",
