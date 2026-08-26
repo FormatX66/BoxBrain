@@ -76,7 +76,7 @@ jobs:
           assert by_name['inspect-ci-logs']['disposition'] == 'prepare'
           assert by_name['publish-site']['disposition'] == 'wait-boundary'
           PY
-      - name: Start plugin and probe health
+      - name: Start plugin and exercise live MCP tools
         working-directory: Projects/Aurum/ChatTreePlugin
         run: |
           node server.js > /tmp/chat-tree-plugin.log 2>&1 &
@@ -93,3 +93,4 @@ jobs:
           assert p['ok'] is True
           assert p['mcp'] == '/mcp'
           PY
+          node smoke-client.js
