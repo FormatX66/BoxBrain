@@ -91,6 +91,130 @@ class ChatProcessTreeTests(unittest.TestCase):
         self.assertFalse(merged.effect_allowed)
         self.assertIsNone(merged.authority_ref)
 
+    def test_consolidation_candidates_require_exact_group_branch_and_terminal_state(self):
+        tree = self.base_tree()
+        tree = tree.add(
+            node(
+                "chat-a",
+                parent_id="root",
+                lane_id="support",
+                sequence=1,
+                state="completed",
+                state_history=("active", "completed"),
+            )
+        )
+        tree = tree.add(
+            node(
+                "chat-b",
+                parent_id="root",
+                lane_id="support",
+                sequence=2,
+                state="failed",
+                state_history=("active", "failed"),
+            )
+        )
+        tree = tree.add(
+            node(
+                "other-lane",
+                parent_id="root",
+                lane_id="other",
+                sequence=3,
+                state="completed",
+                state_history=("active", "completed"),
+            )
+        )
+        tree = tree.add(node("still-active", parent_id="root", lane_id="support", sequence=4))
+
+        candidates = tree.consolidation_candidates()
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["parent_id"], "root")
+        self.assertEqual(candidates[0]["lane_id"], "support")
+        self.assertEqual(candidates[0]["source_node_ids"], ["chat-a", "chat-b"])
+        self.assertEqual(len(candidates[0]["plan_token"]), 64)
+
+    def test_consolidation_archives_sources_and_preserves_provenance(self):
+        tree = self.base_tree()
+        tree = tree.add(
+            node(
+                "chat-a",
+                parent_id="root",
+                lane_id="support",
+                sequence=1,
+                state="completed",
+                state_history=("active", "completed"),
+                concepts=("billing",),
+                evidence_refs=("chatgpt-conversation:chat-a",),
+            )
+        )
+        tree = tree.add(
+            node(
+                "chat-b",
+                parent_id="root",
+                lane_id="support",
+                sequence=2,
+                state="completed",
+                state_history=("active", "completed"),
+                concepts=("billing", "refund"),
+                evidence_refs=("receipt:chat-b",),
+            )
+        )
+        plan = tree.consolidation_candidates()[0]
+        changed = tree.consolidate_branch(
+            plan["source_node_ids"],
+            plan_token=plan["plan_token"],
+            node_id="support-archive",
+            title="Support archive",
+        )
+
+        self.assertEqual(changed.nodes["chat-a"].state, "archived")
+        self.assertEqual(changed.nodes["chat-b"].state, "archived")
+        self.assertEqual(changed.nodes["support-archive"].state, "completed")
+        self.assertEqual(changed.nodes["support-archive"].merged_from, ("chat-a", "chat-b"))
+        self.assertEqual(set(changed.nodes["support-archive"].concepts), {"billing", "refund"})
+        self.assertIn("consolidation:support-archive", changed.nodes["chat-a"].evidence_refs)
+        self.assertTrue(changed.to_dict()["invariants"]["tree_archive_changes_chatgpt_history"] is False)
+
+    def test_consolidation_rejects_stale_plan_and_mixed_branches(self):
+        tree = self.base_tree()
+        for node_id, lane_id, sequence in (("chat-a", "one", 1), ("chat-b", "two", 2)):
+            tree = tree.add(
+                node(
+                    node_id,
+                    parent_id="root",
+                    lane_id=lane_id,
+                    sequence=sequence,
+                    state="completed",
+                    state_history=("active", "completed"),
+                )
+            )
+        with self.assertRaisesRegex(ChatProcessTreeError, "same group and branch"):
+            tree.consolidate_branch(
+                ("chat-a", "chat-b"),
+                plan_token="not-a-valid-plan",
+                node_id="bad-archive",
+                title="Bad archive",
+            )
+
+        same_lane = self.base_tree()
+        for node_id, sequence in (("chat-a", 1), ("chat-b", 2)):
+            same_lane = same_lane.add(
+                node(
+                    node_id,
+                    parent_id="root",
+                    lane_id="one",
+                    sequence=sequence,
+                    state="completed",
+                    state_history=("active", "completed"),
+                )
+            )
+        with self.assertRaisesRegex(ChatProcessTreeError, "stale"):
+            same_lane.consolidate_branch(
+                ("chat-a", "chat-b"),
+                plan_token="not-a-valid-plan",
+                node_id="bad-archive",
+                title="Bad archive",
+            )
+
     def test_json_round_trip_keeps_nodes_and_safety_invariants(self):
         tree = self.two_lanes()
         payload = tree.to_json(focus_id="hopper")

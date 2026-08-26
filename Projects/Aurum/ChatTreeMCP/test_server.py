@@ -30,13 +30,15 @@ class ChatTreeMCPTests(unittest.TestCase):
             clear=False,
         )
 
-    def test_tool_contract_exposes_live_sync_tools_with_annotations(self):
+    def test_tool_contract_exposes_live_sync_and_consolidation_tools_with_annotations(self):
         tools = asyncio.run(main.mcp.list_tools())
         self.assertEqual(
             {tool.name for tool in tools},
             {
                 "get_tree",
                 "get_state",
+                "plan_consolidation",
+                "consolidate_branch",
                 "route_topic",
                 "post_receipt",
                 "publish_live_state",
@@ -47,6 +49,9 @@ class ChatTreeMCPTests(unittest.TestCase):
         self.assertTrue(by_name["get_tree"].annotations.read_only_hint)
         self.assertTrue(by_name["get_state"].annotations.read_only_hint)
         self.assertTrue(by_name["read_live_state"].annotations.read_only_hint)
+        self.assertTrue(by_name["plan_consolidation"].annotations.read_only_hint)
+        self.assertFalse(by_name["consolidate_branch"].annotations.read_only_hint)
+        self.assertTrue(by_name["consolidate_branch"].annotations.destructive_hint)
         self.assertFalse(by_name["route_topic"].annotations.read_only_hint)
         self.assertFalse(by_name["route_topic"].annotations.destructive_hint)
         self.assertFalse(by_name["route_topic"].annotations.idempotent_hint)

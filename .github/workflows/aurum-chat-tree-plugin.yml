@@ -9,6 +9,7 @@ on:
       - 'Projects/Aurum/ChatTreePlugin/**'
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/Experiments/human_branch.py'
@@ -21,6 +22,7 @@ on:
       - 'Projects/Aurum/ChatTreePlugin/**'
       - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_consolidation_bridge.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
       - 'Projects/Aurum/Experiments/human_branch.py'
@@ -56,6 +58,9 @@ jobs:
           assert p['ok'] is True
           assert p['tree']['schema'] == 'aurum-chat-process-tree-v1'
           PY
+      - name: Verify consolidation contract
+        working-directory: Projects/Aurum/Experiments
+        run: python -m unittest -v test_chat_tree_consolidation_bridge.py
       - name: Verify Future Branch session projections
         run: |
           printf '%s\n' '{"command":"project_human_futures","verified_state":"READY_TO_BOOT","lkg":"slot-a","likely_next":[{"state":"physical-hopper-boot-success","probability":0.7},{"state":"boot-mixed-result","probability":0.25}],"blockers":["physical-hopper-boot-proof"]}' | python Projects/Aurum/Experiments/chat_tree_bridge.py > /tmp/human-futures.json

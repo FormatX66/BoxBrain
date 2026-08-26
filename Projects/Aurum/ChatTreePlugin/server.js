@@ -16,7 +16,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AURUM_ROOT = path.resolve(HERE, "..");
 const BRIDGE = path.join(AURUM_ROOT, "Experiments", "chat_tree_bridge.py");
 const WIDGET = readFileSync(path.join(HERE, "public", "chat-tree-widget.html"), "utf8");
-const TEMPLATE_URI = "ui://aurum/chat-tree/v4.html";
+const TEMPLATE_URI = "ui://aurum/chat-tree/v5.html";
 const PYTHON = process.env.PYTHON ?? (process.platform === "win32" ? "python" : "python3");
 const STATUS = z.enum([
   "planned",
@@ -63,9 +63,11 @@ function bridge(request) {
 function snapshot(focusId) {
   const treeResponse = bridge({ command: "get_tree", ...(focusId ? { focus_id: focusId } : {}) });
   const stateResponse = bridge({ command: "get_state" });
+  const consolidationResponse = bridge({ command: "plan_consolidation" });
   return {
     tree: treeResponse.tree,
     state: stateResponse.state,
+    consolidation: consolidationResponse,
     focusId: treeResponse.tree.focus_path?.at(-1) ?? treeResponse.tree.root_id,
   };
 }
@@ -87,7 +89,7 @@ function closeQuietly(resource) {
 }
 
 function createChatTreeServer() {
-  const server = new McpServer({ name: "aurum-chat-tree-plugin", version: "0.1.0" });
+  const server = new McpServer({ name: "aurum-chat-tree-plugin", version: "0.2.0" });
 
   registerAppResource(server, "aurum-chat-tree-widget", TEMPLATE_URI, {}, async () => ({
     contents: [{
@@ -99,15 +101,20 @@ function createChatTreeServer() {
           prefersBorder: true,
           csp: { connectDomains: [], resourceDomains: [] },
         },
-        "openai/widgetDescription": "Aurum Chat Tree navigator for focused, child, and sibling work lanes.",
+        "openai/widgetDescription": "Aurum Chat Tree navigator with strict same-group/same-branch consolidation planning.",
       },
     }],
   }));
 
   registerAppTool(server, "show_chat_tree", {
     title: "Show Aurum Chat Tree",
-    description: "Use this when the user wants to view or organize current Aurum conversation/process branches.",
+    description: "Use this when the user wants to view, search, organize, or review consolidation candidates in current Aurum conversation/process branches.",
     inputSchema: { focusId: z.string().optional() },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     _meta: {
       ui: { resourceUri: TEMPLATE_URI },
       "openai/outputTemplate": TEMPLATE_URI,
@@ -127,6 +134,12 @@ function createChatTreeServer() {
       relation: z.enum(["child", "sibling"]),
       concepts: z.array(z.string()).optional(),
       summary: z.string().optional(),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
     },
     _meta: {
       ui: { resourceUri: TEMPLATE_URI },
@@ -226,6 +239,75 @@ function createChatTreeServer() {
       limit: args.limit ?? 50,
     });
     return reply(consumed, "Read the newest matching state from the append-only shared-state bus.");
+  });
+
+  registerAppTool(server, "plan_chat_branch_consolidation", {
+    title: "Plan Chat Branch Consolidation",
+    description: "Find completed or failed Chat Tree nodes in the exact same parent group and branch lane. This is read-only and cannot archive conversations in ChatGPT history.",
+    inputSchema: {
+      parentId: z.string().min(1).optional(),
+      laneId: z.string().min(1).optional(),
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+    _meta: {
+      ui: { resourceUri: TEMPLATE_URI },
+      "openai/outputTemplate": TEMPLATE_URI,
+      "openai/toolInvocation/invoking": "Checking branch archives…",
+      "openai/toolInvocation/invoked": "Branch archive plan ready.",
+    },
+  }, async ({ parentId, laneId }) => {
+    const planned = bridge({
+      command: "plan_consolidation",
+      ...(parentId ? { parent_id: parentId } : {}),
+      ...(laneId ? { lane_id: laneId } : {}),
+    });
+    return reply(
+      { ...snapshot(), consolidation: planned },
+      planned.candidate_count
+        ? `Found ${planned.candidate_count} exact same-group/same-branch consolidation candidate${planned.candidate_count === 1 ? "" : "s"}.`
+        : "No exact same-group/same-branch consolidation candidates are ready.",
+    );
+  });
+
+  registerAppTool(server, "consolidate_chat_branch", {
+    title: "Consolidate and Archive Chat Tree Branch",
+    description: "Apply one exact reviewed plan: create a provenance-preserving checkpoint and archive its completed/failed source nodes in the Aurum Chat Tree. This does not archive the underlying conversations in ChatGPT history.",
+    inputSchema: {
+      sourceNodeIds: z.array(z.string().min(1)).min(2).max(64),
+      planToken: z.string().length(64),
+      newNodeId: z.string().min(1),
+      title: z.string().min(1),
+      summary: z.string().optional(),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    _meta: {
+      ui: { resourceUri: TEMPLATE_URI },
+      "openai/outputTemplate": TEMPLATE_URI,
+      "openai/toolInvocation/invoking": "Consolidating branch…",
+      "openai/toolInvocation/invoked": "Chat Tree sources archived.",
+    },
+  }, async (args) => {
+    const consolidated = bridge({
+      command: "consolidate_branch",
+      source_node_ids: args.sourceNodeIds,
+      plan_token: args.planToken,
+      new_node_id: args.newNodeId,
+      title: args.title,
+      summary: args.summary ?? "",
+    });
+    return reply(
+      { ...snapshot(consolidated.focus_id), consolidationResult: consolidated },
+      `Consolidated and archived ${consolidated.archived_source_ids.length} Chat Tree nodes. ChatGPT conversation history was not changed.`,
+    );
   });
 
   server.registerTool("project_future_branch_status", {
