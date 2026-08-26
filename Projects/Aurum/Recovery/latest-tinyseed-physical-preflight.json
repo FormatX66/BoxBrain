@@ -1,8 +1,9 @@
 {
   "authorization": {
-    "authorization_state": "NONE",
+    "authorization_state": "EXPIRED",
     "destructive_action_allowed": false,
-    "request_id": null,
+    "expires_at_utc": "2026-08-26T03:33:05+00:00",
+    "request_id": "tinyseed-sandisk-flash-20260826-0248-be94",
     "request_write_authority": false
   },
   "destructive_action_allowed": false,
@@ -17,9 +18,9 @@
     "preserve_hopper_existing_recovery_media": true,
     "reprove_raw_usb_identity_before_write": true
   },
-  "next_gate": "fresh-read-only-usb-discovery",
+  "next_gate": "fresh-current-release-read-only-usb-discovery",
   "physical_boot_proven": false,
-  "preflight_state": "WAIT_USB_DISCOVERY",
+  "preflight_state": "REFUSE_DISCOVERY_RELEASE",
   "release": {
     "source_commit": "8812634ae2296db673b9de135c43a1119e885647",
     "state": "READY_TO_FLASH",
@@ -29,8 +30,7 @@
   "release_source_commit": "8812634ae2296db673b9de135c43a1119e885647",
   "release_state": "READY_TO_FLASH",
   "schema": "aurum-tinyseed-physical-preflight-v2",
-  "stale_reason": "release-identity-changed",
-  "state": "WAIT_USB_DISCOVERY",
+  "state": "REFUSE_DISCOVERY_RELEASE",
   "write_authority": false,
   "x86_artifact": "Aurum-TinySeed-amd64.iso",
   "x86_sha256": "b5c1bfa6f6ca2945d0e95c42f0302e5e6def18e7b415e8fb701fe6f90a99dd32"
