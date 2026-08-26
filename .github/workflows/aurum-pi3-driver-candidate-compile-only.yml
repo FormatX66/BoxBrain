@@ -1,0 +1,202 @@
+name: Aurum Pi3 Driver Candidate Compile Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_kernel_release:
+        description: Exact already-running Pi3 kernel release; no install or load is permitted
+        required: true
+        type: string
+        default: 6.18.34+rpt-rpi-v8
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-adaptive-kernel-overnight
+  cancel-in-progress: false
+
+jobs:
+  compile-only:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact compile-only source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Verify inert candidate contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'pi3-driver-candidate-evidence' | Out-Null
+          python Projects/AdaptiveKernel/driver_candidates/verify_contract.py | Set-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { throw 'Static driver-candidate contract refused the source.' }
+          $static = Get-Content -LiteralPath 'pi3-driver-candidate-evidence/static-contract.json' -Raw | ConvertFrom-Json
+          if ($static.state -ne 'verified-inert-compile-only' -or [bool]$static.invariants.load_allowed) { throw 'Candidate is not proven inert and compile-only.' }
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Compile-only candidate must exclude production nodes.' }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-driver-compile-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) { throw 'Refusing to overwrite staged Pi3 identity.' }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($runnerSid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_RUNTIME_KEY=$runtimeKeyPath`n",[Text.UTF8Encoding]::new($false))
+
+      - name: Compile and inspect candidate without loading it
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedModel = 'Raspberry Pi 3 Model B Rev 1.2'
+          $expectedKernel = '${{ inputs.expected_kernel_release }}'
+          if ($expectedKernel -notmatch '^[A-Za-z0-9][A-Za-z0-9._+~-]{0,127}$') { throw 'Expected kernel release is unsafe.' }
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $target = [string]$identity.pinned_ipv4
+          $sshTarget = "$($identity.ssh_user)@$target"
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $scp = Get-Command scp -ErrorAction Stop
+          $sshOptions = @('-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no','-o','PreferredAuthentications=publickey','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',[string]$env:PI3_RUNTIME_KEY)
+
+          $prepareScript = @'
+          set -eu
+          model="$(tr -d '\000' </proc/device-tree/model)"
+          serial="$(awk -F': *' '/^Serial/{print $2; exit}' /proc/cpuinfo)"
+          kernel="$(uname -r)"
+          arch="$(uname -m)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+          root="$(findmnt -n -o SOURCE /)"
+          driver="$(basename "$(readlink -f /sys/class/net/eth0/device/driver)")"
+          printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$model" "$serial" "$kernel" "$arch" "$boot_id" "$root" "$driver"
+          '@
+          $prepareScript = $prepareScript.Replace("`r`n", "`n")
+          $prepareEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($prepareScript))
+          $prepareCommand = "printf '%s' '$prepareEncoded' | base64 -d | sh"
+          $prepared = @(& $ssh.Source @sshOptions $sshTarget $prepareCommand 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $prepared.Count -ne 7) { throw 'Strict Pi3 compile-only preparation failed.' }
+          $model = ([string]$prepared[0]).Trim()
+          $serial = ([string]$prepared[1]).Trim()
+          $kernel = ([string]$prepared[2]).Trim()
+          $arch = ([string]$prepared[3]).Trim()
+          $bootBefore = ([string]$prepared[4]).Trim()
+          $rootBefore = ([string]$prepared[5]).Trim()
+          $driverBefore = ([string]$prepared[6]).Trim()
+          if ($model -ne $expectedModel -or $serial -ne ([string]$identity.serial).Trim()) { throw 'Exact Pi3 model or serial mismatch.' }
+          if ($kernel -ne $expectedKernel -or $arch -ne 'aarch64') { throw 'Running kernel or architecture mismatch.' }
+          if ($rootBefore -ne '/dev/mmcblk0p2' -or $driverBefore -ne 'smsc95xx') { throw 'Root source or Linux reference driver mismatch.' }
+          $remoteDir = ([string](& $ssh.Source @sshOptions $sshTarget 'mktemp -d /tmp/aurum-pi3-driver-candidate.XXXXXX' 2>$null)).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Remote temporary compile directory could not be created.' }
+          if ($remoteDir -notmatch '^/tmp/aurum-pi3-driver-candidate\.[A-Za-z0-9]+$') { throw 'Remote temporary directory is outside the allowed prefix.' }
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_REMOTE_COMPILE_DIR=$remoteDir`n",[Text.UTF8Encoding]::new($false))
+
+          $sourceFiles = @(
+            'Projects/AdaptiveKernel/driver_candidates/aurum_pi3_compile_probe.c',
+            'Projects/AdaptiveKernel/driver_candidates/candidate.json',
+            'Projects/AdaptiveKernel/driver_candidates/compile_only.py',
+            'Projects/AdaptiveKernel/driver_candidates/Kbuild',
+            'Projects/AdaptiveKernel/driver_candidates/verify_contract.py'
+          )
+          $scpOptions = @('-q') + $sshOptions
+          & $scp.Source @scpOptions @sourceFiles "${sshTarget}:$remoteDir/"
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned compile-only source transfer failed.' }
+
+          $buildScript = @"
+          set -eu
+          d='$remoteDir'
+          trap 'rm -rf -- "`$d"' EXIT INT TERM
+          PATH="/usr/sbin:/usr/bin:/sbin:/bin:`$PATH"
+          export PATH
+          test -d "`$d"
+          before_boot="`$(cat /proc/sys/kernel/random/boot_id)"
+          before_driver="`$(basename "`$(readlink -f /sys/class/net/eth0/device/driver)")"
+          if grep -q '^aurum_pi3_compile_probe ' /proc/modules; then exit 41; fi
+          set +e
+          python3 "`$d/compile_only.py" --kernel-build "/lib/modules/$expectedKernel/build" --expected-kernel-release '$expectedKernel' --receipt "`$d/result.json" >"`$d/compile-stdout.json" 2>&1
+          compile_exit=`$?
+          set -e
+          test -f "`$d/result.json"
+          after_boot="`$(cat /proc/sys/kernel/random/boot_id)"
+          after_driver="`$(basename "`$(readlink -f /sys/class/net/eth0/device/driver)")"
+          module_present=false
+          if grep -q '^aurum_pi3_compile_probe ' /proc/modules; then module_present=true; fi
+          result_b64="`$(base64 -w0 "`$d/result.json")"
+          printf '%s\n%s\n%s\n%s\n%s\n%s\n' "`$result_b64" "`$compile_exit" "`$before_boot" "`$after_boot" "`$before_driver" "`$after_driver:`$module_present"
+          "@
+          $buildScript = $buildScript.Replace("`r`n", "`n")
+          $buildEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($buildScript))
+          $buildCommand = "printf '%s' '$buildEncoded' | base64 -d | sh"
+          $built = @(& $ssh.Source @sshOptions $sshTarget $buildCommand 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $built.Count -ne 6) { throw 'Remote compile-only execution failed before evidence retrieval.' }
+
+          [IO.File]::WriteAllBytes('pi3-driver-candidate-evidence/compile-receipt.json',[Convert]::FromBase64String(([string]$built[0]).Trim()))
+          $compile = Get-Content -LiteralPath 'pi3-driver-candidate-evidence/compile-receipt.json' -Raw | ConvertFrom-Json
+          $compileExit = [int]([string]$built[1]).Trim()
+          $bootAtBuildStart = ([string]$built[2]).Trim()
+          $bootAfter = ([string]$built[3]).Trim()
+          $driverAtBuildStart = ([string]$built[4]).Trim()
+          $post = ([string]$built[5]).Trim().Split(':')
+          if ($post.Count -ne 2) { throw 'Post-build driver/module evidence is malformed.' }
+          $driverAfter = $post[0]
+          $modulePresentAfter = $post[1] -eq 'true'
+          if ($compileExit -ne 0 -or $compile.state -ne 'verified-compile-only') { throw "Compile-only receipt did not verify: state=$($compile.state) exit=$compileExit" }
+          if ($compile.artifact_inspection.state -ne 'verified-inert-artifact' -or -not [bool]$compile.artifact_inspection.exact_vermagic) { throw 'Temporary module artifact inspection did not verify.' }
+          if (-not [bool]$compile.build.temporary_build_removed -or [bool]$compile.build.loader_invoked -or [bool]$compile.build.installer_invoked) { throw 'Compile-only cleanup or non-load invariants failed.' }
+          if ($bootAtBuildStart -ne $bootBefore -or $bootAfter -ne $bootBefore) { throw 'Pi boot ID changed during compile-only work.' }
+          if ($driverAtBuildStart -ne 'smsc95xx' -or $driverAfter -ne 'smsc95xx' -or $modulePresentAfter) { throw 'Reference driver or module-state invariant failed.' }
+
+          $receiptHash = (Get-FileHash -LiteralPath 'pi3-driver-candidate-evidence/compile-receipt.json' -Algorithm SHA256).Hash.ToLowerInvariant()
+          $control = [ordered]@{
+            schema = 'aurum.pi3.driver-candidate.compile-only-control.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            state = 'verified-compile-only'
+            run_id = [string]$env:GITHUB_RUN_ID
+            source_commit = [string]$env:GITHUB_SHA
+            target = [ordered]@{ model = $model; serial = $serial; kernel = $kernel; arch = $arch; root_source = $rootBefore; strict_key_only_ssh = $true }
+            evidence = [ordered]@{ compile_receipt_sha256 = $receiptHash; candidate_id = $compile.candidate_id; module_sha256 = $compile.build.module_sha256; vermagic = $compile.artifact_inspection.vermagic }
+            invariants = [ordered]@{ boot_id_unchanged = $true; reference_driver = 'smsc95xx'; reference_driver_unchanged = $true; module_loaded = $false; artifact_retained = $false; firmware_changed = $false; boot_configuration_changed = $false; network_configuration_changed = $false }
+            authority = [ordered]@{ module_load_allowed = $false; driver_binding_change_allowed = $false; replacement_kernel_allowed = $false; mutation_authority_granted = $false }
+          }
+          $control | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-driver-candidate-evidence/control-receipt.json' -Encoding utf8
+
+      - name: Remove remote temporary compile directory
+        if: always()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $remoteDir = [string]$env:PI3_REMOTE_COMPILE_DIR
+          if (-not $remoteDir) { exit 0 }
+          if ($remoteDir -notmatch '^/tmp/aurum-pi3-driver-candidate\.[A-Za-z0-9]+$') { throw 'Refusing cleanup outside the validated remote temporary prefix.' }
+          if (-not $env:PI3_RUNTIME_KEY -or -not (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) { throw 'Pinned staged identity is unavailable for remote cleanup.' }
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $sshTarget = "$($identity.ssh_user)@$($identity.pinned_ipv4)"
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshOptions = @('-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no','-o','PreferredAuthentications=publickey','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',[string]$env:PI3_RUNTIME_KEY)
+          $cleanupScript = "set -eu; d='$remoteDir'; case \"`$d\" in /tmp/aurum-pi3-driver-candidate.*) ;; *) exit 42 ;; esac; if [ -e \"`$d\" ]; then rm -rf -- \"`$d\"; fi"
+          & $ssh.Source @sshOptions $sshTarget $cleanupScript
+          if ($LASTEXITCODE -ne 0) { throw 'Remote temporary compile cleanup failed.' }
+
+      - name: Retain compile-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-driver-candidate-compile-only
+          path: pi3-driver-candidate-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) { Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force }

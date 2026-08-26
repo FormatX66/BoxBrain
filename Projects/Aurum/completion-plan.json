@@ -212,9 +212,9 @@
         "pi3-adaptive-driver-userspace-generation2",
         "adaptive-kernel-independent"
       ],
-      "state": "held-out-of-band-watchdog-unproven",
+      "state": "held-on-watchdog-and-kernel-authority",
       "ready_now": false,
-      "proof": "kernel-canary prerequisite probe is persisted; no module was loaded and no system driver changed. Current technical boundary: prove-automatic-out-of-band-watchdog-and-recovery"
+      "proof": "physical Pi3 baseline and userspace Generation-2 recovery are proven; exact running kernel 6.18.34+rpt-rpi-v8 matching headers, Module.symvers, and inert compile-only canary are proven with no module load or driver change; kernel mutation remains held until an automatic out-of-band watchdog/recovery path and fresh explicit kernel-mutation authority are separately proven"
     },
     {
       "id": "pi3-stateweave-canary",

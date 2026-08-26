@@ -33,8 +33,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Test Adaptive Kernel generation 0
-        run: python -m unittest discover -s Projects/AdaptiveKernel/tests -p 'test_*.py' -v
+      - name: Test Adaptive Kernel generations and safety lanes
+        run: |
+          python -m unittest discover -s Projects/AdaptiveKernel/tests -p 'test_*.py' -v
+          python -m unittest Projects.AdaptiveKernel.recovery.test_out_of_band_controller -v
+          python -m unittest discover -s Projects/AdaptiveKernel/driver_candidates/tests -p 'test_*.py' -v
+          python Projects/AdaptiveKernel/driver_candidates/verify_contract.py
 
   combined:
     name: StateWeave plus Adaptive Kernel

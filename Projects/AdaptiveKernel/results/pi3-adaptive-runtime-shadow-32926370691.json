@@ -1,0 +1,1013 @@
+{
+  "decision": {
+    "change_applied": false,
+    "recommendation": "shadow-change",
+    "selected_policy_id": "runtime-gen3-opportunistic-v1",
+    "state": "completed"
+  },
+  "invariants": {
+    "active_executor_connected": false,
+    "boot_or_firmware_changed": false,
+    "driver_binding_changed": false,
+    "kernel_changed": false,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "network_changed": false,
+    "preserved_artifact_only": true
+  },
+  "mode": "preserved-artifact-shadow",
+  "receipt_sha256": "c20da0e9f6ed0914a2b7e89efb8a5e2e615f4dfd1199f0984ab1fab61a31def7",
+  "schema": "aurum-adaptive-runtime-artifact-shadow-v1",
+  "shadow_receipt": {
+    "decision": {
+      "change_applied": false,
+      "reason": "bounded-candidate-ranked-above-baseline",
+      "recommendation": "shadow-change",
+      "selected_generation": 3,
+      "selected_policy_id": "runtime-gen3-opportunistic-v1",
+      "state": "completed"
+    },
+    "evidence": {
+      "accepted_count": 32,
+      "aggregate": {
+        "average_temperature_c": 48.598,
+        "current_throttle_seen": false,
+        "ethernet_healthy": true,
+        "max_temperature_c": 49.388,
+        "maximum_normalized_load": 0.0175,
+        "minimum_memory_available_ratio": 0.819444,
+        "reference_drivers": [
+          "smsc95xx"
+        ]
+      },
+      "quarantined_count": 0,
+      "sample_receipts": [
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.03,
+            "memory_available_bytes": 779804672,
+            "memory_available_ratio": 0.82165,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0075,
+            "sample_id": "overnight-0296",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "6e71fa51f69f35926c5d80b3761a6def9fccb5f5fbbf69e7bffbd4e505ce4159",
+          "reasons": [],
+          "sample_id": "overnight-0296",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 779804672,
+            "memory_available_ratio": 0.82165,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0297",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "4743aa56bff15ac889f18dbfbc7d4d3daf859ceddc6bc7b616fc93e6d68dbbe5",
+          "reasons": [],
+          "sample_id": "overnight-0297",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 779804672,
+            "memory_available_ratio": 0.82165,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0298",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "a8b33fcbb712365ba7dd81b60afc83bf51a1c92c6fc8029283033840c9ea182e",
+          "reasons": [],
+          "sample_id": "overnight-0298",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.03,
+            "memory_available_bytes": 779804672,
+            "memory_available_ratio": 0.82165,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0075,
+            "sample_id": "overnight-0299",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "10d66bd481c4616f03811f87bdc1a3c9fda6eeab9cfe3c455899e13d31e91cc2",
+          "reasons": [],
+          "sample_id": "overnight-0299",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 779804672,
+            "memory_available_ratio": 0.82165,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0300",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "c5869f4b40c3130895f966c84f7878963b00f0e449f91e2c6967efdb138f7a2d",
+          "reasons": [],
+          "sample_id": "overnight-0300",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.06,
+            "memory_available_bytes": 778313728,
+            "memory_available_ratio": 0.820079,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.015,
+            "sample_id": "overnight-0301",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "99a2af054e4d9ddd434a8bcca5db6aa22ba9d698b17b29bd74edf3dc20637e42",
+          "reasons": [],
+          "sample_id": "overnight-0301",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.02,
+            "memory_available_bytes": 778260480,
+            "memory_available_ratio": 0.820023,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.005,
+            "sample_id": "overnight-0302",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "2ea3f5b387241c9da5f66591bcc9d6eff2c9f48fbd2599abeeeb531bcb5c1994",
+          "reasons": [],
+          "sample_id": "overnight-0302",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 778260480,
+            "memory_available_ratio": 0.820023,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0303",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "d4a055c4be740713b1fd2bad9f869ea436b73b6d3742ea9de776700aa190043c",
+          "reasons": [],
+          "sample_id": "overnight-0303",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 777711616,
+            "memory_available_ratio": 0.819444,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0304",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "e3993812749888c97975af44df462adc084b662e1d1e0d9a543fe1797695f30d",
+          "reasons": [],
+          "sample_id": "overnight-0304",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.05,
+            "memory_available_bytes": 777711616,
+            "memory_available_ratio": 0.819444,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0125,
+            "sample_id": "overnight-0305",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "69ad83155d61f6108a9b1192d67e1bf0e675277e9900b1557da868b20b265c15",
+          "reasons": [],
+          "sample_id": "overnight-0305",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.02,
+            "memory_available_bytes": 780226560,
+            "memory_available_ratio": 0.822094,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.005,
+            "sample_id": "overnight-0306",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "3976759ac5499a71c117a26acd4bbf5cee5b30c05a8eedc312d5c8350e9f411d",
+          "reasons": [],
+          "sample_id": "overnight-0306",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780226560,
+            "memory_available_ratio": 0.822094,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0307",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "cb6cce500a93dc058063a030f09266d101531dfe728f876120568ad1611257c1",
+          "reasons": [],
+          "sample_id": "overnight-0307",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780226560,
+            "memory_available_ratio": 0.822094,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0308",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "7ed9f1b3de340ddcd91d9e3bf94e9ef0c4ae123362c31a05c73dc9a5f2a9bf5a",
+          "reasons": [],
+          "sample_id": "overnight-0308",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780226560,
+            "memory_available_ratio": 0.822094,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0309",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "8c48c0acc23e67e7d91558fbd20ad0ffb547182ab9490348521c12fef80c2e02",
+          "reasons": [],
+          "sample_id": "overnight-0309",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780226560,
+            "memory_available_ratio": 0.822094,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0310",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "1bcdc23febdd95f08c51707d2d3e9a5325ebfb2f7b8057f183d13cb9f842b527",
+          "reasons": [],
+          "sample_id": "overnight-0310",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780611584,
+            "memory_available_ratio": 0.8225,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0311",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "4699ecc58112cd4fc5259798cbe7f383a415244be20696d20e81c973564e42a5",
+          "reasons": [],
+          "sample_id": "overnight-0311",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.07,
+            "memory_available_bytes": 780611584,
+            "memory_available_ratio": 0.8225,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0175,
+            "sample_id": "overnight-0312",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "e19417cd848ff083ffda2d59beb492ee231efeddde29cf4759349e75be1d9f78",
+          "reasons": [],
+          "sample_id": "overnight-0312",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.02,
+            "memory_available_bytes": 780406784,
+            "memory_available_ratio": 0.822284,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.005,
+            "sample_id": "overnight-0313",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "071777d20576046a329177d7f70e70e04ad84651a5a32ad3dd44053e1eeb53e6",
+          "reasons": [],
+          "sample_id": "overnight-0313",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 780353536,
+            "memory_available_ratio": 0.822228,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0314",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "c3c36ba049569a19a64a9d2afe4c1f76d0a4e92fbc8a087d7d0af97deaf4e333",
+          "reasons": [],
+          "sample_id": "overnight-0314",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780353536,
+            "memory_available_ratio": 0.822228,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0315",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "56997a3686e4730696b3eea595790702ed69166541d0ec8449e5244eaa280ff6",
+          "reasons": [],
+          "sample_id": "overnight-0315",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.03,
+            "memory_available_bytes": 778174464,
+            "memory_available_ratio": 0.819932,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0075,
+            "sample_id": "overnight-0316",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "a719cdc94c68cb19107cfc101f150d001bfd053f8c8f428cb45123abd9f38adc",
+          "reasons": [],
+          "sample_id": "overnight-0316",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 778121216,
+            "memory_available_ratio": 0.819876,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0317",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "ffab9a7d2eef46f72b4874a47127eb4678659b986466baf07c94a208ac921e98",
+          "reasons": [],
+          "sample_id": "overnight-0317",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 778121216,
+            "memory_available_ratio": 0.819876,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0318",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "75c347b09d096b5604824f166eb96b56f685bd0c0629930d5ccc31283e31a327",
+          "reasons": [],
+          "sample_id": "overnight-0318",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 778121216,
+            "memory_available_ratio": 0.819876,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0319",
+            "temperature_c": 49.388
+          },
+          "raw_sha256": "50909307d0e0b6ae18f9dc71a1e847c44043d7e8de0f53baa13a65f519e79ead",
+          "reasons": [],
+          "sample_id": "overnight-0319",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.03,
+            "memory_available_bytes": 778121216,
+            "memory_available_ratio": 0.819876,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0075,
+            "sample_id": "overnight-0320",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "6a7fd7f9fd04217add147e880c646c07a95bcabcda65aeb0f7a701a79c04cacd",
+          "reasons": [],
+          "sample_id": "overnight-0320",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.01,
+            "memory_available_bytes": 777904128,
+            "memory_available_ratio": 0.819647,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0025,
+            "sample_id": "overnight-0321",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "182435cd3c077b5a8a2486ac7cfe791648ee0b33b88f4d056be75b5757a68d91",
+          "reasons": [],
+          "sample_id": "overnight-0321",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 777904128,
+            "memory_available_ratio": 0.819647,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0322",
+            "temperature_c": 49.388
+          },
+          "raw_sha256": "d1a7b5a5f385425f46c2ed6bff6f89241f86fb3f2a9c7ee07566f5dfee78b512",
+          "reasons": [],
+          "sample_id": "overnight-0322",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 777904128,
+            "memory_available_ratio": 0.819647,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0323",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "87d78663ffee34ca5143b00c0009c7520a6b05669eab3233a0b1c15ac97c7e6b",
+          "reasons": [],
+          "sample_id": "overnight-0323",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 777904128,
+            "memory_available_ratio": 0.819647,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0324",
+            "temperature_c": 49.388
+          },
+          "raw_sha256": "61d19287146cefb4b73e2a60704fd4f2a6b1efd8774afe202fc16cec8ac051b1",
+          "reasons": [],
+          "sample_id": "overnight-0324",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 777904128,
+            "memory_available_ratio": 0.819647,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0325",
+            "temperature_c": 48.85
+          },
+          "raw_sha256": "ae2ac954d8ab7e79b26a6ad8cf55d1024857f0b2dc01609c6ff5ffe1cb7a45b7",
+          "reasons": [],
+          "sample_id": "overnight-0325",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780238848,
+            "memory_available_ratio": 0.822107,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0326",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "077dcb7dbdad4e0da0a2badd7549f43940893227682d4888eb9c32383561ac0e",
+          "reasons": [],
+          "sample_id": "overnight-0326",
+          "state": "accepted"
+        },
+        {
+          "classification": "safe",
+          "normalized": {
+            "cpu_count": 4,
+            "current_throttled": false,
+            "ethernet": {
+              "carrier": true,
+              "operstate": "up",
+              "reference_driver": "smsc95xx",
+              "rx_dropped": 0,
+              "rx_errors": 0,
+              "tx_dropped": 0,
+              "tx_errors": 0
+            },
+            "load_1m": 0.0,
+            "memory_available_bytes": 780238848,
+            "memory_available_ratio": 0.822107,
+            "memory_total_bytes": 949071872,
+            "normalized_load": 0.0,
+            "sample_id": "overnight-0327",
+            "temperature_c": 48.312
+          },
+          "raw_sha256": "4cfc071044b1bb14f6eb9b41ff330e7391642440c92961cca33839af79c99202",
+          "reasons": [],
+          "sample_id": "overnight-0327",
+          "state": "accepted"
+        }
+      ],
+      "window_issues": []
+    },
+    "execution": {
+      "active_executor_default": false,
+      "enabled": false,
+      "performed": false,
+      "requires_explicit_reversible_authority": true,
+      "requires_rollback_metadata": true
+    },
+    "generation_ceiling": 3,
+    "input": {
+      "baseline_policy_id": "runtime-baseline-v1",
+      "expected_reference_driver": "smsc95xx",
+      "maximum_samples": 64,
+      "minimum_samples": 3,
+      "sample_count": 32
+    },
+    "invariants": {
+      "baseline_remains_competing_branch": true,
+      "boot_changed": false,
+      "driver_binding_changed": false,
+      "kernel_changed": false,
+      "live_hardware_contacted": false,
+      "network_changed": false,
+      "reference_driver_is_protected": true
+    },
+    "mode": "shadow",
+    "ranking": [
+      {
+        "eligible": true,
+        "generation": 3,
+        "network_prefetch": true,
+        "policy_id": "runtime-gen3-opportunistic-v1",
+        "rank": 1,
+        "score": 0.9,
+        "score_evidence": [
+          "strong-opportunistic-headroom-observed"
+        ],
+        "speculative_cpu_percent": 40,
+        "speculative_memory_percent": 30,
+        "status": "recommended-shadow-only",
+        "strategy": "opportunistic"
+      },
+      {
+        "eligible": true,
+        "generation": 2,
+        "network_prefetch": true,
+        "policy_id": "runtime-gen2-balanced-v1",
+        "rank": 2,
+        "score": 0.84,
+        "score_evidence": [
+          "balanced-headroom-observed"
+        ],
+        "speculative_cpu_percent": 25,
+        "speculative_memory_percent": 20,
+        "status": "ranked",
+        "strategy": "balanced"
+      },
+      {
+        "eligible": true,
+        "generation": 0,
+        "network_prefetch": false,
+        "policy_id": "runtime-baseline-v1",
+        "rank": 3,
+        "score": 0.8,
+        "score_evidence": [
+          "protected-current-policy"
+        ],
+        "speculative_cpu_percent": null,
+        "speculative_memory_percent": null,
+        "status": "protected-lkg",
+        "strategy": "baseline"
+      },
+      {
+        "eligible": true,
+        "generation": 2,
+        "network_prefetch": false,
+        "policy_id": "runtime-gen2-conserve-v1",
+        "rank": 4,
+        "score": 0.45,
+        "score_evidence": [
+          "conservation-pressure-not-observed"
+        ],
+        "speculative_cpu_percent": 10,
+        "speculative_memory_percent": 10,
+        "status": "ranked",
+        "strategy": "conserve"
+      }
+    ],
+    "receipt_sha256": "017728d1ae8281d7e299b64ea81f5921ea50fb09b58413e193f0c2f5abd31911",
+    "schema": "aurum-adaptive-runtime-shadow-v1"
+  },
+  "source": {
+    "github_artifact_digest": "sha256:9a79ed658cfa10305de4cd86471420046eba4f8f92658d49aa0ba70c961d0157",
+    "github_artifact_id": 9599926710,
+    "samples_jsonl_sha256": "81c3ccc8b1ba738bd705b819d4895b9b502e824f135b8a281a7d843f8bacfadd",
+    "total_sample_count": 328,
+    "window_first_elapsed_seconds": 17878.968,
+    "window_first_sample_id": "overnight-0296",
+    "window_last_elapsed_seconds": 19748.616,
+    "window_last_sample_id": "overnight-0327",
+    "window_sample_count": 32
+  }
+}

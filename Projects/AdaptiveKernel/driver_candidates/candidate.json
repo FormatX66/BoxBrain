@@ -1,0 +1,57 @@
+{
+  "schema": "aurum.adaptive-kernel.driver-candidate.v1",
+  "candidate_id": "pi3-usbnet-api-surface-compile-probe-v1",
+  "target": {
+    "model_marker": "Raspberry Pi 3 Model B Rev 1.2",
+    "architecture": "aarch64",
+    "reference_driver": "smsc95xx",
+    "reference_driver_replaced": false,
+    "kernel_release_source": "explicit-ci-input",
+    "exact_kernel_release_required": true
+  },
+  "build": {
+    "mode": "compile-only",
+    "kbuild_target": "modules",
+    "source": "aurum_pi3_compile_probe.c",
+    "kbuild": "Kbuild",
+    "artifact_retained": false,
+    "receipt_schema": "aurum.adaptive-kernel.compile-only-receipt.v1",
+    "artifact_inspection": {
+      "tools_required_in_ci": true,
+      "exact_vermagic_required": true,
+      "module_aliases_allowed": false,
+      "device_table_symbols_allowed": false,
+      "forbidden_unresolved_capability_symbols_allowed": false
+    }
+  },
+  "safety": {
+    "load_allowed": false,
+    "successful_load_possible": false,
+    "init_behavior": "return-negative-eperm",
+    "autoload_aliases": [],
+    "registers_device_driver": false,
+    "registers_network_device": false,
+    "registers_sysfs_interface": false,
+    "performs_hardware_io": false,
+    "changes_driver_binding": false,
+    "changes_firmware": false,
+    "changes_boot_configuration": false,
+    "changes_network_configuration": false,
+    "self_loads_or_requests_modules": false,
+    "production_nodes_allowed": false
+  },
+  "evidence_scope": [
+    "linux-module-build-api",
+    "usb-urb-length-field-types",
+    "skbuff-length-field-type",
+    "netdev-feature-mask-type",
+    "usb-device-descriptor-layout"
+  ],
+  "non_claims": [
+    "module-loaded",
+    "driver-bound",
+    "hardware-behavior-proven",
+    "boot-safety-proven",
+    "promotion-authorized"
+  ]
+}

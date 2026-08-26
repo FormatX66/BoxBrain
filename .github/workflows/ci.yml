@@ -69,8 +69,12 @@ jobs:
           python-version: "3.13"
       - name: Test StateWeave branch records
         run: python -m unittest discover -s Projects/StateWeave/tests -v
-      - name: Test Adaptive Kernel branch proposals
-        run: python -m unittest discover -s Projects/AdaptiveKernel/tests -v
+      - name: Test Adaptive Kernel branch proposals and safety lanes
+        run: |
+          python -m unittest discover -s Projects/AdaptiveKernel/tests -v
+          python -m unittest Projects.AdaptiveKernel.recovery.test_out_of_band_controller -v
+          python -m unittest discover -s Projects/AdaptiveKernel/driver_candidates/tests -p 'test_*.py' -v
+          python Projects/AdaptiveKernel/driver_candidates/verify_contract.py
       - name: Test combined StateWeave + kernel bridge
         run: python -m unittest discover -s Projects/StateWeaveKernel/tests -v
       - name: Test all Aurum Future Branch experiments
