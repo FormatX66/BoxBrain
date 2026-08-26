@@ -34,7 +34,7 @@ lb config \
   --uefi-secure-boot disable \
   --checksums sha256 \
   --memtest none \
-  --bootappend-live "boot=live components edd=off quiet console=tty0 console=ttyS0,115200n8" \
+  --bootappend-live "boot=live components edd=off quiet plymouth.enable=0 aurum.ui=compact vt.global_cursor_default=0 console=tty0 console=ttyS0,115200n8" \
   --iso-application "Aurum Tiny Seed" \
   --iso-publisher "FormatX66/BoxBrain" \
   --iso-volume "AURUM_TINY"
@@ -66,6 +66,9 @@ dosfstools
 e2fsprogs
 util-linux
 kbd
+kmod
+alsa-utils
+espeakup
 pciutils
 usbutils
 grub-efi-amd64-bin
@@ -84,14 +87,26 @@ for grub_dir in grub-pc grub-efi; do
 serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1
 terminal_input console serial
 terminal_output console serial
+# EFI has no native VGA text handoff. Register its video adapters for the
+# Linux boot protocol, but keep GRUB itself on the compact firmware console.
+if [ "$grub_platform" = "efi" ]; then
+    insmod all_video
+    set gfxpayload=keep
+fi
 set default=0
 set timeout=3
+set color_normal=light-gray/black
+set color_highlight=yellow/black
 menuentry "Aurum Tiny Seed" {
     linux @KERNEL_LIVE@ @APPEND_LIVE@
     initrd @INITRD_LIVE@
 }
 menuentry "Aurum Tiny Seed (safe verbose)" {
-    linux @KERNEL_LIVE@ @APPEND_LIVE@ nomodeset systemd.show_status=yes loglevel=7
+    linux @KERNEL_LIVE@ @APPEND_LIVE@ aurum.ui=plain nomodeset systemd.show_status=yes loglevel=7
+    initrd @INITRD_LIVE@
+}
+menuentry "Aurum Tiny Seed (spoken / blind)" {
+    linux @KERNEL_LIVE@ @APPEND_LIVE@ aurum.accessibility=blind aurum.ui=plain speakup.synth=soft systemd.show_status=yes
     initrd @INITRD_LIVE@
 }
 EOF
@@ -102,29 +117,43 @@ done
 # A second manual entry is intentionally verbose and graphics-conservative.
 mkdir -p config/bootloaders/isolinux config/bootloaders/syslinux
 cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
-include menu.cfg
-default vesamenu.c32
-prompt 0
+default aurum
+prompt 1
 timeout 30
-label aurum-safe
-  menu label Aurum Tiny Seed (safe verbose)
+serial 0 115200
+say AURUM TINY SEED
+say Press Enter for normal boot, or type safe / spoken. Starting normal in 3 seconds.
+label aurum
   kernel /live/vmlinuz
-  append initrd=/live/initrd.img boot=live components edd=off nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
+  append initrd=/live/initrd.img boot=live components edd=off quiet plymouth.enable=0 aurum.ui=compact vt.global_cursor_default=0 console=tty0 console=ttyS0,115200n8
+label safe
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.ui=plain nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
+label spoken
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.accessibility=blind aurum.ui=plain speakup.synth=soft systemd.show_status=yes console=tty0 console=ttyS0,115200n8
 EOF
 cat > config/bootloaders/syslinux/syslinux.cfg <<'EOF'
-include menu.cfg
-default vesamenu.c32
-prompt 0
+default aurum
+prompt 1
 timeout 30
-label aurum-safe
-  menu label Aurum Tiny Seed (safe verbose)
+serial 0 115200
+say AURUM TINY SEED
+say Press Enter for normal boot, or type safe / spoken. Starting normal in 3 seconds.
+label aurum
   kernel /live/vmlinuz
-  append initrd=/live/initrd.img boot=live components edd=off nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
+  append initrd=/live/initrd.img boot=live components edd=off quiet plymouth.enable=0 aurum.ui=compact vt.global_cursor_default=0 console=tty0 console=ttyS0,115200n8
+label safe
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.ui=plain nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
+label spoken
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.accessibility=blind aurum.ui=plain speakup.synth=soft systemd.show_status=yes console=tty0 console=ttyS0,115200n8
 EOF
 
 GERM_DST=config/includes.chroot/usr/lib/aurum/germ
 mkdir -p "$GERM_DST"
-for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
+for name in GENETICS.json carrier.py reseed.py guardian.py recovery_ledger.py bridge.py germ_console.py machine.py network.py installer.py tinyseed.py accessibility.py bootstrap_console.py proof.py rollback_drill.py recovery_control.py recovery_poller.py triage.py; do
   cp "$SCRIPT_DIR/$name" "$GERM_DST/$name"
 done
 chmod 0755 "$GERM_DST"/*.py
@@ -209,6 +238,11 @@ SYSTEMD=config/includes.chroot/etc/systemd/system
 WANTS=$SYSTEMD/multi-user.target.wants
 TIMERS=$SYSTEMD/timers.target.wants
 mkdir -p "$WANTS" "$TIMERS"
+mkdir -p "$SYSTEMD/espeakup.service.d"
+cat > "$SYSTEMD/espeakup.service.d/aurum-blind-only.conf" <<'EOF'
+[Unit]
+ConditionKernelCommandLine=aurum.accessibility=blind
+EOF
 cat > "$SYSTEMD/aurum-triage.service" <<'EOF'
 [Unit]
 Description=Aurum read-only failure triage receipt
@@ -253,10 +287,24 @@ ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/guardian.py health-check --reboot
 [Install]
 WantedBy=multi-user.target
 EOF
+cat > "$SYSTEMD/aurum-accessibility.service" <<'EOF'
+[Unit]
+Description=Aurum Tiny Seed spoken startup
+ConditionKernelCommandLine=aurum.accessibility=blind
+After=systemd-modules-load.service sound.target
+Before=aurum-tinyseed.service
+OnFailure=aurum-triage.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/aurum/germ/accessibility.py
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+EOF
 cat > "$SYSTEMD/aurum-tinyseed.service" <<'EOF'
 [Unit]
 Description=Aurum Tiny Seed setup
-After=aurum-resolver-link.service NetworkManager-wait-online.service systemd-resolved.service aurum-germ-preflight.service
+After=aurum-resolver-link.service NetworkManager-wait-online.service systemd-resolved.service aurum-germ-preflight.service aurum-accessibility.service
 Wants=aurum-resolver-link.service NetworkManager-wait-online.service systemd-resolved.service
 Conflicts=getty@tty1.service
 OnFailure=aurum-triage.service
@@ -271,6 +319,7 @@ TTYReset=yes
 TTYVHangup=yes
 Restart=on-failure
 RestartSec=2
+SuccessExitStatus=3
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -320,7 +369,7 @@ Unit=aurum-recovery-poll.service
 [Install]
 WantedBy=timers.target
 EOF
-for unit in aurum-resolver-link.service aurum-germ-preflight.service aurum-germ-health.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
+for unit in aurum-resolver-link.service aurum-germ-preflight.service aurum-germ-health.service aurum-accessibility.service aurum-tinyseed.service aurum-tinyseed-smoke.service aurum-boot-proof.service; do
   ln -s "../$unit" "$WANTS/$unit"
 done
 ln -s "../aurum-recovery-poll.timer" "$TIMERS/aurum-recovery-poll.timer"
