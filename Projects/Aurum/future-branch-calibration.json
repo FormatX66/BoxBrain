@@ -169,17 +169,29 @@
       "user_turns_avoided": 0,
       "estimated_wait_seconds_saved": 0,
       "assumption_corrections": 1
+    },
+    {
+      "event": "future-branch-pi3-missing-field-quarantine-013",
+      "actual_family": "physical-missing-sysfs-field-fault-quarantine",
+      "nearest_prior_family": "missing-sysfs-field-fault-injection",
+      "prediction": "exact",
+      "execution": "complete",
+      "reason": "The prior physical Pi3 adaptive-driver result explicitly kept a missing-sysfs-field fault branch warm. After the exact current-card rollback image, reboot canary, and strict pinned Pi3 identity were proven, the generation-2 physical run exercised that prepared branch: the normal tolerant observer matched the reference at score 100, the missing-carrier fixture was quarantined with required-read-only-field-unavailable, the LKG JSON SHA-256 remained byte-identical before and after the fault, and isolated metadata rollback restored the Linux reference profile without loading a module or changing the system driver.",
+      "correction": "No branch-class correction required. Promote the verified experimental Pi3 baseline and userspace generation-2 evidence into the completion graph, then prepare kernel-canary prerequisites only up to the next technical/authority boundary; do not infer kernel mutation proof from userspace success.",
+      "user_turns_avoided": 0,
+      "estimated_wait_seconds_saved": 0,
+      "assumption_corrections": 0
     }
   ],
   "metrics": {
-    "events": 12,
-    "prediction_accuracy_weighted": 0.541667,
-    "execution_completeness_weighted": 0.833333,
-    "useful_hit_rate": 0.291667,
-    "exact_predictions": 4,
+    "events": 13,
+    "prediction_accuracy_weighted": 0.576923,
+    "execution_completeness_weighted": 0.846154,
+    "useful_hit_rate": 0.346154,
+    "exact_predictions": 5,
     "partial_predictions": 5,
     "miss_predictions": 3,
-    "execution_complete_or_boundary_correct": 9,
+    "execution_complete_or_boundary_correct": 10,
     "execution_prepared": 0,
     "execution_partial": 2,
     "execution_miss": 1,
@@ -188,7 +200,7 @@
     "assumptions_corrected_before_user_impact": 7,
     "assumptions_corrected_after_user_prompt": 2
   },
-  "interpretation": "Future Branch now records two related operator-language corrections without inflating them after the fact: the USB-gateway topology miss and the partial generic-prompt intent-expansion hit. The shared correction is outcome-first operation: use live state and contracts to infer what must become true, perform safe evidence-gathering or preparation common to plausible intents, and interrupt Bruce only at a decision that actually changes the route or grants protected authority.",
+  "interpretation": "Natural-interaction calibration now includes a physical exact hit: a Pi3 missing-field fault branch was prepared before the hardware run and then resolved exactly, with complete safe execution through quarantine and byte-identical LKG preservation. This is stronger evidence than wording prediction because the prepared branch materially changed what was tested and preserved recovery. The broader priority remains outcome-first operation: infer from live state, prepare shared safe work, and stop at real mutation/authority boundaries.",
   "next_measurements": [
     "prepared_action_hit_rate",
     "user_turns_avoided",
