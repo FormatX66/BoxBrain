@@ -1,5 +1,5 @@
 {
-  "event_count": 3,
+  "event_count": 4,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -13,28 +13,30 @@
       "authority_ref": null,
       "confidence": 1.0,
       "dependency_ids": [],
-      "event_id": "evt-b5c7ef128eef4d12983fcc90f7b11dba",
+      "event_id": "evt-80ae4b2468dc43c0aa704d6f49eb8961",
       "evidence_refs": [
-        "git:commit:be94bb83",
-        "docs/CROSS_CHAT_CACHE.md",
+        "git:commit:04040c35",
+        "file:C:\\Arkmatx_Knowledge_Hub\\THREAD_CACHE_CURRENT.json",
         "file:C:\\Arkmatx_Knowledge_Hub\\cross-chat-cache.sqlite3",
-        "file:C:\\Users\\bruce\\Documents\\Codex\\AGENTS.md"
+        "file:C:\\Arkmatx_Knowledge_Hub\\MASTER_CONTEXT.md",
+        "file:C:\\Arkmatx_Knowledge_Hub\\THREAD_INDEX.md"
       ],
       "node_id": "cross-chat-context-cache",
       "payload": {
-        "chatgpt": 45,
+        "chatgpt": 47,
         "codex": 30,
         "full_chat_bodies_cached": false,
-        "indexed_conversations": 75,
+        "indexed_conversations": 77,
         "live_state_authority": false,
+        "milestone": "pi3-rollback-and-boot-canary-complete",
         "model_calls_required": false
       },
-      "source": "local-verified-cache-build",
+      "source": "unified-app-index-refresh",
       "status": "succeeded",
       "subject_id": "cross-chat-context-cache",
       "subject_kind": "process",
-      "summary": "Metadata-only cross-chat cache is live with 75 indexed ChatGPT/Codex conversations and deterministic source-linked retrieval.",
-      "timestamp": "2026-08-26T01:48:23.146219Z"
+      "summary": "Metadata-only cross-chat cache refreshed after the Pi3 rollback milestone; 77 visible ChatGPT/Codex conversations are indexed.",
+      "timestamp": "2026-08-26T02:37:23.612164Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
