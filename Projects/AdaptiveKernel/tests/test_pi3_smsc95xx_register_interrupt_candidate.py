@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import unittest
@@ -96,15 +95,15 @@ class RegisterInterruptCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported interrupt clear semantics"):
             synthesize_candidate(model)
 
-    def test_duplicate_or_overlapping_masks_are_detected_by_differential_semantics(self):
+    def test_overlapping_status_and_endpoint_semantics_fail_differential(self):
         model = fixture_model()
-        # Preserve a sealed but suspicious model to make sure the candidate cannot
-        # silently turn a read-only source into a W1C source through mask overlap.
+        # Preserve a sealed but suspicious model. A read-only source is forced onto
+        # the W1C status bit while retaining a different endpoint gate. The host
+        # differential must reject the ambiguity rather than silently normalize it.
         model["interrupt_sources"][1]["status_mask"] = model["interrupt_sources"][0]["status_mask"]
         _seal(model)
-        result = run_differential(model)
-        self.assertEqual(result["mismatch_count"], 0)
-        self.assertFalse(result["authority"]["register_write_allowed"])
+        with self.assertRaisesRegex(ValueError, "candidate/model register-interrupt mismatch"):
+            run_differential(model)
 
 
 if __name__ == "__main__":
