@@ -125,6 +125,20 @@ jobs:
           kernel_packages=""
           modules_owner=""
           headers_owner=""
+          driver_module_mode="unknown"
+          driver_modinfo_filename=""
+          if command -v modinfo >/dev/null 2>&1 && [ -n "$driver" ]; then
+            driver_modinfo_filename="$(modinfo -F filename "$driver" 2>/dev/null | head -n 1 || true)"
+            case "$driver_modinfo_filename" in
+              '(builtin)') driver_module_mode="builtin" ;;
+              '')
+                if [ -d "/sys/module/$driver" ]; then
+                  driver_module_mode="unknown"
+                fi
+                ;;
+              *) driver_module_mode="module" ;;
+            esac
+          fi
           if command -v dpkg-query >/dev/null 2>&1; then
             kernel_packages="$(dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' 2>/dev/null | grep -E '(^|:)(raspberrypi-kernel|raspberrypi-kernel-headers|linux-image|linux-headers|linux-base)' | head -n 40 || true)"
             if [ -n "$kernel" ]; then
@@ -132,8 +146,8 @@ jobs:
               if [ -n "$module_probe" ]; then
                 modules_owner="$(dpkg-query -S "$module_probe" 2>/dev/null | head -n 10 || true)"
               fi
-              if [ -z "$modules_owner" ]; then
-                modules_owner="$(dpkg-query -S "/lib/modules/$kernel" 2>/dev/null | head -n 10 || true)"
+              if [ -z "$modules_owner" ] && [ "$driver_module_mode" = "module" ] && [ -n "$driver_modinfo_filename" ]; then
+                modules_owner="$(dpkg-query -S "$driver_modinfo_filename" 2>/dev/null | head -n 10 || true)"
               fi
               build_path="$(readlink -f "/lib/modules/$kernel/build" 2>/dev/null || true)"
               if [ -n "$build_path" ] && [ -f "$build_path/Makefile" ]; then
@@ -161,6 +175,8 @@ jobs:
           emit kernel_packages "$kernel_packages"
           emit modules_package_owner "$modules_owner"
           emit headers_package_owner "$headers_owner"
+          emit driver_module_mode "$driver_module_mode"
+          emit driver_modinfo_filename "$driver_modinfo_filename"
           '@
           $remoteScript = $remoteScript.Replace("`r`n", "`n")
           $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
@@ -226,6 +242,8 @@ jobs:
               kernel_packages = $packages
               modules_package_owner = ([string]$fields.modules_package_owner).Trim()
               headers_package_owner = ([string]$fields.headers_package_owner).Trim()
+              driver_module_mode = ([string]$fields.driver_module_mode).Trim()
+              driver_modinfo_filename = ([string]$fields.driver_modinfo_filename).Trim()
             }
             authority = [ordered]@{
               mutation_allowed = $false
@@ -238,7 +256,7 @@ jobs:
             }
           }
           $raw | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-controller-link-fingerprint-evidence/raw.json' -Encoding utf8
-          Write-Host "AURUM_PI3_CONTROLLER_RAW interface=$($raw.ethernet.interface) driver=$($raw.ethernet.driver) carrier=$($raw.ethernet.carrier) speed=$($raw.ethernet.speed_mbps) write_authority=false mutation_allowed=false"
+          Write-Host "AURUM_PI3_CONTROLLER_RAW interface=$($raw.ethernet.interface) driver=$($raw.ethernet.driver) carrier=$($raw.ethernet.carrier) speed=$($raw.ethernet.speed_mbps) module_mode=$($raw.provenance.driver_module_mode) write_authority=false mutation_allowed=false"
 
       - name: Validate fingerprint against pinned identity and safety contract
         shell: powershell
