@@ -3,6 +3,8 @@ from unittest import mock
 from pathlib import Path
 
 from Projects.AdaptiveKernel.pi3_overnight_lab import (
+    PRESSURE_POLICY_TEMPERATURE_C,
+    PRESSURE_SAFETY_POLL_SECONDS,
     RISK_LEVELS,
     choose_mutable_feature,
     identity_matches,
@@ -41,6 +43,10 @@ class Pi3OvernightLabTests(unittest.TestCase):
         self.assertEqual(policy_tunables("runtime-gen2-balanced-v1"), (8, 16))
         self.assertEqual(policy_tunables("runtime-gen3-opportunistic-v1"), (10, 20))
         self.assertIsNone(policy_tunables("runtime-baseline-v1"))
+
+    def test_pressure_gate_is_faster_and_stricter_than_global_ceiling(self):
+        self.assertEqual(PRESSURE_POLICY_TEMPERATURE_C, 72.0)
+        self.assertLessEqual(PRESSURE_SAFETY_POLL_SECONDS, 2.0)
 
     def test_current_throttle_fault_is_separate_from_history(self):
         current = parse_throttled("throttled=0x50005")

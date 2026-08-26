@@ -23,7 +23,9 @@ The stages are time-ordered and monotonic:
    Generation-3-capable governor. If the sealed result recommends change, the
    executor may briefly apply only the already-proven dirty-page sysctl mapping.
    A Pi-local timer is armed first; exact original values are then restored and
-   verified. Network-prefetch metadata is never executed.
+   verified. Temperature, throttle, Ethernet, and driver gates are polled every
+   two seconds during pressure, independently of the slower governor evidence
+   samples. Network-prefetch metadata is never executed.
 
 A held prerequisite is an expected semantic state, not a reason to improvise a
 less safe mutation. The workflow never installs a replacement kernel or writes

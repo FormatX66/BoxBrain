@@ -33,6 +33,8 @@ EXPECTED_REFERENCE_DRIVER = "smsc95xx"
 EXPECTED_ROOT_SOURCE = "/dev/mmcblk0p2"
 MAX_SAFE_TEMPERATURE_C = 78.0
 CURRENT_THROTTLE_MASK = 0xF
+PRESSURE_POLICY_TEMPERATURE_C = 72.0
+PRESSURE_SAFETY_POLL_SECONDS = 2.0
 
 RISK_LEVELS = (
     "observe",
@@ -669,6 +671,7 @@ class Pi3OvernightLab:
         workers: list[subprocess.Popen[Any]] = []
         evidence: list[dict[str, Any]] = []
         pressure_started = time.monotonic()
+        next_safety_poll = 0.0
         try:
             for _ in range(worker_count):
                 workers.append(
@@ -685,11 +688,63 @@ class Pi3OvernightLab:
                 while time.monotonic() - pressure_started < target_elapsed:
                     if self.stop_requested:
                         return {"state": "held", "reason": "stop-requested-during-pressure"}
-                    time.sleep(0.5)
+                    elapsed = time.monotonic() - pressure_started
+                    if elapsed >= next_safety_poll:
+                        quick_temperature = temperature_c()
+                        quick_throttle = throttled_state()
+                        quick_network = network_stats()
+                        quick_driver = reference_driver()
+                        fast_gate = {
+                            "elapsed_seconds": round(elapsed, 3),
+                            "temperature_c": quick_temperature,
+                            "current_throttled": bool(quick_throttle.get("current_fault")),
+                            "carrier": quick_network.get("carrier"),
+                            "operstate": quick_network.get("operstate"),
+                            "reference_driver": quick_driver,
+                            "rx_errors": quick_network.get("rx_errors"),
+                            "tx_errors": quick_network.get("tx_errors"),
+                            "rx_dropped": quick_network.get("rx_dropped"),
+                            "tx_dropped": quick_network.get("tx_dropped"),
+                        }
+                        if not isinstance(quick_temperature, (int, float)):
+                            return {
+                                "state": "held",
+                                "reason": "pressure-temperature-evidence-unavailable",
+                                "fast_gate_observation": fast_gate,
+                                "pressure_evidence": evidence,
+                            }
+                        if quick_temperature >= PRESSURE_POLICY_TEMPERATURE_C:
+                            return {
+                                "state": "held",
+                                "reason": "pressure-thermal-stop-before-live-policy",
+                                "fast_gate_observation": fast_gate,
+                                "pressure_evidence": evidence,
+                            }
+                        if (
+                            fast_gate["current_throttled"]
+                            or fast_gate["carrier"] != "1"
+                            or fast_gate["operstate"] != "up"
+                            or fast_gate["reference_driver"] != EXPECTED_REFERENCE_DRIVER
+                            or any(
+                                fast_gate[name] != 0
+                                for name in ("rx_errors", "tx_errors", "rx_dropped", "tx_dropped")
+                            )
+                        ):
+                            return {
+                                "state": "held",
+                                "reason": "pressure-fast-physical-gate-failed-before-live-policy",
+                                "fast_gate_observation": fast_gate,
+                                "pressure_evidence": evidence,
+                            }
+                        next_safety_poll = elapsed + PRESSURE_SAFETY_POLL_SECONDS
+                    time.sleep(0.25)
                 observed = self.adaptive_sample(f"pressure-{index + 1}")
                 evidence.append(observed)
                 temperature = observed.get("temperature_c")
-                if isinstance(temperature, (int, float)) and temperature >= 72.0:
+                if (
+                    isinstance(temperature, (int, float))
+                    and temperature >= PRESSURE_POLICY_TEMPERATURE_C
+                ):
                     return {
                         "state": "held",
                         "reason": "pressure-thermal-stop-before-live-policy",
@@ -822,7 +877,10 @@ class Pi3OvernightLab:
                     ethernet = observed.get("ethernet", {})
                     temperature = observed.get("temperature_c")
                     if (
-                        (isinstance(temperature, (int, float)) and temperature >= 72.0)
+                        (
+                            isinstance(temperature, (int, float))
+                            and temperature >= PRESSURE_POLICY_TEMPERATURE_C
+                        )
                         or observed.get("current_throttled")
                         or ethernet.get("carrier") is not True
                         or ethernet.get("operstate") != "up"
