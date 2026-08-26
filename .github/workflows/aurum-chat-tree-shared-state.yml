@@ -1,0 +1,63 @@
+name: Aurum Chat Tree Shared State
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/chat-tree-*'
+    paths:
+      - 'Architecture/ChatProcessTree.md'
+      - 'Architecture/FutureBranchCurrent.md'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/Experiments/test_chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_shared_state.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-shared-state.yml'
+  pull_request:
+    paths:
+      - 'Architecture/ChatProcessTree.md'
+      - 'Architecture/FutureBranchCurrent.md'
+      - 'Projects/Aurum/Experiments/chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/chat_topic_router.py'
+      - 'Projects/Aurum/Experiments/chat_tree_bridge.py'
+      - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/Experiments/test_chat_process_tree.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_shared_state.py'
+      - 'Projects/Aurum/chat-process-tree.json'
+      - '.github/workflows/aurum-chat-tree-shared-state.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chat-tree-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: Projects/Aurum/Experiments
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile Chat Tree modules
+        run: |
+          python -m py_compile \
+            chat_process_tree.py \
+            chat_topic_router.py \
+            chat_tree_bridge.py \
+            shared_state_bus.py
+
+      - name: Run Chat Tree contract tests
+        run: |
+          python -m unittest -v \
+            test_chat_process_tree.py \
+            test_chat_tree_shared_state.py
