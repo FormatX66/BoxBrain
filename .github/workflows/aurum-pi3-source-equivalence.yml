@@ -1,0 +1,282 @@
+name: Aurum Pi3 Running Kernel Source Equivalence
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-source-equivalence.yml'
+      - 'Projects/AdaptiveKernel/pi3_source_equivalence.py'
+      - 'Projects/AdaptiveKernel/pi3_reference_source_refinement.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_source_equivalence.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_reference_source_refinement.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-source-equivalence
+  cancel-in-progress: false
+
+jobs:
+  physical-package-fingerprint:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact source-equivalence revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Pi3 source-equivalence probe must exclude production nodes.' }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-source-equivalence-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) { throw 'Refusing to overwrite staged Pi3 identity.' }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($runnerSid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_RUNTIME_KEY=$runtimeKeyPath`n",[Text.UTF8Encoding]::new($false))
+
+      - name: Collect exact running-kernel package and binary evidence read-only
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'pi3-source-equivalence-physical' | Out-Null
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
+          $target = [string]$identity.pinned_ipv4
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshTarget = "$($identity.ssh_user)@$target"
+          $sshArgs = @('-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',$keyPath,$sshTarget)
+
+          $remoteScript = @'
+          set -eu
+          emit() {
+            key="$1"
+            value="$2"
+            printf '%s=' "$key"
+            printf '%s' "$value" | base64 | tr -d '\n'
+            printf '\n'
+          }
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          kernel="$(uname -r)"
+          arch="$(uname -m)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+          package="linux-image-$kernel"
+          status="$(dpkg-query -W -f='${db:Status-Status}' "$package" 2>/dev/null || true)"
+          [ "$status" = "installed" ] || { echo "running image package not installed: $package" >&2; exit 20; }
+          package_version="$(dpkg-query -W -f='${Version}' "$package")"
+          package_arch="$(dpkg-query -W -f='${Architecture}' "$package")"
+          source_package="$(dpkg-query -W -f='${source:Package}' "$package" 2>/dev/null || true)"
+          source_version="$(dpkg-query -W -f='${source:Version}' "$package" 2>/dev/null || true)"
+          [ -n "$source_package" ] || source_package="linux"
+          [ -n "$source_version" ] || source_version="$package_version"
+          kernel_path="$(dpkg-query -L "$package" | grep -E "/vmlinuz-${kernel}$" | head -n 1 || true)"
+          if [ -z "$kernel_path" ]; then
+            for candidate in "/boot/vmlinuz-$kernel" "/boot/firmware/vmlinuz-$kernel"; do
+              if [ -f "$candidate" ]; then kernel_path="$candidate"; break; fi
+            done
+          fi
+          [ -n "$kernel_path" ] && [ -f "$kernel_path" ] || { echo "exact running kernel binary not found" >&2; exit 21; }
+          kernel_sha256="$(sha256sum "$kernel_path" | awk '{print $1}')"
+
+          emit model "$model"
+          emit serial "$serial"
+          emit kernel "$kernel"
+          emit arch "$arch"
+          emit boot_id "$boot_id"
+          emit running_image_package "$package"
+          emit running_image_package_version "$package_version"
+          emit running_image_package_architecture "$package_arch"
+          emit running_image_source_package "$source_package"
+          emit running_image_source_version "$source_version"
+          emit running_kernel_binary_path "$kernel_path"
+          emit running_kernel_binary_sha256 "$kernel_sha256"
+          '@
+          $remoteScript = $remoteScript.Replace("`r`n", "`n")
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
+          $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
+          $lines = @(& $ssh.Source @sshArgs $remoteCommand 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "Strict pinned Pi3 source-equivalence probe failed: $($lines -join ' | ')" }
+
+          $fields = @{}
+          foreach ($line in $lines) {
+            $text = [string]$line
+            $idx = $text.IndexOf('=')
+            if ($idx -lt 1) { continue }
+            $name = $text.Substring(0,$idx)
+            $payload = $text.Substring($idx + 1)
+            try {
+              $fields[$name] = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload))
+            } catch {
+              throw "Invalid base64 source-equivalence field: $name"
+            }
+          }
+          foreach ($required in @('model','serial','kernel','arch','boot_id','running_image_package','running_image_package_version','running_image_package_architecture','running_image_source_package','running_image_source_version','running_kernel_binary_path','running_kernel_binary_sha256')) {
+            if (-not $fields.ContainsKey($required) -or -not ([string]$fields[$required]).Trim()) { throw "Missing required source-equivalence field: $required" }
+          }
+          if (-not ([string]$fields.model).Contains([string]$identity.model_marker) -or ([string]$fields.serial).Trim().ToLowerInvariant() -ne ([string]$identity.serial).Trim().ToLowerInvariant()) {
+            throw 'Pinned Pi3 identity mismatch during source-equivalence probe.'
+          }
+          if (([string]$fields.kernel).Trim() -ne '6.18.34+rpt-rpi-v8') { throw 'Running kernel changed from pinned reference.' }
+          if (([string]$fields.running_image_package).Trim() -ne 'linux-image-6.18.34+rpt-rpi-v8') { throw 'Running image package does not match pinned reference.' }
+          if (([string]$fields.running_image_source_package).Trim() -ne 'linux') { throw 'Running image source package is not linux.' }
+          $kernelSha = ([string]$fields.running_kernel_binary_sha256).Trim().ToLowerInvariant()
+          if ($kernelSha -notmatch '^[0-9a-f]{64}$') { throw 'Running kernel SHA-256 evidence is invalid.' }
+
+          $raw = [ordered]@{
+            schema = 'aurum.pi3.source-equivalence.physical.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            source_commit = [string]$env:GITHUB_SHA
+            source_run_id = [string]$env:GITHUB_RUN_ID
+            target = [ordered]@{
+              model = ([string]$fields.model).Trim()
+              serial = ([string]$fields.serial).Trim().ToLowerInvariant()
+              kernel = ([string]$fields.kernel).Trim()
+              arch = ([string]$fields.arch).Trim()
+              boot_id = ([string]$fields.boot_id).Trim()
+              strict_pinned_ssh = $true
+            }
+            provenance = [ordered]@{
+              running_image_package = ([string]$fields.running_image_package).Trim()
+              running_image_package_version = ([string]$fields.running_image_package_version).Trim()
+              running_image_package_architecture = ([string]$fields.running_image_package_architecture).Trim()
+              running_image_source_package = ([string]$fields.running_image_source_package).Trim()
+              running_image_source_version = ([string]$fields.running_image_source_version).Trim()
+              running_kernel_binary_path = ([string]$fields.running_kernel_binary_path).Trim()
+              running_kernel_binary_sha256 = $kernelSha
+            }
+            authority = [ordered]@{
+              mutation_allowed = $false
+              driver_binding_change_allowed = $false
+              kernel_module_load_allowed = $false
+              firmware_mutation_allowed = $false
+              network_configuration_change_allowed = $false
+              promotion_allowed = $false
+              write_authority = $false
+            }
+          }
+          $raw | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-source-equivalence-physical/physical.json' -Encoding utf8
+          Write-Host "AURUM_PI3_SOURCE_PHYSICAL package=$($raw.provenance.running_image_package) version=$($raw.provenance.running_image_package_version) source=$($raw.provenance.running_image_source_package) source_version=$($raw.provenance.running_image_source_version) kernel_sha256=$($raw.provenance.running_kernel_binary_sha256) write_authority=false mutation_allowed=false"
+
+      - name: Publish physical source-equivalence evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-source-equivalence-physical
+          path: pi3-source-equivalence-physical/physical.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) {
+            Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force
+          }
+
+  official-package-equivalence:
+    needs: physical-package-fingerprint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact source-equivalence revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage Python for sealed comparison
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Download physical source-equivalence evidence
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: aurum-pi3-source-equivalence-physical
+          path: pi3-source-equivalence-evidence
+
+      - name: Resolve and download exact official Raspberry Pi package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pi3-source-equivalence-evidence/official
+          readarray -t metadata < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          value = json.loads(Path('pi3-source-equivalence-evidence/physical.json').read_text(encoding='utf-8-sig'))
+          p = value['provenance']
+          for key in ('running_image_package','running_image_package_version','running_image_package_architecture'):
+              print(p[key])
+          PY
+          )
+          package="${metadata[0]}"
+          version="${metadata[1]}"
+          arch="${metadata[2]}"
+          filename_version="${version#*:}"
+          filename="${package}_${filename_version}_${arch}.deb"
+          url="https://archive.raspberrypi.com/debian/pool/main/l/linux/${filename}"
+          deb="pi3-source-equivalence-evidence/official/${filename}"
+          curl --fail --location --retry 3 --retry-delay 2 --output "$deb" "$url"
+          echo "AURUM_OFFICIAL_DEB_PATH=$deb" >> "$GITHUB_ENV"
+          echo "AURUM_OFFICIAL_DEB_URL=$url" >> "$GITHUB_ENV"
+          sha256sum "$deb"
+
+      - name: Verify official package against running kernel and refine reference model
+        shell: bash
+        run: |
+          set -euo pipefail
+          python Projects/AdaptiveKernel/pi3_source_equivalence.py \
+            --physical pi3-source-equivalence-evidence/physical.json \
+            --fingerprint Projects/AdaptiveKernel/results/pi3-controller-link-fingerprint-latest.json \
+            --official-deb "$AURUM_OFFICIAL_DEB_PATH" \
+            --official-url "$AURUM_OFFICIAL_DEB_URL" \
+            --extract-root pi3-source-equivalence-evidence/extracted \
+            --output pi3-source-equivalence-evidence/equivalence.json
+          python Projects/AdaptiveKernel/pi3_reference_source_refinement.py \
+            --base Projects/AdaptiveKernel/results/pi3-reference-correlation-refined-latest.json \
+            --equivalence pi3-source-equivalence-evidence/equivalence.json \
+            --output pi3-source-equivalence-evidence/source-refinement.json
+
+      - name: Publish sealed source-equivalence artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-source-equivalence
+          path: |
+            pi3-source-equivalence-evidence/physical.json
+            pi3-source-equivalence-evidence/equivalence.json
+            pi3-source-equivalence-evidence/source-refinement.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist source equivalence into durable lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Projects/AdaptiveKernel/results
+          cp pi3-source-equivalence-evidence/equivalence.json Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json
+          cp pi3-source-equivalence-evidence/source-refinement.json Projects/AdaptiveKernel/results/pi3-reference-correlation-source-equivalent-latest.json
+          git config user.name 'aurum-pi3-source-equivalence[bot]'
+          git config user.email 'aurum-pi3-source-equivalence@users.noreply.github.com'
+          git add \
+            Projects/AdaptiveKernel/results/pi3-source-equivalence-latest.json \
+            Projects/AdaptiveKernel/results/pi3-reference-correlation-source-equivalent-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SOURCE_EQUIVALENCE_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 official package equivalence [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SOURCE_EQUIVALENCE_RECEIPT persisted=true'
