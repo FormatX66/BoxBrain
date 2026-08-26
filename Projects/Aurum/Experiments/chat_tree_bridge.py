@@ -84,6 +84,13 @@ def _mapping_list(request: Mapping[str, object], key: str) -> list[Mapping[str, 
     return values
 
 
+def _bool_field(item: Mapping[str, object], key: str, default: bool) -> bool:
+    value = item.get(key, default)
+    if not isinstance(value, bool):
+        raise BridgeError(f"{key} must be boolean")
+    return value
+
+
 def _workflow_candidate(item: Mapping[str, object]) -> WorkflowCandidate:
     allowed = {
         "name",
@@ -117,16 +124,16 @@ def _workflow_candidate(item: Mapping[str, object]) -> WorkflowCandidate:
         preparation_leverage=float(_require(item, "preparation_leverage")),
         cost=float(_require(item, "cost")),
         evidence_freshness=float(item.get("evidence_freshness", 1.0)),
-        read_only=bool(item.get("read_only", False)),
-        reversible=bool(item.get("reversible", False)),
-        external_side_effect=bool(item.get("external_side_effect", False)),
-        authorization_required=bool(item.get("authorization_required", False)),
-        rollback_prepared=bool(item.get("rollback_prepared", False)),
-        preserves_verified_state=bool(item.get("preserves_verified_state", True)),
-        unchanged_retry=bool(item.get("unchanged_retry", False)),
+        read_only=_bool_field(item, "read_only", False),
+        reversible=_bool_field(item, "reversible", False),
+        external_side_effect=_bool_field(item, "external_side_effect", False),
+        authorization_required=_bool_field(item, "authorization_required", False),
+        rollback_prepared=_bool_field(item, "rollback_prepared", False),
+        preserves_verified_state=_bool_field(item, "preserves_verified_state", True),
+        unchanged_retry=_bool_field(item, "unchanged_retry", False),
         retry_after_seconds=int(item.get("retry_after_seconds", 0)),
-        trust_broadening=bool(item.get("trust_broadening", False)),
-        alternate_authorized_route=bool(item.get("alternate_authorized_route", False)),
+        trust_broadening=_bool_field(item, "trust_broadening", False),
+        alternate_authorized_route=_bool_field(item, "alternate_authorized_route", False),
     )
 
 
