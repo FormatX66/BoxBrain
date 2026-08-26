@@ -26,6 +26,7 @@ LIVE_MEDIUM = Path("/run/live/medium")
 SLOT_STATE = Path("/var/lib/aurum/germ/slots.json")
 OFFLINE_CARRIER = Path("/usr/lib/aurum/carrier")
 CMDLINE = Path("/proc/cmdline")
+NO_SAFE_TARGET_EXIT = 3
 
 
 def _boot_tokens() -> set[str]:
@@ -480,7 +481,10 @@ def main() -> int:
         targets = plan.get("targets") or []
         if not targets:
             print("No safe install target is available. The boot medium remains usable for diagnostics/recovery.")
-            return 1
+            # This is an expected waiting state, especially in diagnostics VMs
+            # and diskless recovery boots. Do not make systemd redraw/retry an
+            # unchanged screen forever.
+            return NO_SAFE_TARGET_EXIT
         print("Install Aurum to:\n")
         if len(targets) == 1:
             selected_target = targets[0]

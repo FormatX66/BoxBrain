@@ -230,6 +230,21 @@ class TinySeedNetworkTests(unittest.TestCase):
             self.assertIn("--offline-carrier", arguments)
             self.assertNotIn("--authorize-network", arguments)
 
+    def test_no_safe_target_is_waiting_not_a_restart_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with (
+                mock.patch.object(tinyseed, "INSTALLED_MARKER", root / "not-installed"),
+                mock.patch.object(tinyseed, "LIVE_MEDIUM", root / "live-medium"),
+                mock.patch.object(tinyseed.os, "geteuid", return_value=0),
+                mock.patch.object(tinyseed.machine, "detect", return_value={"architecture": "x86_64"}),
+                mock.patch.object(tinyseed, "_network_step", return_value=True),
+                mock.patch.object(tinyseed, "_installed_roots", return_value=[]),
+                mock.patch.object(tinyseed.installer, "plan", return_value={"targets": []}),
+                mock.patch.object(tinyseed, "_title"),
+            ):
+                self.assertEqual(tinyseed.main(), tinyseed.NO_SAFE_TARGET_EXIT)
+
 
 if __name__ == "__main__":
     unittest.main()

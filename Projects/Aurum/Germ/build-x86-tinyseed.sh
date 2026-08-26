@@ -319,6 +319,7 @@ TTYReset=yes
 TTYVHangup=yes
 Restart=on-failure
 RestartSec=2
+SuccessExitStatus=3
 [Install]
 WantedBy=multi-user.target
 EOF

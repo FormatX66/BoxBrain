@@ -50,6 +50,9 @@ class TinySeedBootContractTests(unittest.TestCase):
         ):
             self.assertIn(expected, self.build)
 
+    def test_diskless_diagnostics_is_a_stable_waiting_state(self) -> None:
+        self.assertIn("SuccessExitStatus=3", self.build)
+
     def test_workflow_requires_sync_accessibility_and_framebuffer_proof(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         for expected in (
