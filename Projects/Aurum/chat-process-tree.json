@@ -2,18 +2,23 @@
   "schema": "aurum-chat-process-tree-v1",
   "thread_id": "parallel-hopper-kernel-chat-tree",
   "root_id": "everything-at-once",
-  "revision": 1,
+  "revision": 3,
   "focus_path": [
     "everything-at-once",
     "chat-tree"
   ],
   "active_frontier": [
     "everything-at-once",
-    "hopper-reachability",
     "adaptive-kernel",
-    "chat-tree"
+    "chat-tree",
+    "hopper-reachability",
+    "pi3-adaptive-driver-tests",
+    "gpt-chat-tree-bridge"
   ],
   "concept_index": {
+    "adaptive-driver-self-build": [
+      "pi3-adaptive-driver-tests"
+    ],
     "canary-before-promotion": [
       "adaptive-kernel"
     ],
@@ -23,23 +28,38 @@
     "durable-concept-memory": [
       "chat-tree"
     ],
+    "gpt-bridge": [
+      "gpt-chat-tree-bridge"
+    ],
     "human-chat-can-focus": [
       "everything-at-once",
       "chat-tree"
     ],
     "parallel-safe-work": [
-      "hopper-reachability",
-      "adaptive-kernel"
+      "adaptive-kernel",
+      "hopper-reachability"
     ],
     "physical-evidence": [
+      "adaptive-kernel",
       "hopper-reachability",
-      "adaptive-kernel"
+      "pi3-adaptive-driver-tests"
+    ],
+    "physical-pi3": [
+      "pi3-adaptive-driver-tests"
     ],
     "provenance-preserving-merge": [
       "chat-tree"
     ],
     "read-only-observability": [
       "hopper-reachability"
+    ],
+    "shared-state": [
+      "chat-tree",
+      "gpt-chat-tree-bridge"
+    ],
+    "topic-split-sibling": [
+      "chat-tree",
+      "pi3-adaptive-driver-tests"
     ]
   },
   "nodes": [
@@ -100,16 +120,21 @@
       "lane_id": "chat-tree",
       "sequence": 1,
       "parent_id": "everything-at-once",
-      "summary": "Preserve concepts, branch state, evidence, and merge provenance across changes in human focus.",
+      "summary": "Preserve concepts, topic splits, live shared state, evidence, and merge provenance across changes in human focus.",
       "concepts": [
         "human-chat-can-focus",
         "durable-concept-memory",
-        "provenance-preserving-merge"
+        "provenance-preserving-merge",
+        "topic-split-sibling",
+        "shared-state"
       ],
       "dependency_ids": [],
       "evidence_refs": [
         "Architecture/ChatProcessTree.md",
-        "Projects/Aurum/Experiments/chat_process_tree.py"
+        "Projects/Aurum/Experiments/chat_process_tree.py",
+        "Projects/Aurum/Experiments/chat_topic_router.py",
+        "Projects/Aurum/Experiments/shared_state_bus.py",
+        "Projects/Aurum/Experiments/chat_tree_bridge.py"
       ],
       "merged_from": [],
       "boundary": null,
@@ -144,6 +169,63 @@
       "state_history": [
         "active",
         "waiting"
+      ]
+    },
+    {
+      "node_id": "pi3-adaptive-driver-tests",
+      "title": "Pi3 Adaptive Driver Tests",
+      "kind": "process",
+      "state": "waiting",
+      "lane_id": "pi3-adaptive-driver-tests",
+      "sequence": 2,
+      "parent_id": "everything-at-once",
+      "summary": "Sibling topic for physical Pi3 bring-up, adaptive-kernel/self-building-driver testing, and digital-twin/QPU correlation. Runtime claims must arrive through evidence receipts.",
+      "concepts": [
+        "physical-pi3",
+        "physical-evidence",
+        "adaptive-driver-self-build",
+        "topic-split-sibling"
+      ],
+      "dependency_ids": [
+        "adaptive-kernel"
+      ],
+      "evidence_refs": [
+        "git:branch:codex/adaptive-driver-pi3-loop-20260825"
+      ],
+      "merged_from": [],
+      "boundary": "physical-pi3-boot-and-reachability",
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active",
+        "waiting"
+      ]
+    },
+    {
+      "node_id": "gpt-chat-tree-bridge",
+      "title": "GPT Chat Tree Bridge",
+      "kind": "process",
+      "state": "active",
+      "lane_id": "gpt-chat-tree-bridge",
+      "sequence": 3,
+      "parent_id": "chat-tree",
+      "summary": "Expose the durable tree and evidence-backed shared state through a narrow transport-neutral JSON interface suitable for GPT, Future Branch, runners, and later ChatGPT App/MCP wrapping.",
+      "concepts": [
+        "gpt-bridge",
+        "shared-state"
+      ],
+      "dependency_ids": [
+        "chat-tree"
+      ],
+      "evidence_refs": [
+        "Projects/Aurum/Experiments/chat_tree_bridge.py"
+      ],
+      "merged_from": [],
+      "boundary": "external-chat-ui-integration",
+      "effect_allowed": false,
+      "authority_ref": null,
+      "state_history": [
+        "active"
       ]
     }
   ],
