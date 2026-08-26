@@ -25,23 +25,64 @@ INSTALLED_MARKER = Path("/etc/aurum-tinyseed-installed.json")
 LIVE_MEDIUM = Path("/run/live/medium")
 SLOT_STATE = Path("/var/lib/aurum/germ/slots.json")
 OFFLINE_CARRIER = Path("/usr/lib/aurum/carrier")
+CMDLINE = Path("/proc/cmdline")
+
+
+def _boot_tokens() -> set[str]:
+    override = os.environ.get("AURUM_TINYSEED_CMDLINE")
+    try:
+        raw = override if override is not None else CMDLINE.read_text(encoding="utf-8")
+    except OSError:
+        raw = ""
+    return {token.strip() for token in raw.split() if token.strip()}
+
+
+def _plain_ui() -> bool:
+    tokens = _boot_tokens()
+    return (
+        "aurum.accessibility=blind" in tokens
+        or "aurum.ui=plain" in tokens
+        or os.environ.get("NO_COLOR") is not None
+        or not sys.stdout.isatty()
+    )
+
+
+def _paint(code: str, value: str) -> str:
+    return value if _plain_ui() else f"\033[{code}m{value}\033[0m"
 
 
 def _clear() -> None:
-    print("\033[2J\033[H", end="", flush=True)
+    if _plain_ui():
+        # Do not erase context or emit terminal controls in the spoken path.
+        # Screen-reader users need the previous prompt to remain reviewable.
+        print("\n")
+    else:
+        print("\033[2J\033[H", end="", flush=True)
 
 
 def _title(step: str, subtitle: str) -> None:
     _clear()
-    print("╭──────────────────────────────────────────────────────────────╮")
-    print("│                         A U R U M                            │")
-    print("│                         TINY SEED                            │")
-    print("╰──────────────────────────────────────────────────────────────╯")
-    print(f"\n{step}\n{subtitle}\n")
+    if _plain_ui():
+        # Screen readers should receive words, not decorative box glyphs or
+        # terminal color escapes.
+        print("AURUM TINY SEED")
+        print(f"{step}: {subtitle}\n")
+        return
+    cyan = "38;5;45"
+    gold = "38;5;220"
+    dim = "38;5;250"
+    print(_paint(cyan, "        ◇"))
+    print(_paint(cyan, "   A U R U M") + "  " + _paint(gold, "TINY SEED"))
+    print(_paint(dim, "   ─────────────────────────────────────────"))
+    print(f"   {_paint(gold, step)}")
+    print(f"   {_paint(dim, subtitle)}\n")
 
 
 def _announce_online() -> None:
-    marker = "AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true"
+    marker = (
+        "AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true "
+        "repository_https=true repository_sync=true"
+    )
     print(marker, flush=True)
     try:
         with Path("/dev/ttyS0").open("w", encoding="utf-8") as serial:
@@ -51,19 +92,37 @@ def _announce_online() -> None:
 
 
 def _network_step() -> bool:
+    repair_attempted = False
     while True:
         _title("1 · NETWORK", "Join Wi-Fi now so Aurum can regrow current trusted genetics.")
         try:
             current = network.status()
         except network.NetworkError as exc:
+            if not repair_attempted:
+                repair_attempted = True
+                repaired = network.repair()
+                if repaired["connectivity"]["online"]:
+                    print("Network services repaired; the BoxBrain sync path is ready.")
+                    _announce_online()
+                    return True
             print(f"Network service is not ready: {exc}")
             if _retry_or_offline():
                 continue
             return False
         if current.get("online"):
-            print("✓ Network already connected. Nothing to do.")
+            print("Network, DNS, HTTPS, and the BoxBrain git sync path are ready.")
             _announce_online()
             return True
+
+        if current.get("link_connected"):
+            print(f"Connected link needs repair: {network.failure_reason(current)}")
+            if not repair_attempted:
+                repair_attempted = True
+                repaired = network.repair()
+                if repaired["connectivity"]["online"]:
+                    print("Network services repaired; the BoxBrain sync path is ready.")
+                    _announce_online()
+                    return True
 
         try:
             choices = network.wifi_scan()
@@ -74,13 +133,18 @@ def _network_step() -> bool:
             return False
         if not choices:
             print("No Wi-Fi networks found. Connect Ethernet or rescan.")
+            if not repair_attempted:
+                repair_attempted = True
+                network.repair()
             if _retry_or_offline():
                 continue
             return False
 
         print("Choose Wi-Fi:\n")
         for index, item in enumerate(choices[:12], start=1):
-            lock = "🔒" if item["security"] != "open" else "  "
+            # ASCII remains legible on firmware consoles and through speech;
+            # color/decorative glyph support must never gate networking.
+            lock = "*" if item["security"] != "open" else " "
             print(f"  {index:>2}. {lock} {item['ssid'][:36]:<36} {item['signal']:>3}%")
         print("   R. Rescan")
         print("   O. Continue offline")
@@ -107,12 +171,19 @@ def _network_step() -> bool:
             continue
         finally:
             password = None
-        if network.wait_online():
-            print(f"✓ {result.get('status')} — {item['ssid']}")
+        if network.wait_online(timeout=45):
+            print(f"Connected and sync-ready - {item['ssid']}")
             _announce_online()
             return True
-        print("Wi-Fi associated, but no usable network route is ready yet.")
-        input("\nPress Enter to rescan. ")
+        repaired = network.repair()
+        if repaired["connectivity"]["online"]:
+            print(f"Connected and repaired - {item['ssid']}")
+            _announce_online()
+            return True
+        print(f"Wi-Fi associated, but sync is not ready: {repaired['reason']}")
+        if _retry_or_offline():
+            continue
+        return False
 
 
 def _retry_or_offline() -> bool:
@@ -176,7 +247,8 @@ def _installed_bootstrap_mode() -> int:
 
     _title("FINISHING AURUM", "The protected germ is installed. Current genetics still need to grow.")
     online = _network_step()
-    if not online:
+    offline_carrier_ready = (OFFLINE_CARRIER / "carrier.json").is_file()
+    if not online and not offline_carrier_ready:
         _title("OFFLINE", "The bootstrap stays healthy; nothing was overwritten.")
         print("Connect Ethernet or reboot and choose Wi-Fi to regrow current Aurum.")
         try:
@@ -185,14 +257,19 @@ def _installed_bootstrap_mode() -> int:
             return 1
         return _installed_bootstrap_mode()
 
-    _title("GROWING AURUM", "Fetching current trusted genetics and building the inactive slot.")
-    result = _run(
-        [
+    if online:
+        _title("GROWING AURUM", "Sync verified. Building current trusted genetics in the inactive slot.")
+        reseed_args = [
             "/usr/bin/python3", "/usr/lib/aurum/germ/reseed.py", "regrow",
             "--ref", "main", "--authorize-network",
-        ],
-        timeout=1200,
-    )
+        ]
+    else:
+        _title("GROWING OFFLINE", "Using the verified fallback image; the protected LKG stays active.")
+        reseed_args = [
+            "/usr/bin/python3", "/usr/lib/aurum/germ/reseed.py", "regrow",
+            "--ref", "main", "--offline-carrier", str(OFFLINE_CARRIER),
+        ]
+    result = _run(reseed_args, timeout=1200)
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
