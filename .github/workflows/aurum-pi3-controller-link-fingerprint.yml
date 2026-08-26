@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/aurum-pi3-controller-link-fingerprint.yml'
       - 'Projects/AdaptiveKernel/pi3_controller_fingerprint.py'
+      - 'Projects/AdaptiveKernel/pi3_reference_refinement.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_controller_fingerprint.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_reference_refinement.py'
       - 'Projects/AdaptiveDrivers/config/pi3-identity.json'
 
 permissions:
@@ -326,6 +329,17 @@ jobs:
           if ($validatorExit -notin @(0,2)) { throw "Fingerprint validator failed unexpectedly: $validatorExit" }
           $global:LASTEXITCODE = 0
 
+      - name: Refine sealed reference correlation from fresh fingerprint
+        if: env.PI3_FINGERPRINT_VALIDATOR_EXIT == '0'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python Projects/AdaptiveKernel/pi3_reference_refinement.py `
+            --base Projects/AdaptiveKernel/results/pi3-reference-correlation-32973834534.json `
+            --fingerprint pi3-controller-link-fingerprint-evidence/result.json `
+            --output pi3-controller-link-fingerprint-evidence/refinement.json
+          if ($LASTEXITCODE -ne 0) { throw 'Pi3 sealed reference refinement failed.' }
+
       - name: Publish read-only fingerprint artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -342,9 +356,15 @@ jobs:
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'Projects/AdaptiveKernel/results' | Out-Null
           Copy-Item -LiteralPath 'pi3-controller-link-fingerprint-evidence/result.json' -Destination 'Projects/AdaptiveKernel/results/pi3-controller-link-fingerprint-latest.json' -Force
+          if (Test-Path -LiteralPath 'pi3-controller-link-fingerprint-evidence/refinement.json' -PathType Leaf) {
+            Copy-Item -LiteralPath 'pi3-controller-link-fingerprint-evidence/refinement.json' -Destination 'Projects/AdaptiveKernel/results/pi3-reference-correlation-refined-latest.json' -Force
+          }
           git config user.name 'aurum-pi3-fingerprint[bot]'
           git config user.email 'aurum-pi3-fingerprint@users.noreply.github.com'
           git add Projects/AdaptiveKernel/results/pi3-controller-link-fingerprint-latest.json
+          if (Test-Path -LiteralPath 'Projects/AdaptiveKernel/results/pi3-reference-correlation-refined-latest.json' -PathType Leaf) {
+            git add Projects/AdaptiveKernel/results/pi3-reference-correlation-refined-latest.json
+          }
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) {
             Write-Host 'AURUM_PI3_CONTROLLER_FINGERPRINT_RECEIPT unchanged=true'
