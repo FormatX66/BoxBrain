@@ -18,9 +18,13 @@ changes networking, or modifies boot state. Promotion updates only the isolated
 experiment's metadata after preserving and cryptographically verifying the
 previous LKG snapshot. The Linux reference driver remains the physical LKG.
 
-The later kernel-module canary remains held until matching headers, an
-out-of-band watchdog, reboot/recovery proof, and a fresh explicit mutation gate
-are all present.
+The later kernel-module canary has now cleared the exact-running-kernel build
+prerequisites: matching headers, `Module.symvers`, compiler/build tools, and an
+inert compile-only module were physically re-proven on the pinned Pi3. It remains
+held on the stronger safety boundary: an automatic out-of-band watchdog/recovery
+path must be proven, and any actual kernel-module load still requires a fresh
+explicit mutation gate. The persisted preflight itself grants no mutation
+authority.
 
 ## Physical Pi3 evidence
 
@@ -50,10 +54,24 @@ The durable evidence is
 -driver proof**, not a kernel-module canary and not production ARM64 Tiny Seed
 proof.
 
+The kernel-canary prerequisite probe is now durably mirrored at
+`evidence/pi3-kernel-canary-preflight.json`. Run `32926239577` proved matching
+headers for kernel `6.18.34+rpt-rpi-v8`, `Module.symvers`, build tools, and an
+inert compile-only canary without loading a module or changing the system driver.
+Its canonical state is `held-out-of-band-watchdog-unproven`; this evidence cannot
+be used as kernel-mutation authority.
+
 Separately, the exact current Pi3 microSD card has a tested rollback image/archive
 and the original card passed a fresh physical reboot canary. That removes the
 old "physical hardware unavailable" assumption for safe Pi3 experiments, but it
 does not grant kernel mutation authority.
+
+The bounded overnight physical laboratory has also advanced through a temporary
+virtual-driver stage. The Linux `dummy` module and `dummy0` interface were brought
+up only under a locally scheduled rollback, then removed; the real `smsc95xx`
+reference driver and Ethernet remained healthy and no persistent change was
+retained. This is additional reversible physical-experiment evidence, not the
+out-of-band recovery proof required for the real kernel canary.
 
 ## Aurum Farmer and Future Branch ownership
 
