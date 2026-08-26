@@ -86,8 +86,26 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
     proc_version = str(provenance.get("proc_version") or "").strip()
     driver_module_mode = str(provenance.get("driver_module_mode") or "").strip().lower()
     driver_modinfo_filename = str(provenance.get("driver_modinfo_filename") or "").strip()
-    built_in_driver = driver_module_mode == "builtin" or driver_modinfo_filename.lower() == "(builtin)"
-    driver_binary_provenance = bool(package_owner) or (built_in_driver and bool(packages) and bool(proc_version))
+    driver_kernel_config = str(provenance.get("driver_kernel_config") or "").strip()
+    running_image_package = str(provenance.get("running_image_package") or "").strip()
+    running_image_package_record = str(provenance.get("running_image_package_record") or "").strip()
+
+    config_builtin = driver_kernel_config == "CONFIG_USB_NET_SMSC95XX=y"
+    config_module = driver_kernel_config == "CONFIG_USB_NET_SMSC95XX=m"
+    built_in_driver = (
+        driver_module_mode == "builtin"
+        or driver_modinfo_filename.lower() == "(builtin)"
+        or config_builtin
+    )
+    loadable_driver = driver_module_mode == "module" or config_module
+    exact_image_package = bool(
+        kernel
+        and running_image_package == f"linux-image-{kernel}"
+        and "install ok installed" in running_image_package_record.lower()
+    )
+    driver_binary_provenance = bool(package_owner) or (
+        built_in_driver and exact_image_package and bool(proc_version)
+    )
 
     checks = {
         "pinned_identity_match": identity_match,
@@ -101,8 +119,14 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         "kernel_observed": bool(kernel),
         "proc_version_observed": bool(proc_version),
         "kernel_package_candidates_observed": bool(packages),
+        "running_image_package_observed": exact_image_package,
         "modules_package_owner_observed": bool(package_owner),
+        "driver_kernel_config_observed": driver_kernel_config in {
+            "CONFIG_USB_NET_SMSC95XX=y",
+            "CONFIG_USB_NET_SMSC95XX=m",
+        },
         "driver_builtin_observed": built_in_driver,
+        "driver_loadable_module_observed": loadable_driver,
         "driver_binary_provenance_observed": driver_binary_provenance,
         "headers_package_owner_observed": bool(headers_owner),
     }
@@ -116,6 +140,10 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         quarantine_reasons.append("observed-speed-outside-smsc95xx-fast-ethernet-envelope")
     if driver_module_mode and driver_module_mode not in {"builtin", "module", "unknown"}:
         quarantine_reasons.append("invalid-driver-module-mode")
+    if config_builtin and driver_module_mode == "module":
+        quarantine_reasons.append("driver-provenance-mode-conflict")
+    if config_module and driver_module_mode == "builtin":
+        quarantine_reasons.append("driver-provenance-mode-conflict")
 
     gaps: list[str] = []
     for check, gap in (
@@ -123,6 +151,8 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         ("link_speed_observed", "negotiated-link-speed"),
         ("duplex_observed", "negotiated-duplex"),
         ("kernel_package_candidates_observed", "kernel-package-candidates"),
+        ("running_image_package_observed", "exact-running-image-package"),
+        ("driver_kernel_config_observed", "running-driver-kernel-config"),
         ("driver_binary_provenance_observed", "running-driver-binary-provenance"),
         ("headers_package_owner_observed", "running-headers-package-owner"),
     ):
@@ -147,10 +177,13 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         "provenance": {
             "proc_version": proc_version,
             "kernel_packages": packages,
+            "running_image_package": running_image_package,
+            "running_image_package_record": running_image_package_record,
             "modules_package_owner": package_owner,
             "headers_package_owner": headers_owner,
             "driver_module_mode": driver_module_mode,
             "driver_modinfo_filename": driver_modinfo_filename,
+            "driver_kernel_config": driver_kernel_config,
         },
         "checks": checks,
         "gaps": gaps,
@@ -162,7 +195,7 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
             else "correlate-observed-controller-link-and-package-provenance-with-pinned-references"
         ),
         "strongest_claim": (
-            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel/driver package provenance where available; it grants no mutation or promotion authority."
+            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records USB-function identity, negotiated link state, exact running-image package metadata, kernel config mode, and driver/header provenance where available; it grants no mutation or promotion authority."
             if not quarantine_reasons
             else "The read-only physical fingerprint failed a pinned identity/driver safety check and is quarantined; no mutation or promotion authority exists."
         ),
