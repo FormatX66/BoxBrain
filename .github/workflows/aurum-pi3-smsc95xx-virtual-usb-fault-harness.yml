@@ -1,0 +1,118 @@
+name: Aurum Pi3 smsc95xx Virtual USB Fault Harness
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-smsc95xx-virtual-usb-fault-harness.yml'
+      - 'Projects/AdaptiveKernel/pi3_smsc95xx_virtual_usb_fault_harness.py'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_smsc95xx_virtual_usb_fault_harness.py'
+      - 'Projects/AdaptiveKernel/results/pi3-smsc95xx-integrated-packet-control-loop-latest.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-smsc95xx-virtual-usb-fault-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-virtual-usb-faults:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Run fail-closed virtual USB tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            Projects.AdaptiveKernel.tests.test_pi3_smsc95xx_virtual_usb_fault_harness
+
+      - name: Run deterministic virtual backend fault matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p virtual-usb-evidence
+          python -m Projects.AdaptiveKernel.pi3_smsc95xx_virtual_usb_fault_harness \
+            --integrated-receipt Projects/AdaptiveKernel/results/pi3-smsc95xx-integrated-packet-control-loop-latest.json \
+            --retry-budget 2 \
+            --sequence-seed 0x9514fa17 \
+            --sequence-steps 16384 \
+            --output virtual-usb-evidence/virtual-usb-fault-harness.json
+
+      - name: Verify zero-authority fault receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from Projects.AdaptiveKernel.pi3_smsc95xx_virtual_usb_fault_harness import STATE, _verify_sealed
+
+          receipt = json.loads(Path('virtual-usb-evidence/virtual-usb-fault-harness.json').read_text(encoding='utf-8'))
+          if receipt.get('state') != STATE or not _verify_sealed(receipt):
+              raise SystemExit('virtual USB fault receipt is not a sealed pass')
+          if receipt.get('matrix_scenarios') != 18 or receipt.get('deterministic_sequence_steps') != 16384:
+              raise SystemExit('virtual USB fault coverage is incomplete')
+          if receipt.get('scenario_count') != 16402 or receipt.get('mismatch_count') != 0:
+              raise SystemExit('virtual USB differential coverage failed')
+          if any(receipt.get('authority', {}).values()):
+              raise SystemExit('virtual USB harness gained authority')
+          invariants = receipt.get('invariants', {})
+          for key in ('live_pi_contacted', 'usb_device_opened', 'usb_transfer_submitted', 'clear_halt_submitted', 'register_access_performed', 'driver_binding_changed'):
+              if invariants.get(key) is not False:
+                  raise SystemExit(f'virtual USB harness crossed boundary: {key}')
+          summary = [
+              '# Pi3 smsc95xx Virtual USB Fault Harness',
+              '',
+              f"- State: {receipt['state']}",
+              f"- Scenario count: {receipt['scenario_count']}",
+              '- Faults: success, timeout, transient I/O error, stall, short transfer, disconnect',
+              '- Retry budget: 2',
+              '- Mismatches: 0',
+              '- Live Pi / USB / clear-halt / register access: false',
+              '- Mutation / promotion / write authority: false',
+              '',
+              receipt['strongest_claim'],
+          ]
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as handle:
+              handle.write('\n'.join(summary) + '\n')
+          PY
+
+      - name: Publish virtual USB evidence artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-smsc95xx-virtual-usb-fault-${{ github.run_id }}
+          path: virtual-usb-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist verified virtual USB lineage
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp virtual-usb-evidence/virtual-usb-fault-harness.json \
+            Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-fault-harness-latest.json
+          git config user.name 'aurum-pi3-virtual-usb-fault[bot]'
+          git config user.email 'aurum-pi3-virtual-usb-fault@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-smsc95xx-virtual-usb-fault-harness-latest.json
+          if git diff --cached --quiet; then
+            echo 'AURUM_PI3_SMSC95XX_VIRTUAL_USB_FAULT_RECEIPT unchanged=true'
+            exit 0
+          fi
+          git commit -m 'Record Pi3 virtual USB fault evidence [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'AURUM_PI3_SMSC95XX_VIRTUAL_USB_FAULT_RECEIPT persisted=true'
