@@ -19,7 +19,9 @@ concurrency:
 jobs:
   mirror:
     name: Mirror Hopper read-only status
-    runs-on: [self-hosted, Linux]
+    # Keep this read-only network probe on the dedicated Hopper evidence lane.
+    # Generic Linux runners may not share the required local topology.
+    runs-on: [self-hosted, Linux, hopper-status]
     timeout-minutes: 4
     steps:
       - name: Checkout
