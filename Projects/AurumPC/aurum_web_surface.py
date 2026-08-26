@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import pwd
+import re
 import shutil
 import signal
 import subprocess
@@ -55,6 +56,43 @@ def _server_ready(url: str) -> bool:
             return response.status == 200
     except Exception:
         return False
+
+
+
+def _display_geometry(text: str):
+    match = re.search(r"^(\S+)\s+connected(?:\s+primary)?(?:\s+(\d+)x(\d+)\+\d+\+\d+)?(?:\s+(normal|left|right|inverted))?", text, re.MULTILINE)
+    if not match or not match.group(2) or not match.group(3):
+        return None
+    return {"output": match.group(1), "width": int(match.group(2)), "height": int(match.group(3)), "rotation": match.group(4) or "normal"}
+
+
+def _force_landscape() -> dict[str, Any]:
+    xrandr = shutil.which("xrandr")
+    if not xrandr:
+        return {"status": "unavailable", "reason": "xrandr-unavailable"}
+    def query():
+        result = subprocess.run([xrandr, "--query"], check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=8)
+        return result.returncode, result.stdout
+    try:
+        code, raw = query()
+        if code != 0:
+            return {"status": "failed", "reason": "xrandr-query-failed", "detail": raw[-600:]}
+        before = _display_geometry(raw)
+        if before is None:
+            return {"status": "unavailable", "reason": "active-output-unavailable"}
+        if before["rotation"] != "normal" or before["width"] < before["height"]:
+            subprocess.run([xrandr, "--output", before["output"], "--rotate", "normal"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
+        _, raw = query()
+        after = _display_geometry(raw)
+        if after and after["width"] < after["height"]:
+            subprocess.run([xrandr, "--output", after["output"], "--rotate", "right"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
+            _, raw = query()
+            after = _display_geometry(raw)
+        if after and after["width"] >= after["height"]:
+            return {"status": "landscape", **after, "changed": after != before}
+        return {"status": "degraded", "reason": "landscape-not-confirmed", "before": before, "after": after}
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"status": "failed", "reason": f"{type(exc).__name__}:{exc}"}
 
 
 def main() -> int:
@@ -103,6 +141,8 @@ def main() -> int:
         pid_path.unlink(missing_ok=True)
         return 1
 
+    orientation = _force_landscape()
+
     home = Path(account.pw_dir)
     profile = home / "chromium-profile"
     profile.mkdir(parents=True, exist_ok=True)
@@ -123,6 +163,7 @@ def main() -> int:
         f"DISPLAY={os.environ.get('DISPLAY', ':0')}",
         browser,
         "--kiosk",
+        "--start-fullscreen",
         "--no-first-run",
         "--disable-session-crashed-bubble",
         "--disable-translate",
@@ -145,6 +186,7 @@ def main() -> int:
         "status": "running",
         "surface": "physical",
         "renderer": "html5",
+        "orientation": orientation,
         "url": args.url,
         "browser": Path(browser).name,
         "browser_user": args.ui_user,
