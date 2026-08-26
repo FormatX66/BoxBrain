@@ -1,0 +1,295 @@
+name: Aurum Pi3 Controller and Link Fingerprint
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-controller-link-fingerprint.yml'
+      - 'Projects/AdaptiveKernel/pi3_controller_fingerprint.py'
+      - 'Projects/AdaptiveDrivers/config/pi3-identity.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aurum-pi3-controller-link-fingerprint
+  cancel-in-progress: false
+
+jobs:
+  fingerprint:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact fingerprint source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Pi3 fingerprint must exclude production nodes.' }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-fingerprint-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) { throw 'Refusing to overwrite staged Pi3 identity.' }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($runnerSid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_RUNTIME_KEY=$runtimeKeyPath`n",[Text.UTF8Encoding]::new($false))
+
+      - name: Collect exact read-only controller link and package evidence
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'pi3-controller-link-fingerprint-evidence' | Out-Null
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
+          $target = [string]$identity.pinned_ipv4
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshTarget = "$($identity.ssh_user)@$target"
+          $sshArgs = @('-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',$keyPath,$sshTarget)
+
+          $remoteScript = @'
+          set -u
+          emit() {
+            key="$1"
+            value="$2"
+            printf '%s=' "$key"
+            printf '%s' "$value" | base64 | tr -d '\n'
+            printf '\n'
+          }
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          kernel="$(uname -r 2>/dev/null || true)"
+          arch="$(uname -m 2>/dev/null || true)"
+          boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+          iface=""
+          driver=""
+          for netpath in /sys/class/net/*; do
+            candidate="$(basename "$netpath")"
+            [ "$candidate" = "lo" ] && continue
+            candidate_driver="$(basename "$(readlink -f "$netpath/device/driver" 2>/dev/null || true)" 2>/dev/null || true)"
+            if [ "$candidate_driver" = "smsc95xx" ]; then
+              iface="$candidate"
+              driver="$candidate_driver"
+              break
+            fi
+          done
+          if [ -z "$iface" ] && [ -d /sys/class/net/eth0 ]; then
+            iface="eth0"
+            driver="$(basename "$(readlink -f /sys/class/net/eth0/device/driver 2>/dev/null || true)" 2>/dev/null || true)"
+          fi
+          carrier=""
+          speed=""
+          duplex=""
+          devpath=""
+          usb_vendor=""
+          usb_product_id=""
+          usb_product_name=""
+          usb_manufacturer=""
+          usb_node=""
+          if [ -n "$iface" ]; then
+            carrier="$(cat "/sys/class/net/$iface/carrier" 2>/dev/null || true)"
+            speed="$(cat "/sys/class/net/$iface/speed" 2>/dev/null || true)"
+            duplex="$(cat "/sys/class/net/$iface/duplex" 2>/dev/null || true)"
+            devpath="$(readlink -f "/sys/class/net/$iface/device" 2>/dev/null || true)"
+            p="$devpath"
+            while [ -n "$p" ] && [ "$p" != "/" ]; do
+              if [ -r "$p/idVendor" ] && [ -r "$p/idProduct" ]; then
+                usb_node="$p"
+                usb_vendor="$(cat "$p/idVendor" 2>/dev/null || true)"
+                usb_product_id="$(cat "$p/idProduct" 2>/dev/null || true)"
+                usb_product_name="$(cat "$p/product" 2>/dev/null || true)"
+                usb_manufacturer="$(cat "$p/manufacturer" 2>/dev/null || true)"
+                break
+              fi
+              parent="$(dirname "$p")"
+              [ "$parent" = "$p" ] && break
+              p="$parent"
+            done
+          fi
+          proc_version="$(cat /proc/version 2>/dev/null || true)"
+          kernel_packages=""
+          modules_owner=""
+          headers_owner=""
+          if command -v dpkg-query >/dev/null 2>&1; then
+            kernel_packages="$(dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' 2>/dev/null | grep -E '(^|:)(raspberrypi-kernel|raspberrypi-kernel-headers|linux-image|linux-headers|linux-base)' | head -n 40 || true)"
+            if [ -n "$kernel" ]; then
+              module_probe="$(find "/lib/modules/$kernel" -type f \( -name 'smsc95xx.ko' -o -name 'smsc95xx.ko.xz' -o -name 'smsc95xx.ko.zst' \) 2>/dev/null | head -n 1 || true)"
+              if [ -n "$module_probe" ]; then
+                modules_owner="$(dpkg-query -S "$module_probe" 2>/dev/null | head -n 10 || true)"
+              fi
+              if [ -z "$modules_owner" ]; then
+                modules_owner="$(dpkg-query -S "/lib/modules/$kernel" 2>/dev/null | head -n 10 || true)"
+              fi
+              build_path="$(readlink -f "/lib/modules/$kernel/build" 2>/dev/null || true)"
+              if [ -n "$build_path" ] && [ -f "$build_path/Makefile" ]; then
+                headers_owner="$(dpkg-query -S "$build_path/Makefile" 2>/dev/null | head -n 10 || true)"
+              fi
+            fi
+          fi
+          emit model "$model"
+          emit serial "$serial"
+          emit kernel "$kernel"
+          emit arch "$arch"
+          emit boot_id "$boot_id"
+          emit interface "$iface"
+          emit driver "$driver"
+          emit carrier "$carrier"
+          emit speed_mbps "$speed"
+          emit duplex "$duplex"
+          emit device_path "$devpath"
+          emit usb_node "$usb_node"
+          emit usb_vendor_id "$usb_vendor"
+          emit usb_product_id "$usb_product_id"
+          emit usb_product "$usb_product_name"
+          emit usb_manufacturer "$usb_manufacturer"
+          emit proc_version "$proc_version"
+          emit kernel_packages "$kernel_packages"
+          emit modules_package_owner "$modules_owner"
+          emit headers_package_owner "$headers_owner"
+          '@
+          $remoteScript = $remoteScript.Replace("`r`n", "`n")
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
+          $remoteCommand = "printf '%s' '$encoded' | base64 -d | sh"
+          $lines = @(& $ssh.Source @sshArgs $remoteCommand 2>$null)
+          if ($LASTEXITCODE -ne 0) { throw 'Strict pinned Pi3 read-only fingerprint SSH probe failed.' }
+
+          $fields = @{}
+          foreach ($line in $lines) {
+            $text = [string]$line
+            $idx = $text.IndexOf('=')
+            if ($idx -lt 1) { continue }
+            $name = $text.Substring(0,$idx)
+            $payload = $text.Substring($idx + 1)
+            try {
+              $fields[$name] = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload))
+            } catch {
+              throw "Invalid base64 fingerprint field: $name"
+            }
+          }
+          foreach ($required in @('model','serial','kernel','arch','interface','driver','carrier')) {
+            if (-not $fields.ContainsKey($required)) { throw "Missing required fingerprint field: $required" }
+          }
+          if (-not ([string]$fields.model).Contains([string]$identity.model_marker) -or ([string]$fields.serial).Trim().ToLowerInvariant() -ne ([string]$identity.serial).Trim().ToLowerInvariant()) {
+            throw 'Pinned Pi3 identity mismatch during controller/link fingerprint.'
+          }
+
+          $packages = @()
+          if ($fields.kernel_packages) {
+            $packages = @(([string]$fields.kernel_packages -split "`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+          }
+          $speedValue = $null
+          $parsedSpeed = 0
+          if ([int]::TryParse(([string]$fields.speed_mbps).Trim(), [ref]$parsedSpeed)) { $speedValue = $parsedSpeed }
+          $raw = [ordered]@{
+            schema = 'aurum.pi3.controller-link-fingerprint.raw.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            source_commit = [string]$env:GITHUB_SHA
+            source_run_id = [string]$env:GITHUB_RUN_ID
+            target = [ordered]@{
+              model = ([string]$fields.model).Trim()
+              serial = ([string]$fields.serial).Trim()
+              kernel = ([string]$fields.kernel).Trim()
+              arch = ([string]$fields.arch).Trim()
+              boot_id = ([string]$fields.boot_id).Trim()
+              strict_pinned_ssh = $true
+            }
+            ethernet = [ordered]@{
+              interface = ([string]$fields.interface).Trim()
+              driver = ([string]$fields.driver).Trim()
+              carrier = ([string]$fields.carrier).Trim()
+              speed_mbps = $speedValue
+              duplex = ([string]$fields.duplex).Trim()
+              device_path = ([string]$fields.device_path).Trim()
+              usb_node = ([string]$fields.usb_node).Trim()
+              usb_vendor_id = ([string]$fields.usb_vendor_id).Trim()
+              usb_product_id = ([string]$fields.usb_product_id).Trim()
+              usb_product = ([string]$fields.usb_product).Trim()
+              usb_manufacturer = ([string]$fields.usb_manufacturer).Trim()
+            }
+            provenance = [ordered]@{
+              proc_version = ([string]$fields.proc_version).Trim()
+              kernel_packages = $packages
+              modules_package_owner = ([string]$fields.modules_package_owner).Trim()
+              headers_package_owner = ([string]$fields.headers_package_owner).Trim()
+            }
+            authority = [ordered]@{
+              mutation_allowed = $false
+              driver_binding_change_allowed = $false
+              kernel_module_load_allowed = $false
+              firmware_mutation_allowed = $false
+              network_configuration_change_allowed = $false
+              promotion_allowed = $false
+              write_authority = $false
+            }
+          }
+          $raw | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-controller-link-fingerprint-evidence/raw.json' -Encoding utf8
+          Write-Host "AURUM_PI3_CONTROLLER_RAW interface=$($raw.ethernet.interface) driver=$($raw.ethernet.driver) carrier=$($raw.ethernet.carrier) speed=$($raw.ethernet.speed_mbps) write_authority=false mutation_allowed=false"
+
+      - name: Validate fingerprint against pinned identity and safety contract
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python Projects/AdaptiveKernel/pi3_controller_fingerprint.py --input pi3-controller-link-fingerprint-evidence/raw.json --output pi3-controller-link-fingerprint-evidence/result.json
+          $validatorExit = $LASTEXITCODE
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_FINGERPRINT_VALIDATOR_EXIT=$validatorExit`n",[Text.UTF8Encoding]::new($false))
+          if ($validatorExit -notin @(0,2)) { throw "Fingerprint validator failed unexpectedly: $validatorExit" }
+          $global:LASTEXITCODE = 0
+
+      - name: Publish read-only fingerprint artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-controller-link-fingerprint
+          path: pi3-controller-link-fingerprint-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist validated fingerprint into durable lineage
+        if: always() && hashFiles('pi3-controller-link-fingerprint-evidence/result.json') != ''
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'Projects/AdaptiveKernel/results' | Out-Null
+          Copy-Item -LiteralPath 'pi3-controller-link-fingerprint-evidence/result.json' -Destination 'Projects/AdaptiveKernel/results/pi3-controller-link-fingerprint-latest.json' -Force
+          git config user.name 'aurum-pi3-fingerprint[bot]'
+          git config user.email 'aurum-pi3-fingerprint@users.noreply.github.com'
+          git add Projects/AdaptiveKernel/results/pi3-controller-link-fingerprint-latest.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AURUM_PI3_CONTROLLER_FINGERPRINT_RECEIPT unchanged=true'
+            exit 0
+          }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to compare staged Pi3 fingerprint receipt.' }
+          git commit -m 'Record read-only Pi3 controller fingerprint [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to commit Pi3 fingerprint receipt.' }
+          git pull --rebase origin main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to rebase Pi3 fingerprint receipt.' }
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to push Pi3 fingerprint receipt.' }
+          Write-Host 'AURUM_PI3_CONTROLLER_FINGERPRINT_RECEIPT persisted=true'
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) {
+            Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force
+          }
+
+      - name: Fail closed on quarantined physical evidence
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_FINGERPRINT_VALIDATOR_EXIT -eq '2') {
+            throw 'Pi3 controller/link fingerprint was quarantined; no physical mutation is allowed.'
+          }
