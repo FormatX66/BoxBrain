@@ -1,0 +1,230 @@
+name: Aurum Gen1 Human VM Acceptance
+
+on:
+  push:
+    branches:
+      - aurum/gen1-human-vm-browser-20260826
+    paths:
+      - '.github/workflows/aurum-gen1-human-vm-acceptance.yml'
+      - 'Projects/AurumPC/**'
+      - 'Projects/AurumVirtualLab/**'
+      - 'Projects/Codelation/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-gen1-human-vm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AURUM_LKG_COMMIT: e39609d112e5268bf1437dca297d1a095b80eb03
+
+jobs:
+  human-contract:
+    name: HTML5 human/browser contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out exact candidate commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Verify human integration source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Projects/AurumPC/tests/test_aurum_hopper_gui.py
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('Projects/AurumPC/aurum_hopper_gui.py').read_text(encoding='utf-8')
+          required = {
+              'enter submits': "e.key==='Enter'&&!e.shiftKey",
+              'shift enter retained': 'e.preventDefault();ask()',
+              'browser navigation': 'normalizeWebTarget',
+              'browser back': "document.getElementById('web-back')",
+              'browser forward': "document.getElementById('web-forward')",
+              'browser reload': "document.getElementById('web-reload')",
+              'network action': "network-reconnect",
+              'system status': "api/status",
+              'bounded action': "api/action",
+              'gpt ask': "api/ask",
+              'https boundary': "target.protocol!=='https:'",
+              'private network boundary': 'privateWebHost',
+          }
+          missing = [label for label, marker in required.items() if marker not in src]
+          if missing:
+              raise SystemExit('Missing Gen1 human contracts: ' + ', '.join(missing))
+          print('AURUM_GEN1_HUMAN_CONTRACT_OK enter=submit browser=bounded network=linked gpt=linked')
+          PY
+      - name: Verify build preparation is bounded and complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'chromium' Projects/AurumPC/prepare-gen1-human-build.py
+          grep -F 'aurum_projection_runtime.py' Projects/AurumPC/prepare-gen1-human-build.py
+          grep -F 'aurum_web_surface.py' Projects/AurumPC/prepare-gen1-human-build.py
+          grep -F 'AURUM_GEN1_RUNTIME_SYNC' Projects/AurumPC/prepare-gen1-human-build.py
+
+  installed-vm:
+    name: Installed UEFI VM + HTML5 Chromium
+    needs: human-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact candidate commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+      - name: Install QEMU, UEFI, and image inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            qemu-system-x86 ovmf xorriso squashfs-tools
+          docker info >/dev/null
+      - name: Build isolated Gen1 human ISO
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap \
+                xorriso isolinux syslinux-common squashfs-tools \
+                grub-pc-bin grub-efi-amd64-bin dosfstools mtools python3
+              bash Projects/AurumPC/build-gen1-human-iso.sh
+            '
+          test -s dist/Aurum-PC-v0.01-amd64.iso
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+      - name: Prove browser and current runtime are physically inside image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p image-proof
+          xorriso -osirrox on -indev dist/Aurum-PC-v0.01-amd64.iso \
+            -extract /live/filesystem.squashfs image-proof/filesystem.squashfs
+          unsquashfs -ll image-proof/filesystem.squashfs > image-proof/files.txt
+          grep -E '/usr/(bin|lib/chromium)/chromium' image-proof/files.txt | head -n 1
+          for f in \
+            aurum_hopper_gui.py \
+            aurum_gui_runtime.py \
+            aurum_projection_runtime.py \
+            aurum_web_surface.py \
+            aurum_gpt_trait.py \
+            aurum_gpt_executor.py \
+            aurum_control_plane.py \
+            aurum_network.py; do
+            grep -F "/opt/aurum/$f" image-proof/files.txt >/dev/null
+          done
+          printf '%s\n' 'AURUM_GEN1_IMAGE_CONTENT_OK chromium=embedded runtime=current' \
+            | tee image-proof/content-proof.log
+      - name: Boot, install, reboot, render, recover, and self-build in QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Projects/AurumVirtualLab/qemu-gen1-human-acceptance.sh \
+            dist/Aurum-PC-v0.01-amd64.iso \
+            aurum-gen1-human-qemu.log \
+            | tee aurum-gen1-human-run.log
+          grep -F 'AURUM_GEN1_HUMAN_SURFACE status=passed' aurum-gen1-human-qemu.log
+          grep -F 'AURUM_GEN1_HUMAN_RECOVERY status=passed' aurum-gen1-human-qemu.log
+          grep -F 'AURUM_INSTALL_FINISHED status=passed' aurum-gen1-human-qemu.log
+          grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' aurum-gen1-human-qemu.log
+          grep -F 'mode=installed' aurum-gen1-human-qemu.log
+      - name: Seal exact-commit VM evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              'schema': 'aurum.gen1-human-vm-acceptance.v1',
+              'status': 'passed',
+              'candidate_commit': os.environ['GITHUB_SHA'],
+              'last_known_good': os.environ['AURUM_LKG_COMMIT'],
+              'physical_deployment_performed': False,
+              'checks': {
+                  'html5_landscape_human_contract': True,
+                  'enter_submits_gpt': True,
+                  'bounded_browser_controls': True,
+                  'chromium_embedded_in_image': True,
+                  'installed_uefi_boot': True,
+                  'html5_physical_projection': True,
+                  'chromium_process_running': True,
+                  'browser_sandbox_enabled': True,
+                  'loopback_control_plane': True,
+                  'raw_shell_exposed': False,
+                  'gui_stop_restart_recovery': True,
+                  'installed_persistence_reboot': True,
+                  'self_build_after_human_surface': True,
+              },
+          }
+          Path('gen1-human-vm-evidence.json').write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(payload, sort_keys=True))
+          PY
+      - name: Publish candidate VM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Aurum-Gen1-Human-VM-${{ github.sha }}
+          path: |
+            gen1-human-vm-evidence.json
+            aurum-gen1-human-qemu.log
+            aurum-gen1-human-run.log
+            image-proof/content-proof.log
+            image-proof/files.txt
+            dist/Aurum-PC-v0.01-amd64.iso.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  independent-verifier:
+    name: Independent exact-commit verifier
+    needs: installed-vm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download VM evidence only
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: Aurum-Gen1-Human-VM-${{ github.sha }}
+          path: evidence
+      - name: Independently verify acceptance and physical hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          proof = json.loads(Path('evidence/gen1-human-vm-evidence.json').read_text(encoding='utf-8'))
+          if proof.get('schema') != 'aurum.gen1-human-vm-acceptance.v1':
+              raise SystemExit('wrong evidence schema')
+          if proof.get('status') != 'passed':
+              raise SystemExit('candidate not passed')
+          if proof.get('candidate_commit') != os.environ['GITHUB_SHA']:
+              raise SystemExit('candidate commit mismatch')
+          if proof.get('last_known_good') != os.environ['AURUM_LKG_COMMIT']:
+              raise SystemExit('LKG mismatch')
+          if proof.get('physical_deployment_performed') is not False:
+              raise SystemExit('physical deployment hold violated')
+          checks = proof.get('checks') or {}
+          if checks.get('raw_shell_exposed') is not False:
+              raise SystemExit('raw shell boundary failed')
+          required_true = [key for key in checks if key != 'raw_shell_exposed']
+          failed = [key for key in required_true if checks.get(key) is not True]
+          if failed:
+              raise SystemExit('failed acceptance checks: ' + ', '.join(failed))
+          print('AURUM_GEN1_INDEPENDENT_VERIFY_OK commit=' + os.environ['GITHUB_SHA'])
+          PY
+          grep -F 'AURUM_GEN1_HUMAN_SURFACE status=passed' evidence/aurum-gen1-human-qemu.log
+          grep -F 'AURUM_GEN1_HUMAN_RECOVERY status=passed' evidence/aurum-gen1-human-qemu.log
+          grep -F 'AURUM_INSTALL_FINISHED status=passed' evidence/aurum-gen1-human-qemu.log
+          grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' evidence/aurum-gen1-human-qemu.log
+          grep -F 'AURUM_GEN1_IMAGE_CONTENT_OK' evidence/image-proof/content-proof.log
+          echo 'AURUM_GEN1_VM_QUALIFIED physical_deployment=held'
