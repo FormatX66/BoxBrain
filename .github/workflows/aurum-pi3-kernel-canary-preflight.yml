@@ -1,0 +1,173 @@
+name: Aurum Pi3 Kernel Canary Preflight
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Projects/AdaptiveDrivers/requests/pi3-kernel-canary-preflight.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-kernel-canary-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: [self-hosted, Windows, X64, aurum-elevated]
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact preflight source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Stage pinned Pi3 SSH identity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          if ([bool]$identity.production_nodes_allowed) { throw 'Kernel canary preflight must exclude production nodes.' }
+          $sourceKeyPath = [Environment]::ExpandEnvironmentVariables([string]$identity.windows_key_locator)
+          if (-not (Test-Path -LiteralPath $sourceKeyPath -PathType Leaf)) { throw 'Pinned Pi3 SSH identity key is unavailable.' }
+          $runtimeKeyPath = Join-Path $env:RUNNER_TEMP "aurum-pi3-kernel-preflight-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-ed25519"
+          if (Test-Path -LiteralPath $runtimeKeyPath) { throw 'Refusing to overwrite staged Pi3 identity.' }
+          Copy-Item -LiteralPath $sourceKeyPath -Destination $runtimeKeyPath
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $acl = New-Object Security.AccessControl.FileSecurity
+          $acl.SetOwner($runnerSid)
+          $acl.SetAccessRuleProtection($true, $false)
+          [void]$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($runnerSid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))
+          Set-Acl -LiteralPath $runtimeKeyPath -AclObject $acl
+          [IO.File]::AppendAllText($env:GITHUB_ENV,"PI3_RUNTIME_KEY=$runtimeKeyPath`n",[Text.UTF8Encoding]::new($false))
+
+      - name: Probe matching headers and compile inert module without loading it
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'pi3-kernel-canary-preflight-evidence' | Out-Null
+          $identity = Get-Content -LiteralPath 'Projects/AdaptiveDrivers/config/pi3-identity.json' -Raw | ConvertFrom-Json
+          $shared = Get-Content -LiteralPath 'Projects/Aurum/shared-state/CURRENT_STATE.json' -Raw | ConvertFrom-Json
+          $rollbackState = $shared.subjects.'pi3-current-card-rollback'
+          $deviceState = $shared.subjects.'pi3-experimental-00000000a6a7df7f'
+          $rollbackImageProven = ($rollbackState.status -eq 'succeeded' -and $rollbackState.payload.archive_integrity_test -eq 'passed' -and $rollbackState.payload.post_backup_boot_canary -eq 'passed')
+          $cameraBootGateProven = ($deviceState.status -eq 'running_verified' -and $deviceState.payload.camera_boot_gate -eq 'passed')
+
+          $knownHosts = (Resolve-Path -LiteralPath 'Projects/AdaptiveDrivers/config/pi3_known_hosts').Path
+          $keyPath = [string]$env:PI3_RUNTIME_KEY
+          $target = [string]$identity.pinned_ipv4
+          $ssh = Get-Command ssh -ErrorAction Stop
+          $sshTarget = "$($identity.ssh_user)@$target"
+          $sshArgs = @('-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',"UserKnownHostsFile=$knownHosts",'-o','ConnectTimeout=5','-o','ConnectionAttempts=1','-i',$keyPath,$sshTarget)
+
+          $probeScript = @'
+          set -eu
+          model="$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)"
+          serial="$(awk '/^Serial/ {print $3; exit}' /proc/cpuinfo 2>/dev/null || true)"
+          kernel="$(uname -r)"
+          arch="$(uname -m)"
+          build="/lib/modules/$kernel/build"
+          headers=false
+          make_ok=false
+          cc_ok=false
+          symvers=false
+          [ -f "$build/Makefile" ] && headers=true
+          command -v make >/dev/null 2>&1 && make_ok=true
+          command -v cc >/dev/null 2>&1 && cc_ok=true
+          [ -f "$build/Module.symvers" ] && symvers=true
+          printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' "$model" "$serial" "$kernel" "$arch" "$headers" "$make_ok" "$cc_ok" "$symvers"
+          '@
+          $probeEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($probeScript))
+          $probeCmd = "printf '%s' '$probeEncoded' | base64 -d | sh"
+          $probe = @(& $ssh.Source @sshArgs $probeCmd 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $probe.Count -lt 8) { throw 'Strict Pi3 kernel-preflight probe failed.' }
+          if (-not ([string]$probe[0]).Contains([string]$identity.model_marker) -or ([string]$probe[1]).Trim() -ne ([string]$identity.serial).Trim()) { throw 'Pi3 identity mismatch during kernel preflight.' }
+
+          $kernel = ([string]$probe[2]).Trim()
+          $arch = ([string]$probe[3]).Trim()
+          $headers = ([string]$probe[4]).Trim() -eq 'true'
+          $makeAvailable = ([string]$probe[5]).Trim() -eq 'true'
+          $compilerAvailable = ([string]$probe[6]).Trim() -eq 'true'
+          $moduleSymvers = ([string]$probe[7]).Trim() -eq 'true'
+          $compileAttempted = $false
+          $compilePassed = $false
+          $vermagic = $null
+
+          if ($headers -and $makeAvailable -and $compilerAvailable) {
+            $compileAttempted = $true
+            $moduleScript = @'
+          set -eu
+          kernel="$(uname -r)"
+          d="$(mktemp -d /tmp/aurum-pi3-kernel-canary-preflight.XXXXXX)"
+          trap 'rm -rf "$d"' EXIT INT TERM
+          cat >"$d/aurum_pi3_canary.c" <<'EOF'
+          #include <linux/init.h>
+          #include <linux/module.h>
+          MODULE_LICENSE("GPL");
+          MODULE_DESCRIPTION("Aurum Pi3 inert compile-only canary");
+          static int __init aurum_pi3_canary_init(void) { return 0; }
+          static void __exit aurum_pi3_canary_exit(void) { }
+          module_init(aurum_pi3_canary_init);
+          module_exit(aurum_pi3_canary_exit);
+          EOF
+          cat >"$d/Makefile" <<'EOF'
+          obj-m += aurum_pi3_canary.o
+          EOF
+          make -s -C "/lib/modules/$kernel/build" M="$d" modules
+          test -f "$d/aurum_pi3_canary.ko"
+          if grep -q '^aurum_pi3_canary ' /proc/modules; then
+            echo 'REFUSED_MODULE_LOADED'
+            exit 31
+          fi
+          if command -v modinfo >/dev/null 2>&1; then
+            modinfo -F vermagic "$d/aurum_pi3_canary.ko" | head -n1
+          else
+            echo 'modinfo-unavailable'
+          fi
+          '@
+            $moduleEncoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($moduleScript))
+            $moduleCmd = "printf '%s' '$moduleEncoded' | base64 -d | sh"
+            $buildOutput = @(& $ssh.Source @sshArgs $moduleCmd 2>&1)
+            if ($LASTEXITCODE -eq 0 -and $buildOutput.Count -ge 1 -and $buildOutput[-1] -ne 'REFUSED_MODULE_LOADED') {
+              $compilePassed = $true
+              $vermagic = ([string]$buildOutput[-1]).Trim()
+            }
+          }
+
+          # A tested rollback image and visible boot gate are valuable recovery evidence,
+          # but they are not an automatic out-of-band watchdog capable of recovering a
+          # networking-breaking kernel mutation. Keep mutation authority false.
+          $outOfBandWatchdogProven = $false
+          $explicitKernelMutationAuthority = $false
+          $mutationReady = ($headers -and $compilePassed -and $rollbackImageProven -and $outOfBandWatchdogProven -and $explicitKernelMutationAuthority)
+          $state = if (-not $headers) { 'held-missing-matching-headers' } elseif (-not $compilePassed) { 'held-compile-only-canary-failed' } elseif (-not $outOfBandWatchdogProven) { 'held-out-of-band-watchdog-unproven' } elseif (-not $explicitKernelMutationAuthority) { 'held-explicit-kernel-mutation-authority' } else { 'ready-for-explicit-kernel-canary' }
+
+          $receipt = [ordered]@{
+            schema = 'aurum.pi3.kernel-canary.preflight.v1'
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            source_commit = [string]$env:GITHUB_SHA
+            run_id = [string]$env:GITHUB_RUN_ID
+            state = $state
+            target = [ordered]@{ model = ([string]$probe[0]).Trim(); serial = ([string]$probe[1]).Trim(); kernel = $kernel; arch = $arch; strict_key_only_ssh = $true }
+            build_prerequisites = [ordered]@{ matching_headers_present = $headers; make_available = $makeAvailable; compiler_available = $compilerAvailable; module_symvers_present = $moduleSymvers; compile_attempted = $compileAttempted; compile_only_canary_passed = $compilePassed; vermagic = $vermagic }
+            recovery = [ordered]@{ exact_current_card_rollback_image_proven = $rollbackImageProven; post_backup_boot_canary_proven = $rollbackImageProven; camera_boot_gate_proven = $cameraBootGateProven; out_of_band_automatic_watchdog_proven = $outOfBandWatchdogProven }
+            authority = [ordered]@{ explicit_kernel_mutation_authority = $explicitKernelMutationAuthority; kernel_module_load_allowed = $false; driver_binding_change_allowed = $false; firmware_mutation_allowed = $false; mutation_ready = $mutationReady }
+            safety = [ordered]@{ module_loaded = $false; system_driver_changed = $false; persistent_trust_changed = $false; production_nodes_allowed = $false; remote_build_path = '/tmp only and removed after compile' }
+            next_gate = if (-not $headers) { 'install-or-provide-exact-matching-headers-through-a-separate-authorized-path' } elseif (-not $outOfBandWatchdogProven) { 'prove-automatic-out-of-band-watchdog-and-recovery' } else { 'fresh-explicit-kernel-mutation-authority' }
+          }
+          $receipt | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath 'pi3-kernel-canary-preflight-evidence/result.json' -Encoding utf8
+          Write-Host "AURUM_PI3_KERNEL_CANARY_PREFLIGHT state=$state headers=$headers compile_only=$compilePassed rollback=$rollbackImageProven watchdog=$outOfBandWatchdogProven mutation_allowed=false"
+
+      - name: Publish kernel-canary preflight evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aurum-pi3-kernel-canary-preflight
+          path: pi3-kernel-canary-preflight-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove staged Pi3 SSH identity
+        if: always()
+        shell: powershell
+        run: |
+          if ($env:PI3_RUNTIME_KEY -and (Test-Path -LiteralPath $env:PI3_RUNTIME_KEY -PathType Leaf)) { Remove-Item -LiteralPath $env:PI3_RUNTIME_KEY -Force }
