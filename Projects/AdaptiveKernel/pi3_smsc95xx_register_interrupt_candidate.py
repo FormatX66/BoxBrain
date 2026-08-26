@@ -67,6 +67,8 @@ def _validate_model(model: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     sources = model.get("interrupt_sources")
     if not isinstance(sources, list) or not sources:
         raise ValueError("register/interrupt source model is missing")
+    seen_status_mask = 0
+    seen_endpoint_mask = 0
     for item in sources:
         if not isinstance(item, Mapping):
             raise ValueError("interrupt source entry is malformed")
@@ -76,6 +78,14 @@ def _validate_model(model: Mapping[str, Any]) -> list[Mapping[str, Any]]:
             value = item.get(key)
             if not isinstance(value, int) or value <= 0 or value > 0xFFFFFFFF:
                 raise ValueError(f"interrupt source {key} must be a positive uint32")
+        status_mask = int(item["status_mask"])
+        endpoint_mask = int(item["endpoint_mask"])
+        if seen_status_mask & status_mask:
+            raise ValueError("candidate/model register-interrupt mismatch: overlapping status masks")
+        if seen_endpoint_mask & endpoint_mask:
+            raise ValueError("candidate/model register-interrupt mismatch: overlapping endpoint masks")
+        seen_status_mask |= status_mask
+        seen_endpoint_mask |= endpoint_mask
     return sources
 
 
@@ -85,16 +95,23 @@ def synthesize_candidate(model: Mapping[str, Any]) -> tuple[str, dict[str, Any]]
     known_endpoint_mask = 0
     w1c_status_mask = 0
     read_only_status_mask = 0
+    reportable_terms: list[str] = []
     for item in sources:
         status_mask = int(item["status_mask"])
         endpoint_mask = int(item["endpoint_mask"])
         known_status_mask |= status_mask
         known_endpoint_mask |= endpoint_mask
+        reportable_terms.append(
+            "    if ((int_status & 0x"
+            f"{status_mask:08x}u) && (int_ep_ctl & 0x{endpoint_mask:08x}u)) "
+            f"out->endpoint_reportable_mask |= 0x{status_mask:08x}u;"
+        )
         if item["clear_semantics"] == "write-one-clear":
             w1c_status_mask |= status_mask
         else:
             read_only_status_mask |= status_mask
 
+    reportable_source = "\n".join(reportable_terms)
     source = f'''/* Aurum generated host-only smsc95xx register/interrupt candidate.
  * ZERO AUTHORITY: synthetic integer decode only; no device I/O or register writes.
  */
@@ -119,7 +136,8 @@ int aurum_smsc95xx_decode_interrupts(uint32_t int_status,
                                      aurum_smsc95xx_interrupt_decode *out) {{
     if (!out) return -1;
     out->active_mask = int_status & AURUM_KNOWN_STATUS_MASK;
-    out->endpoint_reportable_mask = int_status & int_ep_ctl & AURUM_KNOWN_STATUS_MASK;
+    out->endpoint_reportable_mask = 0u;
+{reportable_source}
     out->read_only_mask = int_status & AURUM_READ_ONLY_STATUS_MASK;
     out->w1c_ack_mask = int_status & AURUM_W1C_STATUS_MASK;
     out->unknown_status_bits = int_status & ~AURUM_KNOWN_STATUS_MASK;

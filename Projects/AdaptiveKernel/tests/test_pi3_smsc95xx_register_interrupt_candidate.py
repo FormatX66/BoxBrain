@@ -31,19 +31,19 @@ def fixture_model() -> dict:
                 {
                     "name": "tx-error",
                     "status_mask": 0x00002000,
-                    "endpoint_mask": 0x00002000,
+                    "endpoint_mask": 0x00000002,
                     "clear_semantics": "write-one-clear",
                 },
                 {
                     "name": "phy-interrupt",
                     "status_mask": 0x00008000,
-                    "endpoint_mask": 0x00008000,
+                    "endpoint_mask": 0x00000004,
                     "clear_semantics": "read-only-source",
                 },
                 {
                     "name": "gpio",
                     "status_mask": 0x00010000,
-                    "endpoint_mask": 0x00010000,
+                    "endpoint_mask": 0x00000008,
                     "clear_semantics": "read-only-source",
                 },
             ],
@@ -60,6 +60,9 @@ class RegisterInterruptCandidateTests(unittest.TestCase):
     def test_candidate_is_host_only_and_zero_authority(self):
         source, receipt = synthesize_candidate(fixture_model())
         self.assertIn("aurum_smsc95xx_decode_interrupts", source)
+        self.assertNotIn("int_status & int_ep_ctl", source)
+        self.assertIn("int_status & 0x00002000u", source)
+        self.assertIn("int_ep_ctl & 0x00000002u", source)
         self.assertNotIn("module_init", source)
         self.assertNotIn("usb_register", source)
         self.assertNotIn("writel(", source)
