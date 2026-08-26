@@ -6,11 +6,12 @@ This project implements the first complete Aurum adaptive-driver self-build loop
 
 ## Safety boundary
 
-Test 001 is a generation-1 compatibility interface, not a replacement kernel
-module. It synthesizes a fingerprint-bound Python shim that reads the Pi 3
-network interface's existing sysfs state. The candidate runs in an isolated
-subprocess and is never installed, imported into the controller, or granted a
-write capability.
+Test 001 began with a generation-1 compatibility interface, not a replacement
+kernel module. It synthesizes a fingerprint-bound Python shim that reads the Pi
+3 network interface's existing sysfs state. The generation-2 observer adds
+Pi-specific incomplete-read evidence and quarantine semantics while retaining
+the same userspace-only boundary. A candidate runs in an isolated subprocess and
+is never installed, imported into the controller, or granted a write capability.
 
 The loop never calls `modprobe`, changes driver bindings, writes firmware,
 changes networking, or modifies boot state. Promotion updates only the isolated
@@ -47,6 +48,34 @@ python -m Projects.AdaptiveDrivers.adaptive_driver_loop \
 Use `--rollback` with the same state directory to restore the protected previous
 LKG metadata. On a real Pi 3, omit `--fixture`; the hardware fingerprint gate
 fails closed on every other model or architecture.
+
+## Generation 2 and missing-field quarantine fixture
+
+The deterministic fixture can also exercise the Pi 3-specific Generation 2
+tolerant observer. It remains an isolated, read-only userspace artifact; only
+its verified metadata can be promoted:
+
+```text
+python -m Projects.AdaptiveDrivers.adaptive_driver_loop \
+  --state-dir work/adaptive-driver-generation-2 \
+  --fixture pi3b \
+  --candidate pi3-net-sysfs-tolerant-v2 \
+  --allow-promotion
+```
+
+The companion fault fixture makes `carrier` unavailable only inside the
+synthesized observer. It does not remove or alter the fixture's sysfs file. The
+observer reports the missing evidence, the controller quarantines the candidate,
+and the previously promoted LKG metadata must remain byte-for-byte unchanged:
+
+```text
+python -m Projects.AdaptiveDrivers.adaptive_driver_loop \
+  --state-dir work/adaptive-driver-generation-2 \
+  --fixture pi3b \
+  --candidate pi3-net-sysfs-tolerant-v2-missing-field-fixture \
+  --include-faults \
+  --allow-promotion
+```
 
 ## QPU policy
 

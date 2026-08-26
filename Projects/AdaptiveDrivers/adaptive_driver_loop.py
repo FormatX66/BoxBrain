@@ -1,10 +1,12 @@
-"""Safe generation-1 adaptive-driver self-build loop for Raspberry Pi 3.
+"""Safe userspace adaptive-driver self-build loop for Raspberry Pi 3.
 
 The first candidate is deliberately a read-only userspace compatibility shim.
 It observes the same sysfs network facts as the Linux Last Known Good driver,
 but it never binds/unbinds a kernel module, writes firmware, changes networking,
-or mutates boot state. That makes the complete build/load/score/promotion loop
-testable before a later kernel-module canary earns stronger recovery evidence.
+or mutates boot state. A generation-2 observer adds Pi-specific incomplete-read
+evidence without crossing that safety boundary. That makes the complete
+build/load/score/promotion/quarantine loop testable before a later kernel-module
+canary earns stronger recovery evidence.
 """
 
 from __future__ import annotations
@@ -258,6 +260,9 @@ def candidate_catalog(*, include_faults: bool = False) -> tuple[DriverCandidate,
             "pi3-net-sysfs-tolerant-v1", 1, OBSERVATION_FIELDS, False, 1.0
         ),
         DriverCandidate(
+            "pi3-net-sysfs-tolerant-v2", 2, OBSERVATION_FIELDS, False, 1.0
+        ),
+        DriverCandidate(
             "pi3-net-sysfs-minimal-v1",
             1,
             ("address", "mtu", "operstate"),
@@ -283,6 +288,15 @@ def candidate_catalog(*, include_faults: bool = False) -> tuple[DriverCandidate,
                     True,
                     1.0,
                     fault_mode="syntax-error",
+                ),
+                DriverCandidate(
+                    "pi3-net-sysfs-tolerant-v2-missing-field-fixture",
+                    2,
+                    OBSERVATION_FIELDS,
+                    False,
+                    1.0,
+                    risk="fixture-only",
+                    fault_mode="missing-sysfs-field",
                 ),
             ]
         )
@@ -383,6 +397,9 @@ def _candidate_source(candidate: DriverCandidate) -> str:
         return "def broken(:\n"
     fields = repr(candidate.fields)
     mismatch = candidate.fault_mode == "mismatch"
+    missing_field = (
+        "carrier" if candidate.fault_mode == "missing-sysfs-field" else None
+    )
     return f'''#!/usr/bin/env python3
 """Synthesized Aurum read-only network interface candidate."""
 import argparse
@@ -391,9 +408,11 @@ from pathlib import Path
 import re
 
 CANDIDATE_ID = {candidate.candidate_id!r}
+GENERATION = {candidate.generation!r}
 FIELDS = {fields}
 STRICT = {candidate.strict!r}
 MISMATCH_FIXTURE = {mismatch!r}
+MISSING_FIELD_FIXTURE = {missing_field!r}
 SAFE_INTERFACE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
 def field_path(root, interface, field):
@@ -413,17 +432,27 @@ def main():
         raise SystemExit("unsafe interface identifier")
     root = Path(args.root)
     observation = {{}}
+    missing_fields = []
     for field in FIELDS:
         path = field_path(root, args.interface, field)
         try:
+            if field == MISSING_FIELD_FIXTURE:
+                raise FileNotFoundError("deterministic missing-sysfs-field fixture")
             observation[field] = path.read_text(encoding="utf-8", errors="replace").strip("\\x00\\n \\t")
         except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
             if STRICT:
                 raise SystemExit("required read-only field unavailable: " + field)
             observation[field] = ""
+            missing_fields.append(field)
     if MISMATCH_FIXTURE and "mtu" in observation:
         observation["mtu"] = "-1"
-    print(json.dumps({{"candidate_id": CANDIDATE_ID, "observation": observation}}, sort_keys=True))
+    print(json.dumps({{
+        "candidate_id": CANDIDATE_ID,
+        "generation": GENERATION,
+        "observation": observation,
+        "missing_fields": missing_fields,
+        "evidence_complete": not missing_fields,
+    }}, sort_keys=True))
 
 if __name__ == "__main__":
     main()
@@ -502,7 +531,19 @@ def load_and_test_candidate(
         )
     outputs = [run["output"] for run in runs if run["output"] is not None]
     observations = [item.get("observation", {}) for item in outputs]
-    static_fields = [field for field in candidate.fields if field not in {"rx_packets", "tx_packets"}]
+    missing_fields = sorted(
+        {
+            field
+            for item in outputs
+            for field in item.get("missing_fields", [])
+            if isinstance(field, str)
+        }
+    )
+    static_fields = [
+        field
+        for field in candidate.fields
+        if field not in {"rx_packets", "tx_packets"}
+    ]
     static_repeatable = bool(observations) and all(
         all(item.get(field) == observations[0].get(field) for field in static_fields)
         for item in observations
@@ -524,6 +565,11 @@ def load_and_test_candidate(
         "load_mode": "isolated-unprivileged-userspace-shim",
         "kernel_module_loaded": False,
         "kernel_driver_binding_changed": False,
+        "missing_fields": missing_fields,
+        "read_evidence_complete": (
+            len(outputs) == repetitions
+            and all(item.get("evidence_complete") is True for item in outputs)
+        ),
         "runs": runs,
         "repeatable": (
             len(outputs) == repetitions and static_repeatable and counters_repeatable
@@ -646,7 +692,12 @@ def promote_candidate(
         "schema": LKG_SCHEMA,
         "active": {
             "profile_id": candidate.candidate_id,
-            "kind": "generation-1-userspace-compatibility-shim",
+            "kind": (
+                "generation-1-userspace-compatibility-shim"
+                if candidate.generation == 1
+                else "generation-2-userspace-hardware-specific-observer"
+            ),
+            "generation": candidate.generation,
             "score": score["score"],
             "fingerprint_sha256": fingerprint["fingerprint_sha256"],
             "artifact_sha256": build["source_sha256"],
@@ -715,7 +766,12 @@ def provision_pi3_fixture(root: Path) -> dict[str, Any]:
 
 
 def _future_branches(
-    *, gate_accepted: bool, decision: str | None, next_candidate: str | None, qpu: Mapping[str, Any]
+    *,
+    gate_accepted: bool,
+    decision: str | None,
+    next_candidate: str | None,
+    qpu: Mapping[str, Any],
+    missing_sysfs_fault_quarantined: bool = False,
 ) -> list[dict[str, Any]]:
     if not gate_accepted:
         return [
@@ -741,9 +797,20 @@ def _future_branches(
         },
         {
             "branch_id": "missing-sysfs-field-fault-injection",
-            "status": "prepared",
+            "status": (
+                "quarantined" if missing_sysfs_fault_quarantined else "prepared"
+            ),
             "confidence": 0.85,
             "purpose": "prove reject/quarantine and LKG preservation",
+            **(
+                {
+                    "verification": (
+                        "incomplete read evidence blocked promotion and preserved LKG"
+                    )
+                }
+                if missing_sysfs_fault_quarantined
+                else {}
+            ),
         },
         {
             "branch_id": "pi3-kernel-module-canary",
@@ -966,6 +1033,9 @@ def run_adaptive_driver_loop(
         if not lkg_untouched_during_test:
             decision = "quarantined"
             reason = "lkg-changed-during-candidate-test"
+        elif test.get("missing_fields"):
+            decision = "quarantined"
+            reason = "required-read-only-field-unavailable"
         elif not score["functional_match"] or not score["repeatable"]:
             decision = "rejected"
             reason = "candidate-behavior-did-not-match-reference"
@@ -1004,6 +1074,10 @@ def run_adaptive_driver_loop(
         decision=result["decision"],
         next_candidate=next_candidate,
         qpu=qpu_evidence,
+        missing_sysfs_fault_quarantined=(
+            candidate.fault_mode == "missing-sysfs-field"
+            and result["decision"] == "quarantined"
+        ),
     )
     result["completed_at"] = _utc_now()
     _atomic_write_json(run_dir / "result.json", result)
