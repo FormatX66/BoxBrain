@@ -10,9 +10,17 @@ Usage examples (one JSON request on stdin):
     {"command":"post_receipt","subject_id":"pi3","subject_kind":"device",
      "status":"running_verified","actor":"pi3-runner","source":"usb-probe",
      "evidence_refs":["artifact:pi3-probe-123"]}
+    {"command":"project_human_futures","verified_state":"READY_TO_BOOT",
+     "likely_next":[{"state":"physical-hopper-boot","probability":0.75}]}
+    {"command":"plan_operational_futures","verified_state":"ci-green",
+     "candidates":[{"name":"inspect-logs","domain":"ci-build","probability":0.8,
+     "impact":0.8,"human_time_saved":2,"preparation_leverage":1,"cost":0.2,
+     "read_only":true}]}
 
 The bridge is intentionally transport-neutral. A ChatGPT App/MCP tool, local
 agent, GitHub runner, or BoxBrain process can wrap the same commands later.
+Future Branch projections are advisory and side-effect free: likely intent or a
+ranked operational path never becomes authority or physical proof.
 """
 
 from __future__ import annotations
@@ -25,6 +33,8 @@ from typing import Mapping
 
 from chat_process_tree import ChatProcessTree
 from chat_topic_router import TopicSignal, route_into_tree
+from human_branch import status_projection
+from operational_branch import WorkflowCandidate, WorkflowDomain, operational_plan
 from shared_state_bus import SharedStateBus, StateEvent
 
 
@@ -62,6 +72,64 @@ def _require(request: Mapping[str, object], key: str) -> object:
     return request[key]
 
 
+def _mapping_list(request: Mapping[str, object], key: str) -> list[Mapping[str, object]]:
+    raw = _require(request, key)
+    if not isinstance(raw, list):
+        raise BridgeError(f"{key} must be a list")
+    values: list[Mapping[str, object]] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, Mapping):
+            raise BridgeError(f"{key}[{index}] must be an object")
+        values.append(item)
+    return values
+
+
+def _workflow_candidate(item: Mapping[str, object]) -> WorkflowCandidate:
+    allowed = {
+        "name",
+        "domain",
+        "probability",
+        "impact",
+        "human_time_saved",
+        "preparation_leverage",
+        "cost",
+        "evidence_freshness",
+        "read_only",
+        "reversible",
+        "external_side_effect",
+        "authorization_required",
+        "rollback_prepared",
+        "preserves_verified_state",
+        "unchanged_retry",
+        "retry_after_seconds",
+        "trust_broadening",
+        "alternate_authorized_route",
+    }
+    unknown = sorted(set(item) - allowed)
+    if unknown:
+        raise BridgeError(f"unknown operational candidate fields: {', '.join(unknown)}")
+    return WorkflowCandidate(
+        name=str(_require(item, "name")),
+        domain=WorkflowDomain(str(_require(item, "domain"))),
+        probability=float(_require(item, "probability")),
+        impact=float(_require(item, "impact")),
+        human_time_saved=float(_require(item, "human_time_saved")),
+        preparation_leverage=float(_require(item, "preparation_leverage")),
+        cost=float(_require(item, "cost")),
+        evidence_freshness=float(item.get("evidence_freshness", 1.0)),
+        read_only=bool(item.get("read_only", False)),
+        reversible=bool(item.get("reversible", False)),
+        external_side_effect=bool(item.get("external_side_effect", False)),
+        authorization_required=bool(item.get("authorization_required", False)),
+        rollback_prepared=bool(item.get("rollback_prepared", False)),
+        preserves_verified_state=bool(item.get("preserves_verified_state", True)),
+        unchanged_retry=bool(item.get("unchanged_retry", False)),
+        retry_after_seconds=int(item.get("retry_after_seconds", 0)),
+        trust_broadening=bool(item.get("trust_broadening", False)),
+        alternate_authorized_route=bool(item.get("alternate_authorized_route", False)),
+    )
+
+
 def handle_request(
     request: Mapping[str, object],
     *,
@@ -79,6 +147,47 @@ def handle_request(
     if command == "get_state":
         bus = _load_bus(events_path)
         return {"ok": True, "command": command, "state": bus.to_projection_dict()}
+
+    if command == "project_human_futures":
+        futures = []
+        for item in _mapping_list(request, "likely_next"):
+            state = str(item.get("state") or item.get("name") or "")
+            if not state:
+                raise BridgeError("human future state required")
+            futures.append((state, float(_require(item, "probability"))))
+        blockers_raw = request.get("blockers", ()) or ()
+        if not isinstance(blockers_raw, (list, tuple)):
+            raise BridgeError("blockers must be a list")
+        lkg_raw = request.get("lkg")
+        projection = status_projection(
+            verified_state=str(_require(request, "verified_state")),
+            likely_next=futures,
+            lkg=None if lkg_raw is None else str(lkg_raw),
+            blockers=(str(item) for item in blockers_raw),
+        )
+        return {
+            "ok": True,
+            "command": command,
+            "projection": projection,
+            "authority_granted": False,
+            "physical_proof_inferred": False,
+            "side_effects_performed": False,
+        }
+
+    if command == "plan_operational_futures":
+        candidates = [_workflow_candidate(item) for item in _mapping_list(request, "candidates")]
+        plan = operational_plan(
+            candidates,
+            verified_state=str(_require(request, "verified_state")),
+            limit=int(request.get("limit", 8)),
+        )
+        return {
+            "ok": True,
+            "command": command,
+            "plan": plan,
+            "authority_granted": False,
+            "side_effects_performed": False,
+        }
 
     if command == "route_topic":
         tree = _load_tree(tree_path)
