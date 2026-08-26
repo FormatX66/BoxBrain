@@ -125,7 +125,7 @@ function createChatTreeServer() {
     return reply({ ...data, route: routed }, `${args.title} is now a ${args.relation} Chat Tree branch.`);
   });
 
-  registerAppTool(server, "project_future_branch_status", {
+  server.registerTool("project_future_branch_status", {
     title: "Project Aurum Future Branch Status",
     description: "Project likely next human/session states while keeping verified state, LKG, blockers, and authority visibly separate from speculation.",
     inputSchema: {
@@ -148,7 +148,7 @@ function createChatTreeServer() {
     return reply(projected, "Future Branch projection prepared without granting authority or physical proof.");
   });
 
-  registerAppTool(server, "plan_operational_futures", {
+  server.registerTool("plan_operational_futures", {
     title: "Plan Aurum Operational Futures",
     description: "Rank safe CI/build, website/deployment, and external-content preparation branches. External effects, trust broadening, and unchanged retry loops remain blocked.",
     inputSchema: {
