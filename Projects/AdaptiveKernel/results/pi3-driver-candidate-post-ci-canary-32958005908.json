@@ -1,0 +1,50 @@
+{
+  "schema": "aurum.pi3.driver-candidate.post-ci-canary.v1",
+  "observed_at_utc": "2026-08-26T10:29:01.4007825Z",
+  "target": {
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "architecture": "aarch64",
+    "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+    "root_source": "/dev/mmcblk0p2",
+    "strict_key_only_ssh": true
+  },
+  "network": {
+    "reference_driver": "smsc95xx",
+    "operstate": "up",
+    "carrier": "1",
+    "rx_errors": 0,
+    "tx_errors": 0,
+    "rx_dropped": 0,
+    "tx_dropped": 0
+  },
+  "thermal_power": {
+    "temperature_c": 49.388,
+    "throttled_hex": "0x50000",
+    "current_throttle_bits": 0,
+    "current_fault": false,
+    "historical_throttle_bits": 5
+  },
+  "cleanup": {
+    "module_present": false,
+    "remote_candidate_temp_dir_count": 0
+  },
+  "invariants": {
+    "exact_identity": true,
+    "boot_id_unchanged": true,
+    "kernel_unchanged": true,
+    "root_unchanged": true,
+    "reference_driver_unchanged": true,
+    "ethernet_healthy": true,
+    "network_counters_clean": true,
+    "current_power_thermal_gate": true,
+    "cleanup_complete": true
+  },
+  "authority": {
+    "module_load_allowed": false,
+    "driver_binding_change_allowed": false,
+    "replacement_kernel_allowed": false,
+    "mutation_authority_granted": false
+  }
+}

@@ -65,6 +65,7 @@
   },
   "correlation": {
     "direct_compile_receipt": "Projects/AdaptiveKernel/results/pi3-driver-candidate-direct-compile-20260826.json",
+    "post_ci_canary": "Projects/AdaptiveKernel/results/pi3-driver-candidate-post-ci-canary-32958005908.json",
     "direct_and_ci_module_sha256_match": true,
     "claim": "independent direct and workflow compile-only paths produced the same inert temporary module hash; neither path loaded or retained it"
   }
