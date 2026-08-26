@@ -1,8 +1,7 @@
 Repository Integrity Mirror
 
 == repository validator ==
-BoxBrain validation failed:
-- Orphan Markdown file: Projects/AdaptiveKernel/OVERNIGHT_PI3_LAB.md
+BoxBrain validation passed: 318 required files and 399 Markdown files.
 
 == canonical Aurum state-sync tests ==
 .....................................................
