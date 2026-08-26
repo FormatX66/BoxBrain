@@ -28,8 +28,17 @@
   <script>
     const app = document.getElementById('app');
     let latest = window.openai?.toolOutput ?? null;
+    const saved = window.openai?.widgetState ?? {};
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+    async function setMode(mode) {
+      if (!window.openai?.requestDisplayMode) return;
+      await window.openai.requestDisplayMode({ mode });
+      if (window.openai?.setWidgetState) {
+        await window.openai.setWidgetState({ ...(window.openai.widgetState ?? {}), preferredDisplayMode: mode });
+      }
+    }
 
     async function followUp(text) {
       if (window.openai?.sendFollowUpMessage) {
@@ -51,13 +60,18 @@
       const siblings = nodes.filter(n => n.parent_id === focus.parent_id && n.node_id !== focus.node_id);
       const nodeCard = (n, cls='') => `<div class="node ${cls}"><div class="row"><span class="name">${esc(n.title)}</span><span class="state">${esc(n.state)}</span></div><div class="sub">${esc(n.summary || n.node_id)}</div></div>`;
       app.innerHTML = `
-        <div class="head"><div><div class="title">Aurum Chat Tree</div><div class="sub">Focused conversation lane</div></div><button id="refresh">Refresh</button></div>
+        <div class="head">
+          <div><div class="title">Aurum Chat Tree</div><div class="sub">Pop-out topic navigator</div></div>
+          <div class="row"><button id="panel">Panel</button><button id="expand">Expand</button><button id="refresh">Refresh</button></div>
+        </div>
         <div class="section">Current</div>${nodeCard(focus,'focus')}
         <div class="row"><button id="continue">Continue here</button><button id="child">Split child</button><button id="sibling">Split sibling</button></div>
         ${parent ? `<div class="section">Parent</div>${nodeCard(parent)}` : ''}
         ${children.length ? `<div class="section">Children</div><div class="tree">${children.map(n => nodeCard(n)).join('')}</div>` : ''}
         ${siblings.length ? `<div class="section">Siblings</div><div class="tree">${siblings.map(n => nodeCard(n)).join('')}</div>` : ''}
       `;
+      document.getElementById('panel').onclick = () => setMode('pip');
+      document.getElementById('expand').onclick = () => setMode('fullscreen');
       document.getElementById('continue').onclick = () => followUp(`Continue the Chat Tree node "${focus.title}" (${focus.node_id}). Keep this chat scoped to that objective and read current shared state before making runtime claims.`);
       document.getElementById('child').onclick = () => followUp(`Split the current Chat Tree node "${focus.title}" (${focus.node_id}) into a new child branch for the new subproblem I describe next. Preserve a compact handoff and only inherit relevant state.`);
       document.getElementById('sibling').onclick = () => followUp(`Split away from "${focus.title}" (${focus.node_id}) into a new sibling Chat Tree branch for the new topic I describe next. Preserve a compact handoff and keep the existing branch active separately.`);
@@ -80,6 +94,9 @@
     });
 
     if (latest) render(latest);
+    if (saved.preferredDisplayMode && window.openai?.requestDisplayMode) {
+      window.openai.requestDisplayMode({ mode: saved.preferredDisplayMode }).catch(() => {});
+    }
   </script>
 </body>
 </html>
