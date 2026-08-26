@@ -1,5 +1,5 @@
 {
-  "event_count": 25,
+  "event_count": 26,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -696,6 +696,44 @@
       "subject_kind": "experiment",
       "summary": "A fail-closed recovery-controller contract now validates exact Pi3 identity and distinct controller, observer, actuator, and verifier roles in simulation. No physical KVM, independent power path, automatic watchdog firing, or recovery verification has been proven, so it grants no kernel-mutation authority.",
       "timestamp": "2026-08-26T09:55:28.970788Z"
+    },
+    "pi3-reference-correlation-32973834534": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "AF-PI3-ADAPTIVE-DRIVER-001",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-16fdfcc9f6714e65935d919b53ff09c8",
+      "evidence_refs": [
+        "github:actions:run:32973834534",
+        "github:actions:job:98193615614",
+        "github:artifact:9608641403",
+        "github:artifact-digest:sha256:8ee97affdb8b2bb9c1c21e9fecf8994acb96d06580982e97fca19f33a53bd84c",
+        "receipt-sha256:0dff3f9aa4bbabba933f2a4a79204f2a06d951778eb2414974d35c815c5eac04",
+        "repository-result:Projects/AdaptiveKernel/results/pi3-reference-correlation-32973834534.json",
+        "qpu-source-run:32924126448"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "agreement_count": 4,
+        "farmer_state_unchanged": "SUCCEEDED",
+        "gap_count": 4,
+        "live_pi_contacted": false,
+        "next_experiment": "cloud-guided-read-only-controller-and-link-fingerprint",
+        "physical_mutation_authority": false,
+        "protected_driver": "smsc95xx",
+        "qpu_hardware_used": false,
+        "qpu_model_available": true,
+        "semantic_state": "completed-with-actionable-reference-gaps"
+      },
+      "source": "github-artifact-verified-reference-correlation",
+      "status": "succeeded",
+      "subject_id": "pi3-reference-correlation-32973834534",
+      "subject_kind": "experiment",
+      "summary": "GitHub-hosted correlation verified ten pinned official/Linux references against sealed Pi3 telemetry, compile-only candidate evidence, and the preserved Future Branch QPU router. Four agreement points and four actionable gaps were sealed; no Pi or QPU hardware was contacted and smsc95xx/LKG were preserved.",
+      "timestamp": "2026-08-26T13:25:27.724639Z"
     }
   }
 }

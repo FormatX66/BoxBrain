@@ -1,0 +1,197 @@
+{
+  "correlation": {
+    "agreement_count": 4,
+    "agreements": [
+      {
+        "id": "board-model-and-soc",
+        "physical": "exact model and serial gates passed",
+        "reference": "Pi3B Rev 1.2 reduced schematic names the board and BCM2837",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-binding",
+        "physical": "smsc95xx remained bound before, during, and after the run",
+        "reference": "Raspberry Pi kernel config and source include built-in smsc95xx over usbnet",
+        "state": "agrees"
+      },
+      {
+        "id": "checksum-offload-capability",
+        "physical": "rx-checksumming canary passed and restored without persistent change",
+        "reference": "LAN9514 datasheet and smsc95xx source expose checksum support",
+        "state": "agrees"
+      },
+      {
+        "id": "reference-driver-health",
+        "physical": "carrier remained present with zero final errors and drops",
+        "reference": "protected Linux branch remains the baseline",
+        "state": "agrees"
+      }
+    ],
+    "gap_count": 4,
+    "gaps": [
+      {
+        "id": "controller-identity",
+        "next_evidence": "read-only exact-controller USB identity",
+        "reason": "the controller datasheet is pinned, but the reduced board schematic does not name LAN9514 and the physical artifact contains no USB VID:PID or product ID",
+        "state": "unproven"
+      },
+      {
+        "id": "negotiated-link-speed",
+        "next_evidence": "read-only ethtool speed/duplex receipt",
+        "reason": "the LAN9514 reference is 10/100, but the physical artifact records no negotiated speed",
+        "state": "unproven"
+      },
+      {
+        "id": "running-driver-source-provenance",
+        "next_evidence": "exact package build/source commit provenance",
+        "reason": "the running kernel is 6.18.34+rpt-rpi-v8 while the pinned Raspberry Pi source is a later rpi-6.18.y commit; source-to-running-binary equivalence is not established",
+        "state": "unproven"
+      },
+      {
+        "id": "candidate-driver-hardware-behavior",
+        "next_evidence": "offline functional model before any binding proposal",
+        "reason": "the Aurum candidate is an inert API probe, not a functional driver",
+        "state": "unproven"
+      }
+    ],
+    "raw_empirical_lane_retained": true,
+    "reference_aware_lane_retained": true
+  },
+  "hardware_model": {
+    "board_model": "Raspberry Pi 3 Model B Rev 1.2",
+    "controller_mapping_to_exact_pi": "unproven",
+    "controller_reference": "LAN9514/LAN9514i",
+    "controller_reference_capabilities": {
+      "checksum_offload": "TCP/UDP",
+      "ethernet": "10/100 MAC and PHY",
+      "usb_hub": "USB 2.0 four-downstream-port"
+    },
+    "datasheet_tokens_verified": true,
+    "schematic_controller_scope": "reduced-schematic-does-not-name-lan9514",
+    "soc_reference": "BCM2837"
+  },
+  "inputs": {
+    "candidate_manifest_sha256": "07b04f681df30def0e3b5fda5e8481b1262e1118a021aad4e935b890ad926d87",
+    "ci_compile_result_sha256": "9bfa408f93fcad69e05216e48016e51a9aa2434ad4196d6426c8a0a600bcfa62",
+    "cloud_policy_result_sha256": "85349751ebe0bc1570f12350b2d195645ecfc24bfe17d005aaa33ab6198ac986",
+    "direct_compile_result_sha256": "e2c9aaa64ed94f6fd07e842171c95a43c495263e733f0919853311a04eef1125",
+    "pressure_result_sha256": "a84946fbf92dff90223c2493dfd3e52208bcd89e28ca84199052e6b65829409a",
+    "qpu_model_excerpt_sha256": "35e49ffa984892a813bfc03ab8e52ece837acaef5d1e9a787ee2fa7dc21c9774",
+    "reference_manifest_sha256": "9de79be314a13d5ab1f22f3e5bb88f57ef743243c86f6dcfd56858708876ecc2",
+    "source_pressure_artifact_id": 9605841913,
+    "source_pressure_run_id": 32964554773,
+    "verified_reference_count": 10
+  },
+  "invariants": {
+    "boot_or_firmware_changed": false,
+    "driver_binding_changed": false,
+    "kernel_changed": false,
+    "lan_scan_performed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "mutation_authority_granted": false,
+    "network_configuration_changed": false,
+    "official_reference_hashes_verified": true,
+    "password_used": false,
+    "preserved_artifact_hashes_verified": true,
+    "qpu_hardware_contacted": false,
+    "reference_driver_preserved": true,
+    "ssh_used": false
+  },
+  "known_driver_comparison": {
+    "alternate_driver_binding_tested": false,
+    "candidate_hardware_behavior_proven": false,
+    "comparators": [
+      "physical-linux-smsc95xx",
+      "raspberry-pi-rpi-6.18.y-smsc95xx",
+      "upstream-linux-v6.18-smsc95xx",
+      "raspberry-pi-lan78xx-family-pattern-only",
+      "aurum-inert-usbnet-api-probe"
+    ],
+    "comparison_count": 5,
+    "final_carrier": "1",
+    "final_network_error_or_drop_total": 0,
+    "physical_feature_original": "on",
+    "physical_feature_test_value": "off",
+    "physical_feature_tested": "rx-checksumming",
+    "physical_persistent_change": false,
+    "protected_physical_driver": "smsc95xx",
+    "rpi_source_checksum_default_present": true,
+    "source_deltas": {
+      "smsc95xx_c": {
+        "changed_blocks": 6,
+        "exact_match": false,
+        "left": "upstream-linux-v6.18-smsc95xx-c",
+        "left_only_or_replaced_lines": 5,
+        "left_sha256": "5ca28cb24d226c81d2de133083a21cee796f2d008328e9a650fce752df8f280c",
+        "right": "raspberry-pi-linux-smsc95xx-c",
+        "right_only_or_replaced_lines": 36,
+        "right_sha256": "9dcf8096d30f8ae04045db3cb3bc424e22ee083e860a308a4cd4f4b9583888d0",
+        "similarity_ratio": 0.990772
+      },
+      "smsc95xx_h": {
+        "changed_blocks": 0,
+        "exact_match": true,
+        "left": "upstream-linux-v6.18-smsc95xx-h",
+        "left_only_or_replaced_lines": 0,
+        "left_sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+        "right": "raspberry-pi-linux-smsc95xx-h",
+        "right_only_or_replaced_lines": 0,
+        "right_sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+        "similarity_ratio": 1.0
+      },
+      "usbnet_c": {
+        "changed_blocks": 2,
+        "exact_match": false,
+        "left": "upstream-linux-v6.18-usbnet-c",
+        "left_only_or_replaced_lines": 1,
+        "left_sha256": "cf942bfa8c2fbcfb1635c239754226f948ddfab808011c27422ca168f68a6e69",
+        "right": "raspberry-pi-linux-usbnet-c",
+        "right_only_or_replaced_lines": 5,
+        "right_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220",
+        "similarity_ratio": 0.998677
+      }
+    }
+  },
+  "processing": {
+    "live_pi_contacted": false,
+    "mode": "schematic-source-telemetry-qpu-correlation",
+    "physical_mutation_authority": false,
+    "placement": "github-hosted-actions"
+  },
+  "proposal": {
+    "change_applied": false,
+    "next_experiment": "cloud-guided-read-only-controller-and-link-fingerprint",
+    "next_experiment_inputs": [
+      "USB VID:PID and product identity",
+      "negotiated link speed and duplex",
+      "exact running-kernel source/package provenance"
+    ],
+    "physical_driver_change": "no-change",
+    "selected_physical_driver": "smsc95xx",
+    "state": "held-for-read-only-identity-evidence"
+  },
+  "qpu_comparison": {
+    "applicable_to_experiment_ordering": true,
+    "applicable_to_hardware_expectations": false,
+    "current_comparison_count": 5,
+    "current_qpu_eligible": false,
+    "current_qpu_value_floor": 64,
+    "gate_conflict": true,
+    "gate_conflict_resolution": "the old model gates machine-path weighting on branch failure rate; this test gates driver/reference search on measurable candidate-space savings, so the objectives are not interchangeable",
+    "hardware_digital_twin": false,
+    "hardware_submission_performed": false,
+    "model_available": true,
+    "model_kind": "machine-experiment-paths",
+    "original_population_size": 8,
+    "original_qpu_eligible": true,
+    "source_run_id": 32924126448,
+    "used": false
+  },
+  "receipt_sha256": "0dff3f9aa4bbabba933f2a4a79204f2a06d951778eb2414974d35c815c5eac04",
+  "schema": "aurum-pi3-reference-correlation-v1",
+  "semantic_state": "completed-with-actionable-reference-gaps",
+  "state": "completed",
+  "strongest_claim": "Pinned official schematic, controller-datasheet, Raspberry Pi Linux, upstream Linux, compile-only candidate, QPU-router, and physical telemetry evidence agree on the exact board class, protected smsc95xx path, checksum capability, and healthy empirical behavior. The comparison also exposes three decisive missing proofs: exact USB controller identity, negotiated link speed, and source-to-running-binary provenance."
+}
+
