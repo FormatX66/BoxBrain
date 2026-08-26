@@ -1,0 +1,79 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "differential": {
+    "active_cancel_is_intent_only": true,
+    "backpressure_remains_conservative": true,
+    "cancelled_completion_must_be_observed_before_reuse": true,
+    "disconnect_drains_outstanding_work": true,
+    "fault_recovery_unlinks_before_clear_halt": true,
+    "reconnect_requires_fresh_submission_is_conservative": true,
+    "synchronous_kill_is_distinct_from_async_unlink": true,
+    "tx_rx_endpoint_work_is_separately_queued": true
+  },
+  "invariants": {
+    "clear_halt_submitted": false,
+    "driver_binding_changed": false,
+    "kernel_code_executed": false,
+    "live_pi_contacted": false,
+    "register_access_performed": false,
+    "usb_cancel_submitted": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "mismatches": [],
+  "next_safe_gate": "raspberry-pi-source-patch-delta-for-usbnet-urb-semantics",
+  "pi_running_source": {
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "official_binary_equivalence_receipt_sha256": "593f3e3625a64ab12245554bd855cfb260aa18e9ba41c78e877f2166de2dbe68",
+    "scope_note": "The running Raspberry Pi kernel binary is already proven equivalent to its official package. This stage pins USB core/usbnet behavior to the signed upstream Linux stable v6.18.34 commit; it does not claim that Raspberry Pi/Debian patch files are byte-identical to upstream.",
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1"
+  },
+  "receipt_sha256": "c9ef19b12f325f0ff04b6eea91aa41a451aeddd0d93ab95263fe5080186012d3",
+  "reference": {
+    "commit": "18ad16ce4a6b2714583fd1e1044c6ea8e53b3519",
+    "repository": "gregkh/linux",
+    "signed_stable_tag": "v6.18.34",
+    "tag_object_sha": "71659eca49870e2f9d33412084034abe9c3e453f",
+    "tag_signature_verified_by_github_api": true,
+    "tag_verification_sha256": "640f1082667ffb8cb4769c509e5fcc2052a27276063d5174f53ede4c7ccb4806",
+    "urb_path": "drivers/usb/core/urb.c",
+    "urb_sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333",
+    "usbnet_path": "drivers/net/usb/usbnet.c",
+    "usbnet_sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220"
+  },
+  "schema": "aurum.pi3.smsc95xx.linux-usbnet-urb-reference-differential.v1",
+  "source_semantics": {
+    "missing_anchors": [],
+    "usb_core": {
+      "active_urb_resubmit_refused": true,
+      "kill_waits_for_completion": true,
+      "submit_completes_exactly_once": true,
+      "submit_is_async": true,
+      "unlink_is_async_and_completion_races": true
+    },
+    "usbnet": {
+      "halt_unlinks_before_clear": true,
+      "separate_rx_tx_queues": true,
+      "status_stop_uses_synchronous_kill": true,
+      "stop_drains_rx_tx_done": true,
+      "unlink_marks_state_and_refs_before_async_cancel": true
+    }
+  },
+  "state": "linux-usbnet-urb-reference-compatible",
+  "strongest_claim": "The sealed virtual USB queue/cancellation model is source-compatible with the exact signed Linux stable v6.18.34 USB core and usbnet lifecycle semantics for asynchronous submit/unlink, exactly-once completion ownership, synchronous kill, RX/TX queue draining, and halt recovery ordering. This remains offline source-level evidence and grants no hardware or kernel authority.",
+  "upstream_queue_receipt_sha256": "9e544192addd419d194bdef56ce0252b58e70153305916f81b7291770e293d91"
+}
