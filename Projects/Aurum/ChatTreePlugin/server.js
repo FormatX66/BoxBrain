@@ -52,6 +52,15 @@ function reply(data, text) {
   };
 }
 
+function closeQuietly(resource) {
+  try {
+    const result = resource?.close?.();
+    if (result && typeof result.catch === "function") result.catch(() => {});
+  } catch {
+    // Per-request/stateless cleanup must never terminate the long-lived HTTP listener.
+  }
+}
+
 function createChatTreeServer() {
   const server = new McpServer({ name: "aurum-chat-tree-plugin", version: "0.1.0" });
 
@@ -209,8 +218,8 @@ const httpServer = createServer(async (req, res) => {
     const server = createChatTreeServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
-      transport.close().catch(() => {});
-      server.close().catch(() => {});
+      closeQuietly(transport);
+      closeQuietly(server);
     });
     try {
       await server.connect(transport);
