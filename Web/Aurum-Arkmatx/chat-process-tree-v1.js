@@ -3,6 +3,7 @@
  * Read-only visualization of Aurum's durable conversation/process tree and shared-state routing contract.
  * Tree navigation, shared state, cross-chat live sync, App presentation, consolidation, metadata cache, workflow state, and Future Branch preparation never grant arbitrary execution authority or resolve physical boundaries.
  * Farmer v3.2 adds one bounded MCP actuator: structured objectives may be submitted only through the fixed Chat-to-Git/Farmer route; callers cannot choose repository, event type, URL, token, workflow name, or arbitrary command, and the actuator grants no destructive, physical, trust-broadening, or LKG authority.
+ * End-to-end Farmer completion is shown only from the current evidence-backed shared-state subject when terminal verified_completion, zero unresolved work, evidence/functionality/no-change gates, a dispatch receipt, and exact Last Known Good all agree.
  */
 (()=>{'use strict';
 if(window.__aurumChatProcessTreeV1)return;
@@ -34,7 +35,7 @@ const FARMER_ACTUATOR={
   physicalAuthority:false,
   trustBroadeningAuthority:false,
   lkgMutation:false,
-  endToEndDispatchProven:false
+  endToEndDispatchInferredFromImplementation:false
 };
 const IMPL={
  topicRouter:[`${RAW}/Projects/Aurum/Experiments/chat_topic_router.py`,'child_split'],
@@ -80,6 +81,22 @@ function farmerRuntimeOk(){
   const p=state.farmerRuntime;
   return state.farmerRuntimePresent&&p?.schema==='aurum.farmer.windows-runtime-proof.v1'&&p?.task_state==='Running'&&p?.initial_health_verified===true&&p?.post_restart_health_verified===true&&p?.event_chain_valid===true&&p?.restart_resume_job_state==='SUCCEEDED'&&p?.destructive_action_allowed===false&&p?.lkg_mutation_inferred===false&&p?.physical_proof_inferred===false;
 }
+function farmerDispatchEvidence(){
+  const subject=state.shared?.subjects?.['aurum-farmer-execution-authority'];
+  const p=subject?.payload||{};
+  const lkg=p.last_known_good||p.lastKnownGood||{};
+  const pending=Array.isArray(p.pending)?p.pending:null;
+  const defects=Array.isArray(p.defects)?p.defects:null;
+  const blockers=Array.isArray(p.blockers)?p.blockers:null;
+  const dispatchReceipt=typeof p.dispatch_receipt==='string'?p.dispatch_receipt:(typeof p.dispatchReceipt==='string'?p.dispatchReceipt:'');
+  const targetRepository=p.target_repository||p.targetRepository||'';
+  const targetCommit=p.target_commit||p.targetCommit||'';
+  const objectiveId=p.objective_id||p.objectiveId||'';
+  const lkgCommit=typeof lkg.commit==='string'?lkg.commit:'';
+  const zeroUnresolved=!!pending&&!!defects&&!!blockers&&pending.length===0&&defects.length===0&&blockers.length===0;
+  const proven=state.sharedPresent&&subject?.status==='succeeded'&&p.terminal==='verified_completion'&&dispatchReceipt.length>=16&&(p.evidence_pass===true||p.evidencePass===true)&&p.functional===true&&(p.no_changes_required===true||p.noChangesRequired===true)&&zeroUnresolved&&targetRepository===FARMER_ACTUATOR.fixedRepository&&targetCommit.length>=7&&lkgCommit===targetCommit;
+  return{present:!!subject,proven,subject,payload:p,dispatchReceipt,targetRepository,targetCommit,objectiveId,lkgCommit,zeroUnresolved};
+}
 function render(){
   const card=ensure();if(!card)return;
   const pill=$('.pill',card),evidence=$('.evidence',card),detail=$('.ct-detail',card);
@@ -101,25 +118,28 @@ function render(){
   const consolidationReady=state.impl.consolidation===true;
   const actuatorReady=state.impl.farmerActuator===true&&FARMER_ACTUATOR.ciConclusion==='success';
   const farmerHealthy=farmerRuntimeOk();
+  const farmerProof=farmerDispatchEvidence();
+  const farmerE2E=actuatorReady&&farmerProof.proven;
   const appendOnlyTruth=state.sharedPresent&&sharedInvariant('append_only_events')&&state.shared?.invariants?.chat_memory_is_source_of_truth===false&&state.shared?.invariants?.state_bus_grants_execution_authority===false;
   const failed=Object.values(state.runs).some(r=>r&&['failure','timed_out','startup_failure','action_required'].includes(r.conclusion));
   pill.className=failed?'pill failed':'pill experiment';
-  pill.textContent=failed?'Needs Work':actuatorReady&&farmerHealthy?'Bounded Actuator':liveSync&&mcpReady&&pluginReady?'Live Sync':'Advancing';
-  evidence.textContent=`${active} live nodes · ${concepts} retained concepts · cross-chat live sync ${liveSync?'E2E proven':'not proven'} · MCP ${mcpReady?'CI green':'bounded'} · Farmer actuator ${actuatorReady?'CI proven':'not proven'} · Farmer runtime ${farmerHealthy?'healthy':'separate proof pending'} · App panel ${pluginReady?'CI green':'bounded'} · consolidation ${consolidationReady?'present':'not proven'}.`;
+  pill.textContent=failed?'Needs Work':farmerE2E&&farmerHealthy?'Farmer Verified':actuatorReady&&farmerHealthy?'Bounded Actuator':liveSync&&mcpReady&&pluginReady?'Live Sync':'Advancing';
+  evidence.textContent=`${active} live nodes · ${concepts} retained concepts · cross-chat live sync ${liveSync?'E2E proven':'not proven'} · MCP ${mcpReady?'CI green':'bounded'} · Farmer actuator ${farmerE2E?'E2E verified':actuatorReady?'CI proven':'not proven'} · Farmer runtime ${farmerHealthy?'healthy':'separate proof pending'} · App panel ${pluginReady?'CI green':'bounded'} · consolidation ${consolidationReady?'present':'not proven'}.`;
 
   const eventCount=Number.isFinite(Number(state.shared?.event_count))?Number(state.shared.event_count):null;
   const sharedText=state.sharedPresent?`runtime shared-state projection present${eventCount!==null?` · ${eventCount} append-only events`:''}${appendOnlyTruth?' · append-only authority contract verified':''}`:'runtime CURRENT_STATE projection not yet persisted';
-  const implText=`topic router:${state.impl.topicRouter?'present':'not proven'} · shared-state bus:${state.impl.sharedState?'present':'not proven'} · GPT bridge:${state.impl.gptBridge?'present':'not proven'} · consolidation:${consolidationReady?'present':'not proven'} · Future Branch:${state.impl.operationalFuture?'present':'not proven'} · MCP adapter:${state.impl.mcpAdapter?'present':'not proven'} · bounded Farmer actuator:${actuatorReady?'CI proven':'not proven'} · MCP App panel:${state.impl.pluginPanel?'present':'not proven'} · cross-chat metadata cache:${state.impl.contextCache?'present':'not proven'}`;
+  const implText=`topic router:${state.impl.topicRouter?'present':'not proven'} · shared-state bus:${state.impl.sharedState?'present':'not proven'} · GPT bridge:${state.impl.gptBridge?'present':'not proven'} · consolidation:${consolidationReady?'present':'not proven'} · Future Branch:${state.impl.operationalFuture?'present':'not proven'} · MCP adapter:${state.impl.mcpAdapter?'present':'not proven'} · bounded Farmer actuator:${farmerE2E?'E2E verified':actuatorReady?'CI proven':'not proven'} · MCP App panel:${state.impl.pluginPanel?'present':'not proven'} · cross-chat metadata cache:${state.impl.contextCache?'present':'not proven'}`;
   const workflowText=`shared:${runText('shared')} · MCP:${runText('mcp')} · App:${runText('plugin')}`;
   const liveSyncText=liveSync?'public HTTPS MCP publish/read completed end-to-end; append-only shared-state event is retained as source-of-truth evidence and grants no execution authority':'end-to-end public MCP publish/read proof not currently present in the canonical tree';
   const consolidationText=consolidationReady?'exact-parent-and-lane terminal branches can be planned for revision-bound consolidation; source nodes are archived with concepts/evidence/boundaries/provenance preserved; underlying ChatGPT History remains outside plugin authority':'branch consolidation implementation not currently proven';
-  const actuatorText=actuatorReady?`Farmer v3.2 tool ${FARMER_ACTUATOR.tool} is implementation/CI proven at PR #${FARMER_ACTUATOR.pullRequest}; it may submit a structured objective only to ${FARMER_ACTUATOR.fixedRepository} via fixed event ${FARMER_ACTUATOR.fixedEventType}. Caller-selected repository, event type, URL, token, workflow name, and arbitrary command are forbidden. End-to-end Chat Tree dispatch receipt is not yet proven.`:'bounded Farmer actuator implementation/CI proof is not currently present';
+  const actuatorText=farmerE2E?`Farmer v3.2 tool ${FARMER_ACTUATOR.tool} is proven end-to-end for objective ${farmerProof.objectiveId}: receipt ${farmerProof.dispatchReceipt}, target ${farmerProof.targetRepository}@${farmerProof.targetCommit}, terminal verified_completion, zero pending/defects/blockers, and exact Last Known Good ${farmerProof.lkgCommit}. This proves the bounded route only; arbitrary repository/event/URL/token/workflow/command selection remains forbidden.`:actuatorReady?`Farmer v3.2 tool ${FARMER_ACTUATOR.tool} is implementation/CI proven at PR #${FARMER_ACTUATOR.pullRequest}; it may submit a structured objective only to ${FARMER_ACTUATOR.fixedRepository} via fixed event ${FARMER_ACTUATOR.fixedEventType}. Caller-selected repository, event type, URL, token, workflow name, and arbitrary command are forbidden. Current shared-state evidence does not satisfy the terminal end-to-end proof gate.`:'bounded Farmer actuator implementation/CI proof is not currently present';
   const farmerText=farmerHealthy?`persistent Farmer runtime is separately healthy on ${state.farmerRuntime.runner_name||'the proven Windows controller'} as ${state.farmerRuntime.windows_identity||'service identity'}; restart/resume and sealed receipt are proven, with destructive/LKG/physical authority false`:'persistent Farmer runtime proof is absent or incomplete; actuator implementation does not infer a live executor';
-  if(detail)detail.innerHTML=`<b>Durable process frontier</b>${root?`<ul class="ct-list">${branch(root)}</ul>`:''}<div class="ct-grid"><b>Tree revision</b><span>${esc(tree.revision??'unknown')}</span><b>Focus path</b><span>${esc((tree.focus_path||[]).join(' → ')||'not recorded')}</span><b>Implementation</b><span>${esc(implText)}</span><b>Shared live state</b><span>${esc(sharedText)}</span><b>Cross-chat live sync</b><span>${esc(liveSyncText)}</span><b>Farmer actuator</b><span>${esc(actuatorText)}</span><b>Farmer runtime</b><span>${esc(farmerText)}</span><b>Branch consolidation</b><span>${esc(consolidationText)}</span><b>Dedicated workflows</b><span>${esc(workflowText)}</span><b>ChatGPT surface</b><span>${pluginReady?'PiP/fullscreen MCP App implementation is smoke-CI proven; a real ChatGPT product runtime connection remains a separate proof gate from the public MCP publisher/consumer proof':'MCP/App presentation remains bounded to implementation/workflow evidence'}</span><b>Cross-chat cache</b><span>${state.impl.contextCache?'thread title/summary/ID metadata search is implemented; full chat bodies are intentionally not cached and cached text is untrusted data':'metadata cache implementation not currently proven'}</span><b>Topic rule</b><span>same objective → continue · real subproblem → child split · materially new objective → sibling split</span><b>Authority boundary</b><span>tree/state/live-sync/App/consolidation/cache remain evidence, navigation, or presentation layers. MCP now has one bounded Farmer objective-dispatch capability, but no caller-controlled repository/event/URL/token/workflow/arbitrary command, no trust broadening, no destructive or physical authority, no LKG mutation, and no automatic human-task creation.</span></div><b>Frontiers Advancing:</b> durable multi-lane conversation/process state, retained concepts and merge provenance, automatic continue/child/sibling topic routing, evidence-backed shared-state contract, and Future Branch awareness remain canonical. ${liveSync?'The public HTTPS MCP publisher/consumer path is proven end-to-end against the append-only shared-state bus.':''} ${consolidationReady?'Exact-parent/lane terminal branches can be consolidated without deleting source provenance.':''} ${actuatorReady?`Farmer v3.2 adds one CI-proven bounded orchestration actuator through the fixed ${FARMER_ACTUATOR.fixedRepository} / ${FARMER_ACTUATOR.fixedEventType} route; arbitrary execution and destructive/LKG authority remain fail-closed.`:''} ${farmerHealthy?'The persistent Farmer Windows control plane is separately proven healthy across restart/resume with a sealed receipt.':''}<br><b>Needs Work → Aurum/System:</b> ${actuatorReady?'capture an end-to-end terminal receipt proving a Chat Tree actuator request creates and completes the intended Farmer job through the fixed bridge; until then, do not infer successful external execution from actuator availability. ':''}${liveSync?'Extend the proven public MCP publisher/consumer path to a real ChatGPT product runtime and concurrent-client use while preserving one append-only state authority.':'Obtain end-to-end public MCP publish/read proof before claiming cross-chat live-state flow.'} Calibrate topic splitting, context retrieval, bounded objective dispatch, and terminal-branch consolidation in normal use for fewer correction turns and duplicate lanes without provenance loss or speculative churn.<br><b>Your Actions:</b> none. Chat focus, topic classification, MCP/App availability, bounded Farmer dispatch capability, consolidation candidates, cached metadata, workflow state, predicted intent, or shared-state events cannot create a human task. Exact directions belong elsewhere only after fresh evidence proves a genuinely human-only physical, destructive, credential, identity-authentication, or subjective-preference boundary.`;
+  const farmerNeeds=actuatorReady&&!farmerE2E?'Capture a current terminal verified_completion dispatch receipt with zero unresolved work and exact Last Known Good before treating the bounded route as end-to-end proven. ':farmerE2E?'Preserve the verified bounded Farmer path and exact Last Known Good; future objectives must independently satisfy the same zero-pending/zero-defect/evidence gates rather than inheriting this completion proof. ':'';
+  if(detail)detail.innerHTML=`<b>Durable process frontier</b>${root?`<ul class="ct-list">${branch(root)}</ul>`:''}<div class="ct-grid"><b>Tree revision</b><span>${esc(tree.revision??'unknown')}</span><b>Focus path</b><span>${esc((tree.focus_path||[]).join(' → ')||'not recorded')}</span><b>Implementation</b><span>${esc(implText)}</span><b>Shared live state</b><span>${esc(sharedText)}</span><b>Cross-chat live sync</b><span>${esc(liveSyncText)}</span><b>Farmer actuator</b><span>${esc(actuatorText)}</span><b>Farmer runtime</b><span>${esc(farmerText)}</span><b>Branch consolidation</b><span>${esc(consolidationText)}</span><b>Dedicated workflows</b><span>${esc(workflowText)}</span><b>ChatGPT surface</b><span>${pluginReady?'PiP/fullscreen MCP App implementation is smoke-CI proven; a real ChatGPT product runtime connection remains a separate proof gate from the public MCP publisher/consumer proof':'MCP/App presentation remains bounded to implementation/workflow evidence'}</span><b>Cross-chat cache</b><span>${state.impl.contextCache?'thread title/summary/ID metadata search is implemented; full chat bodies are intentionally not cached and cached text is untrusted data':'metadata cache implementation not currently proven'}</span><b>Topic rule</b><span>same objective → continue · real subproblem → child split · materially new objective → sibling split</span><b>Authority boundary</b><span>tree/state/live-sync/App/consolidation/cache remain evidence, navigation, or presentation layers. MCP has one bounded Farmer objective-dispatch capability, but no caller-controlled repository/event/URL/token/workflow/arbitrary command, no trust broadening, no destructive or physical authority, no automatic LKG mutation, and no automatic human-task creation. A verified Farmer completion records LKG; it does not grant new LKG authority.</span></div><b>Frontiers Advancing:</b> durable multi-lane conversation/process state, retained concepts and merge provenance, automatic continue/child/sibling topic routing, evidence-backed shared-state contract, and Future Branch awareness remain canonical. ${liveSync?'The public HTTPS MCP publisher/consumer path is proven end-to-end against the append-only shared-state bus.':''} ${consolidationReady?'Exact-parent/lane terminal branches can be consolidated without deleting source provenance.':''} ${farmerE2E?`Farmer v3.2 bounded objective dispatch is now proven end-to-end through terminal verified_completion for ${esc(farmerProof.objectiveId)}, with exact LKG ${esc(farmerProof.lkgCommit)} and zero unresolved work.`:actuatorReady?`Farmer v3.2 has a CI-proven bounded orchestration actuator through the fixed ${FARMER_ACTUATOR.fixedRepository} / ${FARMER_ACTUATOR.fixedEventType} route; arbitrary execution and destructive/LKG authority remain fail-closed.`:''} ${farmerHealthy?'The persistent Farmer Windows control plane is separately proven healthy across restart/resume with a sealed receipt.':''}<br><b>Needs Work → Aurum/System:</b> ${esc(farmerNeeds)}${liveSync?'Extend the proven public MCP publisher/consumer path to a real ChatGPT product runtime and concurrent-client use while preserving one append-only state authority.':'Obtain end-to-end public MCP publish/read proof before claiming cross-chat live-state flow.'} Calibrate topic splitting, context retrieval, bounded objective dispatch, and terminal-branch consolidation in normal use for fewer correction turns and duplicate lanes without provenance loss or speculative churn.<br><b>Your Actions:</b> none. Chat focus, topic classification, MCP/App availability, bounded Farmer dispatch capability or completion evidence, consolidation candidates, cached metadata, workflow state, predicted intent, or shared-state events cannot create a human task. Exact directions belong elsewhere only after fresh evidence proves a genuinely human-only physical, destructive, credential, identity-authentication, or subjective-preference boundary.`;
 
   window.__aurumChatProcessTreeState={
     schema:'aurum-command-center-chat-process-tree-v1.0',
-    componentRevision:'1.3',
+    componentRevision:'1.4',
     modelSchema:tree.schema,
     treeRevision:Number.isFinite(Number(tree.revision))?Number(tree.revision):null,
     activeNodes:active,
@@ -169,7 +189,14 @@ function render(){
     farmerActuatorGrantsPhysicalAuthority:false,
     farmerActuatorGrantsTrustBroadeningAuthority:false,
     farmerActuatorGrantsLkgMutation:false,
-    farmerActuatorEndToEndDispatchProven:false,
+    farmerActuatorEndToEndDispatchProven:farmerE2E,
+    farmerVerifiedObjectiveId:farmerE2E?farmerProof.objectiveId:null,
+    farmerVerifiedTargetRepository:farmerE2E?farmerProof.targetRepository:null,
+    farmerVerifiedTargetCommit:farmerE2E?farmerProof.targetCommit:null,
+    farmerVerifiedLastKnownGoodCommit:farmerE2E?farmerProof.lkgCommit:null,
+    farmerDispatchReceiptPresent:farmerE2E,
+    farmerZeroUnresolvedWork:farmerE2E&&farmerProof.zeroUnresolved,
+    farmerCompletionRequiresExactLkg:true,
     farmerRuntimeProofPresent:state.farmerRuntimePresent,
     farmerRuntimeHealthy:farmerHealthy,
     farmerRuntimeRestartResumeProven:farmerHealthy,
@@ -178,6 +205,7 @@ function render(){
     needsWorkOwner:'aurum-system',
     consolidationCreatesHumanAction:false,
     farmerActuatorCreatesHumanAction:false,
+    farmerVerifiedCompletionCreatesHumanAction:false,
     humanActionInference:false
   };
   window.dispatchEvent(new CustomEvent('aurum-chat-process-tree-state',{detail:window.__aurumChatProcessTreeState}));
