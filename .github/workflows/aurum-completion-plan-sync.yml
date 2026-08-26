@@ -7,6 +7,8 @@ on:
       - 'Aurum Tiny Seed Handoff'
       - 'Aurum Read-Only USB Discovery'
       - 'Aurum Tiny Seed One-Shot Flash Request'
+      - 'Aurum Pi3 Adaptive Driver Generation 2'
+      - 'Aurum Pi3 Kernel Canary Preflight'
     types: [completed]
   push:
     branches: [main]
@@ -18,14 +20,16 @@ on:
       - 'Projects/AurumBridge/results/hopper-recovery-path-latest.json'
       - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-fallback-canonical-provenance.json'
       - 'Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-x86-fallback-carrier-matrix-experiment.json'
-      # These two files also contain non-canonical planning/calibration fields that
-      # are legitimately edited by other lanes. Re-run the projector after those
-      # edits so their embedded canonical release/preflight truth cannot drift.
-      # A projector-authored follow-up commit causes at most one no-op rerun.
+      - 'Projects/AdaptiveDrivers/evidence/pi3-generation2-physical.json'
+      - 'Projects/AdaptiveDrivers/evidence/pi3-kernel-canary-preflight.json'
+      # These files also contain non-canonical planning/calibration fields that
+      # are legitimately edited by other lanes. Re-run the projectors after those
+      # edits so embedded canonical release/physical truth cannot drift.
       - 'Projects/Aurum/completion-plan.json'
       - 'Projects/Aurum/future-branches.json'
       - 'Prompts/FutureBranchSeed.txt'
       - 'Admin/sync_aurum_release_status.py'
+      - 'Admin/sync_aurum_pi3_status.py'
       - 'Admin/sync_aurum_future_branch_evidence.py'
       - 'Admin/sync_aurum_fallback_evidence.py'
       - 'Admin/materialize_aurum_next_interaction.py'
@@ -52,6 +56,9 @@ jobs:
 
       - name: Project canonical handoff identity into completion plan
         run: python Admin/sync_aurum_release_status.py
+
+      - name: Project verified experimental Pi3 evidence into completion plan
+        run: python Admin/sync_aurum_pi3_status.py
 
       - name: Project canonical release and preflight evidence into Future Branch
         run: python Admin/sync_aurum_future_branch_evidence.py
