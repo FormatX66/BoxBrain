@@ -1,16 +1,30 @@
 ﻿{
     "schema":  "aurum-read-only-usb-discovery-v1",
-    "observed_at_utc":  "2026-08-25T23:09:11.0222000Z",
+    "observed_at_utc":  "2026-08-26T01:58:06.6832667Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
-    "request_id":  "tinyseed-auto-release-6280fbf18c61-32909407875",
-    "release_source_commit":  "6280fbf18c6109f9cb596d8a60f34c8c9ee91093",
+    "request_id":  "tinyseed-auto-release-be94bb832b8e-32920885984",
+    "release_source_commit":  "be94bb832b8e6fb2a05a6adcfd797f8a7922c655",
     "release_request_match":  true,
     "write_authority":  false,
-    "device_count":  0,
+    "device_count":  1,
     "eligible_count":  0,
     "selection_state":  "NO_ELIGIBLE_USB",
     "devices":  [
-
+                    {
+                        "disk_number":  1,
+                        "model":  "Generic- USB3.0 CRW   -SD",
+                        "size_bytes":  15931539456,
+                        "serial_sha256":  null,
+                        "is_boot":  false,
+                        "is_system":  false,
+                        "is_read_only":  true,
+                        "protected":  false,
+                        "eligible_for_preflight_only":  false,
+                        "refusal_reasons":  [
+                                                "serial-missing",
+                                                "read-only"
+                                            ]
+                    }
                 ]
 }
 
