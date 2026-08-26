@@ -1,5 +1,5 @@
 {
-  "event_count": 18,
+  "event_count": 19,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -82,6 +82,48 @@
       "subject_kind": "process",
       "summary": "Metadata-only cross-chat cache refreshed after the Pi3 rollback milestone; 77 visible ChatGPT/Codex conversations are indexed.",
       "timestamp": "2026-08-26T02:37:23.612164Z"
+    },
+    "future-branch-qpu-32924126448": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [],
+      "event_id": "evt-95d0e60d29cb462b9b7281e8c32be701",
+      "evidence_refs": [
+        "github:repo:FormatX66/aurum-future-branch-quantum",
+        "github:actions:run:32924126448",
+        "github:actions:job:98043428459",
+        "github:actions:job:98043428572",
+        "github:actions:job:98043568207",
+        "github:artifact:9590881116",
+        "github:artifact-digest:sha256:a727a98df50528dd77c6c3487043248b3c61b6e224dbb2aec2fab2c488664cb1",
+        "github:artifact:9590869951",
+        "github:artifact-digest:sha256:4b49a916f2cc80feb4768d1eb5e60b7f183fb6d40528d4154704fc105c21e576",
+        "github:artifact:9590863259",
+        "github:artifact-digest:sha256:6869b889cfc4ccca0fd390d6c04023ad2dfb477e2ebbbc08ae672b203966db8b"
+      ],
+      "node_id": "adaptive-kernel",
+      "payload": {
+        "authority_granted": false,
+        "google_simulator_job": "success",
+        "hardware_qpu_submission": false,
+        "microsoft_simulator_job": "success",
+        "physical_effect_performed": false,
+        "qpu_candidate_schema": "aurum-future-branch-qpu-candidate-v1",
+        "qpu_eligible": true,
+        "qpu_router_job": "success",
+        "selected_machine_path": "fresh-authority-triggers-live-reproof-and-guarded-preflight",
+        "selected_path_dependencies_satisfied": false,
+        "selected_path_disposition": "wait-boundary",
+        "submission": null,
+        "workflow_conclusion": "success"
+      },
+      "source": "github-future-branch-qpu-simulator-artifact",
+      "status": "succeeded",
+      "subject_id": "future-branch-qpu-32924126448",
+      "subject_kind": "experiment",
+      "summary": "Future Branch run 32924126448 succeeded with Google and Microsoft simulator jobs plus a full-field QPU candidate-router artifact. The artifact records submission=null: no hardware QPU job ran, no physical effect occurred, and no mutation or execution authority was granted.",
+      "timestamp": "2026-08-26T10:03:47.818385Z"
     },
     "pi3-adaptive-driver-generation2": {
       "actor": "aurum-completion-loop",
