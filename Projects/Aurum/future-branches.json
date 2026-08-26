@@ -25,7 +25,7 @@
     "execute_shared_safe_prefix_before_clarification": true,
     "inferred_intent_never_grants_authority": true
   },
-  "current_program": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. The canonical release remains READY_TO_FLASH as an artifact state, but another media write is not required unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is WAIT_USB_DISCOVERY; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=fresh-read-only-usb-discovery. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "resolved_machine_outcomes": [
     {
       "state": "tinyseed-artifacts-pass-and-publish",
@@ -114,8 +114,8 @@
         "how's it going?",
         "what's the status now?"
       ],
-      "prepared_response": "Current-release Tiny Seed media is READY_TO_BOOT with matching full raw-readback proof; effective next gate=physical-hopper-boot-proof. The canonical release remains READY_TO_FLASH as an artifact state, but another media write is not required unless later evidence invalidates the media/provenance or a new bounded flash cycle is explicitly started. Physical Hopper boot proof and Guardian forced-rollback proof remain unverified. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
-      "action_if_safe": "Re-read the matching current-release flash receipt and current completion graph, then continue only toward physical Hopper boot-proof collection; do not request or infer another media write."
+      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is WAIT_USB_DISCOVERY; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=fresh-read-only-usb-discovery. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+      "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes."
     },
     {
       "rank": 5,
@@ -126,8 +126,8 @@
         "use Future Branch here",
         "fix it"
       ],
-      "prepared_response": "Treat a generic continuation prompt against the proven post-flash state: current-release media is READY_TO_BOOT and the effective next gate is physical-hopper-boot-proof. Do all shared safe reversible work, but never infer physical boot success.",
-      "action_if_safe": "Advance boot-proof preparation and evidence handling from the matching readback-verified receipt without granting a new write."
+      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=WAIT_USB_DISCOVERY, next_gate=fresh-read-only-usb-discovery, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
+      "action_if_safe": "Advance the safe prefix through fresh-read-only-usb-discovery, refresh canonical evidence, and stop before any boundary that requires explicit new authority."
     },
     {
       "rank": 6,
@@ -137,8 +137,8 @@
         "authorize the flash",
         "use that USB"
       ],
-      "prepared_response": "Do not request another flash by default. The current release already has a matching readback-verified READY_TO_BOOT receipt; a new bounded flash cycle requires fresh evidence that the existing media is invalid or an explicit decision to replace it.",
-      "action_if_safe": "Keep new write authority false and continue to physical boot proof unless later evidence invalidates the media/provenance."
+      "prepared_response": "Do not treat flash authorization as executable yet. Canonical Tiny Seed release 72ad90f09f5a63fca388a65e2b997221d438b7f9 is READY_TO_FLASH, but physical preflight is WAIT_USB_DISCOVERY; the current next gate is fresh-read-only-usb-discovery. Write authority remains false.",
+      "action_if_safe": "Keep write authority false and resolve fresh-read-only-usb-discovery using only read-only or already-authorized recovery paths. Reproject canonical preflight, and accept a fresh one-shot destructive authorization only after the state again proves READY_FOR_GUARDED_FLASH_PREFLIGHT for the same live release/device."
     },
     {
       "rank": 7,
@@ -177,16 +177,13 @@
   "likely_machine_outcomes": [
     {
       "rank": 1,
-      "state": "current-release-flash-readback-proven-awaiting-physical-boot",
+      "state": "resolve-current-preflight-blocker",
       "prepared": [
-        "current release provenance",
-        "matching flash receipt",
-        "full raw readback proof",
-        "Tiny Seed ready marker collection",
-        "boot-proof receipt",
-        "LKG-preserving repair/reseed continuation"
+        "canonical release identity",
+        "current physical preflight evidence",
+        "zero-authority continuation"
       ],
-      "next": "boot the proven current-release media on the physical x86 target and collect formal Tiny Seed ready/boot-proof evidence without inferring success from the flash receipt"
+      "next": "resolve fresh-read-only-usb-discovery and reproject the physical boundary"
     },
     {
       "rank": 2,
@@ -310,32 +307,32 @@
   ],
   "canonical_evidence": {
     "release": {
-      "source_commit": "8812634ae2296db673b9de135c43a1119e885647",
+      "source_commit": "72ad90f09f5a63fca388a65e2b997221d438b7f9",
       "state": "READY_TO_FLASH",
       "x86_artifact": "Aurum-TinySeed-amd64.iso",
-      "x86_sha256": "b5c1bfa6f6ca2945d0e95c42f0302e5e6def18e7b415e8fb701fe6f90a99dd32"
+      "x86_sha256": "a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf"
     },
     "physical_preflight": {
       "present": true,
       "matches_current_release": true,
-      "state": "READY_TO_BOOT",
-      "next_gate": "physical-hopper-boot-proof",
+      "state": "WAIT_USB_DISCOVERY",
+      "next_gate": "fresh-read-only-usb-discovery",
       "write_authority": false,
       "destructive_action_allowed": false,
       "destructive_action_performed": false,
-      "eligible_count": null,
+      "eligible_count": 0,
       "usb_candidate": null
     },
     "preexecution_recovery": {
       "terminal_receipt_present": false,
       "manual_handoff_released": false,
-      "remote_repair": "unavailable",
-      "terminal_reason": "boxbrain-unreachable",
-      "observed_at": "2026-08-26T22:58:10.1428800Z"
+      "remote_repair": null,
+      "terminal_reason": null,
+      "observed_at": null
     },
     "flash_receipt": {
       "present": true,
-      "matches_current_release": true,
+      "matches_current_release": false,
       "source_commit": "8812634ae2296db673b9de135c43a1119e885647",
       "state": "READY_TO_BOOT",
       "image_sha256": "b5c1bfa6f6ca2945d0e95c42f0302e5e6def18e7b415e8fb701fe6f90a99dd32",
@@ -366,17 +363,17 @@
     }
   },
   "live_controls": {
-    "release_source_commit": "8812634ae2296db673b9de135c43a1119e885647",
+    "release_source_commit": "72ad90f09f5a63fca388a65e2b997221d438b7f9",
     "release_state": "READY_TO_FLASH",
-    "preflight_state": "READY_TO_BOOT",
-    "next_gate": "physical-hopper-boot-proof",
+    "preflight_state": "WAIT_USB_DISCOVERY",
+    "next_gate": "fresh-read-only-usb-discovery",
     "preflight_matches_current_release": true,
-    "eligible_usb_count": null,
+    "eligible_usb_count": 0,
     "terminal_recovery_receipt": false,
     "manual_handoff_released": false,
     "flash_receipt_present": true,
-    "flash_receipt_matches_current_release": true,
-    "current_release_flash_ready_to_boot": true,
+    "flash_receipt_matches_current_release": false,
+    "current_release_flash_ready_to_boot": false,
     "flash_authorization_eligible": false,
     "write_authority": false,
     "destructive_action_allowed": false,
