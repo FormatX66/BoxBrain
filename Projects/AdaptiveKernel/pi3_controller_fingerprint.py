@@ -76,6 +76,10 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
     duplex = str(ethernet.get("duplex") or "").strip().lower()
     usb_vendor = str(ethernet.get("usb_vendor_id") or "").strip().lower()
     usb_product = str(ethernet.get("usb_product_id") or "").strip().lower()
+    parent_hub_vendor = str(ethernet.get("parent_hub_vendor_id") or "").strip().lower()
+    parent_hub_product = str(ethernet.get("parent_hub_product_id") or "").strip().lower()
+    parent_hub_identity_observed = _hex4(parent_hub_vendor) and _hex4(parent_hub_product)
+    lan9514_parent_match = parent_hub_vendor == "0424" and parent_hub_product == "9514"
 
     packages = provenance.get("kernel_packages")
     if not isinstance(packages, list):
@@ -113,6 +117,8 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         "interface_observed": bool(interface),
         "carrier_observed": carrier in {"0", "1"},
         "usb_function_identity_observed": _hex4(usb_vendor) and _hex4(usb_product),
+        "parent_hub_identity_observed": parent_hub_identity_observed,
+        "lan9514_parent_hub_match": lan9514_parent_match,
         "link_speed_observed": speed_mbps is not None and speed_mbps > 0,
         "link_speed_within_fast_ethernet": speed_mbps is not None and 0 < speed_mbps <= 100,
         "duplex_observed": duplex in {"full", "half"},
@@ -144,10 +150,14 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
         quarantine_reasons.append("driver-provenance-mode-conflict")
     if config_module and driver_module_mode == "builtin":
         quarantine_reasons.append("driver-provenance-mode-conflict")
+    if parent_hub_identity_observed and not lan9514_parent_match:
+        quarantine_reasons.append("lan9514-parent-hub-reference-mismatch")
 
     gaps: list[str] = []
     for check, gap in (
         ("usb_function_identity_observed", "usb-controller-function-identity"),
+        ("parent_hub_identity_observed", "usb-parent-hub-identity"),
+        ("lan9514_parent_hub_match", "lan9514-parent-hub-match"),
         ("link_speed_observed", "negotiated-link-speed"),
         ("duplex_observed", "negotiated-duplex"),
         ("kernel_package_candidates_observed", "kernel-package-candidates"),
@@ -195,9 +205,9 @@ def validate_fingerprint(raw: dict[str, Any], identity: dict[str, Any]) -> dict[
             else "correlate-observed-controller-link-and-package-provenance-with-pinned-references"
         ),
         "strongest_claim": (
-            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records USB-function identity, negotiated link state, exact running-image package metadata, kernel config mode, and driver/header provenance where available; it grants no mutation or promotion authority."
+            "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial, LAN9514 parent-hub assembly, and protected smsc95xx path. The receipt records USB-function identity, negotiated link state, exact running-image package metadata, kernel config mode, and driver/header provenance where available; it grants no mutation or promotion authority."
             if not quarantine_reasons
-            else "The read-only physical fingerprint failed a pinned identity/driver safety check and is quarantined; no mutation or promotion authority exists."
+            else "The read-only physical fingerprint failed a pinned identity/controller/driver safety check and is quarantined; no mutation or promotion authority exists."
         ),
     }
     canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
