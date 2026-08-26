@@ -13,14 +13,26 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from Projects.AdaptiveKernel.pi3_reference_correlation import (
-    EXPECTED_DRIVER,
-    EXPECTED_KERNEL,
-    EXPECTED_MODEL,
-    EXPECTED_SERIAL,
-    RECEIPT_SCHEMA as BASE_SCHEMA,
-    verify_reference_correlation_receipt,
-)
+try:
+    from Projects.AdaptiveKernel.pi3_reference_correlation import (
+        EXPECTED_DRIVER,
+        EXPECTED_KERNEL,
+        EXPECTED_MODEL,
+        EXPECTED_SERIAL,
+        RECEIPT_SCHEMA as BASE_SCHEMA,
+        verify_reference_correlation_receipt,
+    )
+except ModuleNotFoundError:
+    # Support direct execution from Projects/AdaptiveKernel on self-hosted runners
+    # without changing import behavior when the module is loaded as part of the repo.
+    from pi3_reference_correlation import (  # type: ignore[no-redef]
+        EXPECTED_DRIVER,
+        EXPECTED_KERNEL,
+        EXPECTED_MODEL,
+        EXPECTED_SERIAL,
+        RECEIPT_SCHEMA as BASE_SCHEMA,
+        verify_reference_correlation_receipt,
+    )
 
 SCHEMA = "aurum-pi3-reference-correlation-refinement-v1"
 FINGERPRINT_SCHEMA = "aurum.pi3.controller-link-fingerprint.v1"
