@@ -189,6 +189,30 @@ class RepositoryValidatorTests(unittest.TestCase):
         retry_projection = workflow.rindex("project_latest_state")
         self.assertLess(retry_checkout, retry_projection)
 
+    def test_tinyseed_flash_receipt_retries_without_repeating_the_flash(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow = (
+            root / ".github" / "workflows" / "aurum-tiny-seed-flash-request.yml"
+        ).read_text(encoding="utf-8")
+
+        required = (
+            "AURUM_TINYSEED_FLASH_RECEIPT persisted=true mode=direct",
+            "for ($attempt = 1; $attempt -le 3; $attempt++)",
+            "git worktree add --force --detach $publishRoot origin/main",
+            "converged_after_race=true",
+            "superseded_after_race=true",
+            "persisted=true mode=clean-retry",
+            "AURUM_TINYSEED_FLASH_RECEIPT_FAILED",
+        )
+        for token in required:
+            self.assertIn(token, workflow)
+
+        self.assertNotIn("git pull --rebase origin main", workflow)
+        flash = workflow.index("& $shellExe -NoProfile -File $script")
+        retry_loop = workflow.index("for ($attempt = 1; $attempt -le 3; $attempt++)")
+        self.assertLess(flash, retry_loop)
+        self.assertNotIn("& $shellExe -NoProfile -File $script", workflow[retry_loop:])
+
 
 if __name__ == "__main__":
     unittest.main()
