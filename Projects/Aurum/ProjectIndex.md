@@ -36,6 +36,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [State authority](STATE_AUTHORITY.md)
 - [Autonomous driver synthesis](AUTONOMOUS_DRIVER_SYNTHESIS.md)
 - [Adaptive Driver Test 001: Raspberry Pi 3](../AdaptiveDrivers/README.md)
+- [Pi 3 adaptive-kernel overnight laboratory](../AdaptiveKernel/OVERNIGHT_PI3_LAB.md)
 - [Helper tasks](HELPER_TASKS.md)
 - [Usage bottleneck experiment](usage-bottleneck-answer.md)
 - [Aurum dashboard and voice status mirrors](../../Web/Aurum-Arkmatx/README.md)
