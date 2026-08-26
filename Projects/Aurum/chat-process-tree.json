@@ -1,19 +1,12 @@
 {
-  "schema": "aurum-chat-process-tree-v1",
-  "thread_id": "parallel-hopper-kernel-chat-tree",
-  "root_id": "everything-at-once",
-  "revision": 4,
-  "focus_path": [
-    "everything-at-once",
-    "chat-tree"
-  ],
   "active_frontier": [
     "everything-at-once",
     "adaptive-kernel",
     "chat-tree",
     "hopper-reachability",
     "pi3-adaptive-driver-tests",
-    "gpt-chat-tree-bridge"
+    "gpt-chat-tree-bridge",
+    "cross-chat-context-cache"
   ],
   "concept_index": {
     "adaptive-driver-self-build": [
@@ -24,6 +17,9 @@
     ],
     "computers-are-not-one-lane": [
       "everything-at-once"
+    ],
+    "cross-chat-retrieval": [
+      "cross-chat-context-cache"
     ],
     "durable-concept-memory": [
       "chat-tree"
@@ -60,70 +56,85 @@
       "chat-tree",
       "gpt-chat-tree-bridge"
     ],
+    "shared-state-separation": [
+      "cross-chat-context-cache"
+    ],
+    "source-linked-context": [
+      "cross-chat-context-cache"
+    ],
     "topic-split-sibling": [
       "chat-tree",
       "pi3-adaptive-driver-tests"
+    ],
+    "zero-model-cache": [
+      "cross-chat-context-cache"
     ]
+  },
+  "focus_path": [
+    "everything-at-once",
+    "chat-tree",
+    "cross-chat-context-cache"
+  ],
+  "invariants": {
+    "completed_or_archived_nodes_are_deleted": false,
+    "human_focus_collapses_machine_lanes": false,
+    "merge_preserves_source_provenance": true,
+    "tree_grants_execution_authority": false,
+    "tree_resolves_physical_boundaries": false
   },
   "nodes": [
     {
-      "node_id": "everything-at-once",
-      "title": "Everything at once",
-      "kind": "conversation",
-      "state": "active",
-      "lane_id": "conversation",
-      "sequence": 0,
-      "parent_id": null,
-      "summary": "Keep concurrent computer work visible while the human conversation follows one readable path.",
+      "authority_ref": null,
+      "boundary": null,
       "concepts": [
         "computers-are-not-one-lane",
         "human-chat-can-focus"
       ],
       "dependency_ids": [],
-      "evidence_refs": [],
-      "merged_from": [],
-      "boundary": null,
       "effect_allowed": false,
-      "authority_ref": null,
+      "evidence_refs": [],
+      "kind": "conversation",
+      "lane_id": "conversation",
+      "merged_from": [],
+      "node_id": "everything-at-once",
+      "parent_id": null,
+      "sequence": 0,
+      "state": "active",
       "state_history": [
         "active"
-      ]
+      ],
+      "summary": "Keep concurrent computer work visible while the human conversation follows one readable path.",
+      "title": "Everything at once"
     },
     {
-      "node_id": "adaptive-kernel",
-      "title": "Adaptive kernel",
-      "kind": "process",
-      "state": "active",
-      "lane_id": "adaptive-kernel",
-      "sequence": 1,
-      "parent_id": "everything-at-once",
-      "summary": "Continue repository and CI work while physical promotion remains gated.",
+      "authority_ref": null,
+      "boundary": "physical-promotion",
       "concepts": [
         "parallel-safe-work",
         "physical-evidence",
         "canary-before-promotion"
       ],
       "dependency_ids": [],
+      "effect_allowed": false,
       "evidence_refs": [
         "Projects/AdaptiveKernel/adaptive_kernel.py"
       ],
+      "kind": "process",
+      "lane_id": "adaptive-kernel",
       "merged_from": [],
-      "boundary": "physical-promotion",
-      "effect_allowed": false,
-      "authority_ref": null,
+      "node_id": "adaptive-kernel",
+      "parent_id": "everything-at-once",
+      "sequence": 1,
+      "state": "active",
       "state_history": [
         "active"
-      ]
+      ],
+      "summary": "Continue repository and CI work while physical promotion remains gated.",
+      "title": "Adaptive kernel"
     },
     {
-      "node_id": "chat-tree",
-      "title": "Durable chat process tree",
-      "kind": "process",
-      "state": "active",
-      "lane_id": "chat-tree",
-      "sequence": 1,
-      "parent_id": "everything-at-once",
-      "summary": "Preserve concepts, topic splits, live shared state, evidence, and merge provenance across changes in human focus.",
+      "authority_ref": null,
+      "boundary": null,
       "concepts": [
         "human-chat-can-focus",
         "durable-concept-memory",
@@ -132,6 +143,7 @@
         "shared-state"
       ],
       "dependency_ids": [],
+      "effect_allowed": false,
       "evidence_refs": [
         "Architecture/ChatProcessTree.md",
         "Projects/Aurum/Experiments/chat_process_tree.py",
@@ -139,50 +151,49 @@
         "Projects/Aurum/Experiments/shared_state_bus.py",
         "Projects/Aurum/Experiments/chat_tree_bridge.py"
       ],
+      "kind": "process",
+      "lane_id": "chat-tree",
       "merged_from": [],
-      "boundary": null,
-      "effect_allowed": false,
-      "authority_ref": null,
+      "node_id": "chat-tree",
+      "parent_id": "everything-at-once",
+      "sequence": 1,
+      "state": "active",
       "state_history": [
         "active"
-      ]
+      ],
+      "summary": "Preserve concepts, topic splits, live shared state, evidence, and merge provenance across changes in human focus.",
+      "title": "Durable chat process tree"
     },
     {
-      "node_id": "hopper-reachability",
-      "title": "Hopper reachability",
-      "kind": "process",
-      "state": "waiting",
-      "lane_id": "hopper-recovery",
-      "sequence": 1,
-      "parent_id": "everything-at-once",
-      "summary": "Runner observability is restored; physical Hopper reachability remains unproven.",
+      "authority_ref": null,
+      "boundary": "physical-or-network-reachability",
       "concepts": [
         "parallel-safe-work",
         "physical-evidence",
         "read-only-observability"
       ],
       "dependency_ids": [],
+      "effect_allowed": false,
       "evidence_refs": [
         "Web/Aurum-Arkmatx/hopper-status.json"
       ],
+      "kind": "process",
+      "lane_id": "hopper-recovery",
       "merged_from": [],
-      "boundary": "physical-or-network-reachability",
-      "effect_allowed": false,
-      "authority_ref": null,
+      "node_id": "hopper-reachability",
+      "parent_id": "everything-at-once",
+      "sequence": 1,
+      "state": "waiting",
       "state_history": [
         "active",
         "waiting"
-      ]
+      ],
+      "summary": "Runner observability is restored; physical Hopper reachability remains unproven.",
+      "title": "Hopper reachability"
     },
     {
-      "node_id": "pi3-adaptive-driver-tests",
-      "title": "Pi3 Adaptive Driver Tests",
-      "kind": "process",
-      "state": "waiting",
-      "lane_id": "pi3-adaptive-driver-tests",
-      "sequence": 2,
-      "parent_id": "everything-at-once",
-      "summary": "Sibling topic for physical Pi3 bring-up, adaptive-kernel/self-building-driver testing, and digital-twin/QPU correlation. Runtime claims must arrive through evidence receipts.",
+      "authority_ref": null,
+      "boundary": "physical-pi3-boot-and-reachability",
       "concepts": [
         "physical-pi3",
         "physical-evidence",
@@ -192,27 +203,27 @@
       "dependency_ids": [
         "adaptive-kernel"
       ],
+      "effect_allowed": false,
       "evidence_refs": [
         "git:branch:codex/adaptive-driver-pi3-loop-20260825"
       ],
+      "kind": "process",
+      "lane_id": "pi3-adaptive-driver-tests",
       "merged_from": [],
-      "boundary": "physical-pi3-boot-and-reachability",
-      "effect_allowed": false,
-      "authority_ref": null,
+      "node_id": "pi3-adaptive-driver-tests",
+      "parent_id": "everything-at-once",
+      "sequence": 2,
+      "state": "waiting",
       "state_history": [
         "active",
         "waiting"
-      ]
+      ],
+      "summary": "Sibling topic for physical Pi3 bring-up, adaptive-kernel/self-building-driver testing, and digital-twin/QPU correlation. Runtime claims must arrive through evidence receipts.",
+      "title": "Pi3 Adaptive Driver Tests"
     },
     {
-      "node_id": "gpt-chat-tree-bridge",
-      "title": "GPT Chat Tree Bridge",
-      "kind": "process",
-      "state": "active",
-      "lane_id": "gpt-chat-tree-bridge",
-      "sequence": 3,
-      "parent_id": "chat-tree",
-      "summary": "Expose Chat Tree and evidence-backed shared state through the transport-neutral bridge plus a tool-only MCP v2 adapter. Repository-side adapter is implemented; external HTTPS deployment and ChatGPT connector registration remain unverified boundaries.",
+      "authority_ref": null,
+      "boundary": "external-https-deployment-and-chatgpt-connector-registration",
       "concepts": [
         "gpt-bridge",
         "shared-state",
@@ -221,26 +232,58 @@
       "dependency_ids": [
         "chat-tree"
       ],
+      "effect_allowed": false,
       "evidence_refs": [
         "Projects/Aurum/Experiments/chat_tree_bridge.py",
         "Projects/Aurum/ChatTreeMCP/main.py",
         "Projects/Aurum/ChatTreeMCP/test_server.py",
         ".github/workflows/aurum-chat-tree-mcp.yml"
       ],
+      "kind": "process",
+      "lane_id": "gpt-chat-tree-bridge",
       "merged_from": [],
-      "boundary": "external-https-deployment-and-chatgpt-connector-registration",
-      "effect_allowed": false,
-      "authority_ref": null,
+      "node_id": "gpt-chat-tree-bridge",
+      "parent_id": "chat-tree",
+      "sequence": 3,
+      "state": "active",
       "state_history": [
         "active"
-      ]
+      ],
+      "summary": "Expose Chat Tree and evidence-backed shared state through the transport-neutral bridge plus a tool-only MCP v2 adapter. Repository-side adapter is implemented; external HTTPS deployment and ChatGPT connector registration remain unverified boundaries.",
+      "title": "GPT Chat Tree Bridge"
+    },
+    {
+      "authority_ref": null,
+      "boundary": null,
+      "concepts": [
+        "cross-chat-retrieval",
+        "source-linked-context",
+        "zero-model-cache",
+        "shared-state-separation"
+      ],
+      "dependency_ids": [],
+      "effect_allowed": false,
+      "evidence_refs": [
+        "docs/CROSS_CHAT_CACHE.md",
+        "git:commit:be94bb83",
+        "file:C:\\Arkmatx_Knowledge_Hub\\cross-chat-cache.sqlite3"
+      ],
+      "kind": "process",
+      "lane_id": "cross-chat-context-cache",
+      "merged_from": [],
+      "node_id": "cross-chat-context-cache",
+      "parent_id": "chat-tree",
+      "sequence": 4,
+      "state": "active",
+      "state_history": [
+        "active"
+      ],
+      "summary": "Search prior conversations quickly while leaving live operational truth in the evidence-backed shared-state bus.",
+      "title": "Cross-chat context cache"
     }
   ],
-  "invariants": {
-    "human_focus_collapses_machine_lanes": false,
-    "completed_or_archived_nodes_are_deleted": false,
-    "merge_preserves_source_provenance": true,
-    "tree_grants_execution_authority": false,
-    "tree_resolves_physical_boundaries": false
-  }
+  "revision": 5,
+  "root_id": "everything-at-once",
+  "schema": "aurum-chat-process-tree-v1",
+  "thread_id": "parallel-hopper-kernel-chat-tree"
 }

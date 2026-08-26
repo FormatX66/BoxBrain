@@ -1,0 +1,106 @@
+{
+  "event_count": 3,
+  "invariants": {
+    "append_only_events": true,
+    "chat_memory_is_source_of_truth": false,
+    "state_bus_grants_execution_authority": false,
+    "verified_runtime_state_requires_evidence": true
+  },
+  "schema": "aurum-shared-state-v1",
+  "subjects": {
+    "cross-chat-context-cache": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [],
+      "event_id": "evt-b5c7ef128eef4d12983fcc90f7b11dba",
+      "evidence_refs": [
+        "git:commit:be94bb83",
+        "docs/CROSS_CHAT_CACHE.md",
+        "file:C:\\Arkmatx_Knowledge_Hub\\cross-chat-cache.sqlite3",
+        "file:C:\\Users\\bruce\\Documents\\Codex\\AGENTS.md"
+      ],
+      "node_id": "cross-chat-context-cache",
+      "payload": {
+        "chatgpt": 45,
+        "codex": 30,
+        "full_chat_bodies_cached": false,
+        "indexed_conversations": 75,
+        "live_state_authority": false,
+        "model_calls_required": false
+      },
+      "source": "local-verified-cache-build",
+      "status": "succeeded",
+      "subject_id": "cross-chat-context-cache",
+      "subject_kind": "process",
+      "summary": "Metadata-only cross-chat cache is live with 75 indexed ChatGPT/Codex conversations and deterministic source-linked retrieval.",
+      "timestamp": "2026-08-26T01:48:23.146219Z"
+    },
+    "pi3-current-card-rollback": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "AF-PI3-ADAPTIVE-DRIVER-001"
+      ],
+      "event_id": "evt-c575347a4ba84acf9813ba26260d9cea",
+      "evidence_refs": [
+        "file:C:\\Arkmatx_Knowledge_Hub\\Backups\\Aurum-Pi3\\ADAPTIVE-DRIVER-001-LKG-2026-08-25\\rollback-manifest.json",
+        "file:C:\\Arkmatx_Knowledge_Hub\\Backups\\Aurum-Pi3\\ADAPTIVE-DRIVER-001-LKG-2026-08-25\\RESTORE.md",
+        "file:C:\\Users\\bruce\\Documents\\Codex\\2026-08-25\\pi3-adaptive-driver-live-resume\\outputs\\pi3-current-card-pre-backup-receipt.json",
+        "file:C:\\Users\\bruce\\Documents\\Codex\\2026-08-25\\pi3-adaptive-driver-live-resume\\outputs\\pi3-current-card-post-backup-boot-canary.json"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "archive_integrity_test": "passed",
+        "archive_sha256": "c45bb76d88867b1c3552791f9b992068bccd2c9f2f9b83c2fcab3d0cc79ee984",
+        "archive_size_bytes": 506166404,
+        "model": "Raspberry Pi 3 Model B Rev 1.2",
+        "post_backup_boot_canary": "passed",
+        "raw_image_sha256": "61a4c6bfc03e7ea3444ce67de20c506dbc57a7fc7e34da250b3bfab8d2845c62",
+        "raw_image_size_bytes": 15931539456,
+        "serial": "00000000a6a7df7f",
+        "source_stream_digest_available": false
+      },
+      "source": "physical-microsd-capture",
+      "status": "succeeded",
+      "subject_id": "pi3-current-card-rollback",
+      "subject_kind": "artifact",
+      "summary": "Exact current Pi3 microSD rollback image and tested archive are complete; the original card passed a fresh physical reboot canary.",
+      "timestamp": "2026-08-26T02:26:36.414933Z"
+    },
+    "pi3-experimental-00000000a6a7df7f": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-current-card-rollback"
+      ],
+      "event_id": "evt-2f2da3edba274bff965f628b1e8d505e",
+      "evidence_refs": [
+        "file:C:\\Users\\bruce\\Documents\\Codex\\2026-08-25\\pi3-adaptive-driver-live-resume\\outputs\\pi3-current-card-post-backup-boot-canary.json",
+        "github:actions:run:32914696671",
+        "github:artifact:9587725726"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "address": "169.254.129.122",
+        "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+        "camera_boot_gate": "passed",
+        "device_mutation_performed": false,
+        "host_key_fingerprint": "SHA256:HUeYvmzLc5X487o4EnfNAqmANJFnsbUU6uc3oON+vlQ",
+        "lan_scan_performed": false,
+        "model": "Raspberry Pi 3 Model B Rev 1.2",
+        "root_source": "/dev/mmcblk0p2",
+        "serial": "00000000a6a7df7f",
+        "strict_key_only_ssh": "passed"
+      },
+      "source": "usb3-video-and-strict-ssh",
+      "status": "running_verified",
+      "subject_id": "pi3-experimental-00000000a6a7df7f",
+      "subject_kind": "device",
+      "summary": "Pinned experimental Pi3 is visibly booted from the preserved card and strictly verified by model, serial, host key, and root device.",
+      "timestamp": "2026-08-26T02:26:37.033403Z"
+    }
+  }
+}
