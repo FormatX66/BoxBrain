@@ -284,6 +284,7 @@ def explore_state_graph() -> dict[str, Any]:
         "refused_transition_count": refused_count,
         "transition_matrix_sha256": matrix_hash,
         "states": state_rows,
+        "transitions": transitions,
         "invariants": {
             "carrier_requires_open_awake_bound_device": True,
             "halt_requires_open_awake_bound_device": True,

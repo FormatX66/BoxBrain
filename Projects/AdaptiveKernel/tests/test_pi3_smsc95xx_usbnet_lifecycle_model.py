@@ -100,6 +100,7 @@ class UsbnetLifecycleModelTests(unittest.TestCase):
             result["graph"]["transition_count"],
             result["graph"]["state_count"] * 13,
         )
+        self.assertEqual(len(result["graph"]["transitions"]), result["graph"]["transition_count"])
         self.assertTrue(all(result["graph"]["invariants"].values()))
         self.assertFalse(result["qpu"]["used"])
         self.assertFalse(result["qpu"]["router_is_hardware_digital_twin"])
