@@ -21,8 +21,17 @@
     "cross-chat-retrieval": [
       "cross-chat-context-cache"
     ],
+    "cross-chat-sync": [
+      "cross-chat-live-sync"
+    ],
     "durable-concept-memory": [
       "chat-tree"
+    ],
+    "evidence-receipts": [
+      "cross-chat-live-sync"
+    ],
+    "future-branch": [
+      "cross-chat-live-sync"
     ],
     "gpt-bridge": [
       "gpt-chat-tree-bridge"
@@ -52,9 +61,13 @@
     "read-only-observability": [
       "hopper-reachability"
     ],
+    "runtime-state": [
+      "cross-chat-live-sync"
+    ],
     "shared-state": [
       "chat-tree",
-      "gpt-chat-tree-bridge"
+      "gpt-chat-tree-bridge",
+      "cross-chat-live-sync"
     ],
     "shared-state-separation": [
       "cross-chat-context-cache"
@@ -73,7 +86,8 @@
   "focus_path": [
     "everything-at-once",
     "chat-tree",
-    "cross-chat-context-cache"
+    "gpt-chat-tree-bridge",
+    "cross-chat-live-sync"
   ],
   "invariants": {
     "completed_or_archived_nodes_are_deleted": false,
@@ -223,7 +237,7 @@
     },
     {
       "authority_ref": null,
-      "boundary": "external-https-deployment-and-chatgpt-connector-registration",
+      "boundary": "execution-authority-remains-external",
       "concepts": [
         "gpt-bridge",
         "shared-state",
@@ -237,7 +251,12 @@
         "Projects/Aurum/Experiments/chat_tree_bridge.py",
         "Projects/Aurum/ChatTreeMCP/main.py",
         "Projects/Aurum/ChatTreeMCP/test_server.py",
-        ".github/workflows/aurum-chat-tree-mcp.yml"
+        "Projects/Aurum/ChatTreePlugin/server.js",
+        "Projects/Aurum/ChatTreePlugin/deploy/bluehost-index.php",
+        ".github/workflows/aurum-chat-tree-mcp.yml",
+        "git:commit:28aa4573566ac007a98dee3c51fe846b81f81707",
+        "github:pr:106",
+        "mcp:https://aurum.arkmatx.com/chat-tree/mcp"
       ],
       "kind": "process",
       "lane_id": "gpt-chat-tree-bridge",
@@ -249,7 +268,7 @@
       "state_history": [
         "active"
       ],
-      "summary": "Expose Chat Tree and evidence-backed shared state through the transport-neutral bridge plus a tool-only MCP v2 adapter. Repository-side adapter is implemented; external HTTPS deployment and ChatGPT connector registration remain unverified boundaries.",
+      "summary": "Expose Chat Tree and evidence-backed shared state through a verified public HTTPS MCP endpoint with show, split, publish-live-state, and read-live-state actions. The bridge and state bus grant no execution authority.",
       "title": "GPT Chat Tree Bridge"
     },
     {
@@ -280,9 +299,49 @@
       ],
       "summary": "Search prior conversations quickly while leaving live operational truth in the evidence-backed shared-state bus.",
       "title": "Cross-chat context cache"
+    },
+    {
+      "authority_ref": null,
+      "boundary": "execution-authority-and-physical-runtime-remain-external",
+      "concepts": [
+        "shared-state",
+        "cross-chat-sync",
+        "evidence-receipts",
+        "runtime-state",
+        "future-branch"
+      ],
+      "dependency_ids": [
+        "gpt-chat-tree-bridge"
+      ],
+      "effect_allowed": false,
+      "evidence_refs": [
+        "Projects/Aurum/Experiments/shared_state_bus.py",
+        "Projects/Aurum/Experiments/chat_tree_bridge.py",
+        "Projects/Aurum/ChatTreeMCP/main.py",
+        "Projects/Aurum/ChatTreePlugin/server.js",
+        "Projects/Aurum/ChatTreePlugin/deploy/bluehost-index.php",
+        "git:commit:28aa4573566ac007a98dee3c51fe846b81f81707",
+        "github:pr:106",
+        "mcp:https://aurum.arkmatx.com/chat-tree/mcp",
+        "bluehost:release:aurum-chat-tree-28aa4573-release",
+        "shared-state:event:evt-cross-chat-live-sync-28aa4573-e2e"
+      ],
+      "kind": "process",
+      "lane_id": "cross-chat-live-sync",
+      "merged_from": [],
+      "node_id": "cross-chat-live-sync",
+      "parent_id": "gpt-chat-tree-bridge",
+      "sequence": 4,
+      "state": "completed",
+      "state_history": [
+        "active",
+        "completed"
+      ],
+      "summary": "Published and independently read back a real evidence-backed status/current_action/blocker/evidence/next_action event through the public MCP endpoint. The append-only journal is source of truth; chat memory grants neither truth nor execution authority.",
+      "title": "Cross-Chat Live Sync"
     }
   ],
-  "revision": 5,
+  "revision": 6,
   "root_id": "everything-at-once",
   "schema": "aurum-chat-process-tree-v1",
   "thread_id": "parallel-hopper-kernel-chat-tree"
