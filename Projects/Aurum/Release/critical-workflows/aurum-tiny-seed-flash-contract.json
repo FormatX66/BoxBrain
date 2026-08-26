@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Tiny Seed Flash Contract",
-  "run_id": 32959760848,
-  "run_number": 22,
+  "run_id": 32968837951,
+  "run_number": 23,
   "run_attempt": 1,
   "status": "completed",
   "conclusion": "success",
   "event": "push",
-  "head_sha": "476b1fb993be14ad22150abffd5dbfa038ef6ba5",
-  "head_branch": "main",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32959760848",
-  "updated_at": "2026-08-26T10:44:43Z",
+  "head_sha": "fad399cdd71302ea95c37452f18526cd451c4746",
+  "head_branch": "codex/tinyseed-flash-receipt-race-20260826",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32968837951",
+  "updated_at": "2026-08-26T12:29:54Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
