@@ -11,6 +11,9 @@ on:
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/Experiments/human_branch.py'
+      - 'Projects/Aurum/Experiments/operational_branch.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_future_branch_consumers.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-plugin.yml'
   pull_request:
@@ -20,6 +23,9 @@ on:
       - 'Projects/Aurum/Experiments/chat_process_tree.py'
       - 'Projects/Aurum/Experiments/chat_topic_router.py'
       - 'Projects/Aurum/Experiments/shared_state_bus.py'
+      - 'Projects/Aurum/Experiments/human_branch.py'
+      - 'Projects/Aurum/Experiments/operational_branch.py'
+      - 'Projects/Aurum/Experiments/test_chat_tree_future_branch_consumers.py'
       - 'Projects/Aurum/chat-process-tree.json'
       - '.github/workflows/aurum-chat-tree-plugin.yml'
 
@@ -49,6 +55,26 @@ jobs:
           p=json.load(open('/tmp/tree.json', encoding='utf-8'))
           assert p['ok'] is True
           assert p['tree']['schema'] == 'aurum-chat-process-tree-v1'
+          PY
+      - name: Verify Future Branch session projections
+        run: |
+          printf '%s\n' '{"command":"project_human_futures","verified_state":"READY_TO_BOOT","lkg":"slot-a","likely_next":[{"state":"physical-hopper-boot-success","probability":0.7},{"state":"boot-mixed-result","probability":0.25}],"blockers":["physical-hopper-boot-proof"]}' | python Projects/Aurum/Experiments/chat_tree_bridge.py > /tmp/human-futures.json
+          printf '%s\n' '{"command":"plan_operational_futures","verified_state":"ci-green","candidates":[{"name":"inspect-ci-logs","domain":"ci-build","probability":0.8,"impact":0.8,"human_time_saved":2,"preparation_leverage":1,"cost":0.2,"read_only":true},{"name":"publish-site","domain":"website-deployment","probability":0.6,"impact":0.8,"human_time_saved":2,"preparation_leverage":0.8,"cost":0.4,"external_side_effect":true,"authorization_required":true,"rollback_prepared":true}]}' | python Projects/Aurum/Experiments/chat_tree_bridge.py > /tmp/operational-futures.json
+          python - <<'PY'
+          import json
+          human=json.load(open('/tmp/human-futures.json', encoding='utf-8'))
+          ops=json.load(open('/tmp/operational-futures.json', encoding='utf-8'))
+          assert human['ok'] is True
+          assert human['authority_granted'] is False
+          assert human['physical_proof_inferred'] is False
+          assert human['projection']['verified']['state'] == 'READY_TO_BOOT'
+          assert human['projection']['likely_next'][0]['state'] == 'physical-hopper-boot-success'
+          assert ops['ok'] is True
+          assert ops['authority_granted'] is False
+          assert ops['plan']['external_action_allowed'] is False
+          by_name={item['name']: item for item in ops['plan']['branches']}
+          assert by_name['inspect-ci-logs']['disposition'] == 'prepare'
+          assert by_name['publish-site']['disposition'] == 'wait-boundary'
           PY
       - name: Start plugin and probe health
         working-directory: Projects/Aurum/ChatTreePlugin
