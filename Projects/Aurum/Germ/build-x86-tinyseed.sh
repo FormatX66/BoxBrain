@@ -117,46 +117,36 @@ done
 # A second manual entry is intentionally verbose and graphics-conservative.
 mkdir -p config/bootloaders/isolinux config/bootloaders/syslinux
 cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
-ui menu.c32
 default aurum
-prompt 0
+prompt 1
 timeout 30
-menu title Aurum Tiny Seed
-menu color title 1;36;40 #ff33d6ff #00000000 std
-menu color sel 1;33;40 #ffffd75f #00000000 std
-menu color unsel 0;37;40 #ffd0d0d0 #00000000 std
+serial 0 115200
+say AURUM TINY SEED
+say Press Enter for normal boot, or type safe / spoken. Starting normal in 3 seconds.
 label aurum
-  menu label Aurum Tiny Seed
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off quiet plymouth.enable=0 aurum.ui=compact vt.global_cursor_default=0 console=tty0 console=ttyS0,115200n8
-label aurum-safe
-  menu label Aurum Tiny Seed (safe verbose)
+label safe
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.ui=plain nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
-label aurum-spoken
-  menu label Aurum Tiny Seed (spoken / blind)
+label spoken
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.accessibility=blind aurum.ui=plain speakup.synth=soft systemd.show_status=yes console=tty0 console=ttyS0,115200n8
 EOF
 cat > config/bootloaders/syslinux/syslinux.cfg <<'EOF'
-ui menu.c32
 default aurum
-prompt 0
+prompt 1
 timeout 30
-menu title Aurum Tiny Seed
-menu color title 1;36;40 #ff33d6ff #00000000 std
-menu color sel 1;33;40 #ffffd75f #00000000 std
-menu color unsel 0;37;40 #ffd0d0d0 #00000000 std
+serial 0 115200
+say AURUM TINY SEED
+say Press Enter for normal boot, or type safe / spoken. Starting normal in 3 seconds.
 label aurum
-  menu label Aurum Tiny Seed
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off quiet plymouth.enable=0 aurum.ui=compact vt.global_cursor_default=0 console=tty0 console=ttyS0,115200n8
-label aurum-safe
-  menu label Aurum Tiny Seed (safe verbose)
+label safe
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.ui=plain nomodeset systemd.show_status=yes loglevel=7 console=tty0 console=ttyS0,115200n8
-label aurum-spoken
-  menu label Aurum Tiny Seed (spoken / blind)
+label spoken
   kernel /live/vmlinuz
   append initrd=/live/initrd.img boot=live components edd=off plymouth.enable=0 aurum.accessibility=blind aurum.ui=plain speakup.synth=soft systemd.show_status=yes console=tty0 console=ttyS0,115200n8
 EOF

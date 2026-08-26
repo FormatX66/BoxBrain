@@ -166,6 +166,15 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             else:
                 missing = [marker for marker in args.require if marker not in observed]
                 raise RuntimeError(f"virtual boot timed out; missing markers: {missing}")
+        except Exception:
+            # Preserve the visible failure boundary even when Linux never
+            # reaches serial output. Diagnostics must not die with the VM.
+            if process.poll() is None and monitor.exists():
+                try:
+                    _hmp_screenshot(monitor, args.screenshot)
+                except (OSError, RuntimeError):
+                    pass
+            raise
         finally:
             if process.poll() is None:
                 process.terminate()

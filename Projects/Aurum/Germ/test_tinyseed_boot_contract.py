@@ -24,7 +24,10 @@ class TinySeedBootContractTests(unittest.TestCase):
     def test_bootloaders_are_text_only_and_have_three_modes(self) -> None:
         self.assertNotIn("vesamenu.c32", self.build)
         self.assertNotIn("gfxterm", self.build)
-        self.assertIn("ui menu.c32", self.build)
+        self.assertNotIn("menu.c32", self.build)
+        self.assertIn("say AURUM TINY SEED", self.build)
+        self.assertIn("label safe", self.build)
+        self.assertIn("label spoken", self.build)
         self.assertIn("insmod all_video", self.build)
         self.assertIn("set gfxpayload=keep", self.build)
         self.assertIn('menuentry "Aurum Tiny Seed"', self.build)
