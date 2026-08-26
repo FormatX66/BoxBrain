@@ -73,6 +73,7 @@ class HopperGuiTests(unittest.TestCase):
     def test_html_projection_has_conversation_receipts_and_no_browser_key(self) -> None:
         page = hopper.PAGE
         self.assertIn("Aurum · Hopper", page)
+        self.assertIn('data-hopper-profile="gen1-html"', page)
         self.assertIn('class="chat-panel"', page)
         self.assertIn('id="messages"', page)
         self.assertIn("receipts visible", page)

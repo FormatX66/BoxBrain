@@ -272,7 +272,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background-im
 body{background:radial-gradient(circle at 50% -20%,rgba(19,198,202,.06),transparent 38rem),linear-gradient(180deg,var(--bg),var(--bg-end))}
 </style>
 </head>
-<body>
+<body data-hopper-profile="gen1-html">
 <div class="shell">
 <header class="top">
   <div class="brand"><div class="logo-crop logo-crop--landscape logo-crop--header" aria-label="Aurum"><img data-aurum-logo src="/assets/aurum-seven-leaf-logo.jpeg" alt=""></div></div>
