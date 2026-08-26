@@ -10,8 +10,10 @@
   },
   "checks": {
     "carrier_observed": true,
-    "driver_binary_provenance_observed": false,
-    "driver_builtin_observed": false,
+    "driver_binary_provenance_observed": true,
+    "driver_builtin_observed": true,
+    "driver_kernel_config_observed": true,
+    "driver_loadable_module_observed": false,
     "duplex_observed": true,
     "headers_package_owner_observed": true,
     "interface_observed": true,
@@ -23,6 +25,7 @@
     "pinned_identity_match": true,
     "proc_version_observed": true,
     "protected_driver_match": true,
+    "running_image_package_observed": true,
     "usb_function_identity_observed": true
   },
   "ethernet": {
@@ -38,14 +41,13 @@
     "usb_product_id": "ec00",
     "usb_vendor_id": "0424"
   },
-  "gaps": [
-    "running-driver-binary-provenance"
-  ],
+  "gaps": [],
   "next_gate": "correlate-observed-controller-link-and-package-provenance-with-pinned-references",
-  "observed_at_utc": "2026-08-26T14:02:55.2669468Z",
+  "observed_at_utc": "2026-08-26T14:07:15.6706374Z",
   "provenance": {
+    "driver_kernel_config": "CONFIG_USB_NET_SMSC95XX=y",
     "driver_modinfo_filename": "",
-    "driver_module_mode": "unknown",
+    "driver_module_mode": "builtin",
     "headers_package_owner": "linux-headers-6.18.34+rpt-rpi-v8: /usr/src/linux-headers-6.18.34+rpt-rpi-v8/Makefile",
     "kernel_packages": [
       "linux-base\t4.12.1\tall",
@@ -64,15 +66,17 @@
       "linux-image-rpi-v8\t1:6.18.34-1+rpt1\tarm64"
     ],
     "modules_package_owner": "",
-    "proc_version": "Linux version 6.18.34+rpt-rpi-v8 (serge@raspberrypi.com) (aarch64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09)"
+    "proc_version": "Linux version 6.18.34+rpt-rpi-v8 (serge@raspberrypi.com) (aarch64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09)",
+    "running_image_package": "linux-image-6.18.34+rpt-rpi-v8",
+    "running_image_package_record": "install ok installed linux-image-6.18.34+rpt-rpi-v8\t1:6.18.34-1+rpt1\tarm64"
   },
   "quarantine_reasons": [],
-  "receipt_sha256": "8cdc6b8004055edf9d786a84b5467519e687cc7a65a89647fb48a6a49a8bdbc2",
+  "receipt_sha256": "83213ea96f25c9461e5167c6c3f2dea4f823d89b13d2206da9fb5e17fd60f90f",
   "schema": "aurum.pi3.controller-link-fingerprint.v1",
-  "source_commit": "9ed9c0baf8309dba689fad318d597cfe36a37fb5",
-  "source_run_id": "32977819132",
-  "state": "completed-with-read-only-gaps",
-  "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records observed USB-function identity, negotiated link state, and running-kernel/driver package provenance where available; it grants no mutation or promotion authority.",
+  "source_commit": "dc03d99841e674d32c855784e2bb9cb0b0552924",
+  "source_run_id": "32978242600",
+  "state": "completed-read-only-fingerprint",
+  "strongest_claim": "Read-only physical evidence from the pinned experimental Pi3 was validated against its exact model/serial and protected smsc95xx path. The receipt records USB-function identity, negotiated link state, exact running-image package metadata, kernel config mode, and driver/header provenance where available; it grants no mutation or promotion authority.",
   "target": {
     "arch": "aarch64",
     "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
