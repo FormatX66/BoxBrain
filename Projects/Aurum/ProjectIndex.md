@@ -17,6 +17,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [Mandatory seed recovery architecture](../../docs/architecture/SEED_RECOVERY_ARCHITECTURE.md)
 - [Tiny Seed boot medium architecture](../../docs/architecture/TINY_SEED_BOOT_MEDIUM.md)
 - [Aurum early-boot KVM architecture](../../docs/architecture/AURUM_EARLY_KVM.md)
+- [Experimental Pi 3 headless-control handoff](Germ/PI3_HEADLESS_HANDOFF.md)
 - [Operator completion contract](OPERATOR_CONTRACT.md)
 - [Universal PC/Pi seed-drive north star](UNIVERSAL_PC_PI_SEED_DRIVE.md)
 - [Reseed Germ / Tiny Seed evidence status](Germ/STATUS.md)
