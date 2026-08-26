@@ -1,5 +1,5 @@
 {
-  "event_count": 12,
+  "event_count": 13,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -114,36 +114,42 @@
         "pi3-adaptive-driver-generation2",
         "pi3-kernel-canary-preflight-32926239577"
       ],
-      "event_id": "evt-c5f826372ace467dbb5f7daae9a7b177",
+      "event_id": "evt-441ec02baa8f4e32af6d60911ec8295e",
       "evidence_refs": [
         "github:actions:run:32926370691",
         "github:actions:job:98050003503",
-        "git:commit:7bbec6c4"
+        "git:commit:7bbec6c4",
+        "github:actions:run:32926239577",
+        "github:artifact:9591615066"
       ],
       "node_id": "adaptive-kernel",
       "payload": {
-        "current_stage": "virtual-driver",
+        "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+        "current_stage": "exact-header-module",
         "current_throttle_fault": false,
-        "dummy0_present_after": false,
-        "dummy0_present_during": true,
-        "dummy_module_present_after": false,
+        "driver_binding_change_authorized": false,
         "ethernet_carrier": "1",
         "local_timed_rollback": "scheduled-and-cleared",
-        "module": "dummy",
+        "module": "aurum_probe",
+        "module_present_after": false,
+        "module_sha256": "0958ffe63f8fdea981e92644031469722b2a883a0292e5448d10ff2e03b73988",
+        "out_of_band_watchdog_proven": false,
         "persistent_change": false,
         "reference_driver": "smsc95xx",
+        "replacement_kernel_authorized": false,
         "rx_errors": 0,
         "stage_state": "passed",
-        "temperature_c": 48.85,
+        "temperature_c": 48.312,
         "tx_errors": 0,
+        "vermagic": "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64",
         "workflow_state": "in_progress"
       },
       "source": "pinned-pi3-live-stage-receipt",
       "status": "running_verified",
       "subject_id": "pi3-adaptive-kernel-overnight-32926370691",
       "subject_kind": "experiment",
-      "summary": "Virtual-driver stage passed on the pinned Pi3: the dummy module and dummy0 interface appeared under a local timed rollback, then were removed; smsc95xx and Ethernet remained healthy.",
-      "timestamp": "2026-08-26T06:34:13.898789Z"
+      "summary": "Exact-header inert module canary passed on the pinned Pi3 under local timed rollback; vermagic matched the running 6.18.34 kernel, the module unloaded, boot ID and smsc95xx remained unchanged. This does not prove out-of-band recovery or authorize replacement kernels/driver bindings.",
+      "timestamp": "2026-08-26T07:34:18.414936Z"
     },
     "pi3-current-card-rollback": {
       "actor": "codex-thread-01a03afd",
