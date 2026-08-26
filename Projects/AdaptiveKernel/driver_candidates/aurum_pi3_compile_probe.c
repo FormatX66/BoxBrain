@@ -23,8 +23,8 @@ enum aurum_pi3_rx_shape {
 };
 
 static_assert(__same_type(((struct sk_buff *)0)->len, unsigned int));
-static_assert(__same_type(((struct urb *)0)->actual_length, int));
-static_assert(__same_type(((struct urb *)0)->transfer_buffer_length, int));
+static_assert(__same_type(((struct urb *)0)->actual_length, u32));
+static_assert(__same_type(((struct urb *)0)->transfer_buffer_length, u32));
 static_assert(__same_type((netdev_features_t)0, (u64)0));
 static_assert(sizeof(struct usb_device_descriptor) == 18);
 

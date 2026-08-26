@@ -50,6 +50,13 @@ class DriverCandidateContractTests(unittest.TestCase):
         self.assertFalse(receipt["invariants"]["driver_registration_present"])
         self.assertFalse(receipt["invariants"]["firmware_boot_network_mutation_present"])
 
+    def test_pi_6_18_urb_lengths_use_observed_u32_api(self):
+        source = (CANDIDATE_ROOT / "aurum_pi3_compile_probe.c").read_text(encoding="utf-8")
+        self.assertIn("__same_type(((struct urb *)0)->actual_length, u32)", source)
+        self.assertIn("__same_type(((struct urb *)0)->transfer_buffer_length, u32)", source)
+        self.assertNotIn("__same_type(((struct urb *)0)->actual_length, int)", source)
+        self.assertNotIn("__same_type(((struct urb *)0)->transfer_buffer_length, int)", source)
+
     def test_same_family_wrong_model_revision_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             candidate = self.fixture_candidate(Path(directory))

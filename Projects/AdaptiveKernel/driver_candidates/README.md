@@ -30,6 +30,14 @@ not a hardware driver and has no runtime authority.
 Kbuild file, and manifest before compilation. This is defense in depth, not
 kernel mutation authority.
 
+The first exact-header compile against Pi kernel `6.18.34+rpt-rpi-v8` usefully
+failed closed: that kernel declares both `struct urb.actual_length` and
+`struct urb.transfer_buffer_length` as `u32`, not signed `int`. The probe now
+asserts the observed `u32` API and keeps that compatibility fact compile-checked
+without registering or loading a driver. The bounded failed-assumption and
+corrected direct-compile receipt is preserved at
+`../results/pi3-driver-candidate-direct-compile-20260826.json`.
+
 ## Offline checks
 
 ```text

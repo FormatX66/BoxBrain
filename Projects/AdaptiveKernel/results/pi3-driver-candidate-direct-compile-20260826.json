@@ -1,0 +1,58 @@
+{
+  "schema": "aurum.pi3.driver-candidate.direct-compile-evolution.v1",
+  "observed_at_utc": "2026-08-26T10:13:29.3477326Z",
+  "state": "verified-compile-only",
+  "target": {
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "architecture": "aarch64",
+    "root_source": "/dev/mmcblk0p2",
+    "boot_id": "3488238f-e35d-4249-9d53-6133eeed4b8a",
+    "reference_driver": "smsc95xx",
+    "strict_key_only_ssh": true
+  },
+  "discovery": {
+    "initial_state": "failed-compile",
+    "initial_assumption": "struct urb actual_length and transfer_buffer_length are signed int",
+    "exact_header": "/usr/src/linux-headers-6.18.34+rpt-common-rpi/include/linux/usb.h",
+    "observed_api": {
+      "struct_urb_actual_length": "u32",
+      "struct_urb_transfer_buffer_length": "u32"
+    },
+    "correction": "compile assertions changed from int to u32",
+    "initial_temporary_build_removed": true,
+    "initial_loader_invoked": false,
+    "initial_installer_invoked": false
+  },
+  "verification": {
+    "candidate_id": "pi3-usbnet-api-surface-compile-probe-v1",
+    "source_sha256": "df1385721089a11a7eab1008ce560e7f33dc22d6fa8c6a22820e04398f849ec1",
+    "compile_receipt_sha256": "88252137a82a8be357c7fdf89457fbe256e1b4e4f5f11cbd4810bc9652eb8e98",
+    "module_sha256": "b82c791835738badcf4756204c726a3215ef5cf10cd7d5292cb2128f143cc86e",
+    "module_size_bytes": 5184,
+    "vermagic": "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64",
+    "aliases": [],
+    "device_table_symbols": [],
+    "forbidden_unresolved_symbols": []
+  },
+  "invariants": {
+    "boot_id_unchanged": true,
+    "reference_driver_unchanged": true,
+    "module_loaded": false,
+    "temporary_build_removed": true,
+    "artifact_retained": false,
+    "loader_invoked": false,
+    "installer_invoked": false,
+    "firmware_changed": false,
+    "boot_configuration_changed": false,
+    "network_configuration_changed": false
+  },
+  "authority": {
+    "module_load_allowed": false,
+    "driver_binding_change_allowed": false,
+    "replacement_kernel_allowed": false,
+    "mutation_authority_granted": false
+  },
+  "claim": "exact Pi 6.18 USB request-length API compatibility and inert module compilation only; no load, binding, hardware behavior, or promotion proof"
+}
