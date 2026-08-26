@@ -1,0 +1,57 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "complete_integrated_scenarios": 455,
+  "deterministic_sequence_seed": 2501157150,
+  "deterministic_sequence_steps": 32768,
+  "input_control_candidate_receipt_sha256": "dc0467e3a9d74d02ac902a0e6eda20009fa62d5d27948369f456090927e5d156",
+  "input_control_differential_receipt_sha256": "7e438c15a290e5c2d329330934cbc5b617ac7ad2e6b2236584c762bd5bd3d080",
+  "input_packet_candidate_receipt_sha256": "7aac038b289cf159a3c0a48bc5e65a8f0daed31cad8ff1f76f0496465c460f19",
+  "input_packet_differential_receipt_sha256": "564ee84a8d796f92b9659177a3feb22e4322b4673eafb58c93f1354614df487f",
+  "integrated_source_sha256": "c2c7d9a23616f9f74519dc8f505881def89f3089fff881e4b5861bc4f75621c6",
+  "invariants": {
+    "driver_binding_changed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "packet_buffer_allocated": false,
+    "packet_buffer_mutated": false,
+    "register_access_performed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "next_gate": "virtual-usb-backend-fault-harness",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "reason": "The bounded integrated state/packet matrix is exactly evaluated classically.",
+    "used": false
+  },
+  "receipt_sha256": "da152c9d93d27f30fb34e835d483aa40f0df87b75feadb1fe3941054f5477cd8",
+  "scenario_count": 33223,
+  "scenario_matrix_sha256": "c61390efecc8fbad92e8b5e6aa2fd80eac58f5e26aefb85ae31e6bbbd99a212c",
+  "schema": "aurum.pi3.smsc95xx.integrated-packet-control-loop-differential.v1",
+  "sequence_sha256": "6d1399d75596a22f35bcf9f98c20c17b918c53d5f243f6cab616de344fc78b67",
+  "state": "controlled-integrated-host-packet-control-loop-passed",
+  "strongest_claim": "The generated host-only USBNet control candidate and packet-framing candidate operate correctly as one compiled state-gated pipeline across lifecycle, TX, RX, halt, suspend, and disconnect conditions. This remains a userspace software proof only and performs no real USB, register, kernel, binding, firmware, network, or physical mutation.",
+  "verification": {
+    "all_lifecycle_state_events": true,
+    "deterministic_mixed_sequences": true,
+    "host_compilation": true,
+    "shared_library_execution": true,
+    "state_gated_rx_decoding": true,
+    "state_gated_tx_framing": true
+  }
+}
