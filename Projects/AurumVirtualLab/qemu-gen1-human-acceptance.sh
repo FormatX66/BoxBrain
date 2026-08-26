@@ -57,8 +57,7 @@ for evidence in \
     exit 1
   fi
 done
-
-echo 'AURUM_GEN1_HUMAN_SURFACE status=passed renderer=html5 browser=chromium sandbox=enabled loopback=true'
+printf '%s\n' 'AURUM_GEN1_HUMAN_SURFACE status=passed renderer=html5 browser=chromium sandbox=enabled loopback=true' | tee -a "$LOG"
 
 stop_before=$(grep -Fc "$gui_stopped_marker" "$LOG" 2>/dev/null || true)
 printf 'gui-stop\n' >&3
@@ -74,15 +73,14 @@ if ! wait_for_marker_count "$gui_running_marker" "$restart_before" 180; then
   echo 'Gen1 GUI did not recover after a bounded stop/start cycle.' >&2
   exit 1
 fi
-
-echo 'AURUM_GEN1_HUMAN_RECOVERY status=passed stop_start=verified'
+printf '%s\n' 'AURUM_GEN1_HUMAN_RECOVERY status=passed stop_start=verified' | tee -a "$LOG"
 
 '''
 Path(sys.argv[2]).write_text(source.replace(anchor, block + anchor, 1), encoding="utf-8")
 PY
 
 bash "$TEMP" "$ISO" "$LOG"
-grep -F 'AURUM_GEN1_HUMAN_SURFACE status=passed' "$LOG" >/dev/null 2>&1 || \
-  grep -F 'AURUM_GEN1_HUMAN_SURFACE status=passed' /dev/stdin >/dev/null 2>&1 || true
+grep -F 'AURUM_GEN1_HUMAN_SURFACE status=passed' "$LOG" >/dev/null
+grep -F 'AURUM_GEN1_HUMAN_RECOVERY status=passed' "$LOG" >/dev/null
 
 echo 'AURUM_GEN1_HUMAN_VM_ACCEPTANCE_OK'
