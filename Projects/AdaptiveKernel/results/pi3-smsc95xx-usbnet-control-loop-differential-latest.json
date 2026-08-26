@@ -1,0 +1,49 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "candidate_receipt_sha256": "dc0467e3a9d74d02ac902a0e6eda20009fa62d5d27948369f456090927e5d156",
+  "candidate_source_sha256": "f906fddce91cdc0f5f4f27e01ff4ab0945b5d18e0062f8fb8098025319ff270b",
+  "complete_event_scenarios": 195,
+  "deterministic_sequence_seed": 2501165073,
+  "deterministic_sequence_steps": 65536,
+  "event_matrix_sha256": "b4be4bea1bbd304b642445ac3f3720d07333bfb0a8779e2a36332f93b02debe8",
+  "invariants": {
+    "driver_binding_changed": false,
+    "kernel_module_built": false,
+    "kernel_module_loaded": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "next_gate": "integrated-host-compiled-packet-framing-control-loop",
+  "qpu": {
+    "hardware_submission_performed": false,
+    "reason": "The finite state/event matrix and deterministic sequence are exactly evaluated classically.",
+    "used": false
+  },
+  "receipt_sha256": "7e438c15a290e5c2d329330934cbc5b617ac7ad2e6b2236584c762bd5bd3d080",
+  "scenario_count": 65731,
+  "schema": "aurum.pi3.smsc95xx.usbnet-control-loop-differential.v1",
+  "sequence_sha256": "855767df490a88f1d538b9edce83c816fc0ce1b1e8d804ca9725572a35a7b25e",
+  "state": "controlled-host-compiled-usbnet-control-loop-differential-passed",
+  "strongest_claim": "A generated portable C control-loop candidate matches every sealed USBNet lifecycle and packet-admission state/event pair plus a deterministic multi-step sequence. It remains host-only and has no USB, kernel, register, binding, mutation, or promotion capability.",
+  "verification": {
+    "all_state_event_pairs": true,
+    "deterministic_multi_step_sequences": true,
+    "host_compilation": true,
+    "shared_library_execution": true
+  }
+}
