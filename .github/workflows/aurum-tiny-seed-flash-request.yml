@@ -315,9 +315,109 @@ jobs:
           $receiptPath = 'Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json'
           [IO.File]::WriteAllText($receiptPath, $proofJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
           git config user.name 'aurum-tinyseed-flash[bot]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure the Tiny Seed flash receipt Git user name.' }
           git config user.email 'aurum-tinyseed-flash@users.noreply.github.com'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to configure the Tiny Seed flash receipt Git user email.' }
           git add -- $receiptPath
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to stage the verified Tiny Seed flash receipt.' }
           git commit -m 'Record verified Tiny Seed flash receipt [skip ci]'
-          git pull --rebase origin main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to commit the verified Tiny Seed flash receipt.' }
+
+          # Publish the completed physical proof directly first. A concurrent
+          # main update must never cause this destructive workflow to rebase its
+          # receipt together with unrelated, unstaged recovery observations.
           git push origin HEAD:main
-          Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
+          $directPushExit = $LASTEXITCODE
+          if ($directPushExit -eq 0) {
+            Write-Host "AURUM_TINYSEED_FLASH_RECEIPT persisted=true mode=direct request_id=$requestId"
+            Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
+            exit 0
+          }
+
+          # The flash itself must not be repeated. Re-publish only the immutable
+          # proof from a clean worktree rooted at the newest main, with bounded
+          # retries if other evidence writers advance main again.
+          $publishRoot = Join-Path $env:RUNNER_TEMP "aurum-tinyseed-receipt-$env:GITHUB_RUN_ID"
+          $localObserved = [DateTimeOffset]::Parse([string]$proof.observed_at_utc).ToUniversalTime()
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            git fetch origin main
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to fetch main while publishing the Tiny Seed flash receipt.' }
+            $remoteHead = (git rev-parse origin/main).Trim()
+            if ($LASTEXITCODE -ne 0 -or $remoteHead -notmatch '^[0-9a-f]{40}$') { throw 'Failed to resolve main while publishing the Tiny Seed flash receipt.' }
+
+            $remoteReceiptText = @(git show "origin/main:$receiptPath" 2>$null) -join [Environment]::NewLine
+            if ($LASTEXITCODE -eq 0 -and $remoteReceiptText) {
+              try { $remoteProof = $remoteReceiptText | ConvertFrom-Json }
+              catch { $remoteProof = $null }
+              if ($null -ne $remoteProof) {
+                $remoteMatches = (
+                  [string]$remoteProof.schema -eq 'aurum-tinyseed-flash-request-receipt-v1' -and
+                  [string]$remoteProof.state -eq 'READY_TO_BOOT' -and
+                  [string]$remoteProof.request_id -eq $requestId -and
+                  ([string]$remoteProof.source_commit).ToLowerInvariant() -eq $seedSha -and
+                  ([string]$remoteProof.image_sha256).ToLowerInvariant() -eq $imageSha -and
+                  [bool]$remoteProof.raw_readback_verified -and
+                  [bool]$remoteProof.write_authority_consumed
+                )
+                if ($remoteMatches) {
+                  Write-Host "AURUM_TINYSEED_FLASH_RECEIPT converged_after_race=true attempt=$attempt remote_head=$remoteHead request_id=$requestId"
+                  Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
+                  exit 0
+                }
+
+                $remoteIsVerified = (
+                  [string]$remoteProof.schema -eq 'aurum-tinyseed-flash-request-receipt-v1' -and
+                  [string]$remoteProof.state -eq 'READY_TO_BOOT' -and
+                  [bool]$remoteProof.raw_readback_verified -and
+                  [bool]$remoteProof.write_authority_consumed
+                )
+                if ($remoteIsVerified) {
+                  try { $remoteObserved = [DateTimeOffset]::Parse([string]$remoteProof.observed_at_utc).ToUniversalTime() }
+                  catch { $remoteObserved = [DateTimeOffset]::MinValue }
+                  if ($remoteObserved -ge $localObserved) {
+                    Write-Host "AURUM_TINYSEED_FLASH_RECEIPT superseded_after_race=true attempt=$attempt remote_head=$remoteHead request_id=$requestId"
+                    Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true receipt=superseded-after-race"
+                    exit 0
+                  }
+                }
+              }
+            }
+
+            if (Test-Path -LiteralPath $publishRoot) {
+              git -C $publishRoot reset --hard origin/main
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to refresh the clean Tiny Seed receipt publication worktree.' }
+            } else {
+              git worktree add --force --detach $publishRoot origin/main
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to create the clean Tiny Seed receipt publication worktree.' }
+            }
+
+            $publishReceipt = Join-Path $publishRoot ($receiptPath -replace '/', [IO.Path]::DirectorySeparatorChar)
+            [IO.File]::WriteAllText($publishReceipt, $proofJson + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
+            git -C $publishRoot config user.name 'aurum-tinyseed-flash[bot]'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to configure the clean receipt publication Git user name.' }
+            git -C $publishRoot config user.email 'aurum-tinyseed-flash@users.noreply.github.com'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to configure the clean receipt publication Git user email.' }
+            git -C $publishRoot add -- $receiptPath
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to stage the Tiny Seed receipt in the clean publication worktree.' }
+            git -C $publishRoot diff --cached --quiet
+            $receiptDiffExit = $LASTEXITCODE
+            if ($receiptDiffExit -eq 0) {
+              Write-Host "AURUM_TINYSEED_FLASH_RECEIPT converged_after_race=true attempt=$attempt remote_head=$remoteHead request_id=$requestId"
+              Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
+              exit 0
+            }
+            if ($receiptDiffExit -ne 1) { throw 'Failed to compare the staged Tiny Seed receipt in the clean publication worktree.' }
+
+            git -C $publishRoot commit -m 'Record verified Tiny Seed flash receipt [skip ci]'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to commit the Tiny Seed receipt in the clean publication worktree.' }
+            git -C $publishRoot push origin HEAD:main
+            $retryPushExit = $LASTEXITCODE
+            if ($retryPushExit -eq 0) {
+              Write-Host "AURUM_TINYSEED_FLASH_RECEIPT persisted=true mode=clean-retry attempt=$attempt base_head=$remoteHead request_id=$requestId"
+              Write-Host "AURUM_TINYSEED_FLASH_REQUEST_OK request_id=$requestId state=READY_TO_BOOT raw_readback_verified=true"
+              exit 0
+            }
+            Start-Sleep -Seconds (2 * $attempt)
+          }
+
+          throw "AURUM_TINYSEED_FLASH_RECEIPT_FAILED reason=publication-race-retry-exhausted request_id=$requestId"
