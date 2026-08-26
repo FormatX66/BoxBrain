@@ -125,6 +125,10 @@ commands are:
 - `route_topic`
 - `post_receipt`
 
+The current MCP v2 wrapper is documented in
+[Aurum Chat Tree MCP](../Projects/Aurum/ChatTreeMCP/README.md). It exposes the same
+four operations through Streamable HTTP without creating a second state model.
+
 That same narrow interface can be wrapped later by a ChatGPT App/MCP tool, HTTP
 service, GitHub Action, local BoxBrain agent, or voice pipeline. Keeping the core
 transport-neutral avoids making conversation continuity depend on any one UI or
