@@ -1,0 +1,34 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "write_authority": false
+  },
+  "input_register_model_receipt_sha256": "763c6e8959367ff5ccf210e9a974a55fedb680110af70f84aaf9286928c404ed",
+  "invariants": {
+    "device_io_performed": false,
+    "driver_binding_path_present": false,
+    "interrupt_ack_write_performed": false,
+    "kernel_module_entrypoint_present": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "register_read_performed": false,
+    "register_write_performed": false
+  },
+  "known_endpoint_mask": 786431,
+  "known_status_mask": 524287,
+  "next_gate": "host-differential-register-interrupt-scenario-matrix",
+  "read_only_status_mask": 34815,
+  "receipt_sha256": "6dea420e1e001f6ca331e89a8b80c99a60a7607f4dae1675efcc2dfc66c697b5",
+  "schema": "aurum.pi3.smsc95xx.register-interrupt-candidate-differential.v1",
+  "source_sha256": "0feb988d31148a66792584daf60a8dd30723e427a466b98abbdb4ad63dc396db",
+  "state": "synthesized-zero-authority-register-interrupt-candidate",
+  "w1c_status_mask": 489472
+}

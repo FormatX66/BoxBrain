@@ -1,0 +1,161 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "write_authority": false
+  },
+  "endpoint_control": {
+    "always_interrupt_packet_mask": 2147483648,
+    "rx_fifo_has_frame_mask": 262144
+  },
+  "interrupt_sources": [
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_MAC_RTO_",
+      "endpoint_mask": 524288,
+      "name": "mac-reset-timeout",
+      "status_define": "INT_STS_MAC_RTO_",
+      "status_mask": 262144
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_TX_STOP_",
+      "endpoint_mask": 131072,
+      "name": "tx-stopped",
+      "status_define": "INT_STS_TX_STOP_",
+      "status_mask": 131072
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_RX_STOP_",
+      "endpoint_mask": 65536,
+      "name": "rx-stopped",
+      "status_define": "INT_STS_RX_STOP_",
+      "status_mask": 65536
+    },
+    {
+      "clear_semantics": "read-only-source",
+      "endpoint_define": "INT_EP_CTL_PHY_INT_",
+      "endpoint_mask": 32768,
+      "name": "phy-interrupt",
+      "status_define": "INT_STS_PHY_INT_",
+      "status_mask": 32768
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_TXE_",
+      "endpoint_mask": 16384,
+      "name": "tx-error",
+      "status_define": "INT_STS_TXE_",
+      "status_mask": 16384
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_TDFU_",
+      "endpoint_mask": 8192,
+      "name": "tx-fifo-underrun",
+      "status_define": "INT_STS_TDFU_",
+      "status_mask": 8192
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_TDFO_",
+      "endpoint_mask": 4096,
+      "name": "tx-fifo-overrun",
+      "status_define": "INT_STS_TDFO_",
+      "status_mask": 4096
+    },
+    {
+      "clear_semantics": "write-one-clear",
+      "endpoint_define": "INT_EP_CTL_RXDF_",
+      "endpoint_mask": 2048,
+      "name": "rx-dropped-frame",
+      "status_define": "INT_STS_RXDF_",
+      "status_mask": 2048
+    },
+    {
+      "clear_semantics": "read-only-source",
+      "endpoint_define": "INT_EP_CTL_GPIOS_",
+      "endpoint_mask": 2047,
+      "name": "gpio",
+      "status_define": "INT_STS_GPIOS_",
+      "status_mask": 2047
+    }
+  ],
+  "invariants": {
+    "device_io_performed": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "interrupt_ack_write_performed": false,
+    "kernel_changed": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "network_configuration_changed": false,
+    "register_write_performed": false
+  },
+  "next_gate": "differential-check-candidate-register-interrupt-shadow-semantics",
+  "receipt_sha256": "763c6e8959367ff5ccf210e9a974a55fedb680110af70f84aaf9286928c404ed",
+  "reference_evidence": {
+    "functional_model_receipt_sha256": "c434bb67a652263c5e3ecd81f1c2311d05cc9181dab5e992c7b02ef12a8a1679",
+    "microchip_databook_semantics": {
+      "INT_EP_CTL_offset": "0x068",
+      "INT_STS_offset": "0x008",
+      "phy_and_gpio_status_access": "RO",
+      "pulse_status_access": "R/WC"
+    },
+    "rpi_smsc95xx_h_sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8",
+    "rpi_upstream_constant_agreement": true,
+    "upstream_smsc95xx_h_sha256": "9485ead2c994b256fc1f0494edff539863467b2fa0ee2c353cdee461f002dbf8"
+  },
+  "register_offsets": {
+    "HW_CFG": 20,
+    "ID_REV": 0,
+    "INT_EP_CTL": 104,
+    "INT_STS": 8,
+    "MAC_CR": 256,
+    "MII_ADDR": 276,
+    "PM_CTRL": 32,
+    "RX_CFG": 12,
+    "RX_FIFO_INF": 24,
+    "TX_CFG": 16,
+    "TX_FIFO_INF": 28
+  },
+  "schema": "aurum.pi3.smsc95xx.register-interrupt-shadow.v1",
+  "scope": {
+    "controller": "LAN9514/LAN9514i",
+    "device_io": "forbidden",
+    "mode": "non-actuating-register-interrupt-shadow",
+    "protected_reference_driver": "smsc95xx"
+  },
+  "state": "verified-offline-register-interrupt-shadow",
+  "strongest_claim": "The bounded Pi3 smsc95xx candidate now has a deterministic offline register/interrupt shadow model whose interrupt offsets and masks agree between the hash-pinned Raspberry Pi and upstream Linux v6.18 headers, while R/WC acknowledgement intent is kept separate from read-only PHY/GPIO sources. No hardware I/O, register write, binding, module load, mutation, or promotion authority is created.",
+  "verification": {
+    "rpi_upstream_define_mismatches": 0,
+    "rpi_upstream_defines_compared": 32,
+    "synthetic_mixed_interrupt_self_check": {
+      "active_sources": [
+        "phy-interrupt",
+        "tx-error"
+      ],
+      "device_io_performed": false,
+      "endpoint_reportable_sources": [
+        "phy-interrupt",
+        "tx-error"
+      ],
+      "read_only_sources": [
+        "phy-interrupt"
+      ],
+      "register_write_performed": false,
+      "unknown_endpoint_bits": 0,
+      "unknown_status_bits": 0,
+      "w1c_ack_mask": 16384
+    }
+  }
+}

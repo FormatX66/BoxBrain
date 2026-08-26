@@ -1,0 +1,58 @@
+{
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "input_register_model_receipt_sha256": "763c6e8959367ff5ccf210e9a974a55fedb680110af70f84aaf9286928c404ed",
+  "invariants": {
+    "driver_binding_path_present": false,
+    "kernel_module_entrypoint_present": false,
+    "last_known_good_preserved": true,
+    "live_pi_contacted": false,
+    "packet_buffer_mutated": false,
+    "register_read_performed": false,
+    "register_write_performed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "next_gate": "source-referenced-packet-transfer-differential-before-native-binding",
+  "receipt_sha256": "ac462fe8d4e9a1f2e2f506ee544e64c27288eb7cb347a19f8f1f3306ebf650e3",
+  "register_control_transfer": {
+    "read_request": 161,
+    "read_request_type": 192,
+    "register_offset_field": "wIndex",
+    "register_payload_endianness": "little",
+    "register_transfer_bytes": 4,
+    "w_value": 0,
+    "write_request": 160,
+    "write_request_type": 64
+  },
+  "rx_packet_framing": {
+    "data_offset_bytes": 2,
+    "error_summary_mask": 32768,
+    "frame_length_mask": 1073676288,
+    "frame_length_shift": 16,
+    "next_frame_alignment_bytes": 4,
+    "status_word_bytes": 4
+  },
+  "schema": "aurum.pi3.smsc95xx.packet-transfer-shadow.v1",
+  "state": "verified-offline-packet-transfer-shadow",
+  "tx_packet_framing": {
+    "buffer_size_mask": 2047,
+    "checksum_enable_mask": 16384,
+    "checksum_preamble_bytes": 4,
+    "command_word_bytes": 8,
+    "first_segment_mask": 8192,
+    "frame_length_mask": 2047,
+    "last_segment_mask": 4096
+  }
+}
