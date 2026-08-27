@@ -61,13 +61,20 @@ class TraitScope:
         }
 
     def covers(self, target: "TraitScope") -> bool:
-        """A trait covers a target only when every constrained dimension contains it."""
+        """Require explicit scope for every target dimension that is constrained.
+
+        An empty source dimension means "not proven for any concrete value", not
+        a wildcard. This prevents an underspecified trait from silently widening
+        itself when received by another phenotype or hardware class.
+        """
         source = self.canonical()
         wanted = target.canonical()
         for dimension in source:
             allowed = set(source[dimension])
             requested = set(wanted[dimension])
-            if allowed and not requested.issubset(allowed):
+            if requested and not allowed:
+                return False
+            if not requested.issubset(allowed):
                 return False
         return True
 
@@ -195,6 +202,7 @@ def merge_cross_node_evidence(candidates: Iterable[TraitCandidate]) -> dict:
             item["payload_digest"],
             _stable_json(item["scope"]),
             item["lineage_digest"],
+            item["parent_trait_digest"],
         )
         for item in canonical
     }
