@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "driver_candidates" / "kernel_shadow"))
+from kernel_shadow_compile_only import extract_modinfo_values
 from verify_kernel_shadow import ContractError, PASS_STATE, canonical_sha256, validate_candidate
 
 REPO = Path(__file__).resolve().parents[3]
@@ -24,6 +25,17 @@ class KernelShadowContractTests(unittest.TestCase):
         self.assertTrue(all(value is False for value in receipt["invariants"].values()))
         self.assertEqual(receipt["basis"]["source_package_receipt_sha256"],
                          "04c065a6ff3a98c4d70b6bbfab3d442887a8314ca075662e3d83391456fbfc42")
+
+    def test_artifact_byte_modinfo_reader_is_bounded_and_exact(self):
+        image = (b"\x7fELF\x00noise\x00vermagic=6.18.34+rpt-rpi-v8 SMP preempt mod_unload aarch64\x00"
+                 b"license=GPL\x00alias=usb:v0424pEC00d*\x00alias=usb:v0424pEC00d*\x00tail")
+        self.assertEqual(
+            extract_modinfo_values(image, "vermagic"),
+            ["6.18.34+rpt-rpi-v8 SMP preempt mod_unload aarch64"],
+        )
+        self.assertEqual(extract_modinfo_values(image, "alias"), ["usb:v0424pEC00d*"])
+        with self.assertRaisesRegex(ValueError, "unsafe modinfo key"):
+            extract_modinfo_values(image, "../alias")
 
     def stage(self) -> tuple[tempfile.TemporaryDirectory, Path, Path]:
         temp = tempfile.TemporaryDirectory()
