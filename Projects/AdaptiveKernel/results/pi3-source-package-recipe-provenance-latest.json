@@ -1,0 +1,92 @@
+{
+  "archives": {
+    "debian": {
+      "dsc_checksum_matches": true,
+      "filename": "linux_6.18.34-1+rpt1.debian.tar.xz",
+      "sha256": "39a4e826d7e0f3e79ddd042f37c1ac7b09f1116e71250171aedee0d8268ec4e8",
+      "size": 2469644
+    },
+    "orig": {
+      "dsc_checksum_matches": true,
+      "filename": "linux_6.18.34.orig.tar.xz",
+      "sha256": "640c4732fb42842166db97e032c1fe7e5ff72c85a8982c75b40f74be3555d760",
+      "size": 154486284
+    }
+  },
+  "authority": {
+    "device_io_allowed": false,
+    "driver_binding_change_allowed": false,
+    "firmware_mutation_allowed": false,
+    "interrupt_ack_write_allowed": false,
+    "kernel_module_load_allowed": false,
+    "mutation_allowed": false,
+    "network_configuration_change_allowed": false,
+    "promotion_allowed": false,
+    "register_write_allowed": false,
+    "usb_transfer_allowed": false,
+    "write_authority": false
+  },
+  "dsc": {
+    "clear_signature_present": true,
+    "format": "3.0 (quilt)",
+    "hash_algorithm": 10,
+    "issuer_fingerprint": "D148028716CAA03283161E8873746DAF1817BDB0",
+    "public_key_algorithm": 22,
+    "sha256": "35d7c13c50dedef33a88b5e90fd2198ac480ef3ffca6dfe5f8516a2e6de747fb",
+    "signature_cryptographically_verified": false,
+    "signature_packet_sha256": "0dfc9b7889f314aa0aee61eda9add6857194bd15e27072ff9d21a7c249828eec",
+    "signer_key_trust_anchored": false,
+    "size": 20229,
+    "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux_6.18.34-1+rpt1.dsc",
+    "vcs_git": "https://github.com/RPi-Distro/linux-packaging.git"
+  },
+  "dsc_signer_key_trust_binding_proven": false,
+  "full_source_package_git_commit_binding_proven": false,
+  "held_claims": [
+    "dsc-signer-key-trust-not-anchored",
+    "full-source-package-to-git-commit-equivalence-not-proven",
+    "whole-tree-build-reproducibility-not-proven"
+  ],
+  "invariants": {
+    "driver_binding_changed": false,
+    "kernel_code_executed": false,
+    "live_pi_contacted": false,
+    "qpu_contacted": false,
+    "register_access_performed": false,
+    "source_compiled_or_executed": false,
+    "usb_device_opened": false,
+    "usb_transfer_submitted": false
+  },
+  "mismatch_count": 0,
+  "mismatches": [],
+  "next_safe_gate": "trusted-dsc-signer-key-or-whole-tree-reproducible-build-provenance",
+  "orig_protected_sources": {
+    "drivers/net/usb/usbnet.c": {
+      "matches_pinned_raspberry_pi_source": true,
+      "sha256": "ed01f2f6f286844decdf974a2e1ca81f87e8fdc753d64b84d44295e0d36c7220"
+    },
+    "drivers/usb/core/urb.c": {
+      "matches_pinned_raspberry_pi_source": true,
+      "sha256": "6b5fbce916aa73103514a0e62089b9bff1d9b4effa19c6f2c8ce857981ffd333"
+    }
+  },
+  "protected_path_source_recipe_binding_proven": true,
+  "quilt": {
+    "entry_count": 32,
+    "inventory_sha256": "4b25e5db18a974bb46ea5ede6ffcba0a5c4625c0481027ad62f084d1fc9e88d3",
+    "protected_patch_hits": [],
+    "protected_paths_unmodified_by_series": true,
+    "series_path": "debian/patches/series",
+    "series_sha256": "bb5c00dd4de1d7b5508915d4aa485f82b52c7c38b9d7ba488dbab1720b37e491"
+  },
+  "receipt_sha256": "d5445636a6ecfdc6618767f5cf2c865d96e914c1a15e3b3ab338fdf43c6d89fa",
+  "schema": "aurum.pi3.source-package-recipe-provenance.v1",
+  "state": "official-source-recipe-protected-paths-proven",
+  "strongest_claim": "The exact clear-signed .dsc bytes served by the official Raspberry Pi archive pin an orig tar and Debian quilt tar whose immutable hashes and sizes match. The orig archive contains the two protected USBNet/URB files at the pinned Raspberry Pi hashes, and no patch in the exact quilt inventory names either protected path. Signer-key trust, whole-tree Git equivalence, and build reproducibility remain held.",
+  "target": {
+    "source_package": "linux",
+    "source_version": "1:6.18.34-1+rpt1"
+  },
+  "upstream_provenance_receipt_sha256": "04c065a6ff3a98c4d70b6bbfab3d442887a8314ca075662e3d83391456fbfc42",
+  "whole_tree_build_recipe_equivalence_proven": false
+}
