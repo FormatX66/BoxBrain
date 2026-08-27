@@ -95,7 +95,11 @@ class MachineNativeStateTests(unittest.TestCase):
         self.assertEqual(projection["source_native_digest"], state.digest())
         self.assertEqual(
             projection["entries"],
-            sorted(projection["entries"], key=lambda item: item["path"]),
+            sample_state(reverse=True).compatibility_projection()["entries"],
+        )
+        self.assertEqual(
+            [item["entity"] for item in projection["entries"]],
+            ["hopper", "wifi"],
         )
 
     def test_stateweave_basis_expires_when_native_state_changes(self):
