@@ -137,10 +137,41 @@ jobs:
             }
           }
 
-          # A tested rollback image and visible boot gate are valuable recovery evidence,
-          # but they are not an automatic out-of-band watchdog capable of recovering a
-          # networking-breaking kernel mutation. Keep mutation authority false.
+          # The rollback image and visible boot gate do not by themselves prove an
+          # out-of-band watchdog.  Consume a canonical physical recovery receipt
+          # only through the fail-closed validator; absence remains a normal hold.
           $outOfBandWatchdogProven = $false
+          $watchdogReceiptState = 'missing'
+          $watchdogReceiptSha256 = $null
+          $watchdogEvidencePath = 'Projects/AdaptiveDrivers/evidence/pi3-oob-watchdog-physical.json'
+          if (Test-Path -LiteralPath $watchdogEvidencePath -PathType Leaf) {
+            $runtimeRoot = Join-Path $env:LOCALAPPDATA 'BoxBrain\AurumFarmer\runtime'
+            $installReceiptPath = Join-Path $runtimeRoot 'install-receipt.json'
+            if (-not (Test-Path -LiteralPath $installReceiptPath -PathType Leaf)) {
+              throw 'AURUM_PI3_KERNEL_CANARY_REFUSED reason=farmer-python-receipt-missing'
+            }
+            $install = Get-Content -LiteralPath $installReceiptPath -Raw | ConvertFrom-Json
+            $pythonPath = [string]$install.python_exe
+            if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+              throw 'AURUM_PI3_KERNEL_CANARY_REFUSED reason=farmer-python-missing'
+            }
+            $watchdogText = @(& $pythonPath 'Projects/AdaptiveKernel/recovery/physical_watchdog_receipt.py' '--receipt' $watchdogEvidencePath 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+              throw "AURUM_PI3_KERNEL_CANARY_REFUSED reason=physical-watchdog-receipt-invalid detail=$($watchdogText -join ' | ')"
+            }
+            $watchdogEvaluation = ($watchdogText -join [Environment]::NewLine) | ConvertFrom-Json
+            if (
+              [string]$watchdogEvaluation.schema -ne 'aurum.pi3.oob-recovery.evaluation.v1' -or
+              -not [bool]$watchdogEvaluation.physical_proof_validated -or
+              [bool]$watchdogEvaluation.physical_proof_inferred -or
+              [bool]$watchdogEvaluation.mutation_authority_granted
+            ) {
+              throw 'AURUM_PI3_KERNEL_CANARY_REFUSED reason=physical-watchdog-evaluation-boundary'
+            }
+            $outOfBandWatchdogProven = [bool]$watchdogEvaluation.watchdog_proven
+            $watchdogReceiptState = [string]$watchdogEvaluation.state
+            $watchdogReceiptSha256 = [string]$watchdogEvaluation.receipt_sha256
+          }
           $explicitKernelMutationAuthority = $false
           $mutationReady = ($headers -and $compilePassed -and $rollbackImageProven -and $outOfBandWatchdogProven -and $explicitKernelMutationAuthority)
           $state = if (-not $headers) { 'held-missing-matching-headers' } elseif (-not $compilePassed) { 'held-compile-only-canary-failed' } elseif (-not $outOfBandWatchdogProven) { 'held-out-of-band-watchdog-unproven' } elseif (-not $explicitKernelMutationAuthority) { 'held-explicit-kernel-mutation-authority' } else { 'ready-for-explicit-kernel-canary' }
@@ -153,7 +184,7 @@ jobs:
             state = $state
             target = [ordered]@{ model = ([string]$probe[0]).Trim(); serial = ([string]$probe[1]).Trim(); kernel = $kernel; arch = $arch; strict_key_only_ssh = $true }
             build_prerequisites = [ordered]@{ matching_headers_present = $headers; make_available = $makeAvailable; compiler_available = $compilerAvailable; module_symvers_present = $moduleSymvers; compile_attempted = $compileAttempted; compile_only_canary_passed = $compilePassed; vermagic = $vermagic }
-            recovery = [ordered]@{ exact_current_card_rollback_image_proven = $rollbackImageProven; post_backup_boot_canary_proven = $rollbackImageProven; camera_boot_gate_proven = $cameraBootGateProven; out_of_band_automatic_watchdog_proven = $outOfBandWatchdogProven }
+            recovery = [ordered]@{ exact_current_card_rollback_image_proven = $rollbackImageProven; post_backup_boot_canary_proven = $rollbackImageProven; camera_boot_gate_proven = $cameraBootGateProven; out_of_band_automatic_watchdog_proven = $outOfBandWatchdogProven; watchdog_receipt_state = $watchdogReceiptState; watchdog_receipt_sha256 = $watchdogReceiptSha256 }
             authority = [ordered]@{ explicit_kernel_mutation_authority = $explicitKernelMutationAuthority; kernel_module_load_allowed = $false; driver_binding_change_allowed = $false; firmware_mutation_allowed = $false; mutation_ready = $mutationReady }
             safety = [ordered]@{ module_loaded = $false; system_driver_changed = $false; persistent_trust_changed = $false; production_nodes_allowed = $false; remote_build_path = '/tmp only and removed after compile' }
             next_gate = if (-not $headers) { 'install-or-provide-exact-matching-headers-through-a-separate-authorized-path' } elseif (-not $outOfBandWatchdogProven) { 'prove-automatic-out-of-band-watchdog-and-recovery' } else { 'fresh-explicit-kernel-mutation-authority' }

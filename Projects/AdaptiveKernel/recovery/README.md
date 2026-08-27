@@ -24,12 +24,24 @@ Simulation success never becomes physical proof. Those evaluator fields remain
 false, `watchdog_proven` remains false, and mutation authority remains false.
 This prevents a test double from unlocking the physical kernel-canary gate.
 
+`physical_watchdog_receipt.py` is the separate fail-closed intake path for a
+future real recovery cycle. It requires exact target and LKG identity, four
+distinct independently identified components, target-kernel-independent
+observation and actuation, automatic failure/recovery evidence with distinct
+content hashes, exact post-recovery health, and zero mutation authority. The
+kernel-canary preflight treats a missing receipt as a normal hold and rejects a
+present malformed receipt. Even a fully validated physical watchdog receipt can
+only remove the watchdog prerequisite; fresh kernel-mutation authority remains a
+separate gate.
+
 Run the focused tests from the repository root:
 
 ```text
 python -m unittest -v \
   Projects.AdaptiveKernel.tests.test_pi3_watchdog_contract \
-  Projects.AdaptiveKernel.recovery.test_out_of_band_controller
+  Projects.AdaptiveKernel.recovery.test_out_of_band_controller \
+  Projects.AdaptiveKernel.recovery.test_physical_watchdog_receipt \
+  Projects.AdaptiveKernel.tests.test_pi3_kernel_canary_preflight_workflow
 ```
 
 ## Remaining physical gates
