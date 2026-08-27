@@ -8,6 +8,7 @@ from Projects.AurumPC.aurum_input import (
     apply_pointer_wake_policy,
     classify_device,
     input_devices,
+    parse_libinput_devices,
 )
 
 
@@ -17,6 +18,25 @@ class AurumInputTests(unittest.TestCase):
         self.assertEqual(classify_device("USB Optical Mouse", rel=(1,), abs_axes=()), "mouse")
         self.assertEqual(classify_device("Generic HID", rel=(3,), abs_axes=()), "relative-pointer")
         self.assertEqual(classify_device("Generic HID", rel=(), abs_axes=(3,)), "absolute-pointer")
+
+    def test_libinput_parser_binds_capabilities_to_exact_event_node(self) -> None:
+        parsed = parse_libinput_devices(
+            """Device:           SynPS/2 Synaptics TouchPad
+Kernel:           /dev/input/event4
+Group:            7
+Seat:             seat0, default
+Capabilities:     pointer gesture
+
+Device:           AT Translated Set 2 keyboard
+Kernel:           /dev/input/event1
+Group:            6
+Seat:             seat0, default
+Capabilities:     keyboard
+"""
+        )
+        self.assertEqual(parsed["/dev/input/event4"]["name"], "SynPS/2 Synaptics TouchPad")
+        self.assertEqual(parsed["/dev/input/event4"]["capabilities"], ["pointer", "gesture"])
+        self.assertEqual(parsed["/dev/input/event1"]["capabilities"], ["keyboard"])
 
     def test_wake_policy_changes_only_nearest_pointer_power_target(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -33,12 +53,16 @@ class AurumInputTests(unittest.TestCase):
             (device / "power").mkdir()
             (device / "power" / "control").write_text("auto\n", encoding="ascii")
             (device / "power" / "wakeup").write_text("disabled\n", encoding="ascii")
+            driver_target = root / "drivers" / "psmouse"
+            driver_target.mkdir(parents=True)
+            (device / "driver").symlink_to(driver_target, target_is_directory=True)
             (sys_input / "power").mkdir()
             (sys_input / "power" / "control").write_text("auto\n", encoding="ascii")
 
             devices = input_devices(sys_input=sys_input, dev_input=dev_input)
             result = apply_pointer_wake_policy(devices)
 
+            self.assertEqual(devices[0]["kernel_driver"], "psmouse")
             self.assertEqual(result["status"], "ready")
             self.assertEqual(result["managed_pointer_count"], 1)
             self.assertEqual((device / "power" / "control").read_text(encoding="ascii").strip(), "on")
