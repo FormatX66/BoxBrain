@@ -1,9 +1,9 @@
 ﻿{
     "schema":  "aurum.pi3.kernel-shadow.compile-control.v1",
-    "observed_at_utc":  "2026-08-27T00:52:59.5901958Z",
+    "observed_at_utc":  "2026-08-27T00:55:09.9200488Z",
     "state":  "verified-kernel-shadow-compile-only",
-    "run_id":  "33028260301",
-    "source_commit":  "e4afbd5179af4b0fa09fbaf3287dae71478f8e63",
+    "run_id":  "33028375007",
+    "source_commit":  "e3b685fc9cce03735460024a30a1a561e59ddbbc",
     "target":  {
                    "model":  "Raspberry Pi 3 Model B Rev 1.2",
                    "serial":  "00000000a6a7df7f",
@@ -13,7 +13,7 @@
                    "reference_driver":  "smsc95xx"
                },
     "evidence":  {
-                     "compile_receipt_sha256":  "4d6bf0a9b8f74b436b6d9c2a77aae52216dc9bff8c58704f41f06cc473d6d800",
+                     "compile_receipt_sha256":  "1e2f8ae6197ac351bff23996b96ea933301ce7ab6859ba318ff0139199c91e60",
                      "module_sha256":  "fc7d1ea705257b1b122d4255c8d81a16b74fa20fbd9db71eafec3108591f6ffe",
                      "vermagic":  "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64"
                  },
