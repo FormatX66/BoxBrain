@@ -1,1 +1,50 @@
-﻿{"authorization": {"authorization_state": "EXPIRED", "destructive_action_allowed": false, "expires_at_utc": "2026-08-27T05:24:15.195590+00:00", "request_id": "tinyseed-sandisk-flash-20260827-032415-4eb31e80", "request_write_authority": false}, "destructive_action_allowed": false, "destructive_action_performed": false, "discovery_request_id": "tinyseed-auto-release-4eb31e8071cd-33028904382", "discovery_selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY", "eligible_count": 1, "guardian_forced_rollback_proven": false, "invariants": {"full_raw_readback_required_after_write": true, "guardian_forced_rollback_proof_required": true, "physical_boot_proof_required_after_flash": true, "preexecution_toolside_recovery_before_manual_handoff": true, "preserve_hopper_existing_recovery_media": true, "reprove_raw_usb_identity_before_write": true}, "next_gate": "fresh-terminal-hopper-preexecution-recovery-receipt", "physical_boot_proven": false, "preexecution_recovery": {"manual_handoff_released": false, "observed_at": "2026-08-27T03:20:01.0921895Z", "reason": "Hopper recovery receipt is not fresh", "remote_repair": "unavailable", "required_schema": "aurum.hopper.recovery-path-probe.v2", "terminal_reason": "boxbrain-unreachable", "terminal_receipt_present": true}, "preflight_state": "WAIT_HOPPER_PREEXECUTION_RECOVERY", "release": {"source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b", "state": "READY_TO_FLASH", "x86_artifact": "Aurum-TinySeed-amd64.iso", "x86_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084"}, "release_source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b", "release_state": "READY_TO_FLASH", "schema": "aurum-tinyseed-physical-preflight-v2", "state": "WAIT_HOPPER_PREEXECUTION_RECOVERY", "usb_candidate": {"disk_number": 1, "eligible_for_preflight_only": true, "is_boot": false, "is_read_only": false, "is_system": false, "model": "USB SanDisk 3.2 Gen", "protected": false, "refusal_reasons": [], "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5", "size_bytes": 61524148224}, "usb_discovery": {"candidate": {"disk_number": 1, "eligible_for_preflight_only": true, "is_boot": false, "is_read_only": false, "is_system": false, "model": "USB SanDisk 3.2 Gen", "protected": false, "refusal_reasons": [], "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5", "size_bytes": 61524148224}, "eligible_count": 1, "observed_at_utc": "2026-08-27T07:42:39.0680491Z", "release_request_match": true, "release_source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b", "request_id": "tinyseed-auto-release-4eb31e8071cd-33028904382", "selection_state": "UNIQUE_SAFE_TO_PREFLIGHT_ONLY", "write_authority": false}, "write_authority": false, "x86_artifact": "Aurum-TinySeed-amd64.iso", "x86_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084"}
+{
+  "destructive_action_allowed": false,
+  "destructive_action_performed": false,
+  "flash_receipt": {
+    "device": {
+      "disk_number": 1,
+      "model": "USB SanDisk 3.2 Gen",
+      "serial_sha256": "1c8038bf291a98a59002127a2d13ae11290e23a6d9419a549c1f0fbaaad9ddd5",
+      "size_bytes": 61524148224
+    },
+    "image_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084",
+    "observed_at_utc": "2026-08-27T03:29:27.1831724Z",
+    "raw_readback_verified": true,
+    "request_id": "tinyseed-sandisk-flash-20260827-032415-4eb31e80",
+    "source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+    "state": "READY_TO_BOOT",
+    "write_authority_consumed": true
+  },
+  "guardian_forced_rollback_proven": false,
+  "invariants": {
+    "guardian_forced_rollback_proof_required": true,
+    "no_reflash_without_new_invalidating_evidence": true,
+    "physical_boot_proof_required_after_flash": true,
+    "preserve_hopper_existing_recovery_media": true
+  },
+  "next_gate": "physical-hopper-boot-proof",
+  "physical_boot_proven": false,
+  "physical_flash_proven": true,
+  "preexecution_recovery": {
+    "observed_at": "2026-08-27T03:20:01.0921895Z",
+    "read_only_probe": true,
+    "remote_repair": "unavailable",
+    "schema": "aurum.hopper.recovery-path-probe.v2",
+    "terminal_reason": "boxbrain-unreachable"
+  },
+  "preflight_state": "READY_TO_BOOT",
+  "release": {
+    "source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+    "state": "READY_TO_FLASH",
+    "x86_artifact": "Aurum-TinySeed-amd64.iso",
+    "x86_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084"
+  },
+  "release_source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+  "release_state": "READY_TO_FLASH",
+  "schema": "aurum-tinyseed-physical-preflight-v2",
+  "state": "READY_TO_BOOT",
+  "write_authority": false,
+  "x86_artifact": "Aurum-TinySeed-amd64.iso",
+  "x86_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084"
+}
