@@ -27,6 +27,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Rehydrate provenance-bound sources as canonical LF bytes
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $paths = @(
+            'Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-nonbinding-candidate.c',
+            'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/aurum_pi3_smsc95xx_kernel_shadow.c',
+            'Projects/AdaptiveKernel/driver_candidates/kernel_shadow/Kbuild'
+          )
+          foreach ($path in $paths) {
+            & git -c core.autocrlf=false checkout-index --force -- $path
+            if ($LASTEXITCODE -ne 0) { throw "Failed to rehydrate canonical bytes for $path" }
+            $expected = ([string](& git rev-parse "HEAD:$path")).Trim()
+            $actual = ([string](& git hash-object --no-filters -- $path)).Trim()
+            if (-not $expected -or -not $actual -or $expected -ne $actual) {
+              throw "Canonical worktree blob mismatch for $path expected=$expected actual=$actual"
+            }
+          }
+
       - name: Resolve pinned Farmer Python and verify zero-authority static contract
         shell: powershell
         run: |
@@ -41,8 +60,8 @@ jobs:
           $staticOutput = @(& $pythonPath Projects/AdaptiveKernel/driver_candidates/kernel_shadow/verify_kernel_shadow.py 2>&1)
           $staticExit = $LASTEXITCODE
           $staticOutput | Set-Content -LiteralPath 'pi3-kernel-shadow-evidence/static-receipt.json' -Encoding utf8
-          if ($staticExit -ne 0) { throw 'Kernel-shadow static contract refused the source.' }
           $static = Get-Content -LiteralPath 'pi3-kernel-shadow-evidence/static-receipt.json' -Raw | ConvertFrom-Json
+          if ($staticExit -ne 0) { throw "Kernel-shadow static contract refused the source: $($static.reason)" }
           if ($static.state -ne 'verified-inert-kernel-shadow-compile-only') { throw 'Kernel-shadow static receipt did not pass.' }
           if ([bool]$static.invariants.load_allowed -or [bool]$static.invariants.hardware_io_present -or [bool]$static.invariants.write_authority) {
             throw 'Kernel-shadow static receipt unexpectedly grants capability.'
