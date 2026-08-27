@@ -11,37 +11,37 @@
   "frontier": [
     {
       "rank": 1,
+      "input_family": "physical-media-present",
+      "prepared_response": "Treat newly present removable media as evidence only for Tiny Seed release 4eb31e8071cdc9705f4f5abea5af764ef35e498b. Re-read the canonical release and collect fresh release-bound USB identity, system/boot-disk, read-only, and protected-media evidence with zero write authority.",
+      "action_if_safe": "Run or consume fresh release-bound read-only USB discovery, require one uniquely eligible non-system/non-boot/non-protected device, resynchronize canonical preflight, and stop at the explicit guarded-flash authorization boundary. Never infer write authority from media presence.",
+      "authority": "prediction-only-requires-live-consumption-recheck"
+    },
+    {
+      "rank": 2,
       "input_family": "physical-result-success",
       "prepared_response": "Verify ready/boot-proof receipts and continue the protected Repair/Reseed flow immediately rather than asking what to do next.",
       "action_if_safe": "Confirm Gen0 as slot A/LKG, grow current genetics only into inactive slot B, collect health evidence, and stop at any real reboot/physical boundary that cannot be crossed remotely.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
-      "rank": 2,
+      "rank": 3,
       "input_family": "physical-result-mixed",
       "prepared_response": "Treat boot/install progress as durable evidence, preserve LKG and completed stages, then repair only the failed or deferred next gate.",
       "action_if_safe": "Use retry/rescan or Join Wi-Fi, resume regrow against the prepared root, and still require formal boot-proof plus Guardian evidence before promotion claims.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
-      "rank": 3,
+      "rank": 4,
       "input_family": "physical-result-failure",
       "prepared_response": "Use boot-proof markers, safe/verbose boot, read-only triage, and preserved diagnostics to classify the exact failed stage without touching LKG. The direct-UEFI fallback is warm but remains isolated until evidence shows a carrier-specific problem.",
       "action_if_safe": "Apply the smallest evidence-driven fix to a candidate path and promote the alternate carrier only when observed failure or expected total cost justifies it.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
-      "rank": 4,
+      "rank": 5,
       "input_family": "status-or-so",
       "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 4eb31e8071cdc9705f4f5abea5af764ef35e498b with x86 SHA-256 c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084. Physical preflight is WAIT_USB_MEDIA; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=eligible-test-usb-presence. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
       "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes.",
-      "authority": "prediction-only-requires-live-consumption-recheck"
-    },
-    {
-      "rank": 5,
-      "input_family": "generic-prompt-intent-expansion",
-      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=WAIT_USB_MEDIA, next_gate=eligible-test-usb-presence, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
-      "action_if_safe": "Advance the safe prefix through eligible-test-usb-presence, refresh canonical evidence, and stop before any boundary that requires explicit new authority.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     }
   ],
@@ -57,6 +57,7 @@
     "flash_receipt_present": true,
     "flash_receipt_matches_current_release": false,
     "current_release_flash_ready_to_boot": false,
+    "waiting_for_usb_media": true,
     "flash_authorization_eligible": false,
     "write_authority": false,
     "destructive_action_allowed": false,

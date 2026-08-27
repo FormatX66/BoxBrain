@@ -72,7 +72,18 @@
   ],
   "likely_user_inputs": [
     {
-      "rank": 1,
+      "input_family": "physical-media-present",
+      "examples": [
+        "USB is plugged in",
+        "I plugged in the spare USB",
+        "the test USB is connected"
+      ],
+      "prepared_response": "Treat newly present removable media as evidence only for Tiny Seed release 4eb31e8071cdc9705f4f5abea5af764ef35e498b. Re-read the canonical release and collect fresh release-bound USB identity, system/boot-disk, read-only, and protected-media evidence with zero write authority.",
+      "action_if_safe": "Run or consume fresh release-bound read-only USB discovery, require one uniquely eligible non-system/non-boot/non-protected device, resynchronize canonical preflight, and stop at the explicit guarded-flash authorization boundary. Never infer write authority from media presence.",
+      "rank": 1
+    },
+    {
+      "rank": 2,
       "input_family": "physical-result-success",
       "examples": [
         "it booted",
@@ -83,7 +94,7 @@
       "action_if_safe": "Confirm Gen0 as slot A/LKG, grow current genetics only into inactive slot B, collect health evidence, and stop at any real reboot/physical boundary that cannot be crossed remotely."
     },
     {
-      "rank": 2,
+      "rank": 3,
       "input_family": "physical-result-mixed",
       "examples": [
         "it booted but Wi-Fi isn't working",
@@ -94,7 +105,7 @@
       "action_if_safe": "Use retry/rescan or Join Wi-Fi, resume regrow against the prepared root, and still require formal boot-proof plus Guardian evidence before promotion claims."
     },
     {
-      "rank": 3,
+      "rank": 4,
       "input_family": "physical-result-failure",
       "examples": [
         "it didn't boot",
@@ -107,7 +118,7 @@
       "action_if_safe": "Apply the smallest evidence-driven fix to a candidate path and promote the alternate carrier only when observed failure or expected total cost justifies it."
     },
     {
-      "rank": 4,
+      "rank": 5,
       "input_family": "status-or-so",
       "examples": [
         "so?",
@@ -118,7 +129,7 @@
       "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes."
     },
     {
-      "rank": 5,
+      "rank": 6,
       "input_family": "generic-prompt-intent-expansion",
       "examples": [
         "keep going",
@@ -130,7 +141,7 @@
       "action_if_safe": "Advance the safe prefix through eligible-test-usb-presence, refresh canonical evidence, and stop before any boundary that requires explicit new authority."
     },
     {
-      "rank": 6,
+      "rank": 7,
       "input_family": "explicit-guarded-flash-authorization",
       "examples": [
         "go ahead and flash the test USB",
@@ -141,7 +152,7 @@
       "action_if_safe": "Keep write authority false and resolve eligible-test-usb-presence using only read-only or already-authorized recovery paths. Reproject canonical preflight, and accept a fresh one-shot destructive authorization only after the state again proves READY_FOR_GUARDED_FLASH_PREFLIGHT for the same live release/device."
     },
     {
-      "rank": 7,
+      "rank": 8,
       "input_family": "physical-media-change-before-flash",
       "examples": [
         "I unplugged it",
@@ -152,7 +163,7 @@
       "action_if_safe": "Discard stale identity and repeat read-only discovery; keep write authority false until the exact current candidate is uniquely re-proven."
     },
     {
-      "rank": 8,
+      "rank": 9,
       "input_family": "seed-method-pivot",
       "examples": [
         "should we switch seed methods?",
@@ -163,7 +174,7 @@
       "action_if_safe": "Compare fresh physical carrier evidence and expected total cost while preserving the same Germ/genetics/LKG contract. Never promote the experimental carrier from virtual evidence alone."
     },
     {
-      "rank": 9,
+      "rank": 10,
       "input_family": "future-branch-self-audit",
       "examples": [
         "did it predict that?",
@@ -374,6 +385,7 @@
     "flash_receipt_present": true,
     "flash_receipt_matches_current_release": false,
     "current_release_flash_ready_to_boot": false,
+    "waiting_for_usb_media": true,
     "flash_authorization_eligible": false,
     "write_authority": false,
     "destructive_action_allowed": false,
