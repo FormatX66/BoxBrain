@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Tiny Seed One-Shot Flash Request",
-  "run_id": 32964249784,
-  "run_number": 8,
+  "run_id": 33036261514,
+  "run_number": 9,
   "run_attempt": 1,
   "status": "completed",
-  "conclusion": "success",
+  "conclusion": "failure",
   "event": "push",
-  "head_sha": "02979eed2c87e364569d702d0eff4f90ec044754",
+  "head_sha": "d8ab7094626151ab13f4dc382cb799f927df231b",
   "head_branch": "main",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32964249784",
-  "updated_at": "2026-08-26T11:38:53Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/33036261514",
+  "updated_at": "2026-08-27T03:25:22Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
