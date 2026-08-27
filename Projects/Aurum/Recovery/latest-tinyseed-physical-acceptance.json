@@ -1,0 +1,60 @@
+{
+  "schema": "aurum-tinyseed-physical-acceptance-v1",
+  "state": "QUARANTINED_PHYSICAL_ACCEPTANCE_FAILED",
+  "release": {
+    "source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+    "x86_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084"
+  },
+  "media_integrity": {
+    "flash_receipt_state": "READY_TO_BOOT",
+    "raw_readback_verified": true,
+    "write_authority_consumed": true,
+    "meaning": "media-write integrity only; not physical boot acceptance"
+  },
+  "observed_at_utc": "2026-08-27T11:48:53.500045Z",
+  "candidate_quarantined": true,
+  "physical_acceptance": false,
+  "physical_ready_to_boot": false,
+  "release_blockers": [
+    "wifi_nonfunctional",
+    "graphics_fallback_recursive_loop"
+  ],
+  "graphics": {
+    "grub_video_failure_precedes_linux": true,
+    "nomodeset_not_grub_video_fix": true,
+    "linux_graphics_unload_recursion_forbidden": true,
+    "required_behavior": "console-first GRUB plus one-shot Linux fallback"
+  },
+  "wifi": {
+    "classification": "likely TinySeed image/startup regression",
+    "prior_physical_wireless_interface": "wlp6s0",
+    "prior_scan_evidence": true,
+    "prior_online_route_evidence": true,
+    "required_diff": [
+      "kernel_wifi_module",
+      "linux_firmware",
+      "wireless_regdb",
+      "rfkill_state",
+      "NetworkManager",
+      "single_wifi_backend",
+      "dbus_service_enablement",
+      "connection_profile_path"
+    ]
+  },
+  "supersedes_prior_physical_readiness": true,
+  "next_gate": "repaired-candidate-plus-new-physical-wifi-and-stable-graphics-acceptance",
+  "provenance": {
+    "source": "Aurum Chat Tree append-only shared-state bus plus direct physical operator observation",
+    "event_ids": [
+      "evt-5da83a970ceb42bbb79d94c938acbc22",
+      "evt-2e0006f6b61243fd9c945ecb0806c075"
+    ]
+  },
+  "authority": {
+    "write_authority": false,
+    "promotion_authority": false,
+    "physical_action_authority": false,
+    "human_action_inferred": false,
+    "private_runner_retries_allowed": false
+  }
+}
