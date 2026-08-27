@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import unittest
 
 from Admin.tinyseed_refresh_policy import decide_usb_refresh
@@ -7,6 +8,7 @@ from Admin.tinyseed_refresh_policy import decide_usb_refresh
 
 SOURCE = "e845c02b984b8a40de42b58b1e059f03366804c3"
 IMAGE = "afecf00f5d0c1b01c8585b74b4f31d51bd23420e6be142b6f5a4c8a0a5dd7382"
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class TinySeedRefreshPolicyTests(unittest.TestCase):
@@ -57,6 +59,14 @@ class TinySeedRefreshPolicyTests(unittest.TestCase):
         decision = decide_usb_refresh(release, None)
         self.assertFalse(decision.refresh)
         self.assertEqual(decision.reason, "canonical-release-not-ready-to-flash")
+
+    def test_critical_evidence_mirror_continues_completion_sync(self) -> None:
+        workflow = (ROOT / ".github/workflows/aurum-completion-plan-sync.yml").read_text(encoding="utf-8")
+        self.assertIn("- 'Aurum Critical Workflow Evidence Mirror'", workflow)
+        self.assertIn(
+            "Projects/Aurum/Release/critical-workflows/aurum-tiny-seed-x86-fallback-carrier-matrix-experiment.json",
+            workflow,
+        )
 
 
 if __name__ == "__main__":

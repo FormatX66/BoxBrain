@@ -9,6 +9,7 @@ on:
       - 'Aurum Tiny Seed One-Shot Flash Request'
       - 'Aurum Pi3 Adaptive Driver Generation 2'
       - 'Aurum Pi3 Kernel Canary Preflight'
+      - 'Aurum Critical Workflow Evidence Mirror'
     types: [completed]
   push:
     branches: [main]
