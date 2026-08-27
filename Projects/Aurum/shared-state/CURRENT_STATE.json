@@ -1,5 +1,5 @@
 {
-  "event_count": 35,
+  "event_count": 37,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -949,6 +949,55 @@
       "summary": "The exact pinned Pi3 passed a guarded 64 MiB Pi-to-controller Ethernet transfer through the currently bound Linux smsc95xx driver. Identity, rollback, thermal, current-throttle, carrier, driver, network-counter, exact-byte, clean-exit, and orphan-process gates passed; no persistent change occurred.",
       "timestamp": "2026-08-26T23:26:16.547524Z"
     },
+    "pi3-smsc95xx-physical-ethernet-canary-controller-to-pi-20260826": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": "user-reflashable-sd-parallel-testing-20260826",
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-physical-ethernet-canary-20260826",
+        "pi3-current-card-rollback",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-pi3-physical-ethernet-canary-controller-to-pi-20260826",
+      "evidence_refs": [
+        "repo:Projects/AdaptiveKernel/results/pi3-smsc95xx-physical-ethernet-canary-controller-to-pi-20260826.json",
+        "receipt-file-sha256:15d272289d88fc3afa941ddcc999cfb2f7804da1c0828ab56073b2c134437412",
+        "rollback-manifest-file-sha256:12a0d8025b3396d97318d161a336d83043293489c8f2d484f22692c934faf17c",
+        "physical-boot-id:3488238f-e35d-4249-9d53-6133eeed4b8a",
+        "source-thread:01a03afd-4c1c-71c1-a78a-22e10d43c5ac"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "boot_id_unchanged": true,
+        "both_directions_bounded_64mib_passed": true,
+        "carrier_loss_samples": 0,
+        "controller_elapsed_ms": 24403,
+        "current_throttle_fault_samples": 0,
+        "direction": "controller-to-pi",
+        "driver_binding_changed": false,
+        "driver_mismatch_samples": 0,
+        "kernel_unchanged": true,
+        "max_temperature_c": 54.768,
+        "network_configuration_changed": false,
+        "network_error_or_drop_delta": 0,
+        "payload_bytes": 67108864,
+        "persistent_change": false,
+        "remote_counted_bytes": 67108864,
+        "root_source_unchanged": true,
+        "state": "bounded-physical-ethernet-canary-passed",
+        "strongest_claim": "both Ethernet directions have one bounded 64 MiB smsc95xx data-path pass; not long-duration stress, fault recovery, driver mutation, or replacement-kernel safety",
+        "temperature_ceiling_c": 65.0,
+        "throughput_mbps": 22.0,
+        "timeout_processes_after": 0,
+        "wc_processes_after": 0
+      },
+      "source": "strict-ssh-pinned-pi3-bounded-canary",
+      "status": "succeeded",
+      "subject_id": "pi3-smsc95xx-physical-ethernet-canary-controller-to-pi-20260826",
+      "subject_kind": "experiment",
+      "summary": "The exact pinned Pi3 passed a guarded 64 MiB controller-to-Pi Ethernet transfer through the currently bound Linux smsc95xx driver. Exact byte count, clean exit, identity, rollback, boot, kernel, root, thermal, current-throttle, carrier, driver, network-counter, and orphan-process gates passed with no persistent change.",
+      "timestamp": "2026-08-27T00:03:25.338911Z"
+    },
     "pi3-smsc95xx-rpi-usbnet-patch-delta-33023033056": {
       "actor": "codex-thread-01a03afd",
       "authority_ref": null,
@@ -1114,6 +1163,52 @@
       "subject_kind": "experiment",
       "summary": "The sealed USBNet lifecycle receipt now persists all 169 source-derived state/action transitions, making the previously verified 13-state graph independently replayable by downstream candidates while retaining zero hardware and mutation authority.",
       "timestamp": "2026-08-26T20:37:02.098600Z"
+    },
+    "pi3-source-package-recipe-provenance-33025287931": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "pi3-smsc95xx-rpi-usbnet-patch-delta-33023033056"
+      ],
+      "event_id": "evt-pi3-source-package-recipe-provenance-33025287931",
+      "evidence_refs": [
+        "github:actions:run:33025287931",
+        "github:actions:job:98365017889",
+        "github:artifact:9628141431",
+        "github:artifact-digest:sha256:0b3314e20d4bfda9a0a8591b7c2ed97c82ece3b4542ef5d3445970d705bdc6d5",
+        "repo:Projects/AdaptiveKernel/results/pi3-source-package-recipe-provenance-latest.json",
+        "receipt-sha256:d5445636a6ecfdc6618767f5cf2c865d96e914c1a15e3b3ab338fdf43c6d89fa",
+        "git:commit:aa198538baa79e4163fc18cbdf4c4c01e458b6da",
+        "github:actions:run:33024119170",
+        "github:artifact:9627711270",
+        "upstream-receipt-sha256:04c065a6ff3a98c4d70b6bbfab3d442887a8314ca075662e3d83391456fbfc42"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "debian_archive_sha256": "39a4e826d7e0f3e79ddd042f37c1ac7b09f1116e71250171aedee0d8268ec4e8",
+        "dsc_sha256": "35d7c13c50dedef33a88b5e90fd2198ac480ef3ffca6dfe5f8516a2e6de747fb",
+        "dsc_signer_key_trust_binding_proven": false,
+        "full_source_package_git_commit_binding_proven": false,
+        "live_pi_contacted": false,
+        "mismatch_count": 0,
+        "mutation_authority_granted": false,
+        "next_safe_gate": "trusted-dsc-signer-key-or-whole-tree-reproducible-build-provenance",
+        "orig_archive_sha256": "640c4732fb42842166db97e032c1fe7e5ff72c85a8982c75b40f74be3555d760",
+        "promotion_authority_granted": false,
+        "protected_patch_hit_count": 0,
+        "protected_path_source_recipe_binding_proven": true,
+        "qpu_contacted": false,
+        "quilt_entry_count": 32,
+        "state": "official-source-recipe-protected-paths-proven",
+        "whole_tree_build_recipe_equivalence_proven": false
+      },
+      "source": "github-hosted-official-source-recipe-artifact",
+      "status": "succeeded",
+      "subject_id": "pi3-source-package-recipe-provenance-33025287931",
+      "subject_kind": "experiment",
+      "summary": "The official Raspberry Pi source recipe pins the exact original and Debian quilt archives; all hashes/sizes matched, the 32-patch series has zero protected USBNet/URB path hits, and original protected files match the pinned Raspberry Pi sources. Signer trust, full package-to-Git equivalence, and whole-tree reproducibility remain held.",
+      "timestamp": "2026-08-27T00:03:26.359992Z"
     }
   }
 }
