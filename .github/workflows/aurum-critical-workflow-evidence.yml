@@ -123,6 +123,15 @@ jobs:
           # a self-sustaining evidence churn source while still recording a new
           # release, a changed safety mode/authority boundary, or any failure.
           if name == 'Aurum Tiny Seed Auto USB Refresh':
+              # The refresh workflow intentionally uses cancel-in-progress=true.
+              # A superseded run can therefore end as cancelled before a newer
+              # run evaluates the same release. That cancellation is scheduler
+              # noise, not durable recovery evidence; live Actions/Failsafe state
+              # remains the source for active/queued/cancelled execution detail.
+              if payload['conclusion'] == 'cancelled':
+                  print('AURUM_CRITICAL_EVIDENCE no-op=auto-usb-refresh-concurrency-cancelled')
+                  raise SystemExit(5)
+
               request_path = pathlib.Path('Projects/Aurum/Recovery/usb-discovery-request.json')
               semantic = {
                   'status': payload['status'],
@@ -228,6 +237,10 @@ jobs:
             fi
             if [ "$rc" -eq 4 ]; then
               echo 'AURUM_CRITICAL_EVIDENCE no-op=semantic-terminal-state-unchanged'
+              exit 0
+            fi
+            if [ "$rc" -eq 5 ]; then
+              echo 'AURUM_CRITICAL_EVIDENCE no-op=auto-usb-refresh-concurrency-cancelled'
               exit 0
             fi
             if [ "$rc" -ne 0 ]; then
