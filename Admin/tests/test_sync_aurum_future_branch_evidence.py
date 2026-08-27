@@ -189,6 +189,44 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             )
             self.assertEqual(branch["likely_machine_outcomes"][1], {"rank": 2, "state": "keep-second"})
 
+    def test_wait_usb_media_promotes_media_presence_above_post_boot_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            preflight = self.preflight()
+            preflight["state"] = "WAIT_USB_MEDIA"
+            preflight["next_gate"] = "eligible-test-usb-presence"
+            preflight["eligible_count"] = 0
+            preflight["usb_candidate"] = None
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", preflight)
+            live = self.live_branch()
+            live["likely_user_inputs"].insert(
+                0,
+                {
+                    "rank": 1,
+                    "input_family": "physical-result-success",
+                    "examples": ["it booted"],
+                    "prepared_response": "stale post-boot response",
+                    "action_if_safe": "stale post-boot action",
+                },
+            )
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", live)
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            media = self.input_family(branch, "physical-media-present")
+            success = self.input_family(branch, "physical-result-success")
+
+            self.assertTrue(branch["live_controls"]["waiting_for_usb_media"])
+            self.assertFalse(branch["live_controls"]["flash_authorization_eligible"])
+            self.assertFalse(branch["live_controls"]["write_authority"])
+            self.assertFalse(branch["live_controls"]["destructive_action_allowed"])
+            self.assertEqual(media["rank"], 1)
+            self.assertGreater(success["rank"], media["rank"])
+            self.assertIn("zero write authority", media["prepared_response"])
+            self.assertIn("read-only USB discovery", media["action_if_safe"])
+            self.assertIn("Never infer write authority", media["action_if_safe"])
+
     def test_ready_preflight_rewrites_authorization_to_exact_current_release(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -204,6 +242,7 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
             self.assertIn("a" * 40, authorization["prepared_response"])
             self.assertIn("Fresh one-shot authority", authorization["prepared_response"])
             self.assertIn("full raw readback", authorization["action_if_safe"])
+            self.assertEqual(authorization["rank"], 1)
             self.assertEqual(
                 branch["likely_machine_outcomes"][0]["state"],
                 "fresh-authority-triggers-live-reproof-and-guarded-preflight",
@@ -259,6 +298,46 @@ class AurumFutureBranchEvidenceSyncTests(unittest.TestCase):
                 branch["likely_machine_outcomes"][0]["state"],
                 "current-release-flash-readback-proven-awaiting-physical-boot",
             )
+
+    def test_ready_to_boot_removes_media_presence_and_restores_boot_result_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_json(root, "Projects/Aurum/Release/latest-tinyseed-handoff.json", self.handoff())
+            self.write_json(root, "Projects/Aurum/Recovery/latest-tinyseed-physical-preflight.json", self.preflight())
+            self.write_json(
+                root,
+                "Projects/Aurum/Recovery/latest-tinyseed-flash-receipt.json",
+                self.flash_receipt(),
+            )
+            live = self.live_branch()
+            live["likely_user_inputs"] = [
+                {
+                    "rank": 1,
+                    "input_family": "physical-media-present",
+                    "prepared_response": "stale media branch",
+                    "action_if_safe": "stale rediscovery",
+                },
+                {
+                    "rank": 2,
+                    "input_family": "physical-result-success",
+                    "prepared_response": "boot success",
+                    "action_if_safe": "verify boot",
+                },
+                *live["likely_user_inputs"],
+            ]
+            branch_path = self.write_json(root, "Projects/Aurum/future-branches.json", live)
+
+            sync_future_branch_evidence(root)
+            branch = json.loads(branch_path.read_text(encoding="utf-8"))
+            families = [item["input_family"] for item in branch["likely_user_inputs"]]
+            success = self.input_family(branch, "physical-result-success")
+
+            self.assertNotIn("physical-media-present", families)
+            self.assertEqual(success["rank"], 1)
+            self.assertFalse(branch["live_controls"]["waiting_for_usb_media"])
+            self.assertTrue(branch["live_controls"]["current_release_flash_ready_to_boot"])
+            self.assertFalse(branch["live_controls"]["write_authority"])
+            self.assertFalse(branch["live_controls"]["destructive_action_allowed"])
 
     def test_stale_preflight_release_is_projected_as_mismatch_not_silently_current(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
