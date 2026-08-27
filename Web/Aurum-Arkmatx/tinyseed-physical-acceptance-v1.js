@@ -1,4 +1,5 @@
-/* AURUM_TINYSEED_PHYSICAL_ACCEPTANCE_V1_CANONICAL
+/* AURUM_TINYSEED_PHYSICAL_ACCEPTANCE_V1_1_CANONICAL
+ * AURUM_TINYSEED_PHYSICAL_ACCEPTANCE_V1_CANONICAL compatibility marker.
  * Canonical website owner: FormatX66/ClusterSites.
  * Fail-closed overlay for post-flash physical acceptance. A verified raw readback
  * proves media integrity only; a newer exact-release physical failure quarantines
@@ -41,7 +42,7 @@ function publish(){
   const failed=failedPhysicalAcceptance();
   const blockers=Array.isArray(acceptance?.release_blockers)?acceptance.release_blockers:[];
   window.__aurumTinySeedPhysicalAcceptanceState={
-    schema:'aurum-command-center-tinyseed-physical-acceptance-v1.0',
+    schema:'aurum-command-center-tinyseed-physical-acceptance-v1.1',
     currentReleaseMatched:exactRelease(),
     matchingRawReadbackReceipt:exactFlash(),
     physicalAcceptanceFailed:failed,
@@ -63,8 +64,11 @@ function patch(){
   if(!failedPhysicalAcceptance())return;
   const card=document.querySelector('#systems [data-id="recovery"]');
   if(card){
-    const pill=card.querySelector('.pill');if(pill){pill.className='pill failed';pill.textContent='Needs Work'}
-    const ev=card.querySelector('.evidence');if(ev)ev.textContent='Current Tiny Seed media passed raw readback, but physical acceptance failed; candidate quarantined.';
+    const pill=card.querySelector('.pill');
+    if(pill){if(pill.className!=='pill failed')pill.className='pill failed';if(pill.textContent!=='Needs Work')pill.textContent='Needs Work'}
+    const ev=card.querySelector('.evidence');
+    const evText='Current Tiny Seed media passed raw readback, but physical acceptance failed; candidate quarantined.';
+    if(ev&&ev.textContent!==evText)ev.textContent=evText;
   }
   if(!card||card.getAttribute('aria-expanded')!=='true')return;
   const guide=document.querySelector('#detail .recovery-guide');if(!guide)return;
