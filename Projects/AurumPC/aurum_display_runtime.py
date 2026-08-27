@@ -24,12 +24,20 @@ from pathlib import Path
 from typing import Any, Mapping
 
 SCHEMA = "aurum-hopper-display-v3"
-EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"
+EXPECTED_GAME_SCHEMA = "aurum.echo.native.v3"
 DEFAULT_POLICY = Path(__file__).with_name("pc01_autonomy_policy.json")
 DEFAULT_RECEIPT = Path("/etc/aurum-installed.json")
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_RUN = Path("/run/aurum")
 DEFAULT_GAME = Path("/opt/aurum/aurum_echo_native.py")
+XORG_LIBINPUT_DRIVERS = (
+    Path("/usr/lib/xorg/modules/input/libinput_drv.so"),
+    Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),
+)
+
+
+def _xorg_libinput_driver_available() -> bool:
+    return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)
 
 
 class DisplayRuntimeError(RuntimeError):
@@ -192,8 +200,12 @@ class HopperDisplay:
         }
 
     def _ensure_x_fallback(self, policy: Mapping[str, Any]) -> dict[str, Any]:
-        if shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")):
-            return {"status": "ready", "installed": False}
+        if (
+            shutil.which("xinit")
+            and (shutil.which("Xorg") or shutil.which("X"))
+            and _xorg_libinput_driver_available()
+        ):
+            return {"status": "ready", "installed": False, "libinput_driver": True}
         if not bool(policy.get("install_local_display_dependencies")):
             return {"status": "missing", "reason": "dependency-install-disabled"}
         apt = shutil.which("apt-get")
@@ -202,14 +214,29 @@ class HopperDisplay:
         env = dict(os.environ)
         env["DEBIAN_FRONTEND"] = "noninteractive"
         install = _run(
-            [apt, "install", "-y", "--no-install-recommends", "xserver-xorg", "xinit", "x11-xserver-utils"],
+            [
+                apt,
+                "install",
+                "-y",
+                "--no-install-recommends",
+                "xserver-xorg",
+                "xserver-xorg-input-libinput",
+                "libinput-tools",
+                "xinit",
+                "x11-xserver-utils",
+            ],
             timeout=600,
             env=env,
         )
-        ready = bool(shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")))
+        ready = bool(
+            shutil.which("xinit")
+            and (shutil.which("Xorg") or shutil.which("X"))
+            and _xorg_libinput_driver_available()
+        )
         return {
             "status": "ready" if install.returncode == 0 and ready else "failed",
             "installed": True,
+            "libinput_driver": _xorg_libinput_driver_available(),
             "detail": "" if install.returncode == 0 else install.stdout[-1600:],
         }
 

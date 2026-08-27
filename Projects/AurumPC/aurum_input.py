@@ -57,6 +57,83 @@ def classify_device(name: str, *, rel: tuple[int, ...], abs_axes: tuple[int, ...
     return "other"
 
 
+def _kernel_driver(device: Path) -> str | None:
+    """Find the nearest bound kernel driver without mutating the device."""
+    try:
+        current = device.resolve(strict=True)
+    except OSError:
+        return None
+    for depth, candidate in enumerate((current, *current.parents)):
+        if depth > 10:
+            break
+        driver = candidate / "driver"
+        if not driver.exists() and not driver.is_symlink():
+            continue
+        try:
+            return driver.resolve(strict=True).name
+        except OSError:
+            continue
+    return None
+
+
+def parse_libinput_devices(text: str) -> dict[str, dict[str, Any]]:
+    """Parse stable identity/capability fields from ``libinput list-devices``."""
+    devices: dict[str, dict[str, Any]] = {}
+    block: dict[str, str] = {}
+
+    def flush() -> None:
+        kernel = block.get("Kernel", "").strip()
+        if not kernel:
+            block.clear()
+            return
+        capabilities = [token for token in block.get("Capabilities", "").split() if token]
+        devices[kernel] = {
+            "name": block.get("Device") or None,
+            "kernel": kernel,
+            "group": block.get("Group") or None,
+            "seat": block.get("Seat") or None,
+            "capabilities": capabilities,
+        }
+        block.clear()
+
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            if block:
+                flush()
+            continue
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        if key in {"Device", "Kernel", "Group", "Seat", "Capabilities"}:
+            block[key] = value.strip()
+    if block:
+        flush()
+    return devices
+
+
+def libinput_device_details() -> dict[str, dict[str, Any]]:
+    """Read libinput's classification/capability view once, bounded to five seconds."""
+    executable = shutil.which("libinput")
+    if not executable:
+        return {}
+    try:
+        result = subprocess.run(
+            [executable, "list-devices"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    if result.returncode != 0:
+        return {}
+    return parse_libinput_devices(result.stdout)
+
+
 def _power_files(device: Path) -> dict[str, Path]:
     try:
         current = device.resolve(strict=True)
@@ -102,6 +179,7 @@ def input_devices(*, sys_input: Path = SYS_INPUT, dev_input: Path = DEV_INPUT) -
                 "node": str(node),
                 "name": name,
                 "kind": kind,
+                "kernel_driver": _kernel_driver(device),
                 "present": node.exists(),
                 "readable": os.access(node, os.R_OK) if node.exists() else False,
                 "relative_axes": [hex(value) for value in rel],
@@ -245,9 +323,23 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
             "cli": libinput_cli_available(),
             "xorg_driver": xorg_libinput_driver_available(),
         }
+    libinput_devices = libinput_device_details() if libinput["cli"] else {}
+    for item in devices:
+        item["libinput"] = libinput_devices.get(str(item.get("node") or ""))
     for item in devices:
         item.pop("_device_path", None)
     healthy = bool(pointers and not wake_policy["errors"] and libinput["xorg_driver"])
+    identified_pointers = [
+        {
+            "event": item.get("event"),
+            "node": item.get("node"),
+            "name": item.get("name"),
+            "kind": item.get("kind"),
+            "kernel_driver": item.get("kernel_driver"),
+            "libinput": item.get("libinput"),
+        }
+        for item in pointers
+    ]
     return {
         "schema": SCHEMA,
         "status": "ready" if healthy else "no-pointer-detected" if not pointers else "degraded",
@@ -258,6 +350,7 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
         "wake_policy": wake_policy,
         "touchpads": touchpads,
         "pointers": pointers,
+        "identified_pointers": identified_pointers,
         "devices": devices,
         "gui_restart_required": bool(repair.get("gui_restart_required")),
     }

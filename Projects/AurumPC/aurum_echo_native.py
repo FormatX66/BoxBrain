@@ -24,8 +24,13 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
-SCHEMA = "aurum.echo.native.v2"
-PROOF_SCHEMA = "aurum.hopper.echo-proof.v1"
+try:
+    from Projects.AurumPC.aurum_pointer_motion import PointerMotionTracker, motion_evidence
+except ModuleNotFoundError:
+    from aurum_pointer_motion import PointerMotionTracker, motion_evidence
+
+SCHEMA = "aurum.echo.native.v3"
+PROOF_SCHEMA = "aurum.hopper.echo-proof.v2"
 MACHINE = "Hopper"
 GAME = "Echo Rally"
 LOGICAL_W = 960
@@ -206,6 +211,11 @@ def _proof_payload(state_dir: Path, live_receipt: Mapping[str, Any]) -> dict[str
         and process_running
     )
     input_proof = _input_proof(os.getpid(), display)
+    pointer_motion = motion_evidence(
+        live_receipt.get("pointer_motion") if isinstance(live_receipt.get("pointer_motion"), Mapping) else None,
+        path_available=bool(input_proof["pointer_path_available"]),
+    )
+    input_proof["pointer_motion"] = pointer_motion
     ready = bool(
         exact_machine
         and identity_ready
@@ -213,6 +223,7 @@ def _proof_payload(state_dir: Path, live_receipt: Mapping[str, Any]) -> dict[str
         and echo_ready
         and input_proof["keyboard_path_available"]
         and input_proof["pointer_path_available"]
+        and pointer_motion["ready"]
     )
     return {
         "schema": PROOF_SCHEMA,
@@ -342,6 +353,7 @@ def run_game(state_dir: Path, run_dir: Path) -> int:
         font_mid = pygame.font.Font(None, 34)
         font_small = pygame.font.Font(None, 22)
         video_driver = pygame.display.get_driver()
+        pointer_tracker = PointerMotionTracker()
 
         receipt = {
             "schema": SCHEMA,
@@ -355,6 +367,7 @@ def run_game(state_dir: Path, run_dir: Path) -> int:
             "logical_resolution": [LOGICAL_W, LOGICAL_H],
             "fullscreen": True,
             "frames_presented": 0,
+            "pointer_motion": pointer_tracker.snapshot().as_dict(path_available=False),
             "network_listener": False,
             "proof_listener": None,
             "host_actuation_api": False,
@@ -464,6 +477,11 @@ def run_game(state_dir: Path, run_dir: Path) -> int:
                         reset_game()
                 elif event.type == pygame.MOUSEMOTION:
                     pointer_active_until = now + 1.2
+                    motion = pointer_tracker.record(position=event.pos, delta=getattr(event, "rel", None))
+                    receipt["pointer_motion"] = motion.as_dict(path_available=True)
+                    if proof_server is not None:
+                        with proof_server.receipt_lock:
+                            proof_server.live_receipt["pointer_motion"] = dict(receipt["pointer_motion"])
                     py = event.pos[1] * LOGICAL_H / max(height, 1)
                     left["y"] = max(12.0, min(LOGICAL_H - paddle_h - 12.0, py - paddle_h / 2))
 

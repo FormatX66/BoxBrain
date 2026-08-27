@@ -44,12 +44,15 @@ class AurumCISourceContractTests(unittest.TestCase):
             ("Projects/AurumPC/aurum_desktop_runtime.py", r"SDL_VIDEODRIVER=kmsdrm"),
             ("Projects/AurumPC/aurum_desktop.py", r"Ctrl\+Alt\+F1 recovery"),
             ("Projects/AurumPC/build-iso.sh", r"xserver-xorg-input-libinput"),
+            ("Projects/AurumPC/build-iso.sh", r"aurum_pointer_motion\.py"),
             ("Projects/AurumPC/aurum_display_runtime.py", r"SDL_VIDEODRIVER=kmsdrm"),
-            ("Projects/AurumPC/aurum_display_runtime.py", r'EXPECTED_GAME_SCHEMA = "aurum\.echo\.native\.v2"'),
+            ("Projects/AurumPC/aurum_display_runtime.py", r'EXPECTED_GAME_SCHEMA = "aurum\.echo\.native\.v3"'),
+            ("Projects/AurumPC/aurum_display_runtime.py", r"_xorg_libinput_driver_available"),
             ("Projects/AurumPC/aurum_runtime_update.py", r"physical_echo_activation"),
-            ("Projects/AurumPC/aurum_echo_native.py", r'PROOF_SCHEMA = "aurum\.hopper\.echo-proof\.v1"'),
+            ("Projects/AurumPC/aurum_echo_native.py", r'PROOF_SCHEMA = "aurum\.hopper\.echo-proof\.v2"'),
             ("Projects/AurumPC/aurum_echo_native.py", r"keyboard_path_available"),
             ("Projects/AurumPC/aurum_echo_native.py", r"pointer_path_available"),
+            ("Projects/AurumPC/aurum_echo_native.py", r'pointer_motion\["ready"\]'),
             ("Projects/AurumPC/aurum_echo_native.py", r"host_actuation.*False"),
         ]
         for relative_path, pattern in checks:
