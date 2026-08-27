@@ -1,16 +1,16 @@
 {
   "schema": "aurum-tinyseed-flash-request-v1",
   "state": "AUTHORIZED_ONCE",
-  "request_id": "tinyseed-sandisk-flash-20260826-1137-8812634a",
-  "authorized_at_utc": "2026-08-26T11:37:00Z",
-  "expires_at_utc": "2026-08-26T14:37:00Z",
+  "request_id": "tinyseed-sandisk-flash-20260827-032415-4eb31e80",
+  "authorized_at_utc": "2026-08-27T03:24:15.1955902Z",
+  "expires_at_utc": "2026-08-27T05:24:15.1955902Z",
   "write_authority": true,
   "confirmation": "FLASH_TINY_SEED_TEST_USB",
-  "purpose": "Overwrite only the explicitly authorized, freshly reverified 61.5 GB SanDisk USB with the exact current Aurum Tiny Seed x86 release; then require full raw readback verification.",
-  "seed_sha": "8812634ae2296db673b9de135c43a1119e885647",
-  "image_sha256": "b5c1bfa6f6ca2945d0e95c42f0302e5e6def18e7b415e8fb701fe6f90a99dd32",
-  "handoff_run_id": 32935021418,
-  "discovery_request_id": "tinyseed-auto-release-8812634ae229-32935201584",
+  "purpose": "Overwrite only the freshly reverified 61.5 GB SanDisk USB with the exact latest verified Aurum Tiny Seed x86 release, preserve the existing LKG release evidence, and require full image-length raw readback verification.",
+  "seed_sha": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+  "image_sha256": "c851ec111a1af5cf2e39742ddcf25d59725d258f5a00df8810dbbd166abfa084",
+  "handoff_run_id": 33028791937,
+  "discovery_request_id": "tinyseed-auto-release-4eb31e8071cd-33028904382",
   "usb": {
     "model": "USB SanDisk 3.2 Gen",
     "size_bytes": 61524148224,
@@ -27,4 +27,4 @@
     "must_full_raw_readback_verify": true,
     "preserve_hopper_existing_recovery_media": true
   }
-}
+}`n
