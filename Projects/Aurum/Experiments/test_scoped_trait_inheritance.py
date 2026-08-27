@@ -19,9 +19,12 @@ PAYLOAD = "b" * 64
 LKG = "c" * 64
 E1 = "1" * 64
 E2 = "2" * 64
+PARENT1 = "3" * 64
+PARENT2 = "4" * 64
 
 
-def trait(*, source="pi3", scope=None, veto=False, confidence=0.9, evidence_id="e1", evidence_digest=E1):
+def trait(*, source="pi3", scope=None, veto=False, confidence=0.9,
+          evidence_id="e1", evidence_digest=E1, parent=None):
     return TraitCandidate(
         trait_id="ethernet-adaptation",
         version="1",
@@ -30,6 +33,7 @@ def trait(*, source="pi3", scope=None, veto=False, confidence=0.9, evidence_id="
         payload_digest=PAYLOAD,
         scope=scope or TraitScope(hardware=("lan9514",), workload=("network",), phenotype=("pi3",)),
         evidence=(TraitEvidence(evidence_id, evidence_digest, confidence, veto),),
+        parent_trait_digest=parent,
     )
 
 
@@ -64,6 +68,15 @@ class ScopedTraitInheritanceTests(unittest.TestCase):
         self.assertIn("out-of-scope", result["quarantine_reasons"])
         self.assertEqual(result["lkg_digest_after"], LKG)
 
+    def test_unscoped_dimension_is_not_a_wildcard(self):
+        result = evaluate_trait(
+            trait(scope=TraitScope(hardware=("lan9514",))),
+            context(scope=TraitScope(hardware=("lan9514",), workload=("network",), phenotype=("pi3",))),
+        )
+        self.assertEqual(result["state"], "quarantined")
+        self.assertIn("out-of-scope", result["quarantine_reasons"])
+        self.assertFalse(result["scope_widened"])
+
     def test_unknown_peer_does_not_widen_trust(self):
         result = evaluate_trait(trait(source="unknown-peer"), context())
         self.assertIn("untrusted-source-node", result["quarantine_reasons"])
@@ -96,6 +109,14 @@ class ScopedTraitInheritanceTests(unittest.TestCase):
             evidence_id="e2",
             evidence_digest=E2,
         )
+        merged = merge_cross_node_evidence([a, b])
+        self.assertEqual(merged["state"], "quarantined-conflict")
+        self.assertFalse(merged["merged"])
+        self.assertFalse(merged["grants_authority"])
+
+    def test_cross_node_merge_rejects_parent_trait_conflict(self):
+        a = trait(source="pi3", parent=PARENT1)
+        b = trait(source="pi4", parent=PARENT2, evidence_id="e2", evidence_digest=E2)
         merged = merge_cross_node_evidence([a, b])
         self.assertEqual(merged["state"], "quarantined-conflict")
         self.assertFalse(merged["merged"])
