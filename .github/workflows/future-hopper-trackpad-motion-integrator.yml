@@ -1,0 +1,156 @@
+name: Future Branch Hopper motion integrator
+
+on:
+  push:
+    branches:
+      - future/hopper-trackpad-motion-proof-20260827
+    paths:
+      - '.github/workflows/future-hopper-trackpad-motion-integrator.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: future-hopper-trackpad-motion-integrator
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact Future Branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: future/hopper-trackpad-motion-proof-20260827
+          fetch-depth: 1
+
+      - name: Apply bounded source integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected integration anchor missing: {path}: {old[:80]!r}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          echo = Path("Projects/AurumPC/aurum_echo_native.py")
+          replace_once(
+              echo,
+              'from urllib.parse import urlsplit\n\nSCHEMA = "aurum.echo.native.v2"\nPROOF_SCHEMA = "aurum.hopper.echo-proof.v1"',
+              'from urllib.parse import urlsplit\n\ntry:\n    from Projects.AurumPC.aurum_pointer_motion import PointerMotionTracker, motion_evidence\nexcept ModuleNotFoundError:\n    from aurum_pointer_motion import PointerMotionTracker, motion_evidence\n\nSCHEMA = "aurum.echo.native.v3"\nPROOF_SCHEMA = "aurum.hopper.echo-proof.v2"',
+          )
+          replace_once(
+              echo,
+              '    input_proof = _input_proof(os.getpid(), display)\n    ready = bool(\n        exact_machine\n        and identity_ready\n        and display_ready\n        and echo_ready\n        and input_proof["keyboard_path_available"]\n        and input_proof["pointer_path_available"]\n    )',
+              '    input_proof = _input_proof(os.getpid(), display)\n    pointer_motion = motion_evidence(\n        live_receipt.get("pointer_motion") if isinstance(live_receipt.get("pointer_motion"), Mapping) else None,\n        path_available=bool(input_proof["pointer_path_available"]),\n    )\n    input_proof["pointer_motion"] = pointer_motion\n    ready = bool(\n        exact_machine\n        and identity_ready\n        and display_ready\n        and echo_ready\n        and input_proof["keyboard_path_available"]\n        and input_proof["pointer_path_available"]\n        and pointer_motion["ready"]\n    )',
+          )
+          replace_once(
+              echo,
+              '        video_driver = pygame.display.get_driver()\n\n        receipt = {',
+              '        video_driver = pygame.display.get_driver()\n        pointer_tracker = PointerMotionTracker()\n\n        receipt = {',
+          )
+          replace_once(
+              echo,
+              '            "frames_presented": 0,\n            "network_listener": False,',
+              '            "frames_presented": 0,\n            "pointer_motion": pointer_tracker.snapshot().as_dict(path_available=False),\n            "network_listener": False,',
+          )
+          replace_once(
+              echo,
+              '                elif event.type == pygame.MOUSEMOTION:\n                    pointer_active_until = now + 1.2\n                    py = event.pos[1] * LOGICAL_H / max(height, 1)\n                    left["y"] = max(12.0, min(LOGICAL_H - paddle_h - 12.0, py - paddle_h / 2))',
+              '                elif event.type == pygame.MOUSEMOTION:\n                    pointer_active_until = now + 1.2\n                    motion = pointer_tracker.record(position=event.pos, delta=getattr(event, "rel", None))\n                    receipt["pointer_motion"] = motion.as_dict(path_available=True)\n                    if proof_server is not None:\n                        with proof_server.receipt_lock:\n                            proof_server.live_receipt["pointer_motion"] = dict(receipt["pointer_motion"])\n                    py = event.pos[1] * LOGICAL_H / max(height, 1)\n                    left["y"] = max(12.0, min(LOGICAL_H - paddle_h - 12.0, py - paddle_h / 2))',
+          )
+
+          echo_test = Path("Projects/AurumPC/tests/test_aurum_echo_native.py")
+          replace_once(
+              echo_test,
+              '            "frames_presented": 120,\n        }',
+              '            "frames_presented": 120,\n            "pointer_motion": {\n                "event_count": 2,\n                "last_at": "2026-08-27T10:30:00Z",\n                "position": [640, 360],\n                "delta": [4, -2],\n            },\n        }',
+          )
+          replace_once(
+              echo_test,
+              '    def test_ready_is_false_when_pointer_path_is_not_open(self) -> None:\n',
+              '    def test_ready_is_false_when_pointer_path_is_open_but_motion_is_unobserved(self) -> None:\n        live = {\n            "status": "running",\n            "machine": "Hopper",\n            "game": "Echo Rally",\n            "fullscreen": True,\n            "video_driver": "kmsdrm",\n            "physical_resolution": [1920, 1080],\n            "frames_presented": 10,\n        }\n        with (\n            patch.object(echo_module, "_json_file", side_effect=self._json_side_effect),\n            patch.object(echo_module, "_cmdline", return_value="python3 /opt/aurum/aurum_echo_native.py"),\n            patch.object(\n                echo_module,\n                "_input_proof",\n                return_value={\n                    "mode": "kmsdrm-vt2",\n                    "keyboard_device_count": 1,\n                    "pointer_device_count": 1,\n                    "keyboard_path_available": True,\n                    "pointer_path_available": True,\n                    "keyboard_open_nodes": ["/dev/input/event1"],\n                    "pointer_open_nodes": ["/dev/input/event2"],\n                    "game_open_input_node_count": 2,\n                    "x_server_pids": [],\n                    "x_open_input_node_count": 0,\n                },\n            ),\n        ):\n            proof = echo_module._proof_payload(Path("/state"), live)\n        self.assertFalse(proof["ready"])\n        self.assertTrue(proof["input"]["pointer_path_available"])\n        self.assertFalse(proof["input"]["pointer_motion"]["motion_observed"])\n        self.assertFalse(proof["input"]["pointer_motion"]["ready"])\n\n    def test_ready_is_false_when_pointer_path_is_not_open(self) -> None:\n',
+          )
+
+          display = Path("Projects/AurumPC/aurum_display_runtime.py")
+          replace_once(
+              display,
+              'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v2"',
+              'EXPECTED_GAME_SCHEMA = "aurum.echo.native.v3"',
+          )
+          replace_once(
+              display,
+              'DEFAULT_GAME = Path("/opt/aurum/aurum_echo_native.py")\n\n\nclass DisplayRuntimeError',
+              'DEFAULT_GAME = Path("/opt/aurum/aurum_echo_native.py")\nXORG_LIBINPUT_DRIVERS = (\n    Path("/usr/lib/xorg/modules/input/libinput_drv.so"),\n    Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),\n)\n\n\ndef _xorg_libinput_driver_available() -> bool:\n    return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)\n\n\nclass DisplayRuntimeError',
+          )
+          replace_once(
+              display,
+              '        if shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")):\n            return {"status": "ready", "installed": False}',
+              '        if (\n            shutil.which("xinit")\n            and (shutil.which("Xorg") or shutil.which("X"))\n            and _xorg_libinput_driver_available()\n        ):\n            return {"status": "ready", "installed": False, "libinput_driver": True}',
+          )
+          replace_once(
+              display,
+              '[apt, "install", "-y", "--no-install-recommends", "xserver-xorg", "xinit", "x11-xserver-utils"],',
+              '[\n                apt,\n                "install",\n                "-y",\n                "--no-install-recommends",\n                "xserver-xorg",\n                "xserver-xorg-input-libinput",\n                "libinput-tools",\n                "xinit",\n                "x11-xserver-utils",\n            ],',
+          )
+          replace_once(
+              display,
+              '        ready = bool(shutil.which("xinit") and (shutil.which("Xorg") or shutil.which("X")))\n        return {\n            "status": "ready" if install.returncode == 0 and ready else "failed",\n            "installed": True,',
+              '        ready = bool(\n            shutil.which("xinit")\n            and (shutil.which("Xorg") or shutil.which("X"))\n            and _xorg_libinput_driver_available()\n        )\n        return {\n            "status": "ready" if install.returncode == 0 and ready else "failed",\n            "installed": True,\n            "libinput_driver": _xorg_libinput_driver_available(),',
+          )
+
+          display_test = Path("Projects/AurumPC/tests/test_aurum_display_runtime.py")
+          replace_once(
+              display_test,
+              '\n\nif __name__ == "__main__":\n    unittest.main()\n',
+              '\n    def test_x_fallback_requires_libinput_driver_before_ready(self) -> None:\n        runtime = HopperDisplay()\n\n        def which(name: str):\n            if name == "xinit":\n                return "/usr/bin/xinit"\n            if name == "Xorg":\n                return "/usr/bin/Xorg"\n            return None\n\n        with (\n            patch.object(display_module.shutil, "which", side_effect=which),\n            patch.object(display_module, "_xorg_libinput_driver_available", return_value=False),\n        ):\n            missing = runtime._ensure_x_fallback({"install_local_display_dependencies": False})\n        self.assertEqual(missing["status"], "missing")\n\n        with (\n            patch.object(display_module.shutil, "which", side_effect=which),\n            patch.object(display_module, "_xorg_libinput_driver_available", return_value=True),\n        ):\n            ready = runtime._ensure_x_fallback({"install_local_display_dependencies": False})\n        self.assertEqual(ready["status"], "ready")\n        self.assertTrue(ready["libinput_driver"])\n\n\nif __name__ == "__main__":\n    unittest.main()\n',
+          )
+
+          build = Path("Projects/AurumPC/build-iso.sh")
+          replace_once(
+              build,
+              'aurum_network.py aurum_runtime_update.py',
+              'aurum_network.py aurum_pointer_motion.py aurum_runtime_update.py',
+          )
+          PY
+
+      - name: Verify integrated motion contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            Projects/AurumPC/aurum_pointer_motion.py \
+            Projects/AurumPC/aurum_echo_native.py \
+            Projects/AurumPC/aurum_display_runtime.py
+          python3 -m unittest -v \
+            Projects.AurumPC.tests.test_aurum_pointer_motion \
+            Projects.AurumPC.tests.test_aurum_echo_native \
+            Projects.AurumPC.tests.test_aurum_display_runtime
+          grep -Fq 'aurum_pointer_motion.py' Projects/AurumPC/build-iso.sh
+          grep -Fq 'xserver-xorg-input-libinput' Projects/AurumPC/aurum_display_runtime.py
+          grep -Fq 'and pointer_motion["ready"]' Projects/AurumPC/aurum_echo_native.py
+
+      - name: Commit only verified Future Branch integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No integration changes were required.'
+            exit 0
+          fi
+          git config user.name 'Aurum Future Branch'
+          git config user.email '56238984+FormatX66@users.noreply.github.com'
+          git add \
+            Projects/AurumPC/aurum_echo_native.py \
+            Projects/AurumPC/tests/test_aurum_echo_native.py \
+            Projects/AurumPC/aurum_display_runtime.py \
+            Projects/AurumPC/tests/test_aurum_display_runtime.py \
+            Projects/AurumPC/build-iso.sh
+          git diff --cached --check
+          git commit -m 'Integrate fail-closed Hopper pointer motion proof'
+          git push origin HEAD:future/hopper-trackpad-motion-proof-20260827
