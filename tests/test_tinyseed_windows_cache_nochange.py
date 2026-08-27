@@ -23,6 +23,13 @@ class TinySeedWindowsCacheNoChangeTests(unittest.TestCase):
         self.assertIn("destructive_media_write=false", marker)
         self.assertIn("write_authority=false", marker)
 
+    def test_artifact_download_uses_github_cli_instead_of_raw_web_request(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("& gh run download $handoffRunId", text)
+        self.assertIn("AURUM_TINYSEED_CACHE_REFUSED reason=handoff-download", text)
+        self.assertNotIn("Invoke-WebRequest -Headers $headers", text)
+        self.assertNotIn("Expand-Archive", text)
+
 
 if __name__ == "__main__":
     unittest.main()
