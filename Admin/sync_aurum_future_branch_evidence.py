@@ -23,6 +23,7 @@ HANDOFF_SCHEMA = "aurum-tinyseed-handoff-v1"
 FLASH_RECEIPT_SCHEMA = "aurum-tinyseed-flash-request-receipt-v1"
 READY_PREFLIGHT = "READY_FOR_GUARDED_FLASH_PREFLIGHT"
 WAIT_RECOVERY = "WAIT_HOPPER_PREEXECUTION_RECOVERY"
+WAIT_USB_MEDIA = "WAIT_USB_MEDIA"
 READY_TO_BOOT = "READY_TO_BOOT"
 
 
@@ -91,6 +92,68 @@ def _update_input_family(branch: dict, family: str, **values: object) -> None:
             return
 
 
+def _normalize_input_ranks(entries: list[dict]) -> None:
+    for rank, entry in enumerate(entries, start=1):
+        entry["rank"] = rank
+
+
+def _upsert_input_family(
+    branch: dict,
+    family: str,
+    *,
+    promote: bool = False,
+    **values: object,
+) -> None:
+    entries = branch.get("likely_user_inputs")
+    if entries is None:
+        entries = []
+        branch["likely_user_inputs"] = entries
+    if not isinstance(entries, list):
+        raise FutureBranchEvidenceError("likely_user_inputs must be an array")
+    if any(not isinstance(entry, dict) for entry in entries):
+        raise FutureBranchEvidenceError("likely_user_inputs entries must be objects")
+
+    target = next((entry for entry in entries if entry.get("input_family") == family), None)
+    if target is None:
+        target = {"input_family": family}
+        entries.append(target)
+    target.update(values)
+    if promote:
+        entries.remove(target)
+        entries.insert(0, target)
+    _normalize_input_ranks(entries)
+
+
+def _remove_input_family(branch: dict, family: str) -> None:
+    entries = branch.get("likely_user_inputs")
+    if entries is None:
+        return
+    if not isinstance(entries, list):
+        raise FutureBranchEvidenceError("likely_user_inputs must be an array")
+    if any(not isinstance(entry, dict) for entry in entries):
+        raise FutureBranchEvidenceError("likely_user_inputs entries must be objects")
+    filtered = [entry for entry in entries if entry.get("input_family") != family]
+    if len(filtered) != len(entries):
+        branch["likely_user_inputs"] = filtered
+        _normalize_input_ranks(filtered)
+
+
+def _promote_existing_input_family(branch: dict, family: str) -> None:
+    entries = branch.get("likely_user_inputs")
+    if entries is None:
+        return
+    if not isinstance(entries, list):
+        raise FutureBranchEvidenceError("likely_user_inputs must be an array")
+    if any(not isinstance(entry, dict) for entry in entries):
+        raise FutureBranchEvidenceError("likely_user_inputs entries must be objects")
+    target = next((entry for entry in entries if entry.get("input_family") == family), None)
+    if target is None:
+        return
+    entries.remove(target)
+    entries.insert(0, target)
+    _normalize_input_ranks(entries)
+
+
 def _update_top_machine_outcome(branch: dict, **values: object) -> None:
     entries = branch.get("likely_machine_outcomes")
     if entries is None:
@@ -129,6 +192,13 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         and flash["raw_readback_verified"]
     )
 
+    waiting_for_usb_media = bool(
+        release["state"] == "READY_TO_FLASH"
+        and physical["matches_current_release"]
+        and state == WAIT_USB_MEDIA
+        and not current_release_flash_ready_to_boot
+    )
+
     flash_authorization_eligible = bool(
         release["state"] == "READY_TO_FLASH"
         and physical["matches_current_release"]
@@ -155,6 +225,7 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
         "flash_receipt_present": flash["present"],
         "flash_receipt_matches_current_release": flash["matches_current_release"],
         "current_release_flash_ready_to_boot": current_release_flash_ready_to_boot,
+        "waiting_for_usb_media": waiting_for_usb_media,
         "flash_authorization_eligible": flash_authorization_eligible,
         "write_authority": False,
         "destructive_action_allowed": False,
@@ -294,6 +365,35 @@ def _project_live_prescriptions(branch: dict, evidence: dict, summary: str) -> d
             )
         ),
     )
+
+    if waiting_for_usb_media:
+        _upsert_input_family(
+            branch,
+            "physical-media-present",
+            promote=True,
+            examples=[
+                "USB is plugged in",
+                "I plugged in the spare USB",
+                "the test USB is connected",
+            ],
+            prepared_response=(
+                f"Treat newly present removable media as evidence only for Tiny Seed release {source}. "
+                "Re-read the canonical release and collect fresh release-bound USB identity, system/boot-disk, "
+                "read-only, and protected-media evidence with zero write authority."
+            ),
+            action_if_safe=(
+                "Run or consume fresh release-bound read-only USB discovery, require one uniquely eligible "
+                "non-system/non-boot/non-protected device, resynchronize canonical preflight, and stop at the "
+                "explicit guarded-flash authorization boundary. Never infer write authority from media presence."
+            ),
+        )
+    else:
+        _remove_input_family(branch, "physical-media-present")
+        if current_release_flash_ready_to_boot:
+            _promote_existing_input_family(branch, "physical-result-success")
+        elif flash_authorization_eligible:
+            _promote_existing_input_family(branch, "explicit-guarded-flash-authorization")
+
     _update_top_machine_outcome(
         branch,
         state=top_state,
