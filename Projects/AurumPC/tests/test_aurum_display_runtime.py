@@ -74,6 +74,31 @@ class HopperDisplayRuntimeTests(unittest.TestCase):
                 upgraded = runtime.status()
             self.assertTrue(upgraded["game_schema_current"])
 
+    def test_x_fallback_requires_libinput_driver_before_ready(self) -> None:
+        runtime = HopperDisplay()
+
+        def which(name: str):
+            if name == "xinit":
+                return "/usr/bin/xinit"
+            if name == "Xorg":
+                return "/usr/bin/Xorg"
+            return None
+
+        with (
+            patch.object(display_module.shutil, "which", side_effect=which),
+            patch.object(display_module, "_xorg_libinput_driver_available", return_value=False),
+        ):
+            missing = runtime._ensure_x_fallback({"install_local_display_dependencies": False})
+        self.assertEqual(missing["status"], "missing")
+
+        with (
+            patch.object(display_module.shutil, "which", side_effect=which),
+            patch.object(display_module, "_xorg_libinput_driver_available", return_value=True),
+        ):
+            ready = runtime._ensure_x_fallback({"install_local_display_dependencies": False})
+        self.assertEqual(ready["status"], "ready")
+        self.assertTrue(ready["libinput_driver"])
+
 
 if __name__ == "__main__":
     unittest.main()
