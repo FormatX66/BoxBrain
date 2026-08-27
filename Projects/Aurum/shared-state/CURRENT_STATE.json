@@ -1,5 +1,5 @@
 {
-  "event_count": 37,
+  "event_count": 38,
   "invariants": {
     "append_only_events": true,
     "chat_memory_is_source_of_truth": false,
@@ -52,6 +52,58 @@
       "subject_kind": "job",
       "summary": "Aurum Farmer job AF-PI3-ADAPTIVE-DRIVER-001 is durably SUCCEEDED. The physical Generation-1 branch has verified and sealed evidence, the Farmer event chain is valid, and the kernel-canary and QPU-ordering branches remain candidate-held with authority_ready=false.",
       "timestamp": "2026-08-26T10:02:09.896410Z"
+    },
+    "AF-PI3-KERNEL-SHADOW-EMULATION-002": {
+      "actor": "codex-thread-01a03afd",
+      "authority_ref": null,
+      "confidence": 1.0,
+      "dependency_ids": [
+        "AF-PI3-ADAPTIVE-DRIVER-001",
+        "pi3-experimental-00000000a6a7df7f"
+      ],
+      "event_id": "evt-a68bf31d06cc42848e86b362b12b53ea",
+      "evidence_refs": [
+        "github:issue:FormatX66/Chat-to-Git-Pipeline#25",
+        "github:actions:run:33036559159",
+        "github:actions:job:98400389514",
+        "github:actions:run:33036572130",
+        "github:actions:job:98400426686",
+        "github:commit:df06d5ec7bbf0c8aacd00412576d17c5f9570174",
+        "github:pull:FormatX66/Chat-to-Git-Pipeline#24",
+        "github:pull:FormatX66/Chat-to-Git-Pipeline#26",
+        "manifest-sha256:60d774858e0c69ec9b043d391eb0c4312c00fa0fae5e322d02cb2995710536d0",
+        "github:actions:run:33028375007",
+        "github:artifact:9629284816",
+        "github:artifact-digest:sha256:65622d9bfe76ee6d77756014ca05d4da9e8fad975e57027a41b2b719b4931372",
+        "repository-result:Projects/AdaptiveKernel/results/pi3-kernel-shadow-farmer-audit-latest.json"
+      ],
+      "node_id": "pi3-adaptive-driver-tests",
+      "payload": {
+        "architecture_accurate_boot_proven": false,
+        "blocker_count": 0,
+        "defect_count": 0,
+        "driver_binding_changed": false,
+        "evidence_pass": true,
+        "functional": true,
+        "kernel_replaced": false,
+        "last_known_good_commit": "df06d5ec7bbf0c8aacd00412576d17c5f9570174",
+        "module_loaded": false,
+        "no_changes_required": true,
+        "out_of_band_watchdog_proven": false,
+        "pending_count": 0,
+        "physical_device_contacted": false,
+        "physical_kernel_mutation_authority": false,
+        "qpu_hardware_contacted": false,
+        "terminal": "verified_completion",
+        "verifier_test_count": 44,
+        "verifier_test_failures": 0
+      },
+      "source": "aurum-farmer-v3.2-terminal-audit",
+      "status": "succeeded",
+      "subject_id": "AF-PI3-KERNEL-SHADOW-EMULATION-002",
+      "subject_kind": "job",
+      "summary": "Aurum Farmer independently verified the bounded Pi3 kernel-shadow evidence package; compile, static, and userspace semantic stages passed while architecture boot, real kernel execution, watchdog recovery, and physical promotion remain held.",
+      "timestamp": "2026-08-27T03:33:25.881476Z"
     },
     "cross-chat-context-cache": {
       "actor": "codex-thread-01a03afd",

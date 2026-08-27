@@ -1,0 +1,97 @@
+{
+  "schema": "aurum.pi3.kernel-shadow.farmer-audit.v1",
+  "observed_at_utc": "2026-08-27T03:31:44.986331Z",
+  "state": "verified-completion-with-held-physical-boundaries",
+  "objective": {
+    "id": "AF-PI3-KERNEL-SHADOW-EMULATION-002",
+    "durable_issue": 25,
+    "dispatch_receipts": [
+      "b18ab5c682db31bb70074ba7b17bbc2a",
+      "da636921663dafc76a9b6de56b1caa8d",
+      "9c1dc884e2825c7bdec43dee4eca9495"
+    ],
+    "terminal": "verified_completion",
+    "functional": true,
+    "evidence_pass": true,
+    "no_changes_required": true,
+    "pending_count": 0,
+    "defect_count": 0,
+    "blocker_count": 0
+  },
+  "farmer": {
+    "package_version": "3.2",
+    "controller_terminal_run_id": 33036572130,
+    "controller_terminal_job_id": 98400426686,
+    "independent_verifier_run_id": 33036559159,
+    "independent_verifier_job_id": 98400389514,
+    "last_known_good_commit": "df06d5ec7bbf0c8aacd00412576d17c5f9570174",
+    "verified_by": "future-branch-final-verification-r125",
+    "test_count": 44,
+    "test_failures": 0,
+    "syntax_check": "PIPELINE_SYNTAX_OK files=44"
+  },
+  "farmer_repairs": [
+    {
+      "pull_request": 24,
+      "merge_commit": "cc975d9f852a5981193d25bc77167eaa596d2201",
+      "purpose": "bounded directory inspection plus staged Pi3 evidence manifest"
+    },
+    {
+      "pull_request": 26,
+      "merge_commit": "df06d5ec7bbf0c8aacd00412576d17c5f9570174",
+      "purpose": "durable state decoding across embedded Markdown fences and bounded issue projection compaction"
+    }
+  ],
+  "target": {
+    "model": "Raspberry Pi 3 Model B Rev 1.2",
+    "serial": "00000000a6a7df7f",
+    "architecture": "aarch64",
+    "kernel": "6.18.34+rpt-rpi-v8",
+    "reference_driver": "smsc95xx"
+  },
+  "package": {
+    "path": "evidence/AF-PI3-KERNEL-SHADOW-EMULATION-001.json",
+    "size_bytes": 6273,
+    "sha256": "60d774858e0c69ec9b043d391eb0c4312c00fa0fae5e322d02cb2995710536d0",
+    "compile_run_id": 33028375007,
+    "compile_job_id": 98374930807,
+    "compile_artifact_id": 9629284816,
+    "compile_artifact_digest": "sha256:65622d9bfe76ee6d77756014ca05d4da9e8fad975e57027a41b2b719b4931372",
+    "module_sha256": "fc7d1ea705257b1b122d4255c8d81a16b74fa20fbd9db71eafec3108591f6ffe",
+    "vermagic": "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64"
+  },
+  "classification": {
+    "passed": [
+      "exact-kernel compile compatibility",
+      "inert load-refusal and no-autoload contract",
+      "protected Linux source-path comparison",
+      "userspace lifecycle, packet, fault, timing, and queue semantics",
+      "Last Known Good artifact integrity"
+    ],
+    "held": [
+      "architecture-accurate Pi3 boot with the candidate",
+      "real kernel module execution",
+      "automatic out-of-band watchdog and recovery",
+      "whole-tree source reproducibility",
+      "fresh physical kernel-mutation authority"
+    ],
+    "quarantined": [
+      "replacement-kernel installation",
+      "module loading",
+      "driver rebinding",
+      "physical or production promotion"
+    ]
+  },
+  "invariants": {
+    "physical_device_contacted": false,
+    "qpu_hardware_contacted": false,
+    "kernel_replaced": false,
+    "module_loaded": false,
+    "driver_binding_changed": false,
+    "firmware_changed": false,
+    "boot_configuration_changed": false,
+    "network_configuration_changed": false,
+    "last_known_good_preserved": true
+  },
+  "strongest_claim": "The exact Pi3 kernel-shadow candidate has exact-kernel compile compatibility plus independently audited static and userspace semantic evidence. It is ready for architecture-accurate emulation work, but not for a physical replacement-kernel trial until an independent out-of-band watchdog and fresh explicit kernel-mutation authority exist."
+}
