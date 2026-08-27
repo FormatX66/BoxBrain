@@ -1,0 +1,91 @@
+{
+  "schema": "aurum-seed-recovery-strategy-v1",
+  "state": "FULL_SEED_CLEAN_REGROW_PREPARED_ROUTE_REPAIR_REQUIRED",
+  "observed_at_utc": "2026-08-27T16:42:29Z",
+  "strategy": "full_seed_installer_clean_regrow",
+  "tinyseed_primary_recovery": false,
+  "current_tinyseed_candidate_quarantined": true,
+  "release_blockers": [
+    "wifi_nonfunctional",
+    "graphics_fallback_recursive_loop"
+  ],
+  "objective": {
+    "objective_id": "BB-AURUM-SEED-FIX-FLASH-NOW",
+    "controller_ingress_verified": false,
+    "current_physical_flash_verified": false,
+    "git_queue_contains_objective": false,
+    "human_input_required": false
+  },
+  "full_seed_contract": {
+    "installer_modes": [
+      "normal_install",
+      "clean_regrow"
+    ],
+    "clean_regrow_requires_explicit_selection": true,
+    "clean_regrow_scope": "selected existing Aurum installation only",
+    "preserve_before_wipe": [
+      "hardware_inventory",
+      "validated_machine_identity",
+      "validated_network_profiles",
+      "recovery_metadata",
+      "last_known_good_reference",
+      "partition_map"
+    ],
+    "never_preserve": [
+      "broken_runtime_state",
+      "stale_boot_overrides",
+      "failed_graphics_fallback_state",
+      "unverified_driver_mutations"
+    ],
+    "physical_acceptance_required": [
+      "stable graphics boot with no recursive fallback",
+      "Wi-Fi scan and association",
+      "DHCP and DNS",
+      "Git reachability",
+      "GUI functional",
+      "recovery console functional",
+      "clean regrow from Git succeeds",
+      "rollback metadata present"
+    ]
+  },
+  "flash_route": {
+    "historical_proof_run": 32302433154,
+    "historical_proof_flash_ok": true,
+    "historical_proof_raw_readback_verified": true,
+    "historical_workflow_path": ".github/workflows/aurum-pc01-flash-authorized.yml",
+    "historical_workflow_name": "Aurum PC-01 Authorized USB Flash",
+    "current_historical_workflow_state": "RETIRED_REFUSAL_ONLY",
+    "current_historical_workflow_blob": "31efa390b897ee415fa586107f9e03af77678c25",
+    "legacy_static_authority_valid": false,
+    "required_write_contract": "fresh current-release one-shot guarded flash/preflight",
+    "target_guard": "current live-discovered approximately 61.5 GB Crayola SanDisk only",
+    "write_authority": false
+  },
+  "execution_boundary": {
+    "private_actions_retries_allowed": false,
+    "public_or_local_execution_required": true,
+    "route_repair_required": true,
+    "reason": "The prepared objective references a historically proven PC-01 route, but the current workflow is intentionally retired and refusal-only. A new full-seed candidate must use the current one-shot guarded flash contract after build/VM qualification and exact-device preflight."
+  },
+  "authority": {
+    "grants_execution_authority": false,
+    "grants_destructive_authority": false,
+    "grants_write_authority": false,
+    "grants_promotion_authority": false,
+    "grants_lkg_mutation": false,
+    "human_action_required": false,
+    "human_action_inferred": false
+  },
+  "next_action": "Aurum/System: stop treating Tiny Seed patching as the primary recovery path. Build and VM-qualify the full Aurum installer with explicit CLEAN REGROW, repair the queued flash route so it uses the current fresh one-shot guarded flash/preflight contract rather than the retired static PC-01 workflow, then re-prove the exact removable target and perform full raw readback before any physical boot handoff. Do not ask the user to authorize or move media until that current-release preflight establishes a genuine human-only boundary.",
+  "provenance": {
+    "shared_state_events": [
+      "evt-5da83a970ceb42bbb79d94c938acbc22",
+      "evt-2e0006f6b61243fd9c945ecb0806c075",
+      "evt-aa5d76c23fda43b3a4b5d4d791bd0790",
+      "evt-0b8df6ebe9bd41a792515a1afbf585d7",
+      "evt-6fc75f05f0ed4814a9e4832bbbad674b"
+    ],
+    "current_workflow_check": "FormatX66/BoxBrain main .github/workflows/aurum-pc01-flash-authorized.yml is retired/refusal-only",
+    "dashboard_inspection": "Aurum Command Center automation"
+  }
+}
