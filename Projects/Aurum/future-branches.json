@@ -159,7 +159,7 @@
         "is the ISO still the wrong way?",
         "should we use direct UEFI or the universal carrier instead?"
       ],
-      "prepared_response": "The fallback carrier is not currently provenance-locked to the canonical READY_TO_FLASH release. Treat older virtual success as historical only and re-prove canonical payload provenance plus same-head build/boot before calling it warm.",
+      "prepared_response": "The fallback payload is re-proven against the current canonical release, but same-head fallback build/boot publication is not yet current. Keep the method prepared but cool until the matrix succeeds on that exact experimental head.",
       "action_if_safe": "Compare fresh physical carrier evidence and expected total cost while preserving the same Germ/genetics/LKG contract. Never promote the experimental carrier from virtual evidence alone."
     },
     {
@@ -352,14 +352,14 @@
     "fallback_carrier": {
       "provenance_receipt_present": true,
       "provenance_success": true,
-      "provenance_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
-      "provenance_release_source_commit": "e845c02b984b8a40de42b58b1e059f03366804c3",
-      "provenance_matches_current_release": false,
+      "provenance_head_sha": "02e31709777b9ad4f2c4ed0ff02c086c499ac812",
+      "provenance_release_source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+      "provenance_matches_current_release": true,
       "canonical_payload_match": true,
       "matrix_receipt_present": true,
       "matrix_success": true,
       "matrix_head_sha": "ba4062f435464d6572d8c86f7539af1dbe50c087",
-      "same_experimental_head": true,
+      "same_experimental_head": false,
       "warm_current": false,
       "physical_proof_inferred": false,
       "authority_granted": false
@@ -382,7 +382,7 @@
     "write_authority": false,
     "destructive_action_allowed": false,
     "fallback_carrier_current": false,
-    "fallback_carrier_provenance_current": false
+    "fallback_carrier_provenance_current": true
   },
   "interaction_handoff": {
     "schema": "aurum-next-interaction-handoff-v1",
