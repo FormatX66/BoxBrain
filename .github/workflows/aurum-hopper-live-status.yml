@@ -61,6 +61,8 @@ jobs:
 
           python3 - "$out" "$observed" "$runner" "$endpoint" "$source_kind" "$http" "$body" <<'PY'
           import json, sys
+          from datetime import datetime, timezone
+
           out, observed, runner, endpoint, source_kind, http, body = sys.argv[1:]
           report = None
           if endpoint:
@@ -107,11 +109,58 @@ jobs:
               }
           else:
               payload['summary'] = {'machine': 'Hopper', 'health': 'unreachable'}
+
+          # The probe may run every five minutes, but durable repository state should
+          # change only when the dashboard-visible semantics change or when a bounded
+          # freshness heartbeat is due. This keeps reachability responsive without
+          # turning timestamps alone into evidence churn.
+          previous = None
+          try:
+              with open(out, encoding='utf-8') as f:
+                  previous = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError, OSError):
+              previous = None
+
+          semantic_keys = (
+              'schema', 'reachable', 'endpoint', 'source_kind', 'http_status', 'summary'
+          )
+          semantic_changed = previous is None or any(
+              previous.get(key) != payload.get(key) for key in semantic_keys
+          )
+
+          heartbeat_seconds = 1800
+          heartbeat_due = True
+          if previous and previous.get('observed_at'):
+              try:
+                  prior = datetime.fromisoformat(
+                      str(previous['observed_at']).replace('Z', '+00:00')
+                  )
+                  now = datetime.fromisoformat(observed.replace('Z', '+00:00'))
+                  if prior.tzinfo is None:
+                      prior = prior.replace(tzinfo=timezone.utc)
+                  if now.tzinfo is None:
+                      now = now.replace(tzinfo=timezone.utc)
+                  heartbeat_due = (now - prior).total_seconds() >= heartbeat_seconds
+              except (TypeError, ValueError):
+                  heartbeat_due = True
+
+          if not semantic_changed and not heartbeat_due:
+              print(
+                  'Hopper semantic state unchanged; preserving prior durable snapshot '
+                  f'until the {heartbeat_seconds // 60}-minute freshness heartbeat.'
+              )
+              print(json.dumps(previous, indent=2, sort_keys=True))
+              raise SystemExit(0)
+
           with open(out, 'w', encoding='utf-8') as f:
               json.dump(payload, f, indent=2, sort_keys=True)
               f.write('\n')
+          if semantic_changed:
+              print('Persisting Hopper live status because semantic state changed.')
+          else:
+              print('Persisting Hopper live status freshness heartbeat.')
+          print(json.dumps(payload, indent=2, sort_keys=True))
           PY
-          cat "$out"
 
       - name: Commit live status snapshot when changed
         shell: bash
