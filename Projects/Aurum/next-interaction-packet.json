@@ -5,9 +5,9 @@
   "consumption_gate": "re-read-canonical-evidence-and-action-ownership-before-human-or-destructive-step",
   "source": "Projects/Aurum/future-branches.json",
   "source_schema": "aurum-future-branch-state-v11",
-  "source_evidence_sha256": "d461ff9c8e4841f0adce1833d4230aee088b9f36b056502e94e45205965a4e6c",
+  "source_evidence_sha256": "a221645b8961d72277dd8c07eccc8791c5f9874d94dba97fa78801c1a75bbb0c",
   "release_source_commit": "72ad90f09f5a63fca388a65e2b997221d438b7f9",
-  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is REFUSE_DISCOVERY_RELEASE; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=fresh-current-release-read-only-usb-discovery. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
+  "current_program": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is WAIT_USB_MEDIA; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=eligible-test-usb-presence. Canonical evidence may prepare a branch but never grants destructive authority or physical proof. Future Branch handoff: next-interaction packet materialized from current canonical evidence; activation is the next real interaction, not a clock; consumption proof is not yet verified; any human/destructive boundary must be revalidated live at consumption.",
   "frontier": [
     {
       "rank": 1,
@@ -33,23 +33,23 @@
     {
       "rank": 4,
       "input_family": "status-or-so",
-      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is REFUSE_DISCOVERY_RELEASE; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=fresh-current-release-read-only-usb-discovery. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
+      "prepared_response": "Aurum Tiny Seed canonical release is READY_TO_FLASH from source 72ad90f09f5a63fca388a65e2b997221d438b7f9 with x86 SHA-256 a92a5c493480f604b32f815c44a5a29a3d8da6c7943595e3b95aff76763f88bf. Physical preflight is WAIT_USB_MEDIA; preflight_matches_current_release=true, terminal_recovery_receipt=false, terminal_reason=none, manual_handoff_released=false, eligible_usb_count=0, flash_receipt_present=true, flash_receipt_matches_current_release=false, flash_receipt_state=READY_TO_BOOT, raw_readback_verified=true, write_authority=false, destructive_action_performed=false, next_gate=eligible-test-usb-presence. Canonical evidence may prepare a branch but never grants destructive authority or physical proof.",
       "action_if_safe": "Re-read canonical handoff, physical preflight, current USB evidence, recovery receipt, authorization freshness, and flash-receipt provenance before reporting; advance only safe zero-authority work until the proven next gate changes.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     },
     {
       "rank": 5,
       "input_family": "generic-prompt-intent-expansion",
-      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=REFUSE_DISCOVERY_RELEASE, next_gate=fresh-current-release-read-only-usb-discovery, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
-      "action_if_safe": "Advance the safe prefix through fresh-current-release-read-only-usb-discovery, refresh canonical evidence, and stop before any boundary that requires explicit new authority.",
+      "prepared_response": "Treat a generic continuation prompt against the live canonical state: preflight=WAIT_USB_MEDIA, next_gate=eligible-test-usb-presence, current_release_flash_ready_to_boot=false. Do all shared safe reversible work, but never infer destructive disk-write authority or physical boot proof.",
+      "action_if_safe": "Advance the safe prefix through eligible-test-usb-presence, refresh canonical evidence, and stop before any boundary that requires explicit new authority.",
       "authority": "prediction-only-requires-live-consumption-recheck"
     }
   ],
   "live_controls_snapshot": {
     "release_source_commit": "72ad90f09f5a63fca388a65e2b997221d438b7f9",
     "release_state": "READY_TO_FLASH",
-    "preflight_state": "REFUSE_DISCOVERY_RELEASE",
-    "next_gate": "fresh-current-release-read-only-usb-discovery",
+    "preflight_state": "WAIT_USB_MEDIA",
+    "next_gate": "eligible-test-usb-presence",
     "preflight_matches_current_release": true,
     "eligible_usb_count": 0,
     "terminal_recovery_receipt": false,
