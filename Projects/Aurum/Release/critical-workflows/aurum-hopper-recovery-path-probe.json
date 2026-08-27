@@ -1,16 +1,16 @@
 {
   "schema": "aurum-critical-workflow-evidence-v1",
   "workflow": "Aurum Hopper Recovery Path Probe",
-  "run_id": 32963982620,
-  "run_number": 12,
+  "run_id": 33036028751,
+  "run_number": 13,
   "run_attempt": 1,
   "status": "completed",
   "conclusion": "success",
-  "event": "push",
-  "head_sha": "cbec551d099565080ae1ec1c545fdff42887fb9e",
+  "event": "workflow_dispatch",
+  "head_sha": "7ecb6496e575c11d9bf55460cc7c7ad7ba557328",
   "head_branch": "main",
-  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/32963982620",
-  "updated_at": "2026-08-26T11:34:57Z",
+  "html_url": "https://github.com/FormatX66/BoxBrain/actions/runs/33036028751",
+  "updated_at": "2026-08-27T03:21:41Z",
   "physical_proof_inferred": false,
   "authority_granted": false
 }
