@@ -76,6 +76,30 @@ def parse_symbols(output: str) -> list[str]:
     return sorted(values)
 
 
+def extract_modinfo_values(data: bytes, key: str) -> list[str]:
+    """Read NUL-terminated MODULE_INFO values directly from a module image.
+
+    `modinfo` is only a presentation tool over the module's .modinfo strings.  Some
+    minimal Pi images intentionally omit the kmod userspace package even though
+    the kernel build toolchain is complete.  Reading the exact immutable artifact
+    bytes keeps this proof read-only and avoids installing software on the Pi.
+    The scan is conservative: malformed/non-UTF8 values are ignored and duplicate
+    values are collapsed, while any discovered alias still fails the caller's gate.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_]+", key):
+        raise ValueError("unsafe modinfo key")
+    prefix = key.encode("ascii") + b"="
+    values: set[str] = set()
+    for match in re.finditer(re.escape(prefix) + rb"([^\x00\r\n]{1,1024})\x00", data):
+        try:
+            value = match.group(1).decode("utf-8", errors="strict").strip()
+        except UnicodeDecodeError:
+            continue
+        if value:
+            values.add(value)
+    return sorted(values)
+
+
 def run_capture(command: list[str], *, cwd: Path | None = None, timeout: int = 60) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, check=False, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True, timeout=timeout)
@@ -136,29 +160,29 @@ def compile_shadow(*, kernel_build: Path, expected_release: str, static_receipt:
         elif not module.is_file() or module.stat().st_size <= 0:
             receipt["state"] = "failed-artifact-missing"
         else:
-            modinfo = shutil.which("modinfo")
             nm = shutil.which("nm") or shutil.which("llvm-nm")
-            if not modinfo or not nm:
-                receipt["state"] = "held-artifact-inspection-tools-unavailable"
+            if not nm:
+                receipt["state"] = "held-symbol-inspection-tool-unavailable"
             else:
-                vermagic_run = run_capture([modinfo, "-F", "vermagic", str(module)])
-                alias_run = run_capture([modinfo, "-F", "alias", str(module)])
+                module_bytes = module.read_bytes()
+                vermagic_values = extract_modinfo_values(module_bytes, "vermagic")
+                aliases = extract_modinfo_values(module_bytes, "alias")
                 all_symbols_run = run_capture([nm, "--format=posix", str(module)])
                 undefined_run = run_capture([nm, "--undefined-only", "--format=posix", str(module)])
-                runs = (vermagic_run, alias_run, all_symbols_run, undefined_run)
+                runs = (all_symbols_run, undefined_run)
                 if any(item.returncode != 0 for item in runs):
                     receipt["state"] = "failed-artifact-inspection-tool"
                 else:
-                    vermagic_lines = [line.strip() for line in vermagic_run.stdout.splitlines() if line.strip()]
-                    vermagic = vermagic_lines[0] if len(vermagic_lines) == 1 else ""
-                    aliases = [line.strip() for line in alias_run.stdout.splitlines() if line.strip()]
+                    vermagic = vermagic_values[0] if len(vermagic_values) == 1 else ""
                     all_symbols = parse_symbols(all_symbols_run.stdout)
                     undefined = parse_symbols(undefined_run.stdout)
                     device_tables = [name for name in all_symbols if "device_table" in name]
                     forbidden = [name for name in undefined if FORBIDDEN_UNRESOLVED.fullmatch(name)]
                     exact_vermagic = bool(vermagic) and vermagic.split()[0] == expected_release and "aarch64" in vermagic.split()
                     receipt["artifact_inspection"] = {
+                        "modinfo_reader": "artifact-bytes",
                         "vermagic": vermagic,
+                        "vermagic_values": vermagic_values,
                         "exact_vermagic": exact_vermagic,
                         "aliases": aliases,
                         "device_table_symbols": device_tables,
@@ -167,8 +191,8 @@ def compile_shadow(*, kernel_build: Path, expected_release: str, static_receipt:
                         "forbidden_unresolved_symbols": forbidden,
                     }
                     receipt["build"]["module_size_bytes"] = module.stat().st_size
-                    receipt["build"]["module_sha256"] = sha256(module)
-                    receipt["build"]["expected_release_embedded"] = expected_release.encode() in module.read_bytes()
+                    receipt["build"]["module_sha256"] = hashlib.sha256(module_bytes).hexdigest()
+                    receipt["build"]["expected_release_embedded"] = expected_release.encode() in module_bytes
                     if not exact_vermagic or not receipt["build"]["expected_release_embedded"]:
                         receipt["state"] = "failed-exact-vermagic"
                     elif aliases:
