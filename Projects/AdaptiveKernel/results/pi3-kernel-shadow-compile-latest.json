@@ -1,0 +1,37 @@
+﻿{
+    "schema":  "aurum.pi3.kernel-shadow.compile-control.v1",
+    "observed_at_utc":  "2026-08-27T00:51:52.1823176Z",
+    "state":  "verified-kernel-shadow-compile-only",
+    "run_id":  "33028200472",
+    "source_commit":  "3029dccea7d9d91f32178cf2b705aa906dcd75d0",
+    "target":  {
+                   "model":  "Raspberry Pi 3 Model B Rev 1.2",
+                   "serial":  "00000000a6a7df7f",
+                   "kernel":  "6.18.34+rpt-rpi-v8",
+                   "arch":  "aarch64",
+                   "root_source":  "/dev/mmcblk0p2",
+                   "reference_driver":  "smsc95xx"
+               },
+    "evidence":  {
+                     "compile_receipt_sha256":  "b3adc5050977b98eac0d3b2b809fe7504c6956fec8b95b9a1a7f93afab8aa9c0",
+                     "module_sha256":  "fc7d1ea705257b1b122d4255c8d81a16b74fa20fbd9db71eafec3108591f6ffe",
+                     "vermagic":  "6.18.34+rpt-rpi-v8 SMP preempt mod_unload modversions aarch64"
+                 },
+    "invariants":  {
+                       "boot_id_unchanged":  true,
+                       "reference_driver_unchanged":  true,
+                       "module_loaded":  false,
+                       "artifact_retained":  false,
+                       "usb_transfer_submitted":  false,
+                       "register_write_performed":  false,
+                       "firmware_changed":  false,
+                       "network_configuration_changed":  false
+                   },
+    "authority":  {
+                      "module_load_allowed":  false,
+                      "driver_binding_change_allowed":  false,
+                      "mutation_authority_granted":  false,
+                      "promotion_allowed":  false,
+                      "write_authority":  false
+                  }
+}
