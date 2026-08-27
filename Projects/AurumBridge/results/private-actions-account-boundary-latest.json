@@ -1,0 +1,51 @@
+{
+  "schema": "aurum-private-actions-account-boundary-v1",
+  "state": "HUMAN_ACCOUNT_CHECK_REQUIRED",
+  "observed_at_utc": "2026-08-27T15:59:00Z",
+  "fresh_for_seconds": 21600,
+  "scope": "private GitHub-hosted Actions execution",
+  "root_cause_exactly_proven": false,
+  "classification": "account-level private Actions allocation/usage/billing boundary is the strongest current explanation",
+  "evidence": {
+    "chat_to_git_pipeline": {
+      "private": true,
+      "run_id": 33065609096,
+      "job_id": 98494796034,
+      "status": "completed",
+      "conclusion": "failure",
+      "workflow_steps_present": false
+    },
+    "cluster_sites": {
+      "private": true,
+      "run_id": 33055773704,
+      "job_id": 98462067917,
+      "status": "completed",
+      "conclusion": "failure",
+      "workflow_steps_present": false
+    },
+    "public_execution_counterexample": {
+      "repository": "FormatX66/wetbeard-site",
+      "run_id": 33090558945,
+      "status": "completed",
+      "conclusion": "success",
+      "runner_allocated": true
+    }
+  },
+  "human_action_required": true,
+  "human_action": "Open GitHub account Settings, then Billing & plans / Billing & licensing, open Actions usage or budgets, and clear any exhausted included minutes, zero or insufficient Actions budget, failed payment, or billing hold affecting private repositories. Do not repeatedly rerun private workflows until this account boundary is cleared.",
+  "after_clear": "Run one correlated Farmer recovery probe and require a real runner assignment plus workflow steps before declaring private Actions recovered.",
+  "system_parallel_work_allowed": "Continue safe public BoxBrain and wetbeard-site lanes while preserving LKG and existing safety gates.",
+  "authority": {
+    "grants_execution_authority": false,
+    "grants_destructive_authority": false,
+    "grants_lkg_mutation": false
+  },
+  "provenance": {
+    "aurum_shared_state_event": "evt-6fc75f05f0ed4814a9e4832bbbad674b",
+    "fresh_connector_rechecks": [
+      "Chat-to-Git-Pipeline run 33065609096 job 98494796034",
+      "ClusterSites run 33055773704 job 98462067917",
+      "wetbeard-site run 33090558945"
+    ]
+  }
+}
