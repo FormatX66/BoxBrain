@@ -11,7 +11,7 @@ window.__aurumFarmerPrivateActionsBoundaryV1=true;
 const URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/AurumBridge/results/private-actions-account-boundary-latest.json';
 const REFRESH=5*60*1000;
 let state=null;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 function ageMs(){const t=Date.parse(state?.observed_at_utc||'');return Number.isFinite(t)?Date.now()-t:Infinity}
 function active(){const max=Math.max(0,Number(state?.fresh_for_seconds||0))*1000;return Boolean(state?.schema==='aurum-private-actions-account-boundary-v1'&&state?.state==='HUMAN_ACCOUNT_CHECK_REQUIRED'&&state?.human_action_required===true&&max>0&&ageMs()>=-5*60*1000&&ageMs()<=max)}
 function publish(){window.__aurumFarmerPrivateActionsBoundaryState={schema:'aurum-command-center-farmer-private-actions-boundary-v1.0',active:active(),observedAt:state?.observed_at_utc||null,exactRootCauseProven:state?.root_cause_exactly_proven===true,humanActionRequired:active(),humanAction:active()?state?.human_action:null,grantsExecutionAuthority:false,grantsDestructiveAuthority:false,grantsLkgMutation:false};window.dispatchEvent(new CustomEvent('aurum-farmer-private-actions-boundary-state',{detail:window.__aurumFarmerPrivateActionsBoundaryState}))}
