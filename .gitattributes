@@ -7,3 +7,9 @@ edge/kali-pi-agent/onboarding/windows-link.ps1 text eol=crlf
 Projects/Aurum/Core/Farmer-v3/** text eol=lf
 Projects/Aurum/ChatTreePlugin/** text eol=lf
 Projects/Aurum/ChatTreeMCP/** text eol=lf
+
+# Adaptive Kernel generated/shadow C sources are provenance-bound by Git blob
+# identity. Keep Windows self-hosted checkouts from rewriting canonical LF bytes.
+Projects/AdaptiveKernel/driver_candidates/generated/*.c text eol=lf
+Projects/AdaptiveKernel/driver_candidates/kernel_shadow/*.c text eol=lf
+Projects/AdaptiveKernel/driver_candidates/kernel_shadow/Kbuild text eol=lf

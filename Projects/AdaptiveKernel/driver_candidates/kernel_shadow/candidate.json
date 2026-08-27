@@ -1,0 +1,65 @@
+{
+  "schema": "aurum.adaptive-kernel.kernel-shadow-candidate.v1",
+  "candidate_id": "pi3-smsc95xx-kernel-shadow-compile-v1",
+  "target": {
+    "model_marker": "Raspberry Pi 3 Model B Rev 1.2",
+    "architecture": "aarch64",
+    "exact_kernel_release": "6.18.34+rpt-rpi-v8",
+    "reference_driver": "smsc95xx",
+    "reference_driver_replaced": false
+  },
+  "basis": {
+    "source_package_receipt": "Projects/AdaptiveKernel/results/pi3-source-package-provenance-latest.json",
+    "source_package_receipt_sha256": "04c065a6ff3a98c4d70b6bbfab3d442887a8314ca075662e3d83391456fbfc42",
+    "semantic_source": "Projects/AdaptiveKernel/driver_candidates/generated/pi3-smsc95xx-nonbinding-candidate.c",
+    "semantic_source_git_blob_sha1": "03aad924bb240a2e3e1bfcf4f54817b434e684a5"
+  },
+  "build": {
+    "mode": "compile-only",
+    "kbuild_target": "modules",
+    "source": "aurum_pi3_smsc95xx_kernel_shadow.c",
+    "kbuild": "Kbuild",
+    "artifact_retained": false,
+    "exact_vermagic_required": true,
+    "module_aliases_allowed": false,
+    "device_table_symbols_allowed": false,
+    "forbidden_unresolved_capability_symbols_allowed": false
+  },
+  "safety": {
+    "load_allowed": false,
+    "successful_load_possible": false,
+    "init_behavior": "return-negative-eperm",
+    "autoload_aliases": [],
+    "registers_device_driver": false,
+    "registers_network_device": false,
+    "registers_sysfs_interface": false,
+    "performs_hardware_io": false,
+    "submits_usb_transfers": false,
+    "writes_registers": false,
+    "changes_driver_binding": false,
+    "changes_firmware": false,
+    "changes_boot_configuration": false,
+    "changes_network_configuration": false,
+    "self_loads_or_requests_modules": false,
+    "production_nodes_allowed": false,
+    "promotion_allowed": false,
+    "write_authority": false
+  },
+  "evidence_scope": [
+    "kernel-native-type-shape",
+    "sealed-lan9514-smsc95xx-shadow-semantics",
+    "exact-running-kernel-header-compatibility",
+    "inert-module-artifact-inspection",
+    "canonical-lf-source-checkout"
+  ],
+  "non_claims": [
+    "module-loaded",
+    "driver-bound",
+    "usb-device-opened",
+    "usb-transfer-submitted",
+    "register-or-interrupt-hardware-behavior-proven",
+    "physical-driver-safety-proven",
+    "boot-safety-proven",
+    "promotion-authorized"
+  ]
+}
