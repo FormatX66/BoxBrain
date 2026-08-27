@@ -13,3 +13,7 @@ Projects/Aurum/ChatTreeMCP/** text eol=lf
 Projects/AdaptiveKernel/driver_candidates/generated/*.c text eol=lf
 Projects/AdaptiveKernel/driver_candidates/kernel_shadow/*.c text eol=lf
 Projects/AdaptiveKernel/driver_candidates/kernel_shadow/Kbuild text eol=lf
+
+# The self-kernel builder and boot harness execute under Linux/WSL even when
+# prepared from a Windows checkout.
+Projects/AurumKernel/** text eol=lf

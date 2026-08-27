@@ -1,0 +1,96 @@
+name: Aurum Pi3 Self-Kernel Cloud
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurum-pi3-self-kernel-cloud.yml'
+      - 'Projects/AurumKernel/**'
+      - 'Projects/Codelation/kernel_selfbuild/**'
+      - 'Projects/Codelation/tests/test_self_kernel_compiler_executor.py'
+      - 'Projects/AdaptiveKernel/results/pi3-architecture-accurate-boot-latest.json'
+      - 'Projects/AdaptiveKernel/tests/test_pi3_architecture_boot_receipt.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-pi3-self-kernel-cloud-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot-pi3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install bounded ARM64 build and Pi3 emulation tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev cpio gzip \
+            kmod git gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            libc6-dev-arm64-cross device-tree-compiler qemu-system-arm
+
+      - name: Validate self-kernel contracts
+        run: |
+          sh -n Projects/AurumKernel/build-pi3-kernel.sh
+          sh -n Projects/AurumKernel/package-pi3-kernel.sh
+          sh -n Projects/AurumKernel/boot-test-pi3.sh
+          python3 -m py_compile Projects/Codelation/kernel_selfbuild/*.py
+          python3 -m unittest -v \
+            Projects.Codelation.tests.test_self_kernel_compiler_executor \
+            Projects.AdaptiveKernel.tests.test_pi3_architecture_boot_receipt
+
+      - name: Rebuild pinned Pi3 self-kernel in cloud
+        env:
+          AURUM_BUILD_JOBS: '4'
+          KBUILD_BUILD_USER: aurum-cloud
+          KBUILD_BUILD_HOST: github-actions
+        run: sh Projects/AurumKernel/build-pi3-kernel.sh
+
+      - name: Boot exact cloud artifact on QEMU raspi3b
+        run: sh Projects/AurumKernel/boot-test-pi3.sh
+
+      - name: Verify cloud receipt remains evidence-only
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          bundle = Path('dist/Aurum-Pi3-Kernel-v0.02-arm64')
+          receipt = json.loads((bundle / 'boot-test-receipt.json').read_text())
+          manifest = json.loads((bundle / 'aurum-kernel-manifest.json').read_text())
+          expected_commit = '73b1c785241360882ab9f7fb0793e775c25db325'
+          expected_release = '6.12.105-aurum-pi3-v0.02+'
+          kernel = bundle / 'kernel8-aurum.img'
+          kernel_sha = hashlib.sha256(kernel.read_bytes()).hexdigest()
+
+          assert receipt['state'] == 'success'
+          assert receipt['carrier'] == 'qemu-system-aarch64-raspi3b'
+          assert receipt['physical_hardware_evidence'] is False
+          assert receipt['kernel_sha256'] == kernel_sha
+          assert receipt['markers'] == [
+              'AURUM_PI3_KERNEL_READY version=0.02 arch=arm64',
+              'selftest=ok',
+          ]
+          assert manifest['architecture'] == 'arm64'
+          assert (bundle / 'source-commit.txt').read_text().strip() == expected_commit
+          assert (bundle / 'kernel-release.txt').read_text().strip() == expected_release
+          print(
+              'AURUM_PI3_SELF_KERNEL_CLOUD '
+              f'state=architecture-boot-proven kernel_release={expected_release} '
+              f'kernel_sha256={kernel_sha} physical_authority=false'
+          )
+          PY
+
+      - name: Publish cloud-rebuilt boot evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-Pi3-Self-Kernel-v0.02-arm64
+          path: dist/Aurum-Pi3-Kernel-v0.02-arm64/**
+          if-no-files-found: error
+          retention-days: 30

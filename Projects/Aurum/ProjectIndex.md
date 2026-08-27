@@ -37,6 +37,7 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [Autonomous driver synthesis](AUTONOMOUS_DRIVER_SYNTHESIS.md)
 - [Adaptive Driver Test 001: Raspberry Pi 3](../AdaptiveDrivers/README.md)
 - [Pi 3 adaptive-kernel overnight laboratory](../AdaptiveKernel/OVERNIGHT_PI3_LAB.md)
+- [Pi 3 self-built kernel cloud lane](../AurumKernel/README.md)
 - [Shadow-first adaptive runtime governor](../AdaptiveKernel/ADAPTIVE_RUNTIME.md)
 - [Independent Pi 3 recovery scaffold](../AdaptiveKernel/recovery/README.md)
 - [Compile-only Pi 3 driver candidates](../AdaptiveKernel/driver_candidates/README.md)

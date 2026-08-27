@@ -1,0 +1,62 @@
+{
+  "schema": "aurum.pi3.architecture-accurate-boot.v1",
+  "observed_at_utc": "2026-08-27T07:55:33.2987423Z",
+  "state": "architecture-accurate-boot-to-init-proven",
+  "source": "local-qemu-raspi3b-ephemeral-base-image",
+  "target_profile": {
+    "board_model": "Raspberry Pi 3 Model B",
+    "qemu_machine": "raspi3b",
+    "cpu_model": "Cortex-A53",
+    "cpu_count": 4,
+    "architecture": "aarch64"
+  },
+  "candidate": {
+    "kernel_release": "6.12.105-aurum-pi3-v0.02+",
+    "kernel_filename": "kernel8-aurum.img",
+    "kernel_size_bytes": 24351232,
+    "kernel_sha256": "f8deb62764e4611e6daefaf868f155413af6be3e239e8ec821e741a984ebb719",
+    "dtb_filename": "bcm2710-rpi-3-b.dtb",
+    "dtb_size_bytes": 34711,
+    "dtb_sha256": "288d47a680b8d462d8cf080481ffbc62c34fe76ffbadc709d0a59228fba29fff"
+  },
+  "root_image": {
+    "filename": "raspios_lite_arm64_2026-06-18.img",
+    "size_bytes": 2977955840,
+    "sha256": "e235fd24fc5f039c08daba7d3abc04aecc7313f979d16d2a3fdad29dd44c33a9",
+    "disk_identifier": "0x041bba91",
+    "partition_count": 2,
+    "execution_mode": "qemu-snapshot-copy-on-write"
+  },
+  "emulator": {
+    "version": "QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.2)",
+    "hardware_acceleration_claimed": false
+  },
+  "verified_markers": [
+    "Booting Linux on physical CPU 0x0000000000 [0x410fd034]",
+    "Linux version 6.12.105-aurum-pi3-v0.02+",
+    "Machine model: Raspberry Pi 3 Model B",
+    "CPU3: Booted secondary processor",
+    "SMP: Total of 4 processors activated",
+    "mmcblk0: p1 p2",
+    "EXT4-fs (mmcblk0p2): mounted filesystem",
+    "VFS: Mounted root (ext4 filesystem) on device 179:2",
+    "Run /sbin/init as init process"
+  ],
+  "known_emulator_limitations": [
+    "QEMU firmware-property emulation caused nonfatal virtual GPIO warnings",
+    "QEMU did not emulate the physical LAN9514 Ethernet/USB path used by smsc95xx",
+    "the exact inserted card root partition was not read because raw-disk access was unavailable without elevation"
+  ],
+  "invariants": {
+    "sd_card_written": false,
+    "base_image_written": false,
+    "physical_pi_contacted": false,
+    "kernel_installed_on_physical_pi": false,
+    "driver_binding_changed": false,
+    "reference_driver_changed": false,
+    "last_known_good_changed": false,
+    "mutation_authority_granted": false
+  },
+  "next_gate": "independent-automatic-out-of-band-recovery-proof",
+  "strongest_claim": "The exact ARM64 kernel binary currently selected on the sacrificial Pi 3 trial card boots on QEMU's Raspberry Pi 3B board model, activates all four Cortex-A53 CPUs, discovers the SD image, mounts the ARM64 root filesystem, and executes /sbin/init. This is architecture-accurate boot evidence, not proof of physical LAN9514/smsc95xx behavior or automatic out-of-band recovery."
+}
