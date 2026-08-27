@@ -1,0 +1,63 @@
+{
+  "schema": "aurum.virtual-hardware-lab.github-run-observation.v1",
+  "state": "verified-four-target-convergence-observed",
+  "workflow": "Aurum Virtual Hardware Lab",
+  "workflow_run_id": 33111203166,
+  "workflow_run_url": "https://github.com/FormatX66/BoxBrain/actions/runs/33111203166",
+  "source_branch": "aurum/trunk-v0.01",
+  "source_commit": "f3c0a2d3f59a22f496e4bf29dff614136bfe7abd",
+  "run_conclusion": "success",
+  "targets": {
+    "docker-x86_64": "success",
+    "docker-arm64": "success",
+    "qemu-x86_64-uefi": "success",
+    "qemu-pi3-machine-runtime": "success"
+  },
+  "convergence_gate": {
+    "name": "Same-commit four-target convergence gate",
+    "conclusion": "success",
+    "required_target_count": 4
+  },
+  "artifacts": {
+    "convergence": {
+      "id": 9663112286,
+      "name": "Aurum-VirtualLab-Convergence-f3c0a2d3f59a22f496e4bf29dff614136bfe7abd",
+      "digest": "sha256:c9cc630277e304aabd8c841df1fbbf1932933c4439d16a50d5b19ae724c123a4"
+    },
+    "qemu_pc": {
+      "id": 9663107181,
+      "digest": "sha256:4f7b628415814b38001218baa9b7e582e6e6899d0230f15b8dd0b6bc5b6ccb5f"
+    },
+    "qemu_pi3": {
+      "id": 9662676647,
+      "digest": "sha256:d2a68122e5352278f3d2d63f899f80623fd0da5191a7d7e2128f322454a68424"
+    },
+    "docker_x86_64": {
+      "id": 9662597152,
+      "digest": "sha256:4e597c4624a69e306659fd7ccb1069f4ae93e8ef24acfdd734298ada1d7c38a8"
+    },
+    "docker_arm64": {
+      "id": 9662597095,
+      "digest": "sha256:6f4d8535928b27d9f1b6b97221b51b4c2b47c7990e0493df6dc6e8248664211a"
+    }
+  },
+  "promotion": {
+    "publish_runtime_requested": false,
+    "publish_runtime_job": "skipped",
+    "runtime_release_published": false
+  },
+  "proof_boundary": {
+    "same_commit_virtual_runtime_convergence_proven": true,
+    "pi3_qemu_machine_runtime_proven": true,
+    "physical_pi3_hardware_proven": false,
+    "physical_hopper_proven": false,
+    "qpu_hardware_contacted": false,
+    "driver_binding_authority": false,
+    "kernel_mutation_authority": false,
+    "firmware_mutation_authority": false,
+    "write_authority": false,
+    "promotion_authority": false,
+    "human_action_inference": false
+  },
+  "observed_at_utc": "2026-08-27T20:16:46Z"
+}
