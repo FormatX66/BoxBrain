@@ -1,0 +1,26 @@
+{
+  "schema": "aurum-farmer-objective-v1",
+  "objective_id": "BB-AURUM-GEN1-WEB-PROMPT-SEED",
+  "objective": "Advance the full Aurum Gen1 seed by integrating TR8:WEB and restoring the Aurum/GPT prompt area as first-class graphical shell capabilities. Preserve the working Wi-Fi and landscape graphics state. Materialize both capabilities into the seed, keep browser content outside Aurum/Farmer authority, keep API credentials out of the image and repository, validate launch/render/navigation/prompt fallback behavior, preserve Last Known Good, and continue until verified completion or a proven human-only blocker.",
+  "target_repo": "FormatX66/BoxBrain",
+  "state": "IMPLEMENTATION_IN_PROGRESS",
+  "capabilities": ["TR8:WEB", "TR8:PROMPT"],
+  "preserve": ["working_wifi", "working_landscape_graphics", "last_known_good"],
+  "completion_gate": [
+    "full seed contains aurum-web",
+    "full seed contains aurum-prompt",
+    "graphical launcher opens local Aurum prompt surface",
+    "web address/search opens through TR8:WEB",
+    "Aurum prompt path is locally bounded",
+    "GPT path works when configured and fails gracefully when not configured",
+    "no credentials embedded in seed or repository",
+    "browser/prompt crash does not destabilize shell",
+    "VM acceptance passes before physical promotion"
+  ],
+  "authority": {
+    "farmer_dispatch_requested": true,
+    "farmer_dispatch_action_available_in_this_chat": false,
+    "destructive_authority": false,
+    "lkg_mutation_authority": false
+  }
+}
