@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: aurum-external-evidence-recovery-v1
@@ -280,7 +281,7 @@ jobs:
             if ($LASTEXITCODE -eq 0) {
               git push origin "HEAD:$env:AURUM_TRUNK"
               if ($LASTEXITCODE -eq 0) {
-                Write-Host 'AURUM_EXTERNAL_EVIDENCE published=true autobuild_trigger=push'
+                Write-Host 'AURUM_EXTERNAL_EVIDENCE published=true continuation=pending-explicit-dispatch'
                 exit 0
               }
             }
@@ -288,3 +289,19 @@ jobs:
             Start-Sleep -Seconds $attempt
           }
           throw 'Fresh bounded evidence could not be published without overwriting concurrent Aurum work.'
+
+      - name: Continue native growth from recovered evidence
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $body = @{ ref = $env:AURUM_TRUNK } | ConvertTo-Json -Compress
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/workflows/aurum-autobuild.yml/dispatches"
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body -ContentType 'application/json' | Out-Null
+          Write-Host 'AURUM_EXTERNAL_EVIDENCE continuation_dispatched=true trigger=explicit-workflow-dispatch authority=none'
