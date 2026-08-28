@@ -75,8 +75,9 @@ receipt through its read-only self-debug status channel.
 
 `become_next_seed` is true only after installed runtime hashes, bounded GPT
 execution, system activation, a real physical projection, keyboard and pointer
-events in the current GUI boot, the bounded GUI recovery console, and Wi-Fi
-profile/connectivity persistence across the update have all passed. The
+events in the current GUI boot, the bounded GUI recovery console, the
+restricted key-only remote-control contract, and Wi-Fi profile/connectivity
+persistence across the update have all passed. The
 physical receipt distinguishes the primary HTML renderer from the automatic
 Pygame fallback instead of treating either path as implied success. Input
 receipts record only event counts and timestamps; Wi-Fi receipts contain only

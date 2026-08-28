@@ -594,6 +594,24 @@ def _recovery_control(action: str, state: Path, workspace: Path, runtime: Path) 
         return False, f"{action} · {type(exc).__name__}"
 
 
+def _gpt_ask(prompt: str, state: Path, workspace: Path, runtime: Path) -> tuple[bool, str]:
+    """Run one bounded GPT request for the Pygame fallback prompt panel."""
+    module = _runtime_module("aurum_gpt_trait", workspace, runtime)
+    if module is None:
+        return False, "GPT trait unavailable"
+    try:
+        module.DEFAULT_STATE = state
+        module.DEFAULT_WORKSPACE = workspace
+        module.DEFAULT_RUNTIME = runtime
+        result = module.ask(prompt)
+        response = result.get("text") if isinstance(result, dict) else None
+        if not isinstance(response, str) or not response.strip():
+            return False, "GPT returned no response"
+        return True, " ".join(response.strip().split())
+    except Exception as exc:
+        return False, f"GPT unavailable · {type(exc).__name__}"
+
+
 def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     global STOP_REQUESTED
     STOP_REQUESTED = False
@@ -824,6 +842,11 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     recovery_status = "Ready · named actions only · no shell"
     recovery_future: concurrent.futures.Future[tuple[bool, str]] | None = None
     recovery_worker = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="aurum-recovery")
+    gpt_prompt_active = False
+    gpt_prompt = ""
+    gpt_response = "Aurum GPT is ready for a bounded prompt. Raw shell remains off."
+    gpt_future: concurrent.futures.Future[tuple[bool, str]] | None = None
+    gpt_worker = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="aurum-gpt")
     clock = pygame.time.Clock()
     click_targets: list[tuple[Any, str, Any]] = []
 
@@ -838,6 +861,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     def handle_action(action, payload=None):
         nonlocal selected, detail_view, toast, toast_until, confirm_action, last_refresh, snap
         nonlocal recovery_future, recovery_status
+        nonlocal gpt_prompt_active, gpt_prompt, gpt_response, gpt_future
         if action == "nav":
             nav_click(payload)
         elif action == "detail":
@@ -878,6 +902,20 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             recovery_future = recovery_worker.submit(
                 _recovery_control, selected_action, state, workspace, runtime
             )
+        elif action == "gpt-focus":
+            gpt_prompt_active = True
+        elif action == "gpt-send":
+            clean = " ".join(gpt_prompt.split())
+            if not clean:
+                gpt_prompt_active = True
+                return
+            if gpt_future is not None and not gpt_future.done():
+                gpt_response = "Aurum GPT is already reasoning…"
+                return
+            gpt_prompt = ""
+            gpt_prompt_active = True
+            gpt_response = "Aurum GPT is reasoning with Hopper…"
+            gpt_future = gpt_worker.submit(_gpt_ask, clean, state, workspace, runtime)
 
     def button(rect, label, action, payload=None, accent=gold):
         hover = rect.collidepoint(pygame.mouse.get_pos())
@@ -911,6 +949,14 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             if ok:
                 last_refresh = 0
             recovery_future = None
+        if gpt_future is not None and gpt_future.done():
+            try:
+                ok, gpt_response = gpt_future.result()
+            except Exception as exc:
+                ok, gpt_response = False, f"GPT unavailable · {type(exc).__name__}"
+            toast = "GPT response ready" if ok else gpt_response
+            toast_until = now + 4
+            gpt_future = None
         if now - last_refresh >= 4:
             snap = snapshot(state, workspace, runtime)
             pointer_motion_observed = pointer_motion_observed or bool(snap["pointer_verified"])
@@ -925,12 +971,20 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                     _record_gui_input("keyboard", state, workspace, runtime)
                 ctrl = bool(event.mod & pygame.KMOD_CTRL)
                 alt = bool(event.mod & pygame.KMOD_ALT)
-                if ctrl and alt and event.key == pygame.K_F1:
+                if event.key == pygame.K_F12:
+                    STOP_REQUESTED = True
+                elif gpt_prompt_active and event.key == pygame.K_ESCAPE:
+                    gpt_prompt_active = False
+                elif gpt_prompt_active and event.key in {pygame.K_RETURN, pygame.K_KP_ENTER}:
+                    handle_action("gpt-send")
+                elif gpt_prompt_active and event.key == pygame.K_BACKSPACE:
+                    gpt_prompt = gpt_prompt[:-1]
+                elif gpt_prompt_active and event.unicode and event.unicode.isprintable() and len(gpt_prompt) < 1200:
+                    gpt_prompt += event.unicode
+                elif ctrl and alt and event.key == pygame.K_F1:
                     handle_action("recovery")
                 elif event.key == pygame.K_F5:
                     handle_action("refresh")
-                elif event.key == pygame.K_F12:
-                    STOP_REQUESTED = True
                 elif pygame.K_1 <= event.key <= pygame.K_6:
                     nav_click(event.key - pygame.K_1)
             elif event.type == pygame.MOUSEMOTION and event.rel != (0, 0):
@@ -1370,6 +1424,21 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                 text(label_name, br.x + S(18), br.y + S(9), small, ink)
                 add_target(br, action)
 
+            if qa.height >= S(122):
+                gpt_box = pygame.Rect(qa.x + S(14), qa.y + S(58), qa.width - S(28), qa.height - S(72))
+                rounded(gpt_box, (7, 12, 13), teal if gpt_prompt_active else line, 10)
+                text("AURUM GPT PROMPT", gpt_box.x + S(14), gpt_box.y + S(10), tiny, teal_hi)
+                text(fit(gpt_response, 118), gpt_box.x + S(155), gpt_box.y + S(9), tiny, muted)
+                prompt_rect = pygame.Rect(gpt_box.x + S(12), gpt_box.bottom - S(47), gpt_box.width - S(165), S(35))
+                rounded(prompt_rect, (4, 8, 8), gold if gpt_prompt_active else line, 8)
+                shown_prompt = gpt_prompt or "Ask Aurum about Hopper…"
+                text(fit(shown_prompt, 100), prompt_rect.x + S(11), prompt_rect.y + S(8), small, ink if gpt_prompt else muted)
+                send_rect = pygame.Rect(prompt_rect.right + S(10), prompt_rect.y, S(135), prompt_rect.height)
+                rounded(send_rect, (20, 16, 8), gold, 8)
+                text("Send to Aurum", send_rect.x + S(15), send_rect.y + S(9), tiny, gold_hi)
+                add_target(prompt_rect, "gpt-focus")
+                add_target(send_rect, "gpt-send")
+
         else:
             box = pygame.Rect(
                 main_x,
@@ -1567,6 +1636,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     )
     pygame.quit()
     recovery_worker.shutdown(wait=False, cancel_futures=True)
+    gpt_worker.shutdown(wait=False, cancel_futures=True)
     return 0
 
 

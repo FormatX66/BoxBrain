@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -18,6 +19,18 @@ SPEC.loader.exec_module(desktop_module)
 
 
 class AurumDesktopTests(unittest.TestCase):
+    def test_fallback_gpt_panel_uses_bounded_trait_and_returns_text(self) -> None:
+        trait = SimpleNamespace(ask=lambda prompt: {"status": "completed", "text": f"heard {prompt}"})
+        with patch.object(desktop_module, "_runtime_module", return_value=trait):
+            ok, response = desktop_module._gpt_ask(
+                "Hopper status", Path("state"), Path("workspace"), Path("runtime")
+            )
+        self.assertTrue(ok)
+        self.assertEqual(response, "heard Hopper status")
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn("AURUM GPT PROMPT", source)
+        self.assertIn('elif action == "gpt-send"', source)
+
     def test_snapshot_reads_gen1_machine_state_without_host_actuation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

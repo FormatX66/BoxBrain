@@ -35,6 +35,10 @@ class AurumGPTExecutorTests(unittest.TestCase):
         self.assertTrue(catalog["appearance"]["resets_on_reboot"])
         self.assertIn("gui-restart", catalog["control_actions"])
         self.assertIn("runtime-sync", catalog["control_actions"])
+        self.assertIn("remote-seed-sync", catalog["control_actions"])
+        self.assertIn("remote-desktop-start", catalog["control_actions"])
+        self.assertFalse(catalog["remote_control"]["direct_lan_desktop"])
+        self.assertFalse(catalog["remote_control"]["raw_shell"])
 
     def test_path_traversal_and_non_aurum_roots_are_rejected(self) -> None:
         module = load_executor()

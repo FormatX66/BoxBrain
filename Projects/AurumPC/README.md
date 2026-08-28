@@ -31,13 +31,19 @@ The [Hopper GUI, boot, and input growth release](HOPPER_GUI_INPUT_TEST.md) packa
 
 The [Hopper recovery-hardening generation](HOPPER_RECOVERY_HARDENING.md) extends that running-seed path with keyboard and pointer event proof, explicit Wi-Fi persistence proof, and a small named-action recovery console inside both GUI renderers. It deliberately leaves the established Wi-Fi configuration and landscape presentation assets outside the update payload.
 
+The [Hopper remote-control generation](HOPPER_REMOTE_CONTROL.md) adds a fixed
+remote seed-sync command, an on-demand browser Remote Desktop carried only
+inside a key-authenticated SSH tunnel, and the Aurum GPT prompt panel on both
+the primary HTML projection and Pygame fallback. It builds on, rather than
+replaces, the recovery-hardening LKG.
+
 ## Unattended PC-01 lane
 
 The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime and bounded system assets, run a local resumable self-build without dirtying Git, start the loopback-only GUI/arcade surfaces, and advance the adaptive driver synthesis lane.
 
 The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
 
-Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`. Hopper's read-only self-debug channel exposes the landed commit and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, keyboard/pointer, GUI recovery-console, Wi-Fi persistence, and `become_next_seed` proof without enabling remote shell control.
+Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`. Hopper's read-only self-debug channel exposes the landed commit and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, keyboard/pointer, GUI recovery-console, restricted remote-control, Wi-Fi persistence, and `become_next_seed` proof without enabling remote shell control.
 
 ## One-shot seed recovery
 

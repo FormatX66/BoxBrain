@@ -1,0 +1,12 @@
+[Unit]
+Description=Aurum restricted remote transport bootstrap
+After=local-fs.target network.target
+Before=ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_remote_control.py bootstrap --no-activate
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

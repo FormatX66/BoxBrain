@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -86,6 +87,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 patch.object(updater, "_wifi_persistence_proof", return_value={"status": "passed"}),
                 patch.object(updater, "_input_proof", return_value={"status": "passed"}),
                 patch.object(updater, "_gui_console_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_remote_control_proof", return_value={"status": "passed"}),
             ):
                 result = updater.apply()
                 finalized = updater.prove_current({
@@ -104,6 +106,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(receipt["generation"]["prove"]["wifi"]["status"], "passed")
             self.assertEqual(receipt["generation"]["prove"]["input"]["status"], "passed")
             self.assertEqual(receipt["generation"]["prove"]["gui_console"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["remote_control"]["status"], "passed")
             self.assertEqual(finalized["status"], "current")
             self.assertTrue(finalized["generation"]["become_next_seed"])
             self.assertEqual(finalized["generation"]["stage"]["status"], "verified")
@@ -112,7 +115,8 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             for relative, mode in SYSTEM_ASSETS:
                 installed = system_root / relative
                 self.assertEqual(installed.read_text(encoding="utf-8"), f"managed asset: {relative}\n")
-                self.assertEqual(installed.stat().st_mode & 0o777, mode)
+                if os.name == "posix":
+                    self.assertEqual(installed.stat().st_mode & 0o777, mode)
 
     def test_system_integration_reloads_enables_and_recovers_inactive_input_service(self) -> None:
         updater = RuntimeUpdater(system_root=Path("/"))

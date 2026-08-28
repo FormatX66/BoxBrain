@@ -5,11 +5,13 @@ isolated computer lab. The first milestone is deliberately small: a Flutter
 mission-control UI, a Python/FastAPI controller API, a plugin boundary, policy
 profiles, an audit-friendly task queue, and a restricted Kali Pi edge agent.
 
-This repository is an initial alpha. It does **not** autonomously execute
-keyboard, mouse, remote-desktop, or arbitrary shell actions. Its optional
-model-processing endpoint exposes no side-effect tools. The separate Kali Pi
-diagnostic executor runs only fixed read-only commands after an explicit `RUN`
-approval.
+The original BoxBrain controller is an initial alpha. It does **not**
+autonomously execute keyboard, mouse, remote-desktop, or arbitrary shell
+actions. Its optional model-processing endpoint exposes no side-effect tools.
+The separate Aurum PC lane has its own machine-bound, key-only remote desktop
+and fixed seed-sync contract; it does not add those powers to this controller
+or expose a remote shell. The Kali Pi diagnostic executor runs only fixed
+read-only commands after an explicit `RUN` approval.
 
 ## Repository layout
 

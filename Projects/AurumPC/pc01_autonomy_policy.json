@@ -17,6 +17,7 @@
   "auto_arcade_start": true,
   "auto_local_echo_display": false,
   "install_local_display_dependencies": true,
+  "install_remote_control_dependencies": true,
   "auto_driver_synthesis": true,
   "install_driver_build_toolchain": true,
   "auto_reboot_after_runtime_update": false,

@@ -18,6 +18,7 @@ from aurum_gui_runtime import GuiRuntime, GuiRuntimeError
 from aurum_input import status as input_status
 from aurum_installer import AurumInstaller, InstallError
 from aurum_network import ensure_online, interactive_wifi_setup, network_status
+from aurum_remote_control import RemoteControlError, desktop_start, desktop_stop, status as remote_status
 from aurum_runtime_update import RuntimeUpdateError, RuntimeUpdater
 from aurum_workspace import AurumWorkspace, WorkspaceError
 
@@ -351,6 +352,40 @@ def run_gui(action: str) -> None:
         print(f"AURUM_GUI_RUNTIME status=failed detail={exc}", flush=True)
 
 
+def run_remote(action: str) -> None:
+    """Expose the same bounded broker on the recovery console for proof/recovery."""
+    try:
+        if action == "desktop-start":
+            result = desktop_start()
+        elif action == "desktop-stop":
+            result = desktop_stop()
+        else:
+            result = remote_status()
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        operation = result.get("result") if isinstance(result.get("result"), dict) else result
+        operation_status = operation.get("status", result.get("status", "unknown"))
+        desktop = operation.get("desktop") if isinstance(operation.get("desktop"), dict) else operation
+        listeners = desktop.get("listeners") if isinstance(desktop.get("listeners"), list) else []
+        websocket_listeners = (
+            desktop.get("websocket_listeners") if isinstance(desktop.get("websocket_listeners"), list) else []
+        )
+        loopback_only = bool(desktop.get("loopback_only"))
+        print(
+            f"AURUM_REMOTE status={operation_status} action={action} "
+            f"desktop={desktop.get('status', 'unknown')} "
+            f"loopback={str(loopback_only).lower()} raw_shell=false "
+            f"vnc_listeners={','.join(listeners) or 'none'} "
+            f"websocket_listeners={','.join(websocket_listeners) or 'none'}",
+            flush=True,
+        )
+    except (RemoteControlError, OSError) as exc:
+        print(
+            f"AURUM_REMOTE status=failed action={action} loopback=false raw_shell=false "
+            f"detail={type(exc).__name__}:{exc}",
+            flush=True,
+        )
+
+
 def run_drivers(action: str) -> None:
     try:
         result = DRIVERS.cycle() if action == "cycle" else DRIVERS.status()
@@ -426,6 +461,7 @@ def command_help() -> None:
         "git-promote authorize-network confirm-push | runtime-status | runtime-sync | "
         "autonomy-status | autonomy-cycle | driver-status | driver-cycle | "
         "gui-status | gui-start | gui-stop | install | install confirm ERASE-CODE | "
+        "remote-status | remote-desktop-start | remote-desktop-stop | "
         "reboot | poweroff | help",
         flush=True,
     )
@@ -527,6 +563,12 @@ def main() -> int:
             run_gui("start")
         elif command == "gui-stop" and len(tokens) == 1:
             run_gui("stop")
+        elif command == "remote-status" and len(tokens) == 1:
+            run_remote("status")
+        elif command == "remote-desktop-start" and len(tokens) == 1:
+            run_remote("desktop-start")
+        elif command == "remote-desktop-stop" and len(tokens) == 1:
+            run_remote("desktop-stop")
         elif command == "install" and len(tokens) == 1:
             show_install_plan()
         elif command == "install" and len(tokens) == 3 and tokens[1].lower() == "confirm":

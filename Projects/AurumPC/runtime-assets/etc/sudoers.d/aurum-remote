@@ -1,0 +1,5 @@
+Defaults:aurum-remote env_reset
+aurum-remote ALL=(root) NOPASSWD: /usr/bin/python3 /opt/aurum/aurum_remote_control.py status
+aurum-remote ALL=(root) NOPASSWD: /usr/bin/python3 /opt/aurum/aurum_remote_control.py seed-sync
+aurum-remote ALL=(root) NOPASSWD: /usr/bin/python3 /opt/aurum/aurum_remote_control.py desktop-start
+aurum-remote ALL=(root) NOPASSWD: /usr/bin/python3 /opt/aurum/aurum_remote_control.py desktop-stop

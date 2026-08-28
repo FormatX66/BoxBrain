@@ -19,6 +19,7 @@ class AurumConsoleContractTests(unittest.TestCase):
             "autonomy-status | autonomy-cycle",
             "driver-status | driver-cycle",
             "gui-status | gui-start | gui-stop",
+            "remote-status | remote-desktop-start | remote-desktop-stop",
             "install confirm ERASE-CODE",
         ):
             self.assertIn(token, source)

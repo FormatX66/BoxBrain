@@ -37,6 +37,10 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
         self.assertIn("wait_for_self_build 720", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
+        self.assertIn("AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK", smoke)
+        self.assertIn("remote-desktop-start", smoke)
+        self.assertIn("remote-desktop-stop", smoke)
+        self.assertIn("loopback=true raw_shell=false", smoke)
         self.assertIn('QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}', smoke)
         self.assertIn("-machine q35,accel=kvm", acceleration)
         self.assertIn("AURUM_QEMU_ACCEL=tcg", acceleration)
@@ -52,6 +56,8 @@ class BuildIsoContractTests(unittest.TestCase):
             "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",
             "aurum_boot_screen.py", "aurum_input.py", "libinput-tools",
             "aurum_wifi_persistence.py",
+            "aurum_remote_control.py", "aurum_remote_command.py", "openssh-server", "novnc", "websockify", "x11vnc",
+            "aurum_gpt_executor.py", "aurum_projection_runtime.py", "aurum_web_surface.py", "chromium",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
@@ -88,6 +94,8 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_INSTALL_PLAN status=ready", smoke)
         self.assertIn("AURUM_INSTALL_FINISHED status=passed", smoke)
         self.assertIn("mode=installed", smoke)
+        self.assertIn("truncate -s 512110190592", smoke)
+        self.assertIn("serial=BTTE934116YM512B-1", smoke)
 
     def test_wifi_diagnostics_are_packaged_and_automatic_when_interface_is_missing(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")

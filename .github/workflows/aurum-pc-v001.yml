@@ -285,6 +285,7 @@ jobs:
             --required-marker 'AURUM_HARDWARE_PROFILE status=ready' \
             --required-marker 'AURUM_INSTALL_FINISHED status=passed' \
             --required-marker 'AURUM_SELF_BUILD_FINISHED status=passed' \
+            --required-marker 'AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK' \
             --required-marker "AURUM_QEMU_ACCELERATION selected=$AURUM_QEMU_ACCEL" \
             --duration-seconds "$((finished - started))" \
             --execution-environment "$AURUM_QEMU_EXECUTION_ENVIRONMENT" \

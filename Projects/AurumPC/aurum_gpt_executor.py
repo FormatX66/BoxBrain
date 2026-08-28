@@ -31,6 +31,10 @@ CONTROL_ACTIONS = (
     "input-recover",
     "runtime-plan",
     "runtime-sync",
+    "remote-status",
+    "remote-seed-sync",
+    "remote-desktop-start",
+    "remote-desktop-stop",
     "gui-status",
     "gui-restart",
 )
@@ -78,6 +82,12 @@ def catalog() -> dict[str, Any]:
             "editable_suffixes": sorted(EDITABLE_SUFFIXES),
             "promotion": "verified-next-seed-only",
             "git_push": False,
+        },
+        "remote_control": {
+            "authentication": "ssh-ed25519-public-key",
+            "desktop_transport": "vnc-over-ssh-loopback-tunnel",
+            "direct_lan_desktop": False,
+            "raw_shell": False,
         },
     }
 
@@ -249,6 +259,20 @@ def execute_control(action: str, *, state_dir: Path | None = None) -> dict[str, 
             state_dir=DEFAULT_STATE,
         )
         result = updater.plan() if action == "runtime-plan" else updater.apply()
+    elif action in {
+        "remote-status",
+        "remote-seed-sync",
+        "remote-desktop-start",
+        "remote-desktop-stop",
+    }:
+        module = _module("aurum_remote_control")
+        mapped = {
+            "remote-status": "status",
+            "remote-seed-sync": "seed-sync",
+            "remote-desktop-start": "desktop-start",
+            "remote-desktop-stop": "desktop-stop",
+        }[action]
+        result = module.dispatch(mapped, state_dir=receipt_state)
     elif action in {"gui-status", "gui-restart"}:
         module = _module("aurum_gui_runtime")
         gui = module.GuiRuntime(

@@ -104,6 +104,14 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("recordGuiInput('keyboard')", page)
         self.assertIn("recordGuiInput('pointer')", page)
         self.assertIn("if(!r.ok)throw new Error('input proof not recorded')", page)
+        self.assertIn('data-gpt-prompt-panel="always-available"', page)
+        self.assertIn('data-remote-control="bounded"', page)
+        self.assertIn('id="remote-public-key"', page)
+        self.assertIn('id="remote-host-fingerprint"', page)
+        self.assertIn("ssh_host_key_fingerprint", page)
+        self.assertIn("/api/remote-pair", page)
+        self.assertIn('data-remote-action="remote-seed-sync"', page)
+        self.assertIn('data-remote-action="remote-desktop-start"', page)
 
     def test_html5_browser_is_bounded_and_has_landscape_controls(self) -> None:
         page = hopper.PAGE
@@ -237,6 +245,23 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
             return SimpleNamespace(network_status=lambda: {"online": True, "interface": "eth0"})
         if filename == "aurum_time.py":
             return SimpleNamespace(time_status=lambda: {"synchronized": True})
+        if filename == "aurum_remote_control.py":
+            return SimpleNamespace(
+                status=lambda: {
+                    "status": "ready",
+                    "paired": True,
+                    "fingerprint": "SHA256:test",
+                    "desktop": {"status": "stopped", "direct_lan_listener": False},
+                    "raw_shell": False,
+                },
+                enroll_public_key=lambda public_key: {
+                    "schema": "aurum.remote-control-receipt.v1",
+                    "operation": "pair",
+                    "result": {"status": "paired", "fingerprint": "SHA256:test"},
+                    "public_key_length": len(public_key),
+                    "raw_shell": False,
+                },
+            )
         return None
 
     def test_live_status_and_bounded_action_return_json_receipts(self) -> None:
@@ -352,6 +377,22 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(payload["status"], "recorded")
         self.assertTrue(payload["result"]["pointer_observed"])
+        self.assertEqual(bad_code, 400)
+
+    def test_live_remote_pairing_accepts_only_local_csrf_protected_public_key(self) -> None:
+        with patch.object(hopper, "_load_runtime_module", side_effect=self._healthy_module):
+            code, payload = self._request(
+                "/api/remote-pair",
+                payload={"public_key": "ssh-ed25519 test controller"},
+            )
+            bad_code, _ = self._request(
+                "/api/remote-pair",
+                payload={"public_key": "ssh-ed25519 test", "private_key": "never"},
+            )
+
+        self.assertEqual(code, 200)
+        self.assertEqual(payload["status"], "paired")
+        self.assertFalse(payload["result"]["raw_shell"])
         self.assertEqual(bad_code, 400)
 
 

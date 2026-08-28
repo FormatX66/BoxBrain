@@ -25,7 +25,10 @@ ovmf_vars="$work_dir/OVMF_VARS.fd"
 installed_disk="$work_dir/aurum-installed.raw"
 serial_input="$work_dir/input"
 cp "$vars" "$ovmf_vars"
-truncate -s 10G "$installed_disk"
+# Keep the VM otherwise generic, but present Hopper's already-authorized target
+# identity so the machine-bound physical GUI and Remote Desktop can be proved
+# without adding a production-only CI bypass. The raw file remains sparse.
+truncate -s 512110190592 "$installed_disk"
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
 : > "$LOG"
@@ -50,7 +53,8 @@ start_live_qemu() {
     -smp 2 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$ovmf_vars" \
-    -drive file="$installed_disk",format=raw,if=virtio \
+    -drive if=none,id=installed,file="$installed_disk",format=raw \
+    -device virtio-blk-pci,drive=installed,serial=BTTE934116YM512B-1 \
     -cdrom "$ISO" \
     -boot order=d \
     -display none \
@@ -70,7 +74,8 @@ start_installed_qemu() {
     -smp 2 \
     -drive if=pflash,format=raw,readonly=on,file="$code" \
     -drive if=pflash,format=raw,file="$ovmf_vars" \
-    -drive file="$installed_disk",format=raw,if=virtio \
+    -drive if=none,id=installed,file="$installed_disk",format=raw \
+    -device virtio-blk-pci,drive=installed,serial=BTTE934116YM512B-1 \
     -boot order=c \
     -display none \
     -serial stdio \
@@ -125,6 +130,32 @@ wait_for_self_build() {
       return 1
     fi
     sleep 1
+  done
+  return 1
+}
+
+wait_for_remote_transport() {
+  for _ in $(seq 1 60); do
+    printf 'remote-status\n' >&3
+    sleep 1
+    if grep -Fq 'AURUM_REMOTE status=pairing-required action=status desktop=stopped' "$LOG" && \
+       grep -Fq '"ssh_service": "active"' "$LOG" && \
+       grep -Fq 'raw_shell=false' "$LOG"; then
+      return 0
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+  done
+  return 1
+}
+
+start_remote_desktop() {
+  for _ in $(seq 1 8); do
+    printf 'remote-desktop-start\n' >&3
+    if wait_for_marker 'AURUM_REMOTE status=running action=desktop-start desktop=running loopback=true raw_shell=false' 25; then
+      return 0
+    fi
   done
   return 1
 }
@@ -185,6 +216,40 @@ if ! wait_for_marker 'mode=installed' 180 || \
   exit 1
 fi
 
+# The installed seed must expose only the restricted remote identity, then
+# prove the actual physical GUI can be viewed through VNC + noVNC listeners
+# bound exclusively to loopback. Pairing is intentionally left for Hopper's
+# local GUI; the VM never invents or embeds a controller private key.
+if ! wait_for_remote_transport; then
+  cat "$LOG"
+  echo 'Aurum PC installed runtime did not expose the restricted remote transport.' >&2
+  exit 1
+fi
+
+printf 'gui-start\n' >&3
+if ! wait_for_marker 'AURUM_GUI_RUNTIME status=running address=127.0.0.1 port=8765' 420; then
+  cat "$LOG"
+  echo 'Aurum PC installed GUI was not ready for remote-desktop proof.' >&2
+  exit 1
+fi
+
+if ! start_remote_desktop || \
+   ! grep -Fq 'vnc_listeners=127.0.0.1' "$LOG" || \
+   ! grep -Fq 'websocket_listeners=127.0.0.1' "$LOG"; then
+  cat "$LOG"
+  echo 'Aurum PC remote desktop did not prove both loopback-only listeners.' >&2
+  exit 1
+fi
+
+printf 'remote-desktop-stop\n' >&3
+if ! wait_for_marker 'AURUM_REMOTE status=stopped action=desktop-stop desktop=stopped loopback=true raw_shell=false' 60 || \
+   ! grep -Fq 'vnc_listeners=none' "$LOG" || \
+   ! grep -Fq 'websocket_listeners=none' "$LOG"; then
+  cat "$LOG"
+  echo 'Aurum PC remote desktop did not stop cleanly.' >&2
+  exit 1
+fi
+
 printf 'self-build\n' >&3
 if ! wait_for_self_build 720; then
   cat "$LOG"
@@ -203,7 +268,10 @@ grep -F 'mode=live' "$LOG"
 grep -F 'AURUM_INSTALL_PLAN status=ready' "$LOG"
 grep -F 'AURUM_INSTALL_FINISHED status=passed' "$LOG"
 grep -F 'mode=installed' "$LOG"
+grep -F 'AURUM_REMOTE status=running action=desktop-start desktop=running loopback=true raw_shell=false' "$LOG"
+grep -F 'AURUM_REMOTE status=stopped action=desktop-stop desktop=stopped loopback=true raw_shell=false' "$LOG"
 grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"
+echo 'AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK'
 echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
 echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
 rm -rf "$work_dir"

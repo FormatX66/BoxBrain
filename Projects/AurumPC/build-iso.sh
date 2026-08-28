@@ -114,6 +114,12 @@ xserver-xorg-input-libinput
 xinit
 x11-xserver-utils
 libinput-tools
+chromium
+openssh-server
+novnc
+sudo
+websockify
+x11vnc
 EOF
 
 GRUB_FONT=/usr/share/grub/unicode.pf2
@@ -136,7 +142,7 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_network.py aurum_pointer_motion.py aurum_runtime_update.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_credential_bootstrap.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_executor.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_network.py aurum_pointer_motion.py aurum_projection_runtime.py aurum_remote_command.py aurum_remote_control.py aurum_runtime_update.py aurum_self_debug.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_web_surface.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
@@ -181,6 +187,15 @@ install -D -m 0644 \
 install -D -m 0755 \
   "$RUNTIME_ASSETS/usr/lib/systemd/system-sleep/aurum-input-wake" \
   config/includes.chroot/usr/lib/systemd/system-sleep/aurum-input-wake
+install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/systemd/system/aurum-remote-bootstrap.service" \
+  config/includes.chroot/etc/systemd/system/aurum-remote-bootstrap.service
+install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/ssh/sshd_config.d/60-aurum-remote.conf" \
+  config/includes.chroot/etc/ssh/sshd_config.d/60-aurum-remote.conf
+install -D -m 0440 \
+  "$RUNTIME_ASSETS/etc/sudoers.d/aurum-remote" \
+  config/includes.chroot/etc/sudoers.d/aurum-remote
 
 cat > config/includes.chroot/etc/systemd/system/aurum-pc-serial.service <<'EOF'
 [Unit]
@@ -217,6 +232,8 @@ mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
 ln -s ../aurum-input-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-input-bootstrap.service
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service
+ln -s ../aurum-remote-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-remote-bootstrap.service
+ln -s /lib/systemd/system/ssh.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/ssh.service
 ln -s /lib/systemd/system/systemd-networkd.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 ln -s /lib/systemd/system/systemd-resolved.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/getty@tty1.service

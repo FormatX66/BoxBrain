@@ -44,6 +44,8 @@ ALLOWLIST = (
     "aurum_hardware.py",
     "aurum_hopper_gui.py",
     "aurum_projection_runtime.py",
+    "aurum_remote_command.py",
+    "aurum_remote_control.py",
     "aurum_web_surface.py",
     "aurum_input.py",
     "aurum_installer.py",
@@ -62,6 +64,9 @@ SYSTEM_ASSETS = (
     ("etc/X11/xorg.conf.d/40-aurum-libinput.conf", 0o644),
     ("etc/systemd/system/aurum-input-bootstrap.service", 0o644),
     ("etc/systemd/system/aurum-pc-console.service", 0o644),
+    ("etc/systemd/system/aurum-remote-bootstrap.service", 0o644),
+    ("etc/ssh/sshd_config.d/60-aurum-remote.conf", 0o644),
+    ("etc/sudoers.d/aurum-remote", 0o440),
     ("usr/lib/systemd/system-sleep/aurum-input-wake", 0o755),
 )
 
@@ -95,6 +100,17 @@ def _atomic_text(path: Path, text: str, mode: int = 0o644) -> None:
     temporary.write_text(text, encoding="utf-8")
     os.chmod(temporary, mode)
     os.replace(temporary, path)
+
+
+def _observed_mode(path: Path, expected: int) -> int | None:
+    """Keep Linux mode gates strict while allowing Windows source simulation."""
+    if not path.is_file():
+        return None
+    return (path.stat().st_mode & 0o777) if os.name == "posix" else expected
+
+
+def _mode_matches(path: Path, expected: int) -> bool:
+    return path.is_file() and _observed_mode(path, expected) == expected
 
 
 class RuntimeUpdateError(RuntimeError):
@@ -436,10 +452,115 @@ class RuntimeUpdater:
             "status_receipt": receipt,
         }
 
+    def _remote_control_proof(self) -> dict[str, Any]:
+        remote_path = self.target / "aurum_remote_control.py"
+        command_path = self.target / "aurum_remote_command.py"
+        html_path = self.target / "aurum_hopper_gui.py"
+        fallback_path = self.target / "aurum_desktop.py"
+        try:
+            remote = self._load_module(remote_path, "aurum_generation_remote_control")
+            catalog = remote.catalog()
+            observed = remote.status()
+            command_source = command_path.read_text(encoding="utf-8")
+            html_source = html_path.read_text(encoding="utf-8")
+            fallback_source = fallback_path.read_text(encoding="utf-8")
+            ssh_config = (
+                self.system_root / "etc/ssh/sshd_config.d/60-aurum-remote.conf"
+            ).read_text(encoding="utf-8")
+            sudoers = (
+                self.system_root / "etc/sudoers.d/aurum-remote"
+            ).read_text(encoding="utf-8")
+        except Exception as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        sync = catalog.get("remote_seed_sync") if isinstance(catalog.get("remote_seed_sync"), dict) else {}
+        desktop = catalog.get("remote_desktop") if isinstance(catalog.get("remote_desktop"), dict) else {}
+        observed_desktop = observed.get("desktop") if isinstance(observed.get("desktop"), dict) else {}
+        commands = set(catalog.get("commands") or [])
+        gpt_panel = bool(
+            'data-gpt-prompt-panel="always-available"' in html_source
+            and "AURUM GPT PROMPT" in fallback_source
+            and "_gpt_ask" in fallback_source
+        )
+        remote_panel = bool(
+            'data-remote-control="bounded"' in html_source
+            and "/api/remote-pair" in html_source
+            and "remote-seed-sync" in html_source
+            and "remote-desktop-start" in html_source
+        )
+        ssh_restricted = all(
+            token in ssh_config
+            for token in (
+                "PasswordAuthentication no",
+                "AllowUsers aurum-remote",
+                "ForceCommand /usr/bin/python3 /opt/aurum/aurum_remote_command.py",
+                "PermitTTY no",
+                "AllowTcpForwarding local",
+                "PermitOpen 127.0.0.1:5900 127.0.0.1:6080 127.0.0.1:8765",
+                "GatewayPorts no",
+            )
+        )
+        sudo_restricted = all(
+            f"aurum_remote_control.py {action}" in sudoers
+            for action in ("status", "seed-sync", "desktop-start", "desktop-stop")
+        )
+        command_restricted = bool(
+            "SSH_ORIGINAL_COMMAND" in command_source
+            and "EXACT_COMMANDS" in command_source
+            and '"raw_shell": False' in command_source
+        )
+        real_system = self.system_root.resolve() == Path("/").resolve()
+        session_proof = _json_file(self.state_dir / "remote-control" / "desktop-session-proof.json")
+        boot_id = remote._boot_id()
+        runtime_ready = bool(
+            not real_system
+            or (
+                observed.get("paired") is True
+                and observed.get("ssh_service") == "active"
+                and session_proof.get("status") == "passed"
+                and session_proof.get("boot_id") is not None
+                and session_proof.get("boot_id") == boot_id
+                and session_proof.get("loopback_only") is True
+                and session_proof.get("direct_lan_listener") is False
+                and session_proof.get("raw_shell") is False
+            )
+        )
+        passed = bool(
+            catalog.get("raw_shell") is False
+            and catalog.get("arbitrary_command") is False
+            and catalog.get("password_authentication") is False
+            and {"status", "seed-sync", "desktop-start", "desktop-stop", "desktop-tunnel"}.issubset(commands)
+            and sync.get("repository") == REPOSITORY
+            and sync.get("branch") == BRANCH
+            and sync.get("fast_forward_only") is True
+            and desktop.get("listener") == "127.0.0.1"
+            and desktop.get("direct_lan_listener") is False
+            and observed_desktop.get("direct_lan_listener") is False
+            and ssh_restricted
+            and sudo_restricted
+            and command_restricted
+            and remote_panel
+            and gpt_panel
+            and runtime_ready
+        )
+        return {
+            "status": "passed" if passed else "failed",
+            "catalog": catalog,
+            "observed": observed,
+            "ssh_restricted": ssh_restricted,
+            "sudo_restricted": sudo_restricted,
+            "command_restricted": command_restricted,
+            "remote_panel": remote_panel,
+            "gpt_prompt_panel": gpt_panel,
+            "runtime_ready": runtime_ready,
+            "desktop_session_proof": session_proof,
+            "raw_shell": False,
+            "physical_pairing_pending": observed.get("paired") is not True,
+        }
+
     def _activate_system_integration(
         self, changed: list[str], system_changed: list[str]
     ) -> dict[str, Any]:
-        if self.system_root.resolve() != Path("/"):
+        if self.system_root.resolve() != Path("/").resolve():
             return {"status": "skipped", "reason": "simulated-system-root"}
         systemctl = shutil.which("systemctl")
         if not systemctl:
@@ -475,14 +596,51 @@ class RuntimeUpdater:
             for name in system_changed
         )
         restart = run("restart", "aurum-input-bootstrap.service") if input_changed or active.returncode != 0 else None
+        remote_files = {"aurum_remote_command.py", "aurum_remote_control.py"}
+        remote_assets = {
+            "etc/systemd/system/aurum-remote-bootstrap.service",
+            "etc/ssh/sshd_config.d/60-aurum-remote.conf",
+            "etc/sudoers.d/aurum-remote",
+        }
+        remote_changed = bool(remote_files.intersection(changed) or remote_assets.intersection(system_changed))
+        remote_activation: dict[str, Any] = {"status": "not-required"}
+        if remote_changed:
+            try:
+                remote = self._load_module(
+                    self.target / "aurum_remote_control.py",
+                    "aurum_runtime_remote_control",
+                )
+                policy = _json_file(self.source / "pc01_autonomy_policy.json")
+                remote.DEFAULT_RUNTIME = self.target
+                remote.DEFAULT_WORKSPACE = self.workspace
+                remote.DEFAULT_STATE = self.state_dir
+                remote_activation = remote.bootstrap(
+                    install_dependencies=policy.get("install_remote_control_dependencies") is True,
+                    state_dir=self.state_dir,
+                )
+            except Exception as exc:
+                remote_activation = {
+                    "status": "failed",
+                    "detail": f"{type(exc).__name__}:{exc}",
+                }
+        remote_enable = run(
+            "enable", "aurum-remote-bootstrap.service", "ssh.service"
+        ) if remote_changed and remote_activation.get("status") == "ready" else None
         failed = enable.returncode != 0 or any(
             item["returncode"] != 0 and item["arguments"] == ["daemon-reload"] for item in commands
         )
         if restart is not None and restart.returncode != 0:
             failed = True
+        if remote_changed and (
+            remote_activation.get("status") != "ready"
+            or remote_enable is None
+            or remote_enable.returncode != 0
+        ):
+            failed = True
         return {
             "status": "failed" if failed else "ready",
             "commands": commands,
+            "remote_control": remote_activation,
             "console_restart_deferred": True,
             "boot_screen_visible_on_next_boot": True,
         }
@@ -502,6 +660,8 @@ class RuntimeUpdater:
             "aurum_hopper_gui.py",
             "aurum_input.py",
             "aurum_projection_runtime.py",
+            "aurum_remote_command.py",
+            "aurum_remote_control.py",
             "aurum_web_surface.py",
         }
         libinput_changed = "etc/X11/xorg.conf.d/40-aurum-libinput.conf" in system_changed
@@ -568,7 +728,7 @@ class RuntimeUpdater:
                 raise RuntimeUpdateError(f"allowlisted system asset is missing: {relative}")
             source_sha = _sha256(source)
             target_sha = _sha256(target) if target.is_file() else None
-            target_mode = (target.stat().st_mode & 0o777) if target.is_file() else None
+            target_mode = _observed_mode(target, mode)
             system_files.append(
                 {
                     "name": relative,
@@ -677,7 +837,7 @@ class RuntimeUpdater:
             if (
                 not target.is_file()
                 or _sha256(target) != str(item["source_sha256"])
-                or (target.stat().st_mode & 0o777) != int(item["mode"])
+                or not _mode_matches(target, int(item["mode"]))
             ):
                 mismatches.append(str(item["name"]))
         return {
@@ -778,7 +938,7 @@ class RuntimeUpdater:
         }
 
     def _system_proof(self) -> dict[str, Any]:
-        if self.system_root.resolve() != Path("/"):
+        if self.system_root.resolve() != Path("/").resolve():
             return {"status": "skipped", "reason": "simulated-system-root"}
         systemctl = shutil.which("systemctl")
         if not systemctl:
@@ -811,6 +971,7 @@ class RuntimeUpdater:
         system_proof = self._system_proof()
         input_proof = self._input_proof()
         console_proof = self._gui_console_proof()
+        remote_proof = self._remote_control_proof()
         previous = _json_file(self.state_dir / "runtime-update.json")
         previous_generation = previous.get("generation") if isinstance(previous.get("generation"), dict) else {}
         previous_source = previous_generation.get("source") if isinstance(previous_generation.get("source"), dict) else {}
@@ -836,6 +997,7 @@ class RuntimeUpdater:
             and system_proof.get("status") == "passed"
             and input_proof.get("status") == "passed"
             and console_proof.get("status") == "passed"
+            and remote_proof.get("status") == "passed"
             and wifi_proof.get("status") == "passed"
         )
         lifecycle = {
@@ -858,6 +1020,7 @@ class RuntimeUpdater:
                 "system": system_proof,
                 "input": input_proof,
                 "gui_console": console_proof,
+                "remote_control": remote_proof,
                 "wifi": wifi_proof,
             },
             "become_next_seed": become_next_seed,
@@ -902,6 +1065,7 @@ class RuntimeUpdater:
             physical_proof = self._physical_proof(gui_activation)
             input_proof = self._input_proof(input_activation)
             console_proof = self._gui_console_proof()
+            remote_proof = self._remote_control_proof()
             wifi_proof = self._wifi_persistence_proof(wifi_before)
             carried_stage = self._latest_verified_stage(source_identity)
             become_next_seed = bool(
@@ -911,6 +1075,7 @@ class RuntimeUpdater:
                 and system_activation.get("status") == "ready"
                 and input_proof.get("status") == "passed"
                 and console_proof.get("status") == "passed"
+                and remote_proof.get("status") == "passed"
                 and wifi_proof.get("status") == "passed"
             )
             lifecycle = {
@@ -927,6 +1092,7 @@ class RuntimeUpdater:
                     "system": system_activation,
                     "input": input_proof,
                     "gui_console": console_proof,
+                    "remote_control": remote_proof,
                     "wifi": wifi_proof,
                 },
                 "become_next_seed": become_next_seed,
@@ -984,7 +1150,7 @@ class RuntimeUpdater:
                 shutil.copy2(source, temporary)
                 os.chmod(temporary, mode)
                 os.replace(temporary, target)
-                if _sha256(target) != _sha256(source) or (target.stat().st_mode & 0o777) != mode:
+                if _sha256(target) != _sha256(source) or not _mode_matches(target, mode):
                     raise RuntimeUpdateError(f"system asset verification failed after replacing {relative}")
                 applied_system.append(relative)
         except Exception:
@@ -1047,6 +1213,7 @@ class RuntimeUpdater:
         physical_proof = self._physical_proof(gui_activation)
         input_proof = self._input_proof(input_activation)
         console_proof = self._gui_console_proof()
+        remote_proof = self._remote_control_proof()
         wifi_proof = self._wifi_persistence_proof(wifi_before)
         become_next_seed = bool(
             installed_proof.get("status") == "passed"
@@ -1055,6 +1222,7 @@ class RuntimeUpdater:
             and system_activation.get("status") == "ready"
             and input_proof.get("status") == "passed"
             and console_proof.get("status") == "passed"
+            and remote_proof.get("status") == "passed"
             and wifi_proof.get("status") == "passed"
         )
         lifecycle = {
@@ -1076,6 +1244,7 @@ class RuntimeUpdater:
                 "system": system_activation,
                 "input": input_proof,
                 "gui_console": console_proof,
+                "remote_control": remote_proof,
                 "wifi": wifi_proof,
             },
             "become_next_seed": become_next_seed,
