@@ -38,6 +38,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("wait_for_self_build 720", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK", smoke)
+        self.assertIn('tee -a "$LOG"', smoke)
         self.assertIn("remote-desktop-start", smoke)
         self.assertIn("remote-desktop-stop", smoke)
         self.assertIn("loopback=true raw_shell=false", smoke)

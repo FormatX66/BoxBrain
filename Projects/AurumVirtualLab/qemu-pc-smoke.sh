@@ -271,7 +271,9 @@ grep -F 'mode=installed' "$LOG"
 grep -F 'AURUM_REMOTE status=running action=desktop-start desktop=running loopback=true raw_shell=false' "$LOG"
 grep -F 'AURUM_REMOTE status=stopped action=desktop-stop desktop=stopped loopback=true raw_shell=false' "$LOG"
 grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"
-echo 'AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK'
-echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
-echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
+{
+  echo 'AURUM_VIRTUAL_PC_REMOTE_CONTROL_OK'
+  echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
+  echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
+} | tee -a "$LOG"
 rm -rf "$work_dir"
