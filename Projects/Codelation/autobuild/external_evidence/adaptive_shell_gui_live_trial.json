@@ -6,8 +6,8 @@
     "node_id":  "cff5511ddbb6bf14",
     "route":  "192.168.0.194",
     "ssh_host_key_fingerprint":  "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-    "observed_at":  1787927004,
-    "expires_at":  1787928204,
+    "observed_at":  1787939667,
+    "expires_at":  1787940867,
     "candidate":  {
                       "module":  "/opt/boxbrain/codelation/seed/aurum_gui.py",
                       "module_sha256":  "8ef307c45820d1e771773dab8fba92bd242a628accb031985dd444080e84b114",
@@ -23,7 +23,7 @@
                     "listener_loopback_only":  true,
                     "http_status":  200,
                     "content_type":  "text/html; charset=utf-8",
-                    "page_sha256":  "27f14d511cd03e724f0336bd3df86bce479c16dc77f1aad566152153d2cca4a3",
+                    "page_sha256":  "242bdd6beada226267b0106e0357f162abb458e043c47d7cb3e06d2fbf2ed254",
                     "status_sha256":  "f8547385a72d37130bd21f251cc332452612d3894f1c995660dfa4fb499c5dbf",
                     "status_schema":  "aurum.gui.v3",
                     "console_identity":  "BBPI4/Aurum",
@@ -71,7 +71,7 @@
                    },
     "proof_view":  {
                        "present":  true,
-                       "page_sha256":  "27f14d511cd03e724f0336bd3df86bce479c16dc77f1aad566152153d2cca4a3",
+                       "page_sha256":  "242bdd6beada226267b0106e0357f162abb458e043c47d7cb3e06d2fbf2ed254",
                        "status_sha256":  "f8547385a72d37130bd21f251cc332452612d3894f1c995660dfa4fb499c5dbf",
                        "user_content_captured":  false
                    },
