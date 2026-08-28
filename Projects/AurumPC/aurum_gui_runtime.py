@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import shutil
@@ -13,6 +14,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+try:
+    import fcntl
+except ImportError:  # Source tests can run on Windows; Hopper is Linux.
+    fcntl = None
 
 SCHEMA = "aurum-pc-gui-runtime-v3"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
@@ -78,6 +84,7 @@ class GuiRuntime:
         self.log_path = run_dir / "aurum-gui.log"
         self.arcade_pid_path = run_dir / "aurum-arcade.pid"
         self.arcade_log_path = run_dir / "aurum-arcade.log"
+        self.operation_lock_path = run_dir / "aurum-gui-operation.lock"
 
     @staticmethod
     def _read_pid(path: Path) -> int | None:
@@ -105,6 +112,22 @@ class GuiRuntime:
     def _owned_arcade(self, pid: int) -> bool:
         cmdline = self._cmdline(pid)
         return "aurum_arcade.py" in cmdline and str(self.arcade_script) in cmdline
+
+    def _recognized_aurum_arcade(self, pid: int) -> bool:
+        return "aurum_arcade.py" in self._cmdline(pid)
+
+    @contextmanager
+    def _operation_lock(self):
+        """Serialize service, console, and recovery GUI transitions."""
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        with self.operation_lock_path.open("a+", encoding="utf-8") as lock:
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     @staticmethod
     def _listener_inodes(port: int) -> set[str]:
@@ -176,6 +199,27 @@ class GuiRuntime:
                 return
             time.sleep(0.1)
         raise GuiRuntimeError(f"stale Aurum GUI listener on port {self.port} did not stop")
+
+    def _clear_stale_arcade_listener(self) -> None:
+        listeners = self._listener_pids(self.arcade_port)
+        if not listeners:
+            return
+        unknown = [pid for pid in listeners if not self._recognized_aurum_arcade(pid)]
+        if unknown:
+            details = ", ".join(f"pid={pid} cmd={self._cmdline(pid)[:180]!r}" for pid in unknown)
+            raise GuiRuntimeError(f"port {self.arcade_port} is occupied by an unrecognized process: {details}")
+        for pid in listeners:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                continue
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if not self._listener_pids(self.arcade_port):
+                self.arcade_pid_path.unlink(missing_ok=True)
+                return
+            time.sleep(0.1)
+        raise GuiRuntimeError(f"stale Aurum arcade listener on port {self.arcade_port} did not stop")
 
     @staticmethod
     def _json_probe(port: int, path: str, user_agent: str) -> dict[str, Any]:
@@ -353,6 +397,7 @@ class GuiRuntime:
     def _start_arcade(self) -> None:
         if self._arcade_status()["status"] == "running":
             return
+        self._clear_stale_arcade_listener()
         process = self._spawn(
             self.arcade_script,
             ["--host", "127.0.0.1", "--port", str(self.arcade_port)],
@@ -372,24 +417,25 @@ class GuiRuntime:
 
     def start(self) -> dict[str, Any]:
         self.prepare()
-        old_pid = self._read_pid(self.pid_path)
-        if old_pid and not self._owned_gui(old_pid):
-            old_cmdline = self._cmdline(old_pid)
-            if "aurum_gui.py" in old_cmdline or "aurum_hopper_gui.py" in old_cmdline:
-                try:
-                    os.kill(old_pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                deadline = time.monotonic() + 5
-                while time.monotonic() < deadline and Path(f"/proc/{old_pid}").exists():
-                    time.sleep(0.1)
-                self.pid_path.unlink(missing_ok=True)
-        self._start_gui()
-        self._start_arcade()
-        desktop = self._desktop("start")
-        result = self.status()
-        result["desktop_start"] = desktop
-        return result
+        with self._operation_lock():
+            old_pid = self._read_pid(self.pid_path)
+            if old_pid and not self._owned_gui(old_pid):
+                old_cmdline = self._cmdline(old_pid)
+                if "aurum_gui.py" in old_cmdline or "aurum_hopper_gui.py" in old_cmdline:
+                    try:
+                        os.kill(old_pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline and Path(f"/proc/{old_pid}").exists():
+                        time.sleep(0.1)
+                    self.pid_path.unlink(missing_ok=True)
+            self._start_gui()
+            self._start_arcade()
+            desktop = self._desktop("start")
+            result = self.status()
+            result["desktop_start"] = desktop
+            return result
 
     @staticmethod
     def _stop_owned(pid_path: Path, owner_check, timeout: float = 5.0) -> None:
@@ -409,15 +455,16 @@ class GuiRuntime:
         pid_path.unlink(missing_ok=True)
 
     def stop(self) -> dict[str, Any]:
-        desktop = self._desktop("stop")
-        self._stop_owned(self.arcade_pid_path, self._owned_arcade)
-        try:
-            self._stop_owned(self.pid_path, self._owned_gui)
-        except GuiRuntimeError:
-            self._clear_stale_gui_listener()
-        result = self.status()
-        result["desktop_stop"] = desktop
-        return result
+        with self._operation_lock():
+            desktop = self._desktop("stop")
+            self._stop_owned(self.arcade_pid_path, self._owned_arcade)
+            try:
+                self._stop_owned(self.pid_path, self._owned_gui)
+            except GuiRuntimeError:
+                self._clear_stale_gui_listener()
+            result = self.status()
+            result["desktop_stop"] = desktop
+            return result
 
 
 def build_parser() -> argparse.ArgumentParser:
