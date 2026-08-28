@@ -31,6 +31,8 @@ Active experimental build. Evidence and readiness are tracked by capability, pro
 - [x86 Tiny Seed builder](Germ/build-x86-tinyseed.sh)
 - [Pi ARM64 Tiny Seed builder](Germ/build-pi-tinyseed.sh)
 - [Gen1 Everyone-OS execution plan](GEN1_EVERYONE_OS_PLAN.md)
+- [TR8:WEB — Aurum Gen1 web capability](Capabilities/TR8-WEB/README.md)
+- [TR8:PROMPT — Aurum/GPT prompt surface](Capabilities/TR8-PROMPT/README.md)
 - [Aurum command registry](../../docs/AURUM_COMMANDS.md)
 - [Contributor start](START_HERE.md)
 - [State authority](STATE_AUTHORITY.md)
