@@ -2,6 +2,7 @@ Repository Integrity Mirror
 
 == repository validator ==
 BoxBrain validation failed:
+- Orphan Markdown file: Projects/Aurum/Capabilities/TR8-PROMPT/README.md
 - Orphan Markdown file: Projects/Aurum/Capabilities/TR8-WEB/README.md
 
 == canonical Aurum state-sync tests ==
