@@ -110,6 +110,7 @@ timeout 420s qemu-system-x86_64 \
   -drive if=none,id=usb2,file="$secondary_usb",format=raw \
   -device usb-storage,drive=usb2 \
   -device usb-kbd \
+  -device usb-tablet \
   -netdev user,id=net0,restrict=on \
   -device e1000e,id=hpeth,netdev=net0,mac=04:0e:3c:54:54:49 \
   -rtc base=2026-04-27T19:50:12,clock=vm \
@@ -156,6 +157,17 @@ if ! wait_for_marker '"pci_devices"' 60 || ! grep -Fq '"network_interfaces"' "$L
   exit 1
 fi
 
+# Prove the same virtual Hopper has both a keyboard and a pointer on the
+# libinput-backed event path. Rendering pixels alone is not input acceptance.
+printf 'input-status\n' >&3
+if ! wait_for_marker 'AURUM_INPUT status=ready' 60 || \
+   ! grep -Fq 'keyboard_ready=true' "$LOG" || \
+   ! grep -Fq 'pointer_ready=true' "$LOG"; then
+  cat "$LOG"
+  echo 'HP twin did not expose a ready keyboard + pointer event path.' >&2
+  exit 1
+fi
+
 # No install command is sent.  The internal NVMe must remain byte-for-byte
 # unchanged across the live preflight even though it is present and partitioned.
 printf 'poweroff\n' >&3
@@ -185,4 +197,5 @@ cat "$LOG"
   echo 'AURUM_HP_TWIN_NVME_PRESERVED_OK'
   echo 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK'
   echo 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK'
+  echo 'AURUM_HP_TWIN_INPUT_PATH_OK'
 } | tee -a "$LOG"

@@ -54,6 +54,7 @@ ALLOWLIST = (
     "aurum_time.py",
     "aurum_traits.py",
     "aurum_wifi_diag.py",
+    "aurum_wifi_persistence.py",
     "aurum_wifi_recovery.py",
     "aurum_workspace.py",
 )
@@ -308,7 +309,10 @@ class RuntimeUpdater:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=15,
+            # A missing libinput package may require one bounded apt install on
+            # the first hardened generation. Do not kill the helper halfway
+            # through and then launch a renderer with no event driver.
+            timeout=680,
         )
         try:
             payload = json.loads(result.stdout)
@@ -318,6 +322,119 @@ class RuntimeUpdater:
             payload = {"status": "failed", "detail": "input helper returned non-object"}
         payload["returncode"] = result.returncode
         return payload
+
+    @staticmethod
+    def _load_module(path: Path, prefix: str):
+        if not path.is_file():
+            raise RuntimeUpdateError(f"required Aurum module is missing: {path.name}")
+        spec = importlib.util.spec_from_file_location(
+            f"{prefix}_{os.getpid()}_{time.time_ns()}", path
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeUpdateError(f"Aurum module could not be loaded: {path.name}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def _network_snapshot(self) -> dict[str, Any]:
+        candidates = (self.target / "aurum_network.py", self.source / "aurum_network.py")
+        path = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if path is None:
+            return {"online": False, "status": "network-helper-missing"}
+        try:
+            module = self._load_module(path, "aurum_runtime_wifi_network")
+            value = module.network_status()
+        except Exception as exc:
+            return {"online": False, "status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        return value if isinstance(value, dict) else {"online": False, "status": "invalid-network-state"}
+
+    def _wifi_snapshot(self) -> dict[str, Any]:
+        module = self._load_module(
+            self.source / "aurum_wifi_persistence.py", "aurum_runtime_wifi_persistence"
+        )
+        return module.capture(
+            state_dir=self.state_dir,
+            system_root=self.system_root,
+            network=self._network_snapshot(),
+        )
+
+    def _wifi_persistence_proof(self, before: dict[str, Any]) -> dict[str, Any]:
+        module = self._load_module(
+            self.source / "aurum_wifi_persistence.py", "aurum_runtime_wifi_verify"
+        )
+        proof = module.verify(before, self._wifi_snapshot())
+        module.write_receipt(self.state_dir / "wifi-persistence.json", proof)
+        return proof
+
+    def _input_proof(self, activation: dict[str, Any] | None = None) -> dict[str, Any]:
+        current = dict(activation or _json_file(Path("/run/aurum-input-status.json")))
+        try:
+            module = self._load_module(self.target / "aurum_input.py", "aurum_runtime_input_proof")
+            gui_events = module.gui_event_proof(state_dir=self.state_dir)
+        except Exception as exc:
+            gui_events = {"ready": False, "detail": f"{type(exc).__name__}:{exc}"}
+        passed = bool(
+            current.get("status") == "ready"
+            and current.get("keyboard_ready") is True
+            and current.get("pointer_ready") is True
+            and current.get("xorg_event_path_ready") is True
+            and gui_events.get("ready") is True
+        )
+        return {
+            "status": "passed" if passed else "pending-physical-input",
+            "keyboard_ready": bool(current.get("keyboard_ready")),
+            "pointer_ready": bool(current.get("pointer_ready")),
+            "xorg_event_path_ready": bool(current.get("xorg_event_path_ready")),
+            "gui_events": gui_events,
+            "physical_event_required": True,
+        }
+
+    def _gui_console_proof(self) -> dict[str, Any]:
+        panel = self.target / "aurum_hopper_gui.py"
+        fallback_panel = self.target / "aurum_desktop.py"
+        executor_path = self.target / "aurum_gpt_executor.py"
+        try:
+            source = panel.read_text(encoding="utf-8")
+            fallback_source = fallback_panel.read_text(encoding="utf-8")
+            executor = self._load_module(executor_path, "aurum_runtime_recovery_console")
+            catalog = executor.catalog()
+            receipt = executor.execute_control("status", state_dir=self.state_dir)
+        except Exception as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        contract = "aurum.gui-recovery-console.bounded.v1"
+        html_required = {"status", "network-reconnect", "input-recover", "runtime-plan", "gui-restart"}
+        fallback_required = {"status", "network-reconnect", "input-recover", "runtime-plan"}
+        required = html_required | fallback_required
+        actions = set(catalog.get("control_actions") or [])
+        result = receipt.get("result") if isinstance(receipt.get("result"), dict) else {}
+        html_panel_present = bool(
+            'data-recovery-console="bounded"' in source
+            and contract in source
+            and all(action in source for action in html_required)
+        )
+        fallback_panel_present = bool(
+            contract in fallback_source
+            and all(action in fallback_source for action in fallback_required)
+        )
+        passed = bool(
+            html_panel_present
+            and fallback_panel_present
+            and required.issubset(actions)
+            and catalog.get("direct_shell_contract") is False
+            and receipt.get("schema") == "aurum.gpt-control-receipt.gen1-direct-control"
+            and result.get("status") == "observed"
+        )
+        return {
+            "status": "passed" if passed else "failed",
+            "contract": contract,
+            "html_panel_present": html_panel_present,
+            "fallback_panel_present": fallback_panel_present,
+            "required_actions": sorted(required),
+            "required_actions_available": required.issubset(actions),
+            "raw_shell": False,
+            "status_receipt": receipt,
+        }
 
     def _activate_system_integration(
         self, changed: list[str], system_changed: list[str]
@@ -692,9 +809,18 @@ class RuntimeUpdater:
         physical_proof = self._physical_proof(gui)
         gpt_proof = self._gpt_proof()
         system_proof = self._system_proof()
+        input_proof = self._input_proof()
+        console_proof = self._gui_console_proof()
         previous = _json_file(self.state_dir / "runtime-update.json")
         previous_generation = previous.get("generation") if isinstance(previous.get("generation"), dict) else {}
         previous_source = previous_generation.get("source") if isinstance(previous_generation.get("source"), dict) else {}
+        previous_prove = previous_generation.get("prove") if isinstance(previous_generation.get("prove"), dict) else {}
+        wifi_proof = previous_prove.get("wifi") if isinstance(previous_prove.get("wifi"), dict) else {}
+        if previous_source.get("head") != source_identity.get("head") or wifi_proof.get("status") != "passed":
+            wifi_proof = {
+                "status": "failed",
+                "reason": "same-generation-wifi-persistence-proof-missing",
+            }
         stage = None
         if previous_source.get("head") == source_identity.get("head"):
             candidate = previous_generation.get("stage")
@@ -708,6 +834,9 @@ class RuntimeUpdater:
             and physical_proof.get("status") == "passed"
             and gpt_proof.get("status") == "passed"
             and system_proof.get("status") == "passed"
+            and input_proof.get("status") == "passed"
+            and console_proof.get("status") == "passed"
+            and wifi_proof.get("status") == "passed"
         )
         lifecycle = {
             "schema": GENERATION_SCHEMA,
@@ -727,6 +856,9 @@ class RuntimeUpdater:
                 "physical": physical_proof,
                 "gpt": gpt_proof,
                 "system": system_proof,
+                "input": input_proof,
+                "gui_console": console_proof,
+                "wifi": wifi_proof,
             },
             "become_next_seed": become_next_seed,
             "proved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -756,6 +888,7 @@ class RuntimeUpdater:
             raise RuntimeUpdateError("installed runtime update requires the root-owned Aurum console")
         source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
         verification = self._validate_sources(source_identity)
+        wifi_before = self._wifi_snapshot()
         identity = self._apply_identity()
         changed = list(plan.get("changed") or [])
         system_changed = list(plan.get("system_changed") or [])
@@ -767,12 +900,18 @@ class RuntimeUpdater:
             installed_proof = self._installed_hash_proof(plan)
             gpt_proof = self._gpt_proof()
             physical_proof = self._physical_proof(gui_activation)
+            input_proof = self._input_proof(input_activation)
+            console_proof = self._gui_console_proof()
+            wifi_proof = self._wifi_persistence_proof(wifi_before)
             carried_stage = self._latest_verified_stage(source_identity)
             become_next_seed = bool(
                 installed_proof.get("status") == "passed"
                 and gpt_proof.get("status") == "passed"
                 and physical_proof.get("status") == "passed"
                 and system_activation.get("status") == "ready"
+                and input_proof.get("status") == "passed"
+                and console_proof.get("status") == "passed"
+                and wifi_proof.get("status") == "passed"
             )
             lifecycle = {
                 "schema": GENERATION_SCHEMA,
@@ -785,6 +924,10 @@ class RuntimeUpdater:
                     "runtime": installed_proof,
                     "physical": physical_proof,
                     "gpt": gpt_proof,
+                    "system": system_activation,
+                    "input": input_proof,
+                    "gui_console": console_proof,
+                    "wifi": wifi_proof,
                 },
                 "become_next_seed": become_next_seed,
             }
@@ -902,11 +1045,17 @@ class RuntimeUpdater:
         installed_proof = self._installed_hash_proof(plan)
         gpt_proof = self._gpt_proof()
         physical_proof = self._physical_proof(gui_activation)
+        input_proof = self._input_proof(input_activation)
+        console_proof = self._gui_console_proof()
+        wifi_proof = self._wifi_persistence_proof(wifi_before)
         become_next_seed = bool(
             installed_proof.get("status") == "passed"
             and gpt_proof.get("status") == "passed"
             and physical_proof.get("status") == "passed"
             and system_activation.get("status") == "ready"
+            and input_proof.get("status") == "passed"
+            and console_proof.get("status") == "passed"
+            and wifi_proof.get("status") == "passed"
         )
         lifecycle = {
             "schema": GENERATION_SCHEMA,
@@ -924,6 +1073,10 @@ class RuntimeUpdater:
                 "runtime": installed_proof,
                 "physical": physical_proof,
                 "gpt": gpt_proof,
+                "system": system_activation,
+                "input": input_proof,
+                "gui_console": console_proof,
+                "wifi": wifi_proof,
             },
             "become_next_seed": become_next_seed,
         }

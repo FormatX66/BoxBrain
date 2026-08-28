@@ -92,6 +92,18 @@ class HopperGuiTests(unittest.TestCase):
         self.assertNotIn("bootstrapKey", page)
         self.assertNotIn("body.api_key", page)
         self.assertNotIn("/api/actuate", page)
+        self.assertIn('data-recovery-console="bounded"', page)
+        self.assertEqual(
+            hopper.RECOVERY_CONSOLE_CONTRACT,
+            "aurum.gui-recovery-console.bounded.v1",
+        )
+        self.assertIn('data-recovery-action="input-recover"', page)
+        self.assertIn('data-recovery-action="network-reconnect"', page)
+        self.assertIn("Ready · named actions only · no shell", page)
+        self.assertIn("/api/input-proof", page)
+        self.assertIn("recordGuiInput('keyboard')", page)
+        self.assertIn("recordGuiInput('pointer')", page)
+        self.assertIn("if(!r.ok)throw new Error('input proof not recorded')", page)
 
     def test_html5_browser_is_bounded_and_has_landscape_controls(self) -> None:
         page = hopper.PAGE
@@ -321,6 +333,26 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
 
         self.assertEqual(bad_origin_code, 403)
         self.assertEqual(bad_csrf_code, 403)
+
+    def test_live_input_proof_records_only_bounded_event_kind(self) -> None:
+        input_module = SimpleNamespace(
+            record_gui_event=lambda kind: {
+                "schema": "aurum.gui-input-proof.v1",
+                "ready": kind == "pointer",
+                "keyboard_observed": False,
+                "pointer_observed": kind == "pointer",
+            }
+        )
+        with patch.object(hopper, "_load_runtime_module", return_value=input_module):
+            code, payload = self._request("/api/input-proof", payload={"kind": "pointer"})
+            bad_code, _ = self._request(
+                "/api/input-proof", payload={"kind": "keyboard", "key": "secret"}
+            )
+
+        self.assertEqual(code, 200)
+        self.assertEqual(payload["status"], "recorded")
+        self.assertTrue(payload["result"]["pointer_observed"])
+        self.assertEqual(bad_code, 400)
 
 
 if __name__ == "__main__":

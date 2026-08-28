@@ -136,7 +136,7 @@ menuentry "Aurum PC v0.01" {
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_network.py aurum_pointer_motion.py aurum_runtime_update.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_wifi_diag.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
+for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_console.py aurum_bootstrap.py aurum_control_plane.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_network.py aurum_pointer_motion.py aurum_runtime_update.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py aurum_installer.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done

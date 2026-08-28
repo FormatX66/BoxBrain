@@ -23,6 +23,16 @@ RuntimeUpdater = runtime_module.RuntimeUpdater
 
 
 class AurumRuntimeUpdateTests(unittest.TestCase):
+    def test_gui_console_proof_covers_primary_and_fallback_renderers(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            updater = RuntimeUpdater(target=MODULE_PATH.parent, state_dir=Path(temporary))
+            proof = updater._gui_console_proof()
+
+        self.assertEqual(proof["status"], "passed")
+        self.assertTrue(proof["html_panel_present"])
+        self.assertTrue(proof["fallback_panel_present"])
+        self.assertFalse(proof["raw_shell"])
+
     def test_plan_and_apply_are_allowlisted_atomic_and_receipted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -72,6 +82,10 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 }),
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed", "model_call_proven": False}),
                 patch.object(updater, "_system_proof", return_value={"status": "passed", "service": "test"}),
+                patch.object(updater, "_wifi_snapshot", return_value={"schema": "aurum.wifi-persistence.v1"}),
+                patch.object(updater, "_wifi_persistence_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_input_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_gui_console_proof", return_value={"status": "passed"}),
             ):
                 result = updater.apply()
                 finalized = updater.prove_current({
@@ -87,6 +101,9 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertTrue(Path(receipt["backup"]).is_dir())
             self.assertEqual(result["system_activation"]["reason"], "simulated-system-root")
             self.assertTrue(receipt["generation"]["become_next_seed"])
+            self.assertEqual(receipt["generation"]["prove"]["wifi"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["input"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["gui_console"]["status"], "passed")
             self.assertEqual(finalized["status"], "current")
             self.assertTrue(finalized["generation"]["become_next_seed"])
             self.assertEqual(finalized["generation"]["stage"]["status"], "verified")

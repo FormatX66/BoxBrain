@@ -364,6 +364,7 @@ jobs:
             --required-marker 'AURUM_HP_TWIN_NVME_PRESERVED_OK' \
             --required-marker 'AURUM_HP_TWIN_WIFI_MISSING_DIAGNOSTIC_OK' \
             --required-marker 'AURUM_HP_TWIN_DETAILED_HARDWARE_OK' \
+            --required-marker 'AURUM_HP_TWIN_INPUT_PATH_OK' \
             --required-marker "AURUM_QEMU_ACCELERATION selected=$AURUM_QEMU_ACCEL" \
             --duration-seconds "$((finished - started))" \
             --execution-environment "$AURUM_QEMU_EXECUTION_ENVIRONMENT" \

@@ -30,8 +30,13 @@ DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
 DEFAULT_FALLBACK = Path("/opt/aurum/aurum_desktop_runtime.py")
 DEFAULT_DESKTOP = Path("/opt/aurum/aurum_desktop.py")
 DEFAULT_SURFACE = Path("/opt/aurum/aurum_web_surface.py")
+DEFAULT_INPUT_HELPER = Path("/opt/aurum/aurum_input.py")
 DEFAULT_URL = "http://127.0.0.1:8765/"
 UI_USER = "aurum-ui"
+XORG_LIBINPUT_DRIVERS = (
+    Path("/usr/lib/xorg/modules/input/libinput_drv.so"),
+    Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),
+)
 
 
 def _boot_id() -> str | None:
@@ -83,6 +88,10 @@ def _browser() -> str | None:
     return None
 
 
+def _xorg_libinput_ready() -> bool:
+    return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)
+
+
 class ProjectionRuntime:
     def __init__(self, *, policy: Path, receipt: Path, state_dir: Path, run_dir: Path, desktop: Path) -> None:
         self.policy_path = policy
@@ -91,6 +100,7 @@ class ProjectionRuntime:
         self.run_dir = run_dir
         self.desktop = desktop
         self.surface = Path(os.environ.get("AURUM_WEB_SURFACE", str(DEFAULT_SURFACE)))
+        self.input_helper = Path(os.environ.get("AURUM_INPUT_HELPER", str(DEFAULT_INPUT_HELPER)))
         self.fallback = Path(os.environ.get("AURUM_PYGAME_RUNTIME", str(DEFAULT_FALLBACK)))
         self.state_path = state_dir / "hopper-projection.json"
         self.receipt = state_dir / "desktop-ui.json"
@@ -388,9 +398,20 @@ class ProjectionRuntime:
 
     def _ensure_dependencies(self) -> dict[str, Any]:
         browser = _browser()
-        ready = bool(browser and shutil.which("xinit") and shutil.which("openvt") and shutil.which("xhost"))
+        ready = bool(
+            browser
+            and shutil.which("xinit")
+            and shutil.which("openvt")
+            and shutil.which("xhost")
+            and _xorg_libinput_ready()
+        )
         if ready:
-            return {"status": "ready", "browser": browser, "installed": False}
+            return {
+                "status": "ready",
+                "browser": browser,
+                "installed": False,
+                "xorg_libinput": True,
+            }
         policy = _json(self.policy_path)
         if policy.get("install_local_display_dependencies") is not True:
             return {"status": "missing", "reason": "dependency-install-disabled", "browser": browser}
@@ -400,7 +421,19 @@ class ProjectionRuntime:
         env = dict(os.environ)
         env["DEBIAN_FRONTEND"] = "noninteractive"
         result = subprocess.run(
-            [apt, "install", "-y", "--no-install-recommends", "chromium", "xserver-xorg", "xinit", "x11-xserver-utils", "xserver-xorg-input-libinput", "kbd"],
+            [
+                apt,
+                "install",
+                "-y",
+                "--no-install-recommends",
+                "chromium",
+                "xserver-xorg",
+                "xinit",
+                "x11-xserver-utils",
+                "xserver-xorg-input-libinput",
+                "libinput-tools",
+                "kbd",
+            ],
             check=False,
             text=True,
             stdout=subprocess.PIPE,
@@ -409,12 +442,75 @@ class ProjectionRuntime:
             env=env,
         )
         browser = _browser()
-        ready = bool(result.returncode == 0 and browser and shutil.which("xinit") and shutil.which("openvt") and shutil.which("xhost"))
+        ready = bool(
+            result.returncode == 0
+            and browser
+            and shutil.which("xinit")
+            and shutil.which("openvt")
+            and shutil.which("xhost")
+            and _xorg_libinput_ready()
+        )
         return {
             "status": "ready" if ready else "failed",
             "browser": browser,
             "installed": True,
+            "xorg_libinput": _xorg_libinput_ready(),
             "detail": "" if ready else result.stdout[-1800:],
+        }
+
+    def _ensure_input_path(self) -> dict[str, Any]:
+        """Require both keyboard and pointer event nodes before claiming VT2."""
+        state_path = Path("/run/aurum-input-status.json")
+        current = _json(state_path)
+        ready = bool(
+            current.get("status") == "ready"
+            and current.get("keyboard_ready") is True
+            and current.get("pointer_ready") is True
+            and current.get("xorg_event_path_ready") is True
+        )
+        if ready:
+            return {
+                "status": "ready",
+                "keyboard_ready": True,
+                "pointer_ready": True,
+                "xorg_event_path_ready": True,
+                "refreshed": False,
+            }
+        if not self.input_helper.is_file():
+            return {"status": "failed", "reason": "input-helper-unavailable", "before": current}
+        try:
+            refreshed = subprocess.run(
+                [
+                    sys.executable,
+                    str(self.input_helper),
+                    "--apply-wake-policy",
+                    "--write-state",
+                    str(state_path),
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=660,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"status": "failed", "reason": f"{type(exc).__name__}:{exc}", "before": current}
+        after = _json(state_path)
+        ready = bool(
+            refreshed.returncode == 0
+            and after.get("status") == "ready"
+            and after.get("keyboard_ready") is True
+            and after.get("pointer_ready") is True
+            and after.get("xorg_event_path_ready") is True
+        )
+        return {
+            "status": "ready" if ready else "failed",
+            "keyboard_ready": bool(after.get("keyboard_ready")),
+            "pointer_ready": bool(after.get("pointer_ready")),
+            "xorg_event_path_ready": bool(after.get("xorg_event_path_ready")),
+            "refreshed": True,
+            "returncode": refreshed.returncode,
+            "detail": "" if ready else refreshed.stdout[-1600:],
         }
 
     def _stop_web(self) -> None:
@@ -433,9 +529,27 @@ class ProjectionRuntime:
 
     def _start_web(self) -> dict[str, Any] | None:
         deps = self._ensure_dependencies()
+        input_path = self._ensure_input_path() if deps.get("status") == "ready" else {
+            "status": "blocked",
+            "reason": "renderer-dependencies-unavailable",
+        }
         user = self._ensure_ui_user()
-        if deps.get("status") != "ready" or user.get("status") != "ready" or not self.surface.is_file():
-            _atomic(self.state_path, {"schema": SCHEMA, "status": "web-unavailable", "dependencies": deps, "ui_user": user})
+        if (
+            deps.get("status") != "ready"
+            or input_path.get("status") != "ready"
+            or user.get("status") != "ready"
+            or not self.surface.is_file()
+        ):
+            _atomic(
+                self.state_path,
+                {
+                    "schema": SCHEMA,
+                    "status": "web-unavailable",
+                    "dependencies": deps,
+                    "input_path": input_path,
+                    "ui_user": user,
+                },
+            )
             return None
         self._stop_web()
         stale_cleanup = self._clear_stale_vt2()
@@ -485,6 +599,7 @@ class ProjectionRuntime:
             current = self.status()
             if current.get("renderer") == "html5" and current.get("status") == "running":
                 current["dependencies"] = deps
+                current["input_path"] = input_path
                 current["ui_user"] = user
                 current["stale_cleanup"] = stale_cleanup
                 _atomic(self.state_path, current)
@@ -499,6 +614,7 @@ class ProjectionRuntime:
             "status": "web-unavailable",
             "reason": "html-launch-not-verified",
             "dependencies": deps,
+            "input_path": input_path,
             "ui_user": user,
             "stale_cleanup": stale_cleanup,
             "log_tail": self._log_tail(),

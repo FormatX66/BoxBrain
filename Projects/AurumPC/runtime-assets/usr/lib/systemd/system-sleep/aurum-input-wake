@@ -1,6 +1,8 @@
 #!/bin/sh
 set -u
 if [ "${1:-}" = post ]; then
+  /usr/bin/udevadm trigger --subsystem-match=input --action=add 2>/dev/null || true
+  /usr/bin/udevadm settle --timeout=15 2>/dev/null || true
   /usr/bin/python3 /opt/aurum/aurum_input.py \
     --apply-wake-policy --write-state /run/aurum-input-status.json \
     >/run/aurum-input-resume.log 2>&1 || true
