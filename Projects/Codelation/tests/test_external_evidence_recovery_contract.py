@@ -156,6 +156,16 @@ class ExternalEvidenceRecoveryContractTests(unittest.TestCase):
         self.assertLess(workflow.index("$repairMarker ="), workflow.index(marker))
         self.assertLess(workflow.index(marker), workflow.index("$verifiedTrial = Invoke-GuiCollector"))
 
+    def test_recovery_explicitly_continues_autobuild_after_evidence_publication(self) -> None:
+        workflow = RECOVERY.read_text(encoding="utf-8")
+
+        self.assertIn("actions: write", workflow)
+        self.assertIn("Continue native growth from recovered evidence", workflow)
+        self.assertIn("actions/workflows/aurum-autobuild.yml/dispatches", workflow)
+        self.assertIn("continuation_dispatched=true", workflow)
+        self.assertIn("trigger=explicit-workflow-dispatch", workflow)
+        self.assertNotIn("autobuild_trigger=push", workflow)
+
     def test_autobuild_recovery_dispatch_is_gap_specific_and_deduplicated(self) -> None:
         workflow = AUTOBUILD.read_text(encoding="utf-8")
         self.assertIn("aurum-external-evidence-recovery.yml", workflow)
