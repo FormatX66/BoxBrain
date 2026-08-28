@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurum</title>
+<style>
+:root{color-scheme:dark;background:#0b0d10;color:#f1f2f4;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -20%,#382a12 0,#111318 38%,#090b0e 72%);display:flex;align-items:center;justify-content:center;padding:28px}
+main{width:min(1100px,100%);display:grid;gap:18px}.brand{display:flex;justify-content:space-between;align-items:end}.brand h1{margin:0;font-size:34px;font-weight:650;letter-spacing:.02em;color:#f2c96f}.brand p{margin:0;color:#8f98a6}.card{background:rgba(17,20,25,.92);border:1px solid #2c313a;border-radius:18px;padding:18px;box-shadow:0 18px 55px #0008}.webrow{display:flex;gap:10px}.webrow input{flex:1}.modes{display:flex;gap:8px;margin-bottom:12px}button,input,textarea{font:inherit;border-radius:11px;border:1px solid #343b46;background:#11151b;color:#f3f4f6;padding:12px}button{cursor:pointer;background:#242a33}button.primary{background:#b58a34;color:#080706;border-color:#d2a94f;font-weight:650}button.active{border-color:#d2a94f;color:#f2c96f}textarea{width:100%;min-height:170px;resize:vertical;line-height:1.5}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:10px}.output{white-space:pre-wrap;min-height:90px;margin-top:14px;padding:14px;border-radius:12px;background:#0a0d11;border:1px solid #262b33;color:#cdd3db}.hint{font-size:13px;color:#929aa7}.status{font-size:12px;color:#78c59a}@media(max-width:680px){.brand{align-items:start;flex-direction:column;gap:4px}.webrow,.actions{flex-direction:column}}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><h1>Aurum</h1><p>Web + intent surface</p></div>
+  <section class="card">
+    <div class="webrow"><input id="url" aria-label="Web address" placeholder="Search or enter address"><button id="goWeb">Open Web</button></div>
+  </section>
+  <section class="card">
+    <div class="modes"><button class="active" data-mode="aurum">Aurum</button><button data-mode="gpt">GPT</button></div>
+    <textarea id="prompt" autofocus placeholder="What do you want to do?"></textarea>
+    <div class="actions"><span class="hint" id="hint">Aurum mode routes intent locally when the adapter is available.</span><button class="primary" id="send">Send</button></div>
+    <div class="output" id="output">Ready.</div>
+  </section>
+  <div class="status" id="status">Local surface · loopback only</div>
+</main>
+<script>
+let mode='aurum';
+const promptBox=document.querySelector('#prompt'), output=document.querySelector('#output'), hint=document.querySelector('#hint');
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));hint.textContent=mode==='aurum'?'Aurum mode routes intent locally when the adapter is available.':'GPT mode uses the configured API adapter; no key is stored in this page.';});
+document.querySelector('#goWeb').onclick=()=>{let u=document.querySelector('#url').value.trim();if(!u)return;if(!/^https?:\/\//i.test(u)){if(u.includes('.')&&!u.includes(' '))u='https://'+u;else u='https://www.google.com/search?q='+encodeURIComponent(u)}window.open(u,'_blank','noopener');};
+document.querySelector('#url').addEventListener('keydown',e=>{if(e.key==='Enter')document.querySelector('#goWeb').click()});
+async function send(){const p=promptBox.value.trim();if(!p)return;output.textContent='Working…';try{const r=await fetch('/api/'+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});const j=await r.json();output.textContent=j.message||'No response.';if(j.fallback){const a=document.createElement('button');a.textContent='Open ChatGPT';a.style.marginTop='12px';a.onclick=()=>window.open(j.fallback,'_blank','noopener');output.append('\n');output.append(a);}}catch(e){output.textContent='Prompt service unavailable: '+e.message;}}
+document.querySelector('#send').onclick=send;promptBox.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')send()});
+</script>
+</body>
+</html>
