@@ -23,7 +23,7 @@
 if(window.__aurumWorkflowFailsafeV1)return;
 window.__aurumWorkflowFailsafeV1=true;
 const $=(s,r=document)=>r.querySelector(s);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const REPO='FormatX66/BoxBrain';
 const RESULTS=`https://api.github.com/repos/${REPO}/contents/Projects/AurumBridge/results?ref=main`;
 const API=`https://api.github.com/repos/${REPO}`;
@@ -82,7 +82,7 @@ function nativeNeeds(v){if(!v)return'';if(v.liveTrialSystemBoundary)return`Nativ
 function render(){
  const card=ensure();if(!card)return;const pill=$('.pill',card),evidence=$('.evidence',card),detail=$('.wf-detail',card),nv=nativeChainView(state.nativeChain);card.dataset.failsafePhase=state.phase;
  if(state.phase==='checking'){pill.className='pill running';pill.textContent='Running';evidence.textContent='Checking latest durable readback and native-chain evidence…'}
- else if(state.phase==='verified'){pill.className='pill success';pill.textContent='Verified';evidence.textContent=`Workflow failsafe readback is healthy · ${state.lanes.length} core lanes checked · no current stall or unresolved required-proof lane.`}
+ else if(state.phase==='verified'){pill.className='pill success';pill.textContent=`Verified`;evidence.textContent=`Workflow failsafe readback is healthy · ${state.lanes.length} core lanes checked · no current stall or unresolved required-proof lane.`}
  else if(state.phase==='running'){pill.className='pill running';pill.textContent='Running';evidence.textContent=`${state.active.length} core workflow lane${state.active.length===1?' is':'s are'} executing/queued inside the normal dispatch window.`}
  else if(state.phase==='attention'){
   pill.className='pill failed';pill.textContent='Needs Work';
