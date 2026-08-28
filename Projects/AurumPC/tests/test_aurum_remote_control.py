@@ -78,6 +78,8 @@ class AurumRemoteControlTests(unittest.TestCase):
         command = remote._desktop_command("/usr/bin/x11vnc")
         self.assertIn("-localhost", command)
         self.assertIn("-nopw", command)
+        self.assertNotIn("-auth", command)
+        self.assertNotIn("guess", command)
         self.assertNotIn("0.0.0.0", command)
         source = MODULE_PATH.read_text(encoding="utf-8")
         self.assertIn("127.0.0.1:{WEBSOCKET_PORT}", source)

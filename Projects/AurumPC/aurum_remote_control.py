@@ -322,7 +322,6 @@ def _desktop_command(x11vnc: str) -> list[str]:
     return [
         x11vnc,
         "-display", ":0",
-        "-auth", "guess",
         "-localhost",
         "-rfbport", str(DESKTOP_PORT),
         "-forever",
@@ -332,6 +331,24 @@ def _desktop_command(x11vnc: str) -> list[str]:
         "-nopw",
         "-o", str(DEFAULT_RUN / "remote-desktop.log"),
     ]
+
+
+def _desktop_failure_detail(unit: str = DESKTOP_UNIT) -> str:
+    details: list[str] = []
+    log_path = DEFAULT_RUN / "remote-desktop.log"
+    try:
+        log_tail = log_path.read_text(encoding="utf-8", errors="replace")[-1800:].strip()
+    except OSError:
+        log_tail = ""
+    if log_tail:
+        details.append(f"x11vnc={log_tail}")
+    systemctl = shutil.which("systemctl")
+    if systemctl:
+        status_result = _run([systemctl, "status", "--no-pager", "--full", unit], timeout=15)
+        status_tail = status_result.stdout[-1800:].strip()
+        if status_tail:
+            details.append(f"systemd={status_tail}")
+    return " | ".join(details)[-3000:]
 
 
 def _wait_for_loopback(port: int, unit: str, *, seconds: float = 12) -> bool:
@@ -363,6 +380,7 @@ def desktop_start(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
     if current["desktop"]["status"] == "running":
         return _receipt("desktop-start", {**current["desktop"], "status": "already-running"}, state_dir=state_dir)
     DEFAULT_RUN.mkdir(parents=True, mode=0o700, exist_ok=True)
+    (DEFAULT_RUN / "remote-desktop.log").unlink(missing_ok=True)
     systemctl = shutil.which("systemctl")
     if systemctl:
         _run([systemctl, "stop", WEBSOCKET_UNIT], timeout=20)
@@ -383,7 +401,14 @@ def desktop_start(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
     if started.returncode != 0:
         raise RemoteControlError(f"remote desktop failed to start: {started.stdout[-1200:]}")
     if not _wait_for_loopback(DESKTOP_PORT, DESKTOP_UNIT):
-        raise RemoteControlError("remote desktop VNC listener was not verified on loopback")
+        detail = _desktop_failure_detail()
+        if systemctl:
+            _run([systemctl, "stop", DESKTOP_UNIT], timeout=20)
+            _run([systemctl, "reset-failed", DESKTOP_UNIT], timeout=20)
+        raise RemoteControlError(
+            "remote desktop VNC listener was not verified on loopback"
+            + (f": {detail}" if detail else "")
+        )
     websocket = _run(
         [
             systemd_run,
