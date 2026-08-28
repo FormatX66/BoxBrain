@@ -1,8 +1,11 @@
-/* AURUM_FARMER_PRIVATE_ACTIONS_BOUNDARY_V1_CANONICAL
+/* AURUM_FARMER_PRIVATE_ACTIONS_BOUNDARY_V1_1_CANONICAL
+ * AURUM_FARMER_PRIVATE_ACTIONS_BOUNDARY_V1_CANONICAL compatibility marker.
  * Canonical website owner: FormatX66/ClusterSites.
  * Adds a freshness-gated, evidence-backed private GitHub Actions account boundary
  * to the existing expandable Autonomy Controller. It never guesses the exact
  * billing/quota cause and never grants execution, mutation, or destructive authority.
+ * When the evidence expires or disappears, it actively removes its own human-action
+ * overlay and hands rendering back to the underlying Autonomy Controller.
  */
 (()=>{
 'use strict';
@@ -10,16 +13,28 @@ if(window.__aurumFarmerPrivateActionsBoundaryV1)return;
 window.__aurumFarmerPrivateActionsBoundaryV1=true;
 const URL='https://raw.githubusercontent.com/FormatX66/BoxBrain/main/Projects/AurumBridge/results/private-actions-account-boundary-latest.json';
 const REFRESH=5*60*1000;
+const BOUNDARY_EVIDENCE='Farmer runtime proof remains valid, but private GitHub-hosted Actions are failing before runner/step allocation; account-level Actions availability requires an operator check.';
 let state=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function ageMs(){const t=Date.parse(state?.observed_at_utc||'');return Number.isFinite(t)?Date.now()-t:Infinity}
 function active(){const max=Math.max(0,Number(state?.fresh_for_seconds||0))*1000;return Boolean(state?.schema==='aurum-private-actions-account-boundary-v1'&&state?.state==='HUMAN_ACCOUNT_CHECK_REQUIRED'&&state?.human_action_required===true&&max>0&&ageMs()>=-5*60*1000&&ageMs()<=max)}
-function publish(){window.__aurumFarmerPrivateActionsBoundaryState={schema:'aurum-command-center-farmer-private-actions-boundary-v1.0',active:active(),observedAt:state?.observed_at_utc||null,exactRootCauseProven:state?.root_cause_exactly_proven===true,humanActionRequired:active(),humanAction:active()?state?.human_action:null,grantsExecutionAuthority:false,grantsDestructiveAuthority:false,grantsLkgMutation:false};window.dispatchEvent(new CustomEvent('aurum-farmer-private-actions-boundary-state',{detail:window.__aurumFarmerPrivateActionsBoundaryState}))}
+function publish(){const on=active(),age=ageMs(),fresh=Math.max(0,Number(state?.fresh_for_seconds||0));window.__aurumFarmerPrivateActionsBoundaryState={schema:'aurum-command-center-farmer-private-actions-boundary-v1.1',active:on,observedAt:state?.observed_at_utc||null,freshForSeconds:fresh,ageMs:Number.isFinite(age)?age:null,expired:Boolean(state&&!on&&fresh>0&&Number.isFinite(age)&&age>fresh*1000),exactRootCauseProven:state?.root_cause_exactly_proven===true,humanActionRequired:on,humanAction:on?state?.human_action:null,grantsExecutionAuthority:false,grantsDestructiveAuthority:false,grantsLkgMutation:false};window.dispatchEvent(new CustomEvent('aurum-farmer-private-actions-boundary-state',{detail:window.__aurumFarmerPrivateActionsBoundaryState}))}
+function restoreBase(card){
+  if(!card)return;
+  const box=card.querySelector('.private-actions-boundary-proof'),pill=card.querySelector('.pill'),ev=card.querySelector('.evidence');
+  const owned=Boolean(box||card.dataset.privateActionsBoundary==='active'||pill?.textContent==='Human Boundary'||ev?.textContent===BOUNDARY_EVIDENCE);
+  box?.remove();
+  delete card.dataset.privateActionsBoundary;
+  if(!owned)return;
+  setTimeout(()=>window.dispatchEvent(new CustomEvent('aurum-workflow-failsafe-state',{detail:window.__aurumWorkflowFailsafeState||{}})),0);
+}
 function patch(){
-  if(!active())return;
-  const card=document.querySelector('#systems [data-id="autonomy-controller"]');if(!card)return;
+  const card=document.querySelector('#systems [data-id="autonomy-controller"]');
+  if(!active()){restoreBase(card);return}
+  if(!card)return;
+  card.dataset.privateActionsBoundary='active';
   const pill=card.querySelector('.pill');if(pill){if(pill.className!=='pill failed')pill.className='pill failed';if(pill.textContent!=='Human Boundary')pill.textContent='Human Boundary'}
-  const ev=card.querySelector('.evidence'),evText='Farmer runtime proof remains valid, but private GitHub-hosted Actions are failing before runner/step allocation; account-level Actions availability requires an operator check.';if(ev&&ev.textContent!==evText)ev.textContent=evText;
+  const ev=card.querySelector('.evidence');if(ev&&ev.textContent!==BOUNDARY_EVIDENCE)ev.textContent=BOUNDARY_EVIDENCE;
   if(card.getAttribute('aria-expanded')!=='true')return;
   const detail=card.querySelector('.ac-detail');if(!detail)return;
   let box=detail.querySelector('.private-actions-boundary-proof');if(!box){box=document.createElement('div');box.className='private-actions-boundary-proof';detail.prepend(box)}
