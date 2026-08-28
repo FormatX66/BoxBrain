@@ -166,6 +166,49 @@ class AurumSeedGenerationTests(unittest.TestCase):
         self.assertEqual(result["fallback_result"]["status"], "skipped")
         fallback.assert_not_called()
 
+    def test_transient_verified_html_launch_gets_one_clean_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = projection_module.ProjectionRuntime(
+                policy=root / "policy.json",
+                receipt=root / "installed.json",
+                state_dir=root / "state",
+                run_dir=root / "run",
+                desktop=Path("/opt/aurum/aurum_desktop.py"),
+            )
+            failure = {
+                "status": "web-unavailable",
+                "reason": "html-launch-not-verified",
+                "dependencies": {"status": "ready"},
+                "input_path": {"status": "ready"},
+                "ui_user": {"status": "ready"},
+            }
+            attempts = 0
+
+            def start_web():
+                nonlocal attempts
+                attempts += 1
+                if attempts == 1:
+                    projection_module._atomic(runtime.state_path, failure)
+                    return None
+                return {"status": "running", "renderer": "html5", "primary": True}
+
+            with (
+                patch.object(projection_module.os, "geteuid", return_value=0),
+                patch.object(runtime, "_authorized", return_value=(True, "authorized-hopper")),
+                patch.object(runtime, "status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_start_web", side_effect=start_web),
+                patch.object(runtime, "_fallback_runtime") as fallback,
+                patch.object(projection_module.time, "sleep"),
+            ):
+                result = runtime._start_locked()
+
+        self.assertEqual(attempts, 2)
+        self.assertEqual(result["status"], "running")
+        self.assertEqual(result["launch_recovery"]["status"], "recovered")
+        self.assertEqual(result["launch_recovery"]["attempts"], 2)
+        fallback.assert_not_called()
+
     def test_reboot_marker_expires_when_boot_identity_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

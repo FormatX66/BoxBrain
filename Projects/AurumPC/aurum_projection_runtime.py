@@ -621,6 +621,27 @@ class ProjectionRuntime:
         })
         return None
 
+    @staticmethod
+    def _retryable_web_failure(failure: dict[str, Any]) -> bool:
+        """Recognize the one safe transient launch state worth retrying.
+
+        A retry is allowed only after dependencies, the keyboard/pointer event
+        path, and the bounded UI account were all proved ready.  Policy,
+        authorization, missing-input, and reboot-required failures continue
+        directly to the existing fallback path.
+        """
+        dependencies = failure.get("dependencies") if isinstance(failure.get("dependencies"), dict) else {}
+        input_path = failure.get("input_path") if isinstance(failure.get("input_path"), dict) else {}
+        ui_user = failure.get("ui_user") if isinstance(failure.get("ui_user"), dict) else {}
+        return bool(
+            failure.get("status") == "web-unavailable"
+            and failure.get("reason") == "html-launch-not-verified"
+            and not failure.get("reboot_required")
+            and dependencies.get("status") == "ready"
+            and input_path.get("status") == "ready"
+            and ui_user.get("status") == "ready"
+        )
+
     def _start_locked(self) -> dict[str, Any]:
         authorized, reason = self._authorized()
         if not authorized:
@@ -635,7 +656,30 @@ class ProjectionRuntime:
         web = self._start_web()
         if web is not None:
             return web
+        first_failure = _json(self.state_path)
+        if self._retryable_web_failure(first_failure):
+            # Xorg/VT activation can settle just after the first bounded probe
+            # on low-memory boots.  Cleanly retry once; _start_web performs the
+            # same owned-session cleanup before claiming VT2 again.
+            time.sleep(1.0)
+            web = self._start_web()
+            if web is not None:
+                recovered = dict(web)
+                recovered["launch_recovery"] = {
+                    "status": "recovered",
+                    "attempts": 2,
+                    "first_reason": first_failure.get("reason"),
+                }
+                _atomic(self.state_path, recovered)
+                return recovered
         html_failure = _json(self.state_path)
+        if self._retryable_web_failure(first_failure):
+            html_failure = dict(html_failure)
+            html_failure["launch_retry"] = {
+                "status": "exhausted",
+                "attempts": 2,
+                "first_reason": first_failure.get("reason"),
+            }
         if html_failure.get("reboot_required"):
             result = {
                 "schema": SCHEMA,
