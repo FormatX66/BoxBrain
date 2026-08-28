@@ -81,6 +81,25 @@ class AdaptiveShellGuiDeploymentTests(unittest.TestCase):
         self.assertTrue(applied.evidence["dialogue_only"])
         self.assertFalse(applied.evidence["api_key_persisted"])
         self.assertFalse(applied.evidence["authority_granted"])
+
+        for approved_route in ("10.12.194.1", "10.42.194.1", "bbpi4.local", "192.168.0.194"):
+            routed = copy.deepcopy(evidence)
+            routed["route"] = approved_route
+            routed["transport"]["usb_route"] = approved_route
+            accepted_route = apply_adaptive_shell_gui_live_trial_evidence(
+                spec, routed, now=int(evidence["observed_at"]) + 1
+            )
+            self.assertTrue(accepted_route.applied, approved_route)
+
+        unapproved_route = copy.deepcopy(evidence)
+        unapproved_route["route"] = "203.0.113.10"
+        unapproved_route["transport"]["usb_route"] = "203.0.113.10"
+        rejected_route = apply_adaptive_shell_gui_live_trial_evidence(
+            spec, unapproved_route, now=int(evidence["observed_at"]) + 1
+        )
+        self.assertFalse(rejected_route.applied)
+        self.assertEqual(rejected_route.reason, "gui-live-trial-node-binding-invalid")
+
         verified = verify_local_capability_for_gap(
             applied.spec,
             "required-condition-classifier",

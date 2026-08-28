@@ -62,6 +62,12 @@ MAX_NODE_AGE_SECONDS = 300
 MAX_EVIDENCE_LIFETIME_SECONDS = 1800
 MAX_FUTURE_SKEW_SECONDS = 120
 USB_SSH_ROUTE = "10.12.194.1"
+# GUI live-trial recovery may fall back only across this preapproved strict-SSH
+# route set. Host-key pinning, dedicated identity, loopback-only runtime binding,
+# freshness, and zero-authority checks remain mandatory on every route.
+GUI_LIVE_TRIAL_APPROVED_ROUTES = frozenset(
+    {USB_SSH_ROUTE, "10.42.194.1", "bbpi4.local", "192.168.0.194"}
+)
 PERMISSION_SCOPE = "bounded-adaptive-shell-live-trial"
 ROLLBACK_METHOD = "neutral-hid-release-and-ephemeral-state"
 ITERATION_OBSERVATION_PERMISSION_SCOPE = "adaptive-shell-iteration-observation"
@@ -781,7 +787,7 @@ def apply_adaptive_shell_gui_live_trial_evidence(
     if (
         not node_id
         or node_id in WINDOWS_CONTROLLER_NODE_IDS
-        or route != USB_SSH_ROUTE
+        or route not in GUI_LIVE_TRIAL_APPROVED_ROUTES
         or not re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", host_key)
     ):
         return ExternalEvidenceApplication(spec, False, "gui-live-trial-node-binding-invalid")
@@ -831,7 +837,7 @@ def apply_adaptive_shell_gui_live_trial_evidence(
         not isinstance(transport, Mapping)
         or transport.get("strict_host_key_checking") is not True
         or transport.get("dedicated_identity") is not True
-        or transport.get("usb_route") != USB_SSH_ROUTE
+        or transport.get("usb_route") != route
         or transport.get("windows_endpoint_loopback") is not True
         or transport.get("pi_endpoint_loopback") is not True
     ):
