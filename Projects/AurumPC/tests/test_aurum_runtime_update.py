@@ -41,6 +41,39 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
         self.assertEqual(failed["status"], "failed")
         self.assertEqual(failed["failed"], ["physical"])
 
+    def test_core_share_port_migration_waits_for_reboot_without_culling(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "workspace" / "Projects" / "AurumPC"
+            target = root / "target"
+            source.mkdir(parents=True)
+            target.mkdir()
+            (source / "pc01_autonomy_policy.json").write_text(
+                json.dumps({"auto_gui_start": True}), encoding="utf-8"
+            )
+            (target / "aurum_gui_runtime.py").write_text("runtime\n", encoding="utf-8")
+            updater = RuntimeUpdater(
+                workspace=root / "workspace",
+                target=target,
+                state_dir=root / "state",
+                system_root=root / "system",
+            )
+
+            activation = updater._restart_gui(
+                ["aurum_core_share.py"],
+                ["etc/systemd/system/aurum-core-share.service"],
+            )
+            proof = updater._physical_proof(activation)
+            disposition = runtime_module._proof_disposition({"physical": proof})
+
+        self.assertEqual(activation["status"], "pending-reboot-observation")
+        self.assertEqual(activation["reason"], "core-share-port-migration")
+        self.assertTrue(activation["desktop"]["reboot_required"])
+        self.assertEqual(proof["status"], "pending-reboot-observation")
+        self.assertTrue(proof["reboot_required"])
+        self.assertEqual(disposition["status"], "pending")
+        self.assertEqual(disposition["failed"], [])
+
     def test_generation_transition_accepts_only_forward_history(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

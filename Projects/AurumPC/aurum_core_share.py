@@ -27,7 +27,10 @@ RECEIPT_SCHEMA = "aurum.open-core-sync-receipt.v1"
 REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
 BRANCH = "aurum/trunk-v0.01"
 DEFAULT_BIND = os.environ.get("AURUM_CORE_SHARE_BIND", "0.0.0.0")
-DEFAULT_PORT = int(os.environ.get("AURUM_CORE_SHARE_PORT", "8765"))
+# The local Hopper GUI owns 8765 and its arcade owns 8766.  Keep the open
+# core surface on its own listener so boot sync can never prevent the physical
+# desktop from starting.
+DEFAULT_PORT = int(os.environ.get("AURUM_CORE_SHARE_PORT", "8767"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
@@ -83,6 +86,7 @@ def catalog() -> dict[str, Any]:
         "actions": list(CORE_ACTIONS),
         "repository": REPOSITORY,
         "branch": BRANCH,
+        "port": DEFAULT_PORT,
         "fast_forward_only": True,
         "arbitrary_command": False,
         "file_serving": False,

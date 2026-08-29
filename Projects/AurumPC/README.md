@@ -33,7 +33,7 @@ The [Hopper recovery-hardening generation](HOPPER_RECOVERY_HARDENING.md) extends
 
 ## Open core sharing
 
-Aurum cores share their non-personal system state without controller pairing. Hopper exposes an open JSON core surface on port `8765`: `GET /status` returns sanitized seed state and `POST /seed-sync` runs the fixed `FormatX66/BoxBrain` `aurum/trunk-v0.01` fast-forward/apply path. It is not a file server and has no shell, directory, branch-selection, push, credential, Wi-Fi-profile, home-directory, or personal-data operation.
+Aurum cores share their non-personal system state without controller pairing. Hopper exposes an open JSON core surface on port `8767`: `GET /status` returns sanitized seed state and `POST /seed-sync` runs the fixed `FormatX66/BoxBrain` `aurum/trunk-v0.01` fast-forward/apply path. Port `8765` remains reserved for Hopper's loopback GUI. The core surface is not a file server and has no shell, directory, branch-selection, push, credential, Wi-Fi-profile, home-directory, or personal-data operation.
 
 `aurum-auto-sync.service` runs that same forward-only update automatically after saved networking comes up on every boot, retrying while the network is unavailable. `aurum-core-share.service` keeps the two open core actions available to reachable Aurum peers. Both services hide `/home`, `/root`, and `/var/lib/aurum/slush`; personal files and information belong to the user-only Slush namespace and are never part of the open core response.
 

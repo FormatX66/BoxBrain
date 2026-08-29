@@ -23,6 +23,12 @@ SPEC.loader.exec_module(core)
 
 
 class AurumCoreShareTests(unittest.TestCase):
+    def test_open_core_port_does_not_collide_with_hopper_gui(self) -> None:
+        gui_source = (ROOT / "aurum_gui_runtime.py").read_text(encoding="utf-8")
+        self.assertEqual(core.DEFAULT_PORT, 8767)
+        self.assertIn("DEFAULT_PORT = 8765", gui_source)
+        self.assertNotEqual(core.DEFAULT_PORT, 8765)
+
     def test_catalog_is_open_but_exports_no_files_or_slush(self) -> None:
         catalog = core.catalog()
         self.assertFalse(catalog["authentication_required"])
@@ -131,7 +137,7 @@ class AurumCoreShareTests(unittest.TestCase):
         self.assertIn("After=network-online.target aurum-network-bootstrap.service", auto_sync)
         self.assertIn("aurum_core_share.py seed-sync", auto_sync)
         self.assertIn("Restart=on-failure", auto_sync)
-        self.assertIn("aurum_core_share.py serve --bind 0.0.0.0 --port 8765", core_share)
+        self.assertIn("aurum_core_share.py serve --bind 0.0.0.0 --port 8767", core_share)
         self.assertNotIn("Authentication", core_share)
         for unit in (auto_sync, core_share):
             self.assertIn("ProtectHome=yes", unit)

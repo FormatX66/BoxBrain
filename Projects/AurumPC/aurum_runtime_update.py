@@ -760,6 +760,25 @@ class RuntimeUpdater:
         policy = _json_file(self.source / "pc01_autonomy_policy.json")
         if policy.get("auto_gui_start") is not True:
             return {"status": "skipped", "reason": "automatic-gui-disabled"}
+        core_share_migration = "aurum_core_share.py" in changed or any(
+            name.endswith("aurum-core-share.service") for name in system_changed
+        )
+        if core_share_migration and not ensure_running:
+            # The predecessor service may still own the GUI's historical 8765
+            # listener.  Runtime updates can also be initiated by that service,
+            # so killing/restarting it inline could terminate the update itself.
+            # Install the non-conflicting service definition, preserve the
+            # candidate, and let the normal reboot boundary activate it safely.
+            return {
+                "status": "pending-reboot-observation",
+                "reason": "core-share-port-migration",
+                "physical_desktop": False,
+                "desktop": {
+                    "status": "pending-reboot-observation",
+                    "reason": "core-share-port-migration",
+                    "reboot_required": True,
+                },
+            }
         gui_files = {
             "aurum_desktop.py",
             "aurum_desktop_runtime.py",
@@ -1098,13 +1117,18 @@ class RuntimeUpdater:
         desktop = gui.get("desktop") if isinstance(gui.get("desktop"), dict) else {}
         renderer = desktop.get("renderer")
         running = bool(gui.get("physical_desktop") and desktop.get("status") == "running")
+        pending_reboot = bool(
+            gui.get("status") in PROOF_PENDING
+            or desktop.get("status") in PROOF_PENDING
+            or desktop.get("reboot_required") is True
+        )
         return {
-            "status": "passed" if running else "failed",
+            "status": "passed" if running else "pending-reboot-observation" if pending_reboot else "failed",
             "physical_desktop": running,
             "renderer": renderer,
             "html_primary": bool(running and renderer == "html5" and desktop.get("primary") is True),
             "pygame_fallback": bool(running and renderer == "pygame-fallback"),
-            "reboot_required": bool(desktop.get("reboot_required")),
+            "reboot_required": pending_reboot,
             "detail": desktop,
         }
 

@@ -134,15 +134,19 @@ class AurumSeedGenerationTests(unittest.TestCase):
         }
         self.assertEqual(projection_module.ProjectionRuntime._vt2_servers(processes), [80])
 
-    def test_physical_proof_carries_reboot_requirement_without_passing(self) -> None:
+    def test_physical_proof_carries_reboot_requirement_as_pending(self) -> None:
         proof = runtime_module.RuntimeUpdater._physical_proof(
             {
                 "physical_desktop": False,
                 "desktop": {"status": "stopped", "renderer": None, "reboot_required": True},
             }
         )
-        self.assertEqual(proof["status"], "failed")
+        self.assertEqual(proof["status"], "pending-reboot-observation")
         self.assertTrue(proof["reboot_required"])
+        self.assertEqual(
+            runtime_module._proof_disposition({"physical": proof})["status"],
+            "pending",
+        )
 
     def test_kernel_wait_skips_pygame_to_prevent_process_storm(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

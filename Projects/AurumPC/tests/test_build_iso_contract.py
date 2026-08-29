@@ -92,7 +92,7 @@ class BuildIsoContractTests(unittest.TestCase):
         ):
             self.assertIn(token, script)
         self.assertIn("aurum_core_share.py seed-sync", auto_sync)
-        self.assertIn("--bind 0.0.0.0 --port 8765", core_share)
+        self.assertIn("--bind 0.0.0.0 --port 8767", core_share)
         self.assertIn("ProtectHome=yes", auto_sync)
         self.assertIn("ProtectHome=yes", core_share)
         self.assertNotIn("openssh-server", script)
