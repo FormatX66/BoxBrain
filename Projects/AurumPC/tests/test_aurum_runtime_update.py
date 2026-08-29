@@ -310,11 +310,17 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 "aurum-input-bootstrap.service",
                 "aurum-network-bootstrap.service",
                 "aurum-pc-console.service",
+                "aurum-auto-sync.service",
+                "aurum-core-share.service",
             ],
             invocations,
         )
         self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
+        self.assertIn(["restart", "aurum-core-share.service"], invocations)
+        self.assertIn(["is-enabled", "--quiet", "aurum-auto-sync.service"], invocations)
         self.assertTrue(result["boot_screen_visible_on_next_boot"])
+        self.assertFalse(result["authentication_required"])
+        self.assertFalse(result["personal_slush_exported"])
 
     def test_system_integration_restarts_monitor_when_updater_schema_changes(self) -> None:
         updater = RuntimeUpdater(system_root=Path("/"))

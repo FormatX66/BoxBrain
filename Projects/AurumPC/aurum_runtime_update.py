@@ -50,6 +50,7 @@ ALLOWLIST = (
     "aurum_input.py",
     "aurum_installer.py",
     "aurum_network.py",
+    "aurum_core_share.py",
     "aurum_runtime_update.py",
     "aurum_sync_recovery.py",
     "aurum_self_debug.py",
@@ -65,6 +66,8 @@ SYSTEM_ASSETS = (
     ("etc/systemd/system/aurum-input-bootstrap.service", 0o644),
     ("etc/systemd/system/aurum-network-bootstrap.service", 0o644),
     ("etc/systemd/system/aurum-pc-console.service", 0o644),
+    ("etc/systemd/system/aurum-auto-sync.service", 0o644),
+    ("etc/systemd/system/aurum-core-share.service", 0o644),
     ("usr/lib/systemd/system-sleep/aurum-input-wake", 0o755),
 )
 FORWARD_ONLY_POLICY = {
@@ -702,6 +705,8 @@ class RuntimeUpdater:
             "aurum-input-bootstrap.service",
             "aurum-network-bootstrap.service",
             "aurum-pc-console.service",
+            "aurum-auto-sync.service",
+            "aurum-core-share.service",
         )
         active = run("is-active", "--quiet", "aurum-input-bootstrap.service")
         input_changed = bool(
@@ -715,6 +720,17 @@ class RuntimeUpdater:
             name.endswith("aurum-network-bootstrap.service") for name in system_changed
         )
         network_restart = run("restart", "aurum-network-bootstrap.service", timeout=90) if network_changed else None
+        core_share_changed = "aurum_core_share.py" in changed or any(
+            name.endswith("aurum-auto-sync.service") or name.endswith("aurum-core-share.service")
+            for name in system_changed
+        )
+        core_share_active = run("is-active", "--quiet", "aurum-core-share.service")
+        core_share_restart = (
+            run("restart", "aurum-core-share.service", timeout=60)
+            if core_share_active.returncode != 0
+            else None
+        )
+        auto_sync_enabled = run("is-enabled", "--quiet", "aurum-auto-sync.service")
         failed = enable.returncode != 0 or any(
             item["returncode"] != 0 and item["arguments"] == ["daemon-reload"] for item in commands
         )
@@ -722,11 +738,20 @@ class RuntimeUpdater:
             failed = True
         if network_restart is not None and network_restart.returncode != 0:
             failed = True
+        if core_share_restart is not None and core_share_restart.returncode != 0:
+            failed = True
+        if auto_sync_enabled.returncode != 0:
+            failed = True
         return {
             "status": "failed" if failed else "ready",
             "commands": commands,
             "console_restart_deferred": True,
             "boot_screen_visible_on_next_boot": True,
+            "open_core_share": "ready" if not failed else "failed",
+            "core_share_restart_deferred": bool(core_share_changed and core_share_active.returncode == 0),
+            "core_actions": ["status", "seed-sync"],
+            "authentication_required": False,
+            "personal_slush_exported": False,
         }
 
     def _restart_gui(
@@ -1105,7 +1130,28 @@ class RuntimeUpdater:
             stderr=subprocess.STDOUT,
             timeout=20,
         )
-        passed = result.returncode == 0 and network.returncode == 0
+        auto_sync = subprocess.run(
+            [systemctl, "is-enabled", "--quiet", "aurum-auto-sync.service"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=20,
+        )
+        core_share = subprocess.run(
+            [systemctl, "is-active", "--quiet", "aurum-core-share.service"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=20,
+        )
+        passed = (
+            result.returncode == 0
+            and network.returncode == 0
+            and auto_sync.returncode == 0
+            and core_share.returncode == 0
+        )
         return {
             "status": "passed" if passed else "failed",
             "service": "aurum-input-bootstrap.service",
@@ -1113,6 +1159,15 @@ class RuntimeUpdater:
             "network_bootstrap_service": "aurum-network-bootstrap.service",
             "network_bootstrap_enabled": network.returncode == 0,
             "network_returncode": network.returncode,
+            "auto_sync_service": "aurum-auto-sync.service",
+            "auto_sync_enabled": auto_sync.returncode == 0,
+            "auto_sync_returncode": auto_sync.returncode,
+            "core_share_service": "aurum-core-share.service",
+            "core_share_active": core_share.returncode == 0,
+            "core_share_returncode": core_share.returncode,
+            "core_actions": ["status", "seed-sync"],
+            "authentication_required": False,
+            "personal_slush_exported": False,
         }
 
     def prove_current(self, gui: dict[str, Any]) -> dict[str, Any]:

@@ -31,6 +31,12 @@ The [Hopper GUI, boot, and input growth release](HOPPER_GUI_INPUT_TEST.md) packa
 
 The [Hopper recovery-hardening generation](HOPPER_RECOVERY_HARDENING.md) extends that running-seed path with keyboard and pointer event proof, explicit Wi-Fi persistence proof, and a small named-action recovery console inside both GUI renderers. It deliberately leaves the established Wi-Fi configuration and landscape presentation assets outside the update payload.
 
+## Open core sharing
+
+Aurum cores share their non-personal system state without controller pairing. Hopper exposes an open JSON core surface on port `8765`: `GET /status` returns sanitized seed state and `POST /seed-sync` runs the fixed `FormatX66/BoxBrain` `aurum/trunk-v0.01` fast-forward/apply path. It is not a file server and has no shell, directory, branch-selection, push, credential, Wi-Fi-profile, home-directory, or personal-data operation.
+
+`aurum-auto-sync.service` runs that same forward-only update automatically after saved networking comes up on every boot, retrying while the network is unavailable. `aurum-core-share.service` keeps the two open core actions available to reachable Aurum peers. Both services hide `/home`, `/root`, and `/var/lib/aurum/slush`; personal files and information belong to the user-only Slush namespace and are never part of the open core response.
+
 ## Unattended PC-01 lane
 
 The installed PC-01 sandbox has a machine-bound unattended policy keyed to its install receipt. After the seed sees `aurum-x86-ready`, it launches `aurum_autonomy.py` outside the short seed subprocess bound. The worker holds a single-instance lock and, every five minutes, can reconnect saved networking, fast-forward only `aurum/trunk-v0.01`, atomically refresh the allowlisted `/opt/aurum` runtime and bounded system assets, run a local resumable self-build without dirtying Git, start the loopback-only GUI/arcade surfaces, and advance the adaptive driver synthesis lane.

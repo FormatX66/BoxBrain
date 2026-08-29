@@ -79,6 +79,25 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_BOOT_SCREEN=1", console)
         self.assertIn("udevadm trigger --subsystem-match=input", input_service)
 
+    def test_open_core_share_and_boot_sync_are_packaged_without_personal_export(self) -> None:
+        script = BUILD_SCRIPT.read_text(encoding="utf-8")
+        auto_sync = (RUNTIME_ASSETS / "etc/systemd/system/aurum-auto-sync.service").read_text(encoding="utf-8")
+        core_share = (RUNTIME_ASSETS / "etc/systemd/system/aurum-core-share.service").read_text(encoding="utf-8")
+        for token in (
+            "aurum_core_share.py",
+            "aurum-auto-sync.service",
+            "aurum-core-share.service",
+            "multi-user.target.wants/aurum-auto-sync.service",
+            "multi-user.target.wants/aurum-core-share.service",
+        ):
+            self.assertIn(token, script)
+        self.assertIn("aurum_core_share.py seed-sync", auto_sync)
+        self.assertIn("--bind 0.0.0.0 --port 8765", core_share)
+        self.assertIn("ProtectHome=yes", auto_sync)
+        self.assertIn("ProtectHome=yes", core_share)
+        self.assertNotIn("openssh-server", script)
+        self.assertNotIn("authorized_keys", script)
+
     def test_hopper_live_prepare_is_guarded_and_receipted(self) -> None:
         script = HOPPER_PREPARE.read_text(encoding="utf-8")
         self.assertIn("aurum/hopper-gui-input-test-20260821", script)

@@ -1,0 +1,18 @@
+[Unit]
+Description=Aurum open core status and seed share
+After=network-online.target aurum-network-bootstrap.service
+Wants=network-online.target aurum-network-bootstrap.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_core_share.py serve --bind 0.0.0.0 --port 8765
+Restart=always
+RestartSec=2
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=yes
+InaccessiblePaths=-/var/lib/aurum/slush
+
+[Install]
+WantedBy=multi-user.target

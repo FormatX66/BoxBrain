@@ -1,0 +1,18 @@
+[Unit]
+Description=Aurum forward-only core sync at boot
+After=network-online.target aurum-network-bootstrap.service
+Wants=network-online.target aurum-network-bootstrap.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_core_share.py seed-sync
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=20min
+UMask=0077
+ProtectHome=yes
+InaccessiblePaths=-/var/lib/aurum/slush
+
+[Install]
+WantedBy=multi-user.target
