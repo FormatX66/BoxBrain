@@ -17,7 +17,7 @@ const EVIDENCE_URL=`https://github.com/FormatX66/BoxBrain/commit/${EVIDENCE_COMM
 const TRUNK_URL=`https://github.com/FormatX66/BoxBrain/commit/${ACTIVE_TRUNK_COMMIT}`;
 const PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${PC_IMAGE_RUN}`;
 const $=(s,r=document)=>r.querySelector(s);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const generations=[
  {id:'Gen1',title:'Everyone-OS readiness gate',status:'LKG restored · broken human-surface candidate quarantined',ready:['graphical shell contract','seven everyday traits contract','intent/accessibility contract','recovery contract','unattended candidate validation','historical TR8:WEB implementation/acceptance contract at pinned evidence commit','historical TR8:PROMPT implementation/fallback contract at pinned evidence commit','forward-only active trunk restored byte-for-byte to LKG tree'],held:['TR8:WEB payload on active trunk','TR8:PROMPT payload on active trunk','repaired WEB/PROMPT candidate seed/VM acceptance','visible browser render + keyboard/pointer acceptance','prompt runtime health/fallback acceptance','restore-tree generic UEFI + HP-twin boot-smoke completion','Hopper physical boot','Guardian forced rollback','second-architecture usability']},
  {id:'Gen2',title:'Machine-native state substrate',status:'CI-proven foundation',ready:['deterministic semantic entity/relation graph','Slush persistence class','canonical digest + replay','contradiction rejection'],held:['remaining Gen2 software gates','machine-native recovery proof','presence-policy physical canary','earned Gen1 parent']},
