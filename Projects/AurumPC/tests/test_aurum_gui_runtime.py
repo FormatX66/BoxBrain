@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import signal
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).parents[1] / "aurum_gui_runtime.py"
@@ -107,6 +109,34 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             self.assertEqual(runtime.gui_script, runtime_root / "aurum_hopper_gui.py")
             copied = root / "state" / "gui" / "mind" / "bootstrap_mind.json"
             self.assertEqual(json.loads(copied.read_text(encoding="utf-8")), sources["bootstrap"])
+
+    def test_gui_start_clears_only_the_known_legacy_core_share_collision(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        legacy_command = (
+            "/usr/bin/python3 /opt/aurum/aurum_core_share.py "
+            "serve --bind 0.0.0.0 --port 8765"
+        )
+        with (
+            patch.object(runtime, "_listener_pids", side_effect=[[42], []]),
+            patch.object(runtime, "_cmdline", return_value=legacy_command),
+            patch.object(gui_module.os, "kill") as kill,
+            patch.object(gui_module.time, "sleep"),
+        ):
+            runtime._clear_stale_gui_listener()
+
+        kill.assert_called_once_with(42, signal.SIGTERM)
+
+    def test_gui_start_refuses_an_unrecognized_listener(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "_listener_pids", return_value=[99]),
+            patch.object(runtime, "_cmdline", return_value="/usr/bin/python3 /tmp/unrelated.py"),
+            patch.object(gui_module.os, "kill") as kill,
+        ):
+            with self.assertRaises(gui_module.GuiRuntimeError):
+                runtime._clear_stale_gui_listener()
+
+        kill.assert_not_called()
 
 
 if __name__ == "__main__":

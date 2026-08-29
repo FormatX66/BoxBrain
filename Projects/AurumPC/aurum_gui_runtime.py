@@ -102,6 +102,14 @@ class GuiRuntime:
         cmdline = self._cmdline(pid)
         return "aurum_hopper_gui.py" in cmdline or "aurum_gui.py" in cmdline
 
+    def _legacy_core_share_on_gui_port(self, pid: int) -> bool:
+        cmdline = self._cmdline(pid)
+        return bool(
+            str(self.runtime_root / "aurum_core_share.py") in cmdline
+            and " serve " in f" {cmdline} "
+            and f"--port {self.port}" in cmdline
+        )
+
     def _owned_arcade(self, pid: int) -> bool:
         cmdline = self._cmdline(pid)
         return "aurum_arcade.py" in cmdline and str(self.arcade_script) in cmdline
@@ -160,7 +168,11 @@ class GuiRuntime:
         listeners = self._listener_pids(self.port)
         if not listeners:
             return
-        unknown = [pid for pid in listeners if not self._recognized_aurum_gui(pid)]
+        unknown = [
+            pid
+            for pid in listeners
+            if not self._recognized_aurum_gui(pid) and not self._legacy_core_share_on_gui_port(pid)
+        ]
         if unknown:
             details = ", ".join(f"pid={pid} cmd={self._cmdline(pid)[:180]!r}" for pid in unknown)
             raise GuiRuntimeError(f"port {self.port} is occupied by an unrecognized process: {details}")
