@@ -19,7 +19,7 @@ reflash, or live-update reboot is required.
 The managed system assets are sourced from `Projects/AurumPC/runtime-assets` and
 share one implementation with the bootable ISO. They include the deterministic
 libinput configuration, input bootstrap service, post-resume wake hook, and
-primary-console loading-screen unit. Runtime replacement keeps a rollback copy
+primary-console loading-screen unit. Runtime replacement keeps displaced-state evidence
 under Aurum state before changing any installed file.
 
 The boot screen is visible on the next normal boot. The recovery console stays

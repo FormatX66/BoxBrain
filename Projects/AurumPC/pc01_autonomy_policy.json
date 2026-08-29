@@ -20,6 +20,15 @@
   "auto_driver_synthesis": true,
   "install_driver_build_toolchain": true,
   "auto_reboot_after_runtime_update": false,
+  "seed_lifecycle": {
+    "published_history": "forward-only",
+    "generation_rollback": false,
+    "branch_rewind": false,
+    "recoverable_failure": "heal-current-seed",
+    "unrecoverable_candidate": "cull-and-regrow-forward",
+    "preserve_culled_evidence": true,
+    "retry_culled_head": false
+  },
   "driver_policy": {
     "model_all_observed_devices": true,
     "one_build_target_at_a_time": true,

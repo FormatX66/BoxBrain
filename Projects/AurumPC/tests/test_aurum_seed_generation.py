@@ -54,6 +54,9 @@ class AurumSeedGenerationTests(unittest.TestCase):
         projection = (ROOT / "aurum_projection_runtime.py").read_text(encoding="utf-8")
         for marker in ("discover_pull", '"verify"', '"stage"', '"apply"', '"prove"', '"become_next_seed"'):
             self.assertIn(marker, runtime)
+        self.assertIn("FORWARD_ONLY_POLICY", runtime)
+        self.assertIn("culled-generation-awaiting-forward-successor", runtime)
+        self.assertIn("publish-forward-successor-from-verified-lkg-genetics", runtime)
         self.assertIn("fast_forward_only", autonomy)
         self.assertIn('runtime.get("changed")', health)
         self.assertIn('"html_primary"', health)
@@ -65,6 +68,9 @@ class AurumSeedGenerationTests(unittest.TestCase):
         self.assertIn("aurum-projection.lock", projection)
         self.assertIn("_clear_stale_vt2", projection)
         self.assertIn("pygame-fallback", projection)
+        lifecycle = (ROOT / "SEED_LIFECYCLE.md").read_text(encoding="utf-8")
+        self.assertIn("Never move backward", lifecycle)
+        self.assertIn("cull and regrow", lifecycle)
 
     def test_named_weaves_and_nonblocking_adapter_lane_are_preserved(self) -> None:
         lifecycle = (ROOT / "SEED_LIFECYCLE.md").read_text(encoding="utf-8")

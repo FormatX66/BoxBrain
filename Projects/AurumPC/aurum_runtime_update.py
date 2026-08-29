@@ -18,6 +18,8 @@ from typing import Any
 
 SCHEMA = "aurum-pc-runtime-update-seed"
 GENERATION_SCHEMA = "aurum.seed-generation-receipt.v1"
+LINEAGE_SCHEMA = "aurum.seed-lineage.v1"
+LINEAGE_EVENT_SCHEMA = "aurum.seed-lineage-event.v1"
 REPOSITORY = "https://github.com/FormatX66/BoxBrain.git"
 BRANCH = "aurum/trunk-v0.01"
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_GIT_WORKSPACE", "/var/lib/aurum/workspace/BoxBrain"))
@@ -63,6 +65,14 @@ SYSTEM_ASSETS = (
     ("etc/systemd/system/aurum-pc-console.service", 0o644),
     ("usr/lib/systemd/system-sleep/aurum-input-wake", 0o755),
 )
+FORWARD_ONLY_POLICY = {
+    "published_history": "forward-only",
+    "generation_rollback": False,
+    "branch_rewind": False,
+    "recoverable_failure": "heal-current-seed",
+    "unrecoverable_candidate": "cull-and-regrow-forward",
+    "preserve_culled_evidence": True,
+}
 
 
 def _sha256(path: Path) -> str:
@@ -94,6 +104,17 @@ def _atomic_text(path: Path, text: str, mode: int = 0o644) -> None:
     temporary.write_text(text, encoding="utf-8")
     os.chmod(temporary, mode)
     os.replace(temporary, path)
+
+
+def _append_json_line(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, data)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 class RuntimeUpdateError(RuntimeError):
@@ -128,6 +149,180 @@ class RuntimeUpdater:
             stderr=subprocess.STDOUT,
             timeout=timeout,
         )
+
+    def _lineage_state(self) -> dict[str, Any]:
+        state = _json_file(self.state_dir / "seed-lineage.json")
+        if state.get("schema") == LINEAGE_SCHEMA:
+            return state
+        return {
+            "schema": LINEAGE_SCHEMA,
+            "policy": FORWARD_ONLY_POLICY,
+            "status": "uninitialized",
+            "observed_head": None,
+            "current_seed": None,
+            "last_culled": None,
+            "culled_count": 0,
+            "next_action": "observe-first-authorized-generation",
+        }
+
+    @staticmethod
+    def _receipt_source(receipt: dict[str, Any]) -> dict[str, Any] | None:
+        source = receipt.get("source") if isinstance(receipt.get("source"), dict) else None
+        generation = receipt.get("generation") if isinstance(receipt.get("generation"), dict) else {}
+        if source and generation.get("become_next_seed") is True:
+            return dict(source)
+        return None
+
+    def _generation_transition(
+        self,
+        source_identity: dict[str, Any],
+        previous_receipt: dict[str, Any],
+    ) -> dict[str, Any]:
+        head = str(source_identity.get("head") or "")
+        tree = str(source_identity.get("tree") or "")
+        lineage = self._lineage_state()
+        last_culled = lineage.get("last_culled") if isinstance(lineage.get("last_culled"), dict) else {}
+        if not re.fullmatch(r"[0-9a-f]{40}", head) or not re.fullmatch(r"[0-9a-f]{40}", tree):
+            return {
+                "status": "refused",
+                "reason": "invalid-generation-identity",
+                "policy": FORWARD_ONLY_POLICY,
+                "head": head or None,
+                "tree": tree or None,
+            }
+        if last_culled.get("head") == head:
+            return {
+                "status": "refused",
+                "reason": "culled-generation-awaiting-forward-successor",
+                "relation": "same-culled-head",
+                "previous_head": head,
+                "head": head,
+                "tree": tree,
+                "policy": FORWARD_ONLY_POLICY,
+            }
+        previous_source = previous_receipt.get("source") if isinstance(previous_receipt.get("source"), dict) else {}
+        previous_head = str(lineage.get("observed_head") or previous_source.get("head") or "")
+        if not previous_head:
+            return {
+                "status": "passed",
+                "relation": "first-observed-forward-seed",
+                "previous_head": None,
+                "head": head,
+                "tree": tree,
+                "policy": FORWARD_ONLY_POLICY,
+            }
+        if previous_head == head:
+            return {
+                "status": "passed",
+                "relation": "same-head-heal",
+                "previous_head": previous_head,
+                "head": head,
+                "tree": tree,
+                "policy": FORWARD_ONLY_POLICY,
+            }
+        ancestry = self._git("merge-base", "--is-ancestor", previous_head, head)
+        if ancestry.returncode != 0:
+            return {
+                "status": "refused",
+                "reason": "non-forward-generation",
+                "relation": "diverged-or-rewound",
+                "previous_head": previous_head,
+                "head": head,
+                "tree": tree,
+                "policy": FORWARD_ONLY_POLICY,
+            }
+        return {
+            "status": "passed",
+            "relation": "forward-successor",
+            "previous_head": previous_head,
+            "head": head,
+            "tree": tree,
+            "policy": FORWARD_ONLY_POLICY,
+        }
+
+    def _record_lineage(
+        self,
+        *,
+        status: str,
+        source_identity: dict[str, Any],
+        transition: dict[str, Any],
+        previous_receipt: dict[str, Any],
+        reason: str | None = None,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        head = str(source_identity.get("head") or "")
+        lineage = self._lineage_state()
+        current_seed = lineage.get("current_seed") if isinstance(lineage.get("current_seed"), dict) else None
+        current_seed = current_seed or self._receipt_source(previous_receipt)
+        culled_count = int(lineage.get("culled_count") or 0)
+        if status in {"healed-and-proven", "regrown-and-promoted"}:
+            current_seed = dict(source_identity)
+            last_culled = lineage.get("last_culled")
+            next_action = "continue-growing-forward"
+            projection_status = "healthy-forward-seed"
+        elif status == "culled-awaiting-forward-regrow":
+            culled_count += 1
+            last_culled = {
+                "head": head,
+                "tree": source_identity.get("tree"),
+                "reason": reason,
+                "culled_at": now,
+                "evidence": evidence or {},
+            }
+            next_action = "publish-forward-successor-from-verified-lkg-genetics"
+            projection_status = status
+        else:
+            last_culled = lineage.get("last_culled")
+            next_action = "heal-current-seed-and-reprove"
+            projection_status = status
+        event = {
+            "schema": LINEAGE_EVENT_SCHEMA,
+            "event_id": f"seed-{time.time_ns()}-{os.getpid()}-{head[:12] or 'unknown'}",
+            "at": now,
+            "status": status,
+            "reason": reason,
+            "source": source_identity,
+            "transition": transition,
+            "current_seed": current_seed,
+            "evidence": evidence or {},
+            "policy": FORWARD_ONLY_POLICY,
+            "branch_moved_backward": False,
+            "generation_erased": False,
+        }
+        _append_json_line(self.state_dir / "seed-lineage-events.jsonl", event)
+        projection = {
+            "schema": LINEAGE_SCHEMA,
+            "policy": FORWARD_ONLY_POLICY,
+            "status": projection_status,
+            "observed_head": head,
+            "current_seed": current_seed,
+            "last_culled": last_culled,
+            "culled_count": culled_count,
+            "last_event": event,
+            "next_action": next_action,
+            "updated_at": now,
+        }
+        _atomic_json(self.state_dir / "seed-lineage.json", projection)
+        return projection
+
+    def _refused_transition_receipt(
+        self,
+        source_identity: dict[str, Any],
+        transition: dict[str, Any],
+    ) -> dict[str, Any]:
+        receipt = {
+            "schema": SCHEMA,
+            "status": "refused",
+            "reason": transition.get("reason"),
+            "source": source_identity,
+            "lineage": self._lineage_state(),
+            "transition": transition,
+            "branch_moved_backward": False,
+            "next_action": "wait-for-forward-successor",
+        }
+        _atomic_json(self.state_dir / "seed-lifecycle-last-refusal.json", receipt)
+        return receipt
 
     def _source_identity(self) -> dict[str, Any]:
         if not (self.workspace / ".git").is_dir():
@@ -549,6 +744,65 @@ class RuntimeUpdater:
         _atomic_json(stage / "manifest.json", manifest)
         return stage, manifest
 
+    def _heal_from_displaced_state(
+        self,
+        *,
+        runtime_files: list[str],
+        system_files: list[str],
+        displaced_state: Path,
+    ) -> dict[str, Any]:
+        restored_runtime: list[str] = []
+        restored_system: list[str] = []
+        removed_new_runtime: list[str] = []
+        removed_new_system: list[str] = []
+        errors: list[str] = []
+        for relative in reversed(system_files):
+            saved = displaced_state / "system" / relative
+            target = self.system_root / relative
+            try:
+                if saved.is_file():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(saved, target)
+                    if _sha256(target) != _sha256(saved):
+                        raise RuntimeUpdateError(f"healed system hash mismatch: {relative}")
+                    restored_system.append(relative)
+                else:
+                    target.unlink(missing_ok=True)
+                    removed_new_system.append(relative)
+            except Exception as exc:
+                errors.append(f"system:{relative}:{type(exc).__name__}:{exc}")
+        for name in reversed(runtime_files):
+            saved = displaced_state / name
+            target = self.target / name
+            try:
+                if saved.is_file():
+                    shutil.copy2(saved, target)
+                    if _sha256(target) != _sha256(saved):
+                        raise RuntimeUpdateError(f"healed runtime hash mismatch: {name}")
+                    restored_runtime.append(name)
+                else:
+                    target.unlink(missing_ok=True)
+                    removed_new_runtime.append(name)
+            except Exception as exc:
+                errors.append(f"runtime:{name}:{type(exc).__name__}:{exc}")
+        integration = self._activate_system_integration(runtime_files, system_files)
+        gui = self._restart_gui(runtime_files, system_files, ensure_running=True)
+        healed = bool(not errors and integration.get("status") != "failed" and gui.get("status") != "failed")
+        return {
+            "schema": "aurum.seed-heal-receipt.v1",
+            "status": "passed" if healed else "failed",
+            "displaced_state": str(displaced_state),
+            "restored_runtime": sorted(restored_runtime),
+            "restored_system": sorted(restored_system),
+            "removed_new_runtime": sorted(removed_new_runtime),
+            "removed_new_system": sorted(removed_new_system),
+            "errors": errors,
+            "system_activation": integration,
+            "gui_activation": gui,
+            "branch_moved_backward": False,
+            "git_ref_changed": False,
+        }
+
     def _installed_hash_proof(self, plan: dict[str, Any]) -> dict[str, Any]:
         mismatches: list[str] = []
         for item in plan.get("files") or []:
@@ -684,15 +938,18 @@ class RuntimeUpdater:
         plan = self.plan()
         if not plan.get("available"):
             return plan
+        previous = _json_file(self.state_dir / "runtime-update.json")
+        source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
+        transition = self._generation_transition(source_identity, previous)
+        if transition.get("status") != "passed":
+            return self._refused_transition_receipt(source_identity, transition)
         if plan.get("changed") or plan.get("system_changed"):
             return {"schema": SCHEMA, "status": "pending", "reason": "runtime-apply-required"}
-        source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
         verification = self._validate_sources(source_identity)
         runtime_proof = self._installed_hash_proof(plan)
         physical_proof = self._physical_proof(gui)
         gpt_proof = self._gpt_proof()
         system_proof = self._system_proof()
-        previous = _json_file(self.state_dir / "runtime-update.json")
         previous_generation = previous.get("generation") if isinstance(previous.get("generation"), dict) else {}
         previous_source = previous_generation.get("source") if isinstance(previous_generation.get("source"), dict) else {}
         stage = None
@@ -709,8 +966,32 @@ class RuntimeUpdater:
             and gpt_proof.get("status") == "passed"
             and system_proof.get("status") == "passed"
         )
+        lineage_status = (
+            "healed-and-proven"
+            if transition.get("relation") == "same-head-heal" and become_next_seed
+            else "regrown-and-promoted"
+            if become_next_seed
+            else "heal-required"
+        )
+        lineage = self._record_lineage(
+            status=lineage_status,
+            source_identity=source_identity,
+            transition=transition,
+            previous_receipt=previous,
+            reason=None if become_next_seed else "current-runtime-proof-incomplete",
+            evidence={
+                "runtime": runtime_proof,
+                "physical": physical_proof,
+                "gpt": gpt_proof,
+                "system": system_proof,
+            },
+        )
         lifecycle = {
             "schema": GENERATION_SCHEMA,
+            "lineage_policy": FORWARD_ONLY_POLICY,
+            "transition": transition,
+            "disposition": lineage_status,
+            "lineage": lineage,
             "source": source_identity,
             "discover_pull": "verified-by-autonomy-receipt",
             "verify": verification,
@@ -719,6 +1000,7 @@ class RuntimeUpdater:
                 "status": "passed",
                 "changed": list(previous.get("changed") or []),
                 "system_changed": list(previous.get("system_changed") or []),
+                "displaced_state": previous.get("displaced_state") or previous.get("backup"),
                 "backup": previous.get("backup"),
                 "installed_hashes_current": True,
             },
@@ -739,10 +1021,12 @@ class RuntimeUpdater:
             "target": str(self.target),
             "changed": list(previous.get("changed") or []),
             "system_changed": list(previous.get("system_changed") or []),
+            "displaced_state": previous.get("displaced_state") or previous.get("backup"),
             "backup": previous.get("backup"),
             "reboot_required": bool(physical_proof.get("reboot_required")),
             "source": source_identity,
             "generation": lifecycle,
+            "lineage": lineage,
         }
         _atomic_json(self.state_dir / "runtime-update.json", receipt)
         _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
@@ -756,6 +1040,10 @@ class RuntimeUpdater:
             raise RuntimeUpdateError("installed runtime update requires the root-owned Aurum console")
         source_identity = plan.get("source") if isinstance(plan.get("source"), dict) else {}
         verification = self._validate_sources(source_identity)
+        previous = _json_file(self.state_dir / "runtime-update.json")
+        transition = self._generation_transition(source_identity, previous)
+        if transition.get("status") != "passed":
+            return self._refused_transition_receipt(source_identity, transition)
         identity = self._apply_identity()
         changed = list(plan.get("changed") or [])
         system_changed = list(plan.get("system_changed") or [])
@@ -774,8 +1062,32 @@ class RuntimeUpdater:
                 and physical_proof.get("status") == "passed"
                 and system_activation.get("status") == "ready"
             )
+            lineage_status = (
+                "healed-and-proven"
+                if transition.get("relation") == "same-head-heal" and become_next_seed
+                else "regrown-and-promoted"
+                if become_next_seed
+                else "heal-required"
+            )
+            lineage = self._record_lineage(
+                status=lineage_status,
+                source_identity=source_identity,
+                transition=transition,
+                previous_receipt=previous,
+                reason=None if become_next_seed else "current-runtime-proof-incomplete",
+                evidence={
+                    "runtime": installed_proof,
+                    "physical": physical_proof,
+                    "gpt": gpt_proof,
+                    "system": system_activation,
+                },
+            )
             lifecycle = {
                 "schema": GENERATION_SCHEMA,
+                "lineage_policy": FORWARD_ONLY_POLICY,
+                "transition": transition,
+                "disposition": lineage_status,
+                "lineage": lineage,
                 "source": source_identity,
                 "discover_pull": "verified-by-autonomy-receipt",
                 "verify": verification,
@@ -799,6 +1111,7 @@ class RuntimeUpdater:
                 "system_activation": system_activation,
                 "gui_activation": gui_activation,
                 "generation": lifecycle,
+                "lineage": lineage,
             }
             _atomic_json(self.state_dir / "runtime-update.json", result)
             _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
@@ -810,16 +1123,19 @@ class RuntimeUpdater:
             changed=changed,
             system_changed=system_changed,
         )
-        backup = self.state_dir / "runtime-backup" / f"{stamp}-{os.getpid()}"
-        backup.mkdir(parents=True, mode=0o700, exist_ok=False)
+        displaced_state = self.state_dir / "displaced-state" / f"{stamp}-{os.getpid()}"
+        displaced_state.mkdir(parents=True, mode=0o700, exist_ok=False)
         applied: list[str] = []
         applied_system: list[str] = []
+        touched_runtime: list[str] = []
+        touched_system: list[str] = []
         try:
             for name in changed:
                 source = stage / "runtime" / name
                 target = self.target / name
                 if target.is_file():
-                    shutil.copy2(target, backup / name)
+                    shutil.copy2(target, displaced_state / name)
+                touched_runtime.append(name)
                 temporary = target.with_name(f".{name}.{os.getpid()}.next")
                 shutil.copy2(source, temporary)
                 os.chmod(temporary, 0o755)
@@ -832,10 +1148,11 @@ class RuntimeUpdater:
                     continue
                 source = stage / "system" / relative
                 target = self.system_root / relative
-                saved = backup / "system" / relative
+                saved = displaced_state / "system" / relative
                 if target.is_file():
                     saved.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(target, saved)
+                touched_system.append(relative)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 temporary = target.with_name(f".{target.name}.{os.getpid()}.next")
                 shutil.copy2(source, temporary)
@@ -844,25 +1161,46 @@ class RuntimeUpdater:
                 if _sha256(target) != _sha256(source) or (target.stat().st_mode & 0o777) != mode:
                     raise RuntimeUpdateError(f"system asset verification failed after replacing {relative}")
                 applied_system.append(relative)
-        except Exception:
-            for relative in reversed(applied_system):
-                saved = backup / "system" / relative
-                target = self.system_root / relative
-                if saved.is_file():
-                    shutil.copy2(saved, target)
-                else:
-                    target.unlink(missing_ok=True)
-            for name in reversed(applied):
-                saved = backup / name
-                target = self.target / name
-                if saved.is_file():
-                    shutil.copy2(saved, target)
-                else:
-                    target.unlink(missing_ok=True)
+        except Exception as exc:
+            healing = self._heal_from_displaced_state(
+                runtime_files=touched_runtime,
+                system_files=touched_system,
+                displaced_state=displaced_state,
+            )
+            lineage = self._record_lineage(
+                status="culled-awaiting-forward-regrow",
+                source_identity=source_identity,
+                transition=transition,
+                previous_receipt=previous,
+                reason=f"apply-failed:{type(exc).__name__}:{exc}",
+                evidence={
+                    "stage": {**stage_manifest, "path": str(stage)},
+                    "displaced_state": str(displaced_state),
+                    "healing": healing,
+                },
+            )
+            _atomic_json(
+                self.state_dir / "culled-generation.json",
+                {
+                    "schema": "aurum.culled-generation.v1",
+                    "status": "culled-awaiting-forward-regrow",
+                    "source": source_identity,
+                    "transition": transition,
+                    "reason": f"apply-failed:{type(exc).__name__}:{exc}",
+                    "healing": healing,
+                    "lineage": lineage,
+                    "branch_moved_backward": False,
+                    "next_action": "publish-forward-successor-from-verified-lkg-genetics",
+                },
+            )
             raise
         installed_before_activation = self._installed_hash_proof(plan)
         interim_lifecycle = {
             "schema": GENERATION_SCHEMA,
+            "lineage_policy": FORWARD_ONLY_POLICY,
+            "transition": transition,
+            "disposition": "candidate-awaiting-proof",
+            "lineage": self._lineage_state(),
             "source": source_identity,
             "discover_pull": "verified-by-autonomy-receipt",
             "verify": verification,
@@ -871,7 +1209,8 @@ class RuntimeUpdater:
                 "status": "passed" if installed_before_activation.get("status") == "passed" else "failed",
                 "changed": applied,
                 "system_changed": applied_system,
-                "backup": str(backup),
+                "displaced_state": str(displaced_state),
+                "backup": str(displaced_state),
             },
             "prove": {
                 "runtime": installed_before_activation,
@@ -890,10 +1229,12 @@ class RuntimeUpdater:
             "target": str(self.target),
             "changed": applied,
             "system_changed": applied_system,
-            "backup": str(backup),
+            "displaced_state": str(displaced_state),
+            "backup": str(displaced_state),
             "reboot_required": False,
             "source": source_identity,
             "generation": interim_lifecycle,
+            "lineage": self._lineage_state(),
         })
         system_activation = self._activate_system_integration(applied, applied_system)
         activation = self._launch_physical_echo()
@@ -908,8 +1249,61 @@ class RuntimeUpdater:
             and physical_proof.get("status") == "passed"
             and system_activation.get("status") == "ready"
         )
+        healing: dict[str, Any] | None = None
+        if become_next_seed:
+            lineage_status = "regrown-and-promoted"
+            lineage_reason = None
+            lineage_evidence = {
+                "stage": {**stage_manifest, "path": str(stage)},
+                "runtime": installed_proof,
+                "physical": physical_proof,
+                "gpt": gpt_proof,
+                "system": system_activation,
+                "displaced_state": str(displaced_state),
+            }
+        else:
+            failed_proofs = [
+                name
+                for name, proof in (
+                    ("runtime", installed_proof),
+                    ("physical", physical_proof),
+                    ("gpt", gpt_proof),
+                    ("system", system_activation),
+                )
+                if proof.get("status") not in {"passed", "ready"}
+            ]
+            healing = self._heal_from_displaced_state(
+                runtime_files=applied,
+                system_files=applied_system,
+                displaced_state=displaced_state,
+            )
+            lineage_status = "culled-awaiting-forward-regrow"
+            lineage_reason = "proof-failed:" + ",".join(failed_proofs or ["unknown"])
+            lineage_evidence = {
+                "stage": {**stage_manifest, "path": str(stage)},
+                "candidate_proof": {
+                    "runtime": installed_proof,
+                    "physical": physical_proof,
+                    "gpt": gpt_proof,
+                    "system": system_activation,
+                },
+                "displaced_state": str(displaced_state),
+                "healing": healing,
+            }
+        lineage = self._record_lineage(
+            status=lineage_status,
+            source_identity=source_identity,
+            transition=transition,
+            previous_receipt=previous,
+            reason=lineage_reason,
+            evidence=lineage_evidence,
+        )
         lifecycle = {
             "schema": GENERATION_SCHEMA,
+            "lineage_policy": FORWARD_ONLY_POLICY,
+            "transition": transition,
+            "disposition": lineage_status,
+            "lineage": lineage,
             "source": source_identity,
             "discover_pull": "verified-by-autonomy-receipt",
             "verify": verification,
@@ -918,7 +1312,9 @@ class RuntimeUpdater:
                 "status": "passed" if installed_proof.get("status") == "passed" else "failed",
                 "changed": applied,
                 "system_changed": applied_system,
-                "backup": str(backup),
+                "displaced_state": str(displaced_state),
+                "backup": str(displaced_state),
+                "healing": healing,
             },
             "prove": {
                 "runtime": installed_proof,
@@ -929,13 +1325,14 @@ class RuntimeUpdater:
         }
         receipt = {
             "schema": SCHEMA,
-            "status": "updated" if become_next_seed else "applied-not-proven",
+            "status": "updated" if become_next_seed else "culled-awaiting-forward-regrow",
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
             "changed": applied,
             "system_changed": applied_system,
-            "backup": str(backup),
+            "displaced_state": str(displaced_state),
+            "backup": str(displaced_state),
             "reboot_required": bool(physical_proof.get("reboot_required")),
             "identity": identity,
             "physical_echo_activation": activation,
@@ -944,7 +1341,27 @@ class RuntimeUpdater:
             "gui_activation": gui_activation,
             "source": source_identity,
             "generation": lifecycle,
+            "lineage": lineage,
+            "healing": healing,
+            "branch_moved_backward": False,
         }
+        if not become_next_seed:
+            receipt["next_action"] = "publish-forward-successor-from-verified-lkg-genetics"
+            _atomic_json(
+                self.state_dir / "culled-generation.json",
+                {
+                    "schema": "aurum.culled-generation.v1",
+                    "status": "culled-awaiting-forward-regrow",
+                    "source": source_identity,
+                    "transition": transition,
+                    "reason": lineage_reason,
+                    "candidate_proof": lineage_evidence.get("candidate_proof"),
+                    "healing": healing,
+                    "lineage": lineage,
+                    "branch_moved_backward": False,
+                    "next_action": "publish-forward-successor-from-verified-lkg-genetics",
+                },
+            )
         _atomic_json(self.state_dir / "runtime-update.json", receipt)
         _atomic_json(self.state_dir / "seed-generation.json", lifecycle)
         return receipt

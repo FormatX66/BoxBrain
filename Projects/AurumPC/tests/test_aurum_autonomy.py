@@ -50,6 +50,10 @@ class AurumAutonomyPolicyTests(unittest.TestCase):
         self.assertFalse(policy["driver_policy"]["replace_bound_drivers"])
         self.assertFalse(policy["driver_policy"]["firmware_writes"])
         self.assertFalse(policy["auto_reboot_after_runtime_update"])
+        self.assertEqual(policy["seed_lifecycle"]["published_history"], "forward-only")
+        self.assertFalse(policy["seed_lifecycle"]["generation_rollback"])
+        self.assertEqual(policy["seed_lifecycle"]["unrecoverable_candidate"], "cull-and-regrow-forward")
+        self.assertFalse(policy["seed_lifecycle"]["retry_culled_head"])
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 ## Canonical law
 
-**Boot once. Grow continuously.**
+**Boot once. Grow continuously. Never move backward.**
 
 An Aurum seed is a small bootstrap organism, not a conventional installer image and not a recurring upgrade medium.
 
@@ -16,11 +16,25 @@ Canonical lifecycle:
 4. discover the next authorized Aurum state;
 5. pull or receive that state through an authorized path;
 6. verify provenance, policy, compatibility, and integrity;
-7. stage reversible changes;
+7. stage the candidate and preserve displaced-state evidence;
 8. apply the next state locally;
 9. verify runtime and physical behavior;
-10. retain rollback evidence;
-11. continue growing from the new running state.
+10. if proof passes, promote the candidate as the next seed;
+11. if proof fails, cull the candidate, heal the current seed from the preserved
+    displaced state, and wait for a new forward descendant;
+12. continue growing only forward from verified history.
+
+Published branches and generation identities are append-only. Aurum never
+rewinds a canonical ref, erases a failed generation, or promotes an older
+generation as if it were new. Last Known Good is genetics for a forward
+successor, not a destination for a backward branch move.
+
+The only failure dispositions are:
+
+- **heal** — repair the current running seed in place and re-prove it;
+- **cull and regrow** — preserve the failed candidate and its receipts, heal the
+  running seed, then accept only a later Git descendant that regrows from
+  verified LKG genetics and passes every normal gate.
 
 A normal Aurum generation must **not** require rebuilding, reflashing, or replacing boot media.
 
@@ -68,10 +82,15 @@ replace tracked seed source or push Git.
 ## Generation proof
 
 Every running-seed generation records its authorized repository, branch, commit
-and tree; source verification; staged file manifest; rollback location; applied
+and tree; source verification; staged file manifest; displaced-state evidence; applied
 hash proof; physical projection result; bounded GPT executor receipt; and the
 final `become_next_seed` decision. Hopper publishes a sanitized view of this
 receipt through its read-only self-debug status channel.
+
+The append-only lineage journal additionally records the observed Git relation,
+current proven seed, culled candidate, healing receipt, and required forward
+successor. A culled head is never retried and the installed runtime never runs
+`reset`, `revert`, force-push, or any other backward Git operation.
 
 `become_next_seed` is true only after installed runtime hashes, bounded GPT
 execution, system activation, and a real physical projection have all passed.

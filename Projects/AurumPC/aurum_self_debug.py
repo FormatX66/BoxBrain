@@ -98,6 +98,7 @@ class HopperSelfDebugger:
             "autonomy_receipt": _json(self.state_dir / "autonomy.json"),
             "runtime_receipt": _json(self.state_dir / "runtime-update.json"),
             "generation_receipt": _json(self.state_dir / "seed-generation.json"),
+            "lineage_receipt": _json(self.state_dir / "seed-lineage.json"),
             "gpt_receipt": _json(self.state_dir / "gpt-control" / "latest.json"),
             "appearance": appearance_snapshot(),
             "credential": credential_status(
@@ -144,6 +145,8 @@ class HopperSelfDebugger:
             issues.append({"code": "NETWORK_OFFLINE", "severity": "amber", "plain": "Hopper is offline; local operation remains available."})
         if state["self_build"] and state["self_build"].get("status") == "failed":
             issues.append({"code": "SELF_BUILD_FAILED", "severity": "amber", "plain": "The latest bounded self-build reported a failure."})
+        if state["lineage_receipt"].get("status") == "culled-awaiting-forward-regrow":
+            issues.append({"code": "SEED_CULLED_AWAITING_REGROW", "severity": "amber", "plain": "A failed candidate was culled. Aurum is waiting for a new forward successor."})
         return issues
 
     def status(self) -> dict[str, Any]:
@@ -203,6 +206,8 @@ class HopperSelfDebugger:
             "generation": {
                 "source": state["source"],
                 "lifecycle": generation,
+                "lineage": state["lineage_receipt"],
+                "disposition": generation.get("disposition"),
                 "become_next_seed": bool(generation.get("become_next_seed")),
                 "autonomy_cycle": state["autonomy_receipt"].get("generation"),
             },

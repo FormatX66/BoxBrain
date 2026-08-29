@@ -7,7 +7,8 @@ only the guarded installed-runtime allowlist, runs a local resumable self-build
 without dirtying Git, starts the loopback GUI, and advances the adaptive driver
 model lane.  It never pushes Git, loads synthesized drivers, replaces bound
 drivers, writes firmware, or reboots unless a matching policy explicitly says
-so.
+so. Published generations never move backward: a candidate is healed or
+culled and a later descendant regrows forward.
 """
 from __future__ import annotations
 
@@ -336,6 +337,8 @@ class AutonomyManager:
                 "stage": ((runtime.get("generation") or {}).get("stage") if isinstance(runtime.get("generation"), dict) else None),
                 "apply": ((runtime.get("generation") or {}).get("apply") if isinstance(runtime.get("generation"), dict) else None),
                 "prove": ((runtime.get("generation") or {}).get("prove") if isinstance(runtime.get("generation"), dict) else None),
+                "disposition": ((runtime.get("generation") or {}).get("disposition") if isinstance(runtime.get("generation"), dict) else None),
+                "lineage": runtime.get("lineage"),
                 "become_next_seed": bool((runtime.get("generation") or {}).get("become_next_seed")) if isinstance(runtime.get("generation"), dict) else False,
             },
             "next_cycle_seconds": int(self.policy.get("poll_interval_seconds") or 300),

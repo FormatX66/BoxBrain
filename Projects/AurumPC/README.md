@@ -4,7 +4,7 @@ Aurum PC is the removable-media x86_64 bring-up environment for Aurum. Linux is 
 
 ## Seed lifecycle
 
-Aurum follows the canonical rule **Boot once. Grow continuously.** The initial seed is bootstrap infrastructure; established Aurum nodes do not require rebuilt or reflashed boot media for normal generation updates. The running seed discovers, pulls, verifies, stages, applies, proves, and becomes the next seed. Boot media is reserved for first seeding or true recovery conditions. See [SEED_LIFECYCLE.md](SEED_LIFECYCLE.md).
+Aurum follows the canonical rule **Boot once. Grow continuously. Never move backward.** The initial seed is bootstrap infrastructure; established Aurum nodes do not require rebuilt or reflashed boot media for normal generation updates. The running seed discovers, pulls, verifies, stages, applies, proves, and becomes the next seed. If a candidate fails, Aurum heals the running seed, culls the candidate, preserves its evidence, and waits for a new forward descendant regrown from verified LKG genetics. Boot media is reserved for first seeding or true recovery conditions. See [SEED_LIFECYCLE.md](SEED_LIFECYCLE.md).
 
 ## First boot
 
@@ -35,7 +35,7 @@ The installed PC-01 sandbox has a machine-bound unattended policy keyed to its i
 
 The unattended lane never pushes Git and does not automatically reboot. Its state is receipted under `/var/lib/aurum/state/autonomy.json` and driver evidence under `/var/lib/aurum/state/driver-lab/`.
 
-Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`. Hopper's read-only self-debug channel exposes the landed commit and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, and `become_next_seed` proof without enabling remote shell control.
+Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`, an append-only `/var/lib/aurum/state/seed-lineage-events.jsonl`, and its current `/var/lib/aurum/state/seed-lineage.json` projection. Hopper's read-only self-debug channel exposes the landed commit, forward relation, heal/cull/regrow disposition, and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, and `become_next_seed` proof without enabling remote shell control.
 
 ## One-shot seed recovery
 

@@ -20,7 +20,7 @@ RESIDENT_CAPABILITIES: tuple[dict[str, str], ...] = (
     {"id": "CORE:STORAGE", "name": "Storage + State", "summary": "Durable state, removable media, and storage substrate access."},
     {"id": "CORE:TIME", "name": "Time", "summary": "Clock synchronization and monotonic runtime timing."},
     {"id": "CORE:GROWTH", "name": "Update + Self-build", "summary": "Generation growth, guarded runtime update, and local self-build."},
-    {"id": "CORE:SAFETY", "name": "Safety + Recovery", "summary": "Diagnostics, rollback, recovery console, and bounded physical changes."},
+    {"id": "CORE:SAFETY", "name": "Safety + Recovery", "summary": "Diagnostics, in-place healing, cull-and-regrow recovery, and bounded physical changes without generation rollback."},
     {"id": "CORE:CONTROL", "name": "AI Control Plane", "summary": "Expose every OS domain to authorized model intent while Aurum owns policy, execution, verification, and recovery."},
 )
 
@@ -55,7 +55,7 @@ TRAITS: tuple[dict[str, Any], ...] = (
         "stage": "foundation-ready",
         "resident": True,
         "priority": 3,
-        "summary": "Diagnose, restore, and return to a known-good generation without specialist administration.",
+        "summary": "Diagnose and heal the current seed, or cull a failed candidate and regrow a verified forward successor without specialist administration.",
     },
     {
         "id": "TRAIT:WEB",

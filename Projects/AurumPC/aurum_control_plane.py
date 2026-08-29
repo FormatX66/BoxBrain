@@ -2,7 +2,8 @@
 """Policy-mediated full-OS control plane for Aurum models.
 
 Models are allowed to express intent across every OS domain. Aurum, not the
-model, owns authorization, execution, verification, rollback, and durable
+model, owns authorization, execution, verification, healing, cull-and-regrow
+decisions, and durable
 receipts. This keeps the long-term interface conversational without making raw
 shell access the operating-system contract.
 """
@@ -27,7 +28,7 @@ DOMAINS: tuple[dict[str, Any], ...] = (
     {"id": "storage", "name": "Storage", "examples": ["files", "state", "media", "backup", "projection"]},
     {"id": "identity", "name": "Identity", "examples": ["user", "machine", "session", "presence"]},
     {"id": "permissions", "name": "Permissions", "examples": ["access", "confidence", "delegation", "approval"]},
-    {"id": "recovery", "name": "Recovery", "examples": ["diagnose", "rollback", "repair", "known-good generation"]},
+    {"id": "recovery", "name": "Recovery", "examples": ["diagnose", "heal", "cull", "regrow forward"]},
     {"id": "power", "name": "Power", "examples": ["sleep", "wake", "shutdown", "thermal-aware policy"]},
 )
 
@@ -39,7 +40,9 @@ def catalog() -> dict[str, Any]:
         "model_intent_scope": "full",
         "execution_authority": "aurum-policy-broker",
         "verification_required": True,
-        "rollback_required_when_applicable": True,
+        "generation_history": "forward-only",
+        "generation_rollback_permitted": False,
+        "failure_disposition": "heal-or-cull-and-regrow-forward",
         "domains": [dict(item) for item in DOMAINS],
     }
 

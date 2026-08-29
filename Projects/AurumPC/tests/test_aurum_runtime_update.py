@@ -23,6 +23,83 @@ RuntimeUpdater = runtime_module.RuntimeUpdater
 
 
 class AurumRuntimeUpdateTests(unittest.TestCase):
+    def test_generation_transition_accepts_only_forward_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            subprocess.run(["git", "init", "-b", runtime_module.BRANCH], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.name", "Aurum Test"], cwd=workspace, check=True)
+            subprocess.run(["git", "config", "user.email", "aurum-test@example.invalid"], cwd=workspace, check=True)
+            subprocess.run(["git", "remote", "add", "origin", runtime_module.REPOSITORY], cwd=workspace, check=True)
+            source_file = workspace / "seed.txt"
+            source_file.write_text("first\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+            subprocess.run(["git", "commit", "-m", "first seed"], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            first = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+            source_file.write_text("second\n", encoding="utf-8")
+            subprocess.run(["git", "commit", "-am", "forward seed"], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            second = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+            tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+            updater = RuntimeUpdater(workspace=workspace, state_dir=root / "state")
+            previous = {"source": {"head": first}, "generation": {"become_next_seed": True}}
+
+            forward = updater._generation_transition({"head": second, "tree": tree}, previous)
+            refused = updater._generation_transition({"head": "f" * 40, "tree": tree}, previous)
+
+        self.assertEqual(forward["status"], "passed")
+        self.assertEqual(forward["relation"], "forward-successor")
+        self.assertEqual(refused["status"], "refused")
+        self.assertEqual(refused["reason"], "non-forward-generation")
+        self.assertFalse(refused["policy"]["generation_rollback"])
+
+    def test_culled_head_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / "state"
+            state.mkdir()
+            head = "a" * 40
+            tree = "b" * 40
+            (state / "seed-lineage.json").write_text(
+                json.dumps({
+                    "schema": runtime_module.LINEAGE_SCHEMA,
+                    "observed_head": head,
+                    "last_culled": {"head": head, "tree": tree},
+                    "culled_count": 1,
+                }),
+                encoding="utf-8",
+            )
+            updater = RuntimeUpdater(workspace=root / "workspace", state_dir=state)
+            transition = updater._generation_transition({"head": head, "tree": tree}, {})
+
+        self.assertEqual(transition["status"], "refused")
+        self.assertEqual(transition["reason"], "culled-generation-awaiting-forward-successor")
+
+    def test_displaced_runtime_heals_without_changing_git(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            displaced = root / "displaced"
+            target.mkdir()
+            displaced.mkdir()
+            (target / "aurum_runtime_update.py").write_text("new candidate\n", encoding="utf-8")
+            (displaced / "aurum_runtime_update.py").write_text("current seed\n", encoding="utf-8")
+            updater = RuntimeUpdater(target=target, state_dir=root / "state", system_root=root / "system")
+            with (
+                patch.object(updater, "_activate_system_integration", return_value={"status": "ready"}),
+                patch.object(updater, "_restart_gui", return_value={"status": "running"}),
+            ):
+                healed = updater._heal_from_displaced_state(
+                    runtime_files=["aurum_runtime_update.py"],
+                    system_files=[],
+                    displaced_state=displaced,
+                )
+
+            self.assertEqual(healed["status"], "passed")
+            self.assertEqual((target / "aurum_runtime_update.py").read_text(encoding="utf-8"), "current seed\n")
+            self.assertFalse(healed["branch_moved_backward"])
+            self.assertFalse(healed["git_ref_changed"])
+
     def test_plan_and_apply_are_allowlisted_atomic_and_receipted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -85,6 +162,10 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             receipt = json.loads((state / "runtime-update.json").read_text(encoding="utf-8"))
             self.assertEqual(receipt["schema"], "aurum-pc-runtime-update-seed")
             self.assertTrue(Path(receipt["backup"]).is_dir())
+            self.assertEqual(receipt["backup"], receipt["displaced_state"])
+            self.assertEqual(result["generation"]["disposition"], "regrown-and-promoted")
+            self.assertEqual(receipt["generation"]["disposition"], "healed-and-proven")
+            self.assertFalse(receipt["generation"]["lineage_policy"]["generation_rollback"])
             self.assertEqual(result["system_activation"]["reason"], "simulated-system-root")
             self.assertTrue(receipt["generation"]["become_next_seed"])
             self.assertEqual(finalized["status"], "current")
@@ -96,6 +177,73 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 installed = system_root / relative
                 self.assertEqual(installed.read_text(encoding="utf-8"), f"managed asset: {relative}\n")
                 self.assertEqual(installed.stat().st_mode & 0o777, mode)
+
+    def test_failed_candidate_path_culls_and_heals_instead_of_rolling_back_git(self) -> None:
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn('"culled-awaiting-forward-regrow"', source)
+        self.assertIn("_heal_from_displaced_state", source)
+        self.assertIn('"branch_moved_backward": False', source)
+        self.assertNotIn('self._git("reset"', source)
+        self.assertNotIn('self._git("revert"', source)
+
+    def test_failed_physical_proof_culls_candidate_heals_runtime_and_blocks_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            source = workspace / "Projects" / "AurumPC"
+            target = root / "target"
+            system_root = root / "system"
+            state = root / "state"
+            marker = root / "aurum-installed.json"
+            source.mkdir(parents=True)
+            target.mkdir()
+            marker.write_text("{}\n", encoding="utf-8")
+            for name in ALLOWLIST:
+                (source / name).write_text(f"VALUE = {name!r}\n", encoding="utf-8")
+                (target / name).write_text("VALUE = 'current-seed'\n", encoding="utf-8")
+            for relative, _mode in SYSTEM_ASSETS:
+                asset = source / "runtime-assets" / relative
+                asset.parent.mkdir(parents=True, exist_ok=True)
+                asset.write_text(f"candidate asset: {relative}\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-b", runtime_module.BRANCH], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.name", "Aurum Test"], cwd=workspace, check=True)
+            subprocess.run(["git", "config", "user.email", "aurum-test@example.invalid"], cwd=workspace, check=True)
+            subprocess.run(["git", "remote", "add", "origin", runtime_module.REPOSITORY], cwd=workspace, check=True)
+            subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+            subprocess.run(["git", "commit", "-m", "candidate seed"], cwd=workspace, check=True, stdout=subprocess.DEVNULL)
+            head_before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+            updater = RuntimeUpdater(
+                workspace=workspace,
+                target=target,
+                state_dir=state,
+                installed_marker=marker,
+                system_root=system_root,
+            )
+            with (
+                patch.object(runtime_module.os, "geteuid", return_value=0, create=True),
+                patch.object(updater, "_activate_system_integration", return_value={"status": "ready"}),
+                patch.object(updater, "_restart_gui", side_effect=[
+                    {"status": "failed", "physical_desktop": False, "desktop": {"status": "failed"}},
+                    {"status": "running", "physical_desktop": True, "desktop": {"status": "running"}},
+                ]),
+                patch.object(updater, "_gpt_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_refresh_input", return_value={"status": "ready"}),
+                patch.object(updater, "_launch_physical_echo", return_value={"status": "skipped"}),
+            ):
+                culled = updater.apply()
+            head_after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
+            with patch.object(runtime_module.os, "geteuid", return_value=0, create=True):
+                retry = updater.apply()
+
+            self.assertEqual(culled["status"], "culled-awaiting-forward-regrow")
+            self.assertEqual(culled["generation"]["disposition"], "culled-awaiting-forward-regrow")
+            self.assertEqual(culled["healing"]["status"], "passed")
+            self.assertFalse(culled["branch_moved_backward"])
+            self.assertEqual(head_before, head_after)
+            self.assertEqual(retry["status"], "refused")
+            self.assertEqual(retry["reason"], "culled-generation-awaiting-forward-successor")
+            for name in ALLOWLIST:
+                self.assertEqual((target / name).read_text(encoding="utf-8"), "VALUE = 'current-seed'\n")
 
     def test_system_integration_reloads_enables_and_recovers_inactive_input_service(self) -> None:
         updater = RuntimeUpdater(system_root=Path("/"))
