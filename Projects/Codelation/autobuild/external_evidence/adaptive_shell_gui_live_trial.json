@@ -1,80 +1,80 @@
 {
-    "schema":  "aurum-adaptive-shell-gui-live-trial-evidence-v1",
-    "kind":  "adaptive-shell-gui-live-trial",
-    "source":  "aurum-bbpi4-loopback-gui-proof",
-    "verified":  true,
-    "node_id":  "cff5511ddbb6bf14",
-    "route":  "192.168.0.194",
-    "ssh_host_key_fingerprint":  "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
-    "observed_at":  1788007415,
-    "expires_at":  1788008615,
-    "candidate":  {
-                      "module":  "/opt/boxbrain/codelation/seed/aurum_gui.py",
-                      "module_sha256":  "8ef307c45820d1e771773dab8fba92bd242a628accb031985dd444080e84b114",
-                      "gui_schema":  "aurum.gui.v3",
-                      "tests_passed":  true
-                  },
-    "runtime":  {
-                    "service_active":  true,
-                    "service_enabled":  false,
-                    "transient":  true,
-                    "address":  "127.0.0.1",
-                    "port":  8765,
-                    "listener_loopback_only":  true,
-                    "http_status":  200,
-                    "content_type":  "text/html; charset=utf-8",
-                    "page_sha256":  "1e6b41f595e184d10358e0480841c8b558f6cd0255f2595e03fc2833a919f5c0",
-                    "status_sha256":  "f8547385a72d37130bd21f251cc332452612d3894f1c995660dfa4fb499c5dbf",
-                    "status_schema":  "aurum.gui.v3",
-                    "console_identity":  "BBPI4/Aurum",
-                    "mind_version":  2,
-                    "mind_sha256":  "dc21566201c50dfdb77c84aa3efd5c951cac4d35805703736f5e86403b447baa"
-                },
-    "transport":  {
-                      "strict_host_key_checking":  true,
-                      "dedicated_identity":  true,
-                      "usb_route":  "192.168.0.194",
-                      "windows_endpoint_loopback":  true,
-                      "pi_endpoint_loopback":  true
-                  },
-    "interface":  {
-                      "human_constants":  [
-                                              "home",
-                                              "back",
-                                              "search",
-                                              "settings",
-                                              "notifications",
-                                              "workspace-switcher",
-                                              "accessibility",
-                                              "session-power",
-                                              "recovery-safe-layout",
-                                              "adaptation-lock"
-                                          ],
-                      "safe_layout_available":  true,
-                      "proof_view_present":  true,
-                      "dialogue_only":  true,
-                      "host_actuation":  false,
-                      "api_key_persisted":  false
-                  },
-    "safety":  {
-                   "packages_installed":  false,
-                   "persistent_service_enabled":  false,
-                   "raw_disk_changed":  false,
-                   "firmware_changed":  false,
-                   "bootloader_changed":  false,
-                   "security_reduced":  false
-               },
-    "permission":  {
-                       "present":  true,
-                       "scope":  "adaptive-shell-gui-live-trial",
-                       "authorization_reference":  "codex-user-minimize-asks-go-more-20260816"
-                   },
-    "proof_view":  {
-                       "present":  true,
-                       "page_sha256":  "1e6b41f595e184d10358e0480841c8b558f6cd0255f2595e03fc2833a919f5c0",
-                       "status_sha256":  "f8547385a72d37130bd21f251cc332452612d3894f1c995660dfa4fb499c5dbf",
-                       "user_content_captured":  false
-                   },
-    "authority_granted":  false,
-    "persistent_service_enabled":  false
+  "schema": "aurum-adaptive-shell-gui-live-trial-evidence-v1",
+  "kind": "adaptive-shell-gui-live-trial",
+  "source": "aurum-bbpi4-loopback-gui-proof",
+  "verified": true,
+  "node_id": "cff5511ddbb6bf14",
+  "route": "10.12.194.1",
+  "ssh_host_key_fingerprint": "SHA256:X3DUtYg6vgC0krGnD2iQAi/CJfkMHKWB9avM6gXUDXY",
+  "observed_at": 1786903753,
+  "expires_at": 1786904953,
+  "candidate": {
+    "module": "/opt/boxbrain/codelation/seed/aurum_gui.py",
+    "module_sha256": "c39ffa6e03c1060c0bd2656c6b623e94ff26d35573be37e1e73b61e2d08948f0",
+    "gui_schema": "aurum.gui.v3",
+    "tests_passed": true
+  },
+  "runtime": {
+    "service_active": true,
+    "service_enabled": false,
+    "transient": true,
+    "address": "127.0.0.1",
+    "port": 8765,
+    "listener_loopback_only": true,
+    "http_status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "page_sha256": "782925b4b55b1a010426481ce05670400cca3ae7807d42621703ac48267b4d1b",
+    "status_sha256": "51ee55d76ec9f990658b24eb6728aeb5724a22bbcf8c1da27ae485dc7e12d5bd",
+    "status_schema": "aurum.gui.v3",
+    "console_identity": "BBPI4/Aurum",
+    "mind_version": 2,
+    "mind_sha256": "dc21566201c50dfdb77c84aa3efd5c951cac4d35805703736f5e86403b447baa"
+  },
+  "transport": {
+    "strict_host_key_checking": true,
+    "dedicated_identity": true,
+    "usb_route": "10.12.194.1",
+    "windows_endpoint_loopback": true,
+    "pi_endpoint_loopback": true
+  },
+  "interface": {
+    "human_constants": [
+      "home",
+      "back",
+      "search",
+      "settings",
+      "notifications",
+      "workspace-switcher",
+      "accessibility",
+      "session-power",
+      "recovery-safe-layout",
+      "adaptation-lock"
+    ],
+    "safe_layout_available": true,
+    "proof_view_present": true,
+    "dialogue_only": true,
+    "host_actuation": false,
+    "api_key_persisted": false
+  },
+  "safety": {
+    "packages_installed": false,
+    "persistent_service_enabled": false,
+    "raw_disk_changed": false,
+    "firmware_changed": false,
+    "bootloader_changed": false,
+    "security_reduced": false
+  },
+  "permission": {
+    "present": true,
+    "scope": "adaptive-shell-gui-live-trial",
+    "authorization_reference": "codex-user-minimize-asks-go-more-20260816"
+  },
+  "proof_view": {
+    "present": true,
+    "page_sha256": "782925b4b55b1a010426481ce05670400cca3ae7807d42621703ac48267b4d1b",
+    "status_sha256": "51ee55d76ec9f990658b24eb6728aeb5724a22bbcf8c1da27ae485dc7e12d5bd",
+    "user_content_captured": false
+  },
+  "authority_granted": false,
+  "persistent_service_enabled": false
 }
