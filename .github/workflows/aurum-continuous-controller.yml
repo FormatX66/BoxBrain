@@ -145,6 +145,17 @@ jobs:
             exit 0
           fi
 
+          current_sha="$(git rev-parse HEAD)"
+          terminal_runs="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${AURUM_TRUNK}&status=completed&per_page=50")"
+          same_head_terminal="$(printf '%s' "$terminal_runs" | jq -r --arg sha "$current_sha" \
+            '[.workflow_runs[] | select(.head_sha == $sha and (.conclusion == "success" or .conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure" or .conclusion == "action_required"))][0].conclusion // empty')"
+          if [ -n "$same_head_terminal" ]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo "AURUM_CONTINUOUS_LAB same-head-terminal-result-already-recorded source_commit=$current_sha conclusion=$same_head_terminal"
+            exit 0
+          fi
+
           last_success="$(gh api \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=${AURUM_TRUNK}&status=success&per_page=20" \
             --jq '.workflow_runs[0].head_sha // empty')"
@@ -164,7 +175,6 @@ jobs:
           fi
 
           state_path='Projects/Codelation/autobuild/native_chain_state.json'
-          current_sha="$(git rev-parse HEAD)"
           next_gap=''
           blocked_output=''
           if [ -f "$state_path" ]; then
