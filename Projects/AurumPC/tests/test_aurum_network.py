@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import socket
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -42,6 +44,33 @@ class AurumNetworkTests(unittest.TestCase):
         self.assertEqual(status["interface"], "usb0")
         self.assertEqual(status["ip"], "10.12.194.5")
         self.assertTrue(status["online"])
+
+    def test_boot_reconnect_cli_writes_a_bounded_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "network.json"
+            with (
+                patch.object(sys, "argv", [
+                    "aurum_network.py",
+                    "--reconnect-saved",
+                    "--timeout-seconds",
+                    "20",
+                    "--write-state",
+                    str(receipt),
+                ]),
+                patch.object(network, "network_status", return_value={"online": False}),
+                patch.object(
+                    network,
+                    "connect_saved",
+                    return_value={"status": "online", "online": True, "interface": "wlan0"},
+                ) as reconnect,
+            ):
+                returncode = network.main()
+
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+
+        self.assertEqual(returncode, 0)
+        self.assertEqual(payload["status"], "online")
+        reconnect.assert_called_once_with(timeout_seconds=20)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,10 @@ class AurumSyncRecoveryContractTests(unittest.TestCase):
         self.assertIn('merge", "--ff-only"', text)
         self.assertIn("checkpoint_preserved", text)
         self.assertIn("checkpoint_reapplied", text)
+        self.assertIn("apply_updated_runtime", text)
+        self.assertIn('"aurum_runtime_update.py"', text)
+        self.assertIn('"apply"', text)
+        self.assertIn('"runtime_apply"', text)
         self.assertNotIn('reset", "--hard"', text)
         self.assertNotIn('checkout", "-f"', text)
 

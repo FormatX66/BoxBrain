@@ -7,15 +7,28 @@ import json
 import os
 import shutil
 import subprocess
+import threading
+import time
 from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA = "aurum.input.v3"
+SCHEMA = "aurum.input.v4"
 SYS_INPUT = Path("/sys/class/input")
 DEV_INPUT = Path("/dev/input")
 DEFAULT_STATE = Path("/run/aurum-input-status.json")
-COMMON_MODULES = ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid")
+DEFAULT_STATE_DIR = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
+GUI_EVENT_PROOF = "gui-input-proof.json"
+_GUI_EVENT_LOCK = threading.Lock()
+COMMON_MODULES = (
+    "i2c_hid_acpi",
+    "hid_multitouch",
+    "psmouse",
+    "usbhid",
+    "hid_generic",
+    "atkbd",
+)
 POINTER_KINDS = frozenset({"touchpad", "mouse", "relative-pointer", "absolute-pointer"})
+HUMAN_INPUT_KINDS = POINTER_KINDS | {"keyboard"}
 XORG_LIBINPUT_DRIVERS = (
     Path("/usr/lib/xorg/modules/input/libinput_drv.so"),
     Path("/usr/lib/x86_64-linux-gnu/xorg/modules/input/libinput_drv.so"),
@@ -44,8 +57,16 @@ def _has_any(words: Iterable[int]) -> bool:
     return any(value != 0 for value in words)
 
 
-def classify_device(name: str, *, rel: tuple[int, ...], abs_axes: tuple[int, ...]) -> str:
+def classify_device(
+    name: str,
+    *,
+    rel: tuple[int, ...],
+    abs_axes: tuple[int, ...],
+    key_bits: tuple[int, ...] = (),
+) -> str:
     lowered = name.lower()
+    if any(marker in lowered for marker in ("keyboard", "kbd", "translated set 2")):
+        return "keyboard"
     if any(marker in lowered for marker in ("touchpad", "trackpad", "clickpad", "glidepoint")):
         return "touchpad"
     if "mouse" in lowered:
@@ -54,6 +75,11 @@ def classify_device(name: str, *, rel: tuple[int, ...], abs_axes: tuple[int, ...
         return "absolute-pointer"
     if _has_any(rel):
         return "relative-pointer"
+    # A keyboard exposes many EV_KEY bitmap words but no relative or absolute
+    # axes.  Requiring more than one non-zero word avoids treating a single
+    # mouse button bitmap as a keyboard.
+    if sum(1 for value in key_bits if value) > 1:
+        return "keyboard"
     return "other"
 
 
@@ -171,7 +197,8 @@ def input_devices(*, sys_input: Path = SYS_INPUT, dev_input: Path = DEV_INPUT) -
         name = _read(device / "name", event.name)
         rel = _hex_words(device / "capabilities" / "rel")
         abs_axes = _hex_words(device / "capabilities" / "abs")
-        kind = classify_device(name, rel=rel, abs_axes=abs_axes)
+        key_bits = _hex_words(device / "capabilities" / "key")
+        kind = classify_device(name, rel=rel, abs_axes=abs_axes, key_bits=key_bits)
         node = dev_input / event.name
         devices.append(
             {
@@ -184,6 +211,7 @@ def input_devices(*, sys_input: Path = SYS_INPUT, dev_input: Path = DEV_INPUT) -
                 "readable": os.access(node, os.R_OK) if node.exists() else False,
                 "relative_axes": [hex(value) for value in rel],
                 "absolute_axes": [hex(value) for value in abs_axes],
+                "key_bitmap_words": len([value for value in key_bits if value]),
                 "power": _power_snapshot(device),
                 "_device_path": str(device),
             }
@@ -202,17 +230,24 @@ def _write_policy(path: Path, desired: str) -> tuple[bool, str | None]:
     return True, None
 
 
-def apply_pointer_wake_policy(devices: list[dict[str, Any]]) -> dict[str, Any]:
+def apply_input_wake_policy(devices: list[dict[str, Any]]) -> dict[str, Any]:
     changed: list[dict[str, str]] = []
     errors: list[dict[str, str]] = []
-    managed = 0
+    managed_inputs = 0
+    managed_pointers = 0
+    managed_keyboards = 0
     for item in devices:
-        if item.get("kind") not in POINTER_KINDS:
+        kind = str(item.get("kind") or "")
+        if kind not in HUMAN_INPUT_KINDS:
             continue
         files = _power_files(Path(str(item.get("_device_path") or "")))
         if not files:
             continue
-        managed += 1
+        managed_inputs += 1
+        if kind in POINTER_KINDS:
+            managed_pointers += 1
+        elif kind == "keyboard":
+            managed_keyboards += 1
         for name, desired in (("control", "on"), ("wakeup", "enabled")):
             path = files.get(name)
             if path is None:
@@ -225,11 +260,87 @@ def apply_pointer_wake_policy(devices: list[dict[str, Any]]) -> dict[str, Any]:
         item["power"] = _power_snapshot(Path(str(item.get("_device_path") or "")))
     return {
         "status": "ready" if not errors else "degraded",
-        "managed_pointer_count": managed,
+        "managed_input_count": managed_inputs,
+        "managed_pointer_count": managed_pointers,
+        "managed_keyboard_count": managed_keyboards,
         "changed": changed,
         "errors": errors,
-        "runtime_pm_disabled_for_managed_pointers": not errors,
+        "runtime_pm_disabled_for_managed_inputs": not errors,
     }
+
+
+def apply_pointer_wake_policy(devices: list[dict[str, Any]]) -> dict[str, Any]:
+    """Backward-compatible name for the now keyboard-and-pointer policy."""
+    return apply_input_wake_policy(devices)
+
+
+def _boot_id() -> str | None:
+    return _read(Path("/proc/sys/kernel/random/boot_id")) or None
+
+
+def gui_event_proof(*, state_dir: Path = DEFAULT_STATE_DIR) -> dict[str, Any]:
+    path = state_dir / GUI_EVENT_PROOF
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        value = {}
+    if not isinstance(value, dict):
+        value = {}
+    same_boot = bool(value.get("boot_id") and value.get("boot_id") == _boot_id())
+    keyboard = value.get("keyboard") if isinstance(value.get("keyboard"), dict) else {}
+    pointer = value.get("pointer") if isinstance(value.get("pointer"), dict) else {}
+    keyboard_count = keyboard.get("event_count", 0)
+    pointer_count = pointer.get("event_count", 0)
+    keyboard_observed = bool(
+        same_boot
+        and isinstance(keyboard_count, int)
+        and not isinstance(keyboard_count, bool)
+        and keyboard_count > 0
+        and keyboard.get("last_at")
+    )
+    pointer_observed = bool(
+        same_boot
+        and isinstance(pointer_count, int)
+        and not isinstance(pointer_count, bool)
+        and pointer_count > 0
+        and pointer.get("last_at")
+    )
+    return {
+        "schema": "aurum.gui-input-proof.v1",
+        "same_boot": same_boot,
+        "keyboard_observed": keyboard_observed,
+        "pointer_observed": pointer_observed,
+        "ready": bool(keyboard_observed and pointer_observed),
+        "keyboard": keyboard,
+        "pointer": pointer,
+    }
+
+
+def record_gui_event(kind: str, *, state_dir: Path = DEFAULT_STATE_DIR) -> dict[str, Any]:
+    """Record only event-path evidence, never the key pressed or pointer position."""
+    selected = str(kind or "").strip().lower()
+    if selected not in {"keyboard", "pointer"}:
+        raise ValueError("GUI input proof kind must be keyboard or pointer")
+    path = state_dir / GUI_EVENT_PROOF
+    # Keyboard and pointer proof can arrive on separate request threads. Keep
+    # their read/modify/write cycle atomic so neither proof is overwritten.
+    with _GUI_EVENT_LOCK:
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            current = {}
+        boot_id = _boot_id()
+        if not isinstance(current, dict) or current.get("boot_id") != boot_id:
+            current = {"schema": "aurum.gui-input-proof.v1", "boot_id": boot_id}
+        existing = current.get(selected) if isinstance(current.get(selected), dict) else {}
+        count = existing.get("event_count", 0)
+        count = count if isinstance(count, int) and not isinstance(count, bool) and count >= 0 else 0
+        current[selected] = {
+            "event_count": count + 1,
+            "last_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        _atomic_json(path, current)
+    return gui_event_proof(state_dir=state_dir)
 
 
 def module_state() -> dict[str, bool]:
@@ -308,16 +419,25 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
     devices = input_devices()
     pointers = [item for item in devices if item["kind"] in POINTER_KINDS]
     touchpads = [item for item in pointers if item["kind"] == "touchpad"]
+    keyboards = [item for item in devices if item["kind"] == "keyboard"]
+    human_inputs = [item for item in devices if item["kind"] in HUMAN_INPUT_KINDS]
     wake_policy = (
-        apply_pointer_wake_policy(devices)
+        apply_input_wake_policy(devices)
         if apply_wake
-        else {"status": "observed", "managed_pointer_count": 0, "changed": [], "errors": []}
+        else {
+            "status": "observed",
+            "managed_input_count": 0,
+            "managed_pointer_count": 0,
+            "managed_keyboard_count": 0,
+            "changed": [],
+            "errors": [],
+        }
     )
     libinput = {
         "cli": libinput_cli_available(),
         "xorg_driver": xorg_libinput_driver_available(),
     }
-    repair = repair_libinput() if apply_wake and pointers and not all(libinput.values()) else {"status": "not-needed"}
+    repair = repair_libinput() if apply_wake and human_inputs and not all(libinput.values()) else {"status": "not-needed"}
     if repair.get("status") in {"ready", "already-ready"}:
         libinput = {
             "cli": libinput_cli_available(),
@@ -328,7 +448,20 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
         item["libinput"] = libinput_devices.get(str(item.get("node") or ""))
     for item in devices:
         item.pop("_device_path", None)
-    healthy = bool(pointers and not wake_policy["errors"] and libinput["xorg_driver"])
+    pointer_ready = bool(
+        pointers
+        and all(item.get("present") and item.get("readable") for item in pointers)
+    )
+    keyboard_ready = bool(
+        keyboards
+        and all(item.get("present") and item.get("readable") for item in keyboards)
+    )
+    xorg_event_path_ready = bool(
+        pointer_ready
+        and keyboard_ready
+        and not wake_policy["errors"]
+        and libinput["xorg_driver"]
+    )
     identified_pointers = [
         {
             "event": item.get("event"),
@@ -342,7 +475,18 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
     ]
     return {
         "schema": SCHEMA,
-        "status": "ready" if healthy else "no-pointer-detected" if not pointers else "degraded",
+        "status": (
+            "ready"
+            if xorg_event_path_ready
+            else "no-pointer-detected"
+            if not pointers
+            else "no-keyboard-detected"
+            if not keyboards
+            else "degraded"
+        ),
+        "pointer_ready": pointer_ready,
+        "keyboard_ready": keyboard_ready,
+        "xorg_event_path_ready": xorg_event_path_ready,
         "libinput_available": bool(libinput["cli"]),
         "libinput": libinput,
         "repair": repair,
@@ -350,7 +494,9 @@ def status(*, apply_wake: bool = False) -> dict[str, Any]:
         "wake_policy": wake_policy,
         "touchpads": touchpads,
         "pointers": pointers,
+        "keyboards": keyboards,
         "identified_pointers": identified_pointers,
+        "gui_event_proof": gui_event_proof(),
         "devices": devices,
         "gui_restart_required": bool(repair.get("gui_restart_required")),
     }

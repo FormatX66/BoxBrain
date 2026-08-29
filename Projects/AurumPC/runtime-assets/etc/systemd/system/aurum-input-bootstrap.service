@@ -1,11 +1,11 @@
 [Unit]
 Description=Aurum input bootstrap
-After=systemd-udev-trigger.service
+After=local-fs.target systemd-udev-trigger.service
 Before=aurum-pc-console.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; udevadm settle --timeout=10 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json'
+ExecStart=/bin/sh -c 'modprobe i2c_hid_acpi 2>/dev/null || true; modprobe hid_multitouch 2>/dev/null || true; modprobe psmouse 2>/dev/null || true; modprobe usbhid 2>/dev/null || true; modprobe hid_generic 2>/dev/null || true; modprobe atkbd 2>/dev/null || true; udevadm trigger --subsystem-match=input --action=add 2>/dev/null || true; udevadm settle --timeout=15 || true; /usr/bin/python3 /opt/aurum/aurum_input.py --apply-wake-policy --write-state /run/aurum-input-status.json'
 RemainAfterExit=yes
 
 [Install]

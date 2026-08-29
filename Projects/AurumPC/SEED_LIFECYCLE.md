@@ -93,9 +93,20 @@ successor. A culled head is never retried and the installed runtime never runs
 `reset`, `revert`, force-push, or any other backward Git operation.
 
 `become_next_seed` is true only after installed runtime hashes, bounded GPT
-execution, system activation, and a real physical projection have all passed.
-The physical receipt distinguishes the primary HTML renderer from the automatic
-Pygame fallback instead of treating either path as implied success.
+execution, system activation, a real physical projection, keyboard and pointer
+events in the current GUI boot, the bounded GUI recovery console, and Wi-Fi
+profile/connectivity persistence across the update have all passed. The
+physical receipt distinguishes the primary HTML renderer from the automatic
+Pygame fallback instead of treating either path as implied success. Input
+receipts record only event counts and timestamps; Wi-Fi receipts contain only
+opaque path identities, hashes, sizes, modes, and connectivity state, never
+SSID or credential contents.
+
+An applied generation that has not yet observed both physical input paths stays
+`applied-not-proven`. A later normal growth cycle can complete proof after the
+operator uses the keyboard and pointer, but it cannot silently become the next
+seed. The same rule applies if a saved Wi-Fi profile or previously online state
+does not survive the update.
 
 An unavailable OpenAI credential may leave the model-call portion unproven, but
 it does not remove or weaken the local bounded executor. Experimental Aurum LLM

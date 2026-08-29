@@ -51,6 +51,8 @@ class BuildIsoContractTests(unittest.TestCase):
             "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
             "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",
             "aurum_boot_screen.py", "aurum_input.py", "libinput-tools",
+            "aurum_wifi_persistence.py",
+            "aurum_gpt_executor.py", "aurum_projection_runtime.py", "aurum_self_debug.py",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
@@ -58,19 +60,24 @@ class BuildIsoContractTests(unittest.TestCase):
     def test_hopper_input_bootstrap_and_resume_policy_are_packaged(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
         input_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-input-bootstrap.service").read_text(encoding="utf-8")
+        network_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-network-bootstrap.service").read_text(encoding="utf-8")
         input_hook = (RUNTIME_ASSETS / "usr/lib/systemd/system-sleep/aurum-input-wake").read_text(encoding="utf-8")
         libinput = (RUNTIME_ASSETS / "etc/X11/xorg.conf.d/40-aurum-libinput.conf").read_text(encoding="utf-8")
         console = (RUNTIME_ASSETS / "etc/systemd/system/aurum-pc-console.service").read_text(encoding="utf-8")
-        for module in ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid"):
+        for module in ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid", "hid_generic", "atkbd"):
             self.assertIn(f"modprobe {module}", input_service)
         self.assertIn("runtime-assets", script)
         self.assertIn("aurum-input-bootstrap.service", script)
+        self.assertIn("aurum-network-bootstrap.service", script)
+        self.assertIn("--reconnect-saved", network_service)
+        self.assertIn("ConditionPathExists=/var/lib/aurum/state/wifi.conf", network_service)
         self.assertIn("--apply-wake-policy", input_service)
         self.assertIn("--apply-wake-policy", input_hook)
         self.assertIn("system-sleep/aurum-input-wake", script)
         self.assertIn('MatchIsTouchpad "on"', libinput)
         self.assertIn('Option "Tapping" "on"', libinput)
         self.assertIn("AURUM_BOOT_SCREEN=1", console)
+        self.assertIn("udevadm trigger --subsystem-match=input", input_service)
 
     def test_hopper_live_prepare_is_guarded_and_receipted(self) -> None:
         script = HOPPER_PREPARE.read_text(encoding="utf-8")
@@ -107,6 +114,9 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("usb-storage,drive=seed", twin)
         self.assertIn("set_link hpeth off", twin)
         self.assertIn('mkfifo "$monitor.in" "$monitor.out"', twin)
+        self.assertIn("-device usb-tablet", twin)
+        self.assertIn("AURUM_HP_TWIN_INPUT_PATH_OK", twin)
+        self.assertIn("AURUM_HP_TWIN_INPUT_PATH_OK", workflow)
         self.assertIn("printf 'set_link hpeth off\\n' >&4", twin)
         self.assertIn("2026-04-27T19:50:12", twin)
         self.assertIn("AURUM_HP_TWIN_NVME_PRESERVED_OK", twin)

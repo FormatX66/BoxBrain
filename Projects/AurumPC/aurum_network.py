@@ -9,6 +9,7 @@ internal disk directly.
 """
 from __future__ import annotations
 
+import argparse
 import getpass
 import json
 import os
@@ -300,3 +301,43 @@ def ensure_online(*, interactive: bool) -> dict[str, Any]:
     if not interactive:
         return {"status": "credentials-required", **network_status(interfaces[0])}
     return interactive_wifi_setup(interfaces[0])
+
+
+def _write_receipt(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, path)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Bounded Aurum Wi-Fi recovery")
+    parser.add_argument("--reconnect-saved", action="store_true")
+    parser.add_argument("--timeout-seconds", type=int, default=50)
+    parser.add_argument("--write-state", type=Path)
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    if not args.reconnect_saved:
+        result = network_status()
+    else:
+        timeout_seconds = max(5, min(args.timeout_seconds, 120))
+        current = network_status()
+        result = (
+            {"status": "already-online", **current}
+            if current.get("online")
+            else connect_saved(timeout_seconds=timeout_seconds)
+        )
+    if args.write_state:
+        _write_receipt(args.write_state, result)
+    print(json.dumps(result, sort_keys=True))
+    # Wi-Fi is a recoverable boot dependency. The receipt carries degraded
+    # state while boot and the local recovery console remain available.
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

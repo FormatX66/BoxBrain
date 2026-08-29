@@ -8,6 +8,7 @@ ROOT = Path(__file__).parents[1]
 DESKTOP = ROOT / "aurum_desktop.py"
 DESKTOP_RUNTIME = ROOT / "aurum_desktop_runtime.py"
 GUI_RUNTIME = ROOT / "aurum_gui_runtime.py"
+PROJECTION_RUNTIME = ROOT / "aurum_projection_runtime.py"
 RUNTIME_UPDATE = ROOT / "aurum_runtime_update.py"
 BUILD_ISO = ROOT / "build-iso.sh"
 
@@ -38,12 +39,25 @@ class AurumPhysicalDesktopContractTests(unittest.TestCase):
         self.assertIn("pygame.FULLSCREEN", desktop)
         self.assertIn("Ctrl+Alt+F1", desktop)
         self.assertIn('"host_actuation": "bounded-confirmed-actions"', desktop)
+        self.assertIn("RECOVERY CONSOLE", desktop)
+        self.assertIn("bounded-console", desktop)
+        self.assertIn("aurum.gui-recovery-console.bounded.v1", desktop)
+        self.assertIn('(\"Sync\", \"runtime-sync\")', desktop)
+        self.assertIn('\"runtime-sync\"', desktop)
 
     def test_gui_start_calls_physical_desktop_runtime(self) -> None:
         gui = GUI_RUNTIME.read_text(encoding="utf-8")
         self.assertIn('self._desktop("start")', gui)
         self.assertIn('self._desktop("status")', gui)
         self.assertIn('"physical_desktop"', gui)
+
+    def test_html_projection_refuses_to_claim_ready_without_keyboard_pointer_libinput(self) -> None:
+        projection = PROJECTION_RUNTIME.read_text(encoding="utf-8")
+        self.assertIn("_xorg_libinput_ready", projection)
+        self.assertIn("_ensure_input_path", projection)
+        self.assertIn('current.get("keyboard_ready") is True', projection)
+        self.assertIn('current.get("pointer_ready") is True', projection)
+        self.assertIn('current.get("xorg_event_path_ready") is True', projection)
 
 
 if __name__ == "__main__":

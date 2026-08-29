@@ -261,8 +261,11 @@ def run_input(action: str) -> None:
         result = input_status(apply_wake=action == "recover")
         print(json.dumps(result, indent=2, sort_keys=True), flush=True)
         print(
-            f"AURUM_INPUT status={result.get('status')} touchpads={len(result.get('touchpads') or [])} "
-            f"pointers={len(result.get('pointers') or [])} libinput={str(bool(result.get('libinput_available'))).lower()} "
+            f"AURUM_INPUT status={result.get('status')} keyboards={len(result.get('keyboards') or [])} "
+            f"touchpads={len(result.get('touchpads') or [])} pointers={len(result.get('pointers') or [])} "
+            f"keyboard_ready={str(bool(result.get('keyboard_ready'))).lower()} "
+            f"pointer_ready={str(bool(result.get('pointer_ready'))).lower()} "
+            f"libinput={str(bool(result.get('libinput_available'))).lower()} "
             f"wake={result.get('wake_policy', {}).get('status')}",
             flush=True,
         )
@@ -288,8 +291,11 @@ def run_sync() -> None:
             "runtime": runtime_result,
             "input": {
                 "status": input_result.get("status"),
+                "keyboards": len(input_result.get("keyboards") or []),
                 "touchpads": len(input_result.get("touchpads") or []),
                 "pointers": len(input_result.get("pointers") or []),
+                "keyboard_ready": bool(input_result.get("keyboard_ready")),
+                "pointer_ready": bool(input_result.get("pointer_ready")),
                 "libinput_available": bool(input_result.get("libinput_available")),
             },
             "gui": {

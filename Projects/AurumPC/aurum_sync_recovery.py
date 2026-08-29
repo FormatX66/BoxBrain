@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -31,6 +32,36 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     if check and result.returncode != 0:
         raise RuntimeError(result.stdout.strip()[-2000:] or f"git exited {result.returncode}")
     return result
+
+
+def apply_updated_runtime() -> dict[str, object]:
+    updater = WORKSPACE / "Projects" / "AurumPC" / "aurum_runtime_update.py"
+    if not updater.is_file():
+        raise RuntimeError("updated runtime apply helper is missing")
+    result = subprocess.run(
+        [sys.executable, str(updater), "apply"],
+        cwd=WORKSPACE,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+        timeout=1200,
+    )
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    try:
+        payload = json.loads(lines[-1]) if lines else {}
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("updated runtime returned an invalid receipt") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("updated runtime returned a non-object receipt")
+    if result.returncode != 0 or payload.get("status") not in {
+        "current",
+        "updated",
+        "applied-awaiting-proof",
+    }:
+        detail = str(payload.get("detail") or payload.get("reason") or result.stdout[-1600:])
+        raise RuntimeError(f"updated runtime apply failed: {detail}")
+    return payload
 
 
 def main() -> int:
@@ -79,6 +110,8 @@ def main() -> int:
         # and reconcile it deliberately after its health checks pass.
         raise
 
+    runtime = apply_updated_runtime()
+
     payload = {
         "schema": "aurum-workspace-recovery-sync-v1",
         "status": "ready",
@@ -88,11 +121,22 @@ def main() -> int:
         "checkpoint": checkpoint,
         "checkpoint_preserved": checkpoint is not None,
         "checkpoint_reapplied": False,
-        "next": "run-aurum-sync-from-updated-runtime",
+        "runtime_apply": {
+            "status": runtime.get("status"),
+            "reboot_required": bool(runtime.get("reboot_required")),
+            "generation": (runtime.get("generation") or {}).get("disposition")
+            if isinstance(runtime.get("generation"), dict)
+            else None,
+        },
+        "next": (
+            "complete-physical-and-reboot-proof"
+            if runtime.get("status") == "applied-awaiting-proof"
+            else "runtime-applied"
+        ),
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     print(
-        "AURUM_RECOVERY_SYNC status=ready checkpoint_preserved="
+        "AURUM_RECOVERY_SYNC status=ready runtime_applied=true checkpoint_preserved="
         + str(bool(checkpoint)).lower()
         + " checkpoint_reapplied=false"
     )

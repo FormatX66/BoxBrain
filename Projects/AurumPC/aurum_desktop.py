@@ -10,6 +10,7 @@ Ctrl+Alt+F1 recovery remains a bounded physical recovery path.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime as dt
 import importlib.util
 import json
@@ -18,12 +19,14 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
 SCHEMA = "aurum.desktop.gen1-polished-physical-surface"
 GENERATION_NAME = "Gen1 polished physical surface"
+RECOVERY_CONSOLE_CONTRACT = "aurum.gui-recovery-console.bounded.v1"
 STOP_REQUESTED = False
 
 
@@ -540,6 +543,57 @@ def _bounded_system_action(action: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout.strip()[-300:]
 
 
+def _runtime_module(name: str, workspace: Path, runtime: Path):
+    for path in (
+        runtime / f"{name}.py",
+        workspace / "Projects" / "AurumPC" / f"{name}.py",
+    ):
+        if not path.is_file():
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"aurum_desktop_{name}_{os.getpid()}_{time.time_ns()}", path
+            )
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            return module
+        except Exception:
+            continue
+    return None
+
+
+def _record_gui_input(kind: str, state: Path, workspace: Path, runtime: Path) -> None:
+    module = _runtime_module("aurum_input", workspace, runtime)
+    if module is None:
+        return
+    try:
+        module.record_gui_event(kind, state_dir=state)
+    except Exception:
+        pass
+
+
+def _recovery_control(action: str, state: Path, workspace: Path, runtime: Path) -> tuple[bool, str]:
+    allowed = {"status", "input-recover", "network-reconnect", "runtime-plan", "runtime-sync", "gui-status"}
+    if action not in allowed:
+        return False, "unsupported bounded action"
+    module = _runtime_module("aurum_gpt_executor", workspace, runtime)
+    if module is None:
+        return False, "bounded executor unavailable"
+    try:
+        module.DEFAULT_STATE = state
+        module.DEFAULT_WORKSPACE = workspace
+        module.DEFAULT_RUNTIME = runtime
+        receipt = module.execute_control(action, state_dir=state)
+        result = receipt.get("result") if isinstance(receipt, dict) else {}
+        status = result.get("status") if isinstance(result, dict) else None
+        return True, f"{action} · {status or 'receipted'}"
+    except Exception as exc:
+        return False, f"{action} · {type(exc).__name__}"
+
+
 def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     global STOP_REQUESTED
     STOP_REQUESTED = False
@@ -762,6 +816,14 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
     confirm_action: str | None = None
     last_refresh = 0.0
     pointer_motion_observed = bool(snap["pointer_verified"])
+    # Record one fresh event from each path every GUI process. The input helper
+    # binds persistence to the current kernel boot, so an old LKG receipt can
+    # never suppress a new boot's acceptance evidence.
+    keyboard_event_observed = False
+    pointer_event_observed = False
+    recovery_status = "Ready · named actions only · no shell"
+    recovery_future: concurrent.futures.Future[tuple[bool, str]] | None = None
+    recovery_worker = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="aurum-recovery")
     clock = pygame.time.Clock()
     click_targets: list[tuple[Any, str, Any]] = []
 
@@ -775,6 +837,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
 
     def handle_action(action, payload=None):
         nonlocal selected, detail_view, toast, toast_until, confirm_action, last_refresh, snap
+        nonlocal recovery_future, recovery_status
         if action == "nav":
             nav_click(payload)
         elif action == "detail":
@@ -806,6 +869,15 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             else:
                 toast = f"Time sync {result.get('status', 'unavailable')}"
             toast_until = time.monotonic() + 4
+        elif action == "bounded-console":
+            if recovery_future is not None and not recovery_future.done():
+                recovery_status = "Recovery action already running"
+                return
+            selected_action = str(payload or "")
+            recovery_status = f"{selected_action}…"
+            recovery_future = recovery_worker.submit(
+                _recovery_control, selected_action, state, workspace, runtime
+            )
 
     def button(rect, label, action, payload=None, accent=gold):
         hover = rect.collidepoint(pygame.mouse.get_pos())
@@ -829,6 +901,16 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
 
     while not STOP_REQUESTED:
         now = time.monotonic()
+        if recovery_future is not None and recovery_future.done():
+            try:
+                ok, recovery_status = recovery_future.result()
+            except Exception as exc:
+                ok, recovery_status = False, f"recovery · {type(exc).__name__}"
+            toast = recovery_status
+            toast_until = now + 4
+            if ok:
+                last_refresh = 0
+            recovery_future = None
         if now - last_refresh >= 4:
             snap = snapshot(state, workspace, runtime)
             pointer_motion_observed = pointer_motion_observed or bool(snap["pointer_verified"])
@@ -838,6 +920,9 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             if event.type == pygame.QUIT:
                 STOP_REQUESTED = True
             elif event.type == pygame.KEYDOWN:
+                if not keyboard_event_observed:
+                    keyboard_event_observed = True
+                    _record_gui_input("keyboard", state, workspace, runtime)
                 ctrl = bool(event.mod & pygame.KMOD_CTRL)
                 alt = bool(event.mod & pygame.KMOD_ALT)
                 if ctrl and alt and event.key == pygame.K_F1:
@@ -849,6 +934,9 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                 elif pygame.K_1 <= event.key <= pygame.K_6:
                     nav_click(event.key - pygame.K_1)
             elif event.type == pygame.MOUSEMOTION and event.rel != (0, 0):
+                if not pointer_event_observed:
+                    pointer_event_observed = True
+                    _record_gui_input("pointer", state, workspace, runtime)
                 if not pointer_motion_observed:
                     pointer_motion_observed = True
                     observed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -856,6 +944,9 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                         state, position=event.pos, observed_at=observed_at
                     )
             elif event.type == pygame.MOUSEWHEEL:
+                if not pointer_event_observed:
+                    pointer_event_observed = True
+                    _record_gui_input("pointer", state, workspace, runtime)
                 if not pointer_motion_observed:
                     pointer_motion_observed = True
                     observed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -866,6 +957,9 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                         source="scroll",
                     )
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if not pointer_event_observed:
+                    pointer_event_observed = True
+                    _record_gui_input("pointer", state, workspace, runtime)
                 for rect, action, payload in reversed(click_targets):
                     if rect.collidepoint(event.pos):
                         handle_action(action, payload)
@@ -997,6 +1091,31 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             text(str(i + 1), rect.x + S(13), rect.y + S(13), tiny, gold if i == selected else muted)
             text(name, rect.x + S(39), rect.y + S(9), small, gold_hi if i == selected else ink)
             add_target(rect, "nav", i)
+
+        recovery_rect = pygame.Rect(S(12), height - S(148), side_w - S(24), S(126))
+        rounded(recovery_rect, (7, 13, 13), teal, 10)
+        text("RECOVERY CONSOLE", recovery_rect.x + S(10), recovery_rect.y + S(9), tiny, teal_hi)
+        text(fit(recovery_status, 30), recovery_rect.x + S(10), recovery_rect.y + S(31), tiny, muted)
+        recovery_actions = (
+            ("Status", "status"),
+            ("Input", "input-recover"),
+            ("Wi-Fi", "network-reconnect"),
+            ("Sync", "runtime-sync"),
+        )
+        button_gap = S(5)
+        button_width = (recovery_rect.width - S(20) - button_gap) // 2
+        for index, (label, action_name) in enumerate(recovery_actions):
+            column, row = index % 2, index // 2
+            rect = pygame.Rect(
+                recovery_rect.x + S(10) + column * (button_width + button_gap),
+                recovery_rect.y + S(51) + row * S(31),
+                button_width,
+                S(26),
+            )
+            hover = rect.collidepoint(pygame.mouse.get_pos())
+            rounded(rect, (14, 21, 20), teal if hover else line, 6)
+            text(label, rect.x + S(8), rect.y + S(6), tiny, teal_hi if hover else ink)
+            add_target(rect, "bounded-console", action_name)
 
         main_x = side_w + S(25)
         main_w = width - main_x - S(25)
@@ -1447,6 +1566,7 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         },
     )
     pygame.quit()
+    recovery_worker.shutdown(wait=False, cancel_futures=True)
     return 0
 
 

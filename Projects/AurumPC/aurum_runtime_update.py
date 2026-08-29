@@ -56,12 +56,14 @@ ALLOWLIST = (
     "aurum_time.py",
     "aurum_traits.py",
     "aurum_wifi_diag.py",
+    "aurum_wifi_persistence.py",
     "aurum_wifi_recovery.py",
     "aurum_workspace.py",
 )
 SYSTEM_ASSETS = (
     ("etc/X11/xorg.conf.d/40-aurum-libinput.conf", 0o644),
     ("etc/systemd/system/aurum-input-bootstrap.service", 0o644),
+    ("etc/systemd/system/aurum-network-bootstrap.service", 0o644),
     ("etc/systemd/system/aurum-pc-console.service", 0o644),
     ("usr/lib/systemd/system-sleep/aurum-input-wake", 0o755),
 )
@@ -73,6 +75,31 @@ FORWARD_ONLY_POLICY = {
     "unrecoverable_candidate": "cull-and-regrow-forward",
     "preserve_culled_evidence": True,
 }
+PROOF_SUCCESS = {"passed", "ready"}
+PROOF_PENDING = {
+    "pending",
+    "pending-physical-input",
+    "pending-reboot-storage",
+    "pending-reboot-observation",
+    "pending-wifi-online",
+    "pending-wifi-profile",
+}
+
+
+def _proof_disposition(proofs: dict[str, dict[str, Any]]) -> dict[str, list[str] | str]:
+    pending = [name for name, proof in proofs.items() if proof.get("status") in PROOF_PENDING]
+    failed = [
+        name
+        for name, proof in proofs.items()
+        if proof.get("status") not in PROOF_SUCCESS | PROOF_PENDING
+    ]
+    if failed:
+        status = "failed"
+    elif pending:
+        status = "pending"
+    else:
+        status = "passed"
+    return {"status": status, "pending": pending, "failed": failed}
 
 
 def _sha256(path: Path) -> str:
@@ -503,7 +530,10 @@ class RuntimeUpdater:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=15,
+            # A missing libinput package may require one bounded apt install on
+            # the first hardened generation. Do not kill the helper halfway
+            # through and then launch a renderer with no event driver.
+            timeout=680,
         )
         try:
             payload = json.loads(result.stdout)
@@ -514,10 +544,133 @@ class RuntimeUpdater:
         payload["returncode"] = result.returncode
         return payload
 
+    @staticmethod
+    def _load_module(path: Path, prefix: str):
+        if not path.is_file():
+            raise RuntimeUpdateError(f"required Aurum module is missing: {path.name}")
+        spec = importlib.util.spec_from_file_location(
+            f"{prefix}_{os.getpid()}_{time.time_ns()}", path
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeUpdateError(f"Aurum module could not be loaded: {path.name}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def _network_snapshot(self) -> dict[str, Any]:
+        candidates = (self.target / "aurum_network.py", self.source / "aurum_network.py")
+        path = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if path is None:
+            return {"online": False, "status": "network-helper-missing"}
+        try:
+            module = self._load_module(path, "aurum_runtime_wifi_network")
+            value = module.network_status()
+        except Exception as exc:
+            return {"online": False, "status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        return value if isinstance(value, dict) else {"online": False, "status": "invalid-network-state"}
+
+    def _wifi_snapshot(self) -> dict[str, Any]:
+        module = self._load_module(
+            self.source / "aurum_wifi_persistence.py", "aurum_runtime_wifi_persistence"
+        )
+        return module.capture(
+            state_dir=self.state_dir,
+            system_root=self.system_root,
+            network=self._network_snapshot(),
+        )
+
+    def _wifi_persistence_proof(self, before: dict[str, Any]) -> dict[str, Any]:
+        module = self._load_module(
+            self.source / "aurum_wifi_persistence.py", "aurum_runtime_wifi_verify"
+        )
+        proof = module.verify(before, self._wifi_snapshot())
+        module.write_receipt(self.state_dir / "wifi-persistence.json", proof)
+        return proof
+
+    def _wifi_reboot_proof(self) -> dict[str, Any]:
+        previous = _json_file(self.state_dir / "wifi-persistence.json")
+        before = previous.get("before") if isinstance(previous.get("before"), dict) else None
+        if before is None:
+            return {
+                "status": "pending-reboot-observation",
+                "reason": "pre-apply-wifi-snapshot-missing",
+            }
+        return self._wifi_persistence_proof(before)
+
+    def _input_proof(self, activation: dict[str, Any] | None = None) -> dict[str, Any]:
+        current = dict(activation or _json_file(Path("/run/aurum-input-status.json")))
+        try:
+            module = self._load_module(self.target / "aurum_input.py", "aurum_runtime_input_proof")
+            gui_events = module.gui_event_proof(state_dir=self.state_dir)
+        except Exception as exc:
+            gui_events = {"ready": False, "detail": f"{type(exc).__name__}:{exc}"}
+        passed = bool(
+            current.get("status") == "ready"
+            and current.get("keyboard_ready") is True
+            and current.get("pointer_ready") is True
+            and current.get("xorg_event_path_ready") is True
+            and gui_events.get("ready") is True
+        )
+        return {
+            "status": "passed" if passed else "pending-physical-input",
+            "keyboard_ready": bool(current.get("keyboard_ready")),
+            "pointer_ready": bool(current.get("pointer_ready")),
+            "xorg_event_path_ready": bool(current.get("xorg_event_path_ready")),
+            "gui_events": gui_events,
+            "physical_event_required": True,
+        }
+
+    def _gui_console_proof(self) -> dict[str, Any]:
+        panel = self.target / "aurum_hopper_gui.py"
+        fallback_panel = self.target / "aurum_desktop.py"
+        executor_path = self.target / "aurum_gpt_executor.py"
+        try:
+            source = panel.read_text(encoding="utf-8")
+            fallback_source = fallback_panel.read_text(encoding="utf-8")
+            executor = self._load_module(executor_path, "aurum_runtime_recovery_console")
+            catalog = executor.catalog()
+            receipt = executor.execute_control("status", state_dir=self.state_dir)
+        except Exception as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+        contract = "aurum.gui-recovery-console.bounded.v1"
+        html_required = {"status", "network-reconnect", "input-recover", "runtime-sync", "gui-restart"}
+        fallback_required = {"status", "network-reconnect", "input-recover", "runtime-sync"}
+        required = html_required | fallback_required
+        actions = set(catalog.get("control_actions") or [])
+        result = receipt.get("result") if isinstance(receipt.get("result"), dict) else {}
+        html_panel_present = bool(
+            'data-recovery-console="bounded"' in source
+            and contract in source
+            and all(action in source for action in html_required)
+        )
+        fallback_panel_present = bool(
+            contract in fallback_source
+            and all(action in fallback_source for action in fallback_required)
+        )
+        passed = bool(
+            html_panel_present
+            and fallback_panel_present
+            and required.issubset(actions)
+            and catalog.get("direct_shell_contract") is False
+            and receipt.get("schema") == "aurum.gpt-control-receipt.gen1-direct-control"
+            and result.get("status") == "observed"
+        )
+        return {
+            "status": "passed" if passed else "failed",
+            "contract": contract,
+            "html_panel_present": html_panel_present,
+            "fallback_panel_present": fallback_panel_present,
+            "required_actions": sorted(required),
+            "required_actions_available": required.issubset(actions),
+            "raw_shell": False,
+            "status_receipt": receipt,
+        }
+
     def _activate_system_integration(
         self, changed: list[str], system_changed: list[str]
     ) -> dict[str, Any]:
-        if self.system_root.resolve() != Path("/"):
+        if self.system_root.resolve() != Path("/").resolve():
             return {"status": "skipped", "reason": "simulated-system-root"}
         systemctl = shutil.which("systemctl")
         if not systemctl:
@@ -544,7 +697,12 @@ class RuntimeUpdater:
 
         if system_changed:
             run("daemon-reload")
-        enable = run("enable", "aurum-input-bootstrap.service", "aurum-pc-console.service")
+        enable = run(
+            "enable",
+            "aurum-input-bootstrap.service",
+            "aurum-network-bootstrap.service",
+            "aurum-pc-console.service",
+        )
         active = run("is-active", "--quiet", "aurum-input-bootstrap.service")
         input_changed = bool(
             {"aurum_input.py", "aurum_runtime_update.py", "aurum_self_debug.py"}.intersection(changed)
@@ -553,10 +711,16 @@ class RuntimeUpdater:
             for name in system_changed
         )
         restart = run("restart", "aurum-input-bootstrap.service") if input_changed or active.returncode != 0 else None
+        network_changed = "aurum_network.py" in changed or any(
+            name.endswith("aurum-network-bootstrap.service") for name in system_changed
+        )
+        network_restart = run("restart", "aurum-network-bootstrap.service", timeout=90) if network_changed else None
         failed = enable.returncode != 0 or any(
             item["returncode"] != 0 and item["arguments"] == ["daemon-reload"] for item in commands
         )
         if restart is not None and restart.returncode != 0:
+            failed = True
+        if network_restart is not None and network_restart.returncode != 0:
             failed = True
         return {
             "status": "failed" if failed else "ready",
@@ -654,7 +818,7 @@ class RuntimeUpdater:
                     "target_sha256": target_sha,
                     "mode": mode,
                     "target_mode": target_mode,
-                    "changed": source_sha != target_sha or target_mode != mode,
+                    "changed": source_sha != target_sha or (os.name == "posix" and target_mode != mode),
                 }
             )
         source_identity = self._source_identity()
@@ -811,10 +975,15 @@ class RuntimeUpdater:
                 mismatches.append(str(item["name"]))
         for item in plan.get("system_files") or []:
             target = self.system_root / str(item["name"])
+            mode_mismatch = bool(
+                os.name == "posix"
+                and target.is_file()
+                and (target.stat().st_mode & 0o777) != int(item["mode"])
+            )
             if (
                 not target.is_file()
                 or _sha256(target) != str(item["source_sha256"])
-                or (target.stat().st_mode & 0o777) != int(item["mode"])
+                or mode_mismatch
             ):
                 mismatches.append(str(item["name"]))
         return {
@@ -915,7 +1084,7 @@ class RuntimeUpdater:
         }
 
     def _system_proof(self) -> dict[str, Any]:
-        if self.system_root.resolve() != Path("/"):
+        if self.system_root.resolve() != Path("/").resolve():
             return {"status": "skipped", "reason": "simulated-system-root"}
         systemctl = shutil.which("systemctl")
         if not systemctl:
@@ -928,10 +1097,22 @@ class RuntimeUpdater:
             stderr=subprocess.STDOUT,
             timeout=20,
         )
+        network = subprocess.run(
+            [systemctl, "is-enabled", "--quiet", "aurum-network-bootstrap.service"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=20,
+        )
+        passed = result.returncode == 0 and network.returncode == 0
         return {
-            "status": "passed" if result.returncode == 0 else "failed",
+            "status": "passed" if passed else "failed",
             "service": "aurum-input-bootstrap.service",
             "returncode": result.returncode,
+            "network_bootstrap_service": "aurum-network-bootstrap.service",
+            "network_bootstrap_enabled": network.returncode == 0,
+            "network_returncode": network.returncode,
         }
 
     def prove_current(self, gui: dict[str, Any]) -> dict[str, Any]:
@@ -950,8 +1131,17 @@ class RuntimeUpdater:
         physical_proof = self._physical_proof(gui)
         gpt_proof = self._gpt_proof()
         system_proof = self._system_proof()
+        input_proof = self._input_proof()
+        console_proof = self._gui_console_proof()
         previous_generation = previous.get("generation") if isinstance(previous.get("generation"), dict) else {}
         previous_source = previous_generation.get("source") if isinstance(previous_generation.get("source"), dict) else {}
+        if previous_source.get("head") == source_identity.get("head"):
+            wifi_proof = self._wifi_reboot_proof()
+        else:
+            wifi_proof = {
+                "status": "pending-reboot-observation",
+                "reason": "same-generation-wifi-persistence-proof-missing",
+            }
         stage = None
         if previous_source.get("head") == source_identity.get("head"):
             candidate = previous_generation.get("stage")
@@ -960,17 +1150,24 @@ class RuntimeUpdater:
             "status": "not-required",
             "reason": "installed-hashes-current",
         }
-        become_next_seed = bool(
-            runtime_proof.get("status") == "passed"
-            and physical_proof.get("status") == "passed"
-            and gpt_proof.get("status") == "passed"
-            and system_proof.get("status") == "passed"
-        )
+        proofs = {
+            "runtime": runtime_proof,
+            "physical": physical_proof,
+            "gpt": gpt_proof,
+            "system": system_proof,
+            "input": input_proof,
+            "gui_console": console_proof,
+            "wifi": wifi_proof,
+        }
+        proof_disposition = _proof_disposition(proofs)
+        become_next_seed = proof_disposition["status"] == "passed"
         lineage_status = (
             "healed-and-proven"
             if transition.get("relation") == "same-head-heal" and become_next_seed
             else "regrown-and-promoted"
             if become_next_seed
+            else "proof-pending"
+            if proof_disposition["status"] == "pending"
             else "heal-required"
         )
         lineage = self._record_lineage(
@@ -978,13 +1175,14 @@ class RuntimeUpdater:
             source_identity=source_identity,
             transition=transition,
             previous_receipt=previous,
-            reason=None if become_next_seed else "current-runtime-proof-incomplete",
-            evidence={
-                "runtime": runtime_proof,
-                "physical": physical_proof,
-                "gpt": gpt_proof,
-                "system": system_proof,
-            },
+            reason=(
+                None
+                if become_next_seed
+                else "physical-or-reboot-proof-pending"
+                if proof_disposition["status"] == "pending"
+                else "current-runtime-proof-failed"
+            ),
+            evidence={**proofs, "proof_disposition": proof_disposition},
         )
         lifecycle = {
             "schema": GENERATION_SCHEMA,
@@ -1004,18 +1202,13 @@ class RuntimeUpdater:
                 "backup": previous.get("backup"),
                 "installed_hashes_current": True,
             },
-            "prove": {
-                "runtime": runtime_proof,
-                "physical": physical_proof,
-                "gpt": gpt_proof,
-                "system": system_proof,
-            },
+            "prove": proofs,
             "become_next_seed": become_next_seed,
             "proved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
         receipt = {
             "schema": SCHEMA,
-            "status": "current" if become_next_seed else "applied-not-proven",
+            "status": "current" if become_next_seed else "applied-awaiting-proof",
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
@@ -1044,6 +1237,7 @@ class RuntimeUpdater:
         transition = self._generation_transition(source_identity, previous)
         if transition.get("status") != "passed":
             return self._refused_transition_receipt(source_identity, transition)
+        wifi_before = self._wifi_snapshot()
         identity = self._apply_identity()
         changed = list(plan.get("changed") or [])
         system_changed = list(plan.get("system_changed") or [])
@@ -1055,18 +1249,35 @@ class RuntimeUpdater:
             installed_proof = self._installed_hash_proof(plan)
             gpt_proof = self._gpt_proof()
             physical_proof = self._physical_proof(gui_activation)
-            carried_stage = self._latest_verified_stage(source_identity)
-            become_next_seed = bool(
-                installed_proof.get("status") == "passed"
-                and gpt_proof.get("status") == "passed"
-                and physical_proof.get("status") == "passed"
-                and system_activation.get("status") == "ready"
+            input_proof = self._input_proof(input_activation)
+            console_proof = self._gui_console_proof()
+            previous_source = previous.get("source") if isinstance(previous.get("source"), dict) else {}
+            stored_wifi = _json_file(self.state_dir / "wifi-persistence.json")
+            wifi_proof = (
+                self._wifi_reboot_proof()
+                if previous_source.get("head") == source_identity.get("head")
+                and isinstance(stored_wifi.get("before"), dict)
+                else self._wifi_persistence_proof(wifi_before)
             )
+            carried_stage = self._latest_verified_stage(source_identity)
+            proofs = {
+                "runtime": installed_proof,
+                "physical": physical_proof,
+                "gpt": gpt_proof,
+                "system": system_activation,
+                "input": input_proof,
+                "gui_console": console_proof,
+                "wifi": wifi_proof,
+            }
+            proof_disposition = _proof_disposition(proofs)
+            become_next_seed = proof_disposition["status"] == "passed"
             lineage_status = (
                 "healed-and-proven"
                 if transition.get("relation") == "same-head-heal" and become_next_seed
                 else "regrown-and-promoted"
                 if become_next_seed
+                else "proof-pending"
+                if proof_disposition["status"] == "pending"
                 else "heal-required"
             )
             lineage = self._record_lineage(
@@ -1074,13 +1285,14 @@ class RuntimeUpdater:
                 source_identity=source_identity,
                 transition=transition,
                 previous_receipt=previous,
-                reason=None if become_next_seed else "current-runtime-proof-incomplete",
-                evidence={
-                    "runtime": installed_proof,
-                    "physical": physical_proof,
-                    "gpt": gpt_proof,
-                    "system": system_activation,
-                },
+                reason=(
+                    None
+                    if become_next_seed
+                    else "physical-or-reboot-proof-pending"
+                    if proof_disposition["status"] == "pending"
+                    else "current-runtime-proof-failed"
+                ),
+                evidence={**proofs, "proof_disposition": proof_disposition},
             )
             lifecycle = {
                 "schema": GENERATION_SCHEMA,
@@ -1093,16 +1305,12 @@ class RuntimeUpdater:
                 "verify": verification,
                 "stage": carried_stage or {"status": "not-required", "reason": "installed-hashes-current"},
                 "apply": {"status": "current", "changed": [], "system_changed": []},
-                "prove": {
-                    "runtime": installed_proof,
-                    "physical": physical_proof,
-                    "gpt": gpt_proof,
-                },
+                "prove": proofs,
                 "become_next_seed": become_next_seed,
             }
             result = {
                 **plan,
-                "status": "current" if become_next_seed else "applied-not-proven",
+                "status": "current" if become_next_seed else "applied-awaiting-proof",
                 "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "reboot_required": bool(physical_proof.get("reboot_required")),
                 "identity": identity,
@@ -1158,7 +1366,8 @@ class RuntimeUpdater:
                 shutil.copy2(source, temporary)
                 os.chmod(temporary, mode)
                 os.replace(temporary, target)
-                if _sha256(target) != _sha256(source) or (target.stat().st_mode & 0o777) != mode:
+                mode_matches = os.name != "posix" or (target.stat().st_mode & 0o777) == mode
+                if _sha256(target) != _sha256(source) or not mode_matches:
                     raise RuntimeUpdateError(f"system asset verification failed after replacing {relative}")
                 applied_system.append(relative)
         except Exception as exc:
@@ -1217,6 +1426,9 @@ class RuntimeUpdater:
                 "physical": {"status": "pending"},
                 "gpt": {"status": "pending"},
                 "system": {"status": "pending"},
+                "input": {"status": "pending-physical-input"},
+                "gui_console": {"status": "pending"},
+                "wifi": {"status": "pending"},
             },
             "become_next_seed": False,
         }
@@ -1243,12 +1455,20 @@ class RuntimeUpdater:
         installed_proof = self._installed_hash_proof(plan)
         gpt_proof = self._gpt_proof()
         physical_proof = self._physical_proof(gui_activation)
-        become_next_seed = bool(
-            installed_proof.get("status") == "passed"
-            and gpt_proof.get("status") == "passed"
-            and physical_proof.get("status") == "passed"
-            and system_activation.get("status") == "ready"
-        )
+        input_proof = self._input_proof(input_activation)
+        console_proof = self._gui_console_proof()
+        wifi_proof = self._wifi_persistence_proof(wifi_before)
+        proofs = {
+            "runtime": installed_proof,
+            "physical": physical_proof,
+            "gpt": gpt_proof,
+            "system": system_activation,
+            "input": input_proof,
+            "gui_console": console_proof,
+            "wifi": wifi_proof,
+        }
+        proof_disposition = _proof_disposition(proofs)
+        become_next_seed = proof_disposition["status"] == "passed"
         healing: dict[str, Any] | None = None
         if become_next_seed:
             lineage_status = "regrown-and-promoted"
@@ -1259,34 +1479,36 @@ class RuntimeUpdater:
                 "physical": physical_proof,
                 "gpt": gpt_proof,
                 "system": system_activation,
+                "input": input_proof,
+                "gui_console": console_proof,
+                "wifi": wifi_proof,
+                "proof_disposition": proof_disposition,
                 "displaced_state": str(displaced_state),
             }
+        elif proof_disposition["status"] == "pending":
+            lineage_status = "proof-pending"
+            lineage_reason = "physical-or-reboot-proof-pending:" + ",".join(
+                proof_disposition["pending"]
+            )
+            lineage_evidence = {
+                "stage": {**stage_manifest, "path": str(stage)},
+                "candidate_proof": proofs,
+                "proof_disposition": proof_disposition,
+                "displaced_state": str(displaced_state),
+                "healing": None,
+            }
         else:
-            failed_proofs = [
-                name
-                for name, proof in (
-                    ("runtime", installed_proof),
-                    ("physical", physical_proof),
-                    ("gpt", gpt_proof),
-                    ("system", system_activation),
-                )
-                if proof.get("status") not in {"passed", "ready"}
-            ]
             healing = self._heal_from_displaced_state(
                 runtime_files=applied,
                 system_files=applied_system,
                 displaced_state=displaced_state,
             )
             lineage_status = "culled-awaiting-forward-regrow"
-            lineage_reason = "proof-failed:" + ",".join(failed_proofs or ["unknown"])
+            lineage_reason = "proof-failed:" + ",".join(proof_disposition["failed"] or ["unknown"])
             lineage_evidence = {
                 "stage": {**stage_manifest, "path": str(stage)},
-                "candidate_proof": {
-                    "runtime": installed_proof,
-                    "physical": physical_proof,
-                    "gpt": gpt_proof,
-                    "system": system_activation,
-                },
+                "candidate_proof": proofs,
+                "proof_disposition": proof_disposition,
                 "displaced_state": str(displaced_state),
                 "healing": healing,
             }
@@ -1316,16 +1538,18 @@ class RuntimeUpdater:
                 "backup": str(displaced_state),
                 "healing": healing,
             },
-            "prove": {
-                "runtime": installed_proof,
-                "physical": physical_proof,
-                "gpt": gpt_proof,
-            },
+            "prove": proofs,
             "become_next_seed": become_next_seed,
         }
         receipt = {
             "schema": SCHEMA,
-            "status": "updated" if become_next_seed else "culled-awaiting-forward-regrow",
+            "status": (
+                "updated"
+                if become_next_seed
+                else "applied-awaiting-proof"
+                if proof_disposition["status"] == "pending"
+                else "culled-awaiting-forward-regrow"
+            ),
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "workspace": str(self.workspace),
             "target": str(self.target),
@@ -1345,7 +1569,7 @@ class RuntimeUpdater:
             "healing": healing,
             "branch_moved_backward": False,
         }
-        if not become_next_seed:
+        if proof_disposition["status"] == "failed":
             receipt["next_action"] = "publish-forward-successor-from-verified-lkg-genetics"
             _atomic_json(
                 self.state_dir / "culled-generation.json",

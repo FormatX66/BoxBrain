@@ -94,6 +94,22 @@ def _touchpad_present(path: Path = DEFAULT_INPUT_DEVICES) -> bool:
     return False
 
 
+def _human_input_present(path: Path = DEFAULT_INPUT_DEVICES) -> bool:
+    """Detect a real event-backed keyboard or pointer for the X11 path."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        return False
+    for block in text.split("\n\n"):
+        handlers = next(
+            (line.split("=", 1)[1] for line in block.splitlines() if "handlers=" in line.lower()),
+            "",
+        ).lower()
+        if "event" in handlers and ("kbd" in handlers or "mouse" in handlers):
+            return True
+    return False
+
+
 def _xorg_libinput_ready() -> bool:
     return any(path.is_file() for path in XORG_LIBINPUT_DRIVERS)
 
@@ -362,11 +378,13 @@ class HopperDesktopRuntime:
             return result
         current = self.status()
         touchpad = _touchpad_present()
+        human_input = _human_input_present()
         if current["status"] == "running":
-            if not touchpad or current.get("mode") == "x11-vt2":
+            if not human_input or current.get("mode") == "x11-vt2":
                 return current
-            # Pixels are healthy, but a laptop touchpad needs libinput translation.
-            # Restart the presentation surface on X11 without touching tty1.
+            # Pixels can be healthy on direct KMS while SDL has no keyboard or
+            # pointer event path. Restart through X11/libinput without touching
+            # the tty1 fallback.
             self._clear_desktop()
         if self._echo_owns_vt2():
             return {"schema": SCHEMA, "status": "refused", "reason": "vt2-owned-by-echo", "machine": "Hopper"}
@@ -393,7 +411,7 @@ class HopperDesktopRuntime:
         self._clear_desktop()
 
         xdeps: dict[str, Any] = {}
-        if touchpad:
+        if human_input:
             ready, xdeps = self._try_x11(
                 policy=policy,
                 openvt=openvt,
@@ -401,7 +419,7 @@ class HopperDesktopRuntime:
                 python=python,
                 pygame_dep=pygame_dep,
                 console_dep=console_dep,
-                input_policy="touchpad-libinput-x11",
+                input_policy="keyboard-pointer-libinput-x11",
             )
             if ready is not None:
                 return ready
@@ -422,7 +440,7 @@ class HopperDesktopRuntime:
         if ready is not None:
             ready["dependency"] = pygame_dep
             ready["console_dependency"] = console_dep
-            ready["input_policy"] = "direct-kms" if not touchpad else "touchpad-x11-unavailable-kms-fallback"
+            ready["input_policy"] = "direct-kms" if not human_input else "x11-unavailable-kms-fallback"
             if xdeps:
                 ready["x_dependencies"] = xdeps
             _atomic_json(self.state_path, ready)
@@ -450,6 +468,7 @@ class HopperDesktopRuntime:
             "x_dependencies": xdeps,
             "desktop": _json_file(self.desktop_receipt),
             "touchpad_detected": touchpad,
+            "human_input_detected": human_input,
             "detail": self.log_path.read_text(encoding="utf-8", errors="replace")[-2500:] if self.log_path.is_file() else "",
         }
         _atomic_json(self.state_path, result)

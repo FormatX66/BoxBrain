@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,23 @@ RuntimeUpdater = runtime_module.RuntimeUpdater
 
 
 class AurumRuntimeUpdateTests(unittest.TestCase):
+    def test_pending_physical_or_reboot_proof_is_not_a_failed_generation(self) -> None:
+        pending = runtime_module._proof_disposition({
+            "runtime": {"status": "passed"},
+            "input": {"status": "pending-physical-input"},
+            "wifi": {"status": "pending-reboot-observation"},
+        })
+        failed = runtime_module._proof_disposition({
+            "runtime": {"status": "passed"},
+            "physical": {"status": "failed"},
+            "input": {"status": "pending-physical-input"},
+        })
+
+        self.assertEqual(pending["status"], "pending")
+        self.assertEqual(set(pending["pending"]), {"input", "wifi"})
+        self.assertEqual(failed["status"], "failed")
+        self.assertEqual(failed["failed"], ["physical"])
+
     def test_generation_transition_accepts_only_forward_history(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -100,6 +118,16 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertFalse(healed["branch_moved_backward"])
             self.assertFalse(healed["git_ref_changed"])
 
+    def test_gui_console_proof_covers_primary_and_fallback_renderers(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            updater = RuntimeUpdater(target=MODULE_PATH.parent, state_dir=Path(temporary))
+            proof = updater._gui_console_proof()
+
+        self.assertEqual(proof["status"], "passed")
+        self.assertTrue(proof["html_panel_present"])
+        self.assertTrue(proof["fallback_panel_present"])
+        self.assertFalse(proof["raw_shell"])
+
     def test_plan_and_apply_are_allowlisted_atomic_and_receipted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -149,6 +177,11 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 }),
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed", "model_call_proven": False}),
                 patch.object(updater, "_system_proof", return_value={"status": "passed", "service": "test"}),
+                patch.object(updater, "_wifi_snapshot", return_value={"schema": "aurum.wifi-persistence.v1"}),
+                patch.object(updater, "_wifi_persistence_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_wifi_reboot_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_input_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_gui_console_proof", return_value={"status": "passed"}),
             ):
                 result = updater.apply()
                 finalized = updater.prove_current({
@@ -168,6 +201,9 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertFalse(receipt["generation"]["lineage_policy"]["generation_rollback"])
             self.assertEqual(result["system_activation"]["reason"], "simulated-system-root")
             self.assertTrue(receipt["generation"]["become_next_seed"])
+            self.assertEqual(receipt["generation"]["prove"]["wifi"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["input"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["gui_console"]["status"], "passed")
             self.assertEqual(finalized["status"], "current")
             self.assertTrue(finalized["generation"]["become_next_seed"])
             self.assertEqual(finalized["generation"]["stage"]["status"], "verified")
@@ -176,7 +212,8 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             for relative, mode in SYSTEM_ASSETS:
                 installed = system_root / relative
                 self.assertEqual(installed.read_text(encoding="utf-8"), f"managed asset: {relative}\n")
-                self.assertEqual(installed.stat().st_mode & 0o777, mode)
+                if os.name == "posix":
+                    self.assertEqual(installed.stat().st_mode & 0o777, mode)
 
     def test_failed_candidate_path_culls_and_heals_instead_of_rolling_back_git(self) -> None:
         source = MODULE_PATH.read_text(encoding="utf-8")
@@ -229,6 +266,9 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed"}),
                 patch.object(updater, "_refresh_input", return_value={"status": "ready"}),
                 patch.object(updater, "_launch_physical_echo", return_value={"status": "skipped"}),
+                patch.object(updater, "_wifi_snapshot", return_value={"schema": "aurum.wifi-persistence.v1"}),
+                patch.object(updater, "_wifi_persistence_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_wifi_reboot_proof", return_value={"status": "passed"}),
             ):
                 culled = updater.apply()
             head_after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, check=True, text=True, stdout=subprocess.PIPE).stdout.strip()
@@ -264,7 +304,15 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
         self.assertEqual(result["status"], "ready")
         invocations = [call.args[0][1:] for call in runner.call_args_list]
         self.assertIn(["daemon-reload"], invocations)
-        self.assertIn(["enable", "aurum-input-bootstrap.service", "aurum-pc-console.service"], invocations)
+        self.assertIn(
+            [
+                "enable",
+                "aurum-input-bootstrap.service",
+                "aurum-network-bootstrap.service",
+                "aurum-pc-console.service",
+            ],
+            invocations,
+        )
         self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
         self.assertTrue(result["boot_screen_visible_on_next_boot"])
 
