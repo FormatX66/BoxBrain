@@ -55,6 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s Web/Aurum-Arkmatx/dashboard.html
+          test -s Web/Aurum-Arkmatx/generation-seed-ladder-v1.js
           test -s Web/Aurum-Arkmatx/voice-status.txt
           test -s Web/Aurum-Arkmatx/voice-status.json
           test -s Web/Aurum-Arkmatx/voice-status/index.html
@@ -63,6 +64,11 @@ jobs:
           test -s AURUM_VOICE_STATUS.md
           grep -F 'Progress is proof, not activity.' Web/Aurum-Arkmatx/dashboard.html >/dev/null
           grep -F 'voice-status.json' Web/Aurum-Arkmatx/dashboard.html >/dev/null
+          grep -F 'AURUM_GENERATION_SEED_LADDER_V1_CANONICAL' Web/Aurum-Arkmatx/generation-seed-ladder-v1.js >/dev/null
+          grep -F 'Frontiers Advancing:' Web/Aurum-Arkmatx/generation-seed-ladder-v1.js >/dev/null
+          grep -F 'Needs Work → Aurum/System:' Web/Aurum-Arkmatx/generation-seed-ladder-v1.js >/dev/null
+          grep -F 'Your Actions:' Web/Aurum-Arkmatx/generation-seed-ladder-v1.js >/dev/null
+          node --check Web/Aurum-Arkmatx/generation-seed-ladder-v1.js
           grep -F 'AURUM VOICE STATUS' Web/Aurum-Arkmatx/voice-status.txt >/dev/null
           grep -F 'Read Aurum Voice Status' AURUM_VOICE_STATUS.md >/dev/null
           python3 - <<'PY'
@@ -117,6 +123,23 @@ jobs:
           ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
             "php -v >/dev/null && mkdir -p -- '$REMOTE_PATH'"
 
+      - name: Backup hosted web node before publish
+        id: backup
+        if: steps.config.outputs.configured == 'true'
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          PORT: ${{ secrets.ARKMATX_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          BACKUP="/tmp/aurum-arkmatx-backup-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tgz"
+          ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
+            "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -C '$REMOTE_PATH' -czf '$BACKUP' ."
+          echo "remote_backup=$BACKUP" >> "$GITHUB_OUTPUT"
+          echo "AURUM_WEB_BACKUP_OK path=$BACKUP"
+
       - name: Upload web node
         if: steps.config.outputs.configured == 'true'
         env:
@@ -132,7 +155,7 @@ jobs:
           ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
             "set -eu; mkdir -p -- '$REMOTE_PATH'; tar -xzf /tmp/aurum-arkmatx.tgz -C '$REMOTE_PATH'; rm -f /tmp/aurum-arkmatx.tgz; php -l '$REMOTE_PATH/index.php'; php -l '$REMOTE_PATH/voice-status.php'"
 
-      - name: Verify public node, dashboard, and voice mirror
+      - name: Verify public node, dashboard, voice mirror, and canonical projection bytes
         if: steps.config.outputs.configured == 'true'
         env:
           URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
@@ -147,6 +170,12 @@ jobs:
           dashboard="$(curl --fail --silent --show-error --max-time 10 "$base/dashboard")"
           printf '%s' "$dashboard" | grep -F 'Progress is proof, not activity.' >/dev/null
           printf '%s' "$dashboard" | grep -F 'voice-status.json' >/dev/null
+
+          curl --fail --silent --show-error --max-time 15 "$base/generation-seed-ladder-v1.js" > /tmp/live-generation-seed-ladder-v1.js
+          cmp -s Web/Aurum-Arkmatx/generation-seed-ladder-v1.js /tmp/live-generation-seed-ladder-v1.js
+          grep -F 'Frontiers Advancing:' /tmp/live-generation-seed-ladder-v1.js >/dev/null
+          grep -F 'Needs Work → Aurum/System:' /tmp/live-generation-seed-ladder-v1.js >/dev/null
+          grep -F 'Your Actions:' /tmp/live-generation-seed-ladder-v1.js >/dev/null
 
           voice="$(curl --fail --silent --show-error --max-time 15 "$base/voice-status")"
           printf '%s' "$voice" | grep -F 'AURUM VOICE STATUS' >/dev/null
@@ -169,7 +198,42 @@ jobs:
               f"source={payload.get('source')} "
               f"capabilities={len(capabilities)}"
           )
+          print('AURUM_GENERATION_SEED_LADDER_LIVE_BYTES_OK')
           PY
+
+      - name: Roll back hosted web node on publish or verification failure
+        if: ${{ failure() && steps.config.outputs.configured == 'true' && steps.backup.outputs.remote_backup != '' }}
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          PORT: ${{ secrets.ARKMATX_SSH_PORT }}
+          REMOTE_PATH: ${{ secrets.ARKMATX_REMOTE_PATH }}
+          BACKUP: ${{ steps.backup.outputs.remote_backup }}
+          URL: ${{ secrets.ARKMATX_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" \
+            "set -eu; test -f '$BACKUP'; find '$REMOTE_PATH' -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; tar -xzf '$BACKUP' -C '$REMOTE_PATH'; php -l '$REMOTE_PATH/index.php'; php -l '$REMOTE_PATH/voice-status.php'"
+          base="${URL%/}"
+          curl --fail --silent --show-error --max-time 15 "$base/status" >/tmp/aurum-rollback-status
+          curl --fail --silent --show-error --max-time 15 "$base/dashboard" >/tmp/aurum-rollback-dashboard
+          grep -F 'Aurum-Arkmatx' /tmp/aurum-rollback-status >/dev/null
+          grep -F 'Progress is proof, not activity.' /tmp/aurum-rollback-dashboard >/dev/null
+          echo 'AURUM_WEB_ROLLBACK_OK'
+
+      - name: Remove hosted backup after successful verification
+        if: ${{ success() && steps.config.outputs.configured == 'true' && steps.backup.outputs.remote_backup != '' }}
+        env:
+          HOST: ${{ secrets.ARKMATX_SSH_HOST }}
+          USER: ${{ secrets.ARKMATX_SSH_USER }}
+          PORT: ${{ secrets.ARKMATX_SSH_PORT }}
+          BACKUP: ${{ steps.backup.outputs.remote_backup }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          ssh -p "$PORT" -o BatchMode=yes -o IdentitiesOnly=yes "$USER@$HOST" "rm -f -- '$BACKUP'"
+          echo 'AURUM_WEB_BACKUP_RELEASED verification=passed'
 
       - name: Observe bounded BBPI4 AP probes
         if: steps.config.outputs.configured == 'true'
@@ -255,6 +319,9 @@ jobs:
                   'seven_human_capabilities': True,
                   'six_evidence_gates': True,
                   'php_lint': True,
+                  'backup_before_publish': True,
+                  'generation_seed_ladder_byte_match': True,
+                  'rollback_on_verification_failure': True,
               },
           }
           encoded = base64.b64encode(
