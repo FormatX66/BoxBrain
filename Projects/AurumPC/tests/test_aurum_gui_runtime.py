@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 MODULE_PATH = Path(__file__).parents[1] / "aurum_gui_runtime.py"
@@ -125,6 +125,44 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             runtime._clear_stale_gui_listener()
 
         kill.assert_called_once_with(42, signal.SIGTERM)
+
+    def test_gui_start_recognizes_legacy_core_share_default_port_form(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        legacy_command = "/usr/bin/python3 /opt/aurum/aurum_core_share.py serve --bind 0.0.0.0"
+
+        with patch.object(runtime, "_cmdline", return_value=legacy_command):
+            self.assertTrue(runtime._legacy_core_share_on_gui_port(42))
+
+    def test_gui_start_recognizes_legacy_core_share_equals_port_form(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        legacy_command = (
+            "/usr/bin/python3 /opt/aurum/aurum_core_share.py "
+            "serve --bind 0.0.0.0 --port=8765"
+        )
+
+        with patch.object(runtime, "_cmdline", return_value=legacy_command):
+            self.assertTrue(runtime._legacy_core_share_on_gui_port(42))
+
+    def test_gui_start_retries_once_after_a_recognized_bind_race(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        failed = Mock()
+        failed.poll.return_value = 1
+        replacement = Mock()
+
+        with (
+            patch.object(
+                runtime,
+                "_gui_status",
+                side_effect=[{"status": "stopped"}, {"status": "stopped"}, {"status": "running"}],
+            ),
+            patch.object(runtime, "_clear_stale_gui_listener") as clear,
+            patch.object(runtime, "_spawn", side_effect=[failed, replacement]) as spawn,
+            patch.object(runtime, "_listener_pids", return_value=[42]),
+        ):
+            runtime._start_gui()
+
+        self.assertEqual(clear.call_count, 2)
+        self.assertEqual(spawn.call_count, 2)
 
     def test_gui_start_refuses_an_unrecognized_listener(self) -> None:
         runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)

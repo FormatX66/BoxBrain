@@ -103,11 +103,21 @@ class GuiRuntime:
         return "aurum_hopper_gui.py" in cmdline or "aurum_gui.py" in cmdline
 
     def _legacy_core_share_on_gui_port(self, pid: int) -> bool:
-        cmdline = self._cmdline(pid)
-        return bool(
-            str(self.runtime_root / "aurum_core_share.py") in cmdline
+        cmdline = self._cmdline(pid).replace("\\", "/")
+        if not (
+            (self.runtime_root / "aurum_core_share.py").as_posix() in cmdline
             and " serve " in f" {cmdline} "
-            and f"--port {self.port}" in cmdline
+        ):
+            return False
+        # The first open-core unit used 8765 explicitly, but an installed copy
+        # may also have started the same legacy module with its default port.
+        # A process only reaches this check after /proc proves that it owns the
+        # listener on the GUI port, so accepting the omitted/equal-sign forms
+        # does not broaden which processes may be stopped.
+        return bool(
+            f"--port {self.port}" in cmdline
+            or f"--port={self.port}" in cmdline
+            or "--port" not in cmdline
         )
 
     def _owned_arcade(self, pid: int) -> bool:
@@ -344,20 +354,29 @@ class GuiRuntime:
     def _start_gui(self) -> None:
         if self._gui_status()["status"] == "running":
             return
-        self._clear_stale_gui_listener()
-        process = self._spawn(
-            self.gui_script,
-            ["--root", str(self.root), "--host", "127.0.0.1", "--port", str(self.port)],
-            self.pid_path,
-            self.log_path,
-        )
-        deadline = time.monotonic() + 8
-        while time.monotonic() < deadline:
-            if self._gui_status()["status"] == "running":
-                return
-            if process.poll() is not None:
-                break
-            time.sleep(0.25)
+        # A systemd-managed legacy core listener can be restarted in the small
+        # window between the first ownership check and the GUI bind.  Retry the
+        # bind once, but only after the same strict listener ownership check.
+        # Unknown listeners are still never signalled.
+        for attempt in range(2):
+            self._clear_stale_gui_listener()
+            process = self._spawn(
+                self.gui_script,
+                ["--root", str(self.root), "--host", "127.0.0.1", "--port", str(self.port)],
+                self.pid_path,
+                self.log_path,
+            )
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                if self._gui_status()["status"] == "running":
+                    return
+                if process.poll() is not None:
+                    break
+                time.sleep(0.25)
+            self.pid_path.unlink(missing_ok=True)
+            if attempt == 0 and self._listener_pids(self.port):
+                continue
+            break
         self.pid_path.unlink(missing_ok=True)
         detail = self.log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.log_path.is_file() else ""
         raise GuiRuntimeError("GUI did not become ready" + (f": {detail}" if detail else ""))
