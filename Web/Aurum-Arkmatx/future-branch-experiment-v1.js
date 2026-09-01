@@ -1,36 +1,36 @@
 /* AURUM_FUTURE_BRANCH_EXPERIMENT_V1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence sources:
- * - Latest: FormatX66/aurum-future-branch-quantum experiment gha-33549260662-attempt-1 at evidence commit 221a8f30a74253ffd9bb0ca091f9fcef86672c06.
- * - Stability window: gha-33472480781-attempt-1, gha-33513733596-attempt-1, gha-33549260662-attempt-1.
- * - Interaction handoff correction: FormatX66/aurum-future-branch-quantum merge a5bae15cde278f07a77068f9af977bf12d9d1b81 after local-reference-tests run 33557714319 passed.
+ * - Latest normal cycle: FormatX66/aurum-future-branch-quantum experiment gha-33567140374-attempt-1 at evidence commit 31113892de1ff66861fc9f3fb53cfe7d3734b9ee.
+ * - Stable selection history: gha-33472480781-attempt-1, gha-33513733596-attempt-1, gha-33549260662-attempt-1, gha-33567140374-attempt-1.
+ * - Interaction handoff correction: FormatX66/aurum-future-branch-quantum merge a5bae15cde278f07a77068f9af977bf12d9d1b81 after local-reference-tests run 33557714319 passed; normal cycle 33567140374 then regenerated the durable handoff successfully.
  * - FormatX66/BoxBrain Aurum Experiment Race run 33487915033.
  * This surface augments the existing expandable Future Branch card only; it never creates a new major dashboard box.
  * Experimental selection, provider sweep, race results, workflow state, prediction confidence, or handoff preparation never creates a human task or execution authority.
- * Equivalent scheduled repeats are evidence health, not frontier movement; after this three-cycle stability window they do not justify republishing unless substantive evidence changes.
+ * Equivalent scheduled repeats are evidence health, not frontier movement; this publication is justified by the handoff readiness transition, not by the unchanged selected branch.
  */
 (()=>{'use strict';
 if(window.__aurumFutureBranchExperimentV1)return;
 window.__aurumFutureBranchExperimentV1=true;
 const EVIDENCE={
  schema:'aurum-future-branch-experiment-log-v1',
- sourceEvidenceCommit:'221a8f30a74253ffd9bb0ca091f9fcef86672c06',
- runId:'33549260662',
- experimentId:'gha-33549260662-attempt-1',
- recordedAt:'2026-09-01T19:25:24.105777+00:00',
- cycle:37,
- effectiveCycle:40,
- priorRunId:'33513733596',
- priorExperimentId:'gha-33513733596-attempt-1',
- priorCycle:36,
- priorEffectiveCycle:39,
+ sourceEvidenceCommit:'31113892de1ff66861fc9f3fb53cfe7d3734b9ee',
+ runId:'33567140374',
+ experimentId:'gha-33567140374-attempt-1',
+ recordedAt:'2026-09-01T22:38:23.955436+00:00',
+ cycle:38,
+ effectiveCycle:41,
+ priorRunId:'33549260662',
+ priorExperimentId:'gha-33549260662-attempt-1',
+ priorCycle:37,
+ priorEffectiveCycle:40,
  baselineRunId:'33472480781',
  baselineExperimentId:'gha-33472480781-attempt-1',
  baselineCycle:35,
  baselineEffectiveCycle:38,
- stabilityWindowCount:3,
- stabilityWindowRunIds:['33472480781','33513733596','33549260662'],
- stabilityWindowCycles:[35,36,37],
+ stableSelectionCycleCount:4,
+ stableSelectionRunIds:['33472480781','33513733596','33549260662','33567140374'],
+ stableSelectionCycles:[35,36,37,38],
  overall:'success',
  selectedPath:'current-release-flash-readback-proven-awaiting-physical-boot',
  probability:0.8888888888888888,
@@ -39,7 +39,7 @@ const EVIDENCE={
  prunedCount:7,
  topProbabilityFraction:0.05,
  buildState:'READY_TO_FLASH',
- authorityCommit:'c4898ba78ca3de1073b67959267ffc45ddbf0fff',
+ authorityCommit:'c76dd260941140cf920b9553064ca7b4a79f31a0',
  buildSourceCommit:'4eb31e8071cdc9705f4f5abea5af764ef35e498b',
  combinedFingerprint:'8a67443e3935d64c2d51f2df2785496adeacf56de91863b69fd8d46bfe75c015',
  nextGate:'physical-flash-and-boot-proof',
@@ -51,23 +51,36 @@ const EVIDENCE={
  hardwareSubmission:false,
  physicalOrDestructiveEffectExecuted:false,
  disposition:'wait-boundary',
+ equivalentRepeat:true,
+ substantiveChange:'handoff-readiness',
  equivalentRepeatSuppression:true,
  republishOnlyOnSubstantiveEvidenceChange:true
 };
 const HANDOFF={
  schema:'aurum-future-branch-interaction-frontier-v1',
- sourceRunId:'33549260662',
- sourceRecordedAt:'2026-09-01T19:25:24.607424+00:00',
- storedStatus:'degraded',
- storedMissingEvidence:['selected-machine-path'],
- storedBuildState:'unknown',
- storedNextGate:'unknown',
- rootCause:'qpu-candidate-envelope-analysis-not-unwrapped',
+ sourceEvidenceCommit:'31113892de1ff66861fc9f3fb53cfe7d3734b9ee',
+ sourceRunId:'33567140374',
+ sourceRecordedAt:'2026-09-01T22:38:24.364866+00:00',
+ storedStatus:'ready',
+ storedMissingEvidence:[],
+ storedBuildState:'READY_TO_FLASH',
+ storedNextGate:'physical-flash-and-boot-proof',
+ selectedMachinePath:'current-release-flash-readback-proven-awaiting-physical-boot',
+ selectedMachinePathDisposition:'wait-boundary',
+ selectedMachinePathRealBoundary:true,
+ branchStateSha256:'11280c2c9fddfe00502bbee2a855417f44e2a4aa662a215aa6b50842f3b258ae',
+ calibrationSha256:'8431f00f73b22568eb1b26dea43a8f2cb40f33a51f29c73f99a124693bc4aa4f',
+ combinedFingerprint:'8a67443e3935d64c2d51f2df2785496adeacf56de91863b69fd8d46bfe75c015',
+ futureBranchSeedSha256:'148ee83e62f85702fd811d7777cd454f20ba842d07c267d154381991bbdc43fe',
  correctionCommit:'a5bae15cde278f07a77068f9af977bf12d9d1b81',
  correctionTestRunId:'33557714319',
  correctionTestConclusion:'success',
  correctionVerified:true,
- nextRefresh:'next-normal-continuous-flow-cycle',
+ normalCycleRefreshVerified:true,
+ preparedPacketFirst:true,
+ fetchOnlyNewerDeltasWhenPossible:true,
+ neverClaimDeliveryBeforeUserInteraction:true,
+ neverPromoteUnverifiedPhysicalState:true,
  manualExperimentRerunRequired:false,
  authorityWidened:false,
  needsWorkOwner:'aurum-system',
@@ -106,7 +119,7 @@ function mount(){
  }
  panel.setAttribute('data-evidence-run',EVIDENCE.runId);
  const providers=EVIDENCE.providerSweeps.map(x=>`${x.provider}:${x.passed?`${x.casesExecuted}/${x.casesExecuted} pass`:'not passed'}`).join(' · ');
- panel.innerHTML=`<br><b>Latest verified Future Branch experiment</b><div class="fb-grid"><b>Frontiers Advancing</b><span>${esc(EVIDENCE.experimentId)} · ${esc(EVIDENCE.overall)} · cycle ${esc(EVIDENCE.cycle)} / effective ${esc(EVIDENCE.effectiveCycle)}. The same 1-of-8 future remained selected at ${esc(pct(EVIDENCE.probability))} across ${esc(EVIDENCE.stabilityWindowCount)} consecutive scheduled cycles (${esc(EVIDENCE.stabilityWindowCycles.join(' → '))}); ${esc(providers)} and the seed artifact fingerprint remained stable.</span><b>Selected future</b><span>${esc(EVIDENCE.selectedPath)} · ${esc(EVIDENCE.selectedCount)} of ${esc(EVIDENCE.populationSize)} retained · ${esc(EVIDENCE.prunedCount)} pruned until branch, evidence, dependency, hypothesis, or authority changes.</span><b>Evidence-health policy</b><span>This three-cycle stability window establishes repeatability. Further equivalent scheduled repeats are healthy proof but not new frontier movement and should not trigger another dashboard publication unless the selected path, gate state, artifact fingerprint, provider outcome, authority boundary, or handoff readiness changes.</span><b>Prepared handoff process</b><span>The stored interaction handoff from run ${esc(HANDOFF.sourceRunId)} is degraded because its reader treated the QPU candidate envelope as the analysis object, leaving selected-machine-path/build state/next gate unknown. The parser correction is merged at ${esc(HANDOFF.correctionCommit)} and its full local-reference-tests run ${esc(HANDOFF.correctionTestRunId)} passed. Do not manually rerun the unchanged experiment for dashboard freshness; the next normal continuous-flow cycle should regenerate the handoff using the corrected parser.</span><b>Seed evidence boundary</b><span>${esc(EVIDENCE.buildState)} artifact state from build source ${esc(EVIDENCE.buildSourceCommit)}; the latest authority observation is ${esc(EVIDENCE.authorityCommit)} without changing the proven artifact fingerprint. Guardian forced-rollback and physical boot remain unverified.</span><b>Needs Work → Aurum/System</b><span>On the next normal Future Branch cycle, verify the prepared interaction handoff becomes ready with the selected machine path, build state, gate, and proof hashes populated. Separately, hold at the real physical-boot boundary until bounded evidence or authority changes. Experiment or handoff proof cannot grant production, write, physical, promotion, credential, identity, or LKG-mutation authority.</span><b>Your Actions</b><span>None from this evidence. No credential, reboot, cable/media move, destructive approval, identity decision, or other human-only requirement was established.</span></div>`;
+ panel.innerHTML=`<br><b>Latest verified Future Branch evidence</b><div class="fb-grid"><b>Frontiers Advancing</b><span>The corrected Future Branch handoff path is now verified in the normal scheduled flow. Run ${esc(EVIDENCE.runId)} completed successfully and regenerated a ${esc(HANDOFF.storedStatus)} next-user interaction handoff with the selected machine path, ${esc(HANDOFF.storedBuildState)} build state, ${esc(HANDOFF.storedNextGate)} next gate, and durable proof hashes populated. The selected 1-of-8 future itself remained unchanged at ${esc(pct(EVIDENCE.probability))}; that repeat is evidence health, not separate frontier movement.</span><b>Selected future</b><span>${esc(EVIDENCE.selectedPath)} · ${esc(EVIDENCE.selectedCount)} of ${esc(EVIDENCE.populationSize)} retained · ${esc(EVIDENCE.prunedCount)} pruned until branch, evidence, dependency, hypothesis, or authority changes. The same selection has remained stable across ${esc(EVIDENCE.stableSelectionCycleCount)} scheduled cycles (${esc(EVIDENCE.stableSelectionCycles.join(' → '))}); ${esc(providers)} and the seed artifact fingerprint remain stable.</span><b>Evidence-health policy</b><span>Equivalent scheduled repeats remain healthy proof but do not trigger dashboard publication by themselves. This revision exists only because handoff readiness changed from degraded to ready. Future publications still require a material change in selected path, gate state, artifact fingerprint, provider outcome, authority boundary, or handoff readiness.</span><b>Prepared handoff process</b><span>The parser correction at ${esc(HANDOFF.correctionCommit)} is now proven through the normal continuous-flow path, not only unit/reference tests. Handoff run ${esc(HANDOFF.sourceRunId)} is ${esc(HANDOFF.storedStatus)} with no missing evidence, uses the prepared packet first, fetches only newer deltas when possible, never claims delivery before a user interaction, and never promotes unverified physical state.</span><b>Seed evidence boundary</b><span>${esc(EVIDENCE.buildState)} artifact state from build source ${esc(EVIDENCE.buildSourceCommit)}; authority observation ${esc(EVIDENCE.authorityCommit)} did not change the proven artifact fingerprint. Guardian forced-rollback and physical boot remain unverified.</span><b>Needs Work → Aurum/System</b><span>The handoff parser remediation is complete. Continue to hold at the real physical-boot boundary until bounded physical-boot or Guardian rollback evidence changes. Experiment or handoff proof cannot grant production, write, physical, promotion, credential, identity, or LKG-mutation authority.</span><b>Your Actions</b><span>None from this evidence. No credential, reboot, cable/media move, destructive approval, identity decision, or other genuinely human-only requirement was established.</span></div>`;
  let race=detail.querySelector('.fb-experiment-race');
  if(!race){
   race=document.createElement('div');
@@ -120,7 +133,7 @@ function mount(){
  race.innerHTML=`<br><b>Verified Aurum Experiment Race</b><div class="fb-grid"><b>Frontiers Advancing</b><span>Run ${esc(RACE.runId)} · ${esc(RACE.overall)} · all ${esc(RACE.lanes.length)} lanes passed native checks and the shared ${esc(RACE.benchmark)} safety benchmark. This is comparable evidence across conventional Aurum, Stateweave, adaptive-kernel, and combined Stateweave + adaptive-kernel paths.</span><b>Lane evidence</b><span>${laneSummary}</span><b>Interpretation guardrail</b><span>Attempts and LOC are descriptive evidence, not a winner declaration. Unit-test success alone does not promote a lane, and this race has auto-promotion=false.</span><b>Needs Work → Aurum/System</b><span>Promotion remains unearned until a shared real-world Aurum capability demonstrates equal or better verified outcome, safety, recoverability, and resource cost. Continue bounded evidence gathering; do not rerun unchanged lanes merely to create activity.</span><b>Your Actions</b><span>None from this evidence. No credential, reboot, cable/media move, destructive approval, identity decision, or other human-only requirement was established.</span></div>`;
  window.__aurumFutureBranchExperimentState={
   schema:'aurum-command-center-future-branch-experiment-v1',
-  surfaceRevision:'v1.4',
+  surfaceRevision:'v1.5',
   evidenceSourceCommit:EVIDENCE.sourceEvidenceCommit,
   evidenceRunId:EVIDENCE.runId,
   evidenceExperimentId:EVIDENCE.experimentId,
@@ -131,10 +144,12 @@ function mount(){
   priorEvidenceExperimentId:EVIDENCE.priorExperimentId,
   baselineEvidenceRunId:EVIDENCE.baselineRunId,
   baselineEvidenceExperimentId:EVIDENCE.baselineExperimentId,
-  stabilityWindowCount:EVIDENCE.stabilityWindowCount,
-  stabilityWindowRunIds:EVIDENCE.stabilityWindowRunIds.slice(),
-  stabilityWindowCycles:EVIDENCE.stabilityWindowCycles.slice(),
+  stableSelectionCycleCount:EVIDENCE.stableSelectionCycleCount,
+  stableSelectionRunIds:EVIDENCE.stableSelectionRunIds.slice(),
+  stableSelectionCycles:EVIDENCE.stableSelectionCycles.slice(),
   consecutiveCycleSelectionStable:EVIDENCE.selectedPath==='current-release-flash-readback-proven-awaiting-physical-boot',
+  equivalentRepeat:EVIDENCE.equivalentRepeat,
+  substantiveChange:EVIDENCE.substantiveChange,
   equivalentRepeatSuppression:EVIDENCE.equivalentRepeatSuppression,
   republishOnlyOnSubstantiveEvidenceChange:EVIDENCE.republishOnlyOnSubstantiveEvidenceChange,
   experimentState:EVIDENCE.overall,
@@ -146,14 +161,26 @@ function mount(){
   providerSweepPassed:EVIDENCE.providerSweeps.every(x=>x.passed&&x.failedCases===0),
   providerSweepCases:EVIDENCE.providerSweeps.reduce((n,x)=>n+x.casesExecuted,0),
   disposition:EVIDENCE.disposition,
+  handoffSourceEvidenceCommit:HANDOFF.sourceEvidenceCommit,
   handoffSourceRunId:HANDOFF.sourceRunId,
   handoffStoredStatus:HANDOFF.storedStatus,
   handoffStoredMissingEvidence:HANDOFF.storedMissingEvidence.slice(),
-  handoffRootCause:HANDOFF.rootCause,
+  handoffStoredBuildState:HANDOFF.storedBuildState,
+  handoffStoredNextGate:HANDOFF.storedNextGate,
+  handoffSelectedMachinePath:HANDOFF.selectedMachinePath,
+  handoffSelectedMachinePathRealBoundary:HANDOFF.selectedMachinePathRealBoundary,
+  handoffProofBranchStateSha256:HANDOFF.branchStateSha256,
+  handoffProofCalibrationSha256:HANDOFF.calibrationSha256,
+  handoffProofCombinedFingerprint:HANDOFF.combinedFingerprint,
+  handoffProofFutureBranchSeedSha256:HANDOFF.futureBranchSeedSha256,
   handoffCorrectionCommit:HANDOFF.correctionCommit,
   handoffCorrectionTestRunId:HANDOFF.correctionTestRunId,
   handoffCorrectionVerified:HANDOFF.correctionVerified,
-  handoffNextRefresh:HANDOFF.nextRefresh,
+  handoffNormalCycleRefreshVerified:HANDOFF.normalCycleRefreshVerified,
+  handoffPreparedPacketFirst:HANDOFF.preparedPacketFirst,
+  handoffFetchOnlyNewerDeltasWhenPossible:HANDOFF.fetchOnlyNewerDeltasWhenPossible,
+  handoffNeverClaimDeliveryBeforeUserInteraction:HANDOFF.neverClaimDeliveryBeforeUserInteraction,
+  handoffNeverPromoteUnverifiedPhysicalState:HANDOFF.neverPromoteUnverifiedPhysicalState,
   handoffManualExperimentRerunRequired:HANDOFF.manualExperimentRerunRequired,
   handoffAuthorityWidened:HANDOFF.authorityWidened,
   raceEvidenceRunId:RACE.runId,
