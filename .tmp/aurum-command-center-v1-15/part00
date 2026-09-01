@@ -1,0 +1,61 @@
+/* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_15_CANONICAL
+ * Canonical website owner: FormatX66/ClusterSites.
+ * Evidence boundary: implementation, virtual/image proof, native-chain proof, external-prerequisite evidence, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
+ */
+(()=>{
+'use strict';
+if(window.__aurumGenerationSeedLadderV1)return;
+window.__aurumGenerationSeedLadderV1=true;
+const EVIDENCE_COMMIT='4e99ca094e5e2c4d786ba69adca4c311a8964936';
+const RESTORED_LKG_HEAD='a4b605b50708252fa945783e619a68b706d29382';
+const ACTIVE_TRUNK_COMMIT='a0780429b8a1a0372b76d1c19fe98096e5de8a30';
+const ACTIVE_TRUNK_PARENT='ad1b618ce0cc1cbc1d09b1881663fa6fbef8a59f';
+const RESTORE_VALIDATION_COMMIT='bd76bc92f960169ced6edd2b7f895fbbde4b5cce';
+const BROKEN_HUMAN_SURFACE_COMMIT='0395b2672e006262c4cbe767e3566c81fe9d9b0c';
+const LAST_KNOWN_GOOD_COMMIT='f3c0a2d3f59a22f496e4bf29dff614136bfe7abd';
+const HISTORICAL_ROUTE_FIX_COMMIT='6c9baefd9de4583976d99b3a90ac6a28114986bb';
+const LKG_TREE='c0d83736eac27d3ccb94c24a51eea0c4b22bbdeb';
+const ACTIVE_TRUNK_TREE='e5049cad1ff7f5f716ef06351941b9b4ad434e30';
+const RETAINED_RESTORE_PC_IMAGE_RUN='33253166899';
+const HOPPER_LIVE_GUI_CONTRACT_RUN='33266139138';
+const RECOVERY_GROWTH_RUN='33266139233';
+const RETAINED_PC_IMAGE_RUN='33267739225';
+const RETAINED_PARENT_VIRTUAL_LAB_RUN='33283128632';
+const CURRENT_PC_IMAGE_RUN='33398872010';
+const CURRENT_PI3_IMAGE_RUN='33398872028';
+const CURRENT_AUTOBUILD_RUN='33400052429';
+const CURRENT_PREREQUISITE_WATCH_RUN='33455559358';
+const LAST_SUCCESSFUL_HOPPER_STATUS_RUN='33438851817';
+const PREVIOUS_HOPPER_STATUS_RUN='33454951504';
+const CURRENT_HOPPER_STATUS_RUN='33474010603';
+const CURRENT_VIRTUAL_LAB_RUN='33418433996';
+const HOPPER_STATUS_SNAPSHOT_COMMIT='31b248305dc0e35eee0ee4a1f5893775777366fd';
+const CURRENT_HOPPER_STATUS_OBSERVED_AT='2026-08-31T21:13:51Z';
+const LAST_SUCCESSFUL_HOPPER_STATUS_STARTED_AT='2026-08-31T21:13:46Z';
+const LAST_SUCCESSFUL_HOPPER_STATUS_COMPLETED_AT='2026-08-31T21:13:55Z';
+const PREVIOUS_HOPPER_STATUS_CREATED_AT='2026-09-01T00:29:26Z';
+const PREVIOUS_HOPPER_STATUS_CANCELLED_AT='2026-09-01T05:32:47Z';
+const CURRENT_HOPPER_STATUS_CREATED_AT='2026-09-01T05:32:45Z';
+const CURRENT_HOPPER_STATUS_CANCELLED_AT='2026-09-01T10:23:46Z';
+const EVIDENCE_URL=`https://github.com/FormatX66/BoxBrain/commit/${EVIDENCE_COMMIT}`;
+const TRUNK_URL=`https://github.com/FormatX66/BoxBrain/commit/${ACTIVE_TRUNK_COMMIT}`;
+const PARENT_URL=`https://github.com/FormatX66/BoxBrain/commit/${ACTIVE_TRUNK_PARENT}`;
+const ROUTE_FIX_URL=`https://github.com/FormatX66/BoxBrain/commit/${HISTORICAL_ROUTE_FIX_COMMIT}`;
+const HOPPER_GUI_RUN_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${HOPPER_LIVE_GUI_CONTRACT_RUN}`;
+const RECOVERY_GROWTH_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RECOVERY_GROWTH_RUN}`;
+const RETAINED_PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RETAINED_PC_IMAGE_RUN}`;
+const RETAINED_PARENT_VIRTUAL_LAB_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RETAINED_PARENT_VIRTUAL_LAB_RUN}`;
+const CURRENT_PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PC_IMAGE_RUN}`;
+const CURRENT_PI3_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PI3_IMAGE_RUN}`;
+const CURRENT_AUTOBUILD_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_AUTOBUILD_RUN}`;
+const CURRENT_PREREQUISITE_WATCH_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PREREQUISITE_WATCH_RUN}`;
+const LAST_SUCCESSFUL_HOPPER_STATUS_RUN_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${LAST_SUCCESSFUL_HOPPER_STATUS_RUN}`;
+const PREVIOUS_HOPPER_STATUS_RUN_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${PREVIOUS_HOPPER_STATUS_RUN}`;
+const CURRENT_HOPPER_STATUS_RUN_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_HOPPER_STATUS_RUN}`;
+const CURRENT_VIRTUAL_LAB_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_VIRTUAL_LAB_RUN}`;
+const HOPPER_STATUS_URL=`https://github.com/FormatX66/BoxBrain/blob/${HOPPER_STATUS_SNAPSHOT_COMMIT}/Web/Aurum-Arkmatx/hopper-status.json`;
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const generations=[
+ {id:'Gen1',title:'Everyone-OS readiness gate',status:'Hopper GUI handoff hardened · exact-head four-target virtual convergence green · Hopper status refresh lane unavailable across two scheduled cycles · native continuation fail-closed',ready:['graphical shell contract','seven everyday traits contract','intent/accessibility contract','recovery contract','unattended candidate validation','historical TR8:WEB implementation/acceptance contract at pinned evidence commit','historical TR8:PROMPT implementation/fallback contract at pinned evidence commit','forward-only LKG restoration retained as historical recovery proof','never-move-backward lifecycle contract','displaced-state preservation before candidate apply','append-only seed lineage journal + projection','heal current seed after failed proof','cull failed candidate while preserving receipts','require a later forward descendant before regrowth','culled-head retry forbidden','Hopper keyboard/pointer event-proof implementation','bounded GUI recovery-console implementation','saved Wi-Fi fingerprint/persistence implementation','open sanitized core status surface','fixed forward-only seed-sync action','boot-time forward auto-sync service','open-core exclusion of personal Slush, home and root data','open-core listener separated from Hopper GUI: 8767 vs 8765','legacy 8765 core-share collision recognition remains ownership-bounded','legacy command recognition now accepts default-port and --port=8765 forms','GUI bind handoff retries once only after the same proven legacy-listener ownership check','unknown GUI-port listeners are never signalled','reboot-only core-share migration fallback remains removed','exact-head PC image validation/build green','exact-head generic UEFI smoke green','exact-head Hopper HP twin smoke green','exact-head verified PC image publication green','exact-head Pi3 image workflow green','exact-head CircleCI independent verifier green','current-head Docker x86_64 virtual boot green','current-head native ARM64 virtual boot green','current-head Pi3 QEMU machine/runtime green','current-head x86_64 QEMU UEFI PC boot 
