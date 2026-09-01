@@ -1,7 +1,8 @@
 /* AURUM_FUTURE_BRANCH_EXPERIMENT_V1_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence sources:
- * - FormatX66/aurum-future-branch-quantum experiment gha-33472480781-attempt-1.
+ * - Latest: FormatX66/aurum-future-branch-quantum experiment gha-33513733596-attempt-1 at evidence commit c50223e2912406a7c23a1df5dba83c1f70cafb81.
+ * - Consecutive-cycle baseline: gha-33472480781-attempt-1.
  * - FormatX66/BoxBrain Aurum Experiment Race run 33487915033.
  * This surface augments the existing expandable Future Branch card only; it never creates a new major dashboard box.
  * Experimental selection, provider sweep, race results, workflow state, or prediction confidence never creates a human task or execution authority.
@@ -11,9 +12,16 @@ if(window.__aurumFutureBranchExperimentV1)return;
 window.__aurumFutureBranchExperimentV1=true;
 const EVIDENCE={
  schema:'aurum-future-branch-experiment-log-v1',
- runId:'33472480781',
- experimentId:'gha-33472480781-attempt-1',
- recordedAt:'2026-09-01T05:10:33.515466+00:00',
+ sourceEvidenceCommit:'c50223e2912406a7c23a1df5dba83c1f70cafb81',
+ runId:'33513733596',
+ experimentId:'gha-33513733596-attempt-1',
+ recordedAt:'2026-09-01T13:31:25.980507+00:00',
+ cycle:36,
+ effectiveCycle:39,
+ priorRunId:'33472480781',
+ priorExperimentId:'gha-33472480781-attempt-1',
+ priorCycle:35,
+ priorEffectiveCycle:38,
  overall:'success',
  selectedPath:'current-release-flash-readback-proven-awaiting-physical-boot',
  probability:0.8888888888888888,
@@ -22,6 +30,9 @@ const EVIDENCE={
  prunedCount:7,
  topProbabilityFraction:0.05,
  buildState:'READY_TO_FLASH',
+ authorityCommit:'8da2c636ae35801b76554d8735be84e3a9caee82',
+ buildSourceCommit:'4eb31e8071cdc9705f4f5abea5af764ef35e498b',
+ combinedFingerprint:'8a67443e3935d64c2d51f2df2785496adeacf56de91863b69fd8d46bfe75c015',
  nextGate:'physical-flash-and-boot-proof',
  unresolvedGates:['guardian_forced_rollback','physical_boot'],
  providerSweeps:[
@@ -63,8 +74,9 @@ function mount(){
   const firstBreak=detail.querySelector('br');
   if(firstBreak)detail.insertBefore(panel,firstBreak); else detail.appendChild(panel);
  }
+ panel.setAttribute('data-evidence-run',EVIDENCE.runId);
  const providers=EVIDENCE.providerSweeps.map(x=>`${x.provider}:${x.passed?`${x.casesExecuted}/${x.casesExecuted} pass`:'not passed'}`).join(' · ');
- panel.innerHTML=`<br><b>Latest verified Future Branch experiment</b><div class="fb-grid"><b>Experiment</b><span>${esc(EVIDENCE.experimentId)} · ${esc(EVIDENCE.overall)} · ${esc(EVIDENCE.recordedAt)}</span><b>Selected future</b><span>${esc(EVIDENCE.selectedPath)} · ${esc(pct(EVIDENCE.probability))}</span><b>Field reduction</b><span>${esc(EVIDENCE.selectedCount)} of ${esc(EVIDENCE.populationSize)} retained from the top ${esc(pct(EVIDENCE.topProbabilityFraction))} probability field · ${esc(EVIDENCE.prunedCount)} pruned until branch/evidence/dependency/hypothesis/authority changes</span><b>Provider reproducibility</b><span>${esc(providers)} · credential-free seeded sweeps</span><b>Seed evidence boundary</b><span>${esc(EVIDENCE.buildState)} artifact state; selected branch is held at the physical-boot boundary. Guardian forced-rollback and physical boot remain unverified.</span><b>Authority boundary</b><span>hardware submission=false · physical/destructive execution=false · experiment proof cannot grant production, write, physical, promotion, credential, identity, or LKG-mutation authority</span></div>`;
+ panel.innerHTML=`<br><b>Latest verified Future Branch experiment</b><div class="fb-grid"><b>Frontiers Advancing</b><span>${esc(EVIDENCE.experimentId)} · ${esc(EVIDENCE.overall)} · cycle ${esc(EVIDENCE.cycle)} / effective ${esc(EVIDENCE.effectiveCycle)}. The same 1-of-8 future remained selected at ${esc(pct(EVIDENCE.probability))} one scheduled cycle after ${esc(EVIDENCE.priorExperimentId)}; ${esc(providers)} and the seed artifact fingerprint remained stable.</span><b>Selected future</b><span>${esc(EVIDENCE.selectedPath)} · ${esc(EVIDENCE.selectedCount)} of ${esc(EVIDENCE.populationSize)} retained · ${esc(EVIDENCE.prunedCount)} pruned until branch, evidence, dependency, hypothesis, or authority changes.</span><b>Seed evidence boundary</b><span>${esc(EVIDENCE.buildState)} artifact state from build source ${esc(EVIDENCE.buildSourceCommit)}; authority observation advanced to ${esc(EVIDENCE.authorityCommit)} without changing the proven artifact fingerprint. Guardian forced-rollback and physical boot remain unverified.</span><b>Needs Work → Aurum/System</b><span>Hold at the real physical-boot boundary and continue only when bounded evidence or authority changes. Experiment proof cannot grant production, write, physical, promotion, credential, identity, or LKG-mutation authority.</span><b>Your Actions</b><span>None from this evidence. No credential, reboot, cable/media move, destructive approval, identity decision, or other human-only requirement was established.</span></div>`;
  let race=detail.querySelector('.fb-experiment-race');
  if(!race){
   race=document.createElement('div');
@@ -78,10 +90,16 @@ function mount(){
  race.innerHTML=`<br><b>Verified Aurum Experiment Race</b><div class="fb-grid"><b>Frontiers Advancing</b><span>Run ${esc(RACE.runId)} · ${esc(RACE.overall)} · all ${esc(RACE.lanes.length)} lanes passed native checks and the shared ${esc(RACE.benchmark)} safety benchmark. This is comparable evidence across conventional Aurum, Stateweave, adaptive-kernel, and combined Stateweave + adaptive-kernel paths.</span><b>Lane evidence</b><span>${laneSummary}</span><b>Interpretation guardrail</b><span>Attempts and LOC are descriptive evidence, not a winner declaration. Unit-test success alone does not promote a lane, and this race has auto-promotion=false.</span><b>Needs Work → Aurum/System</b><span>Promotion remains unearned until a shared real-world Aurum capability demonstrates equal or better verified outcome, safety, recoverability, and resource cost. Continue bounded evidence gathering; do not rerun unchanged lanes merely to create activity.</span><b>Your Actions</b><span>None from this evidence. No credential, reboot, cable/media move, destructive approval, identity decision, or other human-only requirement was established.</span></div>`;
  window.__aurumFutureBranchExperimentState={
   schema:'aurum-command-center-future-branch-experiment-v1',
-  surfaceRevision:'v1.1',
+  surfaceRevision:'v1.2',
+  evidenceSourceCommit:EVIDENCE.sourceEvidenceCommit,
   evidenceRunId:EVIDENCE.runId,
   evidenceExperimentId:EVIDENCE.experimentId,
   evidenceRecordedAt:EVIDENCE.recordedAt,
+  evidenceCycle:EVIDENCE.cycle,
+  evidenceEffectiveCycle:EVIDENCE.effectiveCycle,
+  priorEvidenceRunId:EVIDENCE.priorRunId,
+  priorEvidenceExperimentId:EVIDENCE.priorExperimentId,
+  consecutiveCycleSelectionStable:EVIDENCE.selectedPath==='current-release-flash-readback-proven-awaiting-physical-boot',
   experimentState:EVIDENCE.overall,
   selectedPath:EVIDENCE.selectedPath,
   selectedProbability:EVIDENCE.probability,
