@@ -1,0 +1,40 @@
+name: Sync canonical Command Center v1.15 projection
+
+on:
+  push:
+    branches: [aurum-command-center-v1-15-projection]
+    paths:
+      - '.github/workflows/_sync-command-center-v1-15.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aurum-command-center-v1-15-projection
+          fetch-depth: 0
+      - name: Copy exact ClusterSites canonical component and remove one-shot helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          canonical_commit='f5765eca5dc734a433aa98da8b1f2437c162bcc5'
+          expected_blob='965c546cd0e166e037a38c3c0b693efd5a7895cc'
+          target='Web/Aurum-Arkmatx/generation-seed-ladder-v1.js'
+          tmp="$RUNNER_TEMP/generation-seed-ladder-v1.js"
+          curl --fail-with-body --silent --show-error --location --retry 4 --retry-all-errors \
+            "https://raw.githubusercontent.com/FormatX66/ClusterSites/$canonical_commit/services/aurum-arkmatx/generation-seed-ladder-v1.js" -o "$tmp"
+          node --check "$tmp"
+          test "$(git hash-object "$tmp")" = "$expected_blob"
+          cp "$tmp" "$target"
+          git rm '.github/workflows/_sync-command-center-v1-15.yml'
+          test "$(git hash-object "$target")" = "$expected_blob"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$target"
+          git commit -m 'Project canonical Generation Seed Ladder v1.15'
+          git push origin HEAD:aurum-command-center-v1-15-projection
