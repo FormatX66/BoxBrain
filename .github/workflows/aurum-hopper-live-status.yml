@@ -108,7 +108,10 @@ jobs:
                   'pointer_path_available': input_state.get('pointer_path_available'),
               }
           else:
-              payload['summary'] = {'machine': 'Hopper', 'health': 'unreachable'}
+              # No endpoint candidate returned HTTP 200 JSON. This is a discovery
+              # boundary, not proof that Hopper is powered off, network-down, or
+              # otherwise unreachable at a known address.
+              payload['summary'] = {'machine': 'Hopper', 'health': 'no-endpoint-candidate'}
 
           # The probe may run every five minutes, but durable repository state should
           # change only when the dashboard-visible semantics change or when a bounded
