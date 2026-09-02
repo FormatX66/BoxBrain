@@ -41,6 +41,7 @@ WORKSPACE_LOGO_PATH = (
 RUNTIME_LOGO_PATH = DEFAULT_RUNTIME / "codelation" / "assets" / "identity" / "aurum-seven-leaf-logo-matrix.jpeg"
 LOGO_PATH = WORKSPACE_LOGO_PATH
 LOGO_SHA256 = "633f14213af2cda495100cc61167d03bbbcf2d781f9ff72a0d8d18e87afbbb6c"
+_INSTALL_CONTROLLER_LOCK = threading.Lock()
 
 
 def _verified_logo_bytes(path: Path | None = None) -> bytes | None:
@@ -95,6 +96,23 @@ def _load_runtime_module(filename: str, prefix: str):
         if module is not None:
             return module
     return None
+
+
+def _install_controller(server):
+    controller = getattr(server, "hopper_install_controller", None)
+    if controller is not None:
+        return controller
+    with _INSTALL_CONTROLLER_LOCK:
+        controller = getattr(server, "hopper_install_controller", None)
+        if controller is not None:
+            return controller
+        module = _load_runtime_module("aurum_install_flow.py", "aurum_install_flow")
+        coordinator = getattr(module, "InstallCoordinator", None) if module else None
+        if coordinator is None:
+            raise RuntimeError("Aurum automated installer is unavailable")
+        controller = coordinator()
+        server.hopper_install_controller = controller
+        return controller
 
 
 def _json_safe_dict(value: Any) -> dict[str, Any] | None:
@@ -274,6 +292,7 @@ body{background:radial-gradient(circle at 50% -20%,rgba(19,198,202,.06),transpar
 
 .wifi-panel{grid-column:1;grid-row:2;min-height:0;border:1px solid var(--line);border-radius:9px;background:radial-gradient(circle at 90% 0,rgba(19,198,202,.08),transparent 45%),linear-gradient(160deg,rgba(13,19,17,.98),rgba(5,8,7,.98));padding:18px;overflow:auto}.wifi-panel[hidden],.grid[hidden]{display:none!important}.wifi-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}.wifi-head h2{margin:4px 0;color:var(--gold2);font-size:26px;font-weight:420}.wifi-head p{margin:0;color:var(--muted);font-size:11px}.wifi-layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;margin-top:16px}.wifi-form,.wifi-results{border:1px solid var(--line);border-radius:8px;background:#0a0e0c;padding:14px}.wifi-form label{display:block;color:var(--muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin:10px 0 5px}.wifi-form input{width:100%;height:40px;border:1px solid rgba(255,255,255,.10);border-radius:6px;background:#070b09;color:var(--ink);padding:0 10px;outline:none}.wifi-form input:focus{border-color:var(--gold)}.wifi-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.wifi-button{border:1px solid var(--line);border-radius:6px;background:#0a0e0c;color:var(--ink);padding:8px 11px;cursor:pointer}.wifi-button:hover{border-color:var(--teal);color:var(--teal2)}.wifi-button.primary{border-color:var(--gold);color:var(--gold2);background:rgba(211,166,64,.10)}.wifi-detail{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}.wifi-results-title{color:var(--gold2);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}.wifi-networks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.wifi-network{border:1px solid rgba(255,255,255,.08);border-radius:6px;background:#070b09;color:var(--ink);padding:9px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wifi-network:hover{border-color:var(--teal);color:var(--teal2)}@media(max-width:1150px){.wifi-layout{grid-template-columns:1fr}.wifi-networks{grid-template-columns:1fr}}
 .recovery-console{position:fixed;left:190px;bottom:86px;width:min(520px,calc(100vw - 214px));z-index:18;border:1px solid rgba(19,198,202,.34);border-radius:8px;background:rgba(5,10,9,.96);box-shadow:0 16px 45px #0009;padding:8px 10px;display:grid;grid-template-columns:auto minmax(120px,1fr);gap:7px 10px;align-items:center}.recovery-console strong{color:var(--teal2);font-size:9px;letter-spacing:.12em;text-transform:uppercase}.recovery-console-output{color:#9ba59f;font:10px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.recovery-console-actions{grid-column:1/3;display:flex;gap:6px;flex-wrap:wrap}.recovery-console button{border:1px solid rgba(255,255,255,.10);border-radius:5px;background:#0a0e0c;color:#cbd2cd;padding:5px 8px;font-size:9px;cursor:pointer}.recovery-console button:hover,.recovery-console button:focus-visible{border-color:var(--teal);color:var(--teal2);outline:none}.recovery-console button:disabled{opacity:.45;cursor:wait}@media(max-width:860px){.recovery-console{left:14px;width:calc(100vw - 28px);bottom:90px}}
+.install-card[hidden]{display:none!important}.install-card{grid-column:1/-1;min-height:166px;border:1px solid rgba(211,166,64,.52);border-radius:11px;padding:17px;background:linear-gradient(120deg,rgba(211,166,64,.10),rgba(19,198,202,.055));box-shadow:inset 0 1px rgba(255,255,255,.03),0 16px 45px #0005}.install-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.install-head h2{margin:3px 0 6px;color:var(--gold2);font-size:18px;font-weight:520;letter-spacing:0;text-transform:none}.install-head p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}.install-target{margin-top:13px;color:var(--ink);font-size:12px}.install-progress{height:7px;margin-top:13px;border-radius:99px;background:#202823;overflow:hidden}.install-progress i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--gold),var(--teal));transition:width .35s ease}.install-actions{display:flex;align-items:center;gap:9px;margin-top:13px}.install-button{border:1px solid var(--gold);border-radius:7px;background:rgba(211,166,64,.12);color:var(--gold2);padding:9px 13px;cursor:pointer;font-weight:650;font-size:11px}.install-button:hover{background:rgba(211,166,64,.20)}.install-button.secondary{border-color:var(--teal);color:var(--teal2);background:rgba(19,198,202,.08)}.install-button:disabled{opacity:.45;cursor:wait}.install-phase{font-size:10px;color:var(--teal2);letter-spacing:.06em;text-transform:uppercase}@media(max-width:650px){.install-head{display:block}.install-actions{align-items:stretch;flex-direction:column}.install-button{width:100%}}
 </style>
 </head>
 <body data-hopper-profile="gen1-html">
@@ -305,6 +324,11 @@ body{background:radial-gradient(circle at 50% -20%,rgba(19,198,202,.06),transpar
     <div class="hero-life" aria-hidden="true"><svg class="life-circuit" viewBox="0 0 420 210"><path d="M0 55h78l28 25h67M14 164h94l24-21h73M252 34h70l23 25h75M274 174h53l27-24h66"/><circle cx="106" cy="80" r="3"/><circle cx="132" cy="143" r="3"/><circle cx="345" cy="59" r="3"/><circle cx="354" cy="150" r="3"/></svg><div class="logo-life logo-life--hero"><span class="orbit-ring one"></span><span class="orbit-ring two"></span><div class="logo-crop logo-crop--landscape"><img data-aurum-logo src="/assets/aurum-seven-leaf-logo.jpeg" alt=""></div></div></div>
   </section>
   <section class="grid">
+    <article id="install-card" class="install-card" hidden>
+      <div class="install-head"><div><div class="teal">AURUM SETUP</div><h2 id="install-title">Install Aurum on Hopper</h2><p id="install-message">Checking for one safe internal installation target…</p></div><span id="install-phase" class="install-phase">Checking</span></div>
+      <div id="install-target" class="install-target"></div><div class="install-progress" aria-label="Installation progress"><i id="install-progress"></i></div>
+      <div class="install-actions"><button id="install-start" class="install-button" type="button" hidden>Erase Internal Drive &amp; Install Aurum</button><button id="install-poweroff" class="install-button secondary" type="button" hidden>Shut Down to Finish</button></div>
+    </article>
     <article class="card"><h2>System Runtime</h2><div class="state"><span class="online-dot"></span><span id="runtime-state">Unknown</span></div><div class="metric"><span>Uptime</span><b id="uptime">—</b></div><div class="metric"><span>Desktop</span><b id="desktop">—</b></div><div class="metric"><span>Autonomy</span><b id="autonomy">—</b></div><button class="action" data-action="runtime-plan">View runtime plan →</button></article>
     <article class="card"><h2>Network</h2><div class="state"><span class="online-dot"></span><span id="net-state">Unknown</span></div><div class="metric"><span>Connection</span><b id="ssid">Unknown</b></div><div class="metric"><span>Interface</span><b id="net-if">Unknown</b></div><div class="metric"><span>Address</span><b id="net-ip">Unknown</b></div><button class="action" data-action="network-reconnect">Reconnect network →</button></article>
     <article class="card"><h2>Power & Battery</h2><div class="state"><span class="online-dot"></span><span id="power-state">Unknown</span></div><div class="big" id="battery-big">—</div><div class="sub" id="battery-sub">Battery state unknown</div><button class="action" data-action="status">Refresh power evidence →</button></article>
@@ -365,6 +389,9 @@ const webStatus=document.getElementById('web-status');
 const wifiPanel=document.getElementById('wifi-panel');
 const gridPanel=document.querySelector('.grid');
 const recoveryOutput=document.getElementById('recovery-console-output');
+const installCard=document.getElementById('install-card');
+const installStart=document.getElementById('install-start');
+const installPoweroff=document.getElementById('install-poweroff');
 let webHistory=[],webIndex=-1,currentWebTarget='';
 const guiInputProof={keyboard:false,pointer:false};
 function logoReady(image){const crop=image.closest('.logo-crop');if(crop)crop.classList.add('logo-ready')}
@@ -386,6 +413,11 @@ async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'
 function applyAppearance(a){const color=/^#[0-9a-f]{6}$/i;const start=color.test(a.background_start||'')?a.background_start:'#050706';const end=color.test(a.background_end||'')?a.background_end:'#070b09';document.documentElement.style.setProperty('--bg',start);document.documentElement.style.setProperty('--bg-end',end);document.documentElement.dataset.appearanceTheme=a.theme||'default'}
 async function action(name){try{show(`${name}…`,2);const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'action failed');show(JSON.stringify(d.result||d,null,2),5);await refresh()}catch(e){show(e.message||String(e),6)}}
 async function recoveryAction(name){const buttons=[...document.querySelectorAll('[data-recovery-action]')];buttons.forEach(button=>button.disabled=true);recoveryOutput.textContent=`${name}…`;try{const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'recovery action failed');const result=d.result||d,summary=(result.result&&result.result.status)||result.status||'completed';recoveryOutput.textContent=`${name} · ${summary} · receipted`;await refresh()}catch(e){recoveryOutput.textContent=`${name} · ${e.message||String(e)}`}finally{buttons.forEach(button=>button.disabled=false)}}
+function installReason(reason){const reasons={'uefi-boot-required':'Restart the USB in UEFI mode to install.','no-unmounted-internal-disk-found':'No safe unmounted internal drive was found.','multiple-eligible-internal-disks-found':'More than one internal drive is eligible, so Aurum will not guess.','installer-unavailable':'The guarded installer is unavailable.'};return reasons[reason]||reason||'Installation is unavailable.'}
+function renderInstall(d){const status=d.status||'unavailable',installed=status==='unavailable'&&d.reason==='installer-runs-only-from-aurum-live-media',visible=!installed;installCard.dataset.available=visible?'true':'false';const home=document.querySelector('[data-nav="home"]').classList.contains('active');installCard.hidden=!visible||!home;if(!visible)return;const target=d.target||{},size=target.size_gib==null?'':` · ${target.size_gib} GiB`;document.getElementById('install-target').textContent=target.model?`${target.model}${size}${target.contains_existing_data?' · existing data will be erased':''}`:'';document.getElementById('install-progress').style.width=`${Math.max(0,Math.min(100,Number(d.progress_percent)||0))}%`;document.getElementById('install-phase').textContent=(d.phase||status).replaceAll('-',' ');installStart.hidden=!['ready','failed'].includes(status);installPoweroff.hidden=status!=='complete';installStart.disabled=status==='running';installStart.textContent=status==='failed'?'Retry Safe Installation':'Erase Internal Drive & Install Aurum';if(status==='ready')document.getElementById('install-message').textContent='One safe internal drive was found. One confirmation installs and verifies Aurum automatically.';else if(status==='running')document.getElementById('install-message').textContent='Installing and verifying Aurum. Keep Hopper connected to power.';else if(status==='complete')document.getElementById('install-message').textContent=d.message||'Installation verified. Shut down, remove the USB seed, then start Hopper.';else if(status==='failed')document.getElementById('install-message').textContent=`Stopped safely: ${installReason(d.reason)}`;else document.getElementById('install-message').textContent=installReason(d.reason);const busy=status==='running';document.querySelectorAll('[data-recovery-action]').forEach(button=>button.disabled=busy)}
+async function refreshInstall(){try{const r=await fetch('/api/install',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'installer status unavailable');renderInstall(d)}catch(e){installCard.dataset.available='true';installCard.hidden=false;document.getElementById('install-message').textContent=e.message||String(e);installStart.hidden=true;installPoweroff.hidden=true}}
+async function beginInstall(){if(!confirm('Install Aurum on Hopper? This completely erases the one detected internal drive. The USB seed and other drives are not modified.'))return;installStart.disabled=true;try{const r=await fetch('/api/install',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:'start',confirmed:true})});const d=await r.json();if(!r.ok)throw new Error(d.error||'installation could not start');renderInstall(d)}catch(e){show(e.message||String(e),8);installStart.disabled=false}}
+async function finishInstall(){if(!confirm('Shut Hopper down now? Remove the USB seed after the power turns off.'))return;installPoweroff.disabled=true;try{const r=await fetch('/api/install',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:'poweroff'})});const d=await r.json();if(!r.ok)throw new Error(d.error||'shutdown failed');renderInstall(d)}catch(e){show(e.message||String(e),8);installPoweroff.disabled=false}}
 async function recordGuiInput(kind){if(guiInputProof[kind])return;guiInputProof[kind]='pending';try{const r=await fetch('/api/input-proof',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({kind}),keepalive:true});if(!r.ok)throw new Error('input proof not recorded');guiInputProof[kind]=true}catch{guiInputProof[kind]=false}}
 async function ask(){const text=prompt.value.trim();if(!text||send.disabled)return;message('user',text);prompt.value='';send.disabled=true;orb.classList.add('thinking');document.body.classList.add('aurum-thinking');const pending=message('aurum','Aurum is reasoning with Hopper','thinking');try{const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({prompt:text})});const d=await r.json();if(!r.ok)throw new Error(d.error||'GPT unavailable');pending.classList.remove('thinking');pending.textContent=d.response||'Completed';receipts(pending,d.tool_receipts);await refresh()}catch(e){pending.classList.remove('thinking');pending.classList.add('error');pending.textContent=e.message||String(e)}finally{orb.classList.remove('thinking');document.body.classList.remove('aurum-thinking');send.disabled=false;prompt.focus();messages.scrollTop=messages.scrollHeight}}
 
@@ -393,7 +425,8 @@ function showScreen(name){
   document.querySelectorAll('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===name));
   webBrowser.hidden=true;wifiPanel.hidden=true;gridPanel.hidden=false;
   const cards=[...gridPanel.querySelectorAll('.card')];cards.forEach(card=>card.hidden=false);
-  if(name==='home')return;
+  if(name==='home'){installCard.hidden=installCard.dataset.available!=='true';return}
+  installCard.hidden=true;
   if(name==='browser'){gridPanel.hidden=true;openWebBrowser();return}
   if(name==='wifi'){gridPanel.hidden=true;wifiPanel.hidden=false;wifiScan();return}
   const groups={traits:['GPT Trait'],build:['Build'],hardware:['Hardware','Input & Recovery'],field:['System Runtime','Build'],settings:['System Tools','Input & Recovery','Network']};
@@ -408,9 +441,10 @@ async function wifiConnect(){const ssid=document.getElementById('wifi-ssid').val
 async function wifiDisconnect(){try{const result=await wifiCall('disconnect');wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}}
 async function wifiForget(){if(!confirm('Forget the saved Wi-Fi network on this seed?'))return;try{const result=await wifiCall('forget');document.getElementById('wifi-ssid').value='';document.getElementById('wifi-password').value='';wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}}
 document.getElementById('wifi-scan').addEventListener('click',wifiScan);document.getElementById('wifi-connect').addEventListener('click',wifiConnect);document.getElementById('wifi-disconnect').addEventListener('click',wifiDisconnect);document.getElementById('wifi-forget').addEventListener('click',wifiForget);
+installStart.addEventListener('click',beginInstall);installPoweroff.addEventListener('click',finishInstall);
 document.querySelectorAll('[data-recovery-action]').forEach(button=>button.addEventListener('click',()=>recoveryAction(button.dataset.recoveryAction)));document.addEventListener('keydown',()=>recordGuiInput('keyboard'),{capture:true});document.addEventListener('pointermove',()=>recordGuiInput('pointer'),{capture:true});document.addEventListener('pointerdown',()=>recordGuiInput('pointer'),{capture:true});
 document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>showScreen(b.dataset.nav)));document.getElementById('focus-gpt').addEventListener('click',()=>prompt.focus());document.getElementById('clear-chat').addEventListener('click',()=>{messages.replaceChildren();message('aurum','Conversation cleared. Hopper state and action receipts remain governed by Aurum.');prompt.focus()});document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>{prompt.value=b.dataset.prompt;ask()}));send.addEventListener('click',ask);prompt.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ask()}});document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter'){const q=e.target.value.trim();if(q){prompt.value=`Show me ${q} on Hopper`;ask();e.target.value=''}}});document.getElementById('web-form').addEventListener('submit',e=>{e.preventDefault();webNavigate(webAddress.value)});document.getElementById('web-home-form').addEventListener('submit',e=>{e.preventDefault();const input=document.getElementById('web-home-query');if(webNavigate(input.value))input.value=''});document.getElementById('web-back').addEventListener('click',()=>{if(webIndex>0){webIndex-=1;webNavigate(webHistory[webIndex],{record:false})}});document.getElementById('web-forward').addEventListener('click',()=>{if(webIndex<webHistory.length-1){webIndex+=1;webNavigate(webHistory[webIndex],{record:false})}});document.getElementById('web-reload').addEventListener('click',()=>{if(currentWebTarget){webBrowser.classList.add('loading');webFrame.src=currentWebTarget}});document.getElementById('web-home-button').addEventListener('click',webBrowserHome);document.getElementById('web-close').addEventListener('click',closeWebBrowser);document.getElementById('web-open').addEventListener('click',()=>{let target=currentWebTarget;try{target=target||normalizeWebTarget(webAddress.value)}catch(error){show(error.message||String(error),5);return}const opened=window.open('about:blank','aurum-web');if(!opened){show('The full-page window was blocked. The page is still available inside Aurum.',5);return}opened.opener=null;opened.location.replace(target)});webFrame.addEventListener('load',()=>{if(webFrame.hidden||!currentWebTarget)return;webBrowser.classList.remove('loading');webStatus.innerHTML='<strong>Page loaded</strong> · isolated from Aurum controls'});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!webBrowser.hidden)closeWebBrowser()});updateWebButtons();
-refresh();setInterval(refresh,4000);
+refresh();refreshInstall();setInterval(refresh,4000);setInterval(refreshInstall,1500);
 </script>
 </body></html>'''
 
@@ -468,6 +502,22 @@ def _make_handler(gui):
 
         def do_GET(self) -> None:  # noqa: N802
             request_path = urlsplit(self.path).path
+            if request_path == "/api/install":
+                if not self._host_is_loopback():
+                    self._error(HTTPStatus.FORBIDDEN, "loopback host required")
+                    return
+                try:
+                    result = _install_controller(self.server).status()
+                    if _json_safe_dict(result) is None:
+                        raise TypeError("installer status was not JSON-safe")
+                except Exception as exc:
+                    self._error(
+                        HTTPStatus.SERVICE_UNAVAILABLE,
+                        f"installer status unavailable: {type(exc).__name__}:{exc}",
+                    )
+                    return
+                self._json(HTTPStatus.OK, result)
+                return
             if request_path != "/assets/aurum-seven-leaf-logo.jpeg":
                 super().do_GET()
                 return
@@ -519,11 +569,41 @@ def _make_handler(gui):
             if request_path == "/api/key-bootstrap":
                 self._error(HTTPStatus.GONE, "Hopper uses a machine-sealed runtime credential")
                 return
-            if request_path not in {"/api/ask", "/api/action", "/api/wifi", "/api/input-proof"}:
+            if request_path not in {"/api/ask", "/api/action", "/api/wifi", "/api/input-proof", "/api/install"}:
                 super().do_POST()
                 return
             payload = self._read_payload()
             if payload is None:
+                return
+            if request_path == "/api/install":
+                action_name = payload.get("action")
+                if action_name == "start":
+                    if set(payload) != {"action", "confirmed"} or payload.get("confirmed") is not True:
+                        self._error(HTTPStatus.BAD_REQUEST, "installer confirmation fields invalid")
+                        return
+                elif action_name == "poweroff":
+                    if set(payload) != {"action"}:
+                        self._error(HTTPStatus.BAD_REQUEST, "installer power fields invalid")
+                        return
+                else:
+                    self._error(HTTPStatus.BAD_REQUEST, "installer action invalid")
+                    return
+                try:
+                    controller = _install_controller(self.server)
+                    result = (
+                        controller.start(confirmed=True)
+                        if action_name == "start"
+                        else controller.poweroff()
+                    )
+                    if _json_safe_dict(result) is None:
+                        raise TypeError("installer result was not JSON-safe")
+                except Exception as exc:
+                    self._error(
+                        HTTPStatus.BAD_REQUEST,
+                        f"guarded installation action failed: {type(exc).__name__}:{exc}",
+                    )
+                    return
+                self._json(HTTPStatus.OK, result)
                 return
             if request_path == "/api/input-proof":
                 if set(payload) != {"kind"} or payload.get("kind") not in {"keyboard", "pointer"}:

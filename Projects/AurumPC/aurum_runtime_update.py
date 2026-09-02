@@ -48,6 +48,7 @@ ALLOWLIST = (
     "aurum_projection_runtime.py",
     "aurum_web_surface.py",
     "aurum_input.py",
+    "aurum_install_flow.py",
     "aurum_installer.py",
     "aurum_network.py",
     "aurum_core_share.py",
@@ -768,6 +769,7 @@ class RuntimeUpdater:
             "aurum_gpt_trait.py",
             "aurum_hopper_gui.py",
             "aurum_input.py",
+            "aurum_install_flow.py",
             "aurum_projection_runtime.py",
             "aurum_web_surface.py",
         }

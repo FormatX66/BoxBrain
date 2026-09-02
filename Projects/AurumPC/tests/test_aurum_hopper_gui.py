@@ -106,6 +106,10 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("recordGuiInput('keyboard')", page)
         self.assertIn("recordGuiInput('pointer')", page)
         self.assertIn("if(!r.ok)throw new Error('input proof not recorded')", page)
+        self.assertIn('id="install-card"', page)
+        self.assertIn("Erase Internal Drive &amp; Install Aurum", page)
+        self.assertIn("/api/install", page)
+        self.assertNotIn("ERASE-CODE", page)
 
     def test_html5_browser_is_bounded_and_has_landscape_controls(self) -> None:
         page = hopper.PAGE
@@ -354,6 +358,43 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(payload["status"], "recorded")
         self.assertTrue(payload["result"]["pointer_observed"])
+        self.assertEqual(bad_code, 400)
+
+    def test_guarded_install_api_never_accepts_a_device_path_or_typed_code(self) -> None:
+        class Controller:
+            def __init__(self) -> None:
+                self.started = False
+
+            def status(self):
+                return {
+                    "schema": "aurum.install-flow.v1",
+                    "status": "ready",
+                    "target": {"model": "Internal NVMe", "size_gib": 476.8},
+                }
+
+            def start(self, *, confirmed: bool):
+                self.started = confirmed
+                return {"schema": "aurum.install-flow.v1", "status": "running"}
+
+            def poweroff(self):
+                return {"schema": "aurum.install-flow.v1", "status": "powering-off"}
+
+        controller = Controller()
+        self.server.hopper_install_controller = controller
+        status_code, status = self._request("/api/install")
+        start_code, started = self._request(
+            "/api/install", payload={"action": "start", "confirmed": True}
+        )
+        bad_code, _ = self._request(
+            "/api/install",
+            payload={"action": "start", "confirmed": True, "device": "/dev/nvme0n1"},
+        )
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(status["status"], "ready")
+        self.assertEqual(start_code, 200)
+        self.assertEqual(started["status"], "running")
+        self.assertTrue(controller.started)
         self.assertEqual(bad_code, 400)
 
 

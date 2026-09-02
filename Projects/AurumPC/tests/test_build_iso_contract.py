@@ -47,6 +47,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("--debian-installer none", script)
         for package in (
             "aurum_installer.py", "aurum_time.py", "aurum_wifi_recovery.py", "aurum_runtime_update.py",
+            "aurum_install_flow.py",
             "aurum_gui_runtime.py", "aurum_autonomy.py", "aurum_driver_synthesis.py", "pc01_autonomy_policy.json",
             "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
             "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",

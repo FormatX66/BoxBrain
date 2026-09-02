@@ -788,6 +788,22 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
         _request_time_sync(workspace, runtime, timeout_seconds=5)
 
     snap = snapshot(state, workspace, runtime)
+    install_module = _runtime_module("aurum_install_flow", workspace, runtime)
+    install_controller = None
+    install_status: dict[str, Any] = {
+        "status": "unavailable",
+        "reason": "guarded-installer-unavailable",
+    }
+    if install_module is not None and hasattr(install_module, "InstallCoordinator"):
+        try:
+            install_controller = install_module.InstallCoordinator()
+            install_status = install_controller.status()
+        except Exception as exc:
+            install_status = {
+                "status": "unavailable",
+                "reason": f"{type(exc).__name__}:{exc}",
+            }
+    install_last_refresh = time.monotonic()
     _write_receipt(
         state,
         {
@@ -837,7 +853,11 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
 
     def handle_action(action, payload=None):
         nonlocal selected, detail_view, toast, toast_until, confirm_action, last_refresh, snap
-        nonlocal recovery_future, recovery_status
+        nonlocal recovery_future, recovery_status, install_status, install_last_refresh
+        if install_status.get("status") == "running" and action not in {"refresh", "install-info"}:
+            toast = "Aurum installation is running · system actions are paused"
+            toast_until = time.monotonic() + 4
+            return
         if action == "nav":
             nav_click(payload)
         elif action == "detail":
@@ -846,12 +866,27 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             ok, detail = _bounded_system_action("recovery")
             toast = "Recovery console requested" if ok else f"Recovery failed: {detail or 'unavailable'}"
             toast_until = time.monotonic() + 4
-        elif action in {"sleep", "restart", "shutdown"}:
+        elif action in {"sleep", "restart", "shutdown", "install", "install-poweroff"}:
             confirm_action = action
         elif action == "confirm":
             act = str(payload)
-            ok, detail = _bounded_system_action(act)
-            toast = f"{act.title()} requested" if ok else f"{act.title()} failed: {detail or 'unavailable'}"
+            if act == "install" and install_controller is not None:
+                try:
+                    install_status = install_controller.start(confirmed=True)
+                    install_last_refresh = 0
+                    ok, detail = True, "guarded installation started"
+                except Exception as exc:
+                    ok, detail = False, f"{type(exc).__name__}: {exc}"
+            elif act == "install-poweroff" and install_controller is not None:
+                try:
+                    install_status = install_controller.poweroff()
+                    ok, detail = True, "shutdown requested"
+                except Exception as exc:
+                    ok, detail = False, f"{type(exc).__name__}: {exc}"
+            else:
+                ok, detail = _bounded_system_action(act)
+            label = "Installation" if act == "install" else ("Shutdown" if act == "install-poweroff" else act.title())
+            toast = f"{label} requested" if ok else f"{label} failed: {detail or 'unavailable'}"
             toast_until = time.monotonic() + 4
             confirm_action = None
         elif action == "cancel":
@@ -878,6 +913,9 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             recovery_future = recovery_worker.submit(
                 _recovery_control, selected_action, state, workspace, runtime
             )
+        elif action == "install-info":
+            toast = str(install_status.get("reason") or install_status.get("message") or "Installation unavailable")
+            toast_until = time.monotonic() + 5
 
     def button(rect, label, action, payload=None, accent=gold):
         hover = rect.collidepoint(pygame.mouse.get_pos())
@@ -915,6 +953,12 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
             snap = snapshot(state, workspace, runtime)
             pointer_motion_observed = pointer_motion_observed or bool(snap["pointer_verified"])
             last_refresh = now
+        if install_controller is not None and now - install_last_refresh >= 1.5:
+            try:
+                install_status = install_controller.status()
+            except Exception as exc:
+                install_status = {"status": "unavailable", "reason": f"{type(exc).__name__}:{exc}"}
+            install_last_refresh = now
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -1354,6 +1398,18 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                 ("Restart", "restart"),
                 ("Shut Down", "shutdown"),
             ]
+            install_state = str(install_status.get("status") or "unavailable")
+            if install_state in {"ready", "failed"}:
+                quick.append(("Install Aurum", "install"))
+            elif install_state == "running":
+                progress_value = int(install_status.get("progress_percent") or 0)
+                quick.append((f"Installing {progress_value}%", "install-info"))
+            elif install_state == "complete":
+                quick.append(("Finish & Shut Down", "install-poweroff"))
+            elif install_state == "blocked":
+                quick.append(("Install Blocked", "install-info"))
+            available_width = qa.width - S(160) - max(0, len(quick) - 1) * S(10)
+            bw = min(S(150), max(S(108), available_width // max(1, len(quick))))
             for i, (label_name, action) in enumerate(quick):
                 br = pygame.Rect(
                     qa.x + S(140) + i * (bw + S(10)),
@@ -1527,15 +1583,25 @@ def run(state: Path, run_dir: Path, workspace: Path, runtime: Path) -> int:
                 S(180),
             )
             shadowed(mr, (13, 15, 17), gold, 16)
+            confirm_title = (
+                "Install Aurum on Hopper?"
+                if confirm_action == "install"
+                else ("Shut down to finish?" if confirm_action == "install-poweroff" else f"Confirm {confirm_action.title()}?")
+            )
+            confirm_detail = (
+                "This completely erases the one detected internal drive."
+                if confirm_action == "install"
+                else ("Remove the USB seed after Hopper powers off." if confirm_action == "install-poweroff" else "This is a real system action on Hopper.")
+            )
             text(
-                f"Confirm {confirm_action.title()}?",
+                confirm_title,
                 mr.x + S(28),
                 mr.y + S(28),
                 card_font,
                 gold_hi,
             )
             text(
-                "This is a real system action on Hopper.",
+                confirm_detail,
                 mr.x + S(28),
                 mr.y + S(72),
                 small,
