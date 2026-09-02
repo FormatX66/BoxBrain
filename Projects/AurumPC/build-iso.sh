@@ -136,6 +136,18 @@ menuentry "Aurum PC v0.01" {
 }
 EOF
 
+# Debian live-build's legacy ISOLINUX template defaults to timeout 0, which
+# waits forever for a key at the splash screen. Hopper must boot unattended in
+# either firmware mode, so keep the menu but automatically select its declared
+# live default after one second.
+mkdir -p config/bootloaders/isolinux
+cat > config/bootloaders/isolinux/isolinux.cfg <<'EOF'
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 10
+EOF
+
 mkdir -p config/includes.chroot/opt/aurum
 for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_bootstrap.py aurum_console.py aurum_control_plane.py aurum_core_share.py aurum_credential_bootstrap.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_executor.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_install_flow.py aurum_installer.py aurum_network.py aurum_pointer_motion.py aurum_projection_runtime.py aurum_runtime_update.py aurum_self_debug.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_web_surface.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"

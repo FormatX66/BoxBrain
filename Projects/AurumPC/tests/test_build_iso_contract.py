@@ -45,6 +45,8 @@ class BuildIsoContractTests(unittest.TestCase):
     def test_live_image_contains_guarded_recovery_and_autonomy_dependencies(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("--debian-installer none", script)
+        self.assertIn("config/bootloaders/isolinux/isolinux.cfg", script)
+        self.assertIn("timeout 10", script)
         for package in (
             "aurum_installer.py", "aurum_time.py", "aurum_wifi_recovery.py", "aurum_runtime_update.py",
             "aurum_install_flow.py",
