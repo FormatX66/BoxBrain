@@ -1,14 +1,14 @@
 {
   "endpoint": null,
   "http_status": null,
-  "observed_at": "2026-09-02T13:06:32Z",
+  "observed_at": "2026-09-02T14:01:25Z",
   "reachable": false,
   "report": null,
   "runner_host": "LAPTOP-EBD8CG8P",
   "schema": "aurum.hopper.live-status.v2",
   "source_kind": null,
   "summary": {
-    "health": "unreachable",
+    "health": "no-endpoint-candidate",
     "machine": "Hopper"
   }
 }
