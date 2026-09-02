@@ -106,6 +106,7 @@ e2fsprogs
 util-linux
 kbd
 grub-efi-amd64-bin
+grub-pc-bin
 grub2-common
 build-essential
 linux-headers-amd64

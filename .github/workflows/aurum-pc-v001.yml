@@ -303,6 +303,25 @@ jobs:
             --authority VERIFY-ONLY \
             --output verification-generic-provider.json
           echo 'AURUM_PC_V001_UEFI_BOOT_VERIFIED'
+      - name: Legacy BIOS install and installed-boot smoke
+        shell: bash
+        env:
+          BUILDER_IMAGE: ${{ needs.build-image.outputs.builder_image }}
+        run: |
+          set -euo pipefail
+          sha256sum -c dist/Aurum-PC-v0.01-amd64.iso.sha256
+          source Projects/AurumVirtualLab/qemu-acceleration.sh
+          select_aurum_qemu_acceleration "$BUILDER_IMAGE"
+          docker run --rm "${AURUM_QEMU_DOCKER_ARGS[@]}" \
+            -e AURUM_QEMU_ACCEL \
+            -e AURUM_QEMU_FIRMWARE=legacy \
+            -e AURUM_QEMU_SKIP_SELF_BUILD=1 \
+            -v "$PWD:/workspace" -w /workspace "$BUILDER_IMAGE" \
+            bash Projects/AurumVirtualLab/qemu-pc-smoke.sh \
+              dist/Aurum-PC-v0.01-amd64.iso aurum-pc-qemu-legacy.log
+          grep -Fq 'AURUM_INSTALL_FINISHED status=passed' aurum-pc-qemu-legacy.log
+          grep -Fq 'mode=installed' aurum-pc-qemu-legacy.log
+          echo 'AURUM_PC_V001_LEGACY_BOOT_VERIFIED'
       - name: Publish generic boot evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -310,6 +329,7 @@ jobs:
           name: aurum-pc-generic-evidence-${{ github.sha }}
           path: |
             aurum-pc-qemu.log
+            aurum-pc-qemu-legacy.log
             verification-generic.json
             verification-generic-provider.json
           if-no-files-found: error
@@ -444,6 +464,7 @@ jobs:
             evidence/generic/verification-generic-provider.json \
             evidence/hp/verification-hp-provider.json
           cp evidence/generic/aurum-pc-qemu.log .
+          cp evidence/generic/aurum-pc-qemu-legacy.log .
           cp evidence/hp/aurum-hp-physical-twin.log .
           echo 'AURUM_PC_IMAGE_ALL_VERIFIERS_CONVERGED'
       - name: Publish boot-verified ISO
@@ -462,6 +483,7 @@ jobs:
             evidence/hp/verification-hp.json
             evidence/hp/verification-hp-provider.json
             aurum-pc-qemu.log
+            aurum-pc-qemu-legacy.log
             aurum-hp-physical-twin.log
             Projects/AurumVirtualLab/hp-physical-twin-v1.json
           if-no-files-found: error

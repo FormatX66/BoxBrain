@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import importlib.util
 import json
+from copy import deepcopy
 import subprocess
 import sys
 import tempfile
@@ -69,7 +70,7 @@ def inventory() -> dict:
                 "path": "/dev/sdb",
                 "type": "disk",
                 "size": 64_000_000_000,
-                "model": "Mounted internal disk",
+                "model": "Protected active internal disk",
                 "serial": "MOUNTED-SERIAL",
                 "tran": "sata",
                 "rm": False,
@@ -84,7 +85,7 @@ def inventory() -> dict:
                         "size": 63_000_000_000,
                         "fstype": "ext4",
                         "label": "mounted",
-                        "mountpoints": ["/mnt/existing"],
+                        "mountpoints": ["/"],
                     }
                 ],
             },
@@ -99,9 +100,8 @@ class FakeRunner:
 
     def __call__(self, arguments: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
         self.calls.append(arguments)
-        if arguments[0] != "lsblk":
-            raise AssertionError(f"unexpected command: {arguments}")
-        return subprocess.CompletedProcess(arguments, 0, json.dumps(self.payload), "")
+        stdout = json.dumps(self.payload) if arguments[0] == "lsblk" else ""
+        return subprocess.CompletedProcess(arguments, 0, stdout, "")
 
 
 class RecordingInstaller(installer_module.AurumInstaller):
@@ -141,10 +141,11 @@ class AurumInstallerTests(unittest.TestCase):
             install_work=self.root / "run" / "install",
         )
 
-    def test_plan_offers_only_unmounted_non_usb_internal_disks(self) -> None:
+    def test_plan_offers_only_non_usb_non_active_internal_disks(self) -> None:
         plan = self.make_installer().plan()
         self.assertTrue(plan["available"])
-        self.assertEqual(plan["mode"], "guided-whole-disk-uefi")
+        self.assertEqual(plan["mode"], "guided-whole-disk-dual-boot")
+        self.assertEqual(plan["live_boot_mode"], "uefi")
         self.assertEqual(len(plan["targets"]), 1)
         target = plan["targets"][0]
         self.assertEqual(target["device"], "/dev/nvme0n1")
@@ -154,7 +155,7 @@ class AurumInstallerTests(unittest.TestCase):
         self.assertEqual(target["confirm_command"], f"install confirm {target['confirmation_code']}")
         self.assertEqual(target["existing_partitions"][0]["label"], "Windows")
 
-    def test_plan_refuses_installed_or_legacy_boot_runtime(self) -> None:
+    def test_plan_refuses_installed_runtime_but_allows_legacy_live_boot(self) -> None:
         self.live.rmdir()
         plan = self.make_installer().plan()
         self.assertFalse(plan["available"])
@@ -162,8 +163,18 @@ class AurumInstallerTests(unittest.TestCase):
         self.live.mkdir(parents=True)
         self.efi.rmdir()
         plan = self.make_installer().plan()
-        self.assertFalse(plan["available"])
-        self.assertEqual(plan["reason"], "uefi-boot-required")
+        self.assertTrue(plan["available"])
+        self.assertEqual(plan["live_boot_mode"], "legacy")
+
+    def test_safe_live_automount_is_eligible_and_released_before_erasing(self) -> None:
+        payload = deepcopy(inventory())
+        payload["blockdevices"][0]["children"][0]["mountpoints"] = ["/media/old-aurum"]
+        self.runner = FakeRunner(payload)
+        installer = self.make_installer()
+        target = installer.discover_targets()[0]
+        self.assertEqual(target.existing_partitions[0]["mountpoints"], ("/media/old-aurum",))
+        installer._release_existing_mounts(target)
+        self.assertIn(["umount", "/media/old-aurum"], self.runner.calls)
 
     def test_wrong_or_stale_confirmation_never_reaches_destructive_executor(self) -> None:
         installer = self.make_installer(RecordingInstaller)

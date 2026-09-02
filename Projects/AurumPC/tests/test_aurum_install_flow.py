@@ -62,7 +62,7 @@ class FakeInstaller:
             "device": "/dev/private",
             "model": "Hopper Internal NVMe",
             "size_gib": 476.8,
-            "boot_mode": "uefi-removable-fallback",
+            "boot_mode": "uefi-and-legacy-fallback",
             "other_disks_modified": False,
             "next_action": "poweroff, remove USB, then start",
         }

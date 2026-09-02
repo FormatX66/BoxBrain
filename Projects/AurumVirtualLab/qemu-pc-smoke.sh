@@ -4,32 +4,52 @@ set -euo pipefail
 ISO=${1:?usage: qemu-pc-smoke.sh ISO LOG}
 LOG=${2:?usage: qemu-pc-smoke.sh ISO LOG}
 QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}
+QEMU_FIRMWARE=${AURUM_QEMU_FIRMWARE:-uefi}
+SKIP_SELF_BUILD=${AURUM_QEMU_SKIP_SELF_BUILD:-0}
 case "$QEMU_ACCEL" in
   kvm|tcg) ;;
   *) echo "Unsupported Aurum QEMU accelerator: $QEMU_ACCEL" >&2; exit 2 ;;
 esac
+case "$QEMU_FIRMWARE" in
+  uefi|legacy) ;;
+  *) echo "Unsupported Aurum QEMU firmware: $QEMU_FIRMWARE" >&2; exit 2 ;;
+esac
+case "$SKIP_SELF_BUILD" in
+  0|1) ;;
+  *) echo "Unsupported Aurum self-build switch: $SKIP_SELF_BUILD" >&2; exit 2 ;;
+esac
 
-if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
-  code=/usr/share/OVMF/OVMF_CODE.fd
-  vars=/usr/share/OVMF/OVMF_VARS.fd
-elif [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
-  code=/usr/share/OVMF/OVMF_CODE_4M.fd
-  vars=/usr/share/OVMF/OVMF_VARS_4M.fd
-else
-  echo 'No matching OVMF CODE/VARS pair found.' >&2
-  exit 1
+if [ "$QEMU_FIRMWARE" = uefi ]; then
+  if [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+    code=/usr/share/OVMF/OVMF_CODE.fd
+    vars=/usr/share/OVMF/OVMF_VARS.fd
+  elif [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+    code=/usr/share/OVMF/OVMF_CODE_4M.fd
+    vars=/usr/share/OVMF/OVMF_VARS_4M.fd
+  else
+    echo 'No matching OVMF CODE/VARS pair found.' >&2
+    exit 1
+  fi
 fi
 
 work_dir=$(mktemp -d /tmp/aurum-vlab-pc.XXXXXX)
-ovmf_vars="$work_dir/OVMF_VARS.fd"
 installed_disk="$work_dir/aurum-installed.raw"
 serial_input="$work_dir/input"
-cp "$vars" "$ovmf_vars"
+firmware_args=()
+if [ "$QEMU_FIRMWARE" = uefi ]; then
+  ovmf_vars="$work_dir/OVMF_VARS.fd"
+  cp "$vars" "$ovmf_vars"
+  firmware_args=(
+    -drive "if=pflash,format=raw,readonly=on,file=$code"
+    -drive "if=pflash,format=raw,file=$ovmf_vars"
+  )
+fi
 truncate -s 10G "$installed_disk"
 mkfifo "$serial_input"
 exec 3<>"$serial_input"
 : > "$LOG"
 echo "AURUM_QEMU_ACCELERATION selected=$QEMU_ACCEL" >> "$LOG"
+echo "AURUM_QEMU_FIRMWARE selected=$QEMU_FIRMWARE" >> "$LOG"
 qemu_pid=
 
 cleanup() {
@@ -48,8 +68,7 @@ start_live_qemu() {
     -cpu qemu64 \
     -m 1024 \
     -smp 2 \
-    -drive if=pflash,format=raw,readonly=on,file="$code" \
-    -drive if=pflash,format=raw,file="$ovmf_vars" \
+    "${firmware_args[@]}" \
     -drive file="$installed_disk",format=raw,if=virtio \
     -cdrom "$ISO" \
     -boot order=d \
@@ -68,8 +87,7 @@ start_installed_qemu() {
     -cpu qemu64 \
     -m 1024 \
     -smp 2 \
-    -drive if=pflash,format=raw,readonly=on,file="$code" \
-    -drive if=pflash,format=raw,file="$ovmf_vars" \
+    "${firmware_args[@]}" \
     -drive file="$installed_disk",format=raw,if=virtio \
     -boot order=c \
     -display none \
@@ -147,7 +165,7 @@ if ! wait_for_marker 'AURUM_PC_READY version=0.01 arch=x86_64' 180 || \
    ! grep -Fq 'mode=live' "$LOG" || \
    ! grep -Fq 'selftest=ok' "$LOG"; then
   cat "$LOG"
-  echo 'Aurum PC did not reach its UEFI live-runtime marker.' >&2
+  echo "Aurum PC did not reach its $QEMU_FIRMWARE live-runtime marker." >&2
   exit 1
 fi
 
@@ -181,15 +199,17 @@ if ! wait_for_marker 'mode=installed' 180 || \
    ! grep -Fq 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG" || \
    ! grep -Fq 'selftest=ok' "$LOG"; then
   cat "$LOG"
-  echo 'The installed Aurum disk did not reach its UEFI runtime-ready marker.' >&2
+  echo "The installed Aurum disk did not reach its $QEMU_FIRMWARE runtime-ready marker." >&2
   exit 1
 fi
 
-printf 'self-build\n' >&3
-if ! wait_for_self_build 720; then
-  cat "$LOG"
-  echo 'Aurum PC installed-runtime self-build did not pass.' >&2
-  exit 1
+if [ "$SKIP_SELF_BUILD" = 0 ]; then
+  printf 'self-build\n' >&3
+  if ! wait_for_self_build 720; then
+    cat "$LOG"
+    echo 'Aurum PC installed-runtime self-build did not pass.' >&2
+    exit 1
+  fi
 fi
 
 printf 'poweroff\n' >&3
@@ -203,7 +223,13 @@ grep -F 'mode=live' "$LOG"
 grep -F 'AURUM_INSTALL_PLAN status=ready' "$LOG"
 grep -F 'AURUM_INSTALL_FINISHED status=passed' "$LOG"
 grep -F 'mode=installed' "$LOG"
-grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"
-echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
-echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
+if [ "$SKIP_SELF_BUILD" = 0 ]; then
+  grep -F 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"
+fi
+if [ "$QEMU_FIRMWARE" = uefi ] && [ "$SKIP_SELF_BUILD" = 0 ]; then
+  echo 'AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK'
+  echo 'AURUM_VIRTUAL_PC_UEFI_INSTALL_AND_SELF_BUILD_OK'
+elif [ "$QEMU_FIRMWARE" = legacy ]; then
+  echo 'AURUM_VIRTUAL_PC_LEGACY_INSTALL_BOOT_OK'
+fi
 rm -rf "$work_dir"

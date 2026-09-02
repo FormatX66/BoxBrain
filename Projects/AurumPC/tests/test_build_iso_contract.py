@@ -50,7 +50,7 @@ class BuildIsoContractTests(unittest.TestCase):
             "aurum_install_flow.py",
             "aurum_gui_runtime.py", "aurum_autonomy.py", "aurum_driver_synthesis.py", "pc01_autonomy_policy.json",
             "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
-            "grub-efi-amd64-bin", "grub2-common", "build-essential", "linux-headers-amd64",
+            "grub-efi-amd64-bin", "grub-pc-bin", "grub2-common", "build-essential", "linux-headers-amd64",
             "aurum_boot_screen.py", "aurum_input.py", "libinput-tools",
             "aurum_wifi_persistence.py",
             "aurum_gpt_executor.py", "aurum_projection_runtime.py", "aurum_self_debug.py",
@@ -110,9 +110,13 @@ class BuildIsoContractTests(unittest.TestCase):
 
     def test_qemu_gate_installs_then_boots_the_virtual_internal_disk(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
+        workflow = PC_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("AURUM_INSTALL_PLAN status=ready", smoke)
         self.assertIn("AURUM_INSTALL_FINISHED status=passed", smoke)
         self.assertIn("mode=installed", smoke)
+        self.assertIn("AURUM_VIRTUAL_PC_LEGACY_INSTALL_BOOT_OK", smoke)
+        self.assertIn("AURUM_QEMU_FIRMWARE=legacy", workflow)
+        self.assertIn("aurum-pc-qemu-legacy.log", workflow)
 
     def test_wifi_diagnostics_are_packaged_and_automatic_when_interface_is_missing(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")

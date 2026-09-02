@@ -35,6 +35,7 @@ INSTALL_LOCK = Path("/run/aurum-install.lock")
 INSTALL_WORK = Path("/run/aurum-install")
 SAFE_DEVICE = re.compile(r"/dev/(?:nvme\d+n\d+|sd[a-z]+|vd[a-z]+)")
 SAFE_BOOT_FILE = re.compile(r"[A-Za-z0-9._+-]+")
+SAFE_EXISTING_MOUNT_ROOTS = ("/media", "/mnt", "/run/media")
 ProgressCallback = Callable[[Mapping[str, Any]], None]
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -87,6 +88,17 @@ def _all_mountpoints(record: Mapping[str, Any]) -> tuple[str, ...]:
         if isinstance(child, Mapping):
             found.extend(_all_mountpoints(child))
     return tuple(found)
+
+
+def _safe_existing_mountpoint(value: str) -> bool:
+    """Allow only ordinary live-session automount locations or active swap."""
+    mountpoint = str(value or "").rstrip("/") or "/"
+    if mountpoint == "[SWAP]":
+        return True
+    return any(
+        mountpoint == root or mountpoint.startswith(root + "/")
+        for root in SAFE_EXISTING_MOUNT_ROOTS
+    )
 
 
 def _confirmation_code(*, device: str, serial: str, size_bytes: int) -> str:
@@ -171,7 +183,7 @@ class AurumInstaller:
             return False
         if kernel_name.startswith(("loop", "sr", "dm-")):
             return False
-        return not _all_mountpoints(record)
+        return all(_safe_existing_mountpoint(value) for value in _all_mountpoints(record))
 
     def discover_targets(self) -> tuple[InstallTarget, ...]:
         targets: list[InstallTarget] = []
@@ -192,6 +204,7 @@ class AurumInstaller:
                         "size_bytes": int(child.get("size") or 0),
                         "filesystem": _clean_text(child.get("fstype")),
                         "label": _clean_text(child.get("label")),
+                        "mountpoints": _mountpoints(child),
                     }
                 )
             targets.append(
@@ -221,19 +234,13 @@ class AurumInstaller:
                 "reason": "installer-runs-only-from-aurum-live-media",
                 "targets": [],
             }
-        if not self.efi_runtime.is_dir():
-            return {
-                "schema": INSTALLER_SCHEMA,
-                "available": False,
-                "reason": "uefi-boot-required",
-                "targets": [],
-            }
         targets = self.discover_targets()
         return {
             "schema": INSTALLER_SCHEMA,
             "available": bool(targets),
             "reason": "ready" if targets else "no-unmounted-internal-disk-found",
-            "mode": "guided-whole-disk-uefi",
+            "mode": "guided-whole-disk-dual-boot",
+            "live_boot_mode": "uefi" if self.efi_runtime.is_dir() else "legacy",
             "warning": "The selected disk will be completely erased. Other disks are never modified.",
             "targets": [
                 {
@@ -264,8 +271,6 @@ class AurumInstaller:
             raise InstallError("installation requires the root-owned Aurum live console")
         if not self.live_medium.is_dir():
             raise InstallError("installation is allowed only while booted from Aurum live media")
-        if not self.efi_runtime.is_dir():
-            raise InstallError("installation requires an Aurum UEFI live boot")
         device = Path(target.device)
         try:
             mode = device.stat().st_mode
@@ -282,9 +287,34 @@ class AurumInstaller:
             raise InstallError("USB disks cannot be internal installation targets")
 
     @staticmethod
-    def _partition_paths(device: str) -> tuple[Path, Path]:
+    def _partition_paths(device: str) -> tuple[Path, Path, Path]:
         suffix = "p" if device[-1:].isdigit() else ""
-        return Path(f"{device}{suffix}1"), Path(f"{device}{suffix}2")
+        return (
+            Path(f"{device}{suffix}1"),
+            Path(f"{device}{suffix}2"),
+            Path(f"{device}{suffix}3"),
+        )
+
+    def _release_existing_mounts(self, target: InstallTarget) -> None:
+        mounts: set[str] = set()
+        swaps: set[str] = set()
+        for partition in target.existing_partitions:
+            device = str(partition.get("device") or "")
+            mountpoints = tuple(str(value) for value in partition.get("mountpoints") or () if value)
+            for mountpoint in mountpoints:
+                if not _safe_existing_mountpoint(mountpoint):
+                    raise InstallError("the selected disk gained a protected mount before installation")
+                if mountpoint == "[SWAP]":
+                    if device:
+                        swaps.add(device)
+                else:
+                    mounts.add(mountpoint)
+        for device in sorted(swaps):
+            self._invoke(["swapoff", device])
+        for mountpoint in sorted(mounts, key=lambda value: (value.count("/"), len(value)), reverse=True):
+            self._invoke(["umount", mountpoint])
+        if mounts or swaps:
+            self._invoke(["udevadm", "settle"])
 
     @staticmethod
     def _kernel_pair(root: Path) -> tuple[str, str]:
@@ -308,7 +338,9 @@ class AurumInstaller:
 
     def _execute(self, target: InstallTarget, callback: ProgressCallback | None) -> dict[str, Any]:
         self._assert_live_safety(target)
-        efi_partition, root_partition = self._partition_paths(target.device)
+        bios_partition, efi_partition, root_partition = self._partition_paths(target.device)
+        self._progress(callback, "unmount", device=target.device)
+        self._release_existing_mounts(target)
         self._progress(callback, "partition", device=target.device)
         self._invoke(["wipefs", "--all", "--force", target.device])
         self._invoke(
@@ -321,25 +353,33 @@ class AurumInstaller:
                 "mklabel",
                 "gpt",
                 "mkpart",
-                "AURUM_EFI",
-                "fat32",
+                "AURUM_BIOS",
                 "1MiB",
-                "513MiB",
+                "3MiB",
                 "set",
                 "1",
+                "bios_grub",
+                "on",
+                "mkpart",
+                "AURUM_EFI",
+                "fat32",
+                "3MiB",
+                "515MiB",
+                "set",
+                "2",
                 "esp",
                 "on",
                 "mkpart",
                 "AURUM_ROOT",
                 "ext4",
-                "513MiB",
+                "515MiB",
                 "100%",
             ]
         )
         self._invoke(["partprobe", target.device])
         self._invoke(["udevadm", "settle"])
         for _ in range(20):
-            if efi_partition.exists() and root_partition.exists():
+            if bios_partition.exists() and efi_partition.exists() and root_partition.exists():
                 break
             time.sleep(0.25)
         else:
@@ -424,6 +464,15 @@ class AurumInstaller:
                     "--recheck",
                 ]
             )
+            self._invoke(
+                [
+                    "grub-install",
+                    "--target=i386-pc",
+                    f"--boot-directory={target_root / 'boot'}",
+                    "--recheck",
+                    target.device,
+                ]
+            )
             kernel_name, initrd_name = self._kernel_pair(target_root)
             grub_dir = target_root / "boot" / "grub"
             grub_dir.mkdir(parents=True, exist_ok=True)
@@ -443,6 +492,7 @@ class AurumInstaller:
             self._progress(callback, "verify", device=target.device)
             required = (
                 target_root / "boot" / "efi" / "EFI" / "BOOT" / "BOOTX64.EFI",
+                target_root / "boot" / "grub" / "i386-pc" / "core.img",
                 target_root / "boot" / kernel_name,
                 target_root / "boot" / initrd_name,
                 target_root / "boot" / "grub" / "grub.cfg",
@@ -477,7 +527,7 @@ class AurumInstaller:
             "device": target.device,
             "model": target.model,
             "size_gib": target.size_gib,
-            "boot_mode": "uefi-removable-fallback",
+            "boot_mode": "uefi-and-legacy-fallback",
             "other_disks_modified": False,
             "next_action": "poweroff, remove the USB drive, then start the PC",
         }

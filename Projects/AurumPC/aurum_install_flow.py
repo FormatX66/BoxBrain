@@ -26,6 +26,7 @@ DEFAULT_STATUS_PATH = Path("/run/aurum/install-status.json")
 PHASE_PROGRESS = {
     "discovery": 0,
     "preflight": 5,
+    "unmount": 10,
     "partition": 15,
     "format": 25,
     "copy": 45,
