@@ -247,7 +247,7 @@ class SetupPygameEventTests(unittest.TestCase):
         }
         with patch.object(setup.AurumSetupGui, "_submit_network"):
             self.gui = setup.AurumSetupGui(self.pg, self.coordinator)
-        self.gui.screen = self.pg.display.set_mode((1366, 768))
+        self.gui.screen = self.pg.display.set_mode((1366, 768), 0)
         self.pg.event.clear()
         self.gui._render()
 
@@ -312,6 +312,27 @@ class SetupPygameEventTests(unittest.TestCase):
         self.send_key(self.pg.K_ESCAPE)
         self.assertEqual(self.gui.view, "setup")
         self.assertEqual(self.gui.password, "")
+        self.coordinator.start.assert_not_called()
+
+    def test_controls_do_not_overlap_or_leave_fallback_displays(self) -> None:
+        self.gui.status = {"status": "ready", "targets": [
+            {"target_id": f"drive-{index}", "model": f"Test drive {index}", "size_gib": 128, "repair_available": True}
+            for index in range(5)
+        ]}
+        self.gui.selected_target_id = "drive-0"
+        self.gui.ssids = [f"Test network {index}" for index in range(10)]
+        for size in ((800, 600), (1024, 768), (1366, 768), (1920, 1080)):
+            # An explicit surface avoids the host display's fullscreen coercion.
+            self.gui.screen = self.pg.Surface(size)
+            for view in ("setup", "wifi", "confirm"):
+                with self.subTest(size=size, view=view):
+                    self.gui._set_view(view)
+                    self.gui._render()
+                    for index, control in enumerate(self.gui.buttons):
+                        self.assertTrue(self.gui.screen.get_rect().contains(control.rect), control.key)
+                        self.assertLessEqual(control.rect.bottom, size[1] - 36, control.key)
+                        for other in self.gui.buttons[index + 1:]:
+                            self.assertFalse(control.rect.colliderect(other.rect), f"{control.key} overlaps {other.key}")
         self.coordinator.start.assert_not_called()
 
 

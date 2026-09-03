@@ -177,7 +177,7 @@ class AurumSetupGui:
         network = "Internet connected" if self.network_online else "Offline"
         self._put(network, width - 260, 38, 19, GREEN if self.network_online else MUTED, True)
         self._put(title, 48, 92, 42, TEXT, True)
-        self._put(subtitle, 50, 147, 21, MUTED)
+        self._wrap(subtitle, 50, 147, width - 100, 19, MUTED)
         return 48, 190, width - 96, height - 230
 
     def _refresh_setup(self) -> None:
@@ -283,42 +283,60 @@ class AurumSetupGui:
             "Choose an internal drive. The Aurum USB is protected and is never shown here.",
         )
         targets = self._targets()
+        # Fallback display modes must not stack Refresh over the erase button.
+        # Narrow screens use two rows; drive cards stay above the action area.
+        gap = 16
+        action_widths = (210, 210, 285, 195)
+        if width >= sum(action_widths) + gap * 3:
+            action_top = self.screen.get_height() - 100
+            action_rects = []
+            left = x
+            for button_width in action_widths:
+                action_rects.append(self.pg.Rect(left, action_top, button_width, 56))
+                left += button_width + gap
+        else:
+            action_top = self.screen.get_height() - 172
+            button_width = (width - gap) // 2
+            action_rects = [
+                self.pg.Rect(x + (index % 2) * (button_width + gap), action_top + (index // 2) * 72, button_width, 56)
+                for index in range(4)
+            ]
         if not targets:
             self._put("No safe internal drive found", x, y + 12, 28, RED, True)
             self._wrap(_friendly_reason(self.status.get("reason")), x, y + 60, width, 21, MUTED)
         else:
-            card_height = 86
+            card_height = min(86, (action_top - y - 20 - 8 * (min(len(targets), 5) - 1)) // min(len(targets), 5))
             for index, target in enumerate(targets[:5]):
-                top = y + index * (card_height + 12)
+                top = y + index * (card_height + 8)
                 rect = self.pg.Rect(x, top, width, card_height)
                 selected = target.get("target_id") == self.selected_target_id
                 self.pg.draw.rect(self.screen, PANEL_SELECTED if selected else PANEL, rect, border_radius=12)
                 self.pg.draw.rect(self.screen, GOLD if selected else (58, 70, 82), rect, 3 if selected else 1, border_radius=12)
-                self._put(_drive_label(target), x + 22, top + 16, 24, TEXT, True)
+                self._put(_drive_label(target), x + 22, top + (16 if card_height >= 70 else 7), 24 if card_height >= 70 else 19, TEXT, True)
                 note = "Existing Aurum can be repaired" if target.get("repair_available") else (
                     "Contains existing data" if target.get("contains_existing_data") else "Empty drive"
                 )
-                self._put(note, x + 22, top + 51, 17, GREEN if target.get("repair_available") else MUTED)
+                if card_height >= 70:
+                    self._put(note, x + 22, top + 51, 17, GREEN if target.get("repair_available") else MUTED)
                 self.buttons.append(SetupControl(f"drive:{target.get('target_id')}", rect, lambda value=str(target.get("target_id")): self._select(value)))
 
         selected = self._selected()
-        bottom = self.screen.get_height() - 100
-        self._button("Connect Wi-Fi", self.pg.Rect(x, bottom, 210, 56), self._open_wifi, accent=GREEN)
+        self._button("Connect Wi-Fi", action_rects[0], self._open_wifi, accent=GREEN)
         self._button(
             "Repair Aurum",
-            self.pg.Rect(x + 230, bottom, 210, 56),
+            action_rects[1],
             lambda: self._choose_operation("repair"),
             enabled=bool(selected and selected.get("repair_available")),
             accent=GOLD,
         )
         self._button(
             "Erase & Install Fresh",
-            self.pg.Rect(x + 460, bottom, 285, 56),
+            action_rects[2],
             lambda: self._choose_operation("install"),
             enabled=selected is not None,
             accent=RED,
         )
-        self._button("Refresh Drives", self.pg.Rect(x + width - 195, bottom, 195, 56), self._refresh_setup)
+        self._button("Refresh Drives", action_rects[3], self._refresh_setup)
 
     def _render_confirm(self) -> None:
         operation_title = "Repair Aurum" if self.operation == "repair" else "Fresh installation"
@@ -382,13 +400,15 @@ class AurumSetupGui:
     def _render_wifi(self) -> None:
         x, y, width, _ = self._header("Connect to the internet", self.network_message)
         left_width = int(width * 0.54)
-        for index, ssid in enumerate(self.ssids[:8]):
-            top = y + index * 54
-            rect = self.pg.Rect(x, top, left_width, 46)
+        visible_ssids = self.ssids[:10]
+        row_height = min(54, (self.screen.get_height() - 125 - y) // max(1, len(visible_ssids)))
+        for index, ssid in enumerate(visible_ssids):
+            top = y + index * row_height
+            rect = self.pg.Rect(x, top, left_width, row_height - 6)
             selected = ssid == self.selected_ssid
             self.pg.draw.rect(self.screen, PANEL_SELECTED if selected else PANEL, rect, border_radius=8)
             self.pg.draw.rect(self.screen, GOLD if selected else (55, 66, 76), rect, 2 if selected else 1, border_radius=8)
-            self._put(ssid, x + 16, top + 11, 19, TEXT, selected)
+            self._put(ssid, x + 16, top + 3, 17, TEXT, selected)
             self.buttons.append(SetupControl(f"wifi:{ssid}", rect, lambda value=ssid: self._select_ssid(value)))
         field_x = x + left_width + 36
         self._put("Wi-Fi password", field_x, y, 20, MUTED, True)
@@ -398,8 +418,15 @@ class AurumSetupGui:
         shown = "•" * len(self.password) if self.password else "Select here, then type"
         self._put(shown, field.x + 14, field.y + 15, 19, TEXT if self.password else MUTED)
         self.buttons.append(SetupControl("wifi-password", field, lambda: self._focus("wifi-password")))
-        self._button("Scan Again", self.pg.Rect(field_x, y + 112, 180, 52), self._open_wifi)
-        self._button("Connect", self.pg.Rect(field_x + 195, y + 112, 165, 52), self._connect, enabled=bool(self.selected_ssid), accent=GREEN)
+        field_width = field.width
+        if field_width >= 375:
+            scan_rect = self.pg.Rect(field_x, y + 112, 180, 52)
+            connect_rect = self.pg.Rect(field_x + 195, y + 112, 165, 52)
+        else:
+            scan_rect = self.pg.Rect(field_x, y + 112, field_width, 52)
+            connect_rect = self.pg.Rect(field_x, y + 180, field_width, 52)
+        self._button("Scan Again", scan_rect, self._open_wifi)
+        self._button("Connect", connect_rect, self._connect, enabled=bool(self.selected_ssid), accent=GREEN)
         self._button("Back", self.pg.Rect(x, self.screen.get_height() - 105, 160, 58), lambda: self._set_view("setup"))
 
     def _select_ssid(self, ssid: str) -> None:
