@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_22_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_23_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: implementation, image/virtual proof, native-chain proof, external prerequisite evidence,
  * guarded destructive approval, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
@@ -20,14 +20,18 @@ const CONTINUOUS_CONTROLLER_RUN='33703121424';
 const PHYSICAL_PREREQUISITE_WATCH_RUN='33703828433';
 const CURRENT_PI3_IMAGE_RUN='33639297107';
 const HOPPER_STATUS_SNAPSHOT_COMMIT='4ac20ff95617698f3a893f01b5d28a6d728562a1';
+const CURRENT_HOPPER_STATUS_RUN='33700781447';
+const CURRENT_HOPPER_STATUS_JOB='100479402014';
+const PRIOR_HOPPER_STATUS_RUN='33691953397';
+const PRIOR_HOPPER_STATUS_JOB='100452410150';
 const NATIVE_BLOCKER_TEST='Projects.Codelation.tests.test_adaptive_shell_gui_deployment.AdaptiveShellGuiDeploymentTests.test_gui_live_trial_preserves_human_constants_and_dialogue_boundary';
 const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/commit/${id}`:`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.22',
+  componentRevision:'1.23',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-legacy-autoboot-integrated-current-head-image-and-four-target-proof-green-native-contract-held-no-churn-controller-confirmed',
+  evidenceClass:'active-trunk-legacy-autoboot-integrated-current-head-image-and-four-target-proof-green-native-contract-held-hopper-status-runner-assignment-blocked-prior-endpoint-snapshot-historical',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkParent:ACTIVE_TRUNK_PARENT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
@@ -77,9 +81,29 @@ const state={
   guardedInstallPhysicalVerificationProven:false,
   guardedInstallHumanApprovalCurrent:false,
   hopperStatusSnapshotCommit:HOPPER_STATUS_SNAPSHOT_COMMIT,
-  hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',
+  hopperStatusLastSnapshotBlocker:'no-valid-endpoint-candidate',
+  hopperStatusLastSnapshotSemanticsHistorical:true,
+  hopperStatusCurrentRunId:CURRENT_HOPPER_STATUS_RUN,
+  hopperStatusCurrentJobId:CURRENT_HOPPER_STATUS_JOB,
+  hopperStatusCurrentRunEvent:'schedule',
+  hopperStatusCurrentRunInspectedState:'queued',
+  hopperStatusCurrentJobLabels:['self-hosted','Linux','hopper-status'],
+  hopperStatusCurrentRunnerAssigned:false,
+  hopperStatusCurrentRunnerId:0,
+  hopperStatusCurrentRunnerName:'',
+  hopperStatusCurrentStepsStarted:false,
+  hopperStatusPriorRunId:PRIOR_HOPPER_STATUS_RUN,
+  hopperStatusPriorJobId:PRIOR_HOPPER_STATUS_JOB,
+  hopperStatusPriorRunConclusion:'cancelled',
+  hopperStatusPriorRunnerAssigned:false,
+  hopperStatusPriorRunnerId:0,
+  hopperStatusPriorStepsStarted:false,
+  hopperStatusSchedulerDispatchObserved:true,
+  hopperStatusQueuedRolloverObserved:true,
+  hopperStatusCurrentBlocker:'no-eligible-runner-assigned',
   hopperStatusEndpoint:null,
   hopperStatusSourceKind:null,
+  hopperStatusFreshMachineEvidenceAvailable:false,
   hopperStatusPowerStateInferred:false,
   hopperStatusNetworkStateInferred:false,
   hopperStatusRuntimeStateInferred:false,
@@ -122,12 +146,12 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.22 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.23 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
-<p><strong>Legacy unattended boot is now integrated into active Aurum trunk.</strong> <code>${ACTIVE_TRUNK_COMMIT}</code> includes the one-second ISOLINUX default boot and retains the guarded Hopper installer inherited from its parent. This is active-source truth, not a candidate-only claim; it is still <em>not</em> physical Hopper boot/install proof.</p>
+<p><strong>Legacy unattended boot remains integrated into active Aurum trunk.</strong> <code>${ACTIVE_TRUNK_COMMIT}</code> includes the one-second ISOLINUX default boot and retains the guarded Hopper installer inherited from its parent. This is active-source truth, not a candidate-only claim; it is still <em>not</em> physical Hopper boot/install proof.</p>
 <ul>
-<li>${link('PC image run 33677247135','run',CURRENT_PC_IMAGE_RUN)} passed validation, image build, UEFI install/reboot/self-build, Legacy BIOS installed-boot, HP twin, and verified-image publication on the exact active head. The prior attempt ${link('33675680912','run',PRECEDING_PC_IMAGE_FAILURE_RUN)} failed, so the remediation is evidence-backed rather than an unchanged rerun.</li>
+<li>${link('PC image run 33677247135','run',CURRENT_PC_IMAGE_RUN)} passed validation, image build, UEFI install/reboot/self-build, Legacy BIOS installed-boot, HP twin, and verified-image publication on the exact active head. The prior attempt ${link('33675680912','run',PRECEDING_PC_IMAGE_FAILURE_RUN)} failed, so the remediation remains evidence-backed rather than an unchanged rerun.</li>
 <li>${link('Virtual Hardware Lab 33695190511','run',CURRENT_VIRTUAL_LAB_RUN)} passed Docker x86_64, native ARM64, QEMU UEFI PC, QEMU Raspberry Pi 3B, and same-commit four-target convergence on the exact active head. Runtime publication remained intentionally skipped.</li>
 <li>${link('Continuous Build Controller 33703121424','run',CONTINUOUS_CONTROLLER_RUN)} recognized same-head terminal evidence and left <code>native_dispatch=false</code> and <code>lab_dispatch=false</code>. That is the intended no-churn process: reuse unchanged verified evidence instead of rerunning it for activity.</li>
 </ul>
@@ -137,7 +161,7 @@ panel.innerHTML=`
 <ul>
 <li><strong>Native continuation has one exact contract blocker.</strong> ${link('Autonomous Build Loop 33687947059','run',CURRENT_NATIVE_RUN)} failed at <code>Verify native self-build contracts</code>; 85 tests ran and the single failure was <code>${NATIVE_BLOCKER_TEST}</code>, where <code>applied.applied</code> was false. Fix or refresh the underlying GUI live-trial prerequisite evidence, then let normal continuous control decide whether a native rerun is justified.</li>
 <li>The retained generation-65 GUI live-trial evidence is still expired and tied to <code>192.168.0.194</code> while the current consumer expects <code>10.12.194.1</code>. This remains fail-closed; do not replay the unchanged failure merely to create movement.</li>
-<li>Hopper observability still has <code>no-valid-endpoint-candidate</code>. With endpoint and source kind unresolved, do not infer Hopper power, network, runtime, or service state.</li>
+<li><strong>Hopper live-status freshness is blocked before probe execution.</strong> ${link('Scheduled status run 33700781447','run',CURRENT_HOPPER_STATUS_RUN)} entered the <code>self-hosted / Linux / hopper-status</code> queue with <code>runner_id=0</code>, no runner name, and zero steps. The preceding ${link('run 33691953397','run',PRIOR_HOPPER_STATUS_RUN)} ended cancelled at scheduled rollover in the same unassigned state. Restore an eligible runner assignment or repair runner registration/label matching, then let the normal scheduled read-only job execute once. Only after that should supported endpoint discovery be re-evaluated. The retained <code>no-valid-endpoint-candidate</code> snapshot is historical evidence, not current Hopper machine truth; do not infer power, network, runtime, or service state from it.</li>
 <li>${link('Physical Prerequisite Watch 33703828433','run',PHYSICAL_PREREQUISITE_WATCH_RUN)} confirmed physical presence is not the current blocker and skipped unchanged publication. Physical guarded install, physical Hopper boot acceptance, and Guardian forced rollback remain unverified.</li>
 </ul>
 </div>
