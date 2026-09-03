@@ -82,9 +82,10 @@ def _authorized(policy: Mapping[str, Any], receipt: Mapping[str, Any]) -> tuple[
         return False, "installed-target-serial-mismatch"
     if int(target.get("size_bytes") or 0) != expected_size:
         return False, "installed-target-size-mismatch"
-    if str(policy.get("machine_display_name") or "") != "Hopper":
-        return False, "machine-name-not-hopper"
-    return True, "authorized-hopper"
+    display_name = str(policy.get("machine_display_name") or "").strip()
+    if not display_name or len(display_name) > 64:
+        return False, "machine-name-invalid"
+    return True, "authorized-aurum-pc"
 
 
 def _run(arguments: list[str], *, timeout: int, env: Mapping[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -261,8 +262,8 @@ class HopperDisplay:
                 "schema": SCHEMA,
                 "status": "launching",
                 "authorized": True,
-                "authorization_reason": "authorized-hopper",
-                "machine": "Hopper",
+                "authorization_reason": "authorized-aurum-pc",
+                "machine": str(self.policy.get("machine_display_name") or "Aurum PC"),
                 "mode": mode,
                 "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             },

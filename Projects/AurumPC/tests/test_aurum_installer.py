@@ -154,6 +154,7 @@ class AurumInstallerTests(unittest.TestCase):
         self.assertRegex(target["confirmation_code"], r"^ERASE-[A-F0-9]{8}$")
         self.assertEqual(target["confirm_command"], f"install confirm {target['confirmation_code']}")
         self.assertEqual(target["existing_partitions"][0]["label"], "Windows")
+        self.assertFalse(target["repair_available"])
 
     def test_plan_refuses_installed_runtime_but_allows_legacy_live_boot(self) -> None:
         self.live.rmdir()
@@ -195,6 +196,42 @@ class AurumInstallerTests(unittest.TestCase):
         installer = installer_module.AurumInstaller(runner=missing_runner)
         with self.assertRaisesRegex(installer_module.InstallError, "lsblk is unavailable"):
             installer.discover_targets()
+
+    def test_machine_identity_is_generated_for_the_selected_pc(self) -> None:
+        target = self.make_installer().discover_targets()[0]
+        installed = self.root / "installed"
+        (installed / "opt" / "aurum").mkdir(parents=True)
+        (installed / "etc").mkdir(parents=True)
+        (installed / "opt" / "aurum" / "pc01_autonomy_policy.json").write_text(
+            json.dumps({"schema": "aurum-pc-autonomy-policy-v1", "enabled": True}),
+            encoding="utf-8",
+        )
+        receipt = {"schema": installer_module.INSTALLER_SCHEMA, "target": {}}
+        installer_module.AurumInstaller._write_machine_identity(installed, target, receipt)
+        policy = json.loads((installed / "opt" / "aurum" / "pc01_autonomy_policy.json").read_text())
+        self.assertEqual(policy["machine_display_name"], "Aurum PC")
+        self.assertEqual(policy["hostname"], "aurum-pc")
+        self.assertEqual(policy["machine_match"]["installed_target_serial"], "NVME-SERIAL-1")
+
+    def test_repair_detection_requires_exact_aurum_partition_labels(self) -> None:
+        payload = deepcopy(inventory())
+        payload["blockdevices"][0]["children"] = [
+            {
+                "name": "/dev/nvme0n1p2", "path": "/dev/nvme0n1p2", "type": "part",
+                "size": 512_000_000, "fstype": "vfat", "label": "AURUM_EFI", "mountpoints": [None],
+            },
+            {
+                "name": "/dev/nvme0n1p3", "path": "/dev/nvme0n1p3", "type": "part",
+                "size": 511_000_000_000, "fstype": "ext4", "label": "AURUM_ROOT", "mountpoints": [None],
+            },
+        ]
+        self.runner = FakeRunner(payload)
+        installer = self.make_installer()
+        plan = installer.plan()
+        self.assertTrue(plan["targets"][0]["repair_available"])
+        efi, root = installer._repair_partitions(installer.discover_targets()[0])
+        self.assertEqual(efi.as_posix(), "/dev/nvme0n1p2")
+        self.assertEqual(root.as_posix(), "/dev/nvme0n1p3")
 
 
 if __name__ == "__main__":

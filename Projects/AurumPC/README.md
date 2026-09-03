@@ -1,6 +1,20 @@
 # Aurum PC v0.01
 
-Aurum PC is the removable-media x86_64 bring-up environment for Aurum. Linux is used only as a temporary hardware compatibility substrate; the operator surface remains the bounded `aurum>` console.
+Aurum PC is the removable-media x86_64 bring-up environment for Aurum. Linux is used only as a temporary hardware compatibility substrate. Physical live media boots directly into the native full-screen Aurum Setup application; the bounded `aurum>` console remains a serial verification and last-resort recovery surface.
+
+## Graphical setup
+
+The normal USB workflow contains no shell commands:
+
+1. Boot the Aurum USB on a compatible 64-bit PC in UEFI or legacy BIOS mode.
+2. Aurum Setup opens automatically and lists only safe, non-USB internal drives.
+3. Optionally connect Ethernet or choose Wi-Fi in the graphical network screen.
+4. Select a drive, then choose **Erase & Install Fresh** or **Repair Aurum**.
+5. Review the selected drive and confirm once on screen.
+6. Wait for filesystem, runtime, dual-mode bootloader, and one-entry boot-menu verification.
+7. Choose **Shut Down Safely**, remove the USB after power is off, and start the PC.
+
+Fresh installation cleans and repartitions only the selected drive. Repair never partitions or formats: it checks the existing Aurum filesystem, refreshes the bundled runtime and services, rebuilds both UEFI and legacy boot paths, and verifies the result. Multiple internal drives are supported through explicit graphical selection. The USB and any ineligible, active, removable, read-only, or protected drive are never offered as targets.
 
 ## Seed lifecycle
 
@@ -8,12 +22,12 @@ Aurum follows the canonical rule **Boot once. Grow continuously. Never move back
 
 ## First boot
 
-On a physical primary console Aurum automatically:
+After a verified installation, Aurum automatically:
 
 1. captures a read-only exact-machine hardware profile from `/proc` and `/sys`;
 2. derives a conservative kernel/driver plan while preserving the removable recovery path;
 3. if no wireless interface exists, emits `AURUM_WIFI_DIAG` with PCI/USB network-controller candidates, modaliases, bound drivers and loaded-module evidence;
-4. attempts Wi-Fi bring-up, asking for credentials only when a wireless interface is available;
+4. reconnects the Wi-Fi profile saved by Aurum Setup when one is available;
 5. verifies addressing, routing, DNS and GitHub TCP connectivity;
 6. refreshes only the allowlisted `FormatX66/BoxBrain` trunk when online;
 7. seeds Aurum state, runs its bounded self-test, and starts the resumable local-first self-build;

@@ -20,6 +20,23 @@ SPEC.loader.exec_module(network)
 
 
 class AurumNetworkTests(unittest.TestCase):
+    def test_graphical_wifi_entry_saves_then_connects_without_console_input(self) -> None:
+        with (
+            patch.object(network, "wireless_interfaces", return_value=["wlan0"]),
+            patch.object(network, "_make_config", return_value="safe-config\n") as make,
+            patch.object(network, "_write_saved_config") as write,
+            patch.object(
+                network,
+                "connect_saved",
+                return_value={"status": "online", "online": True},
+            ) as connect,
+        ):
+            result = network.connect_wifi(" Test Network ", "secret", timeout_seconds=25)
+        self.assertTrue(result["online"])
+        make.assert_called_once_with("Test Network", "secret")
+        write.assert_called_once_with("safe-config\n")
+        connect.assert_called_once_with("wlan0", timeout_seconds=25)
+
     def test_status_projects_active_interface_and_ip_for_gui(self) -> None:
         def fake_run(arguments, **_kwargs):
             if arguments[-3:] == ["route", "show", "default"]:

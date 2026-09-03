@@ -19,6 +19,22 @@ HopperDesktopRuntime = runtime_module.HopperDesktopRuntime
 
 
 class HopperDesktopRuntimeTests(unittest.TestCase):
+    def test_generic_installed_aurum_pc_is_authorized_by_exact_receipt(self) -> None:
+        authorized, reason = runtime_module._authorized(
+            {
+                "schema": "aurum-pc-autonomy-policy-v1",
+                "enabled": True,
+                "machine_display_name": "Aurum PC",
+                "machine_match": {
+                    "installed_target_serial": "GENERIC-SERIAL",
+                    "installed_target_size_bytes": 256,
+                },
+            },
+            {"target": {"serial": "GENERIC-SERIAL", "size_bytes": 256}},
+        )
+        self.assertTrue(authorized)
+        self.assertEqual(reason, "authorized-aurum-pc")
+
     def test_status_is_machine_bound_and_reports_physical_surface(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

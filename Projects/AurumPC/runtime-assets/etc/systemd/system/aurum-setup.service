@@ -1,0 +1,26 @@
+[Unit]
+Description=Aurum graphical live setup
+After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service systemd-networkd.service
+Wants=aurum-input-bootstrap.service systemd-networkd.service
+Conflicts=getty@tty1.service aurum-pc-console.service
+ConditionPathIsDirectory=/run/live/medium
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/xinit /usr/bin/python3 /opt/aurum/aurum_setup_gui.py -- /usr/bin/Xorg :0 vt1 -keeptty -nolisten tcp
+Environment=PYTHONUNBUFFERED=1
+Environment=SDL_AUDIODRIVER=dummy
+Environment=MALLOC_ARENA_MAX=2
+StandardInput=tty-force
+StandardOutput=journal
+StandardError=journal
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

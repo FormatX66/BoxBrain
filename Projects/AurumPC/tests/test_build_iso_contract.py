@@ -52,10 +52,12 @@ class BuildIsoContractTests(unittest.TestCase):
             "aurum_install_flow.py",
             "aurum_gui_runtime.py", "aurum_autonomy.py", "aurum_driver_synthesis.py", "pc01_autonomy_policy.json",
             "systemd-timesyncd", "kmod", "parted", "rsync", "dosfstools", "e2fsprogs",
+            "chromium",
             "grub-efi-amd64-bin", "grub-pc-bin", "grub2-common", "build-essential", "linux-headers-amd64",
             "aurum_boot_screen.py", "aurum_input.py", "libinput-tools",
             "aurum_wifi_persistence.py",
             "aurum_gpt_executor.py", "aurum_projection_runtime.py", "aurum_self_debug.py",
+            "aurum_setup_gui.py", "aurum-setup.service",
         ):
             self.assertIn(package, script)
         self.assertIn("Name=en* eth* usb*", script)
@@ -67,6 +69,7 @@ class BuildIsoContractTests(unittest.TestCase):
         input_hook = (RUNTIME_ASSETS / "usr/lib/systemd/system-sleep/aurum-input-wake").read_text(encoding="utf-8")
         libinput = (RUNTIME_ASSETS / "etc/X11/xorg.conf.d/40-aurum-libinput.conf").read_text(encoding="utf-8")
         console = (RUNTIME_ASSETS / "etc/systemd/system/aurum-pc-console.service").read_text(encoding="utf-8")
+        setup = (RUNTIME_ASSETS / "etc/systemd/system/aurum-setup.service").read_text(encoding="utf-8")
         for module in ("i2c_hid_acpi", "hid_multitouch", "psmouse", "usbhid", "hid_generic", "atkbd"):
             self.assertIn(f"modprobe {module}", input_service)
         self.assertIn("runtime-assets", script)
@@ -80,6 +83,10 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn('MatchIsTouchpad "on"', libinput)
         self.assertIn('Option "Tapping" "on"', libinput)
         self.assertIn("AURUM_BOOT_SCREEN=1", console)
+        self.assertIn("ConditionPathExists=!/run/live/medium", console)
+        self.assertIn("ConditionPathIsDirectory=/run/live/medium", setup)
+        self.assertIn("aurum_setup_gui.py", setup)
+        self.assertIn("xinit", setup)
         self.assertIn("udevadm trigger --subsystem-match=input", input_service)
 
     def test_open_core_share_and_boot_sync_are_packaged_without_personal_export(self) -> None:

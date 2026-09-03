@@ -22,7 +22,7 @@ sys.modules[SPEC.name] = flow
 SPEC.loader.exec_module(flow)
 
 
-def target(*, suffix: str = "A") -> dict[str, object]:
+def target(*, suffix: str = "A", repair: bool = False) -> dict[str, object]:
     return {
         "device": f"/dev/nvme0n1{suffix}",
         "kernel_name": "nvme0n1",
@@ -34,6 +34,7 @@ def target(*, suffix: str = "A") -> dict[str, object]:
         "existing_partitions": [{"label": "existing"}],
         "confirmation_code": f"ERASE-0000000{suffix}",
         "confirm_command": f"install confirm ERASE-0000000{suffix}",
+        "repair_available": repair,
     }
 
 
@@ -42,6 +43,7 @@ class FakeInstaller:
         self.targets = targets
         self.fail = fail
         self.install_calls: list[str] = []
+        self.repair_calls: list[str] = []
 
     def plan(self) -> dict[str, object]:
         return {
@@ -59,6 +61,23 @@ class FakeInstaller:
             raise flow.InstallError("verification fixture failed")
         return {
             "status": "installed",
+            "device": "/dev/private",
+            "model": "Hopper Internal NVMe",
+            "size_gib": 476.8,
+            "boot_mode": "uefi-and-legacy-fallback",
+            "other_disks_modified": False,
+            "next_action": "poweroff, remove USB, then start",
+        }
+
+    def repair(self, confirmation_code: str, *, progress=None) -> dict[str, object]:
+        self.repair_calls.append(confirmation_code)
+        if progress:
+            for phase in ("preflight", "filesystem", "copy", "bootloader", "verify"):
+                progress({"phase": phase, "device": "/dev/private"})
+        if self.fail:
+            raise flow.InstallError("repair verification fixture failed")
+        return {
+            "status": "repaired",
             "device": "/dev/private",
             "model": "Hopper Internal NVMe",
             "size_gib": 476.8,
@@ -108,23 +127,32 @@ class InstallFlowTests(unittest.TestCase):
         self.assertEqual(installer.install_calls, ["ERASE-0000000A"])
         self.assertNotIn("/dev/", self.status_path.read_text(encoding="utf-8"))
 
-    def test_zero_or_multiple_targets_are_blocked_without_starting(self) -> None:
-        for targets in ([], [target(suffix="A"), target(suffix="B")]):
-            with self.subTest(count=len(targets)):
-                installer = FakeInstaller(targets)
-                coordinator = flow.InstallCoordinator(
-                    installer=installer, status_path=self.status_path
-                )
-                status = coordinator.status()
-                self.assertIn(status["status"], {"unavailable", "blocked"})
-                with self.assertRaisesRegex(flow.InstallError, "exactly one"):
-                    coordinator.start(confirmed=True)
-                self.assertEqual(installer.install_calls, [])
+    def test_zero_targets_are_unavailable(self) -> None:
+        installer = FakeInstaller([])
+        coordinator = flow.InstallCoordinator(installer=installer, status_path=self.status_path)
+        self.assertEqual(coordinator.status()["status"], "unavailable")
+        with self.assertRaisesRegex(flow.InstallError, "eligible internal drive"):
+            coordinator.start(confirmed=True)
+        self.assertEqual(installer.install_calls, [])
+
+    def test_multiple_targets_are_graphically_selectable_without_exposing_write_codes(self) -> None:
+        installer = FakeInstaller([target(suffix="A"), target(suffix="B")])
+        coordinator = flow.InstallCoordinator(installer=installer, status_path=self.status_path)
+        status = coordinator.status()
+        self.assertEqual(status["status"], "ready")
+        self.assertEqual(status["target_count"], 2)
+        self.assertEqual(len(status["targets"]), 2)
+        self.assertNotIn("ERASE-", json.dumps(status))
+        with self.assertRaisesRegex(flow.InstallError, "select exactly one"):
+            coordinator.start(confirmed=True)
+        coordinator.start(confirmed=True, target_id=status["targets"][1]["target_id"])
+        self.wait_finished(coordinator)
+        self.assertEqual(installer.install_calls, ["ERASE-0000000B"])
 
     def test_missing_confirmation_and_failed_verification_stop_safely(self) -> None:
         installer = FakeInstaller([target()], fail=True)
         coordinator = flow.InstallCoordinator(installer=installer, status_path=self.status_path)
-        with self.assertRaisesRegex(flow.InstallError, "visible erase confirmation"):
+        with self.assertRaisesRegex(flow.InstallError, "visible confirmation"):
             coordinator.start(confirmed=False)
         coordinator.start(confirmed=True)
         failed = self.wait_finished(coordinator)
@@ -181,6 +209,31 @@ class InstallFlowTests(unittest.TestCase):
         status = restored.status()
         self.assertEqual(status["status"], "failed")
         self.assertEqual(status["reason"], "installer-interface-restarted")
+
+    def test_repair_requires_repairable_selected_drive_and_uses_non_install_path(self) -> None:
+        installer = FakeInstaller([target(repair=True)])
+        coordinator = flow.InstallCoordinator(installer=installer, status_path=self.status_path)
+        status = coordinator.status()
+        coordinator.start(
+            confirmed=True,
+            target_id=status["target"]["target_id"],
+            operation="repair",
+        )
+        completed = self.wait_finished(coordinator)
+        self.assertEqual(completed["status"], "complete")
+        self.assertEqual(completed["result"]["status"], "repaired")
+        self.assertEqual(installer.repair_calls, ["ERASE-0000000A"])
+        self.assertEqual(installer.install_calls, [])
+
+    def test_failed_operation_can_reset_to_fresh_multi_drive_discovery(self) -> None:
+        installer = FakeInstaller([target(suffix="A"), target(suffix="B")], fail=True)
+        coordinator = flow.InstallCoordinator(installer=installer, status_path=self.status_path)
+        ready = coordinator.status()
+        coordinator.start(confirmed=True, target_id=ready["targets"][0]["target_id"])
+        self.assertEqual(self.wait_finished(coordinator)["status"], "failed")
+        reset = coordinator.reset()
+        self.assertEqual(reset["status"], "ready")
+        self.assertEqual(reset["target_count"], 2)
 
 
 if __name__ == "__main__":

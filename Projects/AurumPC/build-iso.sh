@@ -83,6 +83,7 @@ systemd-timesyncd
 udev
 python3
 python3-pygame
+chromium
 iproute2
 kmod
 pciutils
@@ -149,7 +150,7 @@ timeout 10
 EOF
 
 mkdir -p config/includes.chroot/opt/aurum
-for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_bootstrap.py aurum_console.py aurum_control_plane.py aurum_core_share.py aurum_credential_bootstrap.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_executor.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_install_flow.py aurum_installer.py aurum_network.py aurum_pointer_motion.py aurum_projection_runtime.py aurum_runtime_update.py aurum_self_debug.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_web_surface.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py; do
+for f in aurum_arcade.py aurum_autonomy.py aurum_boot_screen.py aurum_bootstrap.py aurum_console.py aurum_control_plane.py aurum_core_share.py aurum_credential_bootstrap.py aurum_desktop.py aurum_desktop_runtime.py aurum_display_runtime.py aurum_driver_synthesis.py aurum_echo_native.py aurum_gpt_executor.py aurum_gpt_trait.py aurum_gui_runtime.py aurum_hardware.py aurum_hopper_gui.py aurum_input.py aurum_install_flow.py aurum_installer.py aurum_network.py aurum_pointer_motion.py aurum_projection_runtime.py aurum_runtime_update.py aurum_self_debug.py aurum_setup_gui.py aurum_sync_recovery.py aurum_time.py aurum_traits.py aurum_web_surface.py aurum_wifi_diag.py aurum_wifi_persistence.py aurum_wifi_recovery.py aurum_workspace.py; do
   cp "$SCRIPT_DIR/$f" "config/includes.chroot/opt/aurum/$f"
   chmod 0755 "config/includes.chroot/opt/aurum/$f"
 done
@@ -195,6 +196,9 @@ install -D -m 0644 \
   "$RUNTIME_ASSETS/etc/systemd/system/aurum-pc-console.service" \
   config/includes.chroot/etc/systemd/system/aurum-pc-console.service
 install -D -m 0644 \
+  "$RUNTIME_ASSETS/etc/systemd/system/aurum-setup.service" \
+  config/includes.chroot/etc/systemd/system/aurum-setup.service
+install -D -m 0644 \
   "$RUNTIME_ASSETS/etc/systemd/system/aurum-auto-sync.service" \
   config/includes.chroot/etc/systemd/system/aurum-auto-sync.service
 install -D -m 0644 \
@@ -239,6 +243,7 @@ mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
 ln -s ../aurum-input-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-input-bootstrap.service
 ln -s ../aurum-network-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-network-bootstrap.service
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
+ln -s ../aurum-setup.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-setup.service
 ln -s ../aurum-auto-sync.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-auto-sync.service
 ln -s ../aurum-core-share.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-core-share.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service

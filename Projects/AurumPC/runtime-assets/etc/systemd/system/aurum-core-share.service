@@ -2,6 +2,7 @@
 Description=Aurum open core status and seed share
 After=network-online.target aurum-network-bootstrap.service
 Wants=network-online.target aurum-network-bootstrap.service
+ConditionPathExists=!/run/live/medium
 
 [Service]
 Type=simple

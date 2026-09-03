@@ -4,6 +4,7 @@ After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service
 Wants=aurum-input-bootstrap.service
 Conflicts=getty@tty1.service
 ConditionPathExists=/dev/tty1
+ConditionPathExists=!/run/live/medium
 
 [Service]
 Type=simple

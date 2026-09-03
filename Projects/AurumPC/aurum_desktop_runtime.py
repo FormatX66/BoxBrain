@@ -52,8 +52,9 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
 def _authorized(policy: Mapping[str, Any], receipt: Mapping[str, Any]) -> tuple[bool, str]:
     if policy.get("schema") != "aurum-pc-autonomy-policy-v1" or policy.get("enabled") is not True:
         return False, "policy-disabled-or-invalid"
-    if str(policy.get("machine_display_name") or "") != "Hopper":
-        return False, "machine-name-not-hopper"
+    display_name = str(policy.get("machine_display_name") or "").strip()
+    if not display_name or len(display_name) > 64:
+        return False, "machine-name-invalid"
     match = policy.get("machine_match") if isinstance(policy.get("machine_match"), dict) else {}
     target = receipt.get("target") if isinstance(receipt.get("target"), dict) else {}
     expected_serial = str(match.get("installed_target_serial") or "")
@@ -62,7 +63,7 @@ def _authorized(policy: Mapping[str, Any], receipt: Mapping[str, Any]) -> tuple[
         return False, "installed-target-serial-mismatch"
     if expected_size <= 0 or int(target.get("size_bytes") or 0) != expected_size:
         return False, "installed-target-size-mismatch"
-    return True, "authorized-hopper"
+    return True, "authorized-aurum-pc"
 
 
 def _run(arguments: list[str], *, timeout: int, env: Mapping[str, str] | None = None) -> subprocess.CompletedProcess[str]:

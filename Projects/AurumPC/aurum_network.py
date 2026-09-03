@@ -262,6 +262,24 @@ def connect_saved(interface: str | None = None, *, timeout_seconds: int = 50) ->
     return {"status": "wifi-connected-no-internet", **network_status(selected)}
 
 
+def connect_wifi(
+    ssid: str,
+    password: str,
+    interface: str | None = None,
+    *,
+    timeout_seconds: int = 50,
+) -> dict[str, Any]:
+    """Connect from a graphical client without exposing a text-console workflow."""
+    interfaces = wireless_interfaces()
+    selected = interface or (interfaces[0] if interfaces else None)
+    if not selected:
+        return {"status": "no-wifi-interface", **network_status()}
+    config = _make_config(ssid.strip(), password)
+    password = ""
+    _write_saved_config(config)
+    return connect_saved(selected, timeout_seconds=timeout_seconds)
+
+
 def interactive_wifi_setup(interface: str | None = None) -> dict[str, Any]:
     scan = scan_networks(interface)
     selected = scan.get("interface")
@@ -281,10 +299,7 @@ def interactive_wifi_setup(interface: str | None = None) -> dict[str, Any]:
         password = getpass.getpass("Wi-Fi password (blank for open network): ")
     except (EOFError, KeyboardInterrupt):
         return {"status": "credentials-skipped", **network_status(selected)}
-    config = _make_config(ssid, password)
-    password = ""
-    _write_saved_config(config)
-    return connect_saved(selected)
+    return connect_wifi(ssid, password, selected)
 
 
 def ensure_online(*, interactive: bool) -> dict[str, Any]:

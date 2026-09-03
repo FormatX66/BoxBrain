@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -29,6 +30,7 @@ PHASE_PROGRESS = {
     "unmount": 10,
     "partition": 15,
     "format": 25,
+    "filesystem": 25,
     "copy": 45,
     "bootloader": 80,
     "verify": 92,
@@ -50,11 +52,19 @@ def _public_target(target: Mapping[str, Any]) -> dict[str, Any]:
     partitions = target.get("existing_partitions")
     partition_count = len(partitions) if isinstance(partitions, (list, tuple)) else 0
     return {
+        "target_id": _selection_id(target),
         "model": _clean(target.get("model"), 128) or "Internal drive",
         "size_gib": target.get("size_gib"),
         "existing_partition_count": partition_count,
         "contains_existing_data": partition_count > 0,
+        "repair_available": target.get("repair_available") is True,
     }
+
+
+def _selection_id(target: Mapping[str, Any]) -> str:
+    """Return an opaque UI identifier that cannot authorize a disk write."""
+    confirmation = str(target.get("confirmation_code") or "")
+    return "drive-" + hashlib.sha256(("aurum-select:" + confirmation).encode("utf-8")).hexdigest()[:12]
 
 
 def _default_power_runner(arguments: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -62,7 +72,7 @@ def _default_power_runner(arguments: list[str], **kwargs: Any) -> subprocess.Com
 
 
 class InstallCoordinator:
-    """Own the asynchronous, exact-one-target install lifecycle."""
+    """Own the asynchronous, graphically selected install or repair lifecycle."""
 
     def __init__(
         self,
@@ -151,28 +161,21 @@ class InstallCoordinator:
                         "target_count": len(targets),
                         "updated_at": _now(),
                     }
-                elif len(targets) != 1:
-                    state = {
-                        "schema": FLOW_SCHEMA,
-                        "status": "blocked",
-                        "phase": "discovery",
-                        "progress_percent": 0,
-                        "reason": "multiple-eligible-internal-disks-found",
-                        "target_count": len(targets),
-                        "updated_at": _now(),
-                    }
                 else:
+                    public_targets = [_public_target(target) for target in targets]
                     state = {
                         "schema": FLOW_SCHEMA,
                         "status": "ready",
                         "phase": "discovery",
                         "progress_percent": 0,
                         "reason": "ready",
-                        "target_count": 1,
-                        "target": _public_target(targets[0]),
-                        "warning": "The internal drive will be completely erased. The USB seed and other drives are never modified.",
+                        "target_count": len(public_targets),
+                        "targets": public_targets,
+                        "warning": "Only the drive you select can be changed. The Aurum USB is never offered as a target.",
                         "updated_at": _now(),
                     }
+                    if len(public_targets) == 1:
+                        state["target"] = public_targets[0]
             except Exception as exc:
                 state = {
                     "schema": FLOW_SCHEMA,
@@ -187,42 +190,63 @@ class InstallCoordinator:
             self._write_status()
             return self._snapshot()
 
-    def start(self, *, confirmed: bool) -> dict[str, Any]:
+    def start(
+        self,
+        *,
+        confirmed: bool,
+        target_id: str | None = None,
+        operation: str = "install",
+    ) -> dict[str, Any]:
         if confirmed is not True:
-            raise InstallError("installation requires the visible erase confirmation")
+            raise InstallError("the selected operation requires the visible confirmation")
+        if operation not in {"install", "repair"}:
+            raise InstallError("the setup operation must be install or repair")
         with self._lock:
             if self._worker is not None and self._worker.is_alive():
                 raise InstallError("an Aurum installation is already running")
             if self._state.get("status") in {"complete", "powering-off"}:
                 raise InstallError("Aurum is already installed; shut down and remove the USB seed")
             plan, targets = self._plan()
-            if not plan.get("available") or len(targets) != 1:
-                raise InstallError("installation requires exactly one eligible internal drive")
-            confirmation_code = targets[0].get("confirmation_code")
+            if not plan.get("available") or not targets:
+                raise InstallError("setup requires an eligible internal drive")
+            selected = [target for target in targets if _selection_id(target) == target_id]
+            if target_id is None and len(targets) == 1:
+                selected = [targets[0]]
+            if len(selected) != 1:
+                raise InstallError("select exactly one internal drive on the setup screen")
+            if operation == "repair" and selected[0].get("repair_available") is not True:
+                raise InstallError("the selected drive does not contain a repairable Aurum installation")
+            confirmation_code = selected[0].get("confirmation_code")
             if not isinstance(confirmation_code, str):
                 raise InstallError("the guarded installer did not produce a target confirmation")
-            target = _public_target(targets[0])
+            target = _public_target(selected[0])
             self._state = {
                 "schema": FLOW_SCHEMA,
                 "status": "running",
                 "phase": "preflight",
                 "progress_percent": PHASE_PROGRESS["preflight"],
                 "target": target,
-                "message": "Checking the internal drive again before installation.",
+                "operation": operation,
+                "message": "Checking the selected internal drive again before making changes.",
                 "started_at": _now(),
                 "updated_at": _now(),
             }
             self._write_status()
             self._worker = threading.Thread(
-                target=self._run_install,
-                args=(confirmation_code, target),
-                name="aurum-guarded-install",
+                target=self._run_operation,
+                args=(confirmation_code, target, operation),
+                name=f"aurum-guarded-{operation}",
                 daemon=False,
             )
             self._worker.start()
             return self._snapshot()
 
-    def _run_install(self, confirmation_code: str, target: Mapping[str, Any]) -> None:
+    def _run_operation(
+        self,
+        confirmation_code: str,
+        target: Mapping[str, Any],
+        operation: str,
+    ) -> None:
         def progress(event: Mapping[str, Any]) -> None:
             phase = str(event.get("phase") or "preflight")
             with self._lock:
@@ -237,9 +261,11 @@ class InstallCoordinator:
                 self._write_status()
 
         try:
-            result = self.installer.install(confirmation_code, progress=progress)
-            if not isinstance(result, dict) or result.get("status") != "installed":
-                raise InstallError("installer did not return a verified installed result")
+            action = self.installer.install if operation == "install" else self.installer.repair
+            result = action(confirmation_code, progress=progress)
+            expected = "installed" if operation == "install" else "repaired"
+            if not isinstance(result, dict) or result.get("status") != expected:
+                raise InstallError(f"setup did not return a verified {expected} result")
             public_result = {
                 key: result.get(key)
                 for key in (
@@ -258,8 +284,9 @@ class InstallCoordinator:
                     "phase": "complete",
                     "progress_percent": 100,
                     "target": dict(target),
+                    "operation": operation,
                     "result": public_result,
-                    "message": "Installation verified. Shut down, remove the USB seed, then start Hopper.",
+                    "message": "Aurum is verified. Shut down, remove the USB, then start the PC.",
                     "completed_at": _now(),
                     "updated_at": _now(),
                 }
@@ -272,8 +299,9 @@ class InstallCoordinator:
                     "phase": "failed",
                     "progress_percent": 0,
                     "target": dict(target),
+                    "operation": operation,
                     "reason": f"{type(exc).__name__}:{_clean(exc)}",
-                    "message": "Installation stopped safely before verification completed. Nothing else will run automatically.",
+                    "message": "Setup stopped safely before verification completed. Nothing else will run automatically.",
                     "updated_at": _now(),
                 }
                 self._write_status()
@@ -299,12 +327,29 @@ class InstallCoordinator:
             self._state.update(
                 {
                     "status": "powering-off",
-                    "message": "Hopper is shutting down. Remove the USB seed when power is off.",
+                    "message": "The PC is shutting down. Remove the Aurum USB when power is off.",
                     "updated_at": _now(),
                 }
             )
             self._write_status()
             return self._snapshot()
+
+    def reset(self) -> dict[str, Any]:
+        """Return a failed setup screen to fresh discovery without touching a disk."""
+        with self._lock:
+            if self._worker is not None and self._worker.is_alive():
+                raise InstallError("setup is still running")
+            if self._state.get("status") in {"complete", "powering-off"}:
+                raise InstallError("verified setup must be finished with a safe shutdown")
+            self._state = {
+                "schema": FLOW_SCHEMA,
+                "status": "idle",
+                "phase": "discovery",
+                "progress_percent": 0,
+                "updated_at": _now(),
+            }
+            self._write_status()
+        return self.status()
 
 
 __all__ = ["FLOW_SCHEMA", "InstallCoordinator", "PHASE_PROGRESS"]
