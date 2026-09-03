@@ -1,112 +1,160 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_21_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_20_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_19_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_22_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
- * Evidence boundary: implementation, virtual/image proof, native-chain proof, external-prerequisite evidence, guarded destructive approval, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
+ * Evidence boundary: implementation, image/virtual proof, native-chain proof, external prerequisite evidence,
+ * guarded destructive approval, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
  */
 (()=>{
 'use strict';
 if(window.__aurumGenerationSeedLadderV1)return;
 window.__aurumGenerationSeedLadderV1=true;
-const EVIDENCE_COMMIT='4e99ca094e5e2c4d786ba69adca4c311a8964936';
-const RESTORED_LKG_HEAD='a4b605b50708252fa945783e619a68b706d29382';
-const ACTIVE_TRUNK_COMMIT='e580992ec17ebf959168aa43ca60c59ecfce2629';
-const ACTIVE_TRUNK_PARENT='a0780429b8a1a0372b76d1c19fe98096e5de8a30';
-const RESTORE_VALIDATION_COMMIT='bd76bc92f960169ced6edd2b7f895fbbde4b5cce';
-const BROKEN_HUMAN_SURFACE_COMMIT='0395b2672e006262c4cbe767e3566c81fe9d9b0c';
-const LAST_KNOWN_GOOD_COMMIT='f3c0a2d3f59a22f496e4bf29dff614136bfe7abd';
-const HISTORICAL_ROUTE_FIX_COMMIT='6c9baefd9de4583976d99b3a90ac6a28114986bb';
-const LKG_TREE='c0d83736eac27d3ccb94c24a51eea0c4b22bbdeb';
-const ACTIVE_TRUNK_TREE='2c6f4c2b647bc8f97080de898478537491119087';
-const RETAINED_RESTORE_PC_IMAGE_RUN='33253166899';
-const HOPPER_LIVE_GUI_CONTRACT_RUN='33639296999';
-const RECOVERY_GROWTH_RUN='33266139233';
-const RETAINED_PC_IMAGE_RUN='33398872010';
-const RETAINED_PARENT_VIRTUAL_LAB_RUN='33418433996';
-const CURRENT_PC_IMAGE_RUN='33639297150';
+
+const ACTIVE_TRUNK_COMMIT='ac6b03819e47e7167ba77b2e3a5846f515a88d72';
+const ACTIVE_TRUNK_PARENT='e0fe2aea7cc91829912be2c833ca81f5f9407a5e';
+const ACTIVE_TRUNK_TREE='8f08781cdd95e71534cf9c645e94ec41b2001e8f';
+const CURRENT_PC_IMAGE_RUN='33677247135';
+const PRECEDING_PC_IMAGE_FAILURE_RUN='33675680912';
+const CURRENT_VIRTUAL_LAB_RUN='33695190511';
+const CURRENT_NATIVE_RUN='33687947059';
+const CONTINUOUS_CONTROLLER_RUN='33703121424';
+const PHYSICAL_PREREQUISITE_WATCH_RUN='33703828433';
 const CURRENT_PI3_IMAGE_RUN='33639297107';
-const CURRENT_AUTOBUILD_RUN='33640750804';
-const CURRENT_PREREQUISITE_WATCH_RUN='33544610687';
-const CURRENT_VIRTUAL_LAB_RUN='33646905391';
 const HOPPER_STATUS_SNAPSHOT_COMMIT='4ac20ff95617698f3a893f01b5d28a6d728562a1';
-const CURRENT_HOPPER_STATUS_OBSERVED_AT='2026-09-02T14:01:25Z';
-const LEGACY_AUTOBOOT_CANDIDATE_COMMIT='ac6b03819e47e7167ba77b2e3a5846f515a88d72';
-const LEGACY_AUTOBOOT_PC_IMAGE_RUN='33677247135';
-const LEGACY_AUTOBOOT_PRIOR_FAILURE_RUN='33675680912';
-const LEGACY_AUTOBOOT_VIRTUAL_LAB_RUN='33695190511';
-const EVIDENCE_URL=`https://github.com/FormatX66/BoxBrain/commit/${EVIDENCE_COMMIT}`;
-const TRUNK_URL=`https://github.com/FormatX66/BoxBrain/commit/${ACTIVE_TRUNK_COMMIT}`;
-const ROUTE_FIX_URL=`https://github.com/FormatX66/BoxBrain/commit/${HISTORICAL_ROUTE_FIX_COMMIT}`;
-const HOPPER_GUI_RUN_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${HOPPER_LIVE_GUI_CONTRACT_RUN}`;
-const RECOVERY_GROWTH_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RECOVERY_GROWTH_RUN}`;
-const RETAINED_PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RETAINED_PC_IMAGE_RUN}`;
-const RETAINED_PARENT_VIRTUAL_LAB_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${RETAINED_PARENT_VIRTUAL_LAB_RUN}`;
-const CURRENT_PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PC_IMAGE_RUN}`;
-const CURRENT_PI3_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PI3_IMAGE_RUN}`;
-const CURRENT_AUTOBUILD_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_AUTOBUILD_RUN}`;
-const CURRENT_PREREQUISITE_WATCH_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_PREREQUISITE_WATCH_RUN}`;
-const CURRENT_VIRTUAL_LAB_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${CURRENT_VIRTUAL_LAB_RUN}`;
-const HOPPER_STATUS_URL=`https://github.com/FormatX66/BoxBrain/blob/${HOPPER_STATUS_SNAPSHOT_COMMIT}/Web/Aurum-Arkmatx/hopper-status.json`;
-const HOPPER_STATUS_WORKFLOW_URL='https://github.com/FormatX66/BoxBrain/blob/main/.github/workflows/aurum-hopper-live-status.yml';
-const GUARDED_INSTALL_SOURCE_URL=`https://github.com/FormatX66/BoxBrain/blob/${ACTIVE_TRUNK_COMMIT}/Projects/AurumPC/aurum_install_flow.py`;
-const GUARDED_INSTALL_TEST_URL=`https://github.com/FormatX66/BoxBrain/blob/${ACTIVE_TRUNK_COMMIT}/Projects/AurumPC/tests/test_aurum_install_flow.py`;
-const LEGACY_AUTOBOOT_CANDIDATE_URL=`https://github.com/FormatX66/BoxBrain/commit/${LEGACY_AUTOBOOT_CANDIDATE_COMMIT}`;
-const LEGACY_AUTOBOOT_PC_IMAGE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${LEGACY_AUTOBOOT_PC_IMAGE_RUN}`;
-const LEGACY_AUTOBOOT_PRIOR_FAILURE_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${LEGACY_AUTOBOOT_PRIOR_FAILURE_RUN}`;
-const LEGACY_AUTOBOOT_VIRTUAL_LAB_URL=`https://github.com/FormatX66/BoxBrain/actions/runs/${LEGACY_AUTOBOOT_VIRTUAL_LAB_RUN}`;
-const $=(s,r=document)=>r.querySelector(s);
+const NATIVE_BLOCKER_TEST='Projects.Codelation.tests.test_adaptive_shell_gui_deployment.AdaptiveShellGuiDeploymentTests.test_gui_live_trial_preserves_human_constants_and_dialogue_boundary';
+const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/commit/${id}`:`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const generations=[
- {id:'Gen1',title:'Everyone-OS readiness gate',status:'guarded Hopper installation implemented · active-trunk PC/install and four-target virtual proof green · legacy-BIOS auto-boot candidate now independently four-target converged · Hopper endpoint discovery held · native continuation fail-closed',ready:['graphical shell and recovery contracts','forward-only LKG restoration and seed lineage','failed-candidate heal/cull/regrow safeguards','Hopper keyboard/pointer and bounded recovery-console implementation','saved Wi-Fi persistence implementation','sanitized open-core status and fixed forward seed-sync','guarded install requires exactly one eligible internal drive','guarded install requires one visible erase confirmation','guarded installer re-discovers the target immediately before destructive write','device path, serial, erase code, and confirm command stay out of the human-facing install status','poweroff is available only after verified install completion','active-trunk PC image validation/build green','active-trunk generic UEFI install/reboot/self-build smoke green','active-trunk Hopper HP twin smoke green','active-trunk verified PC image publication green','active-trunk Pi3 image workflow green','active-trunk Hopper live GUI contract green','active-trunk Docker x86_64 virtual boot green','active-trunk native ARM64 virtual boot green','active-trunk Pi3 QEMU machine/runtime green','active-trunk x86_64 QEMU UEFI PC boot green','active-trunk same-head four-target virtual convergence green','candidate branch adds one-second unattended ISOLINUX default boot instead of waiting forever for a key','candidate branch PC image run passed validation, UEFI install/reboot/self-build, Legacy BIOS installed-boot, HP twin, and verified-image publication','candidate branch Virtual Hardware Lab now passes Docker x86_64, native ARM64, QEMU UEFI PC, QEMU Pi3, and the same-commit four-target convergence gate on the exact candidate commit','candidate branch runtime release publication remains skipped','latest durable Hopper status semantics remain no-endpoint-candidate; timestamp-only repeats are not promoted as frontier churn','generation 63 and 64 bounded iteration observation retained','generation 65 GUI live-trial candidate retained but prerequisite contract held'],held:['physical guarded install has not been executed or verified on Hopper','legacy-BIOS unattended boot fix remains candidate-branch evidence and is not promoted to active trunk or physical Hopper proof','a destructive erase confirmation becomes human-only only after current physical installer readiness proves exactly one eligible internal target','green exact-head native Autobuild continuation after genuinely changed native prerequisite evidence or code','current exact-head Autonomous Build Loop still fails closed at native self-build contract verification','latest native state remains external-prerequisite-blocked with gui-live-trial-evidence-expired','runtime release publication from virtual convergence','supported Hopper discovery still has no valid endpoint candidate; endpoint=null and source_kind=null do not prove power, network, runtime, or service state','live installed-Hopper open-core reachability receipt','live installed-Hopper boot auto-sync receipt','real Hopper keyboard + pointer events in the current GUI boot','real bounded GUI recovery-console status receipt','saved Wi-Fi reconnect proof after a later boot on durable installed storage','heal/cull/regrow end-to-end continuation proof','TR8:WEB and TR8:PROMPT active-trunk runtime acceptance','visible browser render + keyboard/pointer acceptance','Hopper physical promotion proof','Guardian forced rollback','second-architecture usability']},
- {id:'Gen2',title:'Machine-native state substrate',status:'CI-proven foundation',ready:['deterministic semantic entity/relation graph','Slush persistence class','canonical digest + replay','contradiction rejection'],held:['remaining Gen2 software gates','machine-native recovery proof','presence-policy physical canary','earned Gen1 parent']},
- {id:'Gen3',title:'Scoped inheritance + lineage',status:'CI-proven software exchange transcript',ready:['scope-bound trait inheritance','trusted-node + safety vetoes','immutable hash-linked lineage ledger','tamper/parent-fork rejection','durable quarantine evidence','cross-node evidence receipt + replay','multi-node exchange software preflight','append-only exchange receipt chain','strict anti-replay sequencing','quarantine preservation','receipt tamper detection','LKG-preserving transcript verification'],held:['authenticated live multi-node exchange','independent-node recovery','earned Gen2 parent']}
-];
 const state={
- schema:'aurum-command-center-generation-seed-ladder-v1',componentRevision:'1.21',canonicalWebsiteRepo:'FormatX66/ClusterSites',
- evidenceCommit:EVIDENCE_COMMIT,evidenceClass:'guarded-hopper-install-active-trunk-green-legacy-autoboot-candidate-image-and-four-target-convergence-green-native-prerequisite-held-hopper-endpoint-unresolved',
- restoredLkgHead:RESTORED_LKG_HEAD,activeTrunkCommit:ACTIVE_TRUNK_COMMIT,activeTrunkParent:ACTIVE_TRUNK_PARENT,restoreValidationCommit:RESTORE_VALIDATION_COMMIT,brokenHumanSurfaceCommit:BROKEN_HUMAN_SURFACE_COMMIT,lastKnownGoodCommit:LAST_KNOWN_GOOD_COMMIT,lastKnownGoodTree:LKG_TREE,activeTrunkTree:ACTIVE_TRUNK_TREE,activeTrunkTreeMatchesLastKnownGood:false,activeTrunkDescendsFromRestoredLkg:true,forwardOnlyRecoveryPreserved:true,brokenHumanSurfacePayloadQuarantined:true,
- guardedHopperInstallImplemented:true,guardedInstallSourceCommit:ACTIVE_TRUNK_COMMIT,guardedInstallVisibleEraseConfirmationRequired:true,guardedInstallExactlyOneEligibleInternalTargetRequired:true,guardedInstallFreshTargetDiscoveryBeforeWrite:true,guardedInstallUiDevicePathExposed:false,guardedInstallUiSerialExposed:false,guardedInstallUiEraseCodeExposed:false,guardedInstallUiConfirmCommandExposed:false,guardedInstallOtherDisksProtected:true,guardedInstallVerifiedCompletionRequiredBeforePoweroff:true,guardedInstallInterruptedReceiptFailsSafe:true,guardedInstallPhysicalExecutionProven:false,guardedInstallPhysicalVerificationProven:false,guardedInstallHumanApprovalFutureBoundary:true,guardedInstallHumanApprovalCurrent:false,guardedInstallAutomaticFollowOnActions:false,
- legacyAutobootCandidateCommit:LEGACY_AUTOBOOT_CANDIDATE_COMMIT,legacyAutobootPcImageRunId:LEGACY_AUTOBOOT_PC_IMAGE_RUN,legacyAutobootPriorFailureRunId:LEGACY_AUTOBOOT_PRIOR_FAILURE_RUN,legacyAutobootVirtualLabRunId:LEGACY_AUTOBOOT_VIRTUAL_LAB_RUN,legacyAutobootCandidateBranch:'codex/aurum-hopper-open-core-boot-sync-20260829',legacyAutobootCandidateValidationPassed:true,legacyAutobootCandidateImageBuildPassed:true,legacyAutobootGenericUefiInstallRebootSelfBuildSmokePassed:true,legacyAutobootLegacyBiosInstallAndBootSmokePassed:true,legacyAutobootHpTwinPassed:true,legacyAutobootVerifiedImagePublished:true,legacyAutobootCandidateVirtualLabPassed:true,legacyAutobootCandidateDockerX8664Passed:true,legacyAutobootCandidateNativeArm64Passed:true,legacyAutobootCandidatePcUefiPassed:true,legacyAutobootCandidatePi3QemuPassed:true,legacyAutobootCandidateFourTargetConvergencePassed:true,legacyAutobootCandidateRuntimePublicationPerformed:false,legacyAutobootPromotedToActiveTrunk:false,legacyAutobootPhysicalHopperProofProven:false,legacyAutobootPreviousAttemptFailed:true,
- currentPcImageRunId:CURRENT_PC_IMAGE_RUN,currentPcImageValidationPassed:true,currentPcImageBuildPassed:true,currentGenericUefiInstallRebootSelfBuildSmokePassed:true,currentHpTwinSmokePassed:true,currentVerifiedPcImagePublished:true,currentPi3ImageRunId:CURRENT_PI3_IMAGE_RUN,currentPi3ImageWorkflowPassed:true,hopperLiveGuiContractRunId:HOPPER_LIVE_GUI_CONTRACT_RUN,hopperLiveGuiContractVerificationPassed:true,
- retainedParentVirtualLabRunId:RETAINED_PARENT_VIRTUAL_LAB_RUN,currentVirtualLabRunId:CURRENT_VIRTUAL_LAB_RUN,currentHeadVirtualLabStatus:'passed',currentHeadVirtualLabPassed:true,currentHeadDockerX8664Passed:true,currentHeadNativeArm64Passed:true,currentHeadPi3QemuPassed:true,currentHeadPcUefiPassed:true,currentHeadFourTargetConvergencePassed:true,currentHeadRuntimePublicationPerformed:false,
- currentAutobuildRunId:CURRENT_AUTOBUILD_RUN,currentExactHeadAutobuildPassed:false,currentAutobuildFailureStep:'Verify native self-build contracts',currentExactHeadBlocker:'native-self-build-contract-verification-failure',currentExactHeadEvidenceApplicationReason:'gui-live-trial-evidence-expired',currentNativeContinuationAdvanced:false,latestKnownNativeCompletedGenerations:65,latestKnownNativeExternalEvidenceReason:'gui-live-trial-evidence-expired',guiLiveTrialEvidenceRoute:'192.168.0.194',currentConsumerRequiredRoute:'10.12.194.1',
- currentPrerequisiteWatchRunId:CURRENT_PREREQUISITE_WATCH_RUN,currentPrerequisiteWatchConfirmsPhysicalPresenceNotBlocker:true,physicalPresenceCurrentBlocker:null,prerequisiteWatchMutationPerformed:false,prerequisiteWatchPublicationPerformed:false,
- hopperStatusSnapshotCommit:HOPPER_STATUS_SNAPSHOT_COMMIT,hopperStatusObservedAt:CURRENT_HOPPER_STATUS_OBSERVED_AT,hopperStatusFreshAtInspection:true,hopperStatusRunnerHost:'LAPTOP-EBD8CG8P',hopperStatusRunnerExecutionRecovered:true,hopperStatusReachable:false,hopperStatusEndpoint:null,hopperStatusSourceKind:null,hopperStatusEndpointResolved:false,hopperStatusEndpointCandidateFound:false,hopperStatusDiscoveryContractHosts:['hopper.local','pc-01.local','hopper','pc-01'],hopperStatusDiscoveryContractServices:['8768/status:self-debug','8767/proof:echo-proof'],hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',hopperStatusFreshRunnerEvidenceAvailable:true,hopperStatusFreshMachineEvidenceAvailable:false,hopperStatusPowerStateInferred:false,hopperStatusNetworkStateInferred:false,hopperStatusRuntimeStateInferred:false,hopperStatusRunnerAssignmentBlockerClosed:true,
- liveInstalledOpenCoreReachabilityProven:false,liveInstalledBootAutoSyncReceiptProven:false,physicalHopperKeyboardPointerProofProven:false,physicalHopperRecoveryConsoleReceiptProven:false,physicalHopperWifiRebootPersistenceProven:false,healAndRegrowRuntimeAcceptanceProven:false,
- futureBranchParallelPreparation:true,generationEarnedBySoftwarePreparation:false,parentGateRequired:true,recoveryGateRequired:true,provenanceGateRequired:true,externalPhysicalProofRequired:true,lkgMutationAllowed:false,trustWideningAllowed:false,physicalProofInferred:false,executionAuthorityGranted:false,mutationAuthorityGranted:false,promotionAuthorityGranted:false,humanActionInferred:false,needsWorkOwner:'aurum-system',generations
+  schema:'aurum-command-center-generation-seed-ladder-v1',
+  componentRevision:'1.22',
+  canonicalWebsiteRepo:'FormatX66/ClusterSites',
+  evidenceClass:'active-trunk-legacy-autoboot-integrated-current-head-image-and-four-target-proof-green-native-contract-held-no-churn-controller-confirmed',
+  activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
+  activeTrunkParent:ACTIVE_TRUNK_PARENT,
+  activeTrunkTree:ACTIVE_TRUNK_TREE,
+  legacyAutobootIntegratedIntoActiveTrunk:true,
+  legacyAutobootPhysicalHopperProofProven:false,
+  currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
+  precedingPcImageFailureRunId:PRECEDING_PC_IMAGE_FAILURE_RUN,
+  currentPcImageValidationPassed:true,
+  currentPcImageBuildPassed:true,
+  currentGenericUefiInstallRebootSelfBuildSmokePassed:true,
+  currentLegacyBiosInstallAndBootSmokePassed:true,
+  currentHpTwinSmokePassed:true,
+  currentVerifiedPcImagePublished:true,
+  currentVirtualLabRunId:CURRENT_VIRTUAL_LAB_RUN,
+  currentHeadVirtualLabPassed:true,
+  currentHeadDockerX8664Passed:true,
+  currentHeadNativeArm64Passed:true,
+  currentHeadPcUefiPassed:true,
+  currentHeadPi3QemuPassed:true,
+  currentHeadFourTargetConvergencePassed:true,
+  currentHeadRuntimePublicationPerformed:false,
+  retainedStandalonePi3ImageRunId:CURRENT_PI3_IMAGE_RUN,
+  currentNativeRunId:CURRENT_NATIVE_RUN,
+  currentNativeRunPassed:false,
+  currentNativeFailureStep:'Verify native self-build contracts',
+  currentNativeBlockerTest:NATIVE_BLOCKER_TEST,
+  currentNativeBlockerAssertion:'applied.applied == false',
+  currentNativeContinuationAdvanced:false,
+  latestKnownNativeCompletedGenerations:65,
+  latestKnownNativeExternalEvidenceReason:'gui-live-trial-evidence-expired',
+  guiLiveTrialEvidenceRoute:'192.168.0.194',
+  currentConsumerRequiredRoute:'10.12.194.1',
+  continuousControllerRunId:CONTINUOUS_CONTROLLER_RUN,
+  continuousNativeState:'stable:external-evidence-pending',
+  continuousLabState:'same-head-terminal-result-already-recorded',
+  continuousNativeDispatch:false,
+  continuousLabDispatch:false,
+  physicalPrerequisiteWatchRunId:PHYSICAL_PREREQUISITE_WATCH_RUN,
+  physicalPrerequisiteReason:'physical-presence-not-current-blocker',
+  physicalPrerequisitePublish:'skipped-unchanged',
+  guardedHopperInstallImplemented:true,
+  guardedInstallExactlyOneEligibleInternalTargetRequired:true,
+  guardedInstallVisibleEraseConfirmationRequired:true,
+  guardedInstallFreshTargetDiscoveryBeforeWrite:true,
+  guardedInstallVerifiedCompletionRequiredBeforePoweroff:true,
+  guardedInstallPhysicalExecutionProven:false,
+  guardedInstallPhysicalVerificationProven:false,
+  guardedInstallHumanApprovalCurrent:false,
+  hopperStatusSnapshotCommit:HOPPER_STATUS_SNAPSHOT_COMMIT,
+  hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',
+  hopperStatusEndpoint:null,
+  hopperStatusSourceKind:null,
+  hopperStatusPowerStateInferred:false,
+  hopperStatusNetworkStateInferred:false,
+  hopperStatusRuntimeStateInferred:false,
+  physicalHopperBootProofProven:false,
+  guardianForcedRollbackProofProven:false,
+  needsWorkOwner:'aurum-system',
+  humanActionInferred:false,
+  humanActionInference:false,
+  backupBeforePublishExpected:true,
+  rollbackOnVerificationFailure:true,
+  majorBoxAdded:false,
+  seedLifecycleRemainsExpandable:true
 };
 window.__aurumGenerationSeedLadderState=state;
 window.dispatchEvent(new CustomEvent('aurum-generation-seed-ladder-state',{detail:state}));
+
 const style=document.createElement('style');
 style.id='aurumGenerationSeedLadderStyle';
 style.textContent=`
 .generation-seed-ladder{margin-top:10px;border:1px solid #3b4772;border-radius:12px;background:#101522;padding:11px}
-.generation-seed-ladder h4{margin:0 0 7px;font-size:11px;color:#a8c9ff;text-transform:uppercase;letter-spacing:.07em}
-.generation-seed-ladder p,.generation-seed-ladder li{font-size:10.5px;line-height:1.48;color:#939caf}.generation-seed-ladder p{margin:5px 0}.generation-seed-ladder ul{margin:5px 0 8px;padding-left:18px}
-.generation-seed-ladder b{color:#d8e8ff}.generation-seed-ladder a{color:#a8c9ff;font-weight:750;text-decoration:none}.generation-seed-ladder a:hover{text-decoration:underline}
-.generation-seed-row{margin:7px 0;padding:8px 9px;border:1px solid #303b5e;border-radius:9px;background:#141a28}.generation-seed-row strong{color:#cbdcff}.generation-seed-row .held{color:#efc97a}
+.generation-seed-ladder>summary{cursor:pointer;list-style:none;font-weight:700;color:#d7e4ff;font-size:12px;letter-spacing:.03em}
+.generation-seed-ladder>summary::-webkit-details-marker{display:none}
+.generation-seed-ladder>summary:before{content:'▸';display:inline-block;margin-right:7px;color:#7ec8ff;transition:transform .15s ease}
+.generation-seed-ladder[open]>summary:before{transform:rotate(90deg)}
+.generation-seed-ladder h4{margin:11px 0 6px;font-size:10.5px;color:#a8c9ff;text-transform:uppercase;letter-spacing:.07em}
+.generation-seed-ladder p,.generation-seed-ladder li{font-size:10.5px;line-height:1.48;color:#9ca7ba}
+.generation-seed-ladder p{margin:5px 0}.generation-seed-ladder ul{margin:5px 0 8px;padding-left:18px}
+.generation-seed-ladder .frontier{border-left:2px solid #63d7a5;padding-left:9px}
+.generation-seed-ladder .needs{border-left:2px solid #efb55f;padding-left:9px}
+.generation-seed-ladder .actions{border-left:2px solid #7ec8ff;padding-left:9px}
+.generation-seed-ladder code{font-size:9.5px;color:#c9d7ee;word-break:break-all}
+.generation-seed-ladder a{color:#8bc7ff;text-decoration:none}.generation-seed-ladder a:hover{text-decoration:underline}
+.generation-seed-ladder .tag{display:inline-block;margin-left:7px;padding:2px 6px;border:1px solid #3c5277;border-radius:999px;color:#87e0b7;font-size:9px;text-transform:uppercase}
 `;
-document.head.appendChild(style);
-function seedCard(){
- const direct=$('#systems [data-id="seed"]');
- if(direct)return direct;
- return [...document.querySelectorAll('#systems .card,#systems .system-card')].find(c=>/^Seed (Pipeline|Lifecycle)$/i.test($('h3',c)?.textContent?.trim()||''))||null;
+if(!document.getElementById(style.id))document.head.appendChild(style);
+
+const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+const panel=document.createElement('details');
+panel.id='generation-seed-ladder-v1';
+panel.className='generation-seed-ladder';
+panel.open=false;
+panel.innerHTML=`
+<summary>Generation Seed Ladder <span class="tag">v1.22 · current truth</span></summary>
+<div class="frontier">
+<h4>Frontiers Advancing:</h4>
+<p><strong>Legacy unattended boot is now integrated into active Aurum trunk.</strong> <code>${ACTIVE_TRUNK_COMMIT}</code> includes the one-second ISOLINUX default boot and retains the guarded Hopper installer inherited from its parent. This is active-source truth, not a candidate-only claim; it is still <em>not</em> physical Hopper boot/install proof.</p>
+<ul>
+<li>${link('PC image run 33677247135','run',CURRENT_PC_IMAGE_RUN)} passed validation, image build, UEFI install/reboot/self-build, Legacy BIOS installed-boot, HP twin, and verified-image publication on the exact active head. The prior attempt ${link('33675680912','run',PRECEDING_PC_IMAGE_FAILURE_RUN)} failed, so the remediation is evidence-backed rather than an unchanged rerun.</li>
+<li>${link('Virtual Hardware Lab 33695190511','run',CURRENT_VIRTUAL_LAB_RUN)} passed Docker x86_64, native ARM64, QEMU UEFI PC, QEMU Raspberry Pi 3B, and same-commit four-target convergence on the exact active head. Runtime publication remained intentionally skipped.</li>
+<li>${link('Continuous Build Controller 33703121424','run',CONTINUOUS_CONTROLLER_RUN)} recognized same-head terminal evidence and left <code>native_dispatch=false</code> and <code>lab_dispatch=false</code>. That is the intended no-churn process: reuse unchanged verified evidence instead of rerunning it for activity.</li>
+</ul>
+</div>
+<div class="needs">
+<h4>Needs Work → Aurum/System:</h4>
+<ul>
+<li><strong>Native continuation has one exact contract blocker.</strong> ${link('Autonomous Build Loop 33687947059','run',CURRENT_NATIVE_RUN)} failed at <code>Verify native self-build contracts</code>; 85 tests ran and the single failure was <code>${NATIVE_BLOCKER_TEST}</code>, where <code>applied.applied</code> was false. Fix or refresh the underlying GUI live-trial prerequisite evidence, then let normal continuous control decide whether a native rerun is justified.</li>
+<li>The retained generation-65 GUI live-trial evidence is still expired and tied to <code>192.168.0.194</code> while the current consumer expects <code>10.12.194.1</code>. This remains fail-closed; do not replay the unchanged failure merely to create movement.</li>
+<li>Hopper observability still has <code>no-valid-endpoint-candidate</code>. With endpoint and source kind unresolved, do not infer Hopper power, network, runtime, or service state.</li>
+<li>${link('Physical Prerequisite Watch 33703828433','run',PHYSICAL_PREREQUISITE_WATCH_RUN)} confirmed physical presence is not the current blocker and skipped unchanged publication. Physical guarded install, physical Hopper boot acceptance, and Guardian forced rollback remain unverified.</li>
+</ul>
+</div>
+<div class="actions">
+<h4>Your Actions:</h4>
+<p><strong>None right now.</strong> There is no verified credential entry, reboot, cable/media move, destructive approval, identity decision, or other human-only step. A destructive erase confirmation becomes genuinely human-only only after the installer proves exactly one eligible internal target; that boundary has not been reached.</p>
+</div>
+<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure.</p>
+`;
+const existing=document.getElementById(panel.id);
+if(existing)existing.replaceWith(panel);
+else{
+  const seedBox=document.querySelector('[data-box-id="seed-lifecycle"],#seed-lifecycle,.seed-lifecycle');
+  if(seedBox)seedBox.appendChild(panel);
+  else{
+    const anchor=document.querySelector('#aurum-command-center,.aurum-command-center,main');
+    if(anchor)anchor.appendChild(panel);
+  }
 }
-function generationHtml(g){return `<div class="generation-seed-row"><p><strong>${esc(g.id)} · ${esc(g.title)}</strong><br>${esc(g.status)}</p><p><b>Software evidence:</b> ${esc(g.ready.join(' · '))}</p><p class="held"><b>Held gates:</b> ${esc(g.held.join(' · '))}</p></div>`}
-function enhance(){
- const card=seedCard();if(!card)return;
- card.dataset.generationSeedLadder='gen1-gen3-guarded-hopper-install-candidate-legacy-bios-autoboot-four-target-converged-hopper-endpoint-unresolved-native-held';
- if(card.getAttribute('aria-expanded')!=='true')return;
- const detail=$('#detail');if(!detail||!detail.classList.contains('show'))return;
- let panel=$('.generation-seed-ladder',detail);
- if(!panel){panel=document.createElement('div');panel.className='generation-seed-ladder';detail.appendChild(panel)}
- panel.innerHTML=`<h4>Future Branch · generation seed ladder</h4><p><b>Evidence rule:</b> later generations may be prepared in parallel, but preparation never makes a generation earned. Repository implementation, image/twin proof, guarded destructive approval, virtual convergence, native-chain progress, external-prerequisite freshness, endpoint discovery, live installed-runtime proof, and real physical acceptance remain separate evidence layers. CI may strengthen a candidate from image-only proof to same-commit multi-target convergence; it still cannot infer branch promotion, a physical disk ready to erase, or human approval.</p>${generations.map(generationHtml).join('')}<p><b>Frontiers Advancing:</b> current Aurum trunk <code>${esc(ACTIVE_TRUNK_COMMIT.slice(0,12))}</code> remains green for guarded-install software contracts, exact-head PC install/reboot/image proof, Pi3 image proof, Hopper GUI contract, and same-head four-target virtual convergence. The legacy-firmware remediation candidate <code>${esc(LEGACY_AUTOBOOT_CANDIDATE_COMMIT.slice(0,12))}</code> now has a second independent proof lane in addition to its successful PC image run <code>${esc(LEGACY_AUTOBOOT_PC_IMAGE_RUN)}</code>: Virtual Hardware Lab run <code>${esc(LEGACY_AUTOBOOT_VIRTUAL_LAB_RUN)}</code> completed successfully on that exact candidate commit. Docker x86_64, native ARM64, QEMU UEFI PC, QEMU Raspberry Pi 3B, and the same-commit four-target convergence gate all passed; runtime publication remained skipped. This closes the candidate's virtual cross-target coherence gap without promoting it to trunk or pretending CI is physical Hopper proof. The preceding candidate image run <code>${esc(LEGACY_AUTOBOOT_PRIOR_FAILURE_RUN)}</code> remains useful failure-before-remediation evidence. Hopper status repeats have not changed the no-endpoint-candidate semantics, so timestamp-only refreshes are not presented as frontier movement.</p><p><b>Needs Work → Aurum/System:</b> promote or integrate the bounded legacy-BIOS auto-boot fix through the protected source path while preserving both proof families: the green PC image/UEFI/Legacy-BIOS/HP-twin gates and the exact-candidate four-target Virtual Hardware Lab convergence. Do not widen authority, publish a runtime from the skipped virtual publication lane, or infer physical installation from CI. The destructive confirmation boundary is unchanged: current physical installer-ready evidence must first prove exactly one eligible internal target, and the installer must re-discover it immediately before write. Native continuation remains fail-closed at <code>Verify native self-build contracts</code> with generation 65 evidence expired; do not rerun that unchanged failed native head until prerequisite evidence or implementation changes. Hopper observability remains system-owned at endpoint discovery; <code>endpoint=null</code> and <code>source_kind=null</code> do not prove Hopper power, network, runtime, or service state.</p><p><b>Your Actions:</b> none right now. The new four-target result is system-owned verification and does not create a human-only step. The guarded installer defines the eventual genuine human boundary, but current physical installer readiness is not proven, so no erase approval is requested. When separate current evidence later proves exactly one eligible internal target and the guarded installer presents its visible erase warning, verify that displayed target is the intended Hopper internal drive and explicitly confirm the erase. Do not type, paste, select, or provide a raw device path or ERASE code; those remain installer-internal. Only after the installer reports verified completion should Hopper be powered off, the USB seed removed, and the machine started from the installed drive.</p><p><a href="${TRUNK_URL}" target="_blank" rel="noopener">Open guarded-install trunk ↗</a> · <a href="${GUARDED_INSTALL_SOURCE_URL}" target="_blank" rel="noopener">Open guarded installer source ↗</a> · <a href="${GUARDED_INSTALL_TEST_URL}" target="_blank" rel="noopener">Open guarded installer tests ↗</a> · <a href="${CURRENT_PC_IMAGE_URL}" target="_blank" rel="noopener">Open active-trunk PC proof ↗</a> · <a href="${CURRENT_VIRTUAL_LAB_URL}" target="_blank" rel="noopener">Open active-trunk four-target proof ↗</a> · <a href="${LEGACY_AUTOBOOT_CANDIDATE_URL}" target="_blank" rel="noopener">Open legacy-BIOS auto-boot candidate ↗</a> · <a href="${LEGACY_AUTOBOOT_PC_IMAGE_URL}" target="_blank" rel="noopener">Open candidate PC/Legacy-BIOS proof ↗</a> · <a href="${LEGACY_AUTOBOOT_VIRTUAL_LAB_URL}" target="_blank" rel="noopener">Open candidate four-target convergence ↗</a> · <a href="${LEGACY_AUTOBOOT_PRIOR_FAILURE_URL}" target="_blank" rel="noopener">Open preceding failed candidate run ↗</a> · <a href="${HOPPER_GUI_RUN_URL}" target="_blank" rel="noopener">Open Hopper GUI verification ↗</a> · <a href="${CURRENT_PI3_IMAGE_URL}" target="_blank" rel="noopener">Open Pi3 image proof ↗</a> · <a href="${CURRENT_AUTOBUILD_URL}" target="_blank" rel="noopener">Open native blocker ↗</a> · <a href="${HOPPER_STATUS_URL}" target="_blank" rel="noopener">Open pinned Hopper status semantics ↗</a> · <a href="${HOPPER_STATUS_WORKFLOW_URL}" target="_blank" rel="noopener">Open Hopper discovery contract ↗</a> · <a href="${CURRENT_PREREQUISITE_WATCH_URL}" target="_blank" rel="noopener">Open physical-prerequisite watcher ↗</a> · <a href="${RETAINED_PARENT_VIRTUAL_LAB_URL}" target="_blank" rel="noopener">Open prior-head convergence ↗</a> · <a href="${RETAINED_PC_IMAGE_URL}" target="_blank" rel="noopener">Open retained PC image proof ↗</a> · <a href="${RECOVERY_GROWTH_URL}" target="_blank" rel="noopener">Open retained recovery-growth proof ↗</a> · <a href="${ROUTE_FIX_URL}" target="_blank" rel="noopener">Open retained route fix ↗</a> · <a href="${EVIDENCE_URL}" target="_blank" rel="noopener">Open retained generation evidence ↗</a></p>`;
-}
-let scheduled=false;
-function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;enhance()})}
-document.addEventListener('click',e=>{if(e.target.closest?.('#systems [data-id="seed"]'))setTimeout(enhance,35)});
-document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest?.('#systems [data-id="seed"]'))setTimeout(enhance,35)});
-new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-expanded','class']});
-enhance();setTimeout(enhance,500);setInterval(enhance,15000);
 })();
