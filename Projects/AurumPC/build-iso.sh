@@ -272,9 +272,11 @@ chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 
 # Exercise the image's actual Python, SDL, fonts, and setup module before the
 # filesystem is packed. Tests use a fake installer and cannot write a drive.
-mkdir -p config/includes.chroot/tmp/aurum-input-tests
+# Normal live-build hooks clear /tmp before live hooks run. Keep this build-only
+# test outside /tmp, and remove it after the checks so it is not shipped.
+mkdir -p config/includes.chroot/opt/aurum-build-tests
 install -m 0644 "$SCRIPT_DIR/tests/test_aurum_setup_gui.py" \
-  config/includes.chroot/tmp/aurum-input-tests/test_aurum_setup_gui.py
+  config/includes.chroot/opt/aurum-build-tests/test_aurum_setup_gui.py
 cat > config/hooks/live/015-aurum-input-tests.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
@@ -282,9 +284,9 @@ export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYGAME_HIDE_SUPPORT_PROMPT=1
 export PYTHONPATH=/opt/aurum
 export AURUM_SETUP_UNDER_TEST=/opt/aurum/aurum_setup_gui.py
 python3 -c 'import pygame'
-python3 /tmp/aurum-input-tests/test_aurum_setup_gui.py SetupPygameEventTests -v
-rm /tmp/aurum-input-tests/test_aurum_setup_gui.py
-rmdir /tmp/aurum-input-tests
+python3 -B /opt/aurum-build-tests/test_aurum_setup_gui.py SetupPygameEventTests -v
+rm /opt/aurum-build-tests/test_aurum_setup_gui.py
+rmdir /opt/aurum-build-tests
 echo AURUM_SETUP_INPUT_EVENTS_VERIFIED
 EOF
 chmod 0755 config/hooks/live/015-aurum-input-tests.hook.chroot
@@ -323,3 +325,4 @@ if [ -n "$PERSISTENT_CACHE_ROOT" ]; then
 fi
 
 ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
+
