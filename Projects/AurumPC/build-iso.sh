@@ -270,6 +270,25 @@ ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 
+# Exercise the image's actual Python, SDL, fonts, and setup module before the
+# filesystem is packed. Tests use a fake installer and cannot write a drive.
+mkdir -p config/includes.chroot/tmp/aurum-input-tests
+install -m 0644 "$SCRIPT_DIR/tests/test_aurum_setup_gui.py" \
+  config/includes.chroot/tmp/aurum-input-tests/test_aurum_setup_gui.py
+cat > config/hooks/live/015-aurum-input-tests.hook.chroot <<'EOF'
+#!/bin/sh
+set -eu
+export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYGAME_HIDE_SUPPORT_PROMPT=1
+export PYTHONPATH=/opt/aurum
+export AURUM_SETUP_UNDER_TEST=/opt/aurum/aurum_setup_gui.py
+python3 -c 'import pygame'
+python3 /tmp/aurum-input-tests/test_aurum_setup_gui.py SetupPygameEventTests -v
+rm /tmp/aurum-input-tests/test_aurum_setup_gui.py
+rmdir /tmp/aurum-input-tests
+echo AURUM_SETUP_INPUT_EVENTS_VERIFIED
+EOF
+chmod 0755 config/hooks/live/015-aurum-input-tests.hook.chroot
+
 lb build
 
 ISO=$(find . -maxdepth 1 -type f \( -name 'live-image-amd64*.hybrid.iso' -o -name 'live-image-amd64*.iso' \) | head -n 1)

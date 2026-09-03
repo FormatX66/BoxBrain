@@ -42,6 +42,25 @@ if [ "$source_sha" != "$image_sha" ]; then
   exit 1
 fi
 
+# A successful build must ship the exact input path and graphical setup that
+# passed the image-local SDL tests, not only the console verified above.
+while IFS='|' read -r source_path image_path; do
+  expected=$(sha256sum "$repository_root/$source_path" | awk '{print $1}')
+  unsquashfs -cat "$verify_dir/filesystem.squashfs" "$image_path" >"$verify_dir/input-payload"
+  observed=$(sha256sum "$verify_dir/input-payload" | awk '{print $1}')
+  if [ "$expected" != "$observed" ]; then
+    echo "Aurum PC input source/image provenance mismatch: $image_path" >&2
+    exit 1
+  fi
+done <<'EOF'
+Projects/AurumPC/aurum_setup_gui.py|opt/aurum/aurum_setup_gui.py
+Projects/AurumPC/aurum_input.py|opt/aurum/aurum_input.py
+Projects/AurumPC/runtime-assets/etc/systemd/system/aurum-setup.service|etc/systemd/system/aurum-setup.service
+Projects/AurumPC/runtime-assets/etc/systemd/system/aurum-input-bootstrap.service|etc/systemd/system/aurum-input-bootstrap.service
+Projects/AurumPC/runtime-assets/etc/X11/xorg.conf.d/40-aurum-libinput.conf|etc/X11/xorg.conf.d/40-aurum-libinput.conf
+EOF
+echo AURUM_INPUT_IMAGE_PROVENANCE_VERIFIED
+
 python3 - "$verify_dir/aurum_console.py" <<'PY'
 import ast
 import pathlib

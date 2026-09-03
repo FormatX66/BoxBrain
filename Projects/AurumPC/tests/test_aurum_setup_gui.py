@@ -12,7 +12,9 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-MODULE_PATH = ROOT / "aurum_setup_gui.py"
+MODULE_PATH = Path(os.environ.get("AURUM_SETUP_UNDER_TEST", str(ROOT / "aurum_setup_gui.py")))
+if str(MODULE_PATH.parent) not in sys.path:
+    sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("aurum_setup_gui_test", MODULE_PATH)
 assert SPEC and SPEC.loader
 setup = importlib.util.module_from_spec(SPEC)
