@@ -22,7 +22,7 @@ const CURRENT_PI3_IMAGE_RUN='33639297107';
 const HOPPER_STATUS_SNAPSHOT_COMMIT='4ac20ff95617698f3a893f01b5d28a6d728562a1';
 const NATIVE_BLOCKER_TEST='Projects.Codelation.tests.test_adaptive_shell_gui_deployment.AdaptiveShellGuiDeploymentTests.test_gui_live_trial_preserves_human_constants_and_dialogue_boundary';
 const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/commit/${id}`:`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
   componentRevision:'1.22',
