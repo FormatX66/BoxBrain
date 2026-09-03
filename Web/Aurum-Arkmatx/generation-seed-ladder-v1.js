@@ -1,8 +1,8 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_24_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_25_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: implementation, image/virtual proof, native-chain proof, external prerequisite evidence,
- * guarded destructive approval, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
+ * guarded destructive approval, observability-lane proof, live installed-runtime proof, historical proof, and physical acceptance stay distinct.
  */
 (()=>{
 'use strict';
@@ -19,21 +19,19 @@ const CURRENT_NATIVE_RUN='33687947059';
 const CONTINUOUS_CONTROLLER_RUN='33703121424';
 const PHYSICAL_PREREQUISITE_WATCH_RUN='33703828433';
 const CURRENT_PI3_IMAGE_RUN='33639297107';
-const HOPPER_STATUS_SNAPSHOT_COMMIT='4ac20ff95617698f3a893f01b5d28a6d728562a1';
-const OBSERVED_REPLACEMENT_HOPPER_STATUS_RUN='33717744540';
-const OBSERVED_REPLACEMENT_HOPPER_STATUS_JOB='100530375182';
-const RECENT_CANCELLED_HOPPER_STATUS_RUN='33700781447';
-const RECENT_CANCELLED_HOPPER_STATUS_JOB='100479402014';
-const EARLIER_CANCELLED_HOPPER_STATUS_RUN='33691953397';
-const EARLIER_CANCELLED_HOPPER_STATUS_JOB='100452410150';
+const CURRENT_HOPPER_STATUS_RUN='33763963007';
+const CURRENT_HOPPER_STATUS_JOB='100676947868';
+const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='4536fa54181617724956792e71ee0a8d6ed80abc';
+const PRE_RECOVERY_HOPPER_STATUS_RUN='33740884687';
+const HISTORICAL_HOPPER_STATUS_SNAPSHOT_COMMIT='4ac20ff95617698f3a893f01b5d28a6d728562a1';
 const NATIVE_BLOCKER_TEST='Projects.Codelation.tests.test_adaptive_shell_gui_deployment.AdaptiveShellGuiDeploymentTests.test_gui_live_trial_preserves_human_constants_and_dialogue_boundary';
 const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/commit/${id}`:`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.24',
+  componentRevision:'1.25',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-legacy-autoboot-integrated-current-head-image-and-four-target-proof-green-native-contract-held-hopper-status-persistent-runner-assignment-blocker-no-churn-rollover-policy',
+  evidenceClass:'active-trunk-legacy-autoboot-integrated-current-head-image-and-four-target-proof-green-native-contract-held-hopper-status-runner-execution-recovered-endpoint-discovery-held-no-churn-policy',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkParent:ACTIVE_TRUNK_PARENT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
@@ -82,43 +80,40 @@ const state={
   guardedInstallPhysicalExecutionProven:false,
   guardedInstallPhysicalVerificationProven:false,
   guardedInstallHumanApprovalCurrent:false,
-  hopperStatusSnapshotCommit:HOPPER_STATUS_SNAPSHOT_COMMIT,
-  hopperStatusLastSnapshotBlocker:'no-valid-endpoint-candidate',
-  hopperStatusLastSnapshotSemanticsHistorical:true,
-  hopperStatusObservedReplacementRunId:OBSERVED_REPLACEMENT_HOPPER_STATUS_RUN,
-  hopperStatusObservedReplacementJobId:OBSERVED_REPLACEMENT_HOPPER_STATUS_JOB,
-  hopperStatusObservedReplacementEvent:'schedule',
-  hopperStatusObservedReplacementJobLabels:['self-hosted','Linux','hopper-status'],
-  hopperStatusObservedReplacementRunnerAssigned:false,
-  hopperStatusObservedReplacementRunnerId:0,
-  hopperStatusObservedReplacementRunnerName:'',
-  hopperStatusObservedReplacementStepsStarted:false,
-  hopperStatusRecentCancelledRunId:RECENT_CANCELLED_HOPPER_STATUS_RUN,
-  hopperStatusRecentCancelledJobId:RECENT_CANCELLED_HOPPER_STATUS_JOB,
-  hopperStatusRecentCancelledRunConclusion:'cancelled',
-  hopperStatusRecentCancelledRunnerAssigned:false,
-  hopperStatusRecentCancelledRunnerId:0,
-  hopperStatusRecentCancelledStepsStarted:false,
-  hopperStatusEarlierCancelledRunId:EARLIER_CANCELLED_HOPPER_STATUS_RUN,
-  hopperStatusEarlierCancelledJobId:EARLIER_CANCELLED_HOPPER_STATUS_JOB,
-  hopperStatusEarlierCancelledRunConclusion:'cancelled',
-  hopperStatusEarlierCancelledRunnerAssigned:false,
-  hopperStatusEarlierCancelledRunnerId:0,
-  hopperStatusEarlierCancelledStepsStarted:false,
-  hopperStatusConfirmedUnassignedCancelledCycles:2,
-  hopperStatusAssignmentBlockerPersistent:true,
+  hopperStatusCurrentRunId:CURRENT_HOPPER_STATUS_RUN,
+  hopperStatusCurrentJobId:CURRENT_HOPPER_STATUS_JOB,
+  hopperStatusSnapshotCommit:CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT,
+  hopperStatusHistoricalSnapshotCommit:HISTORICAL_HOPPER_STATUS_SNAPSHOT_COMMIT,
+  hopperStatusPreRecoveryRunId:PRE_RECOVERY_HOPPER_STATUS_RUN,
+  hopperStatusCurrentRunEvent:'schedule',
+  hopperStatusCurrentRunConclusion:'success',
+  hopperStatusCurrentJobLabels:['self-hosted','Linux','hopper-status'],
+  hopperStatusRunnerExecutionRecovered:true,
+  hopperStatusCurrentRunnerAssigned:true,
+  hopperStatusCurrentRunnerId:23,
+  hopperStatusCurrentRunnerName:'AURUM-HOPPER-STATUS-WSL',
+  hopperStatusCurrentRunnerHost:'LAPTOP-EBD8CG8P',
+  hopperStatusCurrentStepsStarted:true,
+  hopperStatusReadOnlyEndpointStepSucceeded:true,
+  hopperStatusSnapshotObservedAt:'2026-09-03T16:41:11Z',
+  hopperStatusAssignmentBlockerPersistent:false,
+  hopperStatusHistoricalAssignmentBlockerClosed:true,
   hopperStatusSchedulerDispatchObserved:true,
-  hopperStatusQueuedRolloverObserved:true,
-  hopperStatusEquivalentRolloverIsEvidenceHealth:true,
-  hopperStatusNoChurnUntilMaterialChange:true,
-  hopperStatusMaterialChangeTriggers:['eligible-runner-assigned','status-probe-step-started','runner-registration-or-label-matching-changed','supported-endpoint-discovery-result-changed'],
-  hopperStatusCurrentBlocker:'no-eligible-runner-assigned',
+  hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',
   hopperStatusEndpoint:null,
   hopperStatusSourceKind:null,
-  hopperStatusFreshMachineEvidenceAvailable:false,
+  hopperStatusHttpStatus:null,
+  hopperStatusReachable:false,
+  hopperStatusReport:null,
+  hopperStatusFreshObservabilityLaneEvidenceAvailable:true,
+  hopperStatusFreshHopperEndpointEvidenceAvailable:false,
   hopperStatusPowerStateInferred:false,
   hopperStatusNetworkStateInferred:false,
   hopperStatusRuntimeStateInferred:false,
+  hopperStatusServiceStateInferred:false,
+  hopperStatusEquivalentNullSnapshotIsEvidenceHealth:true,
+  hopperStatusNoChurnUntilMaterialChange:true,
+  hopperStatusMaterialChangeTriggers:['supported-endpoint-discovery-result-changed','probe-result-changed','runner-execution-regresses','other-evidence-lane-materially-changed'],
   physicalHopperBootProofProven:false,
   guardianForcedRollbackProofProven:false,
   needsWorkOwner:'aurum-system',
@@ -158,7 +153,7 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.24 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.25 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <p><strong>Legacy unattended boot remains integrated into active Aurum trunk.</strong> <code>${ACTIVE_TRUNK_COMMIT}</code> includes the one-second ISOLINUX default boot and retains the guarded Hopper installer inherited from its parent. This is active-source truth, not a candidate-only claim; it is still <em>not</em> physical Hopper boot/install proof.</p>
@@ -166,6 +161,7 @@ panel.innerHTML=`
 <li>${link('PC image run 33677247135','run',CURRENT_PC_IMAGE_RUN)} passed validation, image build, UEFI install/reboot/self-build, Legacy BIOS installed-boot, HP twin, and verified-image publication on the exact active head. The prior attempt ${link('33675680912','run',PRECEDING_PC_IMAGE_FAILURE_RUN)} failed, so the remediation remains evidence-backed rather than an unchanged rerun.</li>
 <li>${link('Virtual Hardware Lab 33695190511','run',CURRENT_VIRTUAL_LAB_RUN)} passed Docker x86_64, native ARM64, QEMU UEFI PC, QEMU Raspberry Pi 3B, and same-commit four-target convergence on the exact active head. Runtime publication remained intentionally skipped.</li>
 <li>${link('Continuous Build Controller 33703121424','run',CONTINUOUS_CONTROLLER_RUN)} recognized same-head terminal evidence and left <code>native_dispatch=false</code> and <code>lab_dispatch=false</code>. That is the intended no-churn process: reuse unchanged verified evidence instead of rerunning it for activity.</li>
+<li><strong>Hopper read-only observability execution recovered.</strong> After the previous scheduled lane ${link('33740884687','run',PRE_RECOVERY_HOPPER_STATUS_RUN)} ended cancelled, ${link('scheduled run 33763963007','run',CURRENT_HOPPER_STATUS_RUN)} was assigned to <code>AURUM-HOPPER-STATUS-WSL</code> (<code>runner_id=23</code>), executed the read-only endpoint-discovery step, completed successfully, and produced ${link('status snapshot 4536fa541816','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)}. This closes the runner-assignment blocker; it does not prove Hopper endpoint health.</li>
 </ul>
 </div>
 <div class="needs">
@@ -173,7 +169,7 @@ panel.innerHTML=`
 <ul>
 <li><strong>Native continuation has one exact contract blocker.</strong> ${link('Autonomous Build Loop 33687947059','run',CURRENT_NATIVE_RUN)} failed at <code>Verify native self-build contracts</code>; 85 tests ran and the single failure was <code>${NATIVE_BLOCKER_TEST}</code>, where <code>applied.applied</code> was false. Fix or refresh the underlying GUI live-trial prerequisite evidence, then let normal continuous control decide whether a native rerun is justified.</li>
 <li>The retained generation-65 GUI live-trial evidence is still expired and tied to <code>192.168.0.194</code> while the current consumer expects <code>10.12.194.1</code>. This remains fail-closed; do not replay the unchanged failure merely to create movement.</li>
-<li><strong>Hopper live-status freshness has a persistent pre-probe assignment blocker.</strong> ${link('Scheduled run 33700781447','run',RECENT_CANCELLED_HOPPER_STATUS_RUN)} completed cancelled with <code>runner_id=0</code>, no runner name, and zero steps, extending the same completed unassigned rollover already proven by ${link('run 33691953397','run',EARLIER_CANCELLED_HOPPER_STATUS_RUN)}. Replacement ${link('run 33717744540','run',OBSERVED_REPLACEMENT_HOPPER_STATUS_RUN)} entered the same <code>self-hosted / Linux / hopper-status</code> queue with <code>runner_id=0</code>, no runner name, and zero steps. Scheduler dispatch and rollover are therefore functioning while eligible runner assignment remains absent. Restore an eligible runner assignment or repair runner registration/label matching, then let the normal scheduled read-only job execute once. Only after a probe starts should supported endpoint discovery be re-evaluated. Equivalent future queued/cancelled unassigned rollovers are evidence health only and do not justify another dashboard publication; publish again only if runner assignment, probe execution, runner registration/labels, or supported endpoint-discovery evidence materially changes. The retained <code>no-valid-endpoint-candidate</code> snapshot is historical evidence, not current Hopper machine truth; do not infer power, network, runtime, or service state from it.</li>
+<li><strong>Hopper status is now held at supported endpoint discovery, not runner assignment.</strong> The fresh successful status lane recorded <code>runner_host=LAPTOP-EBD8CG8P</code> with <code>endpoint=null</code>, <code>source_kind=null</code>, <code>http_status=null</code>, <code>reachable=false</code>, and <code>report=null</code>. Preserve the working read-only runner lane and diagnose why supported endpoint discovery yields no candidate. Do not infer Hopper power, network, runtime, or service state until an endpoint is discovered and read-only network probes actually run. Do not manually replay the unchanged lane for activity; further successful snapshots with the same null endpoint/source/report are evidence health only and do not justify another dashboard publication. Publish again only when endpoint discovery, probe results, runner execution, or another evidence lane materially changes.</li>
 <li>${link('Physical Prerequisite Watch 33703828433','run',PHYSICAL_PREREQUISITE_WATCH_RUN)} confirmed physical presence is not the current blocker and skipped unchanged publication. Physical guarded install, physical Hopper boot acceptance, and Guardian forced rollback remain unverified.</li>
 </ul>
 </div>
