@@ -9,6 +9,7 @@ remain private to InstallCoordinator.
 from __future__ import annotations
 
 import concurrent.futures
+from dataclasses import dataclass
 import os
 from pathlib import Path
 import time
@@ -28,6 +29,14 @@ GOLD = (244, 188, 63)
 GREEN = (73, 204, 135)
 RED = (239, 91, 91)
 BLUE = (71, 156, 224)
+
+
+@dataclass
+class SetupControl:
+    key: str
+    rect: Any
+    action: Callable[[], None]
+    enabled: bool = True
 
 
 def _friendly_reason(value: object) -> str:
@@ -78,7 +87,8 @@ class AurumSetupGui:
         self.network_message = "Checking connection…"
         self.network_online = False
         self.network_future: concurrent.futures.Future[dict[str, Any]] | None = None
-        self.buttons: list[tuple[Any, Callable[[], None], bool]] = []
+        self.buttons: list[SetupControl] = []
+        self.focus_key: str | None = None
         self.last_status_refresh = 0.0
         self.status: dict[str, Any] = {}
         self._refresh_setup()
@@ -123,7 +133,42 @@ class AurumSetupGui:
         self.pg.draw.rect(self.screen, color, rect, border_radius=10)
         rendered = self._text(label, 24, (4, 9, 13) if enabled else MUTED, True)
         self.screen.blit(rendered, rendered.get_rect(center=rect.center))
-        self.buttons.append((rect, action, enabled))
+        self.buttons.append(SetupControl(label, rect, action, enabled))
+
+    def _set_view(self, view: str) -> None:
+        if self.view == "wifi" and view != "wifi":
+            self.password = ""
+        self.view = view
+        self.focus_key = None
+        self.password_focus = False
+
+    def _focus(self, key: str | None) -> None:
+        self.focus_key = key
+        self.password_focus = self.view == "wifi" and key == "wifi-password"
+
+    def _sync_focus(self) -> None:
+        enabled = [control for control in self.buttons if control.enabled]
+        if not any(control.key == self.focus_key for control in enabled):
+            # Confirmation screens register Back first: entering a destructive
+            # screen must never leave its destructive action preselected.
+            self._focus(enabled[0].key if enabled else None)
+        else:
+            self._focus(self.focus_key)
+
+    def _move_focus(self, direction: int) -> None:
+        enabled = [control for control in self.buttons if control.enabled]
+        if not enabled:
+            self._focus(None)
+            return
+        index = next((index for index, control in enumerate(enabled) if control.key == self.focus_key), None)
+        next_index = (index + direction) % len(enabled) if index is not None else (0 if direction > 0 else -1)
+        self._focus(enabled[next_index].key)
+
+    def _activate_focused(self) -> None:
+        for control in self.buttons:
+            if control.enabled and control.key == self.focus_key:
+                control.action()
+                return
 
     def _header(self, title: str, subtitle: str) -> tuple[int, int, int, int]:
         width, height = self.screen.get_size()
@@ -169,7 +214,7 @@ class AurumSetupGui:
         if operation == "repair" and selected.get("repair_available") is not True:
             return
         self.operation = operation
-        self.view = "confirm"
+        self._set_view("confirm")
 
     def _begin(self) -> None:
         try:
@@ -180,20 +225,20 @@ class AurumSetupGui:
             )
         except InstallError as exc:
             self.status = {"status": "failed", "reason": str(exc)}
-        self.view = "progress"
+        self._set_view("progress")
 
     def _poweroff(self) -> None:
         try:
             self.coordinator.poweroff()
         except InstallError as exc:
             self.status = {"status": "failed", "reason": str(exc)}
-            self.view = "progress"
+            self._set_view("progress")
 
     def _submit_network(self, function: Callable[..., dict[str, Any]], *args: Any) -> None:
         self.network_future = self.executor.submit(function, *args)
 
     def _open_wifi(self) -> None:
-        self.view = "wifi"
+        self._set_view("wifi")
         self.network_message = "Scanning for Wi-Fi networks…"
         self.ssids = []
         self._submit_network(scan_networks)
@@ -254,7 +299,7 @@ class AurumSetupGui:
                     "Contains existing data" if target.get("contains_existing_data") else "Empty drive"
                 )
                 self._put(note, x + 22, top + 51, 17, GREEN if target.get("repair_available") else MUTED)
-                self.buttons.append((rect, lambda value=str(target.get("target_id")): self._select(value), True))
+                self.buttons.append(SetupControl(f"drive:{target.get('target_id')}", rect, lambda value=str(target.get("target_id")): self._select(value)))
 
         selected = self._selected()
         bottom = self.screen.get_height() - 100
@@ -298,7 +343,7 @@ class AurumSetupGui:
             action = "Start Repair"
             accent = GOLD
         bottom = self.screen.get_height() - 105
-        self._button("Back", self.pg.Rect(x, bottom, 170, 58), lambda: setattr(self, "view", "setup"))
+        self._button("Back", self.pg.Rect(x, bottom, 170, 58), lambda: self._set_view("setup"))
         self._button(action, self.pg.Rect(x + width - 330, bottom, 330, 58), self._begin, accent=accent)
 
     def _render_progress(self) -> None:
@@ -331,7 +376,7 @@ class AurumSetupGui:
         except InstallError:
             pass
         self.status = {}
-        self.view = "setup"
+        self._set_view("setup")
         self._refresh_setup()
 
     def _render_wifi(self) -> None:
@@ -344,22 +389,22 @@ class AurumSetupGui:
             self.pg.draw.rect(self.screen, PANEL_SELECTED if selected else PANEL, rect, border_radius=8)
             self.pg.draw.rect(self.screen, GOLD if selected else (55, 66, 76), rect, 2 if selected else 1, border_radius=8)
             self._put(ssid, x + 16, top + 11, 19, TEXT, selected)
-            self.buttons.append((rect, lambda value=ssid: self._select_ssid(value), True))
+            self.buttons.append(SetupControl(f"wifi:{ssid}", rect, lambda value=ssid: self._select_ssid(value)))
         field_x = x + left_width + 36
         self._put("Wi-Fi password", field_x, y, 20, MUTED, True)
         field = self.pg.Rect(field_x, y + 34, width - left_width - 36, 54)
         self.pg.draw.rect(self.screen, PANEL_SELECTED if self.password_focus else PANEL, field, border_radius=8)
         self.pg.draw.rect(self.screen, GOLD if self.password_focus else (55, 66, 76), field, 2, border_radius=8)
-        shown = "•" * len(self.password) if self.password else "Click here, then type"
+        shown = "•" * len(self.password) if self.password else "Select here, then type"
         self._put(shown, field.x + 14, field.y + 15, 19, TEXT if self.password else MUTED)
-        self.buttons.append((field, lambda: setattr(self, "password_focus", True), True))
+        self.buttons.append(SetupControl("wifi-password", field, lambda: self._focus("wifi-password")))
         self._button("Scan Again", self.pg.Rect(field_x, y + 112, 180, 52), self._open_wifi)
         self._button("Connect", self.pg.Rect(field_x + 195, y + 112, 165, 52), self._connect, enabled=bool(self.selected_ssid), accent=GREEN)
-        self._button("Back", self.pg.Rect(x, self.screen.get_height() - 105, 160, 58), lambda: setattr(self, "view", "setup"))
+        self._button("Back", self.pg.Rect(x, self.screen.get_height() - 105, 160, 58), lambda: self._set_view("setup"))
 
     def _select_ssid(self, ssid: str) -> None:
         self.selected_ssid = ssid
-        self.password_focus = True
+        self._focus("wifi-password")
 
     def _render(self) -> None:
         self.buttons = []
@@ -371,30 +416,60 @@ class AurumSetupGui:
             self._render_wifi()
         else:
             self._render_progress()
+        self._sync_focus()
+        for control in self.buttons:
+            if control.enabled and control.key == self.focus_key:
+                self.pg.draw.rect(self.screen, TEXT, control.rect.inflate(8, 8), 3, border_radius=12)
+                break
+        self._put("Tab / Shift+Tab or arrows: move   Enter / Space: choose   Esc: back", 48, self.screen.get_height() - 30, 15, MUTED)
         self.pg.display.flip()
+
+    def _key_event(self, event: Any) -> bool:
+        """Handle one keyboard event; stop its batch after an action/navigation."""
+        if event.key == self.pg.K_ESCAPE and self.view in {"wifi", "confirm"}:
+            self._set_view("setup")
+            return True
+        if event.key == self.pg.K_TAB:
+            self._move_focus(-1 if getattr(event, "mod", 0) & self.pg.KMOD_SHIFT else 1)
+            return False
+        if self.view == "wifi" and self.password_focus:
+            if event.key == self.pg.K_BACKSPACE:
+                self.password = self.password[:-1]
+            elif event.key in {self.pg.K_RETURN, self.pg.K_KP_ENTER}:
+                if not getattr(event, "repeat", False):
+                    self._connect()
+                    return True
+            elif event.unicode and event.unicode.isprintable() and len(self.password) < 128:
+                self.password += event.unicode
+            return False
+        if event.key in {self.pg.K_UP, self.pg.K_LEFT, self.pg.K_DOWN, self.pg.K_RIGHT}:
+            self._move_focus(-1 if event.key in {self.pg.K_UP, self.pg.K_LEFT} else 1)
+        elif event.key in {self.pg.K_RETURN, self.pg.K_KP_ENTER, self.pg.K_SPACE}:
+            if not getattr(event, "repeat", False):
+                self._activate_focused()
+                return True
+        return False
 
     def _events(self) -> None:
         for event in self.pg.event.get():
             if event.type == self.pg.QUIT:
                 self.running = False
             elif event.type == self.pg.KEYDOWN:
-                if self.view == "wifi" and self.password_focus:
-                    if event.key == self.pg.K_BACKSPACE:
-                        self.password = self.password[:-1]
-                    elif event.key in {self.pg.K_RETURN, self.pg.K_KP_ENTER}:
-                        self._connect()
-                    elif event.unicode and event.unicode.isprintable() and len(self.password) < 128:
-                        self.password += event.unicode
-                elif event.key == self.pg.K_ESCAPE and self.view in {"wifi", "confirm"}:
-                    self.view = "setup"
+                if self._key_event(event):
+                    break
             elif event.type == self.pg.MOUSEBUTTONUP and event.button == 1:
-                for rect, action, enabled in reversed(self.buttons):
-                    if enabled and rect.collidepoint(event.pos):
-                        action()
+                for control in reversed(self.buttons):
+                    if control.enabled and control.rect.collidepoint(event.pos):
+                        self._focus(control.key)
+                        control.action()
                         break
+                # Redraw before accepting another event so controls from the
+                # previous page can never be activated by a double click.
+                break
 
     def run(self) -> int:
         try:
+            self._render()
             while self.running:
                 self._poll_network()
                 self._events()

@@ -7,6 +7,7 @@ on:
       - aurum/pc-v0.01
       - aurum/pi3-v0.01
       - aurum/trunk-v0.01
+      - codex/aurum-hopper-open-core-boot-sync-20260829
       - 'agent/**'
     paths:
       - '.github/workflows/aurum-pc-v001.yml'
@@ -39,6 +40,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify graphical setup keyboard and pointer controls with real SDL events
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pygame
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy /usr/bin/python3 -c 'import pygame'
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy /usr/bin/python3 -m unittest discover \
+            -s Projects/AurumPC/tests -p test_aurum_setup_gui.py -v
       - name: Fast validation before expensive build
         id: validation
         shell: bash
