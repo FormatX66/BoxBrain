@@ -1,30 +1,24 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_28_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_29_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
- * Evidence boundary: active-trunk proof, candidate-lineage proof, exact-head virtual proof, physical proof, destructive approval, observability proof, and historical proof stay distinct.
+ * Evidence boundary: active-trunk proof, exact-head virtual proof, physical proof, destructive approval, observability proof, and historical proof stay distinct.
  */
 (()=>{
 'use strict';
 if(window.__aurumGenerationSeedLadderV1)return;
 window.__aurumGenerationSeedLadderV1=true;
 
-const ACTIVE_TRUNK_COMMIT='ac6b03819e47e7167ba77b2e3a5846f515a88d72';
-const ACTIVE_TRUNK_PARENT='e0fe2aea7cc91829912be2c833ca81f5f9407a5e';
-const ACTIVE_TRUNK_TREE='8f08781cdd95e71534cf9c645e94ec41b2001e8f';
-const GRAPHICAL_SETUP_CANDIDATE='87891997c71f2de2b744930772643e9b229181c2';
-const GRAPHICAL_SETUP_PC_IMAGE_RUN='33780417804';
-const GRAPHICAL_SETUP_NATIVE_RUN='33782031210';
-const GRAPHICAL_SETUP_BASE_VHL_RUN='33790778809';
-const GRAPHICAL_SETUP_FALLBACK_COMMIT='613ce8243c2c3f3dfc744863fc18d10817011435';
-const GRAPHICAL_SETUP_FALLBACK_PARENT='d6b70f0f05c734ce2109bd43b0f478c164f8768b';
-const GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN='33802701468';
-const GRAPHICAL_SETUP_FALLBACK_VHL_RUN='33806912851';
+const PREVIOUS_ACTIVE_TRUNK_COMMIT='ac6b03819e47e7167ba77b2e3a5846f515a88d72';
+const ACTIVE_TRUNK_COMMIT='613ce8243c2c3f3dfc744863fc18d10817011435';
+const ACTIVE_TRUNK_PARENT='d6b70f0f05c734ce2109bd43b0f478c164f8768b';
+const ACTIVE_TRUNK_TREE='affb058d0e6400093f90a1cb1ce703fb76803a0d';
+const GRAPHICAL_SETUP_BASE_COMMIT='87891997c71f2de2b744930772643e9b229181c2';
+const CURRENT_PC_IMAGE_RUN='33802701468';
+const CURRENT_VIRTUAL_LAB_RUN='33806912851';
+const CURRENT_NATIVE_RUN='33806264677';
 const GRAPHICAL_SETUP_INPUT_FAILURE_RUN='33796286174';
 const GRAPHICAL_SETUP_SHIPPED_INPUT_FAILURE_RUN='33800637141';
 const GRAPHICAL_SETUP_SUPERSEDED_RUN='33801740460';
-const CURRENT_PC_IMAGE_RUN='33677247135';
-const CURRENT_VIRTUAL_LAB_RUN='33695190511';
-const CURRENT_NATIVE_RUN='33687947059';
 const CONTINUOUS_CONTROLLER_RUN='33703121424';
 const PHYSICAL_PREREQUISITE_WATCH_RUN='33703828433';
 const CURRENT_HOPPER_STATUS_RUN='33763963007';
@@ -32,69 +26,45 @@ const CURRENT_HOPPER_STATUS_JOB='100676947868';
 const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='4536fa54181617724956792e71ee0a8d6ed80abc';
 const NATIVE_BLOCKER_TEST='Projects.Codelation.tests.test_adaptive_shell_gui_deployment.AdaptiveShellGuiDeploymentTests.test_gui_live_trial_preserves_human_constants_and_dialogue_boundary';
 const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/commit/${id}`:`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.28',
+  componentRevision:'1.29',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-stable-graphical-setup-fallback-display-image-verified-exact-head-vhl-uefi-boot-failed-native-held-hopper-endpoint-held-no-churn-policy',
+  evidenceClass:'active-trunk-advanced-to-graphical-setup-fallback-image-green-exact-head-vhl-uefi-boot-failed-native-held-hopper-endpoint-held-no-churn-policy',
+  previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkParent:ACTIVE_TRUNK_PARENT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
-  activeTrunkUnchangedByThisDashboardRevision:true,
+  activeTrunkAdvancedSincePriorDashboardTruth:true,
+  activeTrunkMatchesGraphicalSetupFallback:true,
+  graphicalSetupBaseCommit:GRAPHICAL_SETUP_BASE_COMMIT,
+  graphicalSetupBaseIntegratedIntoActiveTrunk:true,
+  graphicalSetupFallbackIntegratedIntoActiveTrunk:true,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
+  currentPcImageRunPassed:true,
+  currentPcImageValidationPassed:true,
+  currentPcImageBuildPassed:true,
+  currentPcImageUefiInstalledBootPassed:true,
+  currentPcImageLegacyBiosInstalledBootPassed:true,
+  currentPcImageHpTwinPassed:true,
+  currentPcImageVerifiedImagePublished:true,
   currentVirtualLabRunId:CURRENT_VIRTUAL_LAB_RUN,
+  currentVirtualLabRunPassed:false,
+  currentVirtualLabExactHead:true,
+  currentVirtualLabDockerX8664Passed:true,
+  currentVirtualLabNativeArm64Passed:true,
+  currentVirtualLabPi3Passed:true,
+  currentVirtualLabPcUefiPassed:false,
+  currentVirtualLabPcUefiFailureStep:'Boot PC image in QEMU UEFI',
+  currentFourTargetConvergencePassed:false,
   currentNativeRunId:CURRENT_NATIVE_RUN,
   currentNativeRunPassed:false,
   currentNativeFailureStep:'Verify native self-build contracts',
   currentNativeBlockerTest:NATIVE_BLOCKER_TEST,
   latestKnownNativeCompletedGenerations:65,
   latestKnownNativeExternalEvidenceReason:'gui-live-trial-evidence-expired',
-  guiLiveTrialEvidenceRoute:'192.168.0.194',
-  currentConsumerRequiredRoute:'10.12.194.1',
-  continuousControllerRunId:CONTINUOUS_CONTROLLER_RUN,
-  continuousNativeDispatch:false,
-  continuousLabDispatch:false,
-  physicalPrerequisiteWatchRunId:PHYSICAL_PREREQUISITE_WATCH_RUN,
-  graphicalSetupCandidateCommit:GRAPHICAL_SETUP_CANDIDATE,
-  graphicalSetupCandidateIntegratedIntoActiveTrunk:false,
-  graphicalSetupCandidatePcImageRunId:GRAPHICAL_SETUP_PC_IMAGE_RUN,
-  graphicalSetupCandidatePcImageRunPassed:true,
-  graphicalSetupCandidateNativeRunId:GRAPHICAL_SETUP_NATIVE_RUN,
-  graphicalSetupCandidateNativeRunPassed:false,
-  graphicalSetupCandidateNativeFailureStep:'Verify native self-build contracts',
-  graphicalSetupBaseVirtualLabRunId:GRAPHICAL_SETUP_BASE_VHL_RUN,
-  graphicalSetupBaseVirtualLabPassed:false,
-  graphicalSetupBaseVirtualLabDockerX8664Passed:true,
-  graphicalSetupBaseVirtualLabNativeArm64Passed:true,
-  graphicalSetupBaseVirtualLabPi3Passed:true,
-  graphicalSetupBaseVirtualLabPcUefiPassed:false,
-  graphicalSetupBaseFourTargetConvergencePassed:false,
-  graphicalSetupFallbackCommit:GRAPHICAL_SETUP_FALLBACK_COMMIT,
-  graphicalSetupFallbackParent:GRAPHICAL_SETUP_FALLBACK_PARENT,
-  graphicalSetupFallbackPcImageRunId:GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN,
-  graphicalSetupFallbackPcImageRunPassed:true,
-  graphicalSetupFallbackValidationPassed:true,
-  graphicalSetupFallbackImageBuildPassed:true,
-  graphicalSetupFallbackUefiInstalledBootPassed:true,
-  graphicalSetupFallbackLegacyBiosInstalledBootPassed:true,
-  graphicalSetupFallbackHpTwinPassed:true,
-  graphicalSetupFallbackVerifiedImagePublished:true,
-  graphicalSetupFallbackDisplayControlsUsable:true,
-  graphicalSetupFallbackInstallControlsUsable:true,
-  graphicalSetupFallbackWifiControlsUsable:true,
-  graphicalSetupFallbackVirtualLabRunId:GRAPHICAL_SETUP_FALLBACK_VHL_RUN,
-  graphicalSetupFallbackExactHeadVirtualLabAttempted:true,
-  graphicalSetupFallbackExactHeadVirtualLabProven:false,
-  graphicalSetupFallbackExactHeadVirtualLabGreen:false,
-  graphicalSetupFallbackVirtualLabDockerX8664Passed:true,
-  graphicalSetupFallbackVirtualLabNativeArm64Passed:true,
-  graphicalSetupFallbackVirtualLabPi3Passed:true,
-  graphicalSetupFallbackVirtualLabPcUefiPassed:false,
-  graphicalSetupFallbackVirtualLabPcUefiFailureStep:'Boot PC image in QEMU UEFI',
-  graphicalSetupFallbackFourTargetConvergencePassed:false,
-  graphicalSetupFallbackPhysicalExecutionProven:false,
-  graphicalSetupFallbackPhysicalVerificationProven:false,
+  currentNativeBlockedReason:'external-prerequisite-blocked',
   graphicalSetupInputFailureRunId:GRAPHICAL_SETUP_INPUT_FAILURE_RUN,
   graphicalSetupShippedInputFailureRunId:GRAPHICAL_SETUP_SHIPPED_INPUT_FAILURE_RUN,
   graphicalSetupSupersededRunId:GRAPHICAL_SETUP_SUPERSEDED_RUN,
@@ -109,7 +79,11 @@ const state={
   graphicalSetupFreshInstallVisibleEraseConfirmation:true,
   graphicalSetupRepairNeverPartitionsOrFormats:true,
   graphicalSetupSafePoweroffOnlyAfterVerifiedCompletion:true,
+  graphicalSetupPhysicalExecutionProven:false,
+  graphicalSetupPhysicalVerificationProven:false,
   guardedInstallHumanApprovalCurrent:false,
+  continuousControllerRunId:CONTINUOUS_CONTROLLER_RUN,
+  physicalPrerequisiteWatchRunId:PHYSICAL_PREREQUISITE_WATCH_RUN,
   hopperStatusCurrentRunId:CURRENT_HOPPER_STATUS_RUN,
   hopperStatusCurrentJobId:CURRENT_HOPPER_STATUS_JOB,
   hopperStatusSnapshotCommit:CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT,
@@ -166,23 +140,23 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.28 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.29 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
-<p><strong>The graphical Setup fallback-display head now has exact-head Virtual Hardware Lab evidence as well as its green image proof.</strong> ${link('commit 613ce8243c2c','commit',GRAPHICAL_SETUP_FALLBACK_COMMIT)} remains candidate-lineage evidence: active trunk stays <code>${ACTIVE_TRUNK_COMMIT}</code>, and no physical Hopper result is inferred.</p>
+<p><strong>Active Aurum trunk has advanced to the graphical Setup fallback-display head.</strong> <code>aurum/trunk-v0.01</code> now points to ${link('commit 613ce8243c2c','commit',ACTIVE_TRUNK_COMMIT)}, replacing the older dashboard identity <code>${PREVIOUS_ACTIVE_TRUNK_COMMIT}</code>. The graphical Setup base is an ancestor of this active head; this is now active-trunk evidence, not candidate-only evidence.</p>
 <ul>
-<li>${link('PC image run 33802701468','run',GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN)} remains green through validation, image build, generic low-memory UEFI installed-boot/self-build smoke, Legacy BIOS installed-boot smoke, Hopper HP twin/offline-recovery smoke, and verified-image publication.</li>
-<li>${link('Virtual Hardware Lab 33806912851','run',GRAPHICAL_SETUP_FALLBACK_VHL_RUN)} executed on that exact fallback-display head. Docker x86_64, native ARM64, and QEMU Raspberry Pi 3B passed. This narrows the remaining cross-target blocker without claiming four-target convergence.</li>
-<li>The existing Setup authority model remains intact: graphical Wi-Fi, multiple eligible internal drives, exactly one selected opaque target, hidden raw device paths/erase codes, fresh pre-write rediscovery, visible erase confirmation for fresh install, and a separate non-formatting Repair path.</li>
+<li>${link('PC image run 33802701468','run',CURRENT_PC_IMAGE_RUN)} is exact-head green through validation, image build, low-memory UEFI installed boot/self-build, Legacy BIOS installed boot, Hopper HP twin/offline-recovery smoke, and verified-image publication.</li>
+<li>${link('Virtual Hardware Lab 33806912851','run',CURRENT_VIRTUAL_LAB_RUN)} is also exact-head: Docker x86_64, native ARM64, and QEMU Raspberry Pi 3B passed. QEMU UEFI x86_64 PC did not, so four-target convergence is not claimed.</li>
+<li>The active Setup authority model remains bounded: graphical Wi-Fi, multiple eligible internal drives, exactly one selected opaque target, hidden raw device paths and erase codes, fresh pre-write rediscovery, visible erase confirmation for fresh install, and a separate non-formatting Repair path.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Repair the exact-head QEMU UEFI x86_64 PC boot path before treating the fallback-display Setup lineage as four-target green.</strong> In ${link('Virtual Hardware Lab 33806912851','run',GRAPHICAL_SETUP_FALLBACK_VHL_RUN)}, checkout, QEMU/UEFI setup, and PC ISO build passed, then <code>Boot PC image in QEMU UEFI</code> failed. The same-commit four-target convergence gate was therefore skipped. Preserve the three passing targets and rerun this lane only after the implementation or harness evidence changes; do not replay the unchanged head merely for activity.</li>
-<li>The native contract blocker is unchanged. The graphical candidate and active native path still stop at <code>Verify native self-build contracts</code>, with generation-65 GUI live-trial evidence expired and tied to <code>192.168.0.194</code> while the current consumer requires <code>10.12.194.1</code>. Do not rerun that unchanged failure until prerequisite evidence or implementation changes.</li>
+<li><strong>Repair the active-head QEMU UEFI x86_64 PC boot path before treating the current trunk as four-target converged.</strong> In ${link('Virtual Hardware Lab 33806912851','run',CURRENT_VIRTUAL_LAB_RUN)}, exact-head checkout, QEMU/UEFI setup, and PC ISO build passed, then <code>Boot PC image in QEMU UEFI</code> failed. Preserve the three passing targets and rerun this lane only after implementation or harness evidence changes; do not replay the unchanged head merely for activity.</li>
+<li><strong>The native active-head lane remains held at the same external prerequisite.</strong> ${link('Autonomous Build Loop 33806264677','run',CURRENT_NATIVE_RUN)} checked out <code>${ACTIVE_TRUNK_COMMIT}</code>, ran the native contract suite, and stopped at <code>Verify native self-build contracts</code>. The chain remains at 65 completed generations with <code>gui-live-trial-evidence-expired</code>; do not replay that unchanged failure until prerequisite evidence or implementation changes.</li>
 <li><strong>Hopper observability remains held at supported endpoint discovery.</strong> Retained material evidence is still <code>endpoint=null</code>, <code>source_kind=null</code>, <code>http_status=null</code>, <code>reachable=false</code>, and <code>report=null</code>. Equivalent successful null snapshots are evidence health only, not frontier movement; do not infer Hopper power, network, runtime, or service state from them.</li>
-<li>Promotion must remain inside the protected Aurum source path and preserve candidate-vs-active-vs-physical boundaries. Physical graphical Setup acceptance, physical install/boot proof, and Guardian forced rollback remain unverified.</li>
+<li>Physical graphical Setup acceptance, physical install/boot proof, and Guardian forced rollback remain unverified. Promotion and publication must continue to preserve active-vs-virtual-vs-physical evidence boundaries.</li>
 </ul>
 </div>
 <div class="actions">
