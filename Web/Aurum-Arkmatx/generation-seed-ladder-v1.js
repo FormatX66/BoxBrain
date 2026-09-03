@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_27_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_28_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: active-trunk proof, candidate-lineage proof, exact-head virtual proof, physical proof, destructive approval, observability proof, and historical proof stay distinct.
  */
@@ -18,6 +18,7 @@ const GRAPHICAL_SETUP_BASE_VHL_RUN='33790778809';
 const GRAPHICAL_SETUP_FALLBACK_COMMIT='613ce8243c2c3f3dfc744863fc18d10817011435';
 const GRAPHICAL_SETUP_FALLBACK_PARENT='d6b70f0f05c734ce2109bd43b0f478c164f8768b';
 const GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN='33802701468';
+const GRAPHICAL_SETUP_FALLBACK_VHL_RUN='33806912851';
 const GRAPHICAL_SETUP_INPUT_FAILURE_RUN='33796286174';
 const GRAPHICAL_SETUP_SHIPPED_INPUT_FAILURE_RUN='33800637141';
 const GRAPHICAL_SETUP_SUPERSEDED_RUN='33801740460';
@@ -34,9 +35,9 @@ const url=(kind,id)=>kind==='commit'?`https://github.com/FormatX66/BoxBrain/comm
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.27',
+  componentRevision:'1.28',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-stable-graphical-setup-fallback-display-image-verified-exact-head-vhl-pending-native-held-hopper-endpoint-held-no-churn-policy',
+  evidenceClass:'active-trunk-stable-graphical-setup-fallback-display-image-verified-exact-head-vhl-uefi-boot-failed-native-held-hopper-endpoint-held-no-churn-policy',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkParent:ACTIVE_TRUNK_PARENT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
@@ -82,7 +83,16 @@ const state={
   graphicalSetupFallbackDisplayControlsUsable:true,
   graphicalSetupFallbackInstallControlsUsable:true,
   graphicalSetupFallbackWifiControlsUsable:true,
+  graphicalSetupFallbackVirtualLabRunId:GRAPHICAL_SETUP_FALLBACK_VHL_RUN,
+  graphicalSetupFallbackExactHeadVirtualLabAttempted:true,
   graphicalSetupFallbackExactHeadVirtualLabProven:false,
+  graphicalSetupFallbackExactHeadVirtualLabGreen:false,
+  graphicalSetupFallbackVirtualLabDockerX8664Passed:true,
+  graphicalSetupFallbackVirtualLabNativeArm64Passed:true,
+  graphicalSetupFallbackVirtualLabPi3Passed:true,
+  graphicalSetupFallbackVirtualLabPcUefiPassed:false,
+  graphicalSetupFallbackVirtualLabPcUefiFailureStep:'Boot PC image in QEMU UEFI',
+  graphicalSetupFallbackFourTargetConvergencePassed:false,
   graphicalSetupFallbackPhysicalExecutionProven:false,
   graphicalSetupFallbackPhysicalVerificationProven:false,
   graphicalSetupInputFailureRunId:GRAPHICAL_SETUP_INPUT_FAILURE_RUN,
@@ -156,20 +166,20 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.27 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.28 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
-<p><strong>The graphical Setup lineage now has verified fallback-display image proof.</strong> ${link('commit 613ce8243c2c','commit',GRAPHICAL_SETUP_FALLBACK_COMMIT)} keeps install and Wi-Fi controls usable when the live environment falls back to narrower or lower-resolution display modes. This is candidate-lineage evidence: active trunk remains <code>${ACTIVE_TRUNK_COMMIT}</code>, and no physical Hopper result is inferred.</p>
+<p><strong>The graphical Setup fallback-display head now has exact-head Virtual Hardware Lab evidence as well as its green image proof.</strong> ${link('commit 613ce8243c2c','commit',GRAPHICAL_SETUP_FALLBACK_COMMIT)} remains candidate-lineage evidence: active trunk stays <code>${ACTIVE_TRUNK_COMMIT}</code>, and no physical Hopper result is inferred.</p>
 <ul>
-<li>${link('PC image run 33802701468','run',GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN)} completed successfully on that exact head through validation, image build, generic low-memory UEFI installed-boot/self-build smoke, Legacy BIOS installed-boot smoke, Hopper HP twin/offline-recovery smoke, and verified-image publication.</li>
-<li>The change follows earlier failed input/usability attempts ${link('33796286174','run',GRAPHICAL_SETUP_INPUT_FAILURE_RUN)} and ${link('33800637141','run',GRAPHICAL_SETUP_SHIPPED_INPUT_FAILURE_RUN)} plus superseded run ${link('33801740460','run',GRAPHICAL_SETUP_SUPERSEDED_RUN)}. The successful exact-head image run is therefore remediation evidence, not an unchanged rerun.</li>
+<li>${link('PC image run 33802701468','run',GRAPHICAL_SETUP_FALLBACK_PC_IMAGE_RUN)} remains green through validation, image build, generic low-memory UEFI installed-boot/self-build smoke, Legacy BIOS installed-boot smoke, Hopper HP twin/offline-recovery smoke, and verified-image publication.</li>
+<li>${link('Virtual Hardware Lab 33806912851','run',GRAPHICAL_SETUP_FALLBACK_VHL_RUN)} executed on that exact fallback-display head. Docker x86_64, native ARM64, and QEMU Raspberry Pi 3B passed. This narrows the remaining cross-target blocker without claiming four-target convergence.</li>
 <li>The existing Setup authority model remains intact: graphical Wi-Fi, multiple eligible internal drives, exactly one selected opaque target, hidden raw device paths/erase codes, fresh pre-write rediscovery, visible erase confirmation for fresh install, and a separate non-formatting Repair path.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Prove exact-head cross-target convergence for the fallback-display head before treating the Setup lineage as four-target green.</strong> ${link('Virtual Hardware Lab 33790778809','run',GRAPHICAL_SETUP_BASE_VHL_RUN)} on the earlier base graphical candidate failed at QEMU UEFI x86_64 PC; Docker x86_64, native ARM64, and QEMU Raspberry Pi 3B passed, while the four-target convergence gate was skipped. The newer fallback-display head has green PC-image UEFI proof, but that does not substitute for an exact-head Virtual Hardware Lab result. Let the normal protected controller/lab path decide when the changed head warrants execution; do not manually replay an unchanged lane for activity.</li>
+<li><strong>Repair the exact-head QEMU UEFI x86_64 PC boot path before treating the fallback-display Setup lineage as four-target green.</strong> In ${link('Virtual Hardware Lab 33806912851','run',GRAPHICAL_SETUP_FALLBACK_VHL_RUN)}, checkout, QEMU/UEFI setup, and PC ISO build passed, then <code>Boot PC image in QEMU UEFI</code> failed. The same-commit four-target convergence gate was therefore skipped. Preserve the three passing targets and rerun this lane only after the implementation or harness evidence changes; do not replay the unchanged head merely for activity.</li>
 <li>The native contract blocker is unchanged. The graphical candidate and active native path still stop at <code>Verify native self-build contracts</code>, with generation-65 GUI live-trial evidence expired and tied to <code>192.168.0.194</code> while the current consumer requires <code>10.12.194.1</code>. Do not rerun that unchanged failure until prerequisite evidence or implementation changes.</li>
 <li><strong>Hopper observability remains held at supported endpoint discovery.</strong> Retained material evidence is still <code>endpoint=null</code>, <code>source_kind=null</code>, <code>http_status=null</code>, <code>reachable=false</code>, and <code>report=null</code>. Equivalent successful null snapshots are evidence health only, not frontier movement; do not infer Hopper power, network, runtime, or service state from them.</li>
 <li>Promotion must remain inside the protected Aurum source path and preserve candidate-vs-active-vs-physical boundaries. Physical graphical Setup acceptance, physical install/boot proof, and Guardian forced rollback remain unverified.</li>
