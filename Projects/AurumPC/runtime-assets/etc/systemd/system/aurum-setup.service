@@ -2,7 +2,10 @@
 Description=Aurum graphical live setup
 After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service systemd-networkd.service
 Wants=aurum-input-bootstrap.service systemd-networkd.service
-Conflicts=getty@tty1.service aurum-pc-console.service
+# Both services are enabled; their opposite live-media conditions choose the
+# owner. Conflicts with the primary service would cancel its start job before
+# this live-only condition is evaluated, leaving installed boot without a GUI.
+Conflicts=getty@tty1.service
 ConditionPathIsDirectory=/run/live/medium
 ConditionPathExists=/dev/tty1
 

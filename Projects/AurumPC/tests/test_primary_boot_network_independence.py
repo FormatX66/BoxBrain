@@ -80,6 +80,19 @@ class PrimaryBootNetworkIndependenceTests(unittest.TestCase):
         self.assertIn("TimeoutStopSec=5", service)
         self.assertIn("--reconnect-saved", service)
 
+    def test_live_and_installed_startup_do_not_cancel_each_other(self) -> None:
+        services = ROOT / "runtime-assets/etc/systemd/system"
+        setup = (services / "aurum-setup.service").read_text()
+        primary = (services / "aurum-pc-console.service").read_text()
+        setup_conflicts = next(line for line in setup.splitlines() if line.startswith("Conflicts=")).split("=", 1)[1].split()
+        primary_conflicts = next(line for line in primary.splitlines() if line.startswith("Conflicts=")).split("=", 1)[1].split()
+        # Conditions are checked after job conflicts have been resolved. Both
+        # enabled services must survive scheduling so the correct one can run.
+        self.assertNotIn("aurum-pc-console.service", setup_conflicts)
+        self.assertNotIn("aurum-setup.service", primary_conflicts)
+        self.assertIn("ConditionPathIsDirectory=/run/live/medium", setup)
+        self.assertIn("ConditionPathExists=!/run/live/medium", primary)
+
 
 if __name__ == "__main__":
     unittest.main()
