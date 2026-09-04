@@ -30,6 +30,7 @@ DEFAULT_ARCADE_PORT = 8766
 GUI_READY_TIMEOUT_SECONDS = 30
 GUI_PROGRESS_HARD_TIMEOUT_SECONDS = 120
 ARCADE_READY_TIMEOUT_SECONDS = 30
+ARCADE_READY_MARKER_GRACE_SECONDS = 5
 FAILED_CHILD_STOP_SECONDS = 5
 
 
@@ -461,6 +462,16 @@ class GuiRuntime:
         detail = self.log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.log_path.is_file() else ""
         raise GuiRuntimeError("GUI did not become ready" + (f": {detail}" if detail else ""))
 
+    def _wait_for_arcade(self, process: subprocess.Popen[bytes], timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._arcade_status()["status"] == "running":
+                return True
+            if process.poll() is not None:
+                return False
+            time.sleep(0.25)
+        return False
+
     def _start_arcade(self) -> None:
         if self._arcade_status()["status"] == "running":
             return
@@ -470,15 +481,19 @@ class GuiRuntime:
             self.arcade_pid_path,
             self.arcade_log_path,
         )
-        deadline = time.monotonic() + ARCADE_READY_TIMEOUT_SECONDS
-        while time.monotonic() < deadline:
-            if self._arcade_status()["status"] == "running":
-                return
-            if process.poll() is not None:
-                break
-            time.sleep(0.25)
-        self._reap_failed_child(process, self.arcade_pid_path)
+        if self._wait_for_arcade(process, ARCADE_READY_TIMEOUT_SECONDS):
+            return
         detail = self.arcade_log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.arcade_log_path.is_file() else ""
+        # A TCG guest can emit the owned server's ready marker on the deadline
+        # boundary, immediately after the loop's final probe. Give only that
+        # observed-progress state a short HTTP-readiness grace before culling.
+        if (
+            process.poll() is None
+            and "AURUM_ARCADE_READY" in detail
+            and self._wait_for_arcade(process, ARCADE_READY_MARKER_GRACE_SECONDS)
+        ):
+            return
+        self._reap_failed_child(process, self.arcade_pid_path)
         raise GuiRuntimeError("Arcade did not become ready" + (f": {detail}" if detail else ""))
 
     def start(self) -> dict[str, Any]:
