@@ -28,6 +28,7 @@ DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_PORT = 8765
 DEFAULT_ARCADE_PORT = 8766
 GUI_READY_TIMEOUT_SECONDS = 30
+GUI_PROGRESS_HARD_TIMEOUT_SECONDS = 120
 ARCADE_READY_TIMEOUT_SECONDS = 30
 FAILED_CHILD_STOP_SECONDS = 5
 
@@ -148,6 +149,16 @@ class GuiRuntime:
         return "aurum_arcade.py" in cmdline and str(self.arcade_script) in cmdline
 
     @staticmethod
+    def _process_cpu_ticks(pid: int) -> int | None:
+        """Read Linux scheduler ticks without signalling or inspecting another process."""
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+            fields = stat[stat.rfind(")") + 2 :].split()
+            return int(fields[11]) + int(fields[12])
+        except (OSError, ValueError, IndexError):
+            return None
+
+    @staticmethod
     def _listener_inodes(port: int) -> set[str]:
         wanted = f"{port:04X}"
         found: set[str] = set()
@@ -245,7 +256,7 @@ class GuiRuntime:
             pid = None
         payload = probe.get("payload") if isinstance(probe.get("payload"), dict) else {}
         return {
-            "status": "running" if owned and probe.get("reachable") else "stopped",
+            "status": "running" if owned and probe.get("reachable") else ("starting" if owned else "stopped"),
             "pid": pid if owned else None,
             "address": "127.0.0.1",
             "port": self.port,
@@ -343,7 +354,7 @@ class GuiRuntime:
         desktop = self._desktop("status")
         return {
             "schema": SCHEMA,
-            "status": "running" if gui["status"] == "running" else "stopped",
+            "status": gui["status"],
             "pid": gui["pid"],
             "address": gui["address"],
             "port": gui["port"],
@@ -393,8 +404,21 @@ class GuiRuntime:
             pid_path.unlink(missing_ok=True)
 
     def _start_gui(self) -> None:
-        if self._gui_status()["status"] == "running":
+        current = self._gui_status()
+        if current["status"] == "running":
             return
+        if current["status"] == "starting":
+            existing_pid = current.get("pid")
+            deadline = time.monotonic() + GUI_READY_TIMEOUT_SECONDS
+            while isinstance(existing_pid, int) and time.monotonic() < deadline:
+                current = self._gui_status()
+                if current["status"] == "running":
+                    return
+                if current.get("pid") != existing_pid or not self._owned_gui(existing_pid):
+                    break
+                time.sleep(0.25)
+            if isinstance(existing_pid, int) and self._owned_gui(existing_pid):
+                raise GuiRuntimeError("GUI startup is already in progress; refusing a duplicate child")
         # A systemd-managed legacy core listener can be restarted in the small
         # window between the first ownership check and the GUI bind.  Retry the
         # bind once, but only after the same strict listener ownership check.
@@ -407,11 +431,23 @@ class GuiRuntime:
                 self.pid_path,
                 self.log_path,
             )
-            deadline = time.monotonic() + GUI_READY_TIMEOUT_SECONDS
-            while time.monotonic() < deadline:
+            started = time.monotonic()
+            soft_deadline = started + GUI_READY_TIMEOUT_SECONDS
+            hard_deadline = started + GUI_PROGRESS_HARD_TIMEOUT_SECONDS
+            initial_cpu_ticks = self._process_cpu_ticks(process.pid)
+            progress_observed = False
+            while True:
+                now = time.monotonic()
+                if now >= hard_deadline:
+                    break
                 if self._gui_status()["status"] == "running":
                     return
                 if process.poll() is not None:
+                    break
+                cpu_ticks = self._process_cpu_ticks(process.pid)
+                if cpu_ticks is not None and initial_cpu_ticks is not None and cpu_ticks > initial_cpu_ticks:
+                    progress_observed = True
+                if now >= soft_deadline and not progress_observed:
                     break
                 time.sleep(0.25)
             child_ended = process.poll() is not None

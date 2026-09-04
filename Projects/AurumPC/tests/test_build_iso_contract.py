@@ -7,6 +7,9 @@ from pathlib import Path
 BUILD_SCRIPT = Path(__file__).parents[1] / "build-iso.sh"
 BOOTSTRAP = Path(__file__).parents[1] / "aurum_bootstrap.py"
 WIFI_DIAG = Path(__file__).parents[1] / "aurum_wifi_diag.py"
+GUI_RUNTIME = Path(__file__).parents[1] / "aurum_gui_runtime.py"
+AUTONOMY = Path(__file__).parents[1] / "aurum_autonomy.py"
+RUNTIME_UPDATE = Path(__file__).parents[1] / "aurum_runtime_update.py"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
 QEMU_ACCELERATION = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-acceleration.sh"
@@ -38,6 +41,7 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
         self.assertIn("wait_for_self_build 720", smoke)
+        self.assertIn("for _ in $(seq 1 90); do", smoke)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn('QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}', smoke)
         self.assertIn("-machine q35,accel=kvm", acceleration)
@@ -143,6 +147,9 @@ class BuildIsoContractTests(unittest.TestCase):
     def test_installed_boot_gate_requires_automatic_primary_gui_without_network(self) -> None:
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
         workflow = PC_WORKFLOW.read_text(encoding="utf-8")
+        gui_runtime = GUI_RUNTIME.read_text(encoding="utf-8")
+        autonomy = AUTONOMY.read_text(encoding="utf-8")
+        runtime_update = RUNTIME_UPDATE.read_text(encoding="utf-8")
         installed = smoke.split("start_installed_qemu() {", 1)[1].split("wait_for_marker()", 1)[0]
         live = smoke.split("start_live_qemu() {", 1)[1].split("start_installed_qemu()", 1)[0]
         self.assertIn("-nic none", live)
@@ -155,6 +162,11 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertNotIn("printf 'gui-start", smoke)
         self.assertIn("if ! wait_for_primary_gui; then", smoke)
         self.assertIn("AURUM_GUI_RUNTIME status=running physical_desktop=true", smoke)
+        self.assertIn("GUI_PROGRESS_HARD_TIMEOUT_SECONDS = 120", gui_runtime)
+        self.assertIn("_process_cpu_ticks", gui_runtime)
+        self.assertIn("refusing a duplicate child", gui_runtime)
+        self.assertIn('"start", timeout=540', autonomy)
+        self.assertIn("timeout=540", runtime_update)
         self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline'", workflow)
         self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_INSTALLED_REBOOT_GUI_OK network=offline'", workflow)
         self.assertIn("grep -Fq 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' aurum-pc-qemu-legacy.log", workflow)

@@ -162,7 +162,9 @@ wait_for_installed_ready() {
 wait_for_primary_gui() {
   # Status only: never make the test start a GUI that boot failed to start.
   # Scope the response to this boot; a previous session cannot satisfy proof.
-  for _ in $(seq 1 30); do
+  # Slow TCG is deliberately allowed to exercise the runtime's bounded,
+  # progress-qualified startup extension rather than racing its soft deadline.
+  for _ in $(seq 1 90); do
     printf 'gui-status\n' >&3
     for _ in $(seq 1 5); do
       if tail -n +"$installed_start_line" "$LOG" |

@@ -801,7 +801,7 @@ class RuntimeUpdater:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=450,
+            timeout=540,
         )
         try:
             payload = json.loads(start.stdout.strip().splitlines()[-1]) if start.stdout.strip() else {}
