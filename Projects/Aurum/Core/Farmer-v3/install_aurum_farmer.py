@@ -236,11 +236,15 @@ def decision_engine_source(source_dir: Path) -> Path:
     return source_dir.parents[2] / "AurumFarmer" / "aurum_farmer" / "decision_engine.py"
 
 
+def operation_gate_source(source_dir: Path) -> Path:
+    return decision_engine_source(source_dir).with_name("operation_gate.py")
+
+
 def preflight(source_dir: Path) -> None:
     worker = source_dir / "aurum_worker.py"
     hive = source_dir / "aurum_hive.py"
     tests = source_dir / "test_aurum_farmer_core.py"
-    for path in [worker, hive, decision_engine_source(source_dir)]:
+    for path in [worker, hive, decision_engine_source(source_dir), operation_gate_source(source_dir)]:
         if not path.is_file():
             raise RuntimeError(f"missing_source:{path.name}")
     result = run([sys.executable, "-m", "py_compile", str(worker), str(hive)], check=False)
@@ -283,6 +287,7 @@ def main() -> int:
     worker_dest = install_dir / "aurum_worker.py"
     hive_dest = install_dir / "aurum_hive.py"
     engine_dest = install_dir / "decision_engine.py"
+    gate_dest = install_dir / "operation_gate.py"
     unit = render_unit(
         python=sys.executable,
         worker=worker_dest,
@@ -313,13 +318,14 @@ def main() -> int:
 
     backups: list[tuple[Path, Path]] = []
     created: list[Path] = []
-    for target in [worker_dest, hive_dest, engine_dest, unit_path]:
+    for target in [worker_dest, hive_dest, engine_dest, gate_dest, unit_path]:
         if not target.exists():
             created.append(target)
     try:
         atomic_copy(source_dir / "aurum_worker.py", worker_dest, backups)
         atomic_copy(source_dir / "aurum_hive.py", hive_dest, backups)
         atomic_copy(decision_engine_source(source_dir), engine_dest, backups)
+        atomic_copy(operation_gate_source(source_dir), gate_dest, backups)
         atomic_text(unit, unit_path, backups)
         run(["systemctl", "daemon-reload"])
         run(["systemctl", "enable", "--now", SERVICE_NAME])

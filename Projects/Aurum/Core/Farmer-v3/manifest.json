@@ -1,6 +1,6 @@
 {
   "schema": "aurum.farmer.package.v3.2",
-  "version": "3.3",
+  "version": "3.4",
   "continuation": "event_driven_no_polling",
   "terminal_states": [
     "verified_completion",
@@ -14,7 +14,7 @@
     "verification_passed"
   ],
   "host_core": {
-    "tests": "12 tests; see exact-source CI evidence",
+    "tests": "14 tests; see exact-source CI evidence",
     "path": "/Aurum/Core/Farmer-v3"
   },
   "github_integration": {
@@ -50,6 +50,8 @@
     "canonical_source": "Projects/AurumFarmer/aurum_farmer/decision_engine.py",
     "installed_module": "decision_engine.py",
     "all_bounded_dispatches": true,
-    "physical_acceptance_inferred": false
+    "physical_acceptance_inferred": false,
+    "operation_gate": "operation_gate.py",
+    "durable_failure_quarantine": true
   }
 }

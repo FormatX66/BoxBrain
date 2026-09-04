@@ -176,7 +176,7 @@ jobs:
           cache: pip
           cache-dependency-path: controller/pyproject.toml
       - name: Install controller
-        run: python -m pip install -e ".[dev]"
+        run: python -m pip install -e ../Projects/AurumFarmer -e ".[dev]"
       - name: Run backend suite
         run: python -m pytest -q
       - name: Run Kali Pi edge-agent suite

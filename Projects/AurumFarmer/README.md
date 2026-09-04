@@ -153,6 +153,27 @@ powershell -ExecutionPolicy Bypass -File .\installer\uninstall-aurum-farmer.ps1
 
 ## Verification
 
+Future Branch also guards every controller API request (after authentication)
+and every Core worker dispatch. The shared `operation_gate.py` journal blocks
+concurrent duplicate effects, unchanged failed operations and unresolved crashed
+attempts across restarts. Request IDs and receipt-only updates cannot unlock a
+failure. Read-only observations and emergency stop remain reachable. Core plans
+can select a fallback after a quarantined primary without reexecuting it.
+
+Farmer's signed ledger preserves operation quarantine across new job IDs. Its
+health telemetry reports `cross_job_quarantine`, `execution_revision` and the
+quarantine count. The existing bounded transient retry policy remains; once its
+budget is exhausted, resubmitting an equivalent job does not reset that budget.
+Resume updates only the named authority/dependency dimension.
+
+Controller admission is not independent effect verification: a 2xx response is
+recorded as observed, never verified completion or LKG promotion. Existing
+executor permissions, approvals, idempotency, result verification and LKG gates
+remain authoritative. Git source/configuration contents are observed where
+available; remote hardware/environment changes require adapter-specific evidence.
+Code outside these dispatchers must follow the repository's state-first/Future
+Branch policy; this integration does not intercept arbitrary shell commands.
+
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\Projects\AurumFarmer).Path
 python -m unittest discover -s .\Projects\AurumFarmer\tests -v

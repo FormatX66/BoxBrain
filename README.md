@@ -156,7 +156,7 @@ From `controller/`:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e ../Projects/AurumFarmer -e ".[dev]"
 $env:BOXBRAIN_API_TOKEN = '<the-same-local-token>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```

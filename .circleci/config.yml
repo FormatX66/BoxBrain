@@ -34,7 +34,7 @@ jobs:
           name: Install controller test dependencies
           command: |
             cd controller
-            python -m pip install -e ".[dev]"
+            python -m pip install -e ../Projects/AurumFarmer -e ".[dev]"
       - run:
           name: Run controller tests
           command: |

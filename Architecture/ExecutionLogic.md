@@ -19,9 +19,9 @@ prompt -> action -> error -> retry -> repeat
 
 ## Future Branch decision layer
 
-When more than one materially different next state/action remains plausible,
-apply the [Future Branch architecture](FutureBranch.md) inside the state-first
-loop instead of prematurely choosing one path:
+Apply the [Future Branch architecture](FutureBranch.md) to every operation inside
+the state-first loop. Expand more alternatives when materially different next
+states/actions remain plausible:
 
 ```text
 observed state -> plausible futures -> evidence/risk/reversibility/authority
@@ -31,10 +31,10 @@ observed state -> plausible futures -> evidence/risk/reversibility/authority
                -> collapse / rollback / quarantine
 ```
 
-Future Branch is mandatory when uncertainty materially affects the next action,
+Future Branch is always the default; deeper exploration is mandatory when uncertainty materially affects the next action,
 recovery path, diagnosis, user intent, transport, deployment, kernel/driver
 candidate, or other consequential state transition. For trivial deterministic
-work, do not manufacture branches just to satisfy the pattern.
+work, use a cheap execute/hold/recovery assessment without manufacturing speculative work.
 
 Core rule: **anticipate aggressively; commit conservatively.** Preparation of a
 safe/reversible future is not execution. Ambiguous ties wait. Failed candidates

@@ -9,6 +9,7 @@ description = "BoxBrain controller API alpha skeleton"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "aurum-farmer==0.1.0",
   "fastapi>=0.115,<1",
   "openai-agents>=0.6,<1",
   "pydantic>=2.8,<3",
