@@ -93,8 +93,9 @@ successor. A culled head is never retried and the installed runtime never runs
 `reset`, `revert`, force-push, or any other backward Git operation.
 
 `become_next_seed` is true only after installed runtime hashes, bounded GPT
-execution, system activation, a real physical projection, keyboard and pointer
-events in the current GUI boot, the bounded GUI recovery console, and Wi-Fi
+execution, the sandboxed HTTPS browser and Aurum/GPT prompt surfaces, system
+activation, a real physical projection, keyboard and pointer events in the
+current GUI boot, the bounded GUI recovery console, and Wi-Fi
 profile/connectivity persistence across the update have all passed. The
 physical receipt distinguishes the primary HTML renderer from the automatic
 Pygame fallback instead of treating either path as implied success. Input

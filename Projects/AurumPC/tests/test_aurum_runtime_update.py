@@ -128,6 +128,44 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
         self.assertTrue(proof["fallback_panel_present"])
         self.assertFalse(proof["raw_shell"])
 
+    def test_web_prompt_surface_proof_covers_bounded_browser_and_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            updater = RuntimeUpdater(target=MODULE_PATH.parent, state_dir=Path(temporary))
+            proof = updater._web_prompt_surface_proof()
+
+        self.assertEqual(proof["status"], "passed")
+        self.assertTrue(proof["browser_surface_present"])
+        self.assertTrue(proof["prompt_surface_present"])
+        self.assertTrue(proof["renderer_present"])
+        self.assertTrue(proof["gpt_runtime_present"])
+        self.assertTrue(proof["https_only"])
+        self.assertTrue(proof["private_network_blocked"])
+        self.assertFalse(proof["browser_credential"])
+        self.assertFalse(proof["raw_shell"])
+
+    def test_web_prompt_surface_proof_fails_when_browser_navigation_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / "runtime"
+            target.mkdir()
+            for name in (
+                "aurum_hopper_gui.py",
+                "aurum_web_surface.py",
+                "aurum_gpt_trait.py",
+                "aurum_gpt_executor.py",
+            ):
+                source = (MODULE_PATH.parent / name).read_text(encoding="utf-8")
+                if name == "aurum_hopper_gui.py":
+                    source = source.replace('data-nav="browser"', 'data-nav="browser-removed"')
+                (target / name).write_text(source, encoding="utf-8")
+            updater = RuntimeUpdater(target=target, state_dir=Path(temporary) / "state")
+            proof = updater._web_prompt_surface_proof()
+
+        self.assertEqual(proof["status"], "failed")
+        self.assertFalse(proof["browser_surface_present"])
+        disposition = runtime_module._proof_disposition({"web_prompt_surface": proof})
+        self.assertEqual(disposition["status"], "failed")
+        self.assertEqual(disposition["failed"], ["web_prompt_surface"])
+
     def test_plan_and_apply_are_allowlisted_atomic_and_receipted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -176,6 +214,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                     "desktop": {"status": "running", "renderer": "html5", "primary": True},
                 }),
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed", "model_call_proven": False}),
+                patch.object(updater, "_web_prompt_surface_proof", return_value={"status": "passed"}),
                 patch.object(updater, "_system_proof", return_value={"status": "passed", "service": "test"}),
                 patch.object(updater, "_wifi_snapshot", return_value={"schema": "aurum.wifi-persistence.v1"}),
                 patch.object(updater, "_wifi_persistence_proof", return_value={"status": "passed"}),
@@ -204,6 +243,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             self.assertEqual(receipt["generation"]["prove"]["wifi"]["status"], "passed")
             self.assertEqual(receipt["generation"]["prove"]["input"]["status"], "passed")
             self.assertEqual(receipt["generation"]["prove"]["gui_console"]["status"], "passed")
+            self.assertEqual(receipt["generation"]["prove"]["web_prompt_surface"]["status"], "passed")
             self.assertEqual(finalized["status"], "current")
             self.assertTrue(finalized["generation"]["become_next_seed"])
             self.assertEqual(finalized["generation"]["stage"]["status"], "verified")
@@ -264,6 +304,7 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
                     {"status": "running", "physical_desktop": True, "desktop": {"status": "running"}},
                 ]),
                 patch.object(updater, "_gpt_proof", return_value={"status": "passed"}),
+                patch.object(updater, "_web_prompt_surface_proof", return_value={"status": "passed"}),
                 patch.object(updater, "_refresh_input", return_value={"status": "ready"}),
                 patch.object(updater, "_launch_physical_echo", return_value={"status": "skipped"}),
                 patch.object(updater, "_wifi_snapshot", return_value={"schema": "aurum.wifi-persistence.v1"}),
