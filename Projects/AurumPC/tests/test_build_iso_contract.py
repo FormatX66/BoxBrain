@@ -142,6 +142,8 @@ class BuildIsoContractTests(unittest.TestCase):
         smoke = QEMU_SMOKE.read_text(encoding="utf-8")
         workflow = PC_WORKFLOW.read_text(encoding="utf-8")
         installed = smoke.split("start_installed_qemu() {", 1)[1].split("wait_for_marker()", 1)[0]
+        live = smoke.split("start_live_qemu() {", 1)[1].split("start_installed_qemu()", 1)[0]
+        self.assertIn("-nic none", live)
         self.assertIn("-nic none", installed)
         self.assertNotIn("-no-reboot", installed)
         self.assertIn("installed_start_line=", installed)

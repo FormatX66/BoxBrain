@@ -72,6 +72,7 @@ start_live_qemu() {
     -drive file="$installed_disk",format=raw,if=virtio \
     -cdrom "$ISO" \
     -boot order=d \
+    -nic none \
     -display none \
     -serial stdio \
     -monitor none \
