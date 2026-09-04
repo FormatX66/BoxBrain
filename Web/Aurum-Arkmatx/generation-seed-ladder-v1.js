@@ -31,7 +31,7 @@ const VOICE_MIRROR_RECEIPT_COMMIT='d4b80d95f834bc8c56e0cedad18c77bac25f3402';
 const QUANTUM_EVIDENCE_COMMIT='3606746cf11be4663f8d5873dcdda9a7c227a87b';
 const QUANTUM_RUN='33837282240';
 const url=(kind,id)=>kind==='run'?`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`:kind==='pr'?`https://github.com/FormatX66/BoxBrain/pull/${id}`:`https://github.com/FormatX66/BoxBrain/commit/${id}`;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noopener">${esc(label)}</a>`;
 
 const state={
