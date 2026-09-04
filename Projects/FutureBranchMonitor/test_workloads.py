@@ -99,6 +99,19 @@ class WorkloadTests(unittest.TestCase):
         self.assertEqual(5,api.get.call_count)
         self.assertEqual(20,len(rows))
 
+    def test_observation_time_is_after_each_response_not_before_the_batch(self):
+        api=Mock()
+        clock=[100]
+        def get(path):
+            clock[0]+=2
+            return {'workflow_runs':[{'id':42,'status':'in_progress'}]} if '/runs?' in path else {'jobs':[{'id':17,'status':'completed','conclusion':'success'}]}
+        api.get.side_effect=get
+        with patch('workloads.time.time',side_effect=lambda:clock[0]):
+            data=provider_sample(GitHubCollector(api))
+        self.assertEqual(100,data['last_attempt_at'])
+        self.assertEqual(104,data['observed_at'])
+        self.assertEqual(104,data['rows'][0]['observed_at'])
+
     def test_rate_limit_backoff_and_no_secret_errors(self):
         api=GitHubAPI()
         api.executable='gh'

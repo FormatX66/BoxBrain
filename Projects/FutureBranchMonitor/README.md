@@ -6,6 +6,14 @@ compliance from a saved instruction, a task title, or an old deployment proof.
 
 Run `python monitor.py serve`, or `powershell -File start-monitor.ps1` on Windows,
 then open <http://127.0.0.1:19467>. Python's standard library is sufficient.
+For a durable user-session observer, run the installed `register-startup.ps1`.
+It registers `Future Branch Workload Monitor` under the current user at logon,
+using windowless Python, no elevation and no credentials. Windows supervises it
+independently of a chat, with three bounded failure restarts one minute apart.
+It checks exact dashboard/task ownership before replacing a process and preserves
+unrelated listeners. A permission failure leaves the running observer intact.
+This task only hosts the dashboard/collectors; it never schedules the explorer.
+Farmer's SYSTEM startup, watchdog and checkpoints remain the resident engine.
 The installer for this user copies this directory to
 `C:\Arkmatx_Knowledge_Hub\future_branch_monitor`; its SQLite journal stays there
 across source updates. The monitor observes Farmer at port 19466 every five
@@ -96,7 +104,8 @@ has unconfirmed runner location until actual runner evidence exists. GitHub job
 API CPU and RAM are unavailable without job instrumentation. The saved Codex
 cloud environment appears as a capability gap/link, never as an active process.
 
-Provider observations retain source timestamps on errors. Local samples expire
+Provider timestamps are captured after responses arrive (not before a multi-call
+batch) and retain source timestamps on errors. Local samples expire
 after 10 seconds, GitHub after 90. Empty, stale, disconnected and provider-error
 states are distinct. The browser refreshes every three seconds and explicitly
 marks retained values historical if the dashboard disconnects. Collector wall
