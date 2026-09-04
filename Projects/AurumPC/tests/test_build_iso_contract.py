@@ -138,6 +138,19 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("pci_network_candidates", diag)
         self.assertIn("read_only", diag)
 
+    def test_installed_boot_gate_requires_automatic_primary_gui_without_network(self) -> None:
+        smoke = QEMU_SMOKE.read_text(encoding="utf-8")
+        workflow = PC_WORKFLOW.read_text(encoding="utf-8")
+        installed = smoke.split("start_installed_qemu() {", 1)[1].split("wait_for_marker()", 1)[0]
+        self.assertIn("-nic none", installed)
+        self.assertIn("installed_start_line=", installed)
+        self.assertIn("printf 'gui-status\\n'", smoke)
+        self.assertNotIn("printf 'gui-start", smoke)
+        self.assertIn("if ! wait_for_primary_gui; then", smoke)
+        self.assertIn("AURUM_GUI_RUNTIME status=running physical_desktop=true", smoke)
+        self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline'", workflow)
+        self.assertIn("grep -Fq 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' aurum-pc-qemu-legacy.log", workflow)
+
     def test_hp_physical_twin_matches_observed_failure_classes(self) -> None:
         twin = HP_TWIN.read_text(encoding="utf-8")
         spec = HP_TWIN_SPEC.read_text(encoding="utf-8")

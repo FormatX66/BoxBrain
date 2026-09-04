@@ -346,7 +346,8 @@ def run_gui(action: str) -> None:
         else:
             result = GUI.status()
         print(json.dumps(result, indent=2, sort_keys=True), flush=True)
-        print(f"AURUM_GUI_RUNTIME status={result.get('status')} address=127.0.0.1 port={result.get('port')}", flush=True)
+        physical = str(result.get("physical_desktop") is True).lower()
+        print(f"AURUM_GUI_RUNTIME status={result.get('status')} physical_desktop={physical} address=127.0.0.1 port={result.get('port')}", flush=True)
     except (GuiRuntimeError, OSError) as exc:
         print(f"AURUM_GUI_RUNTIME status=failed detail={exc}", flush=True)
 

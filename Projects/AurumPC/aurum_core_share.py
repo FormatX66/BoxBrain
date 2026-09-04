@@ -166,6 +166,21 @@ def status(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
     }
 
 
+def _prepare_sync_clock() -> dict[str, Any]:
+    """Keep clock recovery before HTTPS, outside the physical GUI boot path."""
+    try:
+        clock_module = _load_module("aurum_time.py", "aurum_core_time")
+        clock = clock_module.synchronize_clock(timeout_seconds=20)
+        return {
+            "status": str(clock.get("status") or "unknown")[:80],
+            "synchronized": clock.get("synchronized") is True,
+        }
+    except Exception:
+        # Preserve the existing soft-failure policy. Git still verifies TLS;
+        # no insecure transport or fabricated clock success is permitted.
+        return {"status": "failed", "synchronized": False}
+
+
 def seed_sync(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
     if os.geteuid() != 0:
         raise CoreShareError("core seed sync requires the root-owned Aurum service")
@@ -181,6 +196,7 @@ def seed_sync(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
         online = network.ensure_online(interactive=False)
         if online.get("online") is not True:
             raise CoreShareError("core network is offline")
+        clock = _prepare_sync_clock()
         workspace_module = _load_module("aurum_workspace.py", "aurum_core_workspace")
         workspace = workspace_module.AurumWorkspace(
             installed_root=DEFAULT_RUNTIME / "codelation",
@@ -211,6 +227,7 @@ def seed_sync(*, state_dir: Path = DEFAULT_STATE) -> dict[str, Any]:
         runtime = _safe_runtime(runtime_result)
         result = {
             "status": "verified" if runtime["become_next_seed"] else "applied-awaiting-proof",
+            "clock": clock,
             "git": _safe_git(git_result),
             "runtime": runtime,
             "fast_forward_only": True,

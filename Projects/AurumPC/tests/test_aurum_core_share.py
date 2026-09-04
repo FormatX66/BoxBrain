@@ -41,11 +41,19 @@ class AurumCoreShareTests(unittest.TestCase):
         self.assertFalse(catalog["personal_slush"]["readable_by_core_share"])
 
     def test_seed_sync_is_fixed_to_clean_forward_trunk_and_returns_sanitized_state(self) -> None:
+        order: list[str] = []
+
+        def synchronize_clock(*, timeout_seconds):
+            self.assertEqual(timeout_seconds, 20)
+            order.append("clock")
+            return {"status": "synchronized", "synchronized": True, "private": "must-not-escape"}
+
         class Workspace:
             def __init__(self, **_kwargs):
                 pass
 
             def git_sync(self, *, authorize_network: bool):
+                order.append("git")
                 self.authorized = authorize_network
                 return {
                     "status": "fast-forwarded",
@@ -75,6 +83,8 @@ class AurumCoreShareTests(unittest.TestCase):
         def load(filename: str, _prefix: str):
             if filename == "aurum_network.py":
                 return SimpleNamespace(ensure_online=lambda **_kwargs: {"online": True, "ssid": "private"})
+            if filename == "aurum_time.py":
+                return SimpleNamespace(synchronize_clock=synchronize_clock)
             if filename == "aurum_workspace.py":
                 return SimpleNamespace(AurumWorkspace=Workspace)
             if filename == "aurum_runtime_update.py":
@@ -93,6 +103,8 @@ class AurumCoreShareTests(unittest.TestCase):
                 receipt = core.seed_sync(state_dir=root / "state")
         encoded = json.dumps(receipt, sort_keys=True)
         self.assertEqual(receipt["result"]["status"], "verified")
+        self.assertEqual(order, ["clock", "git"])
+        self.assertEqual(receipt["result"]["clock"], {"status": "synchronized", "synchronized": True})
         self.assertEqual(receipt["result"]["git"]["head"], "a" * 40)
         self.assertTrue(receipt["result"]["fast_forward_only"])
         self.assertFalse(receipt["result"]["personal_slush_accessed"])
@@ -100,6 +112,11 @@ class AurumCoreShareTests(unittest.TestCase):
         self.assertNotIn("private-detail", encoded)
         self.assertNotIn("must-not-escape", encoded)
         self.assertNotIn("ssid", encoded.lower())
+
+    def test_clock_recovery_failure_is_not_reported_as_success(self) -> None:
+        with patch.object(core, "_load_module", side_effect=RuntimeError("private-detail")):
+            result = core._prepare_sync_clock()
+        self.assertEqual(result, {"status": "failed", "synchronized": False})
 
     def test_http_surface_has_only_status_and_empty_seed_sync(self) -> None:
         server = core.CoreShareServer(("127.0.0.1", 0), core.CoreShareHandler)

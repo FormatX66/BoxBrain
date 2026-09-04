@@ -95,29 +95,49 @@ def _first_boot(
         },
     }
 
-    if screen:
-        screen.update("network", "active")
-    print("AURUM_FIRST_BOOT stage=network status=starting", flush=True)
-    try:
-        network = ensure_online(interactive=True)
-    except Exception as exc:
-        network = {"status": "failed", "online": False, "detail": f"{type(exc).__name__}:{exc}"}
+    primary = _primary_console()
+    if primary:
+        # The installed runtime is bundled locally. Neither Wi-Fi, DNS, Git,
+        # nor a text prompt is a prerequisite for the physical GUI. Network
+        # reconnect and forward sync have their own supervised services.
+        if screen:
+            screen.update("desktop", "active")
+        assessment["gui"] = _start_gui()
+        desktop = assessment["gui"].get("desktop")
+        desktop = desktop if isinstance(desktop, dict) else {}
+        physical = bool(assessment["gui"].get("physical_desktop") or desktop.get("status") == "running")
+        if screen:
+            screen.update("desktop", "ready" if physical else "degraded",
+                          "physical surface ready" if physical else assessment["gui"].get("status", "unavailable"))
+        network = {"status": "background-network-service", "online": None}
+    else:
+        if screen:
+            screen.update("network", "active")
+        print("AURUM_FIRST_BOOT stage=network status=starting", flush=True)
+        try:
+            network = ensure_online(interactive=False)
+        except Exception as exc:
+            network = {"status": "failed", "online": False, "detail": f"{type(exc).__name__}:{exc}"}
     assessment["network"] = network
     if screen:
         screen.update(
             "network",
-            "ready" if network.get("online") else "degraded",
+            "ready" if network.get("online") else ("active" if network.get("online") is None else "degraded"),
             network.get("status"),
         )
+    online_label = str(network["online"]).lower() if isinstance(network.get("online"), bool) else "unknown"
     print(
         "AURUM_FIRST_BOOT "
-        f"stage=network status={network.get('status')} online={str(bool(network.get('online'))).lower()}",
+        f"stage=network status={network.get('status')} online={online_label}",
         flush=True,
     )
 
     # Basic DNS/TCP probing does not depend on TLS.  Once networking is alive,
     # correct a potentially stale firmware/RTC clock before HTTPS Git traffic.
-    if network.get("online"):
+    if primary:
+        assessment["clock"] = {"status": "background-sync-service", "synchronized": None}
+        assessment["git_sync"] = {"status": "background-sync-service"}
+    elif network.get("online"):
         try:
             clock = synchronize_clock()
         except Exception as exc:
@@ -155,18 +175,6 @@ def _first_boot(
     if screen:
         screen.update("verification", "ready" if test_ok else "degraded", assessment["self_build"].get("status"))
 
-    if _primary_console():
-        if screen:
-            screen.update("desktop", "active")
-        assessment["gui"] = _start_gui()
-        desktop = assessment["gui"].get("desktop") if isinstance(assessment["gui"].get("desktop"), dict) else {}
-        physical = bool(assessment["gui"].get("physical_desktop") or desktop.get("status") == "running")
-        if screen:
-            screen.update(
-                "desktop",
-                "ready" if physical else "degraded",
-                "physical surface ready" if physical else assessment["gui"].get("status", "unavailable"),
-            )
     assessment["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _write_assessment(assessment)
     print(

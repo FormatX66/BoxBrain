@@ -286,6 +286,7 @@ jobs:
             --required-marker 'AURUM_HARDWARE_PROFILE status=ready' \
             --required-marker 'AURUM_INSTALL_FINISHED status=passed' \
             --required-marker 'AURUM_SELF_BUILD_FINISHED status=passed' \
+            --required-marker 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' \
             --required-marker "AURUM_QEMU_ACCELERATION selected=$AURUM_QEMU_ACCEL" \
             --duration-seconds "$((finished - started))" \
             --execution-environment "$AURUM_QEMU_EXECUTION_ENVIRONMENT" \
@@ -322,6 +323,7 @@ jobs:
               dist/Aurum-PC-v0.01-amd64.iso aurum-pc-qemu-legacy.log
           grep -Fq 'AURUM_INSTALL_FINISHED status=passed' aurum-pc-qemu-legacy.log
           grep -Fq 'mode=installed' aurum-pc-qemu-legacy.log
+          grep -Fq 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' aurum-pc-qemu-legacy.log
           echo 'AURUM_PC_V001_LEGACY_BOOT_VERIFIED'
       - name: Publish generic boot evidence
         if: always()

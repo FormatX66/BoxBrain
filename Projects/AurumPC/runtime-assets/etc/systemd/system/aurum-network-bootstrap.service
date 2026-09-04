@@ -2,12 +2,13 @@
 Description=Aurum saved Wi-Fi reconnect
 After=local-fs.target systemd-udev-trigger.service systemd-networkd.service
 Wants=systemd-networkd.service
-Before=aurum-pc-console.service
 ConditionPathExists=/var/lib/aurum/state/wifi.conf
 
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /opt/aurum/aurum_network.py --reconnect-saved --timeout-seconds 50 --write-state /run/aurum-network-bootstrap.json
+TimeoutStartSec=75
+TimeoutStopSec=5
 RemainAfterExit=yes
 
 [Install]

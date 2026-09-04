@@ -81,6 +81,7 @@ start_live_qemu() {
 }
 
 start_installed_qemu() {
+  installed_start_line=$(( $(wc -l < "$LOG") + 1 ))
   printf '\n===== AURUM INSTALLED DISK BOOT =====\n' >> "$LOG"
   timeout 900s qemu-system-x86_64 \
     -machine "q35,accel=$QEMU_ACCEL" \
@@ -90,6 +91,7 @@ start_installed_qemu() {
     "${firmware_args[@]}" \
     -drive file="$installed_disk",format=raw,if=virtio \
     -boot order=c \
+    -nic none \
     -display none \
     -serial stdio \
     -monitor none \
@@ -109,6 +111,26 @@ wait_for_marker() {
       return 1
     fi
     sleep 1
+  done
+  return 1
+}
+
+wait_for_primary_gui() {
+  # Status only: never make the test start a GUI that boot failed to start.
+  # Scope the response to this boot; a previous session cannot satisfy proof.
+  for _ in $(seq 1 30); do
+    printf 'gui-status\n' >&3
+    for _ in $(seq 1 5); do
+      if tail -n +"$installed_start_line" "$LOG" |
+          grep -F 'AURUM_GUI_RUNTIME status=running physical_desktop=true' >/dev/null; then
+        echo 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' >> "$LOG"
+        return 0
+      fi
+      if ! kill -0 "$qemu_pid" 2>/dev/null; then
+        return 1
+      fi
+      sleep 1
+    done
   done
   return 1
 }
@@ -200,6 +222,12 @@ if ! wait_for_marker 'mode=installed' 180 || \
    ! grep -Fq 'selftest=ok' "$LOG"; then
   cat "$LOG"
   echo "The installed Aurum disk did not reach its $QEMU_FIRMWARE runtime-ready marker." >&2
+  exit 1
+fi
+
+if ! wait_for_primary_gui; then
+  cat "$LOG"
+  echo 'Installed Aurum did not automatically open its primary GUI while offline.' >&2
   exit 1
 fi
 
