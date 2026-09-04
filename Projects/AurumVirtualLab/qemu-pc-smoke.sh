@@ -251,7 +251,11 @@ if [ -z "$confirmation" ]; then
   exit 1
 fi
 printf 'install confirm %s\n' "$confirmation" >&3
-if ! wait_for_install 600; then
+# TCG runners have now exceeded ten minutes while the same exact image completes
+# under KVM. Keep the virtual install bounded, but do not classify a slow runner
+# as an installer failure before its observed range. The workflow's outer time
+# limit still caps the whole job.
+if ! wait_for_install 900; then
   cat "$LOG"
   echo 'Aurum PC guided installation did not pass.' >&2
   exit 1
