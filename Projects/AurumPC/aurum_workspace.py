@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -233,6 +234,87 @@ class AurumWorkspace:
             "changes": changes,
         }
 
+    def _repair_broken_origin_tracking_ref(self, *, local_head: str) -> dict[str, Any] | None:
+        """Remove only an unusable origin ref so fetch can recreate it.
+
+        Remote-tracking refs contain no local work.  The checked-out branch,
+        index, worktree, stash, and LKG remain untouched.  Valid tracking refs
+        are never changed, and packed or symbolic refs fail closed.
+        """
+        reference = f"refs/remotes/origin/{self.branch}"
+        reference_path = (
+            self.workspace
+            / ".git"
+            / "refs"
+            / "remotes"
+            / "origin"
+            / Path(*self.branch.split("/"))
+        )
+        if reference_path.is_symlink():
+            raise WorkspaceError("refusing to repair a symbolic origin tracking reference")
+        storage = "loose" if reference_path.exists() else "packed"
+        raw = b""
+        object_id = ""
+        if storage == "loose":
+            if not reference_path.is_file():
+                raise WorkspaceError("origin tracking reference is not a regular file")
+            raw = reference_path.read_bytes()
+            if len(raw) > 128:
+                raise WorkspaceError("origin tracking reference is unexpectedly large")
+            try:
+                object_id = raw.decode("ascii").strip()
+            except UnicodeDecodeError:
+                object_id = ""
+        else:
+            resolved_ref = self._git("rev-parse", "--verify", reference, check=False)
+            object_id = resolved_ref.stdout.strip()
+        valid_object_id = re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", object_id)
+        if storage == "packed" and not valid_object_id:
+            return None
+        reason = "invalid-object-id"
+        if valid_object_id:
+            resolved = self._git("cat-file", "-e", f"{object_id}^{{commit}}", check=False)
+            if resolved.returncode == 0:
+                return None
+            reason = "missing-object"
+
+        receipt = {
+            "schema": "aurum-remote-tracking-ref-repair-v1",
+            "status": "preserved-before-repair",
+            "at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+            "repository": self.repository,
+            "branch": self.branch,
+            "reference": reference,
+            "storage": storage,
+            "reason": reason,
+            "broken_ref_sha256": hashlib.sha256(raw).hexdigest() if raw else None,
+            "broken_ref_bytes": len(raw) if raw else None,
+            "previous_object": object_id if valid_object_id else None,
+            "local_head": local_head,
+            "local_branch_preserved": True,
+            "worktree_preserved": True,
+        }
+        receipt_path = self.state_dir / "last-remote-tracking-ref-repair.json"
+        _atomic_json(receipt_path, receipt)
+        delete_arguments = ["update-ref", "-d", reference]
+        if valid_object_id:
+            delete_arguments.append(object_id)
+        deleted = self._git(*delete_arguments, check=False)
+        if reference_path.exists():
+            if storage != "loose":
+                raise WorkspaceError("refusing a direct edit of the packed origin reference table")
+            if reference_path.is_symlink() or not reference_path.is_file():
+                raise WorkspaceError("origin tracking reference changed type during repair")
+            if reference_path.read_bytes() != raw:
+                raise WorkspaceError("origin tracking reference changed during repair")
+            reference_path.unlink()
+        elif deleted.returncode != 0 and storage == "packed":
+            raise WorkspaceError("Git could not safely delete the broken packed origin reference")
+        receipt["status"] = "removed-broken-remote-tracking-ref"
+        receipt["removed"] = True
+        _atomic_json(receipt_path, receipt)
+        return receipt
+
     def git_sync(self, *, authorize_network: bool) -> dict[str, Any]:
         if not authorize_network:
             raise WorkspaceError("Git network access requires the exact authorize-network token")
@@ -278,9 +360,14 @@ class AurumWorkspace:
                     "reapplied": False,
                 },
             )
+        remote_ref_repair = self._repair_broken_origin_tracking_ref(local_head=head)
         self._git("fetch", "--prune", "origin", self.branch)
         self._git("merge", "--ff-only", "FETCH_HEAD")
         result = {"status": "fast-forwarded", **self.git_status()}
+        if remote_ref_repair is not None:
+            remote_ref_repair = {**remote_ref_repair, "status": "recreated-from-origin"}
+            _atomic_json(self.state_dir / "last-remote-tracking-ref-repair.json", remote_ref_repair)
+            result["remote_ref_repair"] = remote_ref_repair
         if checkpoint is not None:
             result.update(
                 {
