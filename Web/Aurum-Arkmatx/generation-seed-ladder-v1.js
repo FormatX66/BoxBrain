@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_36_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_37_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: active-trunk, virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
@@ -14,6 +14,9 @@ const CURRENT_VHL_RUN='33842112609';
 const CURRENT_NATIVE_RUN='33829617010';
 const CURRENT_HOPPER_STATUS_RUN='33837892970';
 const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='a4674a918dbe74017778da39e2c88ad73d1f553c';
+const HOPPER_WIFI_RECOVERY_PR='214';
+const HOPPER_WIFI_RECOVERY_COMMIT='11253220296fbc1013fb5b512cabeb7101f0c583';
+const HOPPER_WIFI_RECOVERY_VHL_RUN='33900381917';
 const FARMER_CONTINUOUS_EXPLORER_COMMIT='fb3c7f375d200bd8682266c1ab16262cacf7ab6e';
 const FARMER_RUNTIME_PROOF_COMMIT='73b4f1d02fc01245a2dc84fb2440e6e4d2ea246d';
 const WORKLOAD_OBSERVER_SOURCE_COMMIT='6c7b0ca8bc7ae011bde7943b114ea58d8e743380';
@@ -27,15 +30,15 @@ const VOICE_MIRROR_RUN='33834801810';
 const VOICE_MIRROR_RECEIPT_COMMIT='d4b80d95f834bc8c56e0cedad18c77bac25f3402';
 const QUANTUM_EVIDENCE_COMMIT='3606746cf11be4663f8d5873dcdda9a7c227a87b';
 const QUANTUM_RUN='33837282240';
-const url=(kind,id)=>kind==='run'?`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`:`https://github.com/FormatX66/BoxBrain/commit/${id}`;
+const url=(kind,id)=>kind==='run'?`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`:kind==='pr'?`https://github.com/FormatX66/BoxBrain/pull/${id}`:`https://github.com/FormatX66/BoxBrain/commit/${id}`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noopener">${esc(label)}</a>`;
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.36',
+  componentRevision:'1.37',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-offline-gui-green-exact-head-vhl-three-of-four-native-contract-failed-hopper-endpoint-null-farmer-resident-explorer-workload-observer-read-only-runtime-green-voice-static-mirror-green-quantum-top5-route-held-at-physical-boundary',
+  evidenceClass:'active-trunk-offline-gui-green-exact-head-vhl-three-of-four-native-contract-failed-hopper-endpoint-null-hopper-wifi-recovery-pre-promotion-three-of-four-farmer-resident-explorer-workload-observer-read-only-runtime-green-voice-static-mirror-green-quantum-top5-route-held-at-physical-boundary',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
   currentPcImageRunPassed:true,
@@ -59,6 +62,28 @@ const state={
   hopperStatusCurrentReachable:false,
   hopperStatusEquivalentNullSnapshotsAreEvidenceHealth:true,
   hopperStatusNoChurnUntilMaterialChange:true,
+  hopperWifiRecoveryPr:HOPPER_WIFI_RECOVERY_PR,
+  hopperWifiRecoveryCommit:HOPPER_WIFI_RECOVERY_COMMIT,
+  hopperWifiRecoveryBaseCommit:ACTIVE_TRUNK_COMMIT,
+  hopperWifiRecoveryVhlRunId:HOPPER_WIFI_RECOVERY_VHL_RUN,
+  hopperWifiRecoveryCandidateOpen:true,
+  hopperWifiRecoveryPrePromotion:true,
+  hopperWifiRecoveryLocalVerificationReportedGreen:true,
+  hopperWifiRecoverySerializedConnectionOwnership:true,
+  hopperWifiRecoverySavedProfileHeldUntilVerified:true,
+  hopperWifiRecoveryIndependentServiceSupervision:true,
+  hopperWifiRecoveryGuiSingleFlight:true,
+  hopperWifiRecoveryWirelessSpecificProofRequired:true,
+  hopperWifiRecoveryEthernetCountsAsWirelessProof:false,
+  hopperWifiRecoveryVhlDockerX86Passed:true,
+  hopperWifiRecoveryVhlArm64Passed:true,
+  hopperWifiRecoveryVhlPi3Passed:true,
+  hopperWifiRecoveryVhlUefiImageBuilt:true,
+  hopperWifiRecoveryVhlUefiBootPassed:false,
+  hopperWifiRecoveryVhlFailureStep:'Boot PC image in QEMU UEFI',
+  hopperWifiRecoveryPhysicalWifiProven:false,
+  hopperWifiRecoveryObservedRebootPersistenceProven:false,
+  hopperWifiRecoverySeedPromotionProven:false,
   farmerContinuousExplorerCommit:FARMER_CONTINUOUS_EXPLORER_COMMIT,
   farmerRuntimeProofCommit:FARMER_RUNTIME_PROOF_COMMIT,
   farmerContinuousExplorationVerified:true,
@@ -166,7 +191,7 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.36 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.37 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
@@ -186,6 +211,7 @@ panel.innerHTML=`
 <li><strong>Repair the exact-head QEMU UEFI boot path while preserving the three green targets.</strong> Run <code>33842112609</code> proves the UEFI image build itself succeeds and isolates the failure to <code>Boot PC image in QEMU UEFI</code>. Change implementation, harness state, or the evidence hypothesis before another VHL retry; do not replay the unchanged failed head merely to show activity. Four-target convergence remains unproven until one same-commit run passes all four targets.</li>
 <li>The current native lane remains failed at <code>Verify native self-build contracts</code>. Diagnose or change the GUI live-trial contract/evidence before retrying that unchanged failure.</li>
 <li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; change the dashboard only when endpoint/probe meaning changes.</li>
+<li><strong>Hopper Wi-Fi ownership/recovery is now a real pre-promotion workstream.</strong> ${link('PR #214','pr',HOPPER_WIFI_RECOVERY_PR)} at candidate ${link('11253220296f','commit',HOPPER_WIFI_RECOVERY_COMMIT)} is based on the active trunk and serializes native setup, HTML, console, and boot connection ownership; retains the saved profile until exact wireless verification; supervises Wi-Fi independently of the requesting GUI/console lifetime; keeps GUI requests single-flight; and rejects Ethernet or link-local state as Wi-Fi proof. Its reported local suites are green, and ${link('exact-head VHL 33900381917','run',HOPPER_WIFI_RECOVERY_VHL_RUN)} independently has Docker x86_64, ARM64, and Pi3 green while the UEFI image builds and still fails specifically at <code>Boot PC image in QEMU UEFI</code>. The PR remains pre-promotion: physical Wi-Fi, observed reboot persistence, and seed promotion are unproven. Keep it in Needs Work until promotion and required physical/reboot receipts advance it; do not ask for extra human Wi-Fi manipulation from candidate evidence alone.</li>
 <li>Future Branch must keep the quantum-selected path held until real physical boot evidence arrives. Do not convert provider success, build readiness, a flash/readback receipt, or a model probability into physical acceptance.</li>
 <li>Guardian forced-rollback proof, physical Hopper boot/install acceptance, and broader Future Branch physical/VM execution authority remain unproven.</li>
 </ul>
@@ -199,7 +225,7 @@ panel.innerHTML=`
 <li>Stop when the Tiny Seed ready/GUI boot state is visible and capture the formal ready/boot proof. Do not treat the existing flash/readback receipt as physical boot proof.</li>
 </ol>
 </div>
-<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, VHL/native evidence, endpoint/probe meaning, Farmer/workload-observer/voice/quantum evidence, or a genuine human-only boundary.</p>
+<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, VHL/native evidence, endpoint/probe meaning, Hopper Wi-Fi recovery candidate/promotion evidence, Farmer/workload-observer/voice/quantum evidence, or a genuine human-only boundary.</p>
 `;
 const existing=document.getElementById(panel.id);
 if(existing)existing.replaceWith(panel);
