@@ -83,7 +83,7 @@ start_live_qemu() {
 start_installed_qemu() {
   installed_start_line=$(( $(wc -l < "$LOG") + 1 ))
   printf '\n===== AURUM INSTALLED DISK BOOT =====\n' >> "$LOG"
-  timeout 900s qemu-system-x86_64 \
+  timeout 1200s qemu-system-x86_64 \
     -machine "q35,accel=$QEMU_ACCEL" \
     -cpu qemu64 \
     -m 1024 \
@@ -95,7 +95,6 @@ start_installed_qemu() {
     -display none \
     -serial stdio \
     -monitor none \
-    -no-reboot \
     <&3 >> "$LOG" 2>&1 &
   qemu_pid=$!
 }
@@ -105,6 +104,21 @@ wait_for_marker() {
   attempts=$2
   for _ in $(seq 1 "$attempts"); do
     if grep -Fq "$marker" "$LOG"; then
+      return 0
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_installed_ready() {
+  # Neither the live boot nor the preceding installed boot may satisfy this.
+  for _ in $(seq 1 180); do
+    if tail -n +"$installed_start_line" "$LOG" |
+        grep -E '^AURUM_PC_READY version=0\.01 arch=x86_64 .*mode=installed selftest=ok' >/dev/null; then
       return 0
     fi
     if ! kill -0 "$qemu_pid" 2>/dev/null; then
@@ -217,9 +231,7 @@ printf 'poweroff\n' >&3
 finish_qemu
 
 start_installed_qemu
-if ! wait_for_marker 'mode=installed' 180 || \
-   ! grep -Fq 'AURUM_PC_READY version=0.01 arch=x86_64' "$LOG" || \
-   ! grep -Fq 'selftest=ok' "$LOG"; then
+if ! wait_for_installed_ready; then
   cat "$LOG"
   echo "The installed Aurum disk did not reach its $QEMU_FIRMWARE runtime-ready marker." >&2
   exit 1
@@ -239,6 +251,18 @@ if [ "$SKIP_SELF_BUILD" = 0 ]; then
     exit 1
   fi
 fi
+
+# Exercise the guest's real reboot in the same VM, not a new power-on. Keep
+# networking absent and discard all previous boot markers from acceptance.
+installed_start_line=$(( $(wc -l < "$LOG") + 1 ))
+printf '\n===== AURUM INSTALLED GUEST REBOOT =====\n' >> "$LOG"
+printf 'reboot\n' >&3
+if ! wait_for_installed_ready || ! wait_for_primary_gui; then
+  cat "$LOG"
+  echo 'Installed Aurum did not regain its primary GUI after an offline reboot.' >&2
+  exit 1
+fi
+echo 'AURUM_VIRTUAL_PC_INSTALLED_REBOOT_GUI_OK network=offline' >> "$LOG"
 
 printf 'poweroff\n' >&3
 finish_qemu

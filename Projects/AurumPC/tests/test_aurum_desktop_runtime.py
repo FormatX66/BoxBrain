@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -19,6 +20,42 @@ HopperDesktopRuntime = runtime_module.HopperDesktopRuntime
 
 
 class HopperDesktopRuntimeTests(unittest.TestCase):
+    def test_current_desktop_receipt_is_recognized_only_with_owned_process(self) -> None:
+        desktop_source = MODULE_PATH.with_name("aurum_desktop.py")
+        declarations = ast.parse(desktop_source.read_text(encoding="utf-8")).body
+        current_schema = next(
+            ast.literal_eval(node.value)
+            for node in declarations
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "SCHEMA" for target in node.targets)
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = HopperDesktopRuntime(
+                policy_path=root / "policy.json",
+                receipt_path=root / "installed.json",
+                state_dir=root,
+                run_dir=root,
+                desktop=desktop_source,
+            )
+            for schema, owned, expected in (
+                (current_schema, True, "running"),
+                ("aurum.desktop.v1", True, "running"),
+                (current_schema, False, "stopped"),
+                ("unrecognized-desktop", True, "stopped"),
+            ):
+                with self.subTest(schema=schema, owned=owned):
+                    runtime.desktop_receipt.write_text(
+                        json.dumps({"schema": schema, "status": "running", "pid": 123}),
+                        encoding="utf-8",
+                    )
+                    with (
+                        patch.object(runtime, "authorization", return_value=(True, "test")),
+                        patch.object(runtime, "_pid", return_value=123),
+                        patch.object(runtime, "_owned", return_value=owned),
+                    ):
+                        self.assertEqual(runtime.status()["status"], expected)
+
     def test_generic_installed_aurum_pc_is_authorized_by_exact_receipt(self) -> None:
         authorized, reason = runtime_module._authorized(
             {

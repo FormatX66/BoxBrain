@@ -166,7 +166,11 @@ class HopperDesktopRuntime:
         pid = self._pid()
         owned = bool(pid and self._owned(pid))
         receipt = _json_file(self.desktop_receipt)
-        running = bool(owned and receipt.get("status") == "running" and receipt.get("schema") == "aurum.desktop.v1")
+        recognized_schema = receipt.get("schema") in {
+            "aurum.desktop.v1",
+            "aurum.desktop.gen1-polished-physical-surface",
+        }
+        running = bool(owned and receipt.get("status") == "running" and recognized_schema)
         state = _json_file(self.state_path)
         return {
             "schema": SCHEMA,
