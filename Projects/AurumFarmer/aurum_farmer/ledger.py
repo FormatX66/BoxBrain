@@ -13,6 +13,8 @@ from dataclasses import asdict
 from contextlib import closing
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+from .decision_engine import DecisionEngine, digest, score
+from .verification import verify_result
 
 from .models import (
     BranchSpec,
@@ -63,6 +65,8 @@ class Ledger:
         self.signing_key_path = Path(signing_key_path).expanduser().resolve() if signing_key_path else self.path.with_suffix(".key")
         self._signing_key = self._load_or_create_signing_key()
         self._initialize()
+        self.decision_engine = DecisionEngine()
+        self.verification_gh = "gh"
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
@@ -79,7 +83,7 @@ class Ledger:
                 raise LedgerError("Farmer signing key is invalid")
             return raw
         raw = secrets.token_bytes(32)
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
         descriptor = os.open(self.signing_key_path, flags, 0o600)
         try:
             os.write(descriptor, raw)
@@ -220,6 +224,31 @@ class Ledger:
         """
         with closing(self._connect()) as connection:
             connection.executescript(schema)
+            # Additive migration: old runtime/LKG/evidence tables remain readable
+            # by the previous release, so release rollback does not downgrade data.
+            columns = {r[1] for r in connection.execute("PRAGMA table_info(branches)")}
+            if "decision_json" not in columns:
+                connection.execute("ALTER TABLE branches ADD COLUMN decision_json TEXT NOT NULL DEFAULT '{}'")
+            connection.executescript('''
+                CREATE TABLE IF NOT EXISTS future_decisions (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT NULL,
+                    state_id TEXT NOT NULL, report_hash TEXT NOT NULL, report_json TEXT NOT NULL,
+                    signature TEXT NOT NULL,
+                    UNIQUE(job_id, report_hash));
+                CREATE INDEX IF NOT EXISTS future_state ON future_decisions(job_id, state_id);
+                CREATE TABLE IF NOT EXISTS future_outcomes (
+                    attempt_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, branch_id TEXT NOT NULL,
+                    probability REAL NOT NULL, outcome TEXT NOT NULL, verified INTEGER NOT NULL,
+                    brier REAL, decision_state TEXT);
+                CREATE TRIGGER IF NOT EXISTS future_decisions_no_update BEFORE UPDATE ON future_decisions
+                    BEGIN SELECT RAISE(ABORT, 'decisions are append-only'); END;
+                CREATE TRIGGER IF NOT EXISTS future_decisions_no_delete BEFORE DELETE ON future_decisions
+                    BEGIN SELECT RAISE(ABORT, 'decisions are append-only'); END;
+                CREATE TRIGGER IF NOT EXISTS future_outcomes_no_update BEFORE UPDATE ON future_outcomes
+                    BEGIN SELECT RAISE(ABORT, 'outcomes are append-only'); END;
+                CREATE TRIGGER IF NOT EXISTS future_outcomes_no_delete BEFORE DELETE ON future_outcomes
+                    BEGIN SELECT RAISE(ABORT, 'outcomes are append-only'); END;
+            ''')
             current = connection.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()
             if current is None:
                 connection.execute(
@@ -401,6 +430,8 @@ class Ledger:
                     "candidate_recorded",
                     {"executor": branch.executor, "label": branch.label},
                 )
+                connection.execute("UPDATE branches SET decision_json=? WHERE id=?",
+                                   (_json(branch.decision), branch_id))
             self._transition(connection, job_id, JobState.PLANNED, reason="Future Branch field persisted")
             self._transition(connection, job_id, JobState.READY, reason="eligible for supervisor scheduling")
             connection.commit()
@@ -418,16 +449,77 @@ class Ledger:
             return float("-inf")
         if branch.get("human_boundary_json"):
             return float("-inf")
-        utility = (
-            0.24 * float(branch["confidence"])
-            + 0.18 * float(branch["impact"])
-            + 0.18 * float(branch["evidence_quality"])
-            + 0.14 * float(branch["reversibility"])
-            + 0.16 * (float(branch["priority"]) / 100.0)
-            + 0.10
-        )
-        penalty = 0.30 * float(branch["risk"]) + 0.10 * min(float(branch["cost"]), 1.0)
-        return utility - penalty
+        return score(DecisionEngine.normalize(branch))
+
+    def _future_input(self, connection, job, branches):
+        scopes = {b["lkg_scope"] for b in branches if b["lkg_scope"]}
+        lkg = {}
+        for scope in scopes:
+            row = connection.execute("SELECT artifact_ref, receipt_evidence_id FROM last_known_good WHERE scope=?",
+                                     (scope,)).fetchone()
+            if row:
+                lkg[scope] = dict(row)
+        evidence = [r[0] for r in connection.execute(
+            "SELECT payload_sha256 FROM evidence WHERE job_id=? ORDER BY id", (job["id"],))]
+        snapshot = {"job_id": job["id"], "context_digest": digest(job["context_json"]),
+                    "evidence": evidence, "lkg": lkg}
+        return snapshot, [dict(b) for b in branches]
+
+    def _record_decision(self, connection, job_id, report):
+        inserted = connection.execute(
+            "INSERT OR IGNORE INTO future_decisions(job_id,state_id,report_hash,report_json,signature) VALUES(?,?,?,?,?)",
+            (job_id, report["state_id"], digest(report), _json(report), self._sign(digest(report)))).rowcount
+        if inserted:
+            self._append_event(connection, "future_branch", job_id, "decision",
+                               {"state_id": report["state_id"], "report_sha256": digest(report),
+                                "selected": report["selected"], "nodes": len(report["nodes"]),
+                                "probe_units": report["probe_units"]})
+
+    def _prior_future(self, connection, job_id):
+        row = connection.execute("SELECT * FROM future_decisions WHERE job_id=? ORDER BY sequence DESC LIMIT 1",
+                                 (job_id,)).fetchone()
+        if not row:
+            return None
+        report = _loads(row["report_json"])
+        if digest(report) != row["report_hash"] or not hmac.compare_digest(self._sign(row["report_hash"]), row["signature"]):
+            raise LedgerError("cached Future Branch decision seal failed: " +
+                              ("content" if digest(report) != row["report_hash"] else "signature"))
+        return report
+
+    def _decide(self, connection, job, branches):
+        snapshot, proposals = self._future_input(connection, job, branches)
+        report = self.decision_engine.evaluate(snapshot, proposals, prior=self._prior_future(connection, job["id"]))
+        self._record_decision(connection, job["id"], report)
+        return report
+
+    def explore(self):
+        """Deepen active jobs outside the execution transaction; never dispatch."""
+        with closing(self._connect()) as connection:
+            jobs = connection.execute("SELECT * FROM jobs WHERE state NOT IN ('SUCCEEDED','FAILED_FINAL','CANCELLED') ORDER BY created_at LIMIT 256").fetchall()
+        for job in jobs:
+            with closing(self._connect()) as connection:
+                branches = connection.execute("SELECT * FROM branches WHERE job_id=?", (job["id"],)).fetchall()
+                snapshot, proposals = self._future_input(connection, job, branches)
+                prior = self._prior_future(connection, job["id"])
+            report = self.decision_engine.evaluate(snapshot, proposals, deepen=True, prior=prior)
+            with closing(self._connect()) as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                self._record_decision(connection, job["id"], report)
+                connection.commit()
+        return len(jobs)
+
+    def future_status(self, job_id=None):
+        with closing(self._connect()) as connection:
+            row = connection.execute("SELECT COUNT(*), AVG(brier) FROM future_outcomes WHERE brier IS NOT NULL").fetchone()
+            counts = connection.execute("SELECT COUNT(*) FROM future_decisions").fetchone()[0]
+            result = {"schema": "aurum.future-branch.telemetry.v1", "decisions": counts,
+                      "engine": "aurum.future-branch.decision.v1", "default_on": True,
+                      "implementation_sha256": self.decision_engine.implementation,
+                      "available_tiers": ["static", *self.decision_engine.probes],
+                      "calibrated_outcomes": row[0], "mean_brier_score": row[1]}
+            if job_id:
+                result["latest"] = self._prior_future(connection, job_id)
+            return result
 
     def _activate_due(self, connection: sqlite3.Connection, now: float) -> None:
         rows = connection.execute(
@@ -451,6 +543,8 @@ class Ledger:
                 (JobState.READY.value,),
             ).fetchall()
             for job in jobs:
+                all_branches = connection.execute("SELECT * FROM branches WHERE job_id=?", (job["id"],)).fetchall()
+                decision = self._decide(connection, job, all_branches)
                 candidates = connection.execute(
                     """SELECT * FROM branches
                        WHERE job_id=? AND state IN (?, ?, ?)
@@ -470,6 +564,7 @@ class Ledger:
                     if item["authority_ready"]
                     and item["dependencies_satisfied"]
                     and item["human_boundary_json"] is None
+                    and item["logical_id"] == decision["selected"]
                 ]
                 if not eligible:
                     boundary = next((item for item in candidates if item["human_boundary_json"]), None)
@@ -543,6 +638,7 @@ class Ledger:
                         "attempt_number": attempt_number,
                         "owner": owner,
                         "score": self.branch_score(selected),
+                        "decision_state": decision["state_id"],
                     },
                 )
                 connection.commit()
@@ -673,6 +769,7 @@ class Ledger:
     def finish_attempt(self, attempt_id: str, owner: str, result: ExecutionResult) -> dict[str, Any]:
         """Persist an executor result, seal its receipt, verify, and transition."""
         result.validate()
+        result = verify_result(self.attempt_context(attempt_id), result, gh_executable=self.verification_gh)
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -841,6 +938,18 @@ class Ledger:
                 "finished",
                 {"outcome": result.outcome.value, "receipt": receipt_id, "summary": result.summary},
             )
+            verified = connection.execute("SELECT state FROM attempts WHERE id=?", (attempt_id,)).fetchone()[0] == "VERIFIED"
+            resolved = verified or result.outcome in {Outcome.FAILED, Outcome.REFUSED}
+            prediction = connection.execute("SELECT payload_json FROM events WHERE entity_id=? AND event_type='started'",
+                                            (attempt_id,)).fetchone()
+            calibration = {"attempt_id": attempt_id, "branch_id": branch["logical_id"],
+                           "probability": branch["confidence"], "outcome": result.outcome.value,
+                           "verified": verified, "brier": (branch["confidence"] - int(verified)) ** 2 if resolved else None,
+                           "decision_state": _loads(prediction[0], {}).get("decision_state") if prediction else None}
+            connection.execute("INSERT INTO future_outcomes VALUES(?,?,?,?,?,?,?,?)",
+                               (attempt_id, job["id"], branch["logical_id"], branch["confidence"],
+                                result.outcome.value, int(verified), calibration["brier"], calibration["decision_state"]))
+            self._append_event(connection, "future_branch", job["id"], "prediction_outcome", calibration)
             connection.commit()
             return self.get_job(job["id"])
         except Exception:
@@ -1117,6 +1226,7 @@ class Ledger:
                 branch["payload"] = _loads(branch.pop("payload_json"), {})
                 branch["expected_evidence"] = _loads(branch.pop("expected_evidence_json"), [])
                 branch["human_boundary"] = _loads(branch.pop("human_boundary_json"), None)
+                branch["decision"] = _loads(branch.pop("decision_json"), {})
                 branch["score"] = self.branch_score(branch)
                 value["branches"].append(branch)
             value["attempts"] = [
@@ -1174,6 +1284,7 @@ class Ledger:
                 "states": states,
                 "running_attempts": running,
                 "event_chain_valid": self.verify_event_chain(),
+                "future_branch": self.future_status(),
             }
 
     def verify_event_chain(self) -> bool:

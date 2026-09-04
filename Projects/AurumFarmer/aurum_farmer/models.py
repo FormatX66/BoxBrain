@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import math
 from typing import Any, Iterable, Mapping
 
 
@@ -180,6 +181,7 @@ class BranchSpec:
     human_boundary: HumanBoundary | None = None
     max_attempts: int = 3
     lkg_scope: str | None = None
+    decision: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "BranchSpec":
@@ -204,6 +206,7 @@ class BranchSpec:
             human_boundary=HumanBoundary.from_value(value.get("human_boundary")),
             max_attempts=int(value.get("max_attempts", 3)),
             lkg_scope=value.get("lkg_scope"),
+            decision=dict(value.get("decision", {})),
         )
 
     def validate(self) -> None:
@@ -224,8 +227,19 @@ class BranchSpec:
         ):
             if not 0 <= item <= 1:
                 raise ValueError(f"{name} must be from 0 to 1")
-        if self.cost < 0:
+        if not math.isfinite(self.cost) or self.cost < 0:
             raise ValueError("branch cost must be non-negative")
+        allowed = {"parents", "required_tier", "effect", "rollback_ref", "expires_at",
+                   "uncertainty", "irreversible_cost", "impossible", "implementation_ref"}
+        if set(self.decision) - allowed:
+            raise ValueError("unknown decision fields; proposals cannot override authority or evidence")
+        for key in ("uncertainty", "irreversible_cost"):
+            if not 0 <= float(self.decision.get(key, 0)) <= 1:
+                raise ValueError(f"{key} must be from 0 to 1")
+        if self.decision.get("effect", "read_only") not in {"read_only", "reversible", "protected"}:
+            raise ValueError("invalid effect")
+        if not isinstance(self.decision.get("parents", []), list):
+            raise ValueError("parents must be a list")
         if self.max_attempts < 1 or self.max_attempts > 20:
             raise ValueError("max_attempts must be from 1 to 20")
         for requirement in self.expected_evidence:
@@ -261,8 +275,8 @@ class JobSpec:
             raise ValueError("job priority must be from 0 to 100")
         if not self.branches:
             raise ValueError("at least one Future Branch is required")
-        if len(self.branches) > 32:
-            raise ValueError("a job may contain at most 32 branches")
+        if len(self.branches) > 128:
+            raise ValueError("a job may contain at most 128 action branches")
         ids = set()
         for branch in self.branches:
             branch.validate()

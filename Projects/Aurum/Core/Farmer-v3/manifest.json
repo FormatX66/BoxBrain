@@ -1,8 +1,11 @@
 {
   "schema": "aurum.farmer.package.v3.2",
-  "version": "3.2",
+  "version": "3.3",
   "continuation": "event_driven_no_polling",
-  "terminal_states": ["verified_completion", "proven_human_only_blocker"],
+  "terminal_states": [
+    "verified_completion",
+    "proven_human_only_blocker"
+  ],
   "completion_criteria": [
     "no_further_human_input",
     "no_known_bugs_or_glitches",
@@ -11,7 +14,7 @@
     "verification_passed"
   ],
   "host_core": {
-    "tests": "10/10 passed",
+    "tests": "12 tests; see exact-source CI evidence",
     "path": "/Aurum/Core/Farmer-v3"
   },
   "github_integration": {
@@ -28,7 +31,10 @@
     "tests": "5/5 passed plus syntax validation",
     "target_repository": "FormatX66/Chat-to-Git-Pipeline",
     "event_type": "aurum_farmer_event",
-    "input_surface": ["objective_id", "objective"],
+    "input_surface": [
+      "objective_id",
+      "objective"
+    ],
     "purpose": "Give ChatGPT a bounded first-class actuator instead of queue/timer/user relay."
   },
   "live_acceptance_required": [
@@ -38,5 +44,12 @@
     "observe Farmer controller continue through executor/verifier receipts",
     "prove live host service and crash-resume behavior",
     "independent completion audit returns verified_completion"
-  ]
+  ],
+  "decision_engine": {
+    "schema": "aurum.future-branch.decision.v1",
+    "canonical_source": "Projects/AurumFarmer/aurum_farmer/decision_engine.py",
+    "installed_module": "decision_engine.py",
+    "all_bounded_dispatches": true,
+    "physical_acceptance_inferred": false
+  }
 }

@@ -16,6 +16,8 @@ from .executors import build_default_registry
 from .ledger import Ledger
 from .models import BranchSpec, EvidenceRequirement, JobSpec
 from .supervisor import Supervisor
+from .decision_engine import Budget, DecisionEngine
+from .verification import command_probes
 
 
 def _runtime(config_path: str | None) -> tuple[dict[str, Any], Ledger]:
@@ -120,6 +122,8 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="read durable status")
     status.add_argument("--job")
     status.add_argument("--limit", type=int, default=100)
+    future = subparsers.add_parser("futures", help="read measured branch DAG and calibration telemetry")
+    future.add_argument("--job")
 
     receipts = subparsers.add_parser("receipts", help="export sealed receipts for one job")
     receipts.add_argument("--job", required=True)
@@ -149,6 +153,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     config, ledger = _runtime(args.config)
+    ledger.verification_gh = config.get("executors", {}).get("gh_executable", "gh")
+    future_config = config.get("future_branch", {})
+    ledger.decision_engine = DecisionEngine(budget=Budget(**future_config.get("budget", {})),
+                                            probes=command_probes(future_config))
+    if args.command == "futures":
+        _print(ledger.future_status(args.job))
+        return 0
     if args.command == "submit":
         job_id, created = ledger.submit(JobSpec.from_dict(_load_json(args.file)))
         _print({"job_id": job_id, "created": created})

@@ -141,6 +141,11 @@ jobs:
           if (-not $health -or $health.status -ne 'healthy' -or $health.event_chain_valid -ne $true) {
             throw 'AURUM_FARMER_DEPLOY_FAILED reason=post-restart-health'
           }
+          if ($health.future_branch.engine -ne 'aurum.future-branch.decision.v1' -or
+              $health.future_branch.default_on -ne $true -or
+              $health.future_branch.calibrated_outcomes -lt 1) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=future-branch-live-calibration'
+          }
 
           $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
           if ([string]$task.State -ne 'Running') { throw "AURUM_FARMER_DEPLOY_FAILED reason=final-task-state state=$($task.State)" }
@@ -161,6 +166,7 @@ jobs:
             initial_health_verified = [bool]$install.health_verified
             post_restart_health_verified = $true
             event_chain_valid = [bool]$health.event_chain_valid
+            future_branch = $health.future_branch
             queued_while_supervisor_stopped = $true
             supervisor_lease_seconds = $leaseSeconds
             restart_proof_window_seconds = $restartProofSeconds

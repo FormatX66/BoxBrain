@@ -4,6 +4,74 @@ Farmer turns an Aurum/BoxBrain request into one durable job and keeps advancing
 it after a chat response, app session, runner process, or supervisor process
 ends. The ledger, not conversation memory, is authoritative.
 
+## Future Branch Decision Engine v1
+
+Every ledger claim now passes the decision engine, including direct callers.
+The supervisor explores active jobs while the selected executor runs. The
+event-driven Farmer-v3 worker imports the same engine at its common dispatch
+boundary and prepares pending Slush/Hive ingress concurrently.
+
+The engine captures semantic inputs and evidence hashes, generates a bounded DAG
+of candidate actions, success/degraded/failure/timeout/no-change/unexpected
+outcomes, verification/recovery successors, a hold control, and protected LKG.
+It prunes invalid dependencies/cycles, unavailable authority, expired, duplicate,
+quarantined, unsafe, and nonpositive-value candidates. Submitted actions remain
+the executable vocabulary; generated outcome nodes never acquire authority.
+
+Scoring is `probability * expected benefit * measured evidence quality - failure
+risk - irreversible cost - uncertainty`. Proposer-supplied evidence quality does
+not establish verification. Near ties wait. Static, unit, VM, hardware-model,
+and canary tiers must pass in order; unavailable tiers remain pending. Trusted
+probes run in parallel on isolated resources and serially on exclusive resources.
+Successive halving and per-cycle budgets allocate stronger candidates more work.
+
+`decision` on a branch accepts `parents`, `required_tier`, `effect`,
+`rollback_ref`, `expires_at`, `uncertainty`, `irreversible_cost`, `impossible`,
+and `implementation_ref`. A declared state-changing effect requires an existing
+LKG, rollback reference, at least unit verification, and a trusted probe receipt
+confirming rollback verification. Risk above 0.35, reversibility below 0.9, or
+any irreversible cost prevents automatic promotion. Existing authorization,
+executor allowlists, device identity, seed, and Guardian gates still apply.
+
+The runtime's restricted `future_branch` configuration owns resource budgets and
+trusted probes. Jobs cannot supply probe commands or verifier identities. Probe
+configuration accepts `tier`, `identity`, absolute-executable `argv`,
+`timeout_seconds` (at most 60), and `resource` (`isolated` or an exclusive device
+name). Probes receive a state/action digest on stdin in a disposable directory,
+without ambient credentials or action payloads. They return JSON containing
+`passed`, the same `input_digest`, and (for mutations) `rollback_verified`.
+Probe receipts are retained by hash; adapters must retain the underlying evidence.
+An administrator must review probe isolation, command behavior and hardware
+identity/rollback safeguards before registration. A temporary directory alone
+is not a security sandbox.
+
+Default installations supply static verification and independent result checks;
+they do not claim unavailable VM, hardware, or QPU coverage. Noop results are
+recomputed independently and external receipt files are read back independently.
+GitHub and Chat-to-Git results receive a separate readback of the same run/source.
+A local-process LKG promotion requires a `verification_artifact` with a pinned
+`path` and `sha256`; a zero exit code alone cannot promote its output to LKG.
+Other legacy executors retain their evidence contracts and sovereign verification
+paths; a generic signed receipt is not physical or hardware proof.
+
+Read the durable DAG with `aurum-farmer futures --job JOB_ID` or authenticated
+`GET /futures/JOB_ID`. `/health` includes engine identity, available tiers,
+decision count, resolved outcome count and mean Brier score. Predictions are
+recorded before execution and correlated with verified outcomes; waiting is not
+scored as failure. Decision/outcome tables are append-only and hash-linked into
+the existing signed event chain. Semantic state, engine source, or probe revision
+changes invalidate cached verification. Heartbeats alone do not regenerate work.
+
+The database migration is additive. Older releases, LKG, seed pins, sync logic,
+signed evidence, and job retry rules are preserved. The versioned Windows
+deployment verifies default-on decisions and calibration after restart. The
+Farmer-v3 installer stages the canonical engine and includes it in rollback.
+
+Coverage is all operations entering either Farmer runtime (including generic
+GitHub and Chat-to-Git adapters). Direct OS commands and independently deployed
+legacy controllers must enter a Farmer adapter to gain this coverage; installing
+this runtime does not intercept every process on every device.
+
 ## State machine
 
 ```text

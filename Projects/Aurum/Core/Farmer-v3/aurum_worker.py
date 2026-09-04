@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable
 
@@ -25,6 +26,16 @@ ROOT = Path(__file__).resolve().parent
 DB = Path(os.environ.get("AURUM_SLUSH_DB", str(ROOT / "slush.db")))
 WAKE_SOCKET = Path(os.environ.get("AURUM_FARMER_SOCKET", str(DB.parent / "aurum-farmer.sock")))
 DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_WORKSPACE", str(ROOT)))
+
+# Installed workers use the canonical module staged by the installer. Source
+# checkouts import that same module directly, without maintaining a second copy.
+try:
+    from decision_engine import DecisionEngine, digest as decision_digest, score as decision_score
+except ModuleNotFoundError as error:
+    if error.name != "decision_engine":
+        raise
+    sys.path.insert(0, str(ROOT.parents[2] / "AurumFarmer"))
+    from aurum_farmer.decision_engine import DecisionEngine, digest as decision_digest, score as decision_score
 
 HUMAN_ONLY_BLOCKERS = {
     "physical_intervention",
@@ -103,17 +114,10 @@ def score_branch(branch: dict[str, Any]) -> float:
     risk = float(branch.get("risk", 1.0))
     cost = float(branch.get("cost", 1.0))
     impact = float(branch.get("impact", 0.5))
-    return round(
-        confidence * 0.24
-        + evidence * 0.24
-        + reversibility * 0.14
-        + authority * 0.14
-        + freshness * 0.08
-        + impact * 0.12
-        - risk * 0.025
-        - cost * 0.015,
-        4,
-    )
+    return decision_score({"confidence": confidence, "impact": impact,
+                           "evidence_quality": evidence, "risk": risk,
+                           "irreversible_cost": float(branch.get("irreversible_cost", 0)),
+                           "uncertainty": float(branch.get("uncertainty", 0))})
 
 
 def choose_future_work(parameters: dict[str, Any]) -> dict[str, Any]:
@@ -131,6 +135,9 @@ def choose_future_work(parameters: dict[str, Any]) -> dict[str, Any]:
         and branch.get("fresh") is True
         and float(branch.get("evidence_quality", 0.0)) >= 0.5
         and branch.get("reversibility") != "none"
+        and float(branch.get("risk", 1)) <= .35
+        and float(branch.get("irreversible_cost", 0)) == 0
+        and float(branch["score"]) > 0
     ]
     eligible.sort(key=lambda b: (-float(b["score"]), str(b.get("id", ""))))
     threshold = float(parameters.get("ambiguity_threshold", 0.08))
@@ -172,11 +179,17 @@ class FarmerWorker:
             "farmer_plan": self._tool_farmer_plan,
         }
         self._ensure_schema()
+        self.decision_engine = DecisionEngine()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         con = sqlite3.connect(self.db_path, timeout=30)
         con.execute("PRAGMA journal_mode=WAL")
-        return con
+        try:
+            with con:
+                yield con
+        finally:
+            con.close()
 
     def _ensure_schema(self) -> None:
         with self._connect() as con:
@@ -295,7 +308,50 @@ class FarmerWorker:
                 "human_required": False,
                 "blocker": {"kind": "unsupported_bounded_tool", "action": action},
             }
-        return handler(parameters)
+        snapshot = {"workspace": str(self.workspace.resolve()), "input_digest": decision_digest(parameters)}
+        branch = {"id": action, "executor": action, "payload": {"input_digest": snapshot["input_digest"]},
+                  "confidence": .8, "impact": .8, "expected_evidence": [{"kind": "bounded_tool_receipt"}]}
+        decision = self.decision_engine.evaluate(snapshot, [branch])
+        self._emit_event(None, "future_branch_decision", decision)
+        if decision["selected"] is None:
+            return {"status": "machine_blocked", "human_required": False,
+                    "blocker": {"kind": "future_branch_gate", "state_id": decision["state_id"]}}
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="future-branch-explorer") as pool:
+            exploration = pool.submit(self._explore_pending)
+            result = handler(parameters)
+            try:
+                exploration.result()
+            except Exception as error:
+                # An observation/bookkeeping failure cannot reverse a completed
+                # tool effect or cause it to be replayed as an execution failure.
+                result["future_exploration_error"] = type(error).__name__
+        outcome = result.get("status")
+        accepted = outcome in SUCCESS_STATES and result.get("human_required") is False
+        telemetry = {
+            "state_id": decision["state_id"], "branch_id": action, "probability": .8,
+            "outcome": outcome, "result_digest": decision_digest(result),
+            "verification": "bounded_tool_contract", "verifier": "farmer-core-result-verifier-v1",
+            "brier": (.8 - int(accepted)) ** 2 if outcome in SUCCESS_STATES | FAILURE_STATES else None,
+            "lkg_promoted": False}
+        try:
+            self._emit_event(None, "future_branch_outcome", telemetry)
+        except Exception as error:
+            result["future_telemetry_error"] = type(error).__name__
+        return result
+
+    def _explore_pending(self):
+        """Prepare pending ingress while current work executes; never drain it here."""
+        pending = [(str(i), raw) for i, _kind, raw in self._pending_slush()]
+        pending.extend((str(i), raw) for i, raw in self._pending_hive())
+        if not pending:
+            return
+        branches = [{"id": identity, "executor": "ingress_observation",
+                     "payload": {"input_digest": decision_digest(raw)},
+                     "authority_ready": False, "expected_evidence": [{"kind": "ingress_receipt"}]}
+                    for identity, raw in pending[:128]]
+        report = self.decision_engine.evaluate({"pending_ingress": [b["payload"] for b in branches]}, branches,
+                                               deepen=True)
+        self._emit_event(None, "future_branch_pending", report)
 
     def _execute_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         action = str(payload.get("action") or payload.get("tool") or "farmer_plan")
@@ -509,6 +565,8 @@ class FarmerWorker:
                 if item.get("authority") != "authorized" or item.get("fresh") is not True:
                     continue
                 if float(item.get("evidence_quality", 0.0)) < 0.5 or item.get("reversibility") == "none":
+                    continue
+                if float(item.get("risk", 1)) > .35 or float(item.get("irreversible_cost", 0)) > 0 or item["score"] <= 0:
                     continue
                 if not isinstance(item.get("action"), str):
                     continue

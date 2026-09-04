@@ -36,6 +36,17 @@ class Supervisor:
         self.stop_event = threading.Event()
         self.last_error: str | None = None
         self.last_tick_at: float | None = None
+        self.exploration_error: str | None = None
+
+    def _explore_worker(self, stop: threading.Event) -> None:
+        while not stop.is_set():
+            try:
+                self.ledger.explore()
+                self.exploration_error = None
+            except Exception as error:
+                self.exploration_error = type(error).__name__
+            if stop.wait(max(self.poll_seconds, .1)):
+                break
 
     def stop(self) -> None:
         self.stop_event.set()
@@ -44,7 +55,7 @@ class Supervisor:
         interval = max(self.lease_seconds / 3.0, 1.0)
         while not stop.wait(interval):
             self.ledger.supervisor_heartbeat(self.name, self.owner, lease_seconds=self.lease_seconds)
-            if not self.ledger.heartbeat_attempt(attempt_id, self.owner, lease_seconds=self.lease_seconds):
+            if attempt_id and not self.ledger.heartbeat_attempt(attempt_id, self.owner, lease_seconds=self.lease_seconds):
                 return
 
     def tick(self) -> dict[str, Any]:
@@ -53,6 +64,16 @@ class Supervisor:
         if not self.ledger.supervisor_heartbeat(self.name, self.owner, lease_seconds=self.lease_seconds):
             return {"status": "standby", "reason": "another healthy supervisor owns the lease"}
         recovered = self.ledger.recover_stale_attempts()
+        # Deepening runs independently while executors wait on work. The ledger
+        # still performs the synchronous, fail-closed promotion gate for every claim.
+        preparation_stop = threading.Event()
+        preparation_heartbeat = threading.Thread(target=self._heartbeat_worker, args=("", preparation_stop), daemon=True)
+        preparation_heartbeat.start()
+        try:
+            self.ledger.explore()
+        finally:
+            preparation_stop.set()
+            preparation_heartbeat.join()
         context = self.ledger.claim_next(self.owner, lease_seconds=self.lease_seconds)
         if context is None:
             return {"status": "idle", "recovered_jobs": recovered}
@@ -65,6 +86,10 @@ class Supervisor:
             daemon=True,
         )
         heartbeat.start()
+        exploration_stop = threading.Event()
+        exploration = threading.Thread(target=self._explore_worker, args=(exploration_stop,),
+                                       name="future-branch-explorer", daemon=True)
+        exploration.start()
         try:
             try:
                 executor = self.executors.get(context["executor"])
@@ -84,10 +109,12 @@ class Supervisor:
                 "job_id": context["job_id"],
                 "attempt_id": attempt_id,
                 "job_state": job["state"],
-                "outcome": result.outcome.value,
+                "outcome": next(a["outcome"] for a in job["attempts"] if a["id"] == attempt_id),
                 "recovered_jobs": recovered,
             }
         finally:
+            exploration_stop.set()
+            exploration.join()
             heartbeat_stop.set()
             heartbeat.join(timeout=2)
 
