@@ -77,7 +77,8 @@ class AurumNetworkTests(unittest.TestCase):
                     "--write-state",
                     str(receipt),
                 ]),
-                patch.object(network, "network_status", return_value={"online": False}),
+                patch.object(network, "wireless_interfaces", return_value=["wlan-test"]),
+                patch.object(network, "_connection_state", return_value={"online": False}),
                 patch.object(
                     network,
                     "connect_saved",

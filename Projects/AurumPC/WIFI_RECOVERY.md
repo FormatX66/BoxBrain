@@ -17,6 +17,14 @@ startup/shutdown, PID tracking and no automatic restart loop. It does not share
 the GUI or console service lifetime. Boot reconnect remains a bounded request;
 the GUI and local recovery console never wait for internet to render.
 
+Ethernet being online does not skip the saved Wi-Fi boot request. Persistence
+proof uses a wireless-specific association and route snapshot, not the global
+default interface. Legacy generic-online receipts cannot qualify Wi-Fi. After
+the first verified wireless connection, a preserved-profile baseline is recorded
+and another observed boot is required; no first connection is labeled reboot
+proof. Profile loss/change and loss of previously verified wireless access still
+fail closed. Earlier observations remain in the receipt as evidence.
+
 Replacement stops only an exact Aurum-owned process using a kernel PID handle,
 waits for process exit and service PID-file cleanup, and refuses incomplete or
 unknown ownership. A missing PID record requires a unique match across executable,

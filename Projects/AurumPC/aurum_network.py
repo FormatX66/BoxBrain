@@ -686,7 +686,11 @@ def main() -> int:
         result = network_status()
     else:
         timeout_seconds = max(5, min(args.timeout_seconds, 120))
-        current = network_status()
+        interfaces = wireless_interfaces()
+        try:
+            current = _connection_state(interfaces[0]) if interfaces else {"online": False}
+        except (NetworkError, OSError):
+            current = {"online": False}
         result = (
             {"status": "already-online", **current}
             if current.get("online")
