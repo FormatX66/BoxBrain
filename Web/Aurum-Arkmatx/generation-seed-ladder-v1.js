@@ -1,32 +1,29 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_38_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_40_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
- * Evidence boundary: active-trunk, exact-tree virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
+ * Evidence boundary: active-trunk, exact-tree virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, recovery application, and historical proof stay distinct.
  */
 (()=>{
 'use strict';
 if(window.__aurumGenerationSeedLadderV1)return;
 window.__aurumGenerationSeedLadderV1=true;
 
-const ACTIVE_TRUNK_COMMIT='ee421ab9d7332625585555a5ac8b2c5544a2df2c';
-const ACTIVE_TRUNK_TREE='b0e8a3850a9d7da3613f2c2e9d1da55c3efe4e4c';
-const CURRENT_PC_IMAGE_RUN='33913908160';
-const CURRENT_NATIVE_RUN='33915328066';
-const PROMOTION_PR='214';
-const PROMOTION_CANDIDATE_COMMIT='813d0e867eb5babdef4019c5a62c0e0d40ebccca';
-const PROMOTION_CANDIDATE_TREE='b0e8a3850a9d7da3613f2c2e9d1da55c3efe4e4c';
-const PROMOTION_VHL_RUN='33911513126';
-const PROMOTION_PC_IMAGE_RUN='33911576604';
-const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='5c047ab0e8fac29b9350fdea1e48c770f50540f8';
+const ACTIVE_TRUNK_COMMIT='64eb1b87a9b489c662ef22d05946492ecbd77ae3';
+const ACTIVE_TRUNK_TREE='2300d12cf801186bedc97df60c52b68cc6c44d18';
+const PREVIOUS_ACTIVE_TRUNK_COMMIT='ee421ab9d7332625585555a5ac8b2c5544a2df2c';
+const REMOTE_REF_REPAIR_PR='217';
+const REMOTE_REF_REPAIR_CANDIDATE='27bc9b9a542de55ba8ff67de62e4d7b81c84e43d';
+const REMOTE_REF_REPAIR_VHL_RUN='33920034095';
+const CURRENT_PC_IMAGE_RUN='33921819604';
+const CURRENT_PI3_IMAGE_RUN='33921819583';
+const PREVIOUS_NATIVE_RUN='33915328066';
+const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='8c4a49f21a230709d7b7bca51d393a230ee69b5b';
+const WIFI_PROMOTION_PR='214';
 const FARMER_CONTINUOUS_EXPLORER_COMMIT='fb3c7f375d200bd8682266c1ab16262cacf7ab6e';
 const FARMER_RUNTIME_PROOF_COMMIT='73b4f1d02fc01245a2dc84fb2440e6e4d2ea246d';
 const WORKLOAD_OBSERVER_SOURCE_COMMIT='6c7b0ca8bc7ae011bde7943b114ea58d8e743380';
 const WORKLOAD_OBSERVER_RUNTIME_PROOF_COMMIT='73b4f1d02fc01245a2dc84fb2440e6e4d2ea246d';
-const WORKLOAD_OBSERVER_BOXBRAIN_CI_RUN='33893044460';
-const WORKLOAD_OBSERVER_FARMER_CI_RUN='33893044539';
 const WORKLOAD_OBSERVER_SUPERVISION_COMMIT='043b84ac0eb5da2c561abb66232282fba26704b8';
-const WORKLOAD_OBSERVER_SUPERVISION_BOXBRAIN_CI_RUN='33894107962';
-const WORKLOAD_OBSERVER_SUPERVISION_FARMER_CI_RUN='33894107973';
 const VOICE_MIRROR_RUN='33834801810';
 const VOICE_MIRROR_RECEIPT_COMMIT='d4b80d95f834bc8c56e0cedad18c77bac25f3402';
 const QUANTUM_EVIDENCE_COMMIT='3606746cf11be4663f8d5873dcdda9a7c227a87b';
@@ -37,52 +34,48 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.38',
+  componentRevision:'1.40',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-hopper-wifi-recovery-merged-identical-tree-four-target-candidate-green-active-pc-image-green-native-contract-failed-hopper-endpoint-null-farmer-resident-explorer-workload-observer-read-only-runtime-green-voice-static-mirror-green-quantum-route-held-at-physical-boundary',
+  evidenceClass:'active-trunk-broken-origin-tracking-ref-repair-merged-identical-tree-four-target-green-current-pc-image-green-current-pi3-image-green-physical-application-pending-current-native-unobserved-hopper-endpoint-null-retained-farmer-observer-voice-quantum-boundaries',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
+  previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
+  remoteTrackingRefRepairPr:REMOTE_REF_REPAIR_PR,
+  remoteTrackingRefRepairCandidate:REMOTE_REF_REPAIR_CANDIDATE,
+  remoteTrackingRefRepairMerged:true,
+  remoteTrackingRefRepairCodePromoted:true,
+  remoteTrackingRefRepairCandidateTreeEqualsActiveTrunkTree:true,
+  remoteTrackingRefRepairVhlRunId:REMOTE_REF_REPAIR_VHL_RUN,
+  remoteTrackingRefRepairFourTargetConvergencePassed:true,
+  remoteTrackingRefRepairPreservesLocalBranch:true,
+  remoteTrackingRefRepairPreservesWorktree:true,
+  remoteTrackingRefRepairPreservesLkg:true,
+  remoteTrackingRefRepairFailClosedOnUnsafeRefState:true,
+  remoteTrackingRefRepairWritesPreRepairReceipt:true,
+  remoteTrackingRefRepairPhysicalApplicationProven:false,
+  remoteTrackingRefRepairRecreatedFromOriginOnPhysicalHopperProven:false,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
   currentPcImageRunPassed:true,
   currentPcImageGenericUefiInstallRebootSelfBuildPassed:true,
   currentPcImageLegacyBiosInstallBootPassed:true,
   currentPcImageHpTwinPassed:true,
   currentPcImageVerifiedPublicationPassed:true,
-  promotionPr:PROMOTION_PR,
-  promotionCandidateCommit:PROMOTION_CANDIDATE_COMMIT,
-  promotionCandidateTree:PROMOTION_CANDIDATE_TREE,
-  promotionCandidateTreeEqualsActiveTrunkTree:true,
-  promotionCandidateVhlRunId:PROMOTION_VHL_RUN,
-  promotionCandidateVhlPassed:true,
-  promotionCandidateVhlDockerX86Passed:true,
-  promotionCandidateVhlArm64Passed:true,
-  promotionCandidateVhlPi3Passed:true,
-  promotionCandidateVhlUefiPassed:true,
-  promotionCandidateFourTargetConvergencePassed:true,
-  promotionCandidatePcImageRunId:PROMOTION_PC_IMAGE_RUN,
-  promotionCandidatePcImageRunPassed:true,
-  activeExactShaFourTargetRunObserved:false,
-  currentFourTargetConvergencePassedOnExactActiveSha:false,
-  currentNativeRunId:CURRENT_NATIVE_RUN,
-  currentNativeRunPassed:false,
-  currentNativeFailureStep:'Verify native self-build contracts',
-  currentNativeConvergenceBindAttempted:false,
+  currentPi3ImageRunId:CURRENT_PI3_IMAGE_RUN,
+  currentPi3ImageRunPassed:true,
+  currentNativeResultObserved:false,
+  previousNativeRunId:PREVIOUS_NATIVE_RUN,
+  previousNativeRunCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
+  previousNativeRunPassed:false,
+  previousNativeFailureStep:'Verify native self-build contracts',
+  previousNativeRunHistorical:true,
   hopperStatusCurrentSnapshotCommit:CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT,
   hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',
   hopperStatusCurrentEndpoint:null,
   hopperStatusCurrentReachable:false,
   hopperStatusEquivalentNullSnapshotsAreEvidenceHealth:true,
   hopperStatusNoChurnUntilMaterialChange:true,
-  hopperWifiRecoveryPr:PROMOTION_PR,
-  hopperWifiRecoveryMerged:true,
-  hopperWifiRecoveryMergeCommit:ACTIVE_TRUNK_COMMIT,
+  hopperWifiRecoveryPr:WIFI_PROMOTION_PR,
   hopperWifiRecoveryCodePromotionComplete:true,
-  hopperWifiRecoverySerializedConnectionOwnership:true,
-  hopperWifiRecoverySavedProfileHeldUntilVerified:true,
-  hopperWifiRecoveryIndependentServiceSupervision:true,
-  hopperWifiRecoveryGuiSingleFlight:true,
-  hopperWifiRecoveryWirelessSpecificProofRequired:true,
-  hopperWifiRecoveryEthernetCountsAsWirelessProof:false,
   hopperWifiRecoveryPhysicalWifiProven:false,
   hopperWifiRecoveryObservedRebootPersistenceProven:false,
   hopperWifiRecoverySeedPromotionProven:false,
@@ -91,25 +84,16 @@ const state={
   farmerContinuousExplorationVerified:true,
   farmerContinuousExplorerModelOnly:true,
   farmerContinuousExplorerAuthorityGranted:false,
-  farmerContinuousExplorerPathsBefore:1083,
-  farmerContinuousExplorerPathsAfter:1099,
-  farmerDecisionEngineCalibratedOutcomes:5,
-  farmerDecisionEngineDecisions:10,
   farmerDestructiveActionAllowed:false,
   farmerPhysicalProofInferred:false,
   workloadObserverSourceCommit:WORKLOAD_OBSERVER_SOURCE_COMMIT,
   workloadObserverRuntimeProofCommit:WORKLOAD_OBSERVER_RUNTIME_PROOF_COMMIT,
-  workloadObserverBoxBrainCiRunId:WORKLOAD_OBSERVER_BOXBRAIN_CI_RUN,
-  workloadObserverFarmerCiRunId:WORKLOAD_OBSERVER_FARMER_CI_RUN,
   workloadObserverRuntime:'verified-read-only-feed',
   workloadObserverReadOnly:true,
   workloadObserverBudgetAuthority:'resident-explorer-only',
-  workloadObserverRemoteCapacityAuthority:'none',
   workloadObserverProcessControlAllowed:false,
   workloadObserverRemoteExecutionAuthority:false,
   workloadObserverSupervisionMerge:WORKLOAD_OBSERVER_SUPERVISION_COMMIT,
-  workloadObserverSupervisionBoxBrainCiRunId:WORKLOAD_OBSERVER_SUPERVISION_BOXBRAIN_CI_RUN,
-  workloadObserverSupervisionFarmerCiRunId:WORKLOAD_OBSERVER_SUPERVISION_FARMER_CI_RUN,
   workloadObserverSupervisionRuntime:'runtime-proof-pending',
   voiceMirrorRunId:VOICE_MIRROR_RUN,
   voiceMirrorReceiptCommit:VOICE_MIRROR_RECEIPT_COMMIT,
@@ -133,7 +117,8 @@ const state={
   rollbackOnVerificationFailure:true,
   rerunUnchangedFailedWork:false,
   majorBoxAdded:false,
-  seedLifecycleRemainsExpandable:true
+  seedLifecycleRemainsExpandable:true,
+  generationLadderRemainsExpandable:true
 };
 window.__aurumGenerationSeedLadderState=state;
 window.dispatchEvent(new CustomEvent('aurum-generation-seed-ladder-state',{detail:state}));
@@ -163,40 +148,38 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.38 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.40 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
-<li><strong>Hopper Wi-Fi ownership/recovery has crossed the code-promotion boundary.</strong> ${link('PR #214','pr',PROMOTION_PR)} merged into active Aurum trunk <code>ee421ab9...</code>. The merged code serializes native setup, HTML, console and boot connection ownership; retains saved profiles until exact wireless verification; supervises Wi-Fi independently of the requesting GUI/console lifetime; keeps GUI requests single-flight; and rejects Ethernet or link-local state as wireless proof. Code promotion is verified; physical Wi-Fi, later observed reboot persistence, and seed acceptance are not.</li>
-<li><strong>The QEMU UEFI blocker is fixed in the promoted code path.</strong> ${link('four-target VHL 33911513126','run',PROMOTION_VHL_RUN)} completed successfully on final candidate <code>813d0e86...</code>: Docker x86_64, ARM64, Pi3 and QEMU UEFI all passed. The candidate and active trunk have the same tree <code>b0e8a385...</code>. This proves the merged code tree passed four-target convergence; it does not pretend a separate VHL run used the merge commit SHA itself.</li>
-<li><strong>The merged active head now has green PC-image proof.</strong> ${link('active-head image 33913908160','run',CURRENT_PC_IMAGE_RUN)} passed on <code>ee421ab9...</code>, including generic low-memory UEFI install/reboot/self-build smoke, Legacy BIOS install/boot smoke, Hopper HP topology/offline-recovery twin, and verified-image publication.</li>
-<li><strong>The unified workload observer remains verified in the protected Farmer runtime.</strong> ${link('workload observer 6c7b0ca8bc7a','commit',WORKLOAD_OBSERVER_SOURCE_COMMIT)} passed ${link('BoxBrain CI 33893044460','run',WORKLOAD_OBSERVER_BOXBRAIN_CI_RUN)} and ${link('Farmer CI 33893044539','run',WORKLOAD_OBSERVER_FARMER_CI_RUN)}; ${link('runtime proof 73b4f1d02fc0','commit',WORKLOAD_OBSERVER_RUNTIME_PROOF_COMMIT)} keeps the feed read-only and limits budget authority to the resident explorer.</li>
-<li><strong>Future Branch remains held at the real physical boundary.</strong> ${link('evidence 3606746cf11b','commit',QUANTUM_EVIDENCE_COMMIT)} pins successful experiment <code>${QUANTUM_RUN}</code>; the selected path remains <code>current-release-flash-readback-proven-awaiting-physical-boot</code>. Routing, build and provider evidence are not physical proof.</li>
-<li><strong>AurumBridge static voice mirroring and Farmer continuous exploration remain verified.</strong> ${link('voice run 33834801810','run',VOICE_MIRROR_RUN)} / ${link('voice receipt d4b80d95f834','commit',VOICE_MIRROR_RECEIPT_COMMIT)} retain <code>WEB_STATIC_MIRROR_OK</code>; ${link('resident explorer fb3c7f375d20','commit',FARMER_CONTINUOUS_EXPLORER_COMMIT)} remains model-only with no execution or destructive authority.</li>
-<li><strong>Hopper endpoint observability refreshed without changing its meaning.</strong> ${link('snapshot 5c047ab0e8fa','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still reports <code>endpoint=null</code> and unreachable. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
+<li><strong>The Hopper sync failure now has a bounded code-promoted repair.</strong> ${link('PR #217','pr',REMOTE_REF_REPAIR_PR)} merged into active Aurum trunk <code>64eb1b87...</code>. The repair targets only the allowlisted disposable <code>refs/remotes/origin/aurum/trunk-v0.01</code> tracking ref, records state before repair, preserves the checked-out branch, index/worktree, stash and LKG, refuses unsafe symbolic/changing/oversized/non-file states, then lets normal fetch and fast-forward verification recreate the ref.</li>
+<li><strong>The promoted repair tree has green four-target virtual proof.</strong> ${link('VHL 33920034095','run',REMOTE_REF_REPAIR_VHL_RUN)} passed Docker x86_64, ARM64, Pi3, QEMU UEFI, and the same-commit convergence gate on candidate <code>27bc9b9a...</code>. Candidate and active merge share tree <code>2300d12c...</code>; this is software/tree proof, not physical Hopper application proof.</li>
+<li><strong>The new active head has green PC and Pi3 image proof.</strong> ${link('PC image 33921819604','run',CURRENT_PC_IMAGE_RUN)} passed on <code>64eb1b87...</code>, including generic low-memory UEFI install/reboot/self-build, Legacy BIOS install/boot, Hopper HP topology/offline-recovery twin, and verified-image publication. ${link('Pi3 image 33921819583','run',CURRENT_PI3_IMAGE_RUN)} also completed successfully on the same active head.</li>
+<li><strong>Hopper Wi-Fi ownership/recovery remains code-promoted.</strong> ${link('PR #214','pr',WIFI_PROMOTION_PR)} still carries serialized connection ownership, saved-profile retention until exact wireless verification, independent service supervision, single-flight GUI requests, and wireless-specific proof. Physical Wi-Fi, reboot persistence, and seed acceptance remain unproven.</li>
+<li><strong>The protected Farmer, Future Branch, workload observer and voice mirror retain their verified boundaries.</strong> ${link('Farmer runtime proof','commit',FARMER_RUNTIME_PROOF_COMMIT)} keeps the resident explorer model-only; ${link('workload observer','commit',WORKLOAD_OBSERVER_SOURCE_COMMIT)} remains read-only with no process-control or remote-execution authority; ${link('voice receipt','commit',VOICE_MIRROR_RECEIPT_COMMIT)} remains <code>WEB_STATIC_MIRROR_OK</code>. ${link('Future Branch evidence','commit',QUANTUM_EVIDENCE_COMMIT)} remains held at the physical Tiny Seed boot boundary.</li>
+<li><strong>Hopper endpoint observability refreshed without changing meaning.</strong> ${link('snapshot 8c4a49f21a23','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still reports <code>endpoint=null</code>, unreachable, and <code>no-endpoint-candidate</code>. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>The current active-head native lane is the immediate software blocker.</strong> ${link('native run 33915328066','run',CURRENT_NATIVE_RUN)} ran on <code>ee421ab9...</code> and failed at <code>Verify native self-build contracts</code>; convergence binding and bounded native growth were skipped. Change the native contract implementation, live-trial evidence, or diagnosis before retrying that failure.</li>
-<li><strong>Do not recreate the solved QEMU failure just to obtain a new SHA label.</strong> The promoted candidate and merge commit have the same tree, and the candidate already has green four-target proof. If the native binder requires exact-merge-SHA provenance, first teach it to bind cryptographically identical-tree proof safely; only run a new four-target lab after a material implementation/evidence change or when an exact-SHA run is genuinely required for acceptance.</li>
-<li><strong>Physical Hopper Wi-Fi and reboot persistence are still unproven.</strong> Merging PR #214 does not prove a real radio association, exact-interface address/route/DNS path, or a later physical reboot with the saved profile intact. Keep those gates fail-closed and do not ask for extra human Wi-Fi manipulation from code evidence alone.</li>
-<li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; change the dashboard only when endpoint/probe meaning changes.</li>
-<li><strong>Finish runtime proof for workload-observer supervision before promoting it to live runtime truth.</strong> ${link('supervision/timestamp fix 043b84ac0eb5','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged and green in ${link('BoxBrain CI 33894107962','run',WORKLOAD_OBSERVER_SUPERVISION_BOXBRAIN_CI_RUN)} and ${link('Farmer CI 33894107973','run',WORKLOAD_OBSERVER_SUPERVISION_FARMER_CI_RUN)}, but the latest protected runtime proof still predates it.</li>
-<li>Guardian forced-rollback proof, physical Hopper boot/install acceptance, and broader Future Branch physical/VM execution authority remain unproven.</li>
+<li><strong>Apply the remote-tracking-ref repair through an authorized local/recovery path and capture its receipt.</strong> PR #217 explicitly says the current Hopper cannot fetch the fix while the disposable tracking ref is broken. The system-owned recovery path must preserve local branch/worktree/LKG, produce <code>last-remote-tracking-ref-repair.json</code>, then verify normal fetch recreates the ref and fast-forward sync succeeds. Do not infer that merge, VHL, or image evidence means Hopper has received the fix.</li>
+<li><strong>Current-head native acceptance is not yet observed.</strong> The prior native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} belongs to previous trunk <code>ee421ab9...</code> and is historical, not the exact-current-head blocker. Do not rerun that unchanged failure under a new ID merely for activity; require current-head native evidence only when the implementation/evidence path materially warrants it.</li>
+<li><strong>Physical Hopper Wi-Fi and reboot persistence remain unproven.</strong> The remote-ref repair and Wi-Fi recovery code do not prove a radio association, exact wireless route/DNS path, later reboot persistence, seed acceptance, or Guardian forced rollback.</li>
+<li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; revise only when endpoint/probe meaning changes.</li>
+<li><strong>Workload-observer supervision still needs protected runtime proof.</strong> ${link('supervision/timestamp fix','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged, but the latest protected runtime proof still predates it.</li>
 </ul>
 </div>
 <div class="actions">
 <h4>Your Actions:</h4>
-<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Wi-Fi action is justified by the merge.</p>
+<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Wi-Fi or Git-ref action is justified for you from code evidence alone.</p>
 <ol>
 <li>On the physical x86 target, use the already proven current-release Tiny Seed media referenced by the Future Branch evidence.</li>
 <li>Use the machine's one-time boot menu to boot that media. <strong>Do not choose install, erase, format, repair, or any destructive option.</strong></li>
 <li>Stop when the Tiny Seed ready/GUI boot state is visible and capture the formal ready/boot proof. Do not treat the existing flash/readback receipt as physical boot proof.</li>
 </ol>
 </div>
-<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, native/convergence evidence, endpoint/probe meaning, Hopper Wi-Fi physical/reboot evidence, Farmer/workload-observer/voice/quantum evidence, or a genuine human-only boundary.</p>
+<p>ClusterSites remains canonical for website source. Deployment must continue through the existing protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, current-head image/native evidence, endpoint/probe meaning, physical Wi-Fi/reboot/ref-repair evidence, Farmer/workload-observer/voice/Future Branch evidence, or a genuine human-only boundary.</p>
 `;
 const existing=document.getElementById(panel.id);
 if(existing)existing.replaceWith(panel);
