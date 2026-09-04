@@ -63,6 +63,12 @@ class FarmerApiHandler(BaseHTTPRequestHandler):
             if path == "/jobs":
                 self._json(HTTPStatus.OK, {"jobs": self.server.ledger.list_jobs()})
                 return
+            if path == "/futures":
+                self._json(HTTPStatus.OK, self.server.ledger.future_status())
+                return
+            if path.startswith("/futures/"):
+                self._json(HTTPStatus.OK, self.server.ledger.future_status(path.split("/", 2)[2]))
+                return
             if path.startswith("/jobs/"):
                 self._json(HTTPStatus.OK, self.server.ledger.get_job(path.split("/", 2)[2]))
                 return

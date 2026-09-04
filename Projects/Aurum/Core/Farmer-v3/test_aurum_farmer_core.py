@@ -50,6 +50,31 @@ SAFE = {
 
 
 class FarmerCoreTests(unittest.TestCase):
+    def test_common_dispatch_records_decision_and_calibrated_outcome(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            db = root / "slush.db"
+            make_db(db)
+            worker = FarmerWorker(db, root / "worker.sock", root)
+            result = worker._dispatch("echo", {"message": "engine-proof"})
+            self.assertEqual(result["status"], "succeeded")
+            con = sqlite3.connect(db)
+            try:
+                events = dict(con.execute("SELECT event_type,payload FROM farmer_events"))
+            finally:
+                con.close()
+            decision = json.loads(events["future_branch_decision"])
+            self.assertEqual(decision["schema"], "aurum.future-branch.decision.v1")
+            self.assertGreater(len(decision["nodes"]), 10)
+            outcome = json.loads(events["future_branch_outcome"])
+            self.assertEqual(outcome["state_id"], decision["state_id"])
+            self.assertAlmostEqual(outcome["brier"], .04)
+            self.assertFalse(outcome["lkg_promoted"])
+
+    def test_high_risk_future_is_not_automatically_promoted(self):
+        result = choose_future_work({"branches": [{"id": "unsafe", **SAFE, "risk": .9}]})
+        self.assertIsNone(result["promoted_branch"])
+
     def test_completion_definition_is_strict(self):
         complete = audit_completion(
             {

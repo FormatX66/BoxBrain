@@ -70,6 +70,11 @@ tracked in Aurum issue #40.
   recovery, and LKG records
 - `aurum_farmer/supervisor.py` — persistent leader, watchdog, and continuation
 - `aurum_farmer/executors.py` — reviewed executor adapters
+- `aurum_farmer/decision_engine.py` — bounded DAG, pruning, evidence scoring,
+  risk gates, and parallel tier allocation shared with Farmer-v3
+- `aurum_farmer/verification.py` — independent result checks and trusted probe adapters
+- `tests/test_decision_engine.py` — concurrency, budgets, stale evidence,
+  false success, calibration, restart, and LKG regression coverage
 - `aurum_farmer/api.py` — loopback control surface
 - `tests/test_farmer.py` — restart, recovery, retry, evidence, LKG, boundary,
   scheduler, dedupe, and Chat-to-Git adapter regression proof

@@ -1,21 +1,22 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Install or upgrade Aurum Farmer on the already-enrolled self-hosted Windows execution node, add semantic external-evidence gates for Adaptive Driver Future Branches, verify loopback health, then prove durable work resumes to sealed success after the scheduled task restarts.",
+  "purpose": "Deploy Future Branch Decision Engine v1 alongside every Farmer operation; verify default-on decision telemetry, sealed results and restart while retaining prior releases and LKG.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 5,
-  "retry_reason": "Deploy the semantic evidence-file gate required for the pinned Pi3 Adaptive Driver Future Branch job while preserving the verified restart and exact-source guarantees.",
+  "retry_sequence": 6,
+  "retry_reason": "Install the verified decision-engine source and require measured prediction/outcome calibration in live restart acceptance.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
     "event-chain-valid",
     "queued-while-stopped-job-resumes-after-restart",
     "sealed-farmer-receipt",
-    "previous-releases-preserved"
+    "previous-releases-preserved",
+    "future-branch-default-on-calibration"
   ]
 }

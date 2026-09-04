@@ -2,6 +2,12 @@
 
 Future Branch is the operating spine for Aurum/BoxBrain. It is not only prediction. It combines state awareness, anticipatory branching, execution routing, uncertainty scaling, unattended preparation, safety, proof, and durable conversation/process routing.
 
+The executable v1 decision engine is documented in
+[Aurum Farmer](../Projects/AurumFarmer/README.md#future-branch-decision-engine-v1).
+Both Farmer runtimes share its bounded DAG, evidence tiers, risk gate and
+prediction/outcome telemetry. Runtime coverage and available verification tiers
+must be established from receipts, never inferred from this policy.
+
 ## Canonical loop
 
 ```text

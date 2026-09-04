@@ -31,6 +31,7 @@ def default_config(root: Path | None = None) -> dict[str, Any]:
         "api_port": 19466,
         "poll_seconds": 2.0,
         "lease_seconds": 90.0,
+        "future_branch": {"budget": {"nodes": 256, "workers": 4, "probe_units": 32}, "probes": []},
         "executors": {
             "allowed_programs": [],
             "gh_executable": "gh",
