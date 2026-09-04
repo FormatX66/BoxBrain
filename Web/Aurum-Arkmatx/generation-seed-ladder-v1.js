@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_39_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_40_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: active-trunk, exact-tree virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, recovery application, and historical proof stay distinct.
  */
@@ -34,9 +34,9 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.39',
+  componentRevision:'1.40',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-broken-origin-tracking-ref-repair-merged-identical-tree-four-target-green-physical-application-pending-current-image-result-not-promoted-current-native-unobserved-hopper-endpoint-null-retained-farmer-observer-voice-quantum-boundaries',
+  evidenceClass:'active-trunk-broken-origin-tracking-ref-repair-merged-identical-tree-four-target-green-current-pc-image-green-current-pi3-image-green-physical-application-pending-current-native-unobserved-hopper-endpoint-null-retained-farmer-observer-voice-quantum-boundaries',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
   previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
@@ -55,7 +55,11 @@ const state={
   remoteTrackingRefRepairPhysicalApplicationProven:false,
   remoteTrackingRefRepairRecreatedFromOriginOnPhysicalHopperProven:false,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
-  currentPcImageFinalResultPromoted:false,
+  currentPcImageRunPassed:true,
+  currentPcImageGenericUefiInstallRebootSelfBuildPassed:true,
+  currentPcImageLegacyBiosInstallBootPassed:true,
+  currentPcImageHpTwinPassed:true,
+  currentPcImageVerifiedPublicationPassed:true,
   currentPi3ImageRunId:CURRENT_PI3_IMAGE_RUN,
   currentPi3ImageRunPassed:true,
   currentNativeResultObserved:false,
@@ -144,13 +148,13 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.39 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.40 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
 <li><strong>The Hopper sync failure now has a bounded code-promoted repair.</strong> ${link('PR #217','pr',REMOTE_REF_REPAIR_PR)} merged into active Aurum trunk <code>64eb1b87...</code>. The repair targets only the allowlisted disposable <code>refs/remotes/origin/aurum/trunk-v0.01</code> tracking ref, records state before repair, preserves the checked-out branch, index/worktree, stash and LKG, refuses unsafe symbolic/changing/oversized/non-file states, then lets normal fetch and fast-forward verification recreate the ref.</li>
 <li><strong>The promoted repair tree has green four-target virtual proof.</strong> ${link('VHL 33920034095','run',REMOTE_REF_REPAIR_VHL_RUN)} passed Docker x86_64, ARM64, Pi3, QEMU UEFI, and the same-commit convergence gate on candidate <code>27bc9b9a...</code>. Candidate and active merge share tree <code>2300d12c...</code>; this is software/tree proof, not physical Hopper application proof.</li>
-<li><strong>The new active head has already cleared its Pi3 image lane.</strong> ${link('Pi3 image 33921819583','run',CURRENT_PI3_IMAGE_RUN)} completed successfully on <code>64eb1b87...</code>. The separate exact-head PC image run ${link('33921819604','run',CURRENT_PC_IMAGE_RUN)} exists, but its final acceptance result is intentionally not promoted in this revision until the run is complete and independently checked.</li>
+<li><strong>The new active head has green PC and Pi3 image proof.</strong> ${link('PC image 33921819604','run',CURRENT_PC_IMAGE_RUN)} passed on <code>64eb1b87...</code>, including generic low-memory UEFI install/reboot/self-build, Legacy BIOS install/boot, Hopper HP topology/offline-recovery twin, and verified-image publication. ${link('Pi3 image 33921819583','run',CURRENT_PI3_IMAGE_RUN)} also completed successfully on the same active head.</li>
 <li><strong>Hopper Wi-Fi ownership/recovery remains code-promoted.</strong> ${link('PR #214','pr',WIFI_PROMOTION_PR)} still carries serialized connection ownership, saved-profile retention until exact wireless verification, independent service supervision, single-flight GUI requests, and wireless-specific proof. Physical Wi-Fi, reboot persistence, and seed acceptance remain unproven.</li>
 <li><strong>The protected Farmer, Future Branch, workload observer and voice mirror retain their verified boundaries.</strong> ${link('Farmer runtime proof','commit',FARMER_RUNTIME_PROOF_COMMIT)} keeps the resident explorer model-only; ${link('workload observer','commit',WORKLOAD_OBSERVER_SOURCE_COMMIT)} remains read-only with no process-control or remote-execution authority; ${link('voice receipt','commit',VOICE_MIRROR_RECEIPT_COMMIT)} remains <code>WEB_STATIC_MIRROR_OK</code>. ${link('Future Branch evidence','commit',QUANTUM_EVIDENCE_COMMIT)} remains held at the physical Tiny Seed boot boundary.</li>
 <li><strong>Hopper endpoint observability refreshed without changing meaning.</strong> ${link('snapshot 8c4a49f21a23','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still reports <code>endpoint=null</code>, unreachable, and <code>no-endpoint-candidate</code>. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
@@ -159,8 +163,8 @@ panel.innerHTML=`
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Apply the remote-tracking-ref repair through an authorized local/recovery path and capture its receipt.</strong> PR #217 explicitly says the current Hopper cannot fetch the fix while the disposable tracking ref is broken. The system-owned recovery path must preserve local branch/worktree/LKG, produce <code>last-remote-tracking-ref-repair.json</code>, then verify normal fetch recreates the ref and fast-forward sync succeeds. Do not infer that merge or VHL evidence means Hopper has received the fix.</li>
-<li><strong>Promote current-head PC/native truth only after current-head evidence exists.</strong> The prior native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} belongs to previous trunk <code>ee421ab9...</code> and is now historical, not the exact-current-head blocker. Do not rerun that unchanged failure under a new ID merely for activity. The current-head PC result and any current-head native acceptance/failure must be independently checked before they replace this boundary.</li>
+<li><strong>Apply the remote-tracking-ref repair through an authorized local/recovery path and capture its receipt.</strong> PR #217 explicitly says the current Hopper cannot fetch the fix while the disposable tracking ref is broken. The system-owned recovery path must preserve local branch/worktree/LKG, produce <code>last-remote-tracking-ref-repair.json</code>, then verify normal fetch recreates the ref and fast-forward sync succeeds. Do not infer that merge, VHL, or image evidence means Hopper has received the fix.</li>
+<li><strong>Current-head native acceptance is not yet observed.</strong> The prior native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} belongs to previous trunk <code>ee421ab9...</code> and is historical, not the exact-current-head blocker. Do not rerun that unchanged failure under a new ID merely for activity; require current-head native evidence only when the implementation/evidence path materially warrants it.</li>
 <li><strong>Physical Hopper Wi-Fi and reboot persistence remain unproven.</strong> The remote-ref repair and Wi-Fi recovery code do not prove a radio association, exact wireless route/DNS path, later reboot persistence, seed acceptance, or Guardian forced rollback.</li>
 <li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; revise only when endpoint/probe meaning changes.</li>
 <li><strong>Workload-observer supervision still needs protected runtime proof.</strong> ${link('supervision/timestamp fix','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged, but the latest protected runtime proof still predates it.</li>
