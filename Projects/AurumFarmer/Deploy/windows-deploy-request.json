@@ -1,15 +1,15 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Keep Future Branch testing novel failure paths independently of job and chat idleness, with durable checkpoints, worker recovery and preserved LKG.",
+  "purpose": "Consume the shared read-only local/cloud activity feed for bounded explorer contention decisions; preserve all external workloads and LKG.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 9,
-  "retry_reason": "New resident fault-model explorer and fail-closed supervisor hold; require increasing signed path evidence while real execution is idle.",
+  "retry_sequence": 10,
+  "retry_reason": "Changed implementation adds a bounded fixed-loopback activity reader with fresh local-process evidence and independently corroborated host contention; old host-only budgeting remains the fallback.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
@@ -22,6 +22,9 @@
     "future-branch-read-only-monitor-sealed-decisions",
     "continuous-exploration-advances-while-idle",
     "continuous-explorer-worker-recovery-tests",
-    "battery-switch-does-not-stop-service"
+    "battery-switch-does-not-stop-service",
+    "shared-workload-activity-consumed-with-source-id",
+    "stale-activity-cannot-drive-budget",
+    "local-cloud-metrics-remain-separate"
   ]
 }

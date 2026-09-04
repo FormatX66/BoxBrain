@@ -19,6 +19,7 @@ import uuid
 from .decision_engine import Budget, DecisionEngine, digest
 from .failure_oracle import verify_model
 from .resource_budget import HostSampler, ResourceGovernor
+from .activity_reader import ActivityReader
 
 SCHEMA = 'aurum.future-branch.continuous.v1'
 CATALOG = 'decision-safety-fault-model.v1'
@@ -373,9 +374,9 @@ def main():
         stop.set()
 
     threading.Thread(target=parent_lifetime, daemon=True).start()
-    sampler, governor = HostSampler(), ResourceGovernor()
+    sampler, governor, activity = HostSampler(), ResourceGovernor(), ActivityReader()
     while not stop.is_set():
-        resources = governor.choose(sampler.sample())
+        resources = governor.choose(sampler.sample(), activity.sample())
         try:
             frontier.batch(cases=resources['cases'], cpu_seconds=resources['cpu_seconds'], resource_decision=resources)
         except ValueError:

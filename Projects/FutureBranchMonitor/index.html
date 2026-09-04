@@ -11,11 +11,31 @@
 <div class="card"><div class="small">SEALED ENGINE DECISIONS</div><div id="counts" class="big">—</div><div id="outcomes" class="small">Predictions and measured outcomes.</div></div>
 <div class="card"><div class="small">ACTIVE TASK VISIBILITY</div><div id="coverage" class="big">—</div><div id="inventory" class="small">Reported checks are separate from engine proof.</div></div>
 </div>
+<section id="workloadPanel" aria-label="Local and cloud workloads">
+<div class="top"><div><h2>Local + cloud workloads</h2><p class="small">Observed activity, with one shared feed for Future Branch.</p></div><span id="workloadConnection" class="pill">Connecting…</span></div>
+<div class="grid workloadSummary">
+<div><div class="small">THIS COMPUTER · HOST CPU</div><div id="hostCpu" class="big">—</div><div id="hostMemory" class="small">Waiting for observation</div><div class="meter"><span id="hostCpuBar"></span></div></div>
+<div><div class="small">OBSERVED WORKLOADS</div><div id="workloadCounts" class="big">—</div><div id="workloadCountScope" class="small"></div></div>
+<div><div class="small">FUTURE BRANCH RESPONSE</div><div id="workloadDecision" class="big">—</div><div id="workloadInput" class="small"></div></div>
+</div>
+<div id="providerStates" class="providerStates"></div>
+<div class="workloadFilters">
+<label>Location <select id="workloadLocation"><option value="all">All locations</option><option value="local">This computer</option><option value="github">GitHub</option></select></label>
+<label>State <select id="workloadState"><option value="active">Active work</option><option value="all">All observed</option><option value="finished">Finished</option></select></label>
+<label>Find <input id="workloadSearch" type="search" placeholder="Name, PID, owner or step"></label>
+<label>Sort <select id="workloadSort"><option value="cpu">CPU</option><option value="memory">RAM</option><option value="name">Name</option><option value="recent">Last observed</option></select></label>
+</div>
+<div class="scroll"><table id="workloadTable"><thead><tr><th>Workload / owner</th><th>Location / state</th><th>CPU / RAM</th><th>Activity / elapsed</th><th>Last observed</th><th>Available actions</th></tr></thead><tbody id="workloadRows"></tbody></table></div>
+<div class="top"><span id="workloadPageInfo" class="small"></span><div><button id="workloadPrevious">Previous</button> <button id="workloadNext">Next</button></div></div>
+<details><summary>Sources, refresh and limits</summary><div id="workloadSources" class="small"></div><p class="small">CPU uses each host's own capacity. Remote RAM is never counted as local RAM. Process working sets can share pages and should not be added together. Unknown ownership stays unknown. Controls open the provider; this monitor cannot terminate or migrate work.</p></details>
+<div id="workloadGaps" class="small"></div>
+</section>
 <section><div class="top"><h2>Continuous failure-path exploration</h2><span id="explorerState" class="pill">Awaiting evidence</span></div><p id="explorerCounts"></p><p id="explorerScope" class="small"></p><p id="resourceBudget" class="small"></p><div class="scroll"><table><thead><tr><th>Observed</th><th>Failure conditions explored</th><th>Model result</th></tr></thead><tbody id="failurePaths"></tbody></table></div></section>
 <section><div class="top"><h2>Engine decision checks</h2><select id="decisions" aria-label="Select an engine decision"></select></div><p id="decisionMeta" class="small"></p><div id="tiers" class="timeline"></div><div class="scroll"><table><thead><tr><th>Candidate</th><th>Score</th><th>Evidence</th><th>Checks actually run</th><th>Decision</th></tr></thead><tbody id="branches"></tbody></table></div><p id="engineNote" class="small"></p></section>
 <section><h2>Checks across chats</h2><p class="small">A saved instruction does not prove a check happened. Missing reports stay visible as gaps.</p><div class="scroll"><table><thead><tr><th>Active task</th><th>Visibility</th><th>Latest reported action</th></tr></thead><tbody id="tasks"></tbody></table></div><p id="scope" class="small"></p></section>
 <section><h2>Public decision reports</h2><p class="small">Brief action choices, evidence and recovery plans. Self-reported; no private reasoning is collected.</p><div id="reports"></div></section>
 <footer>Local, read-only monitor · engine sampled every 5 seconds · task inventory refreshed by the monitor task · execution may be idle while the resident explorer keeps testing novel paths. Deeper testing appears only when a real verifier is available.</footer>
+<script src="/activity.js"></script>
 <script>
 const el=id=>document.getElementById(id),text=(id,value)=>el(id).textContent=value;
 const age=n=>n==null?'unknown':n<60?Math.floor(n)+'s':n<3600?Math.floor(n/60)+'m':Math.floor(n/3600)+'h';
@@ -30,6 +50,6 @@ text('explorerCounts',(x.paths_checked??0).toLocaleString()+' unique model paths
 text('explorerScope',(x.scope||'No continuous model evidence yet')+'. New evidence '+stamp(x.last_new_evidence_at)+' · '+(x.observed_shapes??0)+' policy shapes · '+(x.worker_restarts??0)+' worker restarts. Checkpoints survive restarts; simulation never executes a job.');
 const budget=x.resource_decision||{},host=budget.observed_host||{};text('resourceBudget','Explorer budget: '+(budget.mode||'not reported').replaceAll('_',' ')+' · CPU '+(host.cpu_percent==null?'sampling':host.cpu_percent+'%')+' · available RAM '+(host.available_memory_mb==null?'unknown':host.available_memory_mb+' MB')+' · manages its own workload only.');el('failurePaths').replaceChildren();for(const r of x.recent||[]){const row=add(el('failurePaths'),'tr','');add(row,'td',stamp(r.observed_at));add(row,'td',r.changed_dimensions.map(s=>s.replaceAll('_',' ')).join(' + ')||'Observed policy baseline');add(row,'td',r.outcome.replaceAll('_',' '),r.outcome==='invariant_violation'||r.outcome==='model_error'?'bad':'ok')}
 }
-async function update(){try{const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw Error('unavailable');render(await response.json())}catch{el('alert').hidden=false;text('alert','Monitor connection lost. The displayed values are historical.');text('connection','Disconnected')}finally{setTimeout(update,5000)}}
+async function update(){try{const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw Error('unavailable');const data=await response.json();render(data);renderWorkloads(data)}catch{el('alert').hidden=false;text('alert','Monitor connection lost. The displayed values are historical.');text('connection','Disconnected');workloadsDisconnected()}finally{setTimeout(update,3000)}}
 el('decisions').addEventListener('change',decision);update();
 </script></html>
