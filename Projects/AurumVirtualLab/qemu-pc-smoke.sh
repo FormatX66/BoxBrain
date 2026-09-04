@@ -53,9 +53,30 @@ echo "AURUM_QEMU_FIRMWARE selected=$QEMU_FIRMWARE" >> "$LOG"
 qemu_pid=
 
 cleanup() {
+  local result=$?
   if [ -n "${qemu_pid:-}" ] && kill -0 "$qemu_pid" 2>/dev/null; then
     kill "$qemu_pid" 2>/dev/null || true
     wait "$qemu_pid" 2>/dev/null || true
+  fi
+  if [ "$result" -ne 0 ] && [ -f "$installed_disk" ]; then
+    # This is the disposable image created above, never a host disk. Read the
+    # installed primary console's persisted assessment after QEMU has stopped.
+    # Its output is on VT1, while the harness observes the secondary serial VT.
+    # Root starts at 515 MiB in AurumInstaller's fixed image layout. A read-only
+    # loop plus debugfs avoids mounting or replaying the guest filesystem journal.
+    local diagnostic_loop=
+    echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT_BEGIN' | tee -a "$LOG"
+    diagnostic_loop=$(sudo -n losetup --read-only --find --show --offset 540016640 "$installed_disk") || true
+    if [[ "$diagnostic_loop" =~ ^/dev/loop[0-9]+$ ]]; then
+      sudo -n timeout 10s debugfs -R 'cat /var/lib/aurum/state/first-boot-assessment.json' "$diagnostic_loop" 2>&1 | tee -a "$LOG" || true
+      # Detach only the exact temporary mapping still backed by this VM image.
+      if [ "$(sudo -n losetup --noheadings --output BACK-FILE "$diagnostic_loop")" = "$installed_disk" ]; then
+        sudo -n losetup --detach "$diagnostic_loop" || true
+      fi
+    else
+      echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT unavailable=readonly-loop' | tee -a "$LOG"
+    fi
+    echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT_END' | tee -a "$LOG"
   fi
   exec 3>&-
   rm -rf "$work_dir"
