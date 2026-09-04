@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+from concurrent.futures import Future
 import os
 from pathlib import Path
 import sys
@@ -52,6 +53,7 @@ class SetupInputTests(unittest.TestCase):
         self.gui.password = ""
         self.gui.running = True
         self.gui.buttons = []
+        self.gui.network_future = None
 
     def control(self, key: str, *, enabled: bool = True, action: object = None) -> object:
         rect = SimpleNamespace(collidepoint=lambda point: point == key)
@@ -334,6 +336,34 @@ class SetupPygameEventTests(unittest.TestCase):
                         for other in self.gui.buttons[index + 1:]:
                             self.assertFalse(control.rect.colliderect(other.rect), f"{control.key} overlaps {other.key}")
         self.coordinator.start.assert_not_called()
+
+    def test_pending_wifi_disables_connect_and_scan_but_keeps_back_usable(self) -> None:
+        self.gui._set_view("wifi")
+        self.gui.ssids = ["Synthetic network"]
+        self.gui.selected_ssid = "Synthetic network"
+        self.gui.password = "synthetic-test-only"
+        pending = Future()
+        with patch.object(self.gui.executor, "submit", return_value=pending) as submit:
+            self.gui._connect()
+            self.gui._render()
+            controls = {control.key: control for control in self.gui.buttons}
+            for key in ("Connect", "Scan Again", "wifi-password", "wifi:Synthetic network"):
+                self.assertFalse(controls[key].enabled, key)
+            self.assertTrue(controls["Back"].enabled)
+            self.pg.event.post(self.pg.event.Event(self.pg.MOUSEBUTTONUP, pos=controls["Connect"].rect.center, button=1))
+            self.gui._events()
+            submit.assert_called_once()
+            self.send_key(self.pg.K_ESCAPE)
+            self.assertEqual(self.gui.view, "setup")
+            self.gui._open_wifi()
+            self.assertIs(self.gui.network_future, pending)
+            submit.assert_called_once()
+            pending.set_result({"status": "online", "online": True})
+            self.gui._poll_network()
+            self.gui._render()
+            self.assertIsNone(self.gui.network_future)
+            self.assertTrue(self.gui.network_online)
+            self.assertTrue(next(control for control in self.gui.buttons if control.key == "Connect").enabled)
 
 
 if __name__ == "__main__":

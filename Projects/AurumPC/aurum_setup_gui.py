@@ -48,6 +48,17 @@ def _friendly_reason(value: object) -> str:
         "no-wifi-interface": "No Wi-Fi adapter was found. Ethernet can still be used.",
         "credentials-required": "Choose a Wi-Fi network and enter its password.",
         "wifi-connected-no-internet": "Wi-Fi connected, but the internet is not reachable yet.",
+        "wifi-connection-unverified": "The Wi-Fi connection could not be verified. Check the network and password.",
+        "wifi-operation-busy": "A Wi-Fi operation is already running. Please wait for it to finish.",
+        "wifi-service-unavailable": "The Wi-Fi service could not finish safely. Your connection is not verified.",
+        "wifi-network-mismatch": "The connection did not match the selected network. Saved settings were kept.",
+        "wifi-manager-conflict": "Another service is controlling Wi-Fi. Your saved network was not replaced.",
+        "wifi-association-pending": "Could not join Wi-Fi. Check the network and password. Saved settings were kept.",
+        "wifi-address-pending": "Joined Wi-Fi, but the router has not provided a usable address.",
+        "wifi-route-pending": "Joined Wi-Fi, but no internet route is available through it.",
+        "wifi-dns-unavailable": "Joined Wi-Fi, but internet name lookup is not working.",
+        "wifi-internet-unreachable": "Joined Wi-Fi, but GitHub is not reachable.",
+        "wifi-probe-unavailable": "The internet check timed out or could not run. Connection is not verified.",
         "association-start-failed": "The Wi-Fi adapter could not join that network.",
         "scan-failed": "Wi-Fi scanning failed. Try again or use Ethernet.",
     }
@@ -87,6 +98,8 @@ class AurumSetupGui:
         self.network_message = "Checking connection…"
         self.network_online = False
         self.network_future: concurrent.futures.Future[dict[str, Any]] | None = None
+        self.network_operation: Callable[..., dict[str, Any]] | None = None
+        self.scan_after_status = False
         self.buttons: list[SetupControl] = []
         self.focus_key: str | None = None
         self.last_status_refresh = 0.0
@@ -234,33 +247,60 @@ class AurumSetupGui:
             self.status = {"status": "failed", "reason": str(exc)}
             self._set_view("progress")
 
-    def _submit_network(self, function: Callable[..., dict[str, Any]], *args: Any) -> None:
+    def _network_busy(self) -> bool:
+        # A completed result still belongs to its request until _poll_network
+        # consumes it. Never lose that result to a new scan or connection.
+        return self.network_future is not None
+
+    def _submit_network(self, function: Callable[..., dict[str, Any]], *args: Any) -> bool:
+        if self._network_busy():
+            return False
         self.network_future = self.executor.submit(function, *args)
+        self.network_operation = function
+        return True
 
     def _open_wifi(self) -> None:
         self._set_view("wifi")
+        if self._network_busy():
+            # Opening Wi-Fi during the initial read-only check must still
+            # produce a network list without requiring another user click.
+            if self.network_operation is network_status:
+                self.scan_after_status = True
+            return
         self.network_message = "Scanning for Wi-Fi networks…"
         self.ssids = []
         self._submit_network(scan_networks)
 
     def _connect(self) -> None:
+        if self._network_busy():
+            return
         if not self.selected_ssid:
             self.network_message = "Choose a Wi-Fi network first."
             return
         self.password_focus = False
         self.network_message = f"Connecting to {self.selected_ssid}…"
         self._submit_network(connect_wifi, self.selected_ssid, self.password, self.wifi_interface)
-        self.password = ""
 
     def _poll_network(self) -> None:
         future = self.network_future
         if future is None or not future.done():
             return
+        operation = self.network_operation
         self.network_future = None
+        self.network_operation = None
         try:
             result = future.result()
         except Exception:
+            if operation is connect_wifi:
+                self.password = ""
             self.network_message = "The network operation did not complete. Try again."
+            self._scan_if_requested()
+            return
+        # A boot process may own the connection lock. A refused/busy attempt
+        # did not consume these credentials; do not make the user retype them.
+        if operation is connect_wifi and result.get("status") != "wifi-operation-busy":
+            self.password = ""
+        if self._scan_if_requested():
             return
         if isinstance(result.get("ssids"), list):
             self.ssids = [str(value) for value in result["ssids"][:10]]
@@ -276,6 +316,14 @@ class AurumSetupGui:
             self.network_message = "Internet connected. Aurum can sync after installation."
         else:
             self.network_message = _friendly_reason(result.get("status"))
+
+    def _scan_if_requested(self) -> bool:
+        requested = self.scan_after_status
+        self.scan_after_status = False
+        if requested and self.view == "wifi":
+            self._open_wifi()
+            return True
+        return False
 
     def _render_setup(self) -> None:
         x, y, width, height = self._header(
@@ -399,6 +447,7 @@ class AurumSetupGui:
 
     def _render_wifi(self) -> None:
         x, y, width, _ = self._header("Connect to the internet", self.network_message)
+        busy = self._network_busy()
         left_width = int(width * 0.54)
         visible_ssids = self.ssids[:10]
         row_height = min(54, (self.screen.get_height() - 125 - y) // max(1, len(visible_ssids)))
@@ -409,7 +458,7 @@ class AurumSetupGui:
             self.pg.draw.rect(self.screen, PANEL_SELECTED if selected else PANEL, rect, border_radius=8)
             self.pg.draw.rect(self.screen, GOLD if selected else (55, 66, 76), rect, 2 if selected else 1, border_radius=8)
             self._put(ssid, x + 16, top + 3, 17, TEXT, selected)
-            self.buttons.append(SetupControl(f"wifi:{ssid}", rect, lambda value=ssid: self._select_ssid(value)))
+            self.buttons.append(SetupControl(f"wifi:{ssid}", rect, lambda value=ssid: self._select_ssid(value), enabled=not busy))
         field_x = x + left_width + 36
         self._put("Wi-Fi password", field_x, y, 20, MUTED, True)
         field = self.pg.Rect(field_x, y + 34, width - left_width - 36, 54)
@@ -417,7 +466,7 @@ class AurumSetupGui:
         self.pg.draw.rect(self.screen, GOLD if self.password_focus else (55, 66, 76), field, 2, border_radius=8)
         shown = "•" * len(self.password) if self.password else "Select here, then type"
         self._put(shown, field.x + 14, field.y + 15, 19, TEXT if self.password else MUTED)
-        self.buttons.append(SetupControl("wifi-password", field, lambda: self._focus("wifi-password")))
+        self.buttons.append(SetupControl("wifi-password", field, lambda: self._focus("wifi-password"), enabled=not busy))
         field_width = field.width
         if field_width >= 375:
             scan_rect = self.pg.Rect(field_x, y + 112, 180, 52)
@@ -425,11 +474,13 @@ class AurumSetupGui:
         else:
             scan_rect = self.pg.Rect(field_x, y + 112, field_width, 52)
             connect_rect = self.pg.Rect(field_x, y + 180, field_width, 52)
-        self._button("Scan Again", scan_rect, self._open_wifi)
-        self._button("Connect", connect_rect, self._connect, enabled=bool(self.selected_ssid), accent=GREEN)
+        self._button("Scan Again", scan_rect, self._open_wifi, enabled=not busy)
+        self._button("Connect", connect_rect, self._connect, enabled=bool(self.selected_ssid) and not busy, accent=GREEN)
         self._button("Back", self.pg.Rect(x, self.screen.get_height() - 105, 160, 58), lambda: self._set_view("setup"))
 
     def _select_ssid(self, ssid: str) -> None:
+        if self._network_busy():
+            return
         self.selected_ssid = ssid
         self._focus("wifi-password")
 

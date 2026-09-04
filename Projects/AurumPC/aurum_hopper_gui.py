@@ -433,13 +433,15 @@ function showScreen(name){
   const wanted=groups[name]||[];
   cards.forEach(card=>{const h=card.querySelector('h2');card.hidden=!h||!wanted.includes(h.textContent.trim())});
 }
+let wifiBusy=false;
+function wifiSetBusy(value){wifiBusy=value;document.querySelectorAll('#wifi-panel button, #wifi-ssid, #wifi-password').forEach(control=>{control.disabled=value})}
 async function wifiCall(actionName,extra={}){const r=await fetch('/api/wifi',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:actionName,...extra})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Wi-Fi action failed');return d.result||d}
 function wifiDetail(result){const detail=document.getElementById('wifi-detail');if(!detail)return;const bits=[result.status,result.interface,result.ip].filter(Boolean);detail.textContent=bits.join(' · ')||'Wi-Fi state updated.'}
 function renderWifiNetworks(result){const root=document.getElementById('wifi-networks');root.replaceChildren();const ssids=Array.isArray(result.ssids)?result.ssids:[];if(!ssids.length){const empty=document.createElement('span');empty.className='sub';empty.textContent=result.status==='ready'?'No nearby networks found.':(result.status||'Scan unavailable');root.appendChild(empty);return}ssids.forEach(ssid=>{const b=document.createElement('button');b.className='wifi-network';b.type='button';b.textContent=ssid;b.addEventListener('click',()=>{document.getElementById('wifi-ssid').value=ssid;document.getElementById('wifi-password').focus()});root.appendChild(b)})}
-async function wifiScan(){try{wifiDetail({status:'Scanning…'});const result=await wifiCall('scan');wifiDetail(result);renderWifiNetworks(result)}catch(e){wifiDetail({status:e.message||String(e)})}}
-async function wifiConnect(){const ssid=document.getElementById('wifi-ssid').value.trim(),password=document.getElementById('wifi-password');if(!ssid){show('Select or enter a Wi-Fi network.',4);return}try{wifiDetail({status:`Connecting to ${ssid}…`});const result=await wifiCall('connect',{ssid,password:password.value});password.value='';wifiDetail(result);await refresh()}catch(e){password.value='';wifiDetail({status:e.message||String(e)})}}
-async function wifiDisconnect(){try{const result=await wifiCall('disconnect');wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}}
-async function wifiForget(){if(!confirm('Forget the saved Wi-Fi network on this seed?'))return;try{const result=await wifiCall('forget');document.getElementById('wifi-ssid').value='';document.getElementById('wifi-password').value='';wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}}
+async function wifiScan(){if(wifiBusy)return;wifiSetBusy(true);try{wifiDetail({status:'Scanning…'});const result=await wifiCall('scan');wifiDetail(result);if(result.status!=='wifi-operation-busy')renderWifiNetworks(result)}catch(e){wifiDetail({status:e.message||String(e)})}finally{wifiSetBusy(false)}}
+async function wifiConnect(){if(wifiBusy)return;const ssid=document.getElementById('wifi-ssid').value.trim(),password=document.getElementById('wifi-password');if(!ssid){show('Select or enter a Wi-Fi network.',4);return}wifiSetBusy(true);try{wifiDetail({status:`Connecting to ${ssid}…`});const result=await wifiCall('connect',{ssid,password:password.value});if(result.saved===true)password.value='';wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}finally{wifiSetBusy(false)}}
+async function wifiDisconnect(){if(wifiBusy)return;wifiSetBusy(true);try{const result=await wifiCall('disconnect');wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}finally{wifiSetBusy(false)}}
+async function wifiForget(){if(wifiBusy||!confirm('Forget the saved Wi-Fi network on this seed?'))return;wifiSetBusy(true);try{const result=await wifiCall('forget');if(result.status==='saved-network-forgotten'){document.getElementById('wifi-ssid').value='';document.getElementById('wifi-password').value=''}wifiDetail(result);await refresh()}catch(e){wifiDetail({status:e.message||String(e)})}finally{wifiSetBusy(false)}}
 document.getElementById('wifi-scan').addEventListener('click',wifiScan);document.getElementById('wifi-connect').addEventListener('click',wifiConnect);document.getElementById('wifi-disconnect').addEventListener('click',wifiDisconnect);document.getElementById('wifi-forget').addEventListener('click',wifiForget);
 installStart.addEventListener('click',beginInstall);installPoweroff.addEventListener('click',finishInstall);
 document.querySelectorAll('[data-recovery-action]').forEach(button=>button.addEventListener('click',()=>recoveryAction(button.dataset.recoveryAction)));document.addEventListener('keydown',()=>recordGuiInput('keyboard'),{capture:true});document.addEventListener('pointermove',()=>recordGuiInput('pointer'),{capture:true});document.addEventListener('pointerdown',()=>recordGuiInput('pointer'),{capture:true});
@@ -647,18 +649,10 @@ def _make_handler(gui):
                             raise ValueError("Wi-Fi SSID is required")
                         if not isinstance(password, str) or len(password) > 128:
                             raise ValueError("Wi-Fi password is invalid")
-                        config = network._make_config(ssid.strip(), password)
+                        result = network.connect_wifi(ssid, password)
                         password = ""
-                        network._write_saved_config(config)
-                        result = network.connect_saved()
                     else:
-                        interfaces = network.wireless_interfaces()
-                        selected = interfaces[0] if interfaces else None
-                        if selected:
-                            network._stop_owned_supplicant(selected)
-                        if action_name == "forget":
-                            network.SAVED_WIFI.unlink(missing_ok=True)
-                        result = {"status": "saved-network-forgotten" if action_name == "forget" else "disconnected", **network.network_status(selected)}
+                        result = network.disconnect_wifi(forget=action_name == "forget")
                     if _json_safe_dict(result) is None:
                         raise TypeError("Wi-Fi result was not JSON-safe")
                 except Exception as exc:
