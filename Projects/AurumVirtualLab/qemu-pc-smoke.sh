@@ -55,7 +55,17 @@ qemu_pid=
 cleanup() {
   local result=$?
   if [ -n "${qemu_pid:-}" ] && kill -0 "$qemu_pid" 2>/dev/null; then
-    kill "$qemu_pid" 2>/dev/null || true
+    # The installed assessment is useful only after guest writes are flushed.
+    # Ask this disposable Aurum VM to power down, then retain the existing hard
+    # stop as a bounded fallback if its secondary console is no longer responsive.
+    printf 'poweroff\n' >&3 || true
+    for _ in $(seq 1 60); do
+      kill -0 "$qemu_pid" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$qemu_pid" 2>/dev/null; then
+      kill "$qemu_pid" 2>/dev/null || true
+    fi
     wait "$qemu_pid" 2>/dev/null || true
   fi
   if [ "$result" -ne 0 ] && [ -f "$installed_disk" ]; then
