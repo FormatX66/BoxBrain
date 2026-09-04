@@ -6,6 +6,59 @@ ends. The ledger, not conversation memory, is authoritative.
 
 ## Future Branch Decision Engine v1
 
+### Continuous failure-path frontier
+
+The resident supervisor now owns a separate, automatically supervised failure
+explorer for its entire lifetime, including when no job is queued. It resumes a
+signed SQLite checkpoint after process/host restart. A dead worker is replaced;
+a worker that stops publishing progress is replaced after a bounded grace period.
+An inherited lifetime pipe prevents orphan workers after the supervisor exits.
+An exclusive lease prevents competing workers from advancing the same frontier.
+
+The explorer tests novel combinations of authority, dependencies, risk and
+reversibility boundaries, rollback/LKG availability, evidence tiers, expiration,
+completed/quarantined state, attempts and parent dependencies against the actual
+decision engine. It starts with baseline and single-factor checks, then traverses
+interactions without replacement. Equivalent job IDs/payloads collapse into the
+same observed policy shape. The built-in control has over four million distinct
+modeled combinations; these are not claims about all possible real-world failures.
+
+An independent oracle checks promotion, DAG structure, role separation and LKG.
+The child imports no executors or configured external probes; it cannot run a
+real job, modify its ledger state, promote LKG, or grant authority. Model findings
+are separately sealed and the case cursor advances instead of replaying failures.
+The resident supervisor holds new execution while the explorer is unavailable or
+has unresolved invariant/model errors. A corrupt signed checkpoint is held until
+its contents change, rather than retried unchanged. Existing job quarantine and
+admission rules are not weakened.
+
+The default batch budget is 16 cases and 0.15 CPU seconds, with fair four-case
+slices per observed policy shape and a one-second yield. Observation and liveness
+timestamps never count as new paths. If a modeled frontier is exhausted, the
+service watches for new semantic state rather than fabricating work. Actual
+engine outcomes and model predictions remain distinct in telemetry. Windows
+startup/restart protection also permits bounded operation on battery; shutdown,
+sleep, explicit stops and unavailable hardware are not promises of computation.
+The service does not depend on a chat, dashboard, or Codex remaining open.
+
+Host CPU and memory observations adapt only the explorer's own budget. Three
+sustained-pressure samples reduce it to one case, a 0.005-second soft CPU quantum
+and a three-second yield; critical headroom uses one case and a five-second
+yield. Unknown capacity is conservative. Five clear samples restore the normal
+budget. A case already started completes before the CPU quantum is checked.
+Telemetry records observed headroom and the selected budget. Windows commit
+headroom from GlobalMemoryStatusEx may be process-limited and is used
+conservatively, not mislabeled as system-wide committed memory.
+
+This is actual local self-throttling, not control over arbitrary Windows
+processes or cloud routing. Those capabilities are explicitly unconfigured in
+this component; active VMs, builds and external workload ownership remain with
+their respective controllers. No external workload is terminated or migrated.
+
+`GET /health` and `/monitor` expose `continuous_exploration`: worker/watchdog
+health, signed path counts, recent model results, evidence age, recovery count,
+and scope. The existing authenticated APIs continue to protect real job details.
+
 Every ledger claim now passes the decision engine, including direct callers.
 The supervisor explores active jobs while the selected executor runs. The
 event-driven Farmer-v3 worker imports the same engine at its common dispatch

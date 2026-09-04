@@ -127,7 +127,7 @@ def sample_engine(journal):
             raise ValueError("unexpected monitor schema")
         # Whitelist fields: the health fallback also contains private local paths.
         safe = {key: raw[key] for key in ("status", "activity", "event_chain_valid", "running_attempts",
-                "future_branch", "recent_decisions", "job_states") if key in raw}
+                "future_branch", "recent_decisions", "job_states", "continuous_exploration") if key in raw}
         safe["activity"] = safe.get("activity", "executing" if safe.get("running_attempts") else "idle")
         journal.snapshot("engine", {"reachable": True, "detailed": detailed, **safe})
     except Exception as error:

@@ -147,6 +147,7 @@ else {
 }
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 `
     -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) `
+    -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
     -MultipleInstances IgnoreNew
 
 $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue

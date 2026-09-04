@@ -17,6 +17,13 @@ candidates only on loopback. Job payloads, goals, inputs and credentials remain
 behind existing authenticated endpoints. A health-only fallback is explicitly
 labeled when a runtime has not yet received the projection.
 
+The continuous-exploration panel reads the resident worker's signed frontier
+checkpoint. It shows fresh, unique decision-policy fault-model checks separately
+from real job outcomes. Execution can be idle while the explorer advances. The
+monitor never schedules these cases: Farmer's own worker, watchdog and startup
+service do that even when Codex and the dashboard are closed. A depleted modeled
+frontier is labeled as watching for new state, not imaginary new computation.
+
 ## Public chat reports
 
 Write a UTF-8 JSON file and run `python monitor.py record --file report.json`.
