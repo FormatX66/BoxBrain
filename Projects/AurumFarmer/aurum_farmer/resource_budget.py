@@ -55,14 +55,19 @@ class ResourceGovernor:
     def __init__(self):
         self.mode, self.high_samples, self.clear_samples = 'normal', 0, 0
 
-    def choose(self, sample):
+    def choose(self, sample, activity=None):
         cpu, available, load = sample.get('cpu_percent'), sample.get('available_memory_mb'), sample.get('physical_load_percent')
         headroom = sample.get('commit_headroom_percent')
         unknown = not sample.get('available')
+        activity = activity or {'available': False, 'reason': 'not_connected'}
+        # Remote CPU/RAM never enters local pressure. A fresh process observation
+        # may only constrain this explorer when independent host CPU corroborates it.
+        contention = bool(activity.get('available') and activity.get('local_heavy_cpu_count', 0) > 0
+                          and activity.get('local_heavy_cpu_percent', 0) >= 25 and cpu is not None and cpu >= 50)
         critical = not unknown and (available < 256 or (headroom is not None and headroom < 3))
-        high = not unknown and (available < 1024 or load >= 90 or (cpu is not None and cpu >= 85)
+        high = not unknown and (contention or available < 1024 or load >= 90 or (cpu is not None and cpu >= 85)
                                or (headroom is not None and headroom < 10))
-        clear = not unknown and available > 1536 and load < 85 and cpu is not None and cpu < 70 and (headroom is None or headroom > 15)
+        clear = not unknown and not contention and available > 1536 and load < 85 and cpu is not None and cpu < 70 and (headroom is None or headroom > 15)
         self.high_samples = self.high_samples+1 if high else 0
         self.clear_samples = self.clear_samples+1 if clear else 0
         if unknown:
@@ -82,6 +87,7 @@ class ResourceGovernor:
         return {'mode': self.mode, 'cases': cases, 'cpu_seconds': cpu_seconds, 'yield_seconds': delay,
                 'selected': 'normal_local_budget' if self.mode == 'normal' else 'reduced_local_budget',
                 'observed_host': sample, 'owner': 'Future Branch failure explorer only',
+                'activity_evidence': activity, 'activity_contention': contention,
                 'candidates': ['normal_local_budget', 'reduced_local_budget'],
                 'external_process_control': 'not_configured', 'cloud_routing': 'not_configured',
                 'recovery': 'Restore normal budget after five clear samples; preserve all external workloads'}

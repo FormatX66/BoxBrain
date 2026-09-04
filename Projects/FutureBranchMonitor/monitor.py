@@ -8,10 +8,12 @@ from pathlib import Path
 import sqlite3
 import threading
 import time
+from workloads import LocalCollector, GitHubCollector, activity_snapshot, provider_sample
 from urllib.error import HTTPError
 from urllib.request import build_opener, ProxyHandler
 
 ROOT = Path(__file__).resolve().parent
+VERSION = "unified-workloads-v1"
 SCHEMA = "aurum.future-branch.chat-check.v1"
 PHASES = {"planned", "checking", "executing", "checked", "failed", "waiting"}
 
@@ -101,7 +103,9 @@ class Journal:
                 "latest_report": report})
         engine = snapshots.get("engine", {})
         engine["stale"] = not engine or engine.get("age_seconds", 999) > 15
-        return {"schema": "aurum.future-branch.dashboard.v1", "observed_at": now, "engine": engine,
+        workloads = activity_snapshot({name: snapshots.get('workload_' + name, {}) for name in ('local', 'github')}, now)
+        return {"schema": "aurum.future-branch.dashboard.v1", "version": VERSION,
+                "observed_at": now, "engine": engine, "workloads": workloads,
                 "task_inventory": {"observed_at": tasks.get("observed_at"), "age_seconds": tasks.get("age_seconds"),
                                    "stale": not tasks or tasks.get("age_seconds", 999) > 600,
                                    "scope": tasks.get("scope", "No task inventory received")},
@@ -135,16 +139,24 @@ def sample_engine(journal):
         journal.snapshot("engine", {"reachable": False, "detailed": False, "error": type(error).__name__})
 
 
-def serve(journal, port=19467):
+def make_server(journal, port=19467):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.headers.get("Host") not in {f"127.0.0.1:{port}", f"localhost:{port}"}:
+            actual_port = self.server.server_port
+            if self.headers.get("Host") not in {f"127.0.0.1:{actual_port}", f"localhost:{actual_port}"}:
                 self.send_error(403)
                 return
             if self.path == "/":
                 content, mime = (ROOT / "index.html").read_bytes(), "text/html; charset=utf-8"
             elif self.path == "/api/status":
                 content, mime = canonical(journal.read()).encode(), "application/json; charset=utf-8"
+            elif self.path == "/api/activity":
+                # Budget consumer needs the exact snapshot ID and summary, not process details.
+                activity = journal.read()['workloads']
+                content = canonical({k: v for k, v in activity.items() if k not in ('rows', 'capability_gaps')}).encode()
+                mime = "application/json; charset=utf-8"
+            elif self.path == "/activity.js":
+                content, mime = (ROOT / "activity.js").read_bytes(), "text/javascript; charset=utf-8"
             else:
                 self.send_error(404)
                 return
@@ -153,13 +165,17 @@ def serve(journal, port=19467):
             self.send_header("Content-Length", str(len(content)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
             self.end_headers()
             self.wfile.write(content)
 
         def log_message(self, *args):
             pass
 
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+
+
+def serve(journal, port=19467):
     stop = threading.Event()
 
     def poll():
@@ -168,7 +184,18 @@ def serve(journal, port=19467):
             stop.wait(5)
 
     thread = threading.Thread(target=poll, daemon=True)
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = make_server(journal, port)
+    def poll_provider(name, collector):
+        previous = None
+        while not stop.is_set():
+            previous = provider_sample(collector, previous)
+            journal.snapshot('workload_' + name, previous)
+            stop.wait(previous['next_poll_seconds'])
+    collectors = [threading.Thread(target=poll_provider, args=(name, collector), daemon=True,
+                                   name='workload-' + name) for name, collector in
+                  [('local', LocalCollector()), ('github', GitHubCollector())]]
+    for collector in collectors:
+        collector.start()
     thread.start()
     try:
         server.serve_forever()
