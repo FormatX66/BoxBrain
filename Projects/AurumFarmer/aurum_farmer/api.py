@@ -65,7 +65,9 @@ class FarmerApiHandler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "decision_integrity_failure"})
             return
         if path == "/health":
-            self._json(HTTPStatus.OK, {"status": "healthy", **self.server.ledger.stats()})
+            from .telemetry import exploration_status
+            self._json(HTTPStatus.OK, {"status": "healthy", **self.server.ledger.stats(),
+                                      'continuous_exploration': exploration_status(self.server.ledger)})
             return
         if not self._authorized():
             self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})

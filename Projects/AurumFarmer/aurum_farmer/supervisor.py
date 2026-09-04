@@ -37,6 +37,7 @@ class Supervisor:
         self.last_error: str | None = None
         self.last_tick_at: float | None = None
         self.exploration_error: str | None = None
+        self.failure_explorer = None
 
     def _explore_worker(self, stop: threading.Event) -> None:
         while not stop.is_set():
@@ -64,6 +65,11 @@ class Supervisor:
         if not self.ledger.supervisor_heartbeat(self.name, self.owner, lease_seconds=self.lease_seconds):
             return {"status": "standby", "reason": "another healthy supervisor owns the lease"}
         recovered = self.ledger.recover_stale_attempts()
+        if self.failure_explorer is not None:
+            exploration = self.failure_explorer.status()
+            if (not exploration['healthy'] or exploration.get('invariant_violations', 0)
+                    or exploration.get('model_errors', 0)):
+                return {'status': 'exploration_hold', 'recovered_jobs': recovered}
         # Deepening runs independently while executors wait on work. The ledger
         # still performs the synchronous, fail-closed promotion gate for every claim.
         preparation_stop = threading.Event()
@@ -120,11 +126,18 @@ class Supervisor:
 
     def run_forever(self) -> None:
         """Keep supervising until the process receives an explicit stop."""
-        while not self.stop_event.is_set():
-            try:
-                result = self.tick()
-                delay = self.poll_seconds if result["status"] in {"idle", "standby"} else 0.05
-            except Exception as error:  # keep the watchdog alive and try after bounded delay
-                self.last_error = "".join(traceback.format_exception_only(type(error), error)).strip()
-                delay = min(max(self.poll_seconds * 2, 1.0), 30.0)
-            self.stop_event.wait(delay)
+        from .failure_explorer import ExplorerWatchdog
+        self.failure_explorer = ExplorerWatchdog(self.ledger)
+        self.ledger.failure_explorer = self.failure_explorer
+        self.failure_explorer.start()
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    result = self.tick()
+                    delay = self.poll_seconds if result['status'] in {'idle', 'standby', 'exploration_hold'} else .05
+                except Exception as error:  # keep the watchdog alive and try after bounded delay
+                    self.last_error = "".join(traceback.format_exception_only(type(error), error)).strip()
+                    delay = min(max(self.poll_seconds * 2, 1.0), 30.0)
+                self.stop_event.wait(delay)
+        finally:
+            self.failure_explorer.stop()

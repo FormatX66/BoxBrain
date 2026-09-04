@@ -1,15 +1,15 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Deploy read-only redacted Future Branch decision telemetry for the live monitor while preserving LKG, protected controls and seed/GitHub sync.",
+  "purpose": "Keep Future Branch testing novel failure paths independently of job and chat idleness, with durable checkpoints, worker recovery and preserved LKG.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 8,
-  "retry_reason": "New read-only monitor projection; require live signed decision readback after the existing reversible restart canary.",
+  "retry_sequence": 9,
+  "retry_reason": "New resident fault-model explorer and fail-closed supervisor hold; require increasing signed path evidence while real execution is idle.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
@@ -19,6 +19,9 @@
     "previous-releases-preserved",
     "future-branch-default-on-calibration",
     "future-branch-cross-job-quarantine",
-    "future-branch-read-only-monitor-sealed-decisions"
+    "future-branch-read-only-monitor-sealed-decisions",
+    "continuous-exploration-advances-while-idle",
+    "continuous-explorer-worker-recovery-tests",
+    "battery-switch-does-not-stop-service"
   ]
 }

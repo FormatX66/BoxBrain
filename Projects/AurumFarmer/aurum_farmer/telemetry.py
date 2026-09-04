@@ -8,6 +8,14 @@ from .decision_engine import digest
 from .ledger import LedgerError
 
 
+def exploration_status(ledger):
+    explorer = getattr(ledger, 'failure_explorer', None)
+    if explorer is None:
+        return {'schema': 'aurum.future-branch.continuous.v1', 'mode': 'not_attached', 'healthy': False}
+    status = explorer.status()
+    return {k: v for k, v in status.items() if k not in {'owner', 'pid'}}
+
+
 def monitor_snapshot(ledger):
     stats = ledger.stats()
     traces = []
@@ -37,4 +45,5 @@ def monitor_snapshot(ledger):
             "activity": "executing" if stats["running_attempts"] else "idle",
             "event_chain_valid": stats["event_chain_valid"], "running_attempts": stats["running_attempts"],
             "job_states": stats["states"], "future_branch": stats["future_branch"], "recent_decisions": traces,
+            "continuous_exploration": exploration_status(ledger),
             "scope": "Farmer runtime only; chat reports are separate evidence", "read_only": True}

@@ -159,6 +159,25 @@ jobs:
             throw 'AURUM_FARMER_DEPLOY_FAILED reason=live-decision-monitor-proof'
           }
 
+          $explorationBefore = $monitor.continuous_exploration
+          if ($explorationBefore.healthy -ne $true -or $explorationBefore.worker_alive -ne $true -or
+              $explorationBefore.seal_valid -ne $true -or $explorationBefore.invariant_violations -ne 0 -or
+              $explorationBefore.model_errors -ne 0) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=continuous-exploration-not-healthy'
+          }
+          $explorationDeadline = (Get-Date).AddSeconds(15)
+          do {
+            Start-Sleep -Milliseconds 500
+            $monitor = Invoke-RestMethod -Uri 'http://127.0.0.1:19466/monitor' -TimeoutSec 5
+          } until (($monitor.continuous_exploration.paths_checked -gt $explorationBefore.paths_checked) -or (Get-Date) -ge $explorationDeadline)
+          if ($monitor.running_attempts -ne 0 -or $monitor.continuous_exploration.healthy -ne $true -or
+              $monitor.continuous_exploration.paths_checked -le $explorationBefore.paths_checked) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=no-new-failure-path-evidence-while-idle'
+          }
+          if ($task.Settings.DisallowStartIfOnBatteries -or $task.Settings.StopIfGoingOnBatteries) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=battery-policy-stops-continuous-explorer'
+          }
+
           $proof = [ordered]@{
             schema = 'aurum.farmer.windows-runtime-proof.v1'
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
@@ -177,6 +196,10 @@ jobs:
             event_chain_valid = [bool]$health.event_chain_valid
             future_branch = $health.future_branch
             decision_monitor_verified = $true
+            continuous_exploration_verified = $true
+            exploration_paths_before = [int]$explorationBefore.paths_checked
+            exploration_paths_after = [int]$monitor.continuous_exploration.paths_checked
+            continuous_exploration = $monitor.continuous_exploration
             queued_while_supervisor_stopped = $true
             supervisor_lease_seconds = $leaseSeconds
             restart_proof_window_seconds = $restartProofSeconds
