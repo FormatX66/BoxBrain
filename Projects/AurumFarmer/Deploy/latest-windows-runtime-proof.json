@@ -1,11 +1,11 @@
 ﻿{
     "schema":  "aurum.farmer.windows-runtime-proof.v1",
-    "observed_at_utc":  "2026-09-04T03:30:52.3151011Z",
+    "observed_at_utc":  "2026-09-04T16:08:33.6342120Z",
     "runner_name":  "AURUM-LAPTOP-EBD8CG8P",
-    "source_commit":  "fb3c7f375d200bd8682266c1ab16262cacf7ab6e",
-    "release_root":  "C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\releases\\20260903232849-fb3c7f375d20",
+    "source_commit":  "6c7b0ca8bc7ae011bde7943b114ea58d8e743380",
+    "release_root":  "C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\releases\\20260904120635-6c7b0ca8bc7a",
     "runtime_root":  "C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\runtime",
-    "python_exe":  "C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\releases\\20260903232849-fb3c7f375d20\\python\\python.exe",
+    "python_exe":  "C:\\WINDOWS\\system32\\config\\systemprofile\\AppData\\Local\\BoxBrain\\AurumFarmer\\releases\\20260904120635-6c7b0ca8bc7a\\python\\python.exe",
     "python_runtime":  "embedded",
     "windows_identity":  "NT AUTHORITY\\SYSTEM",
     "scheduled_task_principal_mode":  "service-account-startup",
@@ -18,9 +18,9 @@
                           "available_tiers":  [
                                                   "static"
                                               ],
-                          "calibrated_outcomes":  4,
+                          "calibrated_outcomes":  5,
                           "cross_job_quarantine":  true,
-                          "decisions":  8,
+                          "decisions":  10,
                           "default_on":  true,
                           "engine":  "aurum.future-branch.decision.v1",
                           "execution_revision":  "e308fcab8840ad8f795a5db5a264207107dfd0b4ba60d1b67bac4a1df6963313",
@@ -31,210 +31,296 @@
                       },
     "decision_monitor_verified":  true,
     "continuous_exploration_verified":  true,
-    "exploration_paths_before":  39,
-    "exploration_paths_after":  40,
+    "exploration_paths_before":  1083,
+    "exploration_paths_after":  1099,
     "continuous_exploration":  {
-                                   "age_seconds":  0.8425371646881104,
+                                   "age_seconds":  0.3060140609741211,
                                    "authority_granted":  false,
-                                   "guarded_paths":  36,
+                                   "guarded_paths":  1085,
                                    "healthy":  true,
                                    "invariant_violations":  0,
-                                   "last_new_evidence_at":  1788492651.3436065,
+                                   "last_new_evidence_at":  1788538113.3052733,
                                    "local_worker_leader":  true,
                                    "mode":  "exploring",
                                    "model_errors":  0,
                                    "model_only":  true,
                                    "observed_shapes":  5,
-                                   "paths_checked":  40,
-                                   "pending_cursor_positions":  38191211,
+                                   "paths_checked":  1099,
+                                   "pending_cursor_positions":  38190147,
                                    "recent":  [
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "11b83efa66e48bd201e7ae11d58f7d608681a8a2b6e43fda1258aa5110bb3b9e",
+                                                      "case_id":  "b091a083702648d2df7fc26ed3dcfca873cfcfd559bf89997af0a7dbf8a94071",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "risk",
+                                                                                 "reversibility",
+                                                                                 "expected_evidence",
+                                                                                 "required_tier",
+                                                                                 "rollback_ref",
+                                                                                 "attempt_count",
+                                                                                 "uncertainty"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  72,
+                                                      "index":  2413248,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492651.3436065,
+                                                      "observed_at":  1788538113.3052733,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "a2baefe63212345cfd7ca86cb3e05582565ce35bf5977166590e4ba550d453da",
-                                                      "state_id":  "d19ca14a72cdf5f262cd718ce32c8a6dd008cf8672d61323899d06cdc23843cb"
+                                                      "report_digest":  "a7882625d955d1fd65c933cc6a88503bcca5d351304c963b49b91aa8e9a4fe7d",
+                                                      "state_id":  "3c77d06989921c1ffa6f36755790b0dc9d30e0e72f9b9ce7702fb6d076144fd6"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "0b9f9ec8ee0a8e5cf38a1aad344d56154ff93c3bd4ef32f66198a053d6f847d1",
+                                                      "case_id":  "e6cc0094da0d0882ddfdcc241a0044d9865a1a1cf4fb2a8cfae9e23abf4d9fc3",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "authority_ready",
+                                                                                 "dependencies_satisfied",
+                                                                                 "human_boundary",
+                                                                                 "risk",
+                                                                                 "reversibility",
+                                                                                 "expected_evidence",
+                                                                                 "required_tier",
+                                                                                 "expires_at",
+                                                                                 "uncertainty"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  72,
+                                                      "index":  2308519,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492648.0449226,
+                                                      "observed_at":  1788538113.2976813,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "467a0a1f820948a0fe528c9c595d1c2ee6fecfc4829fed1b82e831669d9775c4",
-                                                      "state_id":  "90964cc362a3d305b9eaab0d1973725b2fc4f9175158d37d18fd9b9cfc60fa57"
+                                                      "report_digest":  "da2ffb05a57075eabc4643159ec8bd22a159fa3757f3cc03b283cf6ecddf0894",
+                                                      "state_id":  "3c77d06989921c1ffa6f36755790b0dc9d30e0e72f9b9ce7702fb6d076144fd6"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "4a06bba77e073c198d0bb615948688a6c86546db4f96ffcfa569e3aed4b1070e",
+                                                      "case_id":  "7d82234ff33b4958a829a82bc571660b9c18777f0c7a15be658bfb2166f2e9f0",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "dependencies_satisfied",
+                                                                                 "human_boundary",
+                                                                                 "state",
+                                                                                 "risk",
+                                                                                 "expected_evidence",
+                                                                                 "required_tier",
+                                                                                 "rollback_ref",
+                                                                                 "lkg_present",
+                                                                                 "impossible",
+                                                                                 "expires_at",
+                                                                                 "attempt_count",
+                                                                                 "irreversible_cost",
+                                                                                 "confidence"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  72,
+                                                      "index":  2203790,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492644.7976835,
+                                                      "observed_at":  1788538113.289843,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "0cf0350ba7a31adbd251712d57dbf13908ebc34a9eadb9609bea5ffe8a7331a0",
-                                                      "state_id":  "5643dc08553cc0e7a086eccc37a675d7b499608d6ed963b8f088cbe7dbc7622f"
+                                                      "report_digest":  "5042bb5615167ca5fe637530b9a3495325211b4a2ed610b2049b8f2ed06fba96",
+                                                      "state_id":  "3c77d06989921c1ffa6f36755790b0dc9d30e0e72f9b9ce7702fb6d076144fd6"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "e078229a4ee0a6c249b5c1801764710b933ba9a78ae7a5cc2e190f537b8e5dd0",
+                                                      "case_id":  "32682da8cd754c3eb1db91177cf359d054e6b99eaa4171a752016d4b983bb2a7",
                                                       "changed_dimensions":  [
-                                                                                 "state"
+                                                                                 "authority_ready",
+                                                                                 "human_boundary",
+                                                                                 "state",
+                                                                                 "expected_evidence",
+                                                                                 "required_tier",
+                                                                                 "lkg_present",
+                                                                                 "impossible",
+                                                                                 "attempt_count",
+                                                                                 "irreversible_cost",
+                                                                                 "confidence"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  8,
+                                                      "index":  2099061,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492641.6954908,
+                                                      "observed_at":  1788538113.2831554,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "d8c5e7a444bf347463aba3ecbb097259bc840c25f2d5e72b3f00b0854f5712b0",
-                                                      "state_id":  "f72b87f09905a7b076bb76c8dee58c49d1757e61bb203fe2a900a02ad63d27ca"
+                                                      "report_digest":  "448d329f5aa5881aa5ed69c0e275c3e3783fd2fdf8b0bfa49a909202271b155d",
+                                                      "state_id":  "3c77d06989921c1ffa6f36755790b0dc9d30e0e72f9b9ce7702fb6d076144fd6"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "bb8abdd37174b87aa9b71c178467856919ed2eb0d54b761367d42484b87a344c",
+                                                      "case_id":  "3fa63041e7ee6991a42fec2cb64975db9e56fea53eed2a57e83cdd66a940292a",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "risk",
+                                                                                 "reversibility",
+                                                                                 "expected_evidence",
+                                                                                 "required_tier",
+                                                                                 "impossible",
+                                                                                 "attempt_count",
+                                                                                 "irreversible_cost",
+                                                                                 "uncertainty",
+                                                                                 "parents"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  48,
+                                                      "index":  9048768,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492638.5777426,
+                                                      "observed_at":  1788538113.271281,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "6b4eed537c1955efcf5597ea4bcd53d2d8c9963d70f18c18761d4a9643a94778",
-                                                      "state_id":  "f05ecc198e46bde192083a112c811e4ccaffd6e08714d117bc4d62725b19f7ac"
+                                                      "report_digest":  "51c514ddc3076d6828422a8eabfd928cfc9bf5ddbdd9ea8581c21ec2fb8f0d90",
+                                                      "state_id":  "2657a55cc0648584d0b505dc6da408733bdb006b885bca2e69f005290094148f"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "a3a5402d4428b875870a980e4aac505dc5db9c888a9ebd2f98b9ddc0cc58d885",
+                                                      "case_id":  "73533ce984a6c15773af3ceab108bd24e466c00524537584210c41d54e4ff265",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "authority_ready",
+                                                                                 "dependencies_satisfied",
+                                                                                 "human_boundary",
+                                                                                 "risk",
+                                                                                 "reversibility",
+                                                                                 "required_tier",
+                                                                                 "rollback_ref",
+                                                                                 "impossible",
+                                                                                 "expires_at",
+                                                                                 "irreversible_cost",
+                                                                                 "uncertainty",
+                                                                                 "parents"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  48,
+                                                      "index":  8944039,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492635.131876,
+                                                      "observed_at":  1788538113.263291,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "84444f833d3c68560a3b0374def8abf5c8cccb61b2e9f7cbccbd501fe78b0111",
-                                                      "state_id":  "d19ca14a72cdf5f262cd718ce32c8a6dd008cf8672d61323899d06cdc23843cb"
+                                                      "report_digest":  "8526604d027ca11b470ef992cb74c49eec8dd2105141e8d45eed77ac3a6cf8d6",
+                                                      "state_id":  "2657a55cc0648584d0b505dc6da408733bdb006b885bca2e69f005290094148f"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "595e1b7d8523f04fcd8e5927eb0156025ef195fc3e5e234a7fe9326501617ea7",
+                                                      "case_id":  "a8f38141116b37c52f7b3aaa0b2533f658f964b07fcf9dad1ac4544047a2e072",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "dependencies_satisfied",
+                                                                                 "human_boundary",
+                                                                                 "state",
+                                                                                 "risk",
+                                                                                 "required_tier",
+                                                                                 "effect",
+                                                                                 "rollback_ref",
+                                                                                 "impossible",
+                                                                                 "irreversible_cost",
+                                                                                 "uncertainty",
+                                                                                 "parents"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  48,
+                                                      "index":  8839310,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492631.8699024,
+                                                      "observed_at":  1788538113.2560668,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "7434b3ab61197ab62a063949ce82c1a324336a81d6316ab61adc67000044f5c5",
-                                                      "state_id":  "90964cc362a3d305b9eaab0d1973725b2fc4f9175158d37d18fd9b9cfc60fa57"
+                                                      "report_digest":  "0570083865c65311b77312ea50ffbd7ba60ac48abb11281339f282f497c5c92d",
+                                                      "state_id":  "2657a55cc0648584d0b505dc6da408733bdb006b885bca2e69f005290094148f"
                                                   },
                                                   {
                                                       "authority_granted":  false,
-                                                      "case_id":  "83e7cd328c34cc603293fa42f273dfd05acdb4ca65f270b0bd123bb8b3c0ac3c",
+                                                      "case_id":  "8e7410ba5c1e6fc8ec27902d8e147ed82fbdfd7e9ab1cd2d2f325b3402953cb8",
                                                       "changed_dimensions":  [
-                                                                                 "risk"
+                                                                                 "authority_ready",
+                                                                                 "human_boundary",
+                                                                                 "state",
+                                                                                 "reversibility",
+                                                                                 "expected_evidence",
+                                                                                 "effect",
+                                                                                 "lkg_present",
+                                                                                 "impossible",
+                                                                                 "expires_at",
+                                                                                 "attempt_count",
+                                                                                 "uncertainty",
+                                                                                 "parents"
                                                                              ],
                                                       "dag_nodes":  16,
                                                       "error":  null,
                                                       "findings":  [
 
                                                                    ],
-                                                      "index":  48,
+                                                      "index":  8734581,
                                                       "model_only":  true,
-                                                      "observed_at":  1788492627.92923,
+                                                      "observed_at":  1788538113.228665,
                                                       "oracle":  "independent-failure-oracle-v1",
                                                       "outcome":  "guard_prevented",
-                                                      "report_digest":  "e211e798a4313d08570b49ac48a3a44c99de018bfa739c9133722eac5dbf97fa",
-                                                      "state_id":  "5643dc08553cc0e7a086eccc37a675d7b499608d6ed963b8f088cbe7dbc7622f"
+                                                      "report_digest":  "2addbb341673e895939a2b79e6af367f230243469072b806151899cee2fecece",
+                                                      "state_id":  "2657a55cc0648584d0b505dc6da408733bdb006b885bca2e69f005290094148f"
                                                   }
                                               ],
                                    "resource_budget":  {
-                                                           "cases_per_batch":  1,
-                                                           "cpu_seconds_per_batch":  0.005,
-                                                           "yield_seconds":  3
+                                                           "cases_per_batch":  16,
+                                                           "cpu_seconds_per_batch":  0.15,
+                                                           "yield_seconds":  1
                                                        },
                                    "resource_decision":  {
+                                                             "activity_contention":  false,
+                                                             "activity_evidence":  {
+                                                                                       "authority_granted":  false,
+                                                                                       "available":  true,
+                                                                                       "github_active_observed":  1,
+                                                                                       "local_heavy_cpu_count":  0,
+                                                                                       "local_heavy_cpu_percent":  0,
+                                                                                       "local_observed_at":  1788538110.4843204,
+                                                                                       "scope":  "Local contention may reduce explorer budget only; cloud activity is advisory",
+                                                                                       "snapshot_id":  "14909e59810bbeeb4375495c032f238d5d40eeef077fc62b5dfccd08cbf1dc94"
+                                                                                   },
                                                              "candidates":  [
                                                                                 "normal_local_budget",
                                                                                 "reduced_local_budget"
                                                                             ],
-                                                             "cases":  1,
+                                                             "cases":  16,
                                                              "cloud_routing":  "not_configured",
-                                                             "cpu_seconds":  0.005,
+                                                             "cpu_seconds":  0.15,
                                                              "external_process_control":  "not_configured",
-                                                             "mode":  "sustained_pressure",
+                                                             "mode":  "normal",
                                                              "observed_host":  {
                                                                                    "available":  true,
-                                                                                   "available_memory_mb":  2249,
-                                                                                   "commit_headroom_percent":  5.1,
-                                                                                   "cpu_percent":  50.6,
-                                                                                   "observed_at":  1788492651.2761774,
-                                                                                   "physical_load_percent":  86,
+                                                                                   "available_memory_mb":  2016,
+                                                                                   "commit_headroom_percent":  28.1,
+                                                                                   "cpu_percent":  18.6,
+                                                                                   "observed_at":  1788538113.1110861,
+                                                                                   "physical_load_percent":  87,
                                                                                    "source":  "GlobalMemoryStatusEx/GetSystemTimes"
                                                                                },
                                                              "owner":  "Future Branch failure explorer only",
                                                              "recovery":  "Restore normal budget after five clear samples; preserve all external workloads",
-                                                             "selected":  "reduced_local_budget",
-                                                             "yield_seconds":  3
+                                                             "selected":  "normal_local_budget",
+                                                             "yield_seconds":  1
                                                          },
-                                   "revision":  "e937e5e24d860d33b9387afc785054cde9db98d325b4eafd5d56bfb6e22a2760",
+                                   "revision":  "096df68289e7fc1bb5cf2d970dcc0ba58e8bb5dab5b5563d76ba7518dd7ed531",
                                    "schema":  "aurum.future-branch.continuous.v1",
                                    "scope":  "Decision-policy fault models; not physical, VM, or all-chat execution proof",
                                    "seal_valid":  true,
-                                   "updated_at":  1788492651.4611537,
+                                   "updated_at":  1788538113.3212757,
                                    "watchdog_alive":  true,
                                    "watchdog_error":  null,
                                    "worker_alive":  true,
@@ -243,7 +329,7 @@
     "queued_while_supervisor_stopped":  true,
     "supervisor_lease_seconds":  90,
     "restart_proof_window_seconds":  120,
-    "restart_resume_job_id":  "AF-98d1cdc0a9a045929786",
+    "restart_resume_job_id":  "AF-92d8574b43af421f863d",
     "restart_resume_job_state":  "SUCCEEDED",
     "sealed_receipt_count":  1,
     "previous_releases_preserved":  true,
