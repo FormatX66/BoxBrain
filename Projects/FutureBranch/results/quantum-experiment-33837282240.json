@@ -1,0 +1,53 @@
+{
+  "schema": "aurum-future-branch-quantum-evidence-v1",
+  "source_repository": "FormatX66/aurum-future-branch-quantum",
+  "source_commit": "d9e60a7a778564707071975338d80b4748987ba9",
+  "source_run_id": 33837282240,
+  "recorded_at": "2026-09-04T04:35:25.492914+00:00",
+  "overall": "success",
+  "router": "success",
+  "selection": {
+    "population_size": 8,
+    "top_probability_fraction": 0.05,
+    "selected_count": 1,
+    "pruned_count": 7,
+    "probability_cutoff": 0.8888888888888888,
+    "selected_path": "current-release-flash-readback-proven-awaiting-physical-boot",
+    "selected_status": "held-at-real-boundary"
+  },
+  "provider_sweeps": {
+    "google": {"cases_executed": 9, "passed": true, "failed_cases": []},
+    "microsoft": {"cases_executed": 9, "passed": true, "failed_cases": []}
+  },
+  "calibration": {
+    "events": 13,
+    "partial": 5,
+    "miss": 3,
+    "partial_or_miss_rate": 0.6153846153846154,
+    "branch_ranking_preparation_justified": true
+  },
+  "aurum_seed_build": {
+    "authority_commit": "d4b80d95f834bc8c56e0cedad18c77bac25f3402",
+    "build_source_commit": "4eb31e8071cdc9705f4f5abea5af764ef35e498b",
+    "build_state": "READY_TO_FLASH",
+    "x86_build": "passed",
+    "x86_uefi_boot_smoke": "passed",
+    "x86_bios_boot_smoke": "passed",
+    "x86_boot_proof_marker": "passed",
+    "pi_build": "passed",
+    "pi_static_recovery_payload": "passed",
+    "published_artifacts": "passed",
+    "combined_hash_reverification": "passed",
+    "physical_boot": "pending",
+    "guardian_forced_rollback": "pending",
+    "next_gate": "physical-flash-and-boot-proof"
+  },
+  "next_human_boundary": {
+    "genuine_human_only": true,
+    "instruction": "Boot the already proven current-release x86 Tiny Seed media on the physical target using the one-time boot path, collect formal Tiny Seed ready/boot-proof evidence, and do not infer success from the flash receipt alone.",
+    "destructive_action_required": false,
+    "physical_or_destructive_effect_executed_by_experiment": false,
+    "hardware_submission": false
+  },
+  "evidence_boundary": "Model/provider success and virtual/build gates do not prove physical boot, install, destructive action, Guardian rollback, or Hopper acceptance."
+}
