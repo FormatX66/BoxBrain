@@ -66,6 +66,7 @@ class Ledger:
         self._signing_key = self._load_or_create_signing_key()
         self._initialize()
         self.decision_engine = DecisionEngine()
+        self.verification_gh = "gh"
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
@@ -82,7 +83,7 @@ class Ledger:
                 raise LedgerError("Farmer signing key is invalid")
             return raw
         raw = secrets.token_bytes(32)
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
         descriptor = os.open(self.signing_key_path, flags, 0o600)
         try:
             os.write(descriptor, raw)
@@ -481,7 +482,8 @@ class Ledger:
             return None
         report = _loads(row["report_json"])
         if digest(report) != row["report_hash"] or not hmac.compare_digest(self._sign(row["report_hash"]), row["signature"]):
-            raise LedgerError("cached Future Branch decision seal failed")
+            raise LedgerError("cached Future Branch decision seal failed: " +
+                              ("content" if digest(report) != row["report_hash"] else "signature"))
         return report
 
     def _decide(self, connection, job, branches):
@@ -767,7 +769,7 @@ class Ledger:
     def finish_attempt(self, attempt_id: str, owner: str, result: ExecutionResult) -> dict[str, Any]:
         """Persist an executor result, seal its receipt, verify, and transition."""
         result.validate()
-        result = verify_result(self.attempt_context(attempt_id), result)
+        result = verify_result(self.attempt_context(attempt_id), result, gh_executable=self.verification_gh)
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")

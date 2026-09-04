@@ -8,12 +8,15 @@ import time
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
+from types import SimpleNamespace
 
 from aurum_farmer.decision_engine import Budget, DecisionEngine, Probe, score
 from aurum_farmer.executors import ExecutorRegistry, NoopExecutor
 from aurum_farmer.ledger import Ledger, LedgerError
 from aurum_farmer.models import BranchSpec, EvidenceItem, EvidenceRequirement, ExecutionResult, JobSpec, Outcome
 from aurum_farmer.supervisor import Supervisor
+from aurum_farmer.verification import verify_result
 
 
 def proposal(name="a", **extra):
@@ -126,6 +129,26 @@ class IntegrationTests(unittest.TestCase):
         self.assertIsNone(self.ledger.claim_next("bypass"))
         self.assertFalse(self.ledger.get_job(job)["attempts"])
         self.assertIsNotNone(self.ledger.future_status(job)["latest"])
+
+    def test_binary_signing_key_roundtrips_newlines_after_restart(self):
+        with patch("aurum_farmer.ledger.secrets.token_bytes", return_value=b"\n" * 32):
+            first = Ledger(self.root / "new.sqlite3")
+        reopened = Ledger(first.path)
+        self.assertEqual(first._sign("digest"), reopened._sign("digest"))
+        self.assertEqual(first.signing_key_path.stat().st_size, 32)
+
+    def test_github_success_requires_independent_matching_run_source(self):
+        result = ExecutionResult(Outcome.SUCCEEDED, "executor claims success", evidence=(
+            EvidenceItem("github_actions_run", "github", {"databaseId": 42, "headSha": "expected"}),))
+        context = {"id": "attempt", "executor": "github_workflow", "payload": {"repository": "owner/repo"}}
+        with patch("aurum_farmer.verification.subprocess.run", return_value=SimpleNamespace(stdout=json.dumps(
+                {"id": 42, "status": "completed", "conclusion": "success", "head_sha": "different"}))):
+            self.assertEqual(verify_result(context, result).outcome, Outcome.FAILED)
+        with patch("aurum_farmer.verification.subprocess.run", return_value=SimpleNamespace(stdout=json.dumps(
+                {"id": 42, "status": "completed", "conclusion": "success", "head_sha": "expected"}))):
+            verified = verify_result(context, result)
+            self.assertEqual(verified.outcome, Outcome.SUCCEEDED)
+            self.assertEqual(verified.evidence[-1].source, "farmer-result-verifier-v1")
 
     def test_exploration_observes_new_jobs_during_execution(self):
         ledger = self.ledger

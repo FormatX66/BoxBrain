@@ -153,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     config, ledger = _runtime(args.config)
+    ledger.verification_gh = config.get("executors", {}).get("gh_executable", "gh")
     future_config = config.get("future_branch", {})
     ledger.decision_engine = DecisionEngine(budget=Budget(**future_config.get("budget", {})),
                                             probes=command_probes(future_config))

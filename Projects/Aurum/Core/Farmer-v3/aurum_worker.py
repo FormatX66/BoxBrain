@@ -319,15 +319,24 @@ class FarmerWorker:
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="future-branch-explorer") as pool:
             exploration = pool.submit(self._explore_pending)
             result = handler(parameters)
-            exploration.result()
+            try:
+                exploration.result()
+            except Exception as error:
+                # An observation/bookkeeping failure cannot reverse a completed
+                # tool effect or cause it to be replayed as an execution failure.
+                result["future_exploration_error"] = type(error).__name__
         outcome = result.get("status")
         accepted = outcome in SUCCESS_STATES and result.get("human_required") is False
-        self._emit_event(None, "future_branch_outcome", {
+        telemetry = {
             "state_id": decision["state_id"], "branch_id": action, "probability": .8,
             "outcome": outcome, "result_digest": decision_digest(result),
             "verification": "bounded_tool_contract", "verifier": "farmer-core-result-verifier-v1",
             "brier": (.8 - int(accepted)) ** 2 if outcome in SUCCESS_STATES | FAILURE_STATES else None,
-            "lkg_promoted": False})
+            "lkg_promoted": False}
+        try:
+            self._emit_event(None, "future_branch_outcome", telemetry)
+        except Exception as error:
+            result["future_telemetry_error"] = type(error).__name__
         return result
 
     def _explore_pending(self):

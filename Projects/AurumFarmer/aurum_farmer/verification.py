@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import tempfile
 from dataclasses import replace
@@ -12,7 +13,7 @@ from .decision_engine import Probe, digest
 from .models import EvidenceItem, ExecutionResult, Outcome
 
 
-def verify_result(context, result: ExecutionResult) -> ExecutionResult:
+def verify_result(context, result: ExecutionResult, *, gh_executable="gh") -> ExecutionResult:
     if result.outcome not in {Outcome.SUCCEEDED, Outcome.NO_CHANGE}:
         return result
     problems = []
@@ -34,6 +35,38 @@ def verify_result(context, result: ExecutionResult) -> ExecutionResult:
                 problems.append("external receipt changed between execution and verification")
         except (OSError, KeyError):
             problems.append("external receipt unavailable for independent readback")
+    elif context["executor"] in {"github_workflow", "chat_to_git"}:
+        mode = "independent_github_run_readback"
+        repository = context.get("payload", {}).get("repository", "FormatX66/Chat-to-Git-Pipeline"
+                         if context["executor"] == "chat_to_git" else "FormatX66/BoxBrain")
+        runs = [e for e in result.evidence if e.kind == "github_actions_run"]
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or len(runs) != 1:
+            problems.append("missing unambiguous GitHub run identity")
+        else:
+            try:
+                run = runs[0].data
+                run_id = int(run["databaseId"])
+                completed = subprocess.run([gh_executable, "api", f"repos/{repository}/actions/runs/{run_id}"],
+                                           capture_output=True, text=True, timeout=30, check=True)
+                observed = json.loads(completed.stdout)
+                if (observed.get("id") != run_id or observed.get("status") != "completed"
+                        or observed.get("conclusion") != "success" or not run.get("headSha")
+                        or observed.get("head_sha") != run["headSha"]):
+                    problems.append("GitHub readback did not confirm the same successful source/run")
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+                return replace(result, outcome=Outcome.WAITING,
+                               summary="Independent GitHub verifier is waiting for source-bound run readback.",
+                               retry_after_seconds=30, lkg_ref=None)
+    elif context["executor"] == "local_process" and result.lkg_ref:
+        mode = "independent_artifact_readback"
+        expected = context.get("payload", {}).get("verification_artifact", {})
+        try:
+            path = Path(expected["path"]).expanduser().resolve()
+            observed = hashlib.sha256(path.read_bytes()).hexdigest()
+            if not expected.get("sha256") or observed != expected["sha256"]:
+                problems.append("local-process LKG artifact digest mismatch")
+        except (OSError, KeyError, TypeError):
+            problems.append("local-process LKG requires a pinned verification_artifact")
     counts = {}
     for item in result.evidence:
         if item.verified:

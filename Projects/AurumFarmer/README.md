@@ -48,6 +48,9 @@ is not a security sandbox.
 Default installations supply static verification and independent result checks;
 they do not claim unavailable VM, hardware, or QPU coverage. Noop results are
 recomputed independently and external receipt files are read back independently.
+GitHub and Chat-to-Git results receive a separate readback of the same run/source.
+A local-process LKG promotion requires a `verification_artifact` with a pinned
+`path` and `sha256`; a zero exit code alone cannot promote its output to LKG.
 Other legacy executors retain their evidence contracts and sovereign verification
 paths; a generic signed receipt is not physical or hardware proof.
 
