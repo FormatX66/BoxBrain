@@ -109,7 +109,7 @@ class Supervisor:
                 "job_id": context["job_id"],
                 "attempt_id": attempt_id,
                 "job_state": job["state"],
-                "outcome": result.outcome.value,
+                "outcome": next(a["outcome"] for a in job["attempts"] if a["id"] == attempt_id),
                 "recovered_jobs": recovered,
             }
         finally:
