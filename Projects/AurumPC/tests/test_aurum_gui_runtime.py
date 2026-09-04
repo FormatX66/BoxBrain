@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import signal
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -163,6 +164,48 @@ class AurumGuiRuntimeTests(unittest.TestCase):
 
         self.assertEqual(clear.call_count, 2)
         self.assertEqual(spawn.call_count, 2)
+
+    def test_gui_start_allows_a_live_child_bounded_slow_readiness(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        child = Mock(pid=44)
+        child.poll.return_value = None
+        states = [{"status": "stopped"}] * 12 + [{"status": "running"}]
+        clock = iter(range(100))
+        with (
+            patch.object(runtime, "_gui_status", side_effect=states),
+            patch.object(runtime, "_clear_stale_gui_listener"),
+            patch.object(runtime, "_spawn", return_value=child),
+            patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+            patch.object(gui_module.time, "sleep"),
+        ):
+            runtime._start_gui()
+        child.terminate.assert_not_called()
+
+    def test_failed_new_child_is_reaped_before_its_pid_record_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            pid_path = Path(temporary) / "gui.pid"
+            pid_path.write_text("45\n", encoding="utf-8")
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            child.wait.return_value = 0
+            GuiRuntime._reap_failed_child(child, pid_path)
+            child.terminate.assert_called_once_with()
+            child.wait.assert_called_once_with(timeout=gui_module.FAILED_CHILD_STOP_SECONDS)
+            child.kill.assert_not_called()
+            self.assertFalse(pid_path.exists())
+
+    def test_failed_child_keeps_pid_record_when_even_kill_is_unconfirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            pid_path = Path(temporary) / "gui.pid"
+            pid_path.write_text("46\n", encoding="utf-8")
+            child = Mock(pid=46)
+            child.poll.return_value = None
+            child.wait.side_effect = subprocess.TimeoutExpired("gui", 5)
+            with self.assertRaisesRegex(gui_module.GuiRuntimeError, "ownership retained"):
+                GuiRuntime._reap_failed_child(child, pid_path)
+            child.terminate.assert_called_once_with()
+            child.kill.assert_called_once_with()
+            self.assertTrue(pid_path.is_file())
 
     def test_gui_start_refuses_an_unrecognized_listener(self) -> None:
         runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)

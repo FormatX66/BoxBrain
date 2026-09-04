@@ -27,6 +27,9 @@ DEFAULT_RUN = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
 DEFAULT_RUNTIME = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_PORT = 8765
 DEFAULT_ARCADE_PORT = 8766
+GUI_READY_TIMEOUT_SECONDS = 30
+ARCADE_READY_TIMEOUT_SECONDS = 30
+FAILED_CHILD_STOP_SECONDS = 5
 
 
 class GuiRuntimeError(RuntimeError):
@@ -371,6 +374,24 @@ class GuiRuntime:
         pid_path.write_text(str(process.pid) + "\n", encoding="utf-8")
         return process
 
+    @staticmethod
+    def _reap_failed_child(process: subprocess.Popen[bytes], pid_path: Path) -> None:
+        """Stop only the exact child this manager just created, or retain ownership."""
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=FAILED_CHILD_STOP_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                try:
+                    process.wait(timeout=FAILED_CHILD_STOP_SECONDS)
+                except subprocess.TimeoutExpired as exc:
+                    # Keep the PID record. A later start must see the owned child
+                    # instead of creating an untracked duplicate on the same port.
+                    raise GuiRuntimeError("GUI child did not stop; ownership retained") from exc
+        if GuiRuntime._read_pid(pid_path) == process.pid:
+            pid_path.unlink(missing_ok=True)
+
     def _start_gui(self) -> None:
         if self._gui_status()["status"] == "running":
             return
@@ -386,15 +407,18 @@ class GuiRuntime:
                 self.pid_path,
                 self.log_path,
             )
-            deadline = time.monotonic() + 8
+            deadline = time.monotonic() + GUI_READY_TIMEOUT_SECONDS
             while time.monotonic() < deadline:
                 if self._gui_status()["status"] == "running":
                     return
                 if process.poll() is not None:
                     break
                 time.sleep(0.25)
-            self.pid_path.unlink(missing_ok=True)
-            if attempt == 0 and self._listener_pids(self.port):
+            child_ended = process.poll() is not None
+            self._reap_failed_child(process, self.pid_path)
+            # Retry only a changed condition: the child exited and a separately
+            # recognized legacy listener appeared in the bind window.
+            if attempt == 0 and child_ended and self._listener_pids(self.port):
                 continue
             break
         self.pid_path.unlink(missing_ok=True)
@@ -410,14 +434,14 @@ class GuiRuntime:
             self.arcade_pid_path,
             self.arcade_log_path,
         )
-        deadline = time.monotonic() + 8
+        deadline = time.monotonic() + ARCADE_READY_TIMEOUT_SECONDS
         while time.monotonic() < deadline:
             if self._arcade_status()["status"] == "running":
                 return
             if process.poll() is not None:
                 break
             time.sleep(0.25)
-        self.arcade_pid_path.unlink(missing_ok=True)
+        self._reap_failed_child(process, self.arcade_pid_path)
         detail = self.arcade_log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.arcade_log_path.is_file() else ""
         raise GuiRuntimeError("Arcade did not become ready" + (f": {detail}" if detail else ""))
 
