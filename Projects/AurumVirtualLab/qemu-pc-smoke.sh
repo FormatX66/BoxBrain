@@ -199,11 +199,10 @@ wait_for_install() {
 wait_for_self_build() {
   attempts=$1
   for _ in $(seq 1 "$attempts"); do
-    if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"; then
+    printf 'self-build-status\n' >&3
+    if tail -n +"$installed_start_line" "$LOG" |
+        grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed source=durable-machine-status'; then
       return 0
-    fi
-    if grep -Eq 'AURUM_SELF_BUILD_FINISHED status=(failed|cancelled)' "$LOG"; then
-      return 1
     fi
     if ! kill -0 "$qemu_pid" 2>/dev/null; then
       return 1
@@ -278,7 +277,6 @@ if ! wait_for_primary_gui; then
 fi
 
 if [ "$SKIP_SELF_BUILD" = 0 ]; then
-  printf 'self-build\n' >&3
   if ! wait_for_self_build 720; then
     cat "$LOG"
     echo 'Aurum PC installed-runtime self-build did not pass.' >&2
