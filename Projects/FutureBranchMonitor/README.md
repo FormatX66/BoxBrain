@@ -9,7 +9,10 @@ then open <http://127.0.0.1:19467>. Python's standard library is sufficient.
 For a durable user-session observer, run the installed `register-startup.ps1`.
 It registers `Future Branch Workload Monitor` under the current user at logon,
 using windowless Python, no elevation and no credentials. Windows supervises it
-independently of a chat, with three bounded failure restarts one minute apart.
+independently of a chat. A one-minute liveness trigger starts a missing observer;
+`IgnoreNew` prevents another instance while healthy. Three failure restarts are
+also configured, but live testing showed those settings alone were insufficient
+on this host after a forced process exit, so they are not the liveness guarantee.
 It checks exact dashboard/task ownership before replacing a process and preserves
 unrelated listeners. A permission failure leaves the running observer intact.
 This task only hosts the dashboard/collectors; it never schedules the explorer.

@@ -22,14 +22,21 @@ if ($existing) {
     if ($existing.Actions.Execute -ne $pythonw -or $existing.Actions.Arguments -ne ('"{0}" serve' -f $script)) {
         throw 'Existing task has a different action; preserved.'
     }
-    if ($existing.State -eq 'Running' -and $owned) { Write-Output 'Observer startup task already running.'; exit 0 }
 }
 $action = New-ScheduledTaskAction -Execute $pythonw -Argument ('"{0}" serve' -f $script) -WorkingDirectory $PSScriptRoot
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
+$logon = New-ScheduledTaskTrigger -AtLogOn -User $identity
+# Failure-restart settings alone did not restart a force-ended observer on this
+# host. The same task also gets a bounded one-minute liveness trigger. IgnoreNew
+# prevents another instance while healthy; this never schedules explorer work.
+$liveness = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -Hidden -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
 # Register first: if permissions refuse this operation, the existing dashboard stays up.
-Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+Register-ScheduledTask -TaskName $name -Action $action -Trigger @($logon,$liveness) -Principal $principal -Settings $settings -Force | Out-Null
+if ($owned -and $existing -and $existing.State -eq 'Running') {
+    Write-Output 'Observer schedule updated in place; running collector preserved.'
+    exit 0
+}
 if ($owned) { Stop-Process -Id $owned.ProcessId -ErrorAction Stop }
 try {
     Start-ScheduledTask -TaskName $name
@@ -41,7 +48,7 @@ try {
     if (-not $status -or $status.version -ne 'unified-workloads-v1') { throw 'Observer scheduled task did not become ready.' }
     $task = Get-ScheduledTask -TaskName $name
     if ($task.State -ne 'Running') { throw 'Observer scheduled task is not running.' }
-    [ordered]@{task=$name;state=[string]$task.State;principal=$identity;startup='User logon';restart_count=3;restart_delay_seconds=60;authority_granted=$false} | ConvertTo-Json
+    [ordered]@{task=$name;state=[string]$task.State;principal=$identity;startup='User logon and one-minute liveness trigger';restart_count=3;restart_delay_seconds=60;authority_granted=$false} | ConvertTo-Json
 } catch {
     Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if (-not $existing) { Unregister-ScheduledTask -TaskName $name -Confirm:$false }
