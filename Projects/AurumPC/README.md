@@ -11,10 +11,12 @@ The normal USB workflow contains no shell commands:
 3. Optionally connect Ethernet or choose Wi-Fi in the graphical network screen.
 4. Select a drive, then choose **Erase & Install Fresh** or **Repair Aurum**.
 5. Review the selected drive and confirm once on screen.
-6. Wait for filesystem, runtime, dual-mode bootloader, and one-entry boot-menu verification.
+6. Wait for filesystem, runtime, dual-mode bootloader, and two-entry boot-menu verification.
 7. Choose **Shut Down Safely**, remove the USB after power is off, and start the PC.
 
 Fresh installation cleans and repartitions only the selected drive. Repair never partitions or formats: it checks the existing Aurum filesystem, refreshes the bundled runtime and services, rebuilds both UEFI and legacy boot paths, and verifies the result. Multiple internal drives are supported through explicit graphical selection. The USB and any ineligible, active, removable, read-only, or protected drive are never offered as targets.
+
+The installed menu is regenerated, not appended: it contains exactly **Aurum PC** and **Aurum PC (graphics recovery)**. Hopper's normal entry excludes its physically failing `nouveau` path while leaving other native graphics available; the recovery entry keeps the stronger `nomodeset` fallback. A short timeout preserves automatic boot while leaving the recovery choice reachable.
 
 ## Seed lifecycle
 
