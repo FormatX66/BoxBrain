@@ -13,3 +13,6 @@ Projects/Aurum/ChatTreeMCP/** text eol=lf
 Projects/AdaptiveKernel/driver_candidates/generated/*.c text eol=lf
 Projects/AdaptiveKernel/driver_candidates/kernel_shadow/*.c text eol=lf
 Projects/AdaptiveKernel/driver_candidates/kernel_shadow/Kbuild text eol=lf
+
+# Cloud setup is executed by Bash on Linux, including from Windows-authored work.
+.codex/cloud/*.sh text eol=lf
