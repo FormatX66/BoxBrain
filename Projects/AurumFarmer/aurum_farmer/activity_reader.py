@@ -25,12 +25,14 @@ def validate_activity(data, now=None):
         return {'available': False, 'reason': 'local_activity_stale_or_disconnected'}
     summary = data.get('summary', {})
     percent, count = summary.get('local_heavy_cpu_percent'), summary.get('local_heavy_cpu_count')
+    cloud_count = summary.get('github_active_observed')
     if (not isinstance(percent, (int, float)) or not math.isfinite(percent) or not 0 <= percent <= 100
-            or not isinstance(count, int) or not 0 <= count <= 16384):
+            or not isinstance(count, int) or not 0 <= count <= 16384
+            or not isinstance(cloud_count, int) or not 0 <= cloud_count <= 20000):
         return {'available': False, 'reason': 'invalid_metrics'}
     return {'available': True, 'snapshot_id': data['snapshot_id'], 'local_observed_at': observed,
             'local_heavy_cpu_percent': percent, 'local_heavy_cpu_count': count,
-            'github_active_observed': summary.get('github_active_observed'),
+            'github_active_observed': cloud_count,
             'scope': 'Local contention may reduce explorer budget only; cloud activity is advisory',
             'authority_granted': False}
 

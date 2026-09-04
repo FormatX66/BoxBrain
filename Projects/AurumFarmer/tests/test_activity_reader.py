@@ -30,13 +30,14 @@ class ActivityReaderTests(unittest.TestCase):
         self.assertEqual('not_configured',result['cloud_routing'])
 
     def test_stale_disconnected_forged_or_future_metrics_never_drive_budget(self):
-        for change in ('stale','disconnected','future','authority','nan','schema'):
+        for change in ('stale','disconnected','future','authority','nan','cloud_nan','schema'):
             data=copy.deepcopy(self.data)
             if change=='stale':data['providers']['local']['observed_at']=80
             if change=='disconnected':data['providers']['local']['status']='error'
             if change=='future':data['providers']['local']['observed_at']=200
             if change=='authority':data['authority_granted']=True
             if change=='nan':data['summary']['local_heavy_cpu_percent']=float('nan')
+            if change=='cloud_nan':data['summary']['github_active_observed']=float('nan')
             if change=='schema':data['schema']='other'
             self.assertFalse(validate_activity(data,now=102)['available'],change)
 
