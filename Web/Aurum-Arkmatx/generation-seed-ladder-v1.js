@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_34_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_35_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: active-trunk, virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
@@ -10,6 +10,7 @@ window.__aurumGenerationSeedLadderV1=true;
 
 const ACTIVE_TRUNK_COMMIT='51b39a5c9767efb1428fd48621c4855d76962acc';
 const CURRENT_PC_IMAGE_RUN='33828601576';
+const CURRENT_VHL_RUN='33842112609';
 const CURRENT_NATIVE_RUN='33829617010';
 const CURRENT_HOPPER_STATUS_RUN='33837892970';
 const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='a4674a918dbe74017778da39e2c88ad73d1f553c';
@@ -25,13 +26,20 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.34',
+  componentRevision:'1.35',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-offline-gui-green-native-contract-failed-hopper-endpoint-null-farmer-resident-explorer-voice-static-mirror-green-quantum-top5-route-held-at-physical-boundary',
+  evidenceClass:'active-trunk-offline-gui-green-exact-head-vhl-three-of-four-native-contract-failed-hopper-endpoint-null-farmer-resident-explorer-voice-static-mirror-green-quantum-top5-route-held-at-physical-boundary',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
   currentPcImageRunPassed:true,
-  currentVirtualLabExactHeadAvailable:false,
+  currentVirtualLabRunId:CURRENT_VHL_RUN,
+  currentVirtualLabExactHeadAvailable:true,
+  currentVirtualLabDockerX86Passed:true,
+  currentVirtualLabArm64Passed:true,
+  currentVirtualLabPi3Passed:true,
+  currentVirtualLabUefiImageBuilt:true,
+  currentVirtualLabUefiBootPassed:false,
+  currentVirtualLabFailureStep:'Boot PC image in QEMU UEFI',
   currentFourTargetConvergencePassed:false,
   currentNativeRunId:CURRENT_NATIVE_RUN,
   currentNativeRunPassed:false,
@@ -98,6 +106,7 @@ const state={
   needsWorkOwner:'aurum-system',
   backupBeforePublishExpected:true,
   rollbackOnVerificationFailure:true,
+  rerunUnchangedFailedWork:false,
   majorBoxAdded:false,
   seedLifecycleRemainsExpandable:true
 };
@@ -129,21 +138,22 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.34 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.35 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
-<li><strong>Future Branch quantum routing produced a new held-at-boundary decision.</strong> ${link('public evidence receipt 3606746cf11b','commit',QUANTUM_EVIDENCE_COMMIT)} pins successful scheduled experiment <code>${QUANTUM_RUN}</code>: the top 5% selector kept one path from eight at probability <code>0.8889</code>, pruned seven unchanged alternatives, and both credential-free provider sweeps passed nine seeded cases each. The selected path is <code>current-release-flash-readback-proven-awaiting-physical-boot</code>. This is routing/model evidence, not physical success.</li>
-<li><strong>Tiny Seed virtual/build readiness is now independently carried into the decision boundary.</strong> The selected evidence records x86 build, UEFI smoke, BIOS smoke, boot-proof marker, Pi build/static recovery payload, published artifacts, and combined-hash reverification as passed. Physical boot and Guardian forced rollback remain pending.</li>
-<li><strong>AurumBridge static voice mirroring is verified.</strong> ${link('voice mirror run 33834801810','run',VOICE_MIRROR_RUN)} and ${link('receipt d4b80d95f834','commit',VOICE_MIRROR_RECEIPT_COMMIT)} record <code>WEB_STATIC_MIRROR_OK</code>: dashboard static JSON, plain-text and JSON voice status, browser static view, seven human capabilities, six evidence gates, and seeded floor <code>4/6</code> all verified. The receipt explicitly says hosted deployment for that mirror was not configured, so this is a verified read/static capability rather than a new hosting path.</li>
+<li><strong>Exact-head Virtual Hardware Lab evidence now exists and narrows the active blocker.</strong> ${link('VHL run 33842112609','run',CURRENT_VHL_RUN)} ran on active trunk <code>51b39...</code>: Docker x86_64, QEMU ARM64, and QEMU Pi3 passed. The QEMU UEFI x86_64 job built the Aurum PC image successfully, then failed specifically at <code>Boot PC image in QEMU UEFI</code>. This is three-of-four exact-head target proof, not four-target convergence.</li>
+<li><strong>Future Branch quantum routing remains held at the real physical boundary.</strong> ${link('public evidence receipt 3606746cf11b','commit',QUANTUM_EVIDENCE_COMMIT)} pins successful experiment <code>${QUANTUM_RUN}</code>: the top 5% selector kept one path from eight at probability <code>0.8889</code>, pruned seven unchanged alternatives, and both credential-free provider sweeps passed nine seeded cases each. The selected path is <code>current-release-flash-readback-proven-awaiting-physical-boot</code>. This is routing/model evidence, not physical success.</li>
+<li><strong>Tiny Seed virtual/build readiness remains independently carried into that decision boundary.</strong> The selected evidence records x86 build, UEFI smoke, BIOS smoke, boot-proof marker, Pi build/static recovery payload, published artifacts, and combined-hash reverification as passed. Physical boot and Guardian forced rollback remain pending.</li>
+<li><strong>AurumBridge static voice mirroring remains verified.</strong> ${link('voice mirror run 33834801810','run',VOICE_MIRROR_RUN)} and ${link('receipt d4b80d95f834','commit',VOICE_MIRROR_RECEIPT_COMMIT)} record <code>WEB_STATIC_MIRROR_OK</code>: dashboard static JSON, plain-text and JSON voice status, browser static view, seven human capabilities, six evidence gates, and seeded floor <code>4/6</code> all verified. Hosted deployment for that mirror is still not configured.</li>
 <li><strong>Farmer continuous exploration remains healthy and bounded.</strong> ${link('resident explorer fb3c7f375d20','commit',FARMER_CONTINUOUS_EXPLORER_COMMIT)} remains model-only with no granted execution authority; the last verified self-hosted proof still records path growth 39→40, four calibrated outcomes, eight decisions, and no inferred physical or destructive authority.</li>
-<li><strong>Hopper observability is fresh but unchanged in meaning.</strong> ${link('status run 33837892970','run',CURRENT_HOPPER_STATUS_RUN)} succeeded and refreshed the snapshot at ${link('a4674a918dbe','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)}, still with <code>endpoint=null</code> and health <code>no-endpoint-candidate</code>. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
+<li><strong>Hopper observability remains fresh but unchanged in meaning.</strong> ${link('status run 33837892970','run',CURRENT_HOPPER_STATUS_RUN)} refreshed the snapshot at ${link('a4674a918dbe','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)}, still with <code>endpoint=null</code> and health <code>no-endpoint-candidate</code>. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li>Do not claim full active-head four-target convergence until a same-commit VHL receipt exists for <code>51b39...</code>. The exact-head PC image lane is green, but that is not the same proof as all four targets converging together.</li>
+<li><strong>Repair the exact-head QEMU UEFI boot path while preserving the three green targets.</strong> Run <code>33842112609</code> proves the UEFI image build itself succeeds and isolates the failure to <code>Boot PC image in QEMU UEFI</code>. Change implementation, harness state, or the evidence hypothesis before another VHL retry; do not replay the unchanged failed head merely to show activity. Four-target convergence remains unproven until one same-commit run passes all four targets.</li>
 <li>The current native lane remains failed at <code>Verify native self-build contracts</code>. Diagnose or change the GUI live-trial contract/evidence before retrying that unchanged failure.</li>
 <li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; change the dashboard only when endpoint/probe meaning changes.</li>
 <li>Future Branch must keep the quantum-selected path held until real physical boot evidence arrives. Do not convert provider success, build readiness, a flash/readback receipt, or a model probability into physical acceptance.</li>
@@ -159,7 +169,7 @@ panel.innerHTML=`
 <li>Stop when the Tiny Seed ready/GUI boot state is visible and capture the formal ready/boot proof. Do not treat the existing flash/readback receipt as physical boot proof.</li>
 </ol>
 </div>
-<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, convergence/native evidence, endpoint/probe meaning, Farmer/voice/quantum evidence, or a genuine human-only boundary.</p>
+<p>ClusterSites remains canonical for website source. Deployment must continue through the protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, VHL/native evidence, endpoint/probe meaning, Farmer/voice/quantum evidence, or a genuine human-only boundary.</p>
 `;
 const existing=document.getElementById(panel.id);
 if(existing)existing.replaceWith(panel);
