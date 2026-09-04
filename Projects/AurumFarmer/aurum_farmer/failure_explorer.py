@@ -18,6 +18,7 @@ import uuid
 
 from .decision_engine import Budget, DecisionEngine, digest
 from .failure_oracle import verify_model
+from .resource_budget import HostSampler, ResourceGovernor
 
 SCHEMA = 'aurum.future-branch.continuous.v1'
 CATALOG = 'decision-safety-fault-model.v1'
@@ -172,7 +173,7 @@ class Frontier:
                 db.execute('INSERT OR IGNORE INTO frontier VALUES(?,?,?)', (state_id, encode(item), seal(self.key, item)))
         self.last_capture = time.monotonic()
 
-    def batch(self, *, cases=16, cpu_seconds=.15):
+    def batch(self, *, cases=16, cpu_seconds=.15, resource_decision=None):
         if not 1 <= cases <= 256 or not .001 <= cpu_seconds <= .5:
             raise ValueError('invalid exploration resource budget')
         with closing(self.connect()) as db, db:
@@ -257,7 +258,9 @@ class Frontier:
                 'observed_shapes': len(active), 'last_new_evidence_at': max((item['last_checked'] for item in active), default=0),
                 'recent': sorted([r for item in active for r in item['recent']], key=lambda r: -r['observed_at'])[:8],
                 'scope': SCOPE, 'model_only': True, 'authority_granted': False,
-                'resource_budget': {'cases_per_batch': cases, 'cpu_seconds_per_batch': cpu_seconds, 'yield_seconds': 1}}
+                'resource_budget': {'cases_per_batch': cases, 'cpu_seconds_per_batch': cpu_seconds,
+                                    'yield_seconds': (resource_decision or {}).get('yield_seconds', 1)},
+                'resource_decision': resource_decision}
             db.execute('INSERT OR REPLACE INTO runtime VALUES(1,?,?)', (encode(status), seal(self.key, status)))
             db.execute('UPDATE lease SET expires=? WHERE id=1 AND owner=?', (time.time()+10, self.owner))
         return status
@@ -370,12 +373,14 @@ def main():
         stop.set()
 
     threading.Thread(target=parent_lifetime, daemon=True).start()
+    sampler, governor = HostSampler(), ResourceGovernor()
     while not stop.is_set():
+        resources = governor.choose(sampler.sample())
         try:
-            frontier.batch()
+            frontier.batch(cases=resources['cases'], cpu_seconds=resources['cpu_seconds'], resource_decision=resources)
         except ValueError:
             raise SystemExit(78)
-        stop.wait(1)
+        stop.wait(resources['yield_seconds'])
 
 
 if __name__ == '__main__':

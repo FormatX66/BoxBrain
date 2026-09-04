@@ -32,7 +32,7 @@ has unresolved invariant/model errors. A corrupt signed checkpoint is held until
 its contents change, rather than retried unchanged. Existing job quarantine and
 admission rules are not weakened.
 
-Default batches use at most 16 cases and 0.15 CPU seconds, with fair four-case
+The default batch budget is 16 cases and 0.15 CPU seconds, with fair four-case
 slices per observed policy shape and a one-second yield. Observation and liveness
 timestamps never count as new paths. If a modeled frontier is exhausted, the
 service watches for new semantic state rather than fabricating work. Actual
@@ -40,6 +40,20 @@ engine outcomes and model predictions remain distinct in telemetry. Windows
 startup/restart protection also permits bounded operation on battery; shutdown,
 sleep, explicit stops and unavailable hardware are not promises of computation.
 The service does not depend on a chat, dashboard, or Codex remaining open.
+
+Host CPU and memory observations adapt only the explorer's own budget. Three
+sustained-pressure samples reduce it to one case, a 0.005-second soft CPU quantum
+and a three-second yield; critical headroom uses one case and a five-second
+yield. Unknown capacity is conservative. Five clear samples restore the normal
+budget. A case already started completes before the CPU quantum is checked.
+Telemetry records observed headroom and the selected budget. Windows commit
+headroom from GlobalMemoryStatusEx may be process-limited and is used
+conservatively, not mislabeled as system-wide committed memory.
+
+This is actual local self-throttling, not control over arbitrary Windows
+processes or cloud routing. Those capabilities are explicitly unconfigured in
+this component; active VMs, builds and external workload ownership remain with
+their respective controllers. No external workload is terminated or migrated.
 
 `GET /health` and `/monitor` expose `continuous_exploration`: worker/watchdog
 health, signed path counts, recent model results, evidence age, recovery count,
