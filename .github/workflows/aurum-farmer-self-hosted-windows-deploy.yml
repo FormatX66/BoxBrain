@@ -151,6 +151,14 @@ jobs:
           $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
           if ([string]$task.State -ne 'Running') { throw "AURUM_FARMER_DEPLOY_FAILED reason=final-task-state state=$($task.State)" }
 
+          $monitor = Invoke-RestMethod -Uri 'http://127.0.0.1:19466/monitor' -TimeoutSec 5
+          if ($monitor.schema -ne 'aurum.future-branch.monitor.v1' -or
+              $monitor.read_only -ne $true -or $monitor.event_chain_valid -ne $true -or
+              @($monitor.recent_decisions).Count -lt 1 -or
+              @($monitor.recent_decisions | Where-Object { $_.seal_valid -ne $true -or $_.lkg_preserved -ne $true }).Count -gt 0) {
+            throw 'AURUM_FARMER_DEPLOY_FAILED reason=live-decision-monitor-proof'
+          }
+
           $proof = [ordered]@{
             schema = 'aurum.farmer.windows-runtime-proof.v1'
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
@@ -168,6 +176,7 @@ jobs:
             post_restart_health_verified = $true
             event_chain_valid = [bool]$health.event_chain_valid
             future_branch = $health.future_branch
+            decision_monitor_verified = $true
             queued_while_supervisor_stopped = $true
             supervisor_lease_seconds = $leaseSeconds
             restart_proof_window_seconds = $restartProofSeconds

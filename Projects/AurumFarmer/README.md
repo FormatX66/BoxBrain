@@ -62,6 +62,11 @@ scored as failure. Decision/outcome tables are append-only and hash-linked into
 the existing signed event chain. Semantic state, engine source, or probe revision
 changes invalidate cached verification. Heartbeats alone do not regenerate work.
 
+The [Future Branch live monitor](../FutureBranchMonitor/README.md) displays
+redacted sealed decision traces from loopback `GET /monitor`, plus separately
+labeled public chat reports and missing-report visibility gaps. It is read-only
+and does not turn saved instructions or self-reports into runtime proof.
+
 The database migration is additive. Older releases, LKG, seed pins, sync logic,
 signed evidence, and job retry rules are preserved. The versioned Windows
 deployment verifies default-on decisions and calibration after restart. The

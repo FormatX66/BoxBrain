@@ -1,15 +1,15 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Deploy durable cross-job Future Branch quarantine and preserve authority boundaries, prior releases, LKG and seed/GitHub sync behavior.",
+  "purpose": "Deploy read-only redacted Future Branch decision telemetry for the live monitor while preserving LKG, protected controls and seed/GitHub sync.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 7,
-  "retry_reason": "New implementation adds sealed failure memory across new job IDs; require live health to advertise cross_job_quarantine.",
+  "retry_sequence": 8,
+  "retry_reason": "New read-only monitor projection; require live signed decision readback after the existing reversible restart canary.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
@@ -18,6 +18,7 @@
     "sealed-farmer-receipt",
     "previous-releases-preserved",
     "future-branch-default-on-calibration",
-    "future-branch-cross-job-quarantine"
+    "future-branch-cross-job-quarantine",
+    "future-branch-read-only-monitor-sealed-decisions"
   ]
 }

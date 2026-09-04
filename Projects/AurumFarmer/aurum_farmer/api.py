@@ -53,6 +53,17 @@ class FarmerApiHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
         path = urlparse(self.path).path
+        if path == "/monitor":
+            host = urlparse("//" + self.headers.get("Host", "")).hostname
+            if self.client_address[0] not in {"127.0.0.1", "::1"} or host not in {"127.0.0.1", "localhost", "::1"}:
+                self._json(HTTPStatus.FORBIDDEN, {"error": "loopback_only"})
+                return
+            from .telemetry import monitor_snapshot
+            try:
+                self._json(HTTPStatus.OK, monitor_snapshot(self.server.ledger))
+            except (LedgerError, ValueError, KeyError, TypeError):
+                self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "decision_integrity_failure"})
+            return
         if path == "/health":
             self._json(HTTPStatus.OK, {"status": "healthy", **self.server.ledger.stats()})
             return
