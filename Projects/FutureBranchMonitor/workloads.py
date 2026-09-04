@@ -216,8 +216,9 @@ class GitHubCollector:
         self.completed = {}
 
     def collect(self, now=None):
-        now = time.time() if now is None else now
+        supplied_now = now
         runs = self.api.get(f'repos/{REPO}/actions/runs?per_page=20')['workflow_runs']
+        now = time.time() if supplied_now is None else supplied_now
         active = [r for r in runs if r.get('status') != 'completed']
         completed = [r for r in runs if r.get('status') == 'completed']
         selected = (active + completed)[:4]
@@ -231,7 +232,8 @@ class GitHubCollector:
             data = self.api.get(f"repos/{REPO}/actions/runs/{int(run['id'])}/attempts/{int(run.get('run_attempt', 1))}/jobs?per_page=100")
             details += 1
             jobs = data['jobs']
-            normalized = [github_row(j, run, now) for j in jobs] or [github_row(run, run, now)]
+            job_observed_at = time.time() if supplied_now is None else supplied_now
+            normalized = [github_row(j, run, job_observed_at) for j in jobs] or [github_row(run, run, now)]
             if data.get('total_count', len(jobs)) > len(jobs):
                 normalized.append({**github_row(run, run, now), 'name': str(run.get('name', 'Workflow')) + ' · more jobs at provider'})
             if run.get('status') == 'completed' and jobs and all(j.get('status') == 'completed' for j in jobs):
@@ -248,12 +250,14 @@ class GitHubCollector:
 
 
 def provider_sample(collector, previous=None, now=None):
+    supplied_now = now
     now = time.time() if now is None else now
     start, cpu_start = time.perf_counter(), time.process_time()
     previous = previous or {}
     try:
-        data = collector.collect(now=now)
-        result = {**data, 'observed_at': now, 'last_attempt_at': now, 'error': None,
+        data = collector.collect(now=supplied_now)
+        received_at = time.time() if supplied_now is None else supplied_now
+        result = {**data, 'observed_at': received_at, 'last_attempt_at': now, 'error': None,
                   'consecutive_errors': 0, 'next_poll_seconds': data.get('next_poll_seconds', collector.interval)}
     except Exception as error:
         # Preserve last evidence with its original timestamps, explicitly disconnected.

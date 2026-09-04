@@ -68,7 +68,7 @@ function renderWorkloadRows(){
   wText('workloadPageInfo',rows.length+' matching · page '+(workloadPage+1)+' of '+pages+' · 25 rows per page');
   wEl('workloadPrevious').disabled=workloadPage===0;wEl('workloadNext').disabled=workloadPage>=pages-1;
 }
-function workloadsDisconnected(){workloadOffline=true;wText('workloadConnection','Disconnected · historical values');wText('workloadDecision','Current decision unknown');renderWorkloadRows();}
+function workloadsDisconnected(){workloadOffline=true;wText('workloadConnection','Disconnected · historical values');wText('workloadDecision','Current decision unknown');wText('hostCpu','Unavailable');wText('hostMemory','No fresh host observation');wEl('hostCpuBar').style.width='0%';wText('workloadCounts','Unconfirmed');wText('workloadInput','Last consumed activity is historical; current input is unknown');wEl('providerStates').replaceChildren();wAdd(wEl('providerStates'),'div','Monitor disconnected · provider state unconfirmed','warn');renderWorkloadRows();}
 for(const id of ['workloadLocation','workloadState','workloadSort','workloadSearch'])wEl(id).addEventListener('input',()=>{workloadPage=0;renderWorkloadRows();});
 wEl('workloadPrevious').addEventListener('click',()=>{workloadPage=Math.max(0,workloadPage-1);renderWorkloadRows();});
 wEl('workloadNext').addEventListener('click',()=>{workloadPage++;renderWorkloadRows();});
