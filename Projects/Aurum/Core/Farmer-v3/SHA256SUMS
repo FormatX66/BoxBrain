@@ -1,4 +1,5 @@
-2c5701b70fd62bb86d0c48cfbb4e5843f485e681750359ab171fda63d5a3ce14  aurum_worker.py
+0f41d40eae0a319084428e81eb6bbeda7c385159889e39e12b1b7c21a5f690bb  aurum_worker.py
 edc2233022040684b5b5d30263389491e0e82a8453df0d91b157679915f0fac2  aurum_hive.py
-5834453759e8f8120139f8b8b805758753dd83f3fd8d48478e8359c2c25ba6b2  install_aurum_farmer.py
+b3e47f1c9199b1011a42540bbd1677b66b2f1b40ee8c55acb12b47840c6ce44c  install_aurum_farmer.py
 13f04a145e499fbc07e7191b6d40e621446a66024f6d1483d304a789ca65cd09  ../../../AurumFarmer/aurum_farmer/decision_engine.py
+29ed97b8130a87b3b35d14b42d49f7cd44c830f06a6d70100a705d1960aab047  ../../../AurumFarmer/aurum_farmer/operation_gate.py

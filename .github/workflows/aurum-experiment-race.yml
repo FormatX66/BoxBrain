@@ -36,7 +36,7 @@ jobs:
         include:
           - name: conventional-aurum
             ref: main
-            install: cd controller && python -m pip install -e '.[dev]'
+            install: cd controller && python -m pip install -e ../Projects/AurumFarmer -e '.[dev]'
             command: cd controller && python -m pytest -q
             loc_paths: controller/src ui/lib
           - name: stateweave

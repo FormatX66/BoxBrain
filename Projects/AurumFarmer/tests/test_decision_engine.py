@@ -130,6 +130,31 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(self.ledger.get_job(job)["attempts"])
         self.assertIsNotNone(self.ledger.future_status(job)["latest"])
 
+    def test_quarantine_survives_new_job_id_and_uses_sealed_failure(self):
+        first = self.submit("first")
+        context = self.ledger.claim_next("worker")
+        self.ledger.finish_attempt(context["id"], "worker", ExecutionResult(
+            Outcome.FAILED, "broken", failure_class="stable", failure_fingerprint="same"))
+        self.ledger = Ledger(self.ledger.path)
+        second = self.submit("second")
+        self.assertIsNone(self.ledger.claim_next("worker"))
+        self.assertFalse(self.ledger.get_job(second)["attempts"])
+        changed = self.submit("changed", payload={"marker": "new action"})
+        self.assertIsNotNone(self.ledger.claim_next("worker"))
+        with closing(self.ledger._connect()) as con:
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute("DELETE FROM future_quarantines")
+        self.assertTrue(self.ledger.verify_event_chain())
+
+    def test_evidence_resume_cannot_grant_authority_or_clear_human_boundary(self):
+        from aurum_farmer.models import HumanBoundary
+        job = self.submit(authority_ready=False, human_boundary=HumanBoundary(
+            "credential", "sign in", "owner sign-in"))
+        self.assertIsNone(self.ledger.claim_next("worker"))
+        self.ledger.resume(job, changed_dimension="evidence", note="unrelated evidence")
+        self.assertIsNone(self.ledger.claim_next("worker"))
+        self.assertFalse(self.ledger.get_job(job)["attempts"])
+
     def test_binary_signing_key_roundtrips_newlines_after_restart(self):
         with patch("aurum_farmer.ledger.secrets.token_bytes", return_value=b"\n" * 32):
             first = Ledger(self.root / "new.sqlite3")

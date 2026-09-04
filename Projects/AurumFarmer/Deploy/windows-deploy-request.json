@@ -1,15 +1,15 @@
 {
   "schema": "aurum.farmer.windows-deploy-request.v1",
   "state": "REQUESTED",
-  "purpose": "Deploy Future Branch Decision Engine v1 alongside every Farmer operation; verify default-on decision telemetry, sealed results and restart while retaining prior releases and LKG.",
+  "purpose": "Deploy durable cross-job Future Branch quarantine and preserve authority boundaries, prior releases, LKG and seed/GitHub sync behavior.",
   "expected_runner_name": "AURUM-LAPTOP-EBD8CG8P",
   "required_os": "Windows",
   "reversible_install_allowed": true,
   "destructive_action_allowed": false,
   "lkg_mutation_allowed": false,
   "physical_proof_inferred": false,
-  "retry_sequence": 6,
-  "retry_reason": "Install the verified decision-engine source and require measured prediction/outcome calibration in live restart acceptance.",
+  "retry_sequence": 7,
+  "retry_reason": "New implementation adds sealed failure memory across new job IDs; require live health to advertise cross_job_quarantine.",
   "proof_required": [
     "scheduled-task-running",
     "loopback-health",
@@ -17,6 +17,7 @@
     "queued-while-stopped-job-resumes-after-restart",
     "sealed-farmer-receipt",
     "previous-releases-preserved",
-    "future-branch-default-on-calibration"
+    "future-branch-default-on-calibration",
+    "future-branch-cross-job-quarantine"
   ]
 }

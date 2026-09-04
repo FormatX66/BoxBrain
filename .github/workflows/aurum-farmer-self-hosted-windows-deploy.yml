@@ -143,6 +143,7 @@ jobs:
           }
           if ($health.future_branch.engine -ne 'aurum.future-branch.decision.v1' -or
               $health.future_branch.default_on -ne $true -or
+              $health.future_branch.cross_job_quarantine -ne $true -or
               $health.future_branch.calibrated_outcomes -lt 1) {
             throw 'AURUM_FARMER_DEPLOY_FAILED reason=future-branch-live-calibration'
           }

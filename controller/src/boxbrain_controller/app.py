@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .api import router
 from .settings import settings
+from .future_branch import FutureBranchMiddleware, make_gate
 
 
 _PUBLIC_PATHS = {
@@ -31,6 +32,15 @@ def create_app() -> FastAPI:
     )
 
     application.state.authentication_required = settings.api_token is not None
+    application.state.future_branch = make_gate(settings.data_dir)
+    # Registered before authentication so it runs inside that middleware. A
+    # rejected unauthenticated request cannot create or poison decision state.
+    application.add_middleware(FutureBranchMiddleware, gate=application.state.future_branch,
+                               repository_root=settings.repository_root)
+
+    @application.get("/api/v1/future-branch/status", tags=["system"])
+    def future_branch_status():
+        return application.state.future_branch.status()
 
     @application.middleware("http")
     async def require_local_api_token(request: Request, call_next):

@@ -50,6 +50,27 @@ SAFE = {
 
 
 class FarmerCoreTests(unittest.TestCase):
+    def test_failed_tool_cannot_replay_under_new_directive_after_restart(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            db = root / "slush.db"
+            make_db(db)
+            calls = []
+            def fail(parameters):
+                calls.append(parameters)
+                return {"status": "failed", "human_required": False}
+            payload = {"action": "run_checks", "parameters": {"name": "python-unittest"}}
+            first = FarmerWorker(db, root / "worker.sock", root)
+            first._tools["run_checks"] = fail
+            self.assertEqual(first.process_slush_directive("first", payload)["status"], "failed")
+            restarted = FarmerWorker(db, root / "worker.sock", root)
+            restarted._tools["run_checks"] = fail
+            self.assertEqual(restarted.process_slush_directive("second", payload)["status"], "waiting")
+            self.assertEqual(len(calls), 1)
+            payload["parameters"]["name"] = "python-pytest"
+            self.assertEqual(restarted.process_slush_directive("third", payload)["status"], "failed")
+            self.assertEqual(len(calls), 2)
+
     def test_common_dispatch_records_decision_and_calibrated_outcome(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -217,6 +238,21 @@ class FarmerCoreTests(unittest.TestCase):
             self.assertEqual(result["status"], "verified_completion")
             self.assertEqual([r["id"] for r in result["results"]], ["primary", "fallback"])
             self.assertFalse(result["human_required"])
+
+    def test_quarantined_primary_still_activates_recovery(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            db = root / "slush.db"
+            make_db(db)
+            worker = FarmerWorker(db, root / "worker.sock", root)
+            worker._tools["run_checks"] = lambda p: {"status": "failed", "human_required": False}
+            worker._dispatch("run_checks", {"name": "python-unittest"})
+            result = worker._tool_farmer_plan({"work_items": [
+                {"id": "primary", "action": "run_checks", "parameters": {"name": "python-unittest"}, **SAFE},
+                {"id": "fallback", "fallback_for": "primary", "action": "echo", **SAFE}]})
+            self.assertEqual([r["id"] for r in result["results"]], ["primary", "fallback"])
+            self.assertTrue(result["results"][0]["quarantined"])
+            self.assertEqual(result["results"][1]["status"], "succeeded")
 
     def test_hive_farmer_directive_is_consumed(self):
         with tempfile.TemporaryDirectory() as td:

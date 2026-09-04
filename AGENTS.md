@@ -18,6 +18,14 @@ If neither is possible, do not spend compute/usage performing it.
 
 ## Required behavior
 
+- Apply Future Branch to every operation as part of the state-first loop, with
+  effort proportional to uncertainty. Keep execute, observe/hold and recovery
+  options explicit; deepen and compare alternatives before consequential action.
+  While execution is in progress, prepare independent safe next steps where
+  useful. Record the chosen route, verification and any failed hypothesis.
+- An unchanged failed operation must remain quarantined even under a new task,
+  request or directive ID. Diagnose or change real inputs/state/implementation
+  before retrying. A new timestamp, receipt, counter or renamed task is not a fix.
 - Treat a short, imperfect, or generic prompt as directional evidence against the
   active project state, not as a context reset. Infer the likely required outcome,
   execute safe reversible work shared by plausible intents, and ask only when the

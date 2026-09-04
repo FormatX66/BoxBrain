@@ -31,11 +31,13 @@ DEFAULT_WORKSPACE = Path(os.environ.get("AURUM_WORKSPACE", str(ROOT)))
 # checkouts import that same module directly, without maintaining a second copy.
 try:
     from decision_engine import DecisionEngine, digest as decision_digest, score as decision_score
+    from operation_gate import OperationGate, source_revision, workspace_revision
 except ModuleNotFoundError as error:
     if error.name != "decision_engine":
         raise
     sys.path.insert(0, str(ROOT.parents[2] / "AurumFarmer"))
     from aurum_farmer.decision_engine import DecisionEngine, digest as decision_digest, score as decision_score
+    from aurum_farmer.operation_gate import OperationGate, source_revision, workspace_revision
 
 HUMAN_ONLY_BLOCKERS = {
     "physical_intervention",
@@ -180,6 +182,8 @@ class FarmerWorker:
         }
         self._ensure_schema()
         self.decision_engine = DecisionEngine()
+        self.operation_gate = OperationGate(self.db_path, implementation=source_revision([Path(__file__)]),
+                                            engine=self.decision_engine)
 
     @contextmanager
     def _connect(self):
@@ -308,17 +312,30 @@ class FarmerWorker:
                 "human_required": False,
                 "blocker": {"kind": "unsupported_bounded_tool", "action": action},
             }
-        snapshot = {"workspace": str(self.workspace.resolve()), "input_digest": decision_digest(parameters)}
+        snapshot = {"workspace": str(self.workspace.resolve()), "input_digest": decision_digest(parameters),
+                    "workspace_revision": workspace_revision(self.workspace)}
+        ticket = self.operation_gate.begin(action, parameters,
+                    {"workspace_revision": snapshot["workspace_revision"]},
+                    recovery_observation=action in {"echo", "repository_status", "future_branch", "audit_completion"})
+        if not ticket["allowed"]:
+            return {"status": "waiting", "human_required": False,
+                    "reason": ticket["reason"], "state_id": ticket["state_id"],
+                    "quarantined": ticket["reason"] == "unchanged_failed_operation"}
         branch = {"id": action, "executor": action, "payload": {"input_digest": snapshot["input_digest"]},
                   "confidence": .8, "impact": .8, "expected_evidence": [{"kind": "bounded_tool_receipt"}]}
         decision = self.decision_engine.evaluate(snapshot, [branch])
         self._emit_event(None, "future_branch_decision", decision)
         if decision["selected"] is None:
+            self.operation_gate.finish(ticket, "refused", {"state_id": decision["state_id"]})
             return {"status": "machine_blocked", "human_required": False,
                     "blocker": {"kind": "future_branch_gate", "state_id": decision["state_id"]}}
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="future-branch-explorer") as pool:
             exploration = pool.submit(self._explore_pending)
-            result = handler(parameters)
+            try:
+                result = handler(parameters)
+            except Exception as error:
+                self.operation_gate.finish(ticket, "uncertain", {"exception": type(error).__name__})
+                raise
             try:
                 exploration.result()
             except Exception as error:
@@ -326,6 +343,11 @@ class FarmerWorker:
                 # tool effect or cause it to be replayed as an execution failure.
                 result["future_exploration_error"] = type(error).__name__
         outcome = result.get("status")
+        try:
+            self.operation_gate.finish(ticket, "failed" if outcome == "failed" else
+                "waiting" if outcome in {"waiting", "machine_blocked", "proven_human_only_blocker"} else "observed", result)
+        except Exception as error:
+            result["future_journal_error"] = type(error).__name__
         accepted = outcome in SUCCESS_STATES and result.get("human_required") is False
         telemetry = {
             "state_id": decision["state_id"], "branch_id": action, "probability": .8,
@@ -576,7 +598,7 @@ class FarmerWorker:
                 if deps and not all(status_by_id.get(str(dep)) in SUCCESS_STATES for dep in deps):
                     continue
                 fallback_for = item.get("fallback_for")
-                if fallback_for is not None and status_by_id.get(str(fallback_for)) not in FAILURE_STATES:
+                if fallback_for is not None and status_by_id.get(str(fallback_for)) not in FAILURE_STATES | {"quarantined"}:
                     continue
                 ready.append(item)
 
@@ -628,7 +650,7 @@ class FarmerWorker:
 
             for item, result in sorted(cycle_results, key=lambda pair: str(pair[0]["id"])):
                 item_status = str(result.get("status") or "succeeded")
-                status_by_id[str(item["id"])] = item_status
+                status_by_id[str(item["id"])] = "quarantined" if result.get("quarantined") else item_status
                 all_results.append({"id": item["id"], "score": item["score"], **result})
 
                 if bool(result.get("human_required", False)):

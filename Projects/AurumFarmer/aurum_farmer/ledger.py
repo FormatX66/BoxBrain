@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from .decision_engine import DecisionEngine, digest, score
 from .verification import verify_result
+from .operation_gate import semantic_input, source_revision
 
 from .models import (
     BranchSpec,
@@ -67,6 +68,8 @@ class Ledger:
         self._initialize()
         self.decision_engine = DecisionEngine()
         self.verification_gh = "gh"
+        self.execution_revision = source_revision([Path(__file__), Path(__file__).with_name("executors.py"),
+                                                   Path(__file__).with_name("verification.py")])
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
@@ -240,6 +243,12 @@ class Ledger:
                     attempt_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, branch_id TEXT NOT NULL,
                     probability REAL NOT NULL, outcome TEXT NOT NULL, verified INTEGER NOT NULL,
                     brier REAL, decision_state TEXT);
+                CREATE TABLE IF NOT EXISTS future_quarantines (
+                    fingerprint TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, signature TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS future_quarantines_no_update BEFORE UPDATE ON future_quarantines
+                    BEGIN SELECT RAISE(ABORT, 'quarantines are append-only'); END;
+                CREATE TRIGGER IF NOT EXISTS future_quarantines_no_delete BEFORE DELETE ON future_quarantines
+                    BEGIN SELECT RAISE(ABORT, 'quarantines are append-only'); END;
                 CREATE TRIGGER IF NOT EXISTS future_decisions_no_update BEFORE UPDATE ON future_decisions
                     BEGIN SELECT RAISE(ABORT, 'decisions are append-only'); END;
                 CREATE TRIGGER IF NOT EXISTS future_decisions_no_delete BEFORE DELETE ON future_decisions
@@ -463,7 +472,28 @@ class Ledger:
             "SELECT payload_sha256 FROM evidence WHERE job_id=? ORDER BY id", (job["id"],))]
         snapshot = {"job_id": job["id"], "context_digest": digest(job["context_json"]),
                     "evidence": evidence, "lkg": lkg}
-        return snapshot, [dict(b) for b in branches]
+        proposals = [dict(b) for b in branches]
+        for branch in proposals:
+            fingerprint = self._operation_fingerprint(job, branch)
+            failed = connection.execute("SELECT * FROM future_quarantines WHERE fingerprint=?", (fingerprint,)).fetchone()
+            if failed:
+                receipt = _loads(failed["receipt_json"])
+                if receipt["fingerprint"] != fingerprint or not hmac.compare_digest(self._sign(digest(receipt)), failed["signature"]):
+                    raise LedgerError("Future Branch quarantine seal failed")
+                branch["state"] = BranchState.QUARANTINED.value
+                branch["failure_fingerprint"] = "unchanged_failed_operation:" + fingerprint
+        return snapshot, proposals
+
+    def _operation_fingerprint(self, job, branch):
+        # New job/branch IDs, retry counters and generated receipts are not new
+        # evidence. Changed action inputs/context or trusted implementation are.
+        return digest({"executor": branch["executor"],
+                       "payload": semantic_input(_loads(branch["payload_json"])),
+                       "context": semantic_input(_loads(job["context_json"])),
+                       "requirements": _loads(branch["expected_evidence_json"]),
+                       "lkg_scope": branch["lkg_scope"],
+                       "implementation": self.execution_revision,
+                       "engine": self.decision_engine.implementation})
 
     def _record_decision(self, connection, job_id, report):
         inserted = connection.execute(
@@ -516,6 +546,9 @@ class Ledger:
                       "engine": "aurum.future-branch.decision.v1", "default_on": True,
                       "implementation_sha256": self.decision_engine.implementation,
                       "available_tiers": ["static", *self.decision_engine.probes],
+                      "cross_job_quarantine": True,
+                      "execution_revision": self.execution_revision,
+                      "quarantined_operations": connection.execute("SELECT COUNT(*) FROM future_quarantines").fetchone()[0],
                       "calibrated_outcomes": row[0], "mean_brier_score": row[1]}
             if job_id:
                 result["latest"] = self._prior_future(connection, job_id)
@@ -523,12 +556,17 @@ class Ledger:
 
     def _activate_due(self, connection: sqlite3.Connection, now: float) -> None:
         rows = connection.execute(
-            """SELECT id, state FROM jobs
+            """SELECT * FROM jobs
                WHERE state IN (?, ?, ?) AND COALESCE(retry_not_before, 0) <= ?
                  AND human_boundary_json IS NULL""",
             (JobState.RETRYING.value, JobState.RECOVERING.value, JobState.WAITING.value, now),
         ).fetchall()
         for row in rows:
+            if row["next_action"] == "inspect_quarantined_operation":
+                branches = connection.execute("SELECT * FROM branches WHERE job_id=?", (row["id"],)).fetchall()
+                _, proposals = self._future_input(connection, row, branches)
+                if proposals and all(b["state"] == BranchState.QUARANTINED.value for b in proposals):
+                    continue
             self._transition(connection, row["id"], JobState.READY, reason="retry/recovery prerequisite became eligible")
 
     def claim_next(self, owner: str, *, lease_seconds: float = 90.0) -> dict[str, Any] | None:
@@ -567,6 +605,8 @@ class Ledger:
                     and item["logical_id"] == decision["selected"]
                 ]
                 if not eligible:
+                    _, proposals = self._future_input(connection, job, all_branches)
+                    all_quarantined = proposals and all(b["state"] == BranchState.QUARANTINED.value for b in proposals)
                     boundary = next((item for item in candidates if item["human_boundary_json"]), None)
                     if boundary:
                         self._transition(
@@ -584,8 +624,9 @@ class Ledger:
                             connection,
                             job["id"],
                             JobState.WAITING,
-                            reason="no dependency- and authority-ready branch",
-                            fields={"retry_not_before": now + 30.0},
+                            reason="unchanged failed operation quarantined" if all_quarantined else "no dependency- and authority-ready branch",
+                            fields={"retry_not_before": now + 30.0,
+                                    "next_action": "inspect_quarantined_operation" if all_quarantined else "reevaluate prerequisites"},
                         )
                     continue
                 selected = max(
@@ -1015,6 +1056,14 @@ class Ledger:
                 branch["id"],
             ),
         )
+        if result.outcome == Outcome.FAILED:
+            fingerprint = self._operation_fingerprint(job, branch)
+            receipt = {"fingerprint": fingerprint, "job_id": job["id"], "branch_id": branch["id"],
+                       "failure_class": result.failure_class, "failure_fingerprint": result.failure_fingerprint}
+            inserted = connection.execute("INSERT OR IGNORE INTO future_quarantines VALUES(?,?,?)",
+                (fingerprint, _json(receipt), self._sign(digest(receipt)))).rowcount
+            if inserted:
+                self._append_event(connection, "future_branch", job["id"], "quarantined_operation", receipt)
         alternates = connection.execute(
             """SELECT COUNT(*) AS count FROM branches WHERE job_id=? AND id<>?
                AND state IN (?, ?, ?) AND attempt_count < max_attempts""",
@@ -1121,12 +1170,18 @@ class Ledger:
             if state not in {JobState.BLOCKED_HUMAN, JobState.WAITING, JobState.RETRYING, JobState.RECOVERING}:
                 raise StateTransitionError(f"job cannot resume from {state.value}")
             connection.execute(
-                """UPDATE branches SET state=?, human_boundary_json=NULL, eligible_after=?,
-                   dependencies_satisfied=1, authority_ready=1, updated_at=?
+                """UPDATE branches SET state=?,
+                   human_boundary_json=CASE WHEN ?='authority' THEN NULL ELSE human_boundary_json END,
+                   eligible_after=?,
+                   dependencies_satisfied=CASE WHEN ?='dependency' THEN 1 ELSE dependencies_satisfied END,
+                   authority_ready=CASE WHEN ?='authority' THEN 1 ELSE authority_ready END, updated_at=?
                    WHERE job_id=? AND state IN (?, ?, ?)""",
                 (
                     BranchState.CANDIDATE.value,
+                    changed_dimension,
                     _now(),
+                    changed_dimension,
+                    changed_dimension,
                     _now(),
                     job_id,
                     BranchState.BLOCKED_HUMAN.value,

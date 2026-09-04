@@ -10,7 +10,7 @@ diagnostic executor. It intentionally has no autonomous task executor.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e ../Projects/AurumFarmer -e ".[dev]"
 $env:BOXBRAIN_API_TOKEN = '<a-random-value-with-at-least-32-characters>'
 python -m uvicorn boxbrain_controller.main:app --reload
 ```
@@ -139,6 +139,28 @@ data, and sandbox paths are anchored to the checkout, so launching the
 controller from another working directory does not silently retarget them. The
 policy enforces frame size limits, child-process redaction, zero disk retention,
 and a single concurrent frame capture.
+
+## Future Branch admission
+
+All API routes pass through the shared Aurum decision engine after authentication.
+`GET /api/v1/future-branch/status` reports coverage and quarantine counts. Decisions
+and hashed outcomes persist in `BOXBRAIN_DATA_DIR/future-branch.sqlite3`; raw
+request bodies, credentials and response contents are not stored there.
+
+An unchanged failed POST receives HTTP 409 with `status: waiting` and a recovery
+instruction. A fresh request ID does not bypass it. Read-only GET/HEAD requests
+can still gather evidence, and emergency-stop engagement remains available even
+if the journal is unavailable. Admission never substitutes for an endpoint's
+authorization or result verification. Successful HTTP transport is not proof of
+task completion. Handler errors embedded as top-level `status: failed` are also
+quarantined; other result schemas still need their executor's verifier.
+
+The controller and Farmer are installed together from this repository. Container
+builds now use the repository root as their context:
+
+```sh
+docker build -f controller/Dockerfile -t boxbrain-controller .
+```
 
 ## Kali Pi edge agent
 
