@@ -76,6 +76,108 @@ class AurumWorkspaceTests(unittest.TestCase):
         self.assertEqual(result["status"], "ready")
         self.assertFalse(result["dirty"])
 
+    def test_git_sync_repairs_only_a_broken_loose_origin_tracking_ref(self) -> None:
+        git_dir = self.workspace_path / ".git"
+        broken_ref = git_dir / "refs" / "remotes" / "origin" / "aurum" / "trunk-v0.01"
+        broken_ref.parent.mkdir(parents=True)
+        broken_ref.write_text("not-an-object-id\n", encoding="ascii")
+        marker = git_dir / "HEAD"
+        marker.write_text("ref: refs/heads/aurum/trunk-v0.01\n", encoding="ascii")
+
+        result = self.workspace.git_sync(authorize_network=True)
+
+        self.assertFalse(broken_ref.exists())
+        self.assertEqual(marker.read_text(encoding="ascii"), "ref: refs/heads/aurum/trunk-v0.01\n")
+        repair = result["remote_ref_repair"]
+        self.assertEqual(repair["reference"], "refs/remotes/origin/aurum/trunk-v0.01")
+        self.assertEqual(repair["reason"], "invalid-object-id")
+        self.assertTrue(repair["local_branch_preserved"])
+        self.assertTrue(repair["worktree_preserved"])
+        self.assertNotIn("not-an-object-id", json.dumps(repair))
+        receipt = json.loads(
+            (self.state / "last-remote-tracking-ref-repair.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(receipt["status"], "recreated-from-origin")
+
+    def test_git_sync_keeps_a_valid_origin_tracking_ref(self) -> None:
+        git_dir = self.workspace_path / ".git"
+        valid_ref = git_dir / "refs" / "remotes" / "origin" / "aurum" / "trunk-v0.01"
+        valid_ref.parent.mkdir(parents=True)
+        valid_ref.write_text("a" * 40 + "\n", encoding="ascii")
+
+        result = self.workspace.git_sync(authorize_network=True)
+
+        self.assertEqual(valid_ref.read_text(encoding="ascii"), "a" * 40 + "\n")
+        self.assertNotIn("remote_ref_repair", result)
+        self.assertFalse((self.state / "last-remote-tracking-ref-repair.json").exists())
+
+    def test_git_sync_repairs_a_packed_ref_to_a_missing_object_through_git(self) -> None:
+        (self.workspace_path / ".git").mkdir(parents=True)
+        missing_object = "b" * 40
+
+        def missing_object_runner(arguments: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+            if arguments[:4] == ["git", "rev-parse", "--verify", "refs/remotes/origin/aurum/trunk-v0.01"]:
+                return subprocess.CompletedProcess(arguments, 0, missing_object + "\n")
+            if arguments[:3] == ["git", "cat-file", "-e"]:
+                return subprocess.CompletedProcess(arguments, 1, "missing\n")
+            return self.runner(arguments, **kwargs)
+
+        self.workspace.runner = missing_object_runner
+        result = self.workspace.git_sync(authorize_network=True)
+
+        repair = result["remote_ref_repair"]
+        self.assertEqual(repair["storage"], "packed")
+        self.assertEqual(repair["reason"], "missing-object")
+        self.assertEqual(repair["previous_object"], missing_object)
+        self.assertIn(
+            [
+                "git",
+                "update-ref",
+                "-d",
+                "refs/remotes/origin/aurum/trunk-v0.01",
+                missing_object,
+            ],
+            [arguments for arguments, _kwargs in self.runner.calls],
+        )
+
+    def test_git_sync_refuses_to_delete_a_ref_changed_during_repair(self) -> None:
+        git_dir = self.workspace_path / ".git"
+        broken_ref = git_dir / "refs" / "remotes" / "origin" / "aurum" / "trunk-v0.01"
+        broken_ref.parent.mkdir(parents=True)
+        broken_ref.write_text("not-an-object-id\n", encoding="ascii")
+
+        def changing_runner(arguments: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+            if arguments[:4] == [
+                "git",
+                "update-ref",
+                "-d",
+                "refs/remotes/origin/aurum/trunk-v0.01",
+            ]:
+                broken_ref.write_text("a" * 40 + "\n", encoding="ascii")
+                return subprocess.CompletedProcess(arguments, 1, "changed\n")
+            return self.runner(arguments, **kwargs)
+
+        self.workspace.runner = changing_runner
+        with self.assertRaisesRegex(aurum_workspace.WorkspaceError, "changed during repair"):
+            self.workspace.git_sync(authorize_network=True)
+        self.assertEqual(broken_ref.read_text(encoding="ascii"), "a" * 40 + "\n")
+
+    def test_git_sync_refuses_a_symbolic_origin_tracking_ref(self) -> None:
+        git_dir = self.workspace_path / ".git"
+        target = git_dir / "unexpected-ref"
+        target.parent.mkdir(parents=True)
+        target.write_text("a" * 40 + "\n", encoding="ascii")
+        symbolic_ref = git_dir / "refs" / "remotes" / "origin" / "aurum" / "trunk-v0.01"
+        symbolic_ref.parent.mkdir(parents=True)
+        try:
+            symbolic_ref.symlink_to(target)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink creation is unavailable on this host")
+
+        with self.assertRaisesRegex(aurum_workspace.WorkspaceError, "symbolic"):
+            self.workspace.git_sync(authorize_network=True)
+        self.assertTrue(symbolic_ref.is_symlink())
+
     def test_seed_uses_fixed_python_entrypoint_not_a_shell(self) -> None:
         seed = self.installed / "seed" / "codelation_seed.py"
         seed.parent.mkdir(parents=True)
