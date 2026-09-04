@@ -262,6 +262,46 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             child.kill.assert_not_called()
             self.assertFalse(pid_path.exists())
 
+    def test_arcade_start_accepts_http_readiness_during_marker_qualified_grace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            runtime.arcade_log_path.write_text(
+                "AURUM_ARCADE_READY machine=Hopper address=127.0.0.1 port=8766\n",
+                encoding="utf-8",
+            )
+            child = Mock()
+            child.poll.return_value = None
+            with (
+                patch.object(runtime, "_arcade_status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_wait_for_arcade", side_effect=(False, True)) as wait,
+                patch.object(runtime, "_reap_failed_child") as reap,
+            ):
+                runtime._start_arcade()
+
+            self.assertEqual(
+                [call.args[1] for call in wait.call_args_list],
+                [gui_module.ARCADE_READY_TIMEOUT_SECONDS, gui_module.ARCADE_READY_MARKER_GRACE_SECONDS],
+            )
+            reap.assert_not_called()
+
+    def test_arcade_start_does_not_extend_without_ready_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            child = Mock()
+            child.poll.return_value = None
+            with (
+                patch.object(runtime, "_arcade_status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_wait_for_arcade", return_value=False) as wait,
+                patch.object(runtime, "_reap_failed_child") as reap,
+            ):
+                with self.assertRaisesRegex(gui_module.GuiRuntimeError, "Arcade did not become ready"):
+                    runtime._start_arcade()
+
+            wait.assert_called_once_with(child, gui_module.ARCADE_READY_TIMEOUT_SECONDS)
+            reap.assert_called_once_with(child, runtime.arcade_pid_path)
+
     def test_failed_child_keeps_pid_record_when_even_kill_is_unconfirmed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             pid_path = Path(temporary) / "gui.pid"

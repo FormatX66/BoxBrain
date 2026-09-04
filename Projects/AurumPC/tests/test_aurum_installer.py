@@ -213,6 +213,50 @@ class AurumInstallerTests(unittest.TestCase):
         self.assertEqual(policy["hostname"], "aurum-pc")
         self.assertEqual(policy["machine_match"]["installed_target_serial"], "NVME-SERIAL-1")
 
+    def test_boot_config_has_only_normal_and_graphics_recovery_entries(self) -> None:
+        target = self.make_installer().discover_targets()[0]
+        installed = self.root / "installed"
+        (installed / "boot").mkdir(parents=True)
+        (installed / "boot" / "vmlinuz-6.1-test").write_bytes(b"kernel")
+        (installed / "boot" / "initrd.img-6.1-test").write_bytes(b"initrd")
+
+        installer_module.AurumInstaller._write_boot_config(installed, "abcd-1234", target)
+
+        grub = (installed / "boot" / "grub" / "grub.cfg").read_text(encoding="utf-8")
+        self.assertEqual(grub.count("menuentry "), 2)
+        self.assertIn("menuentry 'Aurum PC'", grub)
+        self.assertIn("menuentry 'Aurum PC (graphics recovery)'", grub)
+        self.assertIn("set default=0\nset timeout=5", grub)
+        self.assertEqual(grub.count("root=UUID=abcd-1234"), 2)
+        self.assertEqual(grub.count("nomodeset"), 1)
+        self.assertNotIn("nouveau.modeset=0", grub)
+
+    def test_hopper_normal_boot_excludes_only_the_failed_nouveau_path(self) -> None:
+        target = installer_module.InstallTarget(
+            device="/dev/nvme0n1",
+            kernel_name="nvme0n1",
+            model="Hopper internal drive",
+            serial=installer_module.HOPPER_TARGET_SERIAL,
+            transport="nvme",
+            size_bytes=installer_module.HOPPER_TARGET_SIZE_BYTES,
+            size_gib=round(installer_module.HOPPER_TARGET_SIZE_BYTES / (1024**3), 1),
+            existing_partitions=(),
+            confirmation_code="ERASE-12345678",
+        )
+        installed = self.root / "hopper-installed"
+        (installed / "boot").mkdir(parents=True)
+        (installed / "boot" / "vmlinuz-6.1-test").write_bytes(b"kernel")
+        (installed / "boot" / "initrd.img-6.1-test").write_bytes(b"initrd")
+
+        installer_module.AurumInstaller._write_boot_config(installed, "abcd-1234", target)
+
+        grub = (installed / "boot" / "grub" / "grub.cfg").read_text(encoding="utf-8")
+        normal, recovery = grub.split("menuentry 'Aurum PC (graphics recovery)'", maxsplit=1)
+        self.assertIn("modprobe.blacklist=nouveau nouveau.modeset=0", normal)
+        self.assertNotIn("nomodeset", normal)
+        self.assertIn("nomodeset", recovery)
+        self.assertNotIn("modprobe.blacklist=nouveau", recovery)
+
     def test_repair_detection_requires_exact_aurum_partition_labels(self) -> None:
         payload = deepcopy(inventory())
         payload["blockdevices"][0]["children"] = [

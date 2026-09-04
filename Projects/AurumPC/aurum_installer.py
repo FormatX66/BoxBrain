@@ -362,11 +362,15 @@ class AurumInstaller:
         return True
 
     @staticmethod
-    def _write_machine_identity(target_root: Path, target: InstallTarget, receipt: Mapping[str, Any]) -> None:
-        is_hopper = (
+    def _is_hopper_target(target: InstallTarget) -> bool:
+        return (
             target.serial == HOPPER_TARGET_SERIAL
             and target.size_bytes == HOPPER_TARGET_SIZE_BYTES
         )
+
+    @staticmethod
+    def _write_machine_identity(target_root: Path, target: InstallTarget, receipt: Mapping[str, Any]) -> None:
+        is_hopper = AurumInstaller._is_hopper_target(target)
         policy_path = target_root / "opt" / "aurum" / "pc01_autonomy_policy.json"
         try:
             policy = json.loads(policy_path.read_text(encoding="utf-8"))
@@ -397,18 +401,37 @@ class AurumInstaller:
         )
 
     @staticmethod
-    def _write_boot_config(target_root: Path, root_uuid: str) -> tuple[str, str]:
+    def _write_boot_config(
+        target_root: Path,
+        root_uuid: str,
+        target: InstallTarget,
+    ) -> tuple[str, str]:
         kernel_name, initrd_name = AurumInstaller._kernel_pair(target_root)
         grub_dir = target_root / "boot" / "grub"
         grub_dir.mkdir(parents=True, exist_ok=True)
+        common_arguments = (
+            f"root=UUID={root_uuid} ro quiet preempt=voluntary "
+            "transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8"
+        )
+        normal_arguments = common_arguments
+        if AurumInstaller._is_hopper_target(target):
+            # Hopper's discrete NVIDIA path has physically stalled in nouveau
+            # timer handling. Keep other native graphics available while
+            # excluding only that failed driver from the normal boot.
+            normal_arguments += " modprobe.blacklist=nouveau nouveau.modeset=0"
+        recovery_arguments = common_arguments + " nomodeset"
         (grub_dir / "grub.cfg").write_text(
             "set default=0\n"
-            "set timeout=0\n\n"
+            "set timeout=5\n\n"
             f"search --no-floppy --fs-uuid --set=aurum_root {root_uuid}\n"
             "menuentry 'Aurum PC' {\n"
             f"    search --no-floppy --fs-uuid --set=root {root_uuid}\n"
-            f"    linux /boot/{kernel_name} root=UUID={root_uuid} ro quiet "
-            "preempt=voluntary transparent_hugepage=madvise console=tty0 console=ttyS0,115200n8\n"
+            f"    linux /boot/{kernel_name} {normal_arguments}\n"
+            f"    initrd /boot/{initrd_name}\n"
+            "}\n"
+            "menuentry 'Aurum PC (graphics recovery)' {\n"
+            f"    search --no-floppy --fs-uuid --set=root {root_uuid}\n"
+            f"    linux /boot/{kernel_name} {recovery_arguments}\n"
             f"    initrd /boot/{initrd_name}\n"
             "}\n",
             encoding="utf-8",
@@ -589,7 +612,7 @@ class AurumInstaller:
                     target.device,
                 ]
             )
-            kernel_name, initrd_name = self._write_boot_config(target_root, root_uuid)
+            kernel_name, initrd_name = self._write_boot_config(target_root, root_uuid, target)
 
             self._progress(callback, "verify", device=target.device)
             required = (
@@ -725,7 +748,7 @@ class AurumInstaller:
                     target.device,
                 ]
             )
-            kernel_name, initrd_name = self._write_boot_config(target_root, root_uuid)
+            kernel_name, initrd_name = self._write_boot_config(target_root, root_uuid, target)
 
             self._progress(callback, "verify", device=target.device)
             required = (
