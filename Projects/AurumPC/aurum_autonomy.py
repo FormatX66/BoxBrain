@@ -263,7 +263,10 @@ class AutonomyManager:
         )
 
     def _gui_start(self) -> dict[str, Any]:
-        return self._subprocess_json(self.source / "aurum_gui_runtime.py", "start", timeout=30)
+        # The manager has a progress-qualified 120-second GUI-server window and
+        # then verifies the bounded physical projection. Do not orphan that
+        # owned child by timing out the supervising recovery call first.
+        return self._subprocess_json(self.source / "aurum_gui_runtime.py", "start", timeout=540)
 
     def _self_build(self, head: str | None) -> dict[str, Any]:
         module_path = self.source / "aurum_workspace.py"

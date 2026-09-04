@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+from contextlib import nullcontext
 import json
 import socket
 import sys
@@ -20,22 +21,25 @@ SPEC.loader.exec_module(network)
 
 
 class AurumNetworkTests(unittest.TestCase):
-    def test_graphical_wifi_entry_saves_then_connects_without_console_input(self) -> None:
+    def test_graphical_wifi_entry_saves_only_after_verified_connection(self) -> None:
         with (
+            patch.object(network, "_operation_lock", return_value=nullcontext()),
             patch.object(network, "wireless_interfaces", return_value=["wlan0"]),
             patch.object(network, "_make_config", return_value="safe-config\n") as make,
+            patch.object(network, "_write_config") as stage,
             patch.object(network, "_write_saved_config") as write,
             patch.object(
                 network,
-                "connect_saved",
-                return_value={"status": "online", "online": True},
+                "_connect_config",
+                return_value={"status": "online", "online": True, "associated": True, "ssid": "Test Network"},
             ) as connect,
         ):
             result = network.connect_wifi(" Test Network ", "secret", timeout_seconds=25)
         self.assertTrue(result["online"])
         make.assert_called_once_with("Test Network", "secret")
         write.assert_called_once_with("safe-config\n")
-        connect.assert_called_once_with("wlan0", timeout_seconds=25)
+        stage.assert_called_once_with(network.RUN_DIR / "wifi-wlan0.conf", "safe-config\n")
+        connect.assert_called_once_with("wlan0", network.RUN_DIR / "wifi-wlan0.conf", timeout_seconds=25)
 
     def test_status_projects_active_interface_and_ip_for_gui(self) -> None:
         def fake_run(arguments, **_kwargs):
@@ -53,8 +57,7 @@ class AurumNetworkTests(unittest.TestCase):
             network, "_run", side_effect=fake_run
         ), patch.object(network, "_addresses", return_value=["usb0:10.12.194.5"]), patch.object(
             network, "wireless_interfaces", return_value=[]
-        ), patch.object(socket, "getaddrinfo", return_value=[object()]), patch.object(
-            socket, "create_connection", return_value=connection
+        ), patch.object(network, "_internet_probe", return_value={"dns_github": True, "github_tcp_443": True, "probe_status": "complete"}
         ):
             status = network.network_status()
 
@@ -74,7 +77,8 @@ class AurumNetworkTests(unittest.TestCase):
                     "--write-state",
                     str(receipt),
                 ]),
-                patch.object(network, "network_status", return_value={"online": False}),
+                patch.object(network, "wireless_interfaces", return_value=["wlan-test"]),
+                patch.object(network, "_connection_state", return_value={"online": False}),
                 patch.object(
                     network,
                     "connect_saved",

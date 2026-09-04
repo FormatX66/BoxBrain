@@ -563,13 +563,18 @@ class RuntimeUpdater:
         return module
 
     def _network_snapshot(self) -> dict[str, Any]:
-        candidates = (self.target / "aurum_network.py", self.source / "aurum_network.py")
+        # Use the candidate's read-only collector even before apply, so legacy
+        # global Ethernet status cannot become this generation's Wi-Fi baseline.
+        candidates = (self.source / "aurum_network.py", self.target / "aurum_network.py")
         path = next((candidate for candidate in candidates if candidate.is_file()), None)
         if path is None:
             return {"online": False, "status": "network-helper-missing"}
         try:
             module = self._load_module(path, "aurum_runtime_wifi_network")
-            value = module.network_status()
+            interfaces = module.wireless_interfaces()
+            if not interfaces:
+                return {"online": False, "status": "no-wifi-interface"}
+            value = module._connection_state(interfaces[0])
         except Exception as exc:
             return {"online": False, "status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
         return value if isinstance(value, dict) else {"online": False, "status": "invalid-network-state"}
@@ -594,7 +599,8 @@ class RuntimeUpdater:
 
     def _wifi_reboot_proof(self) -> dict[str, Any]:
         previous = _json_file(self.state_dir / "wifi-persistence.json")
-        before = previous.get("before") if isinstance(previous.get("before"), dict) else None
+        baseline = previous.get("next_baseline") or previous.get("before")
+        before = baseline if isinstance(baseline, dict) else None
         if before is None:
             return {
                 "status": "pending-reboot-observation",
@@ -795,7 +801,7 @@ class RuntimeUpdater:
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            timeout=390,
+            timeout=540,
         )
         try:
             payload = json.loads(start.stdout.strip().splitlines()[-1]) if start.stdout.strip() else {}

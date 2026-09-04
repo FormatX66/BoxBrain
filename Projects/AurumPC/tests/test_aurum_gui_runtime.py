@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import signal
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -163,6 +164,116 @@ class AurumGuiRuntimeTests(unittest.TestCase):
 
         self.assertEqual(clear.call_count, 2)
         self.assertEqual(spawn.call_count, 2)
+
+    def test_gui_start_allows_a_live_child_bounded_slow_readiness(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        child = Mock(pid=44)
+        child.poll.return_value = None
+        states = [{"status": "stopped"}] * 12 + [{"status": "running"}]
+        clock = iter(range(100))
+        with (
+            patch.object(runtime, "_gui_status", side_effect=states),
+            patch.object(runtime, "_clear_stale_gui_listener"),
+            patch.object(runtime, "_spawn", return_value=child),
+            patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+            patch.object(gui_module.time, "sleep"),
+        ):
+            runtime._start_gui()
+        child.terminate.assert_not_called()
+
+    def test_gui_status_labels_owned_unready_child_as_starting(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "_read_pid", return_value=44),
+            patch.object(runtime, "_owned_gui", return_value=True),
+            patch.object(runtime, "_json_probe", return_value={"reachable": False}),
+        ):
+            self.assertEqual(runtime._gui_status()["status"], "starting")
+
+    def test_process_cpu_ticks_handles_parentheses_in_process_name(self) -> None:
+        proc_stat = "44 (aurum gui worker) S 1 2 3 4 5 6 7 8 9 10 11 12\n"
+        with patch.object(gui_module.Path, "read_text", return_value=proc_stat):
+            self.assertEqual(GuiRuntime._process_cpu_ticks(44), 23)
+
+    def test_gui_start_extends_soft_deadline_only_after_owned_child_cpu_progress(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        child = Mock(pid=44)
+        child.poll.return_value = None
+        states = [{"status": "stopped"}] * 4 + [{"status": "running"}]
+        clock = iter((0.0, 0.0, 0.5, 1.5, 2.5, 3.5))
+        with (
+            patch.object(runtime, "_gui_status", side_effect=states),
+            patch.object(runtime, "_clear_stale_gui_listener"),
+            patch.object(runtime, "_spawn", return_value=child),
+            patch.object(runtime, "_process_cpu_ticks", side_effect=(10, 10, 11, 12)),
+            patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+            patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 10),
+            patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+            patch.object(gui_module.time, "sleep"),
+        ):
+            runtime._start_gui()
+        child.terminate.assert_not_called()
+
+    def test_gui_start_reaps_live_child_at_soft_deadline_without_cpu_progress(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        child = Mock(pid=45)
+        child.poll.return_value = None
+        clock = iter((0.0, 0.0, 1.5, 2.0))
+        with (
+            patch.object(runtime, "_gui_status", return_value={"status": "stopped"}),
+            patch.object(runtime, "_clear_stale_gui_listener"),
+            patch.object(runtime, "_spawn", return_value=child),
+            patch.object(runtime, "_process_cpu_ticks", return_value=10),
+            patch.object(runtime, "_reap_failed_child") as reap,
+            patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+            patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 10),
+            patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+            patch.object(gui_module.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(gui_module.GuiRuntimeError, "GUI did not become ready"):
+                runtime._start_gui()
+        reap.assert_called_once_with(child, runtime.pid_path)
+
+    def test_gui_start_does_not_duplicate_an_owned_starting_child(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        clock = iter((0.0, 0.0, 2.0))
+        with (
+            patch.object(runtime, "_gui_status", return_value={"status": "starting", "pid": 46}),
+            patch.object(runtime, "_owned_gui", return_value=True),
+            patch.object(runtime, "_spawn") as spawn,
+            patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+            patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+            patch.object(gui_module.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(gui_module.GuiRuntimeError, "refusing a duplicate child"):
+                runtime._start_gui()
+        spawn.assert_not_called()
+
+    def test_failed_new_child_is_reaped_before_its_pid_record_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            pid_path = Path(temporary) / "gui.pid"
+            pid_path.write_text("45\n", encoding="utf-8")
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            child.wait.return_value = 0
+            GuiRuntime._reap_failed_child(child, pid_path)
+            child.terminate.assert_called_once_with()
+            child.wait.assert_called_once_with(timeout=gui_module.FAILED_CHILD_STOP_SECONDS)
+            child.kill.assert_not_called()
+            self.assertFalse(pid_path.exists())
+
+    def test_failed_child_keeps_pid_record_when_even_kill_is_unconfirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            pid_path = Path(temporary) / "gui.pid"
+            pid_path.write_text("46\n", encoding="utf-8")
+            child = Mock(pid=46)
+            child.poll.return_value = None
+            child.wait.side_effect = subprocess.TimeoutExpired("gui", 5)
+            with self.assertRaisesRegex(gui_module.GuiRuntimeError, "ownership retained"):
+                GuiRuntime._reap_failed_child(child, pid_path)
+            child.terminate.assert_called_once_with()
+            child.kill.assert_called_once_with()
+            self.assertTrue(pid_path.is_file())
 
     def test_gui_start_refuses_an_unrecognized_listener(self) -> None:
         runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)

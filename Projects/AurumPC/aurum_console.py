@@ -142,6 +142,27 @@ AUTONOMY = AutonomyManager(
 )
 
 
+def show_self_build_status() -> None:
+    """Project the machine-wide build instead of only this console process."""
+    local = BUILDS.status()
+    try:
+        durable = WORKSPACE.self_build_status()
+    except WorkspaceError as exc:
+        durable = {"status": "unavailable", "detail": str(exc)}
+    durable_status = durable.get("status")
+    durable_stage = durable.get("stage")
+    if durable_stage == "complete" and durable_status == "passed":
+        status = "passed"
+    elif local.get("running") or durable_status in {"started", "running"}:
+        status = "running"
+    else:
+        status = str(durable_status or local.get("latest", {}).get("status") or "idle")
+    print(json.dumps({"status": status, "local": local, "durable": durable}, indent=2, sort_keys=True), flush=True)
+    print(f"AURUM_SELF_BUILD_STATUS status={status} stage={durable_stage or 'unknown'}", flush=True)
+    if status == "passed":
+        print("AURUM_SELF_BUILD_FINISHED status=passed source=durable-machine-status", flush=True)
+
+
 def _read_text(path: Path, default: str = "unknown") -> str:
     try:
         value = path.read_text(encoding="utf-8", errors="replace").strip()
@@ -490,7 +511,7 @@ def main() -> int:
         elif command == "self-build" and len(tokens) == 1:
             print(json.dumps(BUILDS.start(), indent=2, sort_keys=True), flush=True)
         elif command == "self-build-status" and len(tokens) == 1:
-            print(json.dumps(BUILDS.status(), indent=2, sort_keys=True), flush=True)
+            show_self_build_status()
         elif command == "self-build-cancel" and len(tokens) == 1:
             print(json.dumps(BUILDS.cancel(), indent=2, sort_keys=True), flush=True)
         elif command == "git-status" and len(tokens) == 1:

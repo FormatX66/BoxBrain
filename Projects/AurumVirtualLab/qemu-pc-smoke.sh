@@ -53,9 +53,38 @@ echo "AURUM_QEMU_FIRMWARE selected=$QEMU_FIRMWARE" >> "$LOG"
 qemu_pid=
 
 cleanup() {
+  local result=$?
   if [ -n "${qemu_pid:-}" ] && kill -0 "$qemu_pid" 2>/dev/null; then
-    kill "$qemu_pid" 2>/dev/null || true
+    # The installed assessment is useful only after guest writes are flushed.
+    # Ask this disposable Aurum VM to power down, then retain the existing hard
+    # stop as a bounded fallback if its secondary console is no longer responsive.
+    printf 'poweroff\n' >&3 || true
+    for _ in $(seq 1 60); do
+      kill -0 "$qemu_pid" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$qemu_pid" 2>/dev/null; then
+      kill "$qemu_pid" 2>/dev/null || true
+    fi
     wait "$qemu_pid" 2>/dev/null || true
+  fi
+  if [ "$result" -ne 0 ] && [ -f "$installed_disk" ]; then
+    # This is the disposable image created above, never a host disk. Read the
+    # installed primary console's persisted assessment after QEMU has stopped.
+    # Its output is on VT1, while the harness observes the secondary serial VT.
+    # Root starts at 515 MiB in AurumInstaller's fixed image layout. Copy that
+    # bounded range sparsely into this uniquely created work directory, then use
+    # debugfs without mounting or replaying the guest filesystem journal. This
+    # does not depend on the hosted runner having an unused loop device.
+    local diagnostic_root="$work_dir/aurum-root-diagnostic.ext4"
+    echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT_BEGIN' | tee -a "$LOG"
+    if timeout 45s dd if="$installed_disk" of="$diagnostic_root" \
+        iflag=skip_bytes skip=540016640 bs=4M conv=sparse status=none; then
+      timeout 10s debugfs -R 'cat /var/lib/aurum/state/first-boot-assessment.json' "$diagnostic_root" 2>&1 | tee -a "$LOG" || true
+    else
+      echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT unavailable=sparse-copy' | tee -a "$LOG"
+    fi
+    echo 'AURUM_VIRTUAL_PC_FAILURE_ASSESSMENT_END' | tee -a "$LOG"
   fi
   exec 3>&-
   rm -rf "$work_dir"
@@ -133,7 +162,9 @@ wait_for_installed_ready() {
 wait_for_primary_gui() {
   # Status only: never make the test start a GUI that boot failed to start.
   # Scope the response to this boot; a previous session cannot satisfy proof.
-  for _ in $(seq 1 30); do
+  # Slow TCG is deliberately allowed to exercise the runtime's bounded,
+  # progress-qualified startup extension rather than racing its soft deadline.
+  for _ in $(seq 1 90); do
     printf 'gui-status\n' >&3
     for _ in $(seq 1 5); do
       if tail -n +"$installed_start_line" "$LOG" |
@@ -170,11 +201,10 @@ wait_for_install() {
 wait_for_self_build() {
   attempts=$1
   for _ in $(seq 1 "$attempts"); do
-    if grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed' "$LOG"; then
+    printf 'self-build-status\n' >&3
+    if tail -n +"$installed_start_line" "$LOG" |
+        grep -Fq 'AURUM_SELF_BUILD_FINISHED status=passed source=durable-machine-status'; then
       return 0
-    fi
-    if grep -Eq 'AURUM_SELF_BUILD_FINISHED status=(failed|cancelled)' "$LOG"; then
-      return 1
     fi
     if ! kill -0 "$qemu_pid" 2>/dev/null; then
       return 1
@@ -222,7 +252,11 @@ if [ -z "$confirmation" ]; then
   exit 1
 fi
 printf 'install confirm %s\n' "$confirmation" >&3
-if ! wait_for_install 600; then
+# TCG runners have now exceeded ten minutes while the same exact image completes
+# under KVM. Keep the virtual install bounded, but do not classify a slow runner
+# as an installer failure before its observed range. The workflow's outer time
+# limit still caps the whole job.
+if ! wait_for_install 900; then
   cat "$LOG"
   echo 'Aurum PC guided installation did not pass.' >&2
   exit 1
@@ -245,7 +279,6 @@ if ! wait_for_primary_gui; then
 fi
 
 if [ "$SKIP_SELF_BUILD" = 0 ]; then
-  printf 'self-build\n' >&3
   if ! wait_for_self_build 720; then
     cat "$LOG"
     echo 'Aurum PC installed-runtime self-build did not pass.' >&2

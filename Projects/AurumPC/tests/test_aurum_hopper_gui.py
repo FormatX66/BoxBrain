@@ -258,6 +258,21 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
         self.assertTrue(action["result"]["verified"])
         self.assertFalse(action["result"].get("raw_shell", False))
 
+    def test_wifi_http_api_uses_shared_transaction_and_does_not_save_directly(self) -> None:
+        calls = []
+        fake_network = SimpleNamespace(
+            connect_wifi=lambda ssid, password: calls.append((ssid, password)) or {"status": "wifi-operation-busy", "online": False},
+            disconnect_wifi=lambda **kwargs: calls.append(kwargs) or {"status": "disconnected", "online": False},
+        )
+        with patch.object(hopper, "_load_runtime_module", return_value=fake_network):
+            code, payload = self._request("/api/wifi", payload={"action": "connect", "ssid": "Synthetic", "password": "test-only"})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["result"]["status"], "wifi-operation-busy")
+            self.assertNotIn("test-only", json.dumps(payload))
+            code, _ = self._request("/api/wifi", payload={"action": "disconnect"})
+            self.assertEqual(code, 200)
+        self.assertEqual(calls, [("Synthetic", "test-only"), {"forget": False}])
+
     def test_live_status_survives_failing_status_modules(self) -> None:
         broken = SimpleNamespace(
             status_snapshot=lambda: (_ for _ in ()).throw(RuntimeError("snapshot-boom")),

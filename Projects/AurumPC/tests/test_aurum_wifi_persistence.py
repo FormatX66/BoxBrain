@@ -27,14 +27,14 @@ class AurumWifiPersistenceTests(unittest.TestCase):
             before = capture(
                 state_dir=state,
                 system_root=system,
-                network={"online": True, "interface": "wlan0", "wireless_interfaces": ["wlan0"]},
+                network={"online": True, "interface": "wlan0", "wireless_interfaces": ["wlan0"], "associated": True, "route_matches_interface": True},
                 storage={"status": "durable", "cross_boot_capable": True, "filesystem": "ext4"},
                 boot_identity_sha256="boot-before",
             )
             after = capture(
                 state_dir=state,
                 system_root=system,
-                network={"online": True, "interface": "wlan0", "wireless_interfaces": ["wlan0"]},
+                network={"online": True, "interface": "wlan0", "wireless_interfaces": ["wlan0"], "associated": True, "route_matches_interface": True},
                 storage={"status": "durable", "cross_boot_capable": True, "filesystem": "ext4"},
                 boot_identity_sha256="boot-after",
             )
@@ -54,7 +54,7 @@ class AurumWifiPersistenceTests(unittest.TestCase):
         before = {
             "configured": True,
             "profiles": [{"identity_sha256": "a", "content_sha256": "one"}],
-            "network": {"online": True, "interface": "wlan0"},
+            "network": {"online": True, "interface": "wlan0", "wireless_verified": True},
         }
         after = {
             "configured": False,
@@ -72,7 +72,7 @@ class AurumWifiPersistenceTests(unittest.TestCase):
         snapshot = {
             "configured": True,
             "profiles": profile,
-            "network": {"online": True, "interface": "wlan0"},
+            "network": {"online": True, "interface": "wlan0", "wireless_verified": True},
             "storage": {
                 "status": "volatile",
                 "cross_boot_capable": False,

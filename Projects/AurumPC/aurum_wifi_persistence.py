@@ -146,6 +146,11 @@ def capture(
     profiles.sort(key=lambda item: (str(item["kind"]), str(item["identity_sha256"])))
     counts = Counter(str(item["kind"]) for item in profiles)
     network_value = dict(network or {})
+    wireless_verified = bool(
+        network_value.get("interface") in (network_value.get("wireless_interfaces") or [])
+        and network_value.get("associated") is True
+        and network_value.get("route_matches_interface") is True
+    )
     storage_value = dict(storage) if storage is not None else storage_evidence(state_dir)
     return {
         "schema": SCHEMA,
@@ -154,7 +159,8 @@ def capture(
         "profile_kinds": dict(sorted(counts.items())),
         "profiles": profiles,
         "network": {
-            "online": bool(network_value.get("online")),
+            "online": bool(wireless_verified and network_value.get("online")),
+            "wireless_verified": wireless_verified,
             "interface": str(network_value.get("interface") or "") or None,
             "wireless_interface_count": len(network_value.get("wireless_interfaces") or []),
         },
@@ -171,9 +177,13 @@ def verify(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any
     configured_retained = bool(before.get("configured") and after.get("configured"))
     before_network = before.get("network") if isinstance(before.get("network"), Mapping) else {}
     after_network = after.get("network") if isinstance(after.get("network"), Mapping) else {}
-    online_retained = bool(before_network.get("online") and after_network.get("online"))
+    # Older receipts admitted Ethernet and link-local addresses. They are
+    # historical observations, never verified wireless baseline evidence.
+    before_online = bool(before_network.get("online") and before_network.get("wireless_verified"))
+    after_online = bool(after_network.get("online") and after_network.get("wireless_verified"))
+    online_retained = before_online and after_online
     interface_retained = (
-        not before_network.get("online")
+        not before_online
         or not before_network.get("interface")
         or before_network.get("interface") == after_network.get("interface")
     )
@@ -189,11 +199,17 @@ def verify(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any
         profiles_unchanged and configured_retained and online_retained and interface_retained
     )
     existing_profile_lost = bool(before.get("configured") and not after.get("configured"))
-    existing_online_lost = bool(before_network.get("online") and not after_network.get("online"))
+    existing_online_lost = before_online and not after_online
+    baseline_established = bool(not before_online and after_online and profiles_unchanged
+                                and configured_retained and cross_boot_capable)
     if not profiles_unchanged or existing_profile_lost or existing_online_lost or not interface_retained:
         status = "failed"
     elif not configured_retained:
         status = "pending-wifi-profile"
+    elif baseline_established:
+        # A repaired first connection is not proof of persistence. Save this
+        # sample as the baseline, then require another observed boot afterward.
+        status = "pending-reboot-observation"
     elif not online_retained:
         status = "pending-wifi-online"
     elif not cross_boot_capable and same_session_passed:
@@ -207,6 +223,7 @@ def verify(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any
     return {
         "schema": SCHEMA,
         "status": status,
+        "next_baseline": dict(after) if baseline_established else None,
         "profiles_unchanged": profiles_unchanged,
         "configured_retained": configured_retained,
         "online_retained": online_retained,
