@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'Projects/AurumFarmer/**'
+      - 'Projects/FutureBranchMonitor/**'
       - 'installer/install-aurum-farmer.ps1'
       - 'installer/uninstall-aurum-farmer.ps1'
       - 'installer/aurum-farmer.service'
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'Projects/AurumFarmer/**'
+      - 'Projects/FutureBranchMonitor/**'
       - 'installer/install-aurum-farmer.ps1'
       - 'installer/uninstall-aurum-farmer.ps1'
       - 'installer/aurum-farmer.service'
@@ -38,6 +40,8 @@ jobs:
         env:
           PYTHONPATH: Projects/AurumFarmer
         run: python -m unittest discover -s Projects/AurumFarmer/tests -v
+      - name: Verify monitor visibility, freshness and report integrity
+        run: python -m unittest discover -s Projects/FutureBranchMonitor -v
 
   windows-install-smoke:
     runs-on: windows-latest
