@@ -448,7 +448,7 @@ class AurumInstaller:
             "aurum-auto-sync.service",
             "aurum-core-share.service",
             "aurum-input-bootstrap.service",
-            "aurum-network-bootstrap.service",
+            "aurum-network-ready.service",
             "aurum-pc-console.service",
             "aurum-setup.service",
         }
@@ -467,12 +467,53 @@ class AurumInstaller:
                 link.unlink()
             link.symlink_to(Path("..") / name)
 
-        live_wifi = Path("/var/lib/aurum/state/wifi.conf")
-        if live_wifi.is_file():
-            installed_wifi = target_root / "var" / "lib" / "aurum" / "state" / "wifi.conf"
-            installed_wifi.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(live_wifi, installed_wifi)
-            os.chmod(installed_wifi, 0o600)
+        legacy_service = target_systemd / "aurum-network-bootstrap.service"
+        legacy_link = wants / legacy_service.name
+        for path in (legacy_link, legacy_service):
+            if path.exists() or path.is_symlink():
+                path.unlink()
+
+        for unit in ("systemd-networkd.service", "systemd-networkd.socket"):
+            mask = target_systemd / unit
+            if mask.exists() or mask.is_symlink():
+                mask.unlink()
+            mask.symlink_to("/dev/null")
+        wait_online = target_systemd / "NetworkManager-wait-online.service"
+        if wait_online.exists() or wait_online.is_symlink():
+            wait_online.unlink()
+        wait_online.symlink_to("/dev/null")
+        networkd_wants = (
+            target_systemd / "multi-user.target.wants" / "systemd-networkd.service",
+            target_systemd / "sockets.target.wants" / "systemd-networkd.socket",
+        )
+        for link in networkd_wants:
+            if link.exists() or link.is_symlink():
+                link.unlink()
+        wait_online_link = (
+            target_systemd
+            / "network-online.target.wants"
+            / "NetworkManager-wait-online.service"
+        )
+        if wait_online_link.exists() or wait_online_link.is_symlink():
+            wait_online_link.unlink()
+        manager_link = wants / "NetworkManager.service"
+        if manager_link.exists() or manager_link.is_symlink():
+            manager_link.unlink()
+        manager_link.symlink_to("/lib/systemd/system/NetworkManager.service")
+
+        source_nm = Path("/etc/NetworkManager/conf.d/10-aurum.conf")
+        if source_nm.is_file():
+            target_nm = target_root / "etc" / "NetworkManager" / "conf.d" / source_nm.name
+            target_nm.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_nm, target_nm)
+        source_marker = Path("/usr/lib/aurum/network-manager-owner-v1")
+        if source_marker.is_file():
+            target_marker = target_root / "usr" / "lib" / "aurum" / source_marker.name
+            target_marker.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_marker, target_marker)
+
+        # NetworkManager owns persistent connection profiles. Repair refreshes
+        # Aurum code and units only; it never overwrites installed credentials.
 
     def _progress(self, callback: ProgressCallback | None, phase: str, **details: Any) -> None:
         if callback is not None:
@@ -681,6 +722,11 @@ class AurumInstaller:
             root_mounted = True
             if not (target_root / "opt" / "aurum").is_dir():
                 raise InstallError("the selected drive is labeled Aurum but its runtime is missing")
+            if not (target_root / "usr" / "bin" / "nmcli").is_file():
+                raise InstallError(
+                    "This installation predates the single-owner network design. "
+                    "Use Fresh Install so the complete NetworkManager runtime is installed together."
+                )
 
             self._progress(callback, "copy", device=target.device)
             self._invoke(

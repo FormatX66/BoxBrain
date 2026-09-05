@@ -12,12 +12,13 @@ interface-bound GitHub TCP check pass. The previous saved profile is retained;
 one bounded recovery attempt follows a failed connection trial. TCP reachability
 is not itself verified HTTPS, Git sync or seed promotion.
 
-The supplicant runs in an independent transient system service, with bounded
-startup/shutdown, PID tracking and no automatic restart loop. It does not share
-the GUI or console service lifetime. Boot reconnect remains a bounded request;
-the GUI and local recovery console never wait for internet to render.
+NetworkManager is the sole Ethernet and Wi-Fi connection manager. Aurum never
+starts, stops, signals, discovers, or cleans up a supplicant process and never
+runs a second DHCP client. The packaged supplicant is available only as
+NetworkManager's backend. The boot unit is a bounded readiness observer; the GUI
+and local recovery console never wait for internet to render.
 
-Ethernet being online does not skip the saved Wi-Fi boot request. Persistence
+Persistence
 proof uses a wireless-specific association and route snapshot, not the global
 default interface. Legacy generic-online receipts cannot qualify Wi-Fi. After
 the first verified wireless connection, a preserved-profile baseline is recorded
@@ -25,11 +26,12 @@ and another observed boot is required; no first connection is labeled reboot
 proof. Profile loss/change and loss of previously verified wireless access still
 fail closed. Earlier observations remain in the receipt as evidence.
 
-Replacement stops only an exact Aurum-owned process using a kernel PID handle,
-waits for process exit and service PID-file cleanup, and refuses incomplete or
-unknown ownership. A missing PID record requires a unique match across executable,
-root ownership, exact interface/configuration arguments and the actual control
-socket descriptor. An occupied foreign socket is never removed or killed.
+Candidate profiles are written mode 0600 under NetworkManager's volatile
+keyfile directory. The prior active profile remains available until exact Wi-Fi
+and internet verification succeeds. Failure removes only the candidate and asks
+NetworkManager to restore the prior UUID. Success copies the verified profile to
+the persistent keyfile directory before deleting superseded Aurum-owned profiles.
+Unrelated user or system profiles are never removed.
 
 ## Local verification
 
@@ -37,21 +39,8 @@ Run the AurumPC unit suite. `test_aurum_wifi_html_ownership.py` executes the shi
 JavaScript with deferred HTTP and DOM fixtures; it requires Node.js. Native GUI
 input tests require Pygame. Skipped dependency gates are not passed gates.
 
-An additional Linux canary uses only temporary **user** services, synthetic
-children and temporary files, not a network interface:
-
-```sh
-python3 Projects/AurumPC/tests/wifi_service_lifetime_canary.py
-```
-
-It must run unprivileged with an active user systemd manager. It compares
-caller-coupled and independent lifetimes, then exercises the candidate's actual
-service-launch arguments with a synthetic forking daemon. It verifies the child
-survives caller shutdown and PID-file cleanup completes after owned service stop.
-It refuses root and cleans only its uniquely named test services.
-
 These checks do not prove a physical WPA handshake, DHCP lease, Wi-Fi-only HTTPS,
 saved-profile persistence after reboot, keyboard/trackpad, or seed promotion.
 Release acceptance still needs the actual target and those observations. Preserve
 Ethernet/recovery access, displaced runtime evidence and Last Known Good; never
-use an unchanged reflash or blanket process kill to work around an occupied socket.
+use an unchanged reflash or blanket process kill as a connectivity workaround.

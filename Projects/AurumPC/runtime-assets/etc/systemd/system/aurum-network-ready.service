@@ -1,0 +1,14 @@
+[Unit]
+Description=Aurum NetworkManager readiness observer
+After=local-fs.target systemd-udev-trigger.service NetworkManager.service
+Wants=NetworkManager.service
+ConditionPathExists=/usr/bin/nmcli
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/aurum/aurum_network.py --boot-status --write-state /run/aurum-network-ready.json
+TimeoutStartSec=20
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

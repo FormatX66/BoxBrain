@@ -145,27 +145,30 @@ class WifiRequestOwnershipTests(unittest.TestCase):
         gui._poll_network()
         gui.executor.submit.assert_called_with(setup.scan_networks)
 
-    def test_timeout_without_association_does_not_claim_connected(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            config = root / "wifi.conf"
-            config.touch()
-            with (
-                patch.object(network, "RUN_DIR", root),
-                patch.object(network, "SAVED_WIFI", config),
-                patch.object(network, "wireless_interfaces", return_value=["wlan-test"]),
-                patch.object(network, "_command", side_effect=lambda value: value),
-                patch.object(network.shutil, "which", return_value=None),
-                patch.object(network, "_stop_packaged_supplicant_service", return_value=False),
-                patch.object(network, "_stop_owned_supplicant"),
-                patch.object(network, "_supplicant_status", return_value={}),
-                patch.object(network, "_run", return_value=subprocess.CompletedProcess([], 0, "")),
-                patch.object(network, "network_status", return_value={"online": False, "addresses": [], "route_probe": ""}),
-            ):
-                result = network.connect_saved("wlan-test", timeout_seconds=0)
-            self.assertEqual(result["status"], "wifi-connection-unverified")
-            self.assertFalse(result["online"])
-            self.assertIn("could not be verified", setup._friendly_reason(result["status"]))
+    def test_timeout_without_exact_association_does_not_claim_connected(self):
+        with patch.object(
+            network,
+            "_nmcli",
+            return_value=subprocess.CompletedProcess([], 0, ""),
+        ), patch.object(
+            network,
+            "_connection_state",
+            return_value={
+                "status": "wifi-association-pending",
+                "online": False,
+                "associated": False,
+                "connection_uuid": None,
+                "ssid": None,
+            },
+        ):
+            result = network._activate_profile(
+                "11111111-1111-4111-8111-111111111111",
+                "wlan-test",
+                "Synthetic network",
+                timeout_seconds=0,
+            )
+        self.assertEqual(result["status"], "wifi-association-pending")
+        self.assertFalse(result["online"])
 
 
 if __name__ == "__main__":

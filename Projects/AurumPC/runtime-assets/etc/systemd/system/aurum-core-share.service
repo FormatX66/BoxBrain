@@ -1,7 +1,7 @@
 [Unit]
 Description=Aurum open core status and seed share
-After=network-online.target aurum-network-bootstrap.service
-Wants=network-online.target aurum-network-bootstrap.service
+After=network-online.target aurum-network-ready.service
+Wants=network-online.target aurum-network-ready.service
 ConditionPathExists=!/run/live/medium
 
 [Service]

@@ -91,6 +91,7 @@ usbutils
 ca-certificates
 git
 systemd-resolved
+network-manager
 wpasupplicant
 iw
 rfkill
@@ -161,23 +162,17 @@ mkdir -p config/includes.chroot/usr/lib/aurum
 cp "$REPO_ROOT/Projects/Codelation/autobuild/native_chain_state.json" config/includes.chroot/usr/lib/aurum/native-chain-state.json
 chmod 0644 config/includes.chroot/usr/lib/aurum/native-chain-state.json
 mkdir -p config/includes.chroot/var/lib/aurum/state config/includes.chroot/var/lib/aurum/workspace
+mkdir -p config/includes.chroot/usr/lib/aurum
+printf '%s\n' 'NetworkManager' > config/includes.chroot/usr/lib/aurum/network-manager-owner-v1
 
-mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/systemd/network
-cat > config/includes.chroot/etc/systemd/network/20-aurum-wired.network <<'EOF'
-[Match]
-Name=en* eth* usb*
+mkdir -p config/includes.chroot/etc/systemd/system config/includes.chroot/etc/NetworkManager/conf.d
+cat > config/includes.chroot/etc/NetworkManager/conf.d/10-aurum.conf <<'EOF'
+[main]
+plugins=keyfile
+dns=systemd-resolved
 
-[Network]
-DHCP=yes
-IPv6AcceptRA=yes
-EOF
-cat > config/includes.chroot/etc/systemd/network/25-aurum-wireless.network <<'EOF'
-[Match]
-Name=wl*
-
-[Network]
-DHCP=yes
-IPv6AcceptRA=yes
+[device]
+wifi.scan-rand-mac-address=yes
 EOF
 
 # Hopper's touchpad and external mice share one deterministic libinput path.
@@ -190,8 +185,8 @@ install -D -m 0644 \
   "$RUNTIME_ASSETS/etc/systemd/system/aurum-input-bootstrap.service" \
   config/includes.chroot/etc/systemd/system/aurum-input-bootstrap.service
 install -D -m 0644 \
-  "$RUNTIME_ASSETS/etc/systemd/system/aurum-network-bootstrap.service" \
-  config/includes.chroot/etc/systemd/system/aurum-network-bootstrap.service
+  "$RUNTIME_ASSETS/etc/systemd/system/aurum-network-ready.service" \
+  config/includes.chroot/etc/systemd/system/aurum-network-ready.service
 install -D -m 0644 \
   "$RUNTIME_ASSETS/etc/systemd/system/aurum-pc-console.service" \
   config/includes.chroot/etc/systemd/system/aurum-pc-console.service
@@ -241,13 +236,13 @@ EOF
 
 mkdir -p config/includes.chroot/etc/systemd/system/multi-user.target.wants
 ln -s ../aurum-input-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-input-bootstrap.service
-ln -s ../aurum-network-bootstrap.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-network-bootstrap.service
+ln -s ../aurum-network-ready.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-network-ready.service
 ln -s ../aurum-pc-console.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-console.service
 ln -s ../aurum-setup.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-setup.service
 ln -s ../aurum-auto-sync.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-auto-sync.service
 ln -s ../aurum-core-share.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-core-share.service
 ln -s ../aurum-pc-serial.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/aurum-pc-serial.service
-ln -s /lib/systemd/system/systemd-networkd.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+ln -s /lib/systemd/system/NetworkManager.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/NetworkManager.service
 ln -s /lib/systemd/system/systemd-resolved.service config/includes.chroot/etc/systemd/system/multi-user.target.wants/systemd-resolved.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/getty@tty1.service
 ln -s /dev/null config/includes.chroot/etc/systemd/system/serial-getty@ttyS0.service
@@ -265,14 +260,19 @@ cat > config/hooks/live/010-aurum-permissions.hook.chroot <<'EOF'
 #!/bin/sh
 set -eu
 chmod 0755 /opt/aurum/*.py
+chmod 0644 /usr/lib/aurum/network-manager-owner-v1
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-# Aurum is the sole Wi-Fi association owner.  Debian enables its generic D-Bus
-# supplicant during package installation; leaving it enabled races Aurum's
-# exact-interface service and produces ctrl_iface collisions on real Hopper.
+# NetworkManager is the sole connection manager. Its packaged supplicant is a
+# private backend, not a second Aurum-managed service. Prevent networkd from
+# claiming DHCP or links while leaving the D-Bus supplicant available to NM.
+rm -f /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+rm -f /etc/systemd/system/sockets.target.wants/systemd-networkd.socket
+ln -sfn /dev/null /etc/systemd/system/systemd-networkd.service
+ln -sfn /dev/null /etc/systemd/system/systemd-networkd.socket
+rm -f /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
+ln -sfn /dev/null /etc/systemd/system/NetworkManager-wait-online.service
 rm -f /etc/systemd/system/multi-user.target.wants/wpa_supplicant.service
-ln -sfn /dev/null /etc/systemd/system/wpa_supplicant.service
-ln -sfn /dev/null /etc/systemd/system/dbus-fi.w1.wpa_supplicant1.service
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 

@@ -159,6 +159,22 @@ wait_for_installed_ready() {
   return 1
 }
 
+wait_for_network_manager_owner() {
+  printf 'network-status\n' >&3
+  for _ in $(seq 1 20); do
+    boot_log=$(tail -n +"$installed_start_line" "$LOG")
+    if printf '%s\n' "$boot_log" | grep -Fq '"manager": "NetworkManager"' &&
+       printf '%s\n' "$boot_log" | grep -Fq '"manager_ready": true'; then
+      return 0
+    fi
+    if ! kill -0 "$qemu_pid" 2>/dev/null; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 wait_for_primary_gui() {
   # Status only: never make the test start a GUI that boot failed to start.
   # Scope the response to this boot; a previous session cannot satisfy proof.
@@ -274,6 +290,12 @@ if ! wait_for_installed_ready; then
   echo "The installed Aurum disk did not reach its $QEMU_FIRMWARE runtime-ready marker." >&2
   exit 1
 fi
+if ! wait_for_network_manager_owner; then
+  cat "$LOG"
+  echo 'Installed Aurum did not start its single NetworkManager owner.' >&2
+  exit 1
+fi
+echo 'AURUM_VIRTUAL_PC_NETWORK_MANAGER_OWNER_OK' >> "$LOG"
 
 if ! wait_for_primary_gui; then
   cat "$LOG"
@@ -294,11 +316,12 @@ fi
 installed_start_line=$(( $(wc -l < "$LOG") + 1 ))
 printf '\n===== AURUM INSTALLED GUEST REBOOT =====\n' >> "$LOG"
 printf 'reboot\n' >&3
-if ! wait_for_installed_ready || ! wait_for_primary_gui; then
+if ! wait_for_installed_ready || ! wait_for_network_manager_owner || ! wait_for_primary_gui; then
   cat "$LOG"
   echo 'Installed Aurum did not regain its primary GUI after an offline reboot.' >&2
   exit 1
 fi
+echo 'AURUM_VIRTUAL_PC_REBOOT_NETWORK_MANAGER_OWNER_OK' >> "$LOG"
 echo 'AURUM_VIRTUAL_PC_INSTALLED_REBOOT_GUI_OK network=offline' >> "$LOG"
 
 printf 'poweroff\n' >&3

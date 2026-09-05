@@ -3,7 +3,7 @@
 
 The updater never copies a credential into Git or a public receipt. It records
 only opaque path identities, content hashes, sizes, and modes for the existing
-Aurum, NetworkManager, and wpa_supplicant profiles. Promotion additionally
+NetworkManager profiles. Promotion additionally
 requires the state path to live on durable storage; a live overlay can prove a
 same-session apply but cannot falsely claim that credentials survive reboot.
 """
@@ -128,16 +128,12 @@ def capture(
     boot_identity_sha256: str | None = None,
 ) -> dict[str, Any]:
     profiles: list[dict[str, Any]] = []
-    candidates: list[tuple[str, Path]] = [("aurum", state_dir / "wifi.conf")]
+    candidates: list[tuple[str, Path]] = []
     candidates.extend(
         ("networkmanager", path)
         for path in sorted(
             (system_root / "etc/NetworkManager/system-connections").glob("*.nmconnection")
         )
-    )
-    candidates.extend(
-        ("wpa-supplicant", path)
-        for path in sorted((system_root / "etc/wpa_supplicant").glob("*.conf"))
     )
     for kind, path in candidates:
         item = _profile(kind, path)
@@ -155,6 +151,12 @@ def capture(
     return {
         "schema": SCHEMA,
         "configured": bool(profiles),
+        "manager": "NetworkManager",
+        "single_owner": True,
+        "legacy_profile_present": bool(
+            (state_dir / "wifi.conf").exists()
+            or any((system_root / "etc/wpa_supplicant").glob("*.conf"))
+        ),
         "profile_count": len(profiles),
         "profile_kinds": dict(sorted(counts.items())),
         "profiles": profiles,

@@ -10,6 +10,7 @@ WIFI_DIAG = Path(__file__).parents[1] / "aurum_wifi_diag.py"
 GUI_RUNTIME = Path(__file__).parents[1] / "aurum_gui_runtime.py"
 AUTONOMY = Path(__file__).parents[1] / "aurum_autonomy.py"
 RUNTIME_UPDATE = Path(__file__).parents[1] / "aurum_runtime_update.py"
+IMAGE_VERIFY = Path(__file__).resolve().parents[2] / "AurumBuild" / "verify-pc-image.sh"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 QEMU_SMOKE = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-pc-smoke.sh"
 QEMU_ACCELERATION = REPOSITORY_ROOT / "Projects" / "AurumVirtualLab" / "qemu-acceleration.sh"
@@ -66,14 +67,16 @@ class BuildIsoContractTests(unittest.TestCase):
             "aurum_wifi_persistence.py",
             "aurum_gpt_executor.py", "aurum_projection_runtime.py", "aurum_self_debug.py",
             "aurum_setup_gui.py", "aurum-setup.service",
+            "network-manager",
         ):
             self.assertIn(package, script)
-        self.assertIn("Name=en* eth* usb*", script)
+        self.assertIn("plugins=keyfile", script)
+        self.assertIn("dns=systemd-resolved", script)
 
     def test_hopper_input_bootstrap_and_resume_policy_are_packaged(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
         input_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-input-bootstrap.service").read_text(encoding="utf-8")
-        network_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-network-bootstrap.service").read_text(encoding="utf-8")
+        network_service = (RUNTIME_ASSETS / "etc/systemd/system/aurum-network-ready.service").read_text(encoding="utf-8")
         input_hook = (RUNTIME_ASSETS / "usr/lib/systemd/system-sleep/aurum-input-wake").read_text(encoding="utf-8")
         libinput = (RUNTIME_ASSETS / "etc/X11/xorg.conf.d/40-aurum-libinput.conf").read_text(encoding="utf-8")
         console = (RUNTIME_ASSETS / "etc/systemd/system/aurum-pc-console.service").read_text(encoding="utf-8")
@@ -82,13 +85,16 @@ class BuildIsoContractTests(unittest.TestCase):
             self.assertIn(f"modprobe {module}", input_service)
         self.assertIn("runtime-assets", script)
         self.assertIn("aurum-input-bootstrap.service", script)
-        self.assertIn("aurum-network-bootstrap.service", script)
-        self.assertIn("--reconnect-saved", network_service)
-        self.assertIn("ConditionPathExists=/var/lib/aurum/state/wifi.conf", network_service)
-        self.assertIn("Conflicts=wpa_supplicant.service", network_service)
+        self.assertIn("aurum-network-ready.service", script)
+        self.assertIn("NetworkManager.service", network_service)
+        self.assertIn("--boot-status", network_service)
+        self.assertNotIn("--reconnect-saved", network_service)
         self.assertIn("rm -f /etc/systemd/system/multi-user.target.wants/wpa_supplicant.service", script)
-        self.assertIn("ln -sfn /dev/null /etc/systemd/system/wpa_supplicant.service", script)
-        self.assertIn("ln -sfn /dev/null /etc/systemd/system/dbus-fi.w1.wpa_supplicant1.service", script)
+        self.assertNotIn("ln -sfn /dev/null /etc/systemd/system/wpa_supplicant.service", script)
+        self.assertNotIn("dbus-fi.w1.wpa_supplicant1.service", script)
+        self.assertIn("ln -sfn /dev/null /etc/systemd/system/systemd-networkd.service", script)
+        self.assertIn("ln -sfn /dev/null /etc/systemd/system/NetworkManager-wait-online.service", script)
+        self.assertIn("network-manager-owner-v1", script)
         self.assertIn("--apply-wake-policy", input_service)
         self.assertIn("--apply-wake-policy", input_hook)
         self.assertIn("system-sleep/aurum-input-wake", script)
@@ -100,6 +106,15 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("aurum_setup_gui.py", setup)
         self.assertIn("xinit", setup)
         self.assertIn("udevadm trigger --subsystem-match=input", input_service)
+
+    def test_image_readback_verifies_network_manager_owner_contract(self) -> None:
+        verifier = IMAGE_VERIFY.read_text(encoding="utf-8")
+        self.assertIn("aurum_network.py|opt/aurum/aurum_network.py", verifier)
+        self.assertIn("aurum-network-ready.service|etc/systemd/system/aurum-network-ready.service", verifier)
+        self.assertIn('{"network-manager", "wpasupplicant"}', verifier)
+        self.assertIn("systemd-networkd.service -> /dev/null", verifier)
+        self.assertIn("dbus-fi.w1.wpa_supplicant1.service -> /dev/null", verifier)
+        self.assertIn("AURUM_NETWORK_MANAGER_IMAGE_PROVENANCE_VERIFIED", verifier)
 
     def test_open_core_share_and_boot_sync_are_packaged_without_personal_export(self) -> None:
         script = BUILD_SCRIPT.read_text(encoding="utf-8")
@@ -168,7 +183,10 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("for _ in $(seq 1 10)", primary_gui_wait)
         self.assertIn("450-second overall acceptance bound", primary_gui_wait)
         self.assertIn("printf 'reboot\\n'", smoke)
-        self.assertIn("if ! wait_for_installed_ready || ! wait_for_primary_gui; then", smoke)
+        self.assertIn(
+            "if ! wait_for_installed_ready || ! wait_for_network_manager_owner || ! wait_for_primary_gui; then",
+            smoke,
+        )
         self.assertNotIn("printf 'gui-start", smoke)
         self.assertIn("if ! wait_for_primary_gui; then", smoke)
         self.assertIn("AURUM_GUI_RUNTIME status=running physical_desktop=true", smoke)
@@ -179,6 +197,8 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("timeout=540", runtime_update)
         self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline'", workflow)
         self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_INSTALLED_REBOOT_GUI_OK network=offline'", workflow)
+        self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_NETWORK_MANAGER_OWNER_OK'", workflow)
+        self.assertIn("--required-marker 'AURUM_VIRTUAL_PC_REBOOT_NETWORK_MANAGER_OWNER_OK'", workflow)
         self.assertIn("grep -Fq 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' aurum-pc-qemu-legacy.log", workflow)
         self.assertIn("grep -Fq 'AURUM_VIRTUAL_PC_INSTALLED_REBOOT_GUI_OK network=offline' aurum-pc-qemu-legacy.log", workflow)
 

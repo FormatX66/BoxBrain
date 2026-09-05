@@ -55,11 +55,54 @@ while IFS='|' read -r source_path image_path; do
 done <<'EOF'
 Projects/AurumPC/aurum_setup_gui.py|opt/aurum/aurum_setup_gui.py
 Projects/AurumPC/aurum_input.py|opt/aurum/aurum_input.py
+Projects/AurumPC/aurum_network.py|opt/aurum/aurum_network.py
 Projects/AurumPC/runtime-assets/etc/systemd/system/aurum-setup.service|etc/systemd/system/aurum-setup.service
 Projects/AurumPC/runtime-assets/etc/systemd/system/aurum-input-bootstrap.service|etc/systemd/system/aurum-input-bootstrap.service
+Projects/AurumPC/runtime-assets/etc/systemd/system/aurum-network-ready.service|etc/systemd/system/aurum-network-ready.service
 Projects/AurumPC/runtime-assets/etc/X11/xorg.conf.d/40-aurum-libinput.conf|etc/X11/xorg.conf.d/40-aurum-libinput.conf
 EOF
 echo AURUM_INPUT_IMAGE_PROVENANCE_VERIFIED
+
+unsquashfs -cat "$verify_dir/filesystem.squashfs" etc/NetworkManager/conf.d/10-aurum.conf \
+  >"$verify_dir/10-aurum.conf"
+unsquashfs -cat "$verify_dir/filesystem.squashfs" usr/lib/aurum/network-manager-owner-v1 \
+  >"$verify_dir/network-manager-owner-v1"
+unsquashfs -cat "$verify_dir/filesystem.squashfs" var/lib/dpkg/status \
+  >"$verify_dir/dpkg-status"
+unsquashfs -ll "$verify_dir/filesystem.squashfs" >"$verify_dir/filesystem-listing"
+grep -F "plugins=keyfile" "$verify_dir/10-aurum.conf" >/dev/null
+grep -F "dns=systemd-resolved" "$verify_dir/10-aurum.conf" >/dev/null
+grep -Fx "NetworkManager" "$verify_dir/network-manager-owner-v1" >/dev/null
+python3 - "$verify_dir/dpkg-status" <<'PY'
+import pathlib
+import sys
+
+paragraphs = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").split("\n\n")
+installed = {
+    line.split(":", 1)[1].strip()
+    for paragraph in paragraphs
+    if "\nStatus: install ok installed\n" in f"\n{paragraph}\n"
+    for line in paragraph.splitlines()
+    if line.startswith("Package:")
+}
+missing = {"network-manager", "wpasupplicant"} - installed
+if missing:
+    raise SystemExit(f"image is missing NetworkManager runtime packages: {sorted(missing)}")
+PY
+grep -E 'etc/systemd/system/multi-user.target.wants/NetworkManager.service -> .*/NetworkManager.service$' \
+  "$verify_dir/filesystem-listing" >/dev/null
+grep -E 'etc/systemd/system/systemd-networkd.service -> /dev/null$' \
+  "$verify_dir/filesystem-listing" >/dev/null
+grep -E 'etc/systemd/system/systemd-networkd.socket -> /dev/null$' \
+  "$verify_dir/filesystem-listing" >/dev/null
+grep -E 'etc/systemd/system/NetworkManager-wait-online.service -> /dev/null$' \
+  "$verify_dir/filesystem-listing" >/dev/null
+if grep -E 'dbus-fi.w1.wpa_supplicant1.service -> /dev/null$' \
+  "$verify_dir/filesystem-listing" >/dev/null; then
+  echo "Aurum PC image incorrectly masks NetworkManager's supplicant backend." >&2
+  exit 1
+fi
+echo AURUM_NETWORK_MANAGER_IMAGE_PROVENANCE_VERIFIED
 
 python3 - "$verify_dir/aurum_console.py" <<'PY'
 import ast

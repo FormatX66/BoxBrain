@@ -1,7 +1,7 @@
 [Unit]
 Description=Aurum forward-only core sync at boot
-After=network-online.target aurum-network-bootstrap.service
-Wants=network-online.target aurum-network-bootstrap.service
+After=network-online.target aurum-network-ready.service
+Wants=network-online.target aurum-network-ready.service
 StartLimitIntervalSec=0
 ConditionPathExists=!/run/live/medium
 
