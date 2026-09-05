@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_46_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_47_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: promoted code, candidate/pre-promotion, exact-tree virtual/build, exact-head image, observability, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
@@ -18,12 +18,11 @@ const CURRENT_PC_IMAGE_RUN='33934510643';
 const CURRENT_PI3_IMAGE_RUN='33934510499';
 const COMPUTEWEAVE_RUN='33934510651';
 const BROWSER_PROMPT_PR='222';
-const BROWSER_PROMPT_PREVIOUS_CANDIDATE='6b9a01c9bc77c3ebb0e933119a20e60b7339be3d';
-const BROWSER_PROMPT_CANDIDATE='1e3bf9c3a265058b8c55e456668f156259b05069';
-const BROWSER_PROMPT_PC_RUN='33930697621';
+const BROWSER_PROMPT_PREVIOUS_CANDIDATE='1e3bf9c3a265058b8c55e456668f156259b05069';
+const BROWSER_PROMPT_CANDIDATE='29ab0da5e8741a2f370a775c5fbf9c01b1b40a1a';
 const BROWSER_PROMPT_CANDIDATE_PC_RUN='33934957544';
-const BROWSER_PROMPT_PREVIOUS_VHL_RUN='33930723957';
-const BROWSER_PROMPT_VHL_RUN='33934946010';
+const BROWSER_PROMPT_PREVIOUS_VHL_RUN='33934946010';
+const BROWSER_PROMPT_VHL_RUN='33936783197';
 const PREVIOUS_NATIVE_RUN='33915328066';
 const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='90420651044fe15a53c5086adf6d0ced3cddd2de';
 const WORKLOAD_OBSERVER_SUPERVISION_COMMIT='043b84ac0eb5da2c561abb66232282fba26704b8';
@@ -33,9 +32,9 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.46',
+  componentRevision:'1.47',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'wifi-owner-repair-code-promoted-with-terminal-active-head-pc-proof-and-terminal-browser-prompt-candidate-pc-proof-while-changed-vhl-retest-remains-running',
+  evidenceClass:'browser-prompt-candidate-vhl-probe-race-isolated-with-changed-bounded-harness-retest-held-before-promotion',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
   previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
@@ -68,14 +67,12 @@ const state={
   browserPromptSeedGatePr:BROWSER_PROMPT_PR,
   browserPromptSeedGatePreviousCandidate:BROWSER_PROMPT_PREVIOUS_CANDIDATE,
   browserPromptSeedGateCandidate:BROWSER_PROMPT_CANDIDATE,
-  browserPromptSeedGatePromotionState:'pre-promotion-rebased-vhl-retest-running-candidate-pc-green',
+  browserPromptSeedGatePromotionState:'pre-promotion-corrected-vhl-retest-active-no-terminal-result-promoted',
   browserPromptSeedGateMerged:false,
   browserPromptSeedGateMergeable:true,
   browserPromptSeedGateRebasedOntoActiveTrunk:true,
   browserPromptSeedGateChangedBeforeRetry:true,
   browserPromptSeedGateRequiresBrowserAndPromptProof:true,
-  browserPromptSeedGatePcImageRunId:BROWSER_PROMPT_PC_RUN,
-  browserPromptSeedGatePcImagePassed:true,
   browserPromptSeedGateCandidatePcRunId:BROWSER_PROMPT_CANDIDATE_PC_RUN,
   browserPromptSeedGateCandidatePcFinalResultObserved:true,
   browserPromptSeedGateCandidatePcRunPassed:true,
@@ -83,15 +80,20 @@ const state={
   browserPromptSeedGateCandidatePcLegacyBiosPassed:true,
   browserPromptSeedGateCandidatePcHpTwinPassed:true,
   browserPromptSeedGateCandidatePcVerifiedPublicationPassed:true,
-  browserPromptSeedGateCandidatePcPromotesSeed:false,
+  browserPromptSeedGateCandidatePcProofAppliesToPreviousCandidate:true,
+  browserPromptSeedGateCurrentCandidateHarnessOnlyDelta:true,
+  browserPromptSeedGateCurrentCandidateImageRuntimeSourceChanged:false,
   browserPromptSeedGatePreviousVhlRunId:BROWSER_PROMPT_PREVIOUS_VHL_RUN,
+  browserPromptSeedGatePreviousVhlFinalResultObserved:true,
   browserPromptSeedGatePreviousVhlFinalPassed:false,
-  browserPromptSeedGatePreviousVhlUefiBootMarkerFailed:true,
+  browserPromptSeedGatePreviousVhlPcIsoBuildPassed:true,
+  browserPromptSeedGatePreviousVhlUefiProbeRaceFailed:true,
+  browserPromptSeedGateProbeIntervalChangedFromSeconds:5,
+  browserPromptSeedGateProbeIntervalChangedToSeconds:10,
+  browserPromptSeedGateOverallAcceptanceBoundSeconds:450,
   browserPromptSeedGateVhlRunId:BROWSER_PROMPT_VHL_RUN,
-  browserPromptSeedGateVhlFinalResultObserved:false,
   browserPromptSeedGateVhlFinalResultPromoted:false,
-  browserPromptSeedGateVhlDockerX86Passed:true,
-  browserPromptSeedGateVhlDockerArm64Passed:true,
+  browserPromptSeedGateVhlTerminalResultRequiresReconciliation:true,
   browserPromptSeedGatePhysicalProofProven:false,
   browserPromptSeedGateBrowserCredentialsAllowed:false,
   browserPromptSeedGateRawShellAllowed:false,
@@ -148,20 +150,20 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.46 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.47 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
 <li><strong>Hopper Wi-Fi ownership repair remains code-promoted with four-target convergence.</strong> ${link('PR #223','pr',WIFI_OWNER_PR)} merged into active Aurum trunk <code>958f3a9d...</code>; its tree <code>aa0cc44e...</code> is identical to the independently tested candidate tree. ${link('VHL 33933009074','run',WIFI_OWNER_VHL_RUN)} completed successfully across Docker x86_64, ARM64, Pi3, QEMU UEFI x86_64 and the same-commit convergence gate. The fix masks the generic Debian <code>wpa_supplicant.service</code> owner, allows live recovery only after exact root/binary/argument/cgroup identity verification, and protects unknown Wi-Fi managers.</li>
 <li><strong>Exact-active-head PC image proof remains terminal green.</strong> ${link('PC image 33934510643','run',CURRENT_PC_IMAGE_RUN)} completed successfully on <code>958f3a9d...</code>: validation/build, generic low-memory UEFI install/reboot/self-build, Legacy BIOS installed boot, Hopper HP twin, digest convergence, and boot-verified ISO publication all passed. ${link('Pi3 image 33934510499','run',CURRENT_PI3_IMAGE_RUN)} and ${link('ComputeWeave 33934510651','run',COMPUTEWEAVE_RUN)} are also green on the same active head.</li>
-<li><strong>The rebased browser + Aurum/GPT candidate now also has terminal green exact-candidate PC image proof.</strong> Draft ${link('PR #222','pr',BROWSER_PROMPT_PR)} remains pre-promotion at <code>1e3bf9c3...</code>, rebased onto active trunk and mergeable. ${link('candidate PC image 33934957544','run',BROWSER_PROMPT_CANDIDATE_PC_RUN)} completed successfully with validation/build, generic UEFI, Legacy BIOS, Hopper HP twin, digest convergence, and boot-verified publication all green. This is supporting candidate evidence only: ${link('changed VHL 33934946010','run',BROWSER_PROMPT_VHL_RUN)} is still running after Docker x86_64 and ARM64 passed, so no seed promotion or physical Hopper/browser/GPT proof is claimed.</li>
+<li><strong>The browser + Aurum/GPT candidate isolated the former VHL failure to probe pacing and changed the real harness before retest.</strong> Draft ${link('PR #222','pr',BROWSER_PROMPT_PR)} remains pre-promotion and mergeable. The prior candidate <code>1e3bf9c3...</code> retains terminal green ${link('candidate PC image 33934957544','run',BROWSER_PROMPT_CANDIDATE_PC_RUN)} proof. Its ${link('VHL 33934946010','run',BROWSER_PROMPT_PREVIOUS_VHL_RUN)} completed failure after the PC ISO built successfully because five-second <code>gui-status</code> injections could overlap an eight-second status subprocess on slow TCG. ${link('29ab0da5','commit',BROWSER_PROMPT_CANDIDATE)} changed the harness/test contract to ten-second probes while preserving the 450-second acceptance bound; no Aurum image/runtime source changed. ${link('corrected VHL 33936783197','run',BROWSER_PROMPT_VHL_RUN)} is the new verification boundary. No terminal VHL result is promoted by this dashboard revision.</li>
 <li><strong>Hopper endpoint refresh remains evidence health only.</strong> ${link('snapshot 90420651044f','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still has endpoint null/unreachable and <code>no-valid-endpoint-candidate</code>. Equivalent null snapshots do not trigger dashboard churn.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Finish the changed PR #222 four-target VHL retest before promotion.</strong> The candidate PC image is now green, but it does not replace the still-running VHL convergence gate. Preserve the rebased browser/GPT workstream and let <code>33934946010</code> decide the former UEFI-marker boundary; do not substitute the historical failed run or replay unchanged inputs.</li>
+<li><strong>Reconcile the corrected PR #222 VHL terminal result before promotion.</strong> Preserve the changed probe-pacing hypothesis and current candidate <code>29ab0da5...</code>. Do not replay the failed <code>1e3bf9c3...</code> VHL unchanged. Because the current delta is limited to the VHL harness/test contract, do not rerun the already-green candidate PC image solely to create activity; require a new image run only if image/runtime source changes or another evidence boundary makes it necessary.</li>
 <li><strong>Physical Hopper proof remains separate.</strong> Code promotion and virtual/image evidence do not prove physical Wi-Fi association, reboot persistence, generated boot-menu observation, sync-ref repair application, seed acceptance, Guardian forced rollback, or browser/GPT behavior on Hopper.</li>
 <li>Current-head native acceptance remains unobserved; the older native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} is historical. Hopper endpoint discovery remains system-owned.</li>
 <li><strong>Workload-observer supervision still needs protected runtime proof.</strong> ${link('supervision/timestamp fix','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged, but the latest protected runtime proof still predates it.</li>
