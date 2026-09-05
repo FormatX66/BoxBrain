@@ -677,6 +677,64 @@ class RuntimeUpdater:
             "status_receipt": receipt,
         }
 
+    def _web_prompt_surface_proof(self) -> dict[str, Any]:
+        panel_path = self.target / "aurum_hopper_gui.py"
+        renderer_path = self.target / "aurum_web_surface.py"
+        trait_path = self.target / "aurum_gpt_trait.py"
+        executor_path = self.target / "aurum_gpt_executor.py"
+        try:
+            panel = panel_path.read_text(encoding="utf-8")
+            renderer = renderer_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+
+        browser_markers = (
+            'data-nav="browser"',
+            'id="web-browser"',
+            'id="web-address"',
+            'sandbox="allow-forms allow-scripts"',
+            "normalizeWebTarget",
+            "privateWebHost",
+            "target.protocol!=='https:'",
+        )
+        prompt_markers = (
+            'class="chat-panel"',
+            'id="messages"',
+            'id="prompt"',
+            'id="send"',
+            'fetch(\'/api/ask\'',
+            "tool_receipts",
+        )
+        renderer_markers = (
+            '"--kiosk"',
+            '"--start-fullscreen"',
+            'f"--app={args.url}"',
+        )
+        browser_surface_present = all(marker in panel for marker in browser_markers)
+        prompt_surface_present = all(marker in panel for marker in prompt_markers)
+        renderer_present = all(marker in renderer for marker in renderer_markers)
+        runtime_present = trait_path.is_file() and executor_path.is_file()
+        browser_credential_absent = 'id="key"' not in panel
+        passed = bool(
+            browser_surface_present
+            and prompt_surface_present
+            and renderer_present
+            and runtime_present
+            and browser_credential_absent
+        )
+        return {
+            "status": "passed" if passed else "failed",
+            "contract": "aurum.web-prompt-surface.v1",
+            "browser_surface_present": browser_surface_present,
+            "prompt_surface_present": prompt_surface_present,
+            "renderer_present": renderer_present,
+            "gpt_runtime_present": runtime_present,
+            "https_only": "target.protocol!=='https:'" in panel,
+            "private_network_blocked": "privateWebHost" in panel,
+            "browser_credential": not browser_credential_absent,
+            "raw_shell": False,
+        }
+
     def _activate_system_integration(
         self, changed: list[str], system_changed: list[str]
     ) -> dict[str, Any]:
@@ -1202,6 +1260,7 @@ class RuntimeUpdater:
         runtime_proof = self._installed_hash_proof(plan)
         physical_proof = self._physical_proof(gui)
         gpt_proof = self._gpt_proof()
+        web_prompt_proof = self._web_prompt_surface_proof()
         system_proof = self._system_proof()
         input_proof = self._input_proof()
         console_proof = self._gui_console_proof()
@@ -1226,6 +1285,7 @@ class RuntimeUpdater:
             "runtime": runtime_proof,
             "physical": physical_proof,
             "gpt": gpt_proof,
+            "web_prompt_surface": web_prompt_proof,
             "system": system_proof,
             "input": input_proof,
             "gui_console": console_proof,
@@ -1320,6 +1380,7 @@ class RuntimeUpdater:
             gui_activation = self._restart_gui([], [], ensure_running=True)
             installed_proof = self._installed_hash_proof(plan)
             gpt_proof = self._gpt_proof()
+            web_prompt_proof = self._web_prompt_surface_proof()
             physical_proof = self._physical_proof(gui_activation)
             input_proof = self._input_proof(input_activation)
             console_proof = self._gui_console_proof()
@@ -1336,6 +1397,7 @@ class RuntimeUpdater:
                 "runtime": installed_proof,
                 "physical": physical_proof,
                 "gpt": gpt_proof,
+                "web_prompt_surface": web_prompt_proof,
                 "system": system_activation,
                 "input": input_proof,
                 "gui_console": console_proof,
@@ -1497,6 +1559,7 @@ class RuntimeUpdater:
                 "runtime": installed_before_activation,
                 "physical": {"status": "pending"},
                 "gpt": {"status": "pending"},
+                "web_prompt_surface": {"status": "pending"},
                 "system": {"status": "pending"},
                 "input": {"status": "pending-physical-input"},
                 "gui_console": {"status": "pending"},
@@ -1526,6 +1589,7 @@ class RuntimeUpdater:
         gui_activation = self._restart_gui(applied, applied_system)
         installed_proof = self._installed_hash_proof(plan)
         gpt_proof = self._gpt_proof()
+        web_prompt_proof = self._web_prompt_surface_proof()
         physical_proof = self._physical_proof(gui_activation)
         input_proof = self._input_proof(input_activation)
         console_proof = self._gui_console_proof()
@@ -1534,6 +1598,7 @@ class RuntimeUpdater:
             "runtime": installed_proof,
             "physical": physical_proof,
             "gpt": gpt_proof,
+            "web_prompt_surface": web_prompt_proof,
             "system": system_activation,
             "input": input_proof,
             "gui_console": console_proof,
@@ -1550,6 +1615,7 @@ class RuntimeUpdater:
                 "runtime": installed_proof,
                 "physical": physical_proof,
                 "gpt": gpt_proof,
+                "web_prompt_surface": web_prompt_proof,
                 "system": system_activation,
                 "input": input_proof,
                 "gui_console": console_proof,

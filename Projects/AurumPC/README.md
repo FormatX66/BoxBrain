@@ -61,7 +61,7 @@ The unattended lane never pushes Git and does not automatically reboot. Its stat
 
 Saved Wi-Fi is reconnected at boot by `aurum-network-bootstrap.service` only when `/var/lib/aurum/state/wifi.conf` is on durable storage. The physical-discovery USB remains intentionally stateless: syncing its live overlay can update the current session, but it cannot make GUI code or credentials survive a reboot. Cross-reboot proof therefore requires the installed Hopper root (or separately authorized media with a versioned state-only volume), and the generation stays pending rather than claiming success on a volatile live overlay.
 
-Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`, an append-only `/var/lib/aurum/state/seed-lineage-events.jsonl`, and its current `/var/lib/aurum/state/seed-lineage.json` projection. Hopper's read-only self-debug channel exposes the landed commit, forward relation, heal/cull/regrow disposition, and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, keyboard/pointer, GUI recovery-console, Wi-Fi persistence, and `become_next_seed` proof without enabling remote shell control.
+Each growth cycle also emits `/var/lib/aurum/state/seed-generation.json`, an append-only `/var/lib/aurum/state/seed-lineage-events.jsonl`, and its current `/var/lib/aurum/state/seed-lineage.json` projection. Hopper's read-only self-debug channel exposes the landed commit, forward relation, heal/cull/regrow disposition, and sanitized discover/pull, verify, stage, apply, physical projection, bounded GPT, sandboxed browser/prompt surface, keyboard/pointer, GUI recovery-console, Wi-Fi persistence, and `become_next_seed` proof without enabling remote shell control.
 
 ## One-shot seed recovery
 
