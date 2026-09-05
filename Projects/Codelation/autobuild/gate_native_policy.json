@@ -1,0 +1,49 @@
+{
+  "schema": "aurum-gate-native-doctrine-v1",
+  "authority": "machine-binary-state",
+  "principle": "state-plus-gates-before-language",
+  "machine_internal": {
+    "identities": "opaque-256-bit-binary",
+    "state": "binary-active-state-set",
+    "transitions": "event-driven-prerequisite-gates",
+    "ordering": "dependency-not-lifecycle-sequence",
+    "evidence": "ordinary-state-input",
+    "authority": "ordinary-state-input",
+    "convergence": "shared-output-state",
+    "human_labels_required": false,
+    "ascii_required": false,
+    "json_required": false,
+    "python_required": false,
+    "files_required": false
+  },
+  "codelation_boundary": {
+    "purpose": "translate-between-machine-state-and-human-or-legacy-carriers",
+    "allowed_human_forms": [
+      "english",
+      "ascii",
+      "json",
+      "python",
+      "shell",
+      "filenames",
+      "logs",
+      "gui"
+    ],
+    "authoritative": false,
+    "must_bind_to_machine_state_identity": true
+  },
+  "rules": [
+    "do-not-promote-human-labels-into-machine-authority",
+    "derive-machine-identities-from-binary-content-or-boundary-input",
+    "represent-prerequisites-as-gate-input-state",
+    "represent-proof-as-state-not-prose",
+    "represent-authority-as-state-not-prose",
+    "fire-work-when-required-state-exists",
+    "reevaluate-only-dependents-of-changed-state",
+    "collapse-equivalent-paths-at-common-output-state",
+    "use-compute-budgets-only-to-yield-a-worker-never-to-age-aurum",
+    "keep-codelation-projections-derivable-and-nonauthoritative",
+    "progressively-remove-legacy-language-executors-after-machine-native-equivalence-is-proven"
+  ],
+  "bootstrap_note": "Current Python/GitHub code is a carrier used to construct and verify the machine-native field; it is not the intended internal thought format.",
+  "reversible": true
+}
