@@ -156,6 +156,7 @@ class WifiRequestOwnershipTests(unittest.TestCase):
                 patch.object(network, "wireless_interfaces", return_value=["wlan-test"]),
                 patch.object(network, "_command", side_effect=lambda value: value),
                 patch.object(network.shutil, "which", return_value=None),
+                patch.object(network, "_stop_packaged_supplicant_service", return_value=False),
                 patch.object(network, "_stop_owned_supplicant"),
                 patch.object(network, "_supplicant_status", return_value={}),
                 patch.object(network, "_run", return_value=subprocess.CompletedProcess([], 0, "")),

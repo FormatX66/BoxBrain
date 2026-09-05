@@ -784,6 +784,10 @@ class RuntimeUpdater:
         network_changed = "aurum_network.py" in changed or any(
             name.endswith("aurum-network-bootstrap.service") for name in system_changed
         )
+        packaged_wifi_disable = (
+            run("disable", "--now", "wpa_supplicant.service", timeout=20)
+            if network_changed else None
+        )
         network_restart = run("restart", "aurum-network-bootstrap.service", timeout=90) if network_changed else None
         core_share_changed = "aurum_core_share.py" in changed or any(
             name.endswith("aurum-auto-sync.service") or name.endswith("aurum-core-share.service")
@@ -803,6 +807,8 @@ class RuntimeUpdater:
             failed = True
         if network_restart is not None and network_restart.returncode != 0:
             failed = True
+        if packaged_wifi_disable is not None and packaged_wifi_disable.returncode != 0:
+            failed = True
         if core_share_restart is not None and core_share_restart.returncode != 0:
             failed = True
         if auto_sync_enabled.returncode != 0:
@@ -812,6 +818,9 @@ class RuntimeUpdater:
             "commands": commands,
             "console_restart_deferred": True,
             "boot_screen_visible_on_next_boot": True,
+            "packaged_wifi_owner_disabled": bool(
+                packaged_wifi_disable is not None and packaged_wifi_disable.returncode == 0
+            ),
             "open_core_share": "ready" if not failed else "failed",
             "core_share_restart_deferred": bool(core_share_changed and core_share_active.returncode == 0),
             "core_actions": ["status", "seed-sync"],

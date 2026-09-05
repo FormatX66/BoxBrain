@@ -130,7 +130,7 @@ class WifiLifecycleTests(unittest.TestCase):
     def test_foreign_manager_is_not_replaced(self):
         with patch.object(network.shutil, "which", return_value=None), patch.object(network, "_command", side_effect=lambda name: name), patch.object(
             network, "_run", return_value=SimpleNamespace(returncode=0, stdout="")
-        ) as run, patch.object(network, "_stop_owned_supplicant"), patch.object(network, "_supplicant_status", return_value={"wpa_state": "COMPLETED"}):
+        ) as run, patch.object(network, "_stop_packaged_supplicant_service", return_value=False), patch.object(network, "_stop_owned_supplicant"), patch.object(network, "_supplicant_status", return_value={"wpa_state": "COMPLETED"}):
             result = network._connect_config("wlan-test", self.saved, timeout_seconds=3)
         self.assertEqual(result["status"], "wifi-manager-conflict")
         self.assertFalse(any(call.args[0][0] == "wpa_supplicant" for call in run.call_args_list))
@@ -139,6 +139,8 @@ class WifiLifecycleTests(unittest.TestCase):
         with patch.object(network.shutil, "which", side_effect=lambda name: name if name == "networkctl" else None), patch.object(
             network, "_command", side_effect=lambda name: name
         ), patch.object(network, "_run", return_value=SimpleNamespace(returncode=0, stdout="")) as run, patch.object(
+            network, "_stop_packaged_supplicant_service", return_value=False
+        ), patch.object(
             network, "_stop_owned_supplicant"
         ), patch.object(network, "_supplicant_status", return_value={}), patch.object(
             network, "_connection_state", side_effect=[{"online": False}, {"online": False}, {"online": True}]

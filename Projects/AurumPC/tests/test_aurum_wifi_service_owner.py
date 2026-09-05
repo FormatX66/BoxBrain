@@ -78,6 +78,53 @@ class WifiServiceOwnerTests(unittest.TestCase):
              patch.object(network, "_run", return_value=SimpleNamespace(returncode=1, stdout="LoadState=not-found\n")):
             network._wait_owned_unit_cleanup(self.unit)
 
+    def test_exact_packaged_supplicant_is_stopped_through_its_unit(self):
+        responses = [
+            SimpleNamespace(returncode=0, stdout="LoadState=loaded\nActiveState=active\nMainPID=44444\n"),
+            SimpleNamespace(returncode=0, stdout=""),
+            SimpleNamespace(returncode=0, stdout="LoadState=loaded\nActiveState=inactive\n"),
+        ]
+        with patch.object(network, "_run", side_effect=responses) as run, \
+             patch.object(network, "_packaged_supplicant_owner", return_value=True):
+            self.assertTrue(network._stop_packaged_supplicant_service("/usr/bin/systemctl"))
+        self.assertEqual(run.call_args_list[1].args[0], [
+            "/usr/bin/systemctl", "stop", "wpa_supplicant.service",
+        ])
+
+    def test_packaged_owner_requires_root_binary_args_and_cgroup(self):
+        process = self.root / "proc" / "44444"
+        process.mkdir(parents=True)
+        executable = self.root / "wpa_supplicant"
+        executable.write_text("synthetic fixture, never executed")
+        (process / "exe").symlink_to(executable)
+        arguments = [str(executable), *network.PACKAGED_SUPPLICANT_ARGUMENTS]
+        (process / "cmdline").write_bytes("\0".join(arguments).encode())
+        (process / "cgroup").write_text("0::/system.slice/wpa_supplicant.service\n")
+        original_stat = Path.stat
+
+        def fake_stat(path, *args, **kwargs):
+            return SimpleNamespace(st_uid=0) if path == process else original_stat(path, *args, **kwargs)
+
+        with patch.object(network, "_command", return_value=str(executable)), \
+             patch.object(Path, "stat", fake_stat):
+            self.assertTrue(network._packaged_supplicant_owner(44444))
+            (process / "cgroup").write_text("0::/system.slice/NetworkManager.service\n")
+            self.assertFalse(network._packaged_supplicant_owner(44444))
+            (process / "cgroup").write_text("0::/system.slice/wpa_supplicant.service\n")
+            (process / "cmdline").write_bytes("\0".join([str(executable), "-i", "wlan-test"]).encode())
+            self.assertFalse(network._packaged_supplicant_owner(44444))
+
+    def test_unrecognized_packaged_main_pid_is_never_stopped(self):
+        active = SimpleNamespace(
+            returncode=0,
+            stdout="LoadState=loaded\nActiveState=active\nMainPID=44444\n",
+        )
+        with patch.object(network, "_run", return_value=active) as run, \
+             patch.object(network, "_packaged_supplicant_owner", return_value=False):
+            with self.assertRaisesRegex(network.NetworkError, "unrecognized"):
+                network._stop_packaged_supplicant_service("/usr/bin/systemctl")
+        self.assertEqual(run.call_count, 1)
+
     @unittest.skipUnless(sys.platform == "linux", "Linux PID handles")
     def test_lost_pid_record_still_waits_for_tracked_service_cleanup(self):
         record = self.root / "wpa-wlan-test.unit"

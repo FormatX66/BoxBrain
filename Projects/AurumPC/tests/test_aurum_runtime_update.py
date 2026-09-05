@@ -379,6 +379,26 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
         invocations = [call.args[0][1:] for call in runner.call_args_list]
         self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
 
+    def test_network_update_disables_packaged_supplicant_before_reconnect(self) -> None:
+        updater = RuntimeUpdater(system_root=Path("/"))
+
+        def completed(arguments, **_kwargs):
+            return CompletedProcess(arguments, 0, stdout="")
+
+        with (
+            patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
+            patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+        ):
+            result = updater._activate_system_integration(["aurum_network.py"], [])
+
+        invocations = [call.args[0][1:] for call in runner.call_args_list]
+        disable = ["disable", "--now", "wpa_supplicant.service"]
+        restart = ["restart", "aurum-network-bootstrap.service"]
+        self.assertIn(disable, invocations)
+        self.assertIn(restart, invocations)
+        self.assertLess(invocations.index(disable), invocations.index(restart))
+        self.assertTrue(result["packaged_wifi_owner_disabled"])
+
     def test_plan_refuses_when_not_installed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
