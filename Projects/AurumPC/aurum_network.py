@@ -425,7 +425,7 @@ def _stop_packaged_supplicant_service(systemctl: str) -> bool:
     if result.returncode != 0 or fields.get("LoadState") == "not-found" or fields.get("ActiveState") in {"inactive", "failed"}:
         return False
     if fields.get("ActiveState") == "deactivating":
-        _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT)
+        _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT, systemctl=systemctl)
         return True
     try:
         pid = int(fields.get("MainPID", "0"))
@@ -436,15 +436,16 @@ def _stop_packaged_supplicant_service(systemctl: str) -> bool:
     stopped = _run([systemctl, "stop", PACKAGED_SUPPLICANT_UNIT], timeout=8)
     if stopped.returncode != 0:
         raise NetworkError("packaged Wi-Fi service did not stop")
-    _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT)
+    _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT, systemctl=systemctl)
     return True
 
 
-def _wait_owned_unit_cleanup(unit: str) -> None:
+def _wait_owned_unit_cleanup(unit: str, *, systemctl: str | None = None) -> None:
     # PIDFile cleanup can lag process exit. Never launch a new PID into that race.
+    controller = systemctl or _command("systemctl")
     deadline = time.monotonic() + 3
     while True:
-        result = _run([_command("systemctl"), "show", unit, "--property=LoadState", "--property=ActiveState"], timeout=2)
+        result = _run([controller, "show", unit, "--property=LoadState", "--property=ActiveState"], timeout=2)
         fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
         if fields.get("LoadState") == "not-found" or (
             result.returncode == 0 and fields.get("ActiveState") in {"inactive", "failed"}
