@@ -2,6 +2,8 @@
 Description=Aurum saved Wi-Fi reconnect
 After=local-fs.target systemd-udev-trigger.service systemd-networkd.service
 Wants=systemd-networkd.service
+Conflicts=wpa_supplicant.service
+Before=wpa_supplicant.service
 ConditionPathExists=/var/lib/aurum/state/wifi.conf
 
 [Service]

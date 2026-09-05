@@ -35,6 +35,10 @@ SAVED_WIFI = STATE_DIR / "wifi.conf"
 RUN_DIR = Path("/run/aurum")
 PROC_ROOT = Path("/proc")
 CONTROL_DIR = Path("/run/wpa_supplicant")
+PACKAGED_SUPPLICANT_UNIT = "wpa_supplicant.service"
+PACKAGED_SUPPLICANT_ARGUMENTS = [
+    "-u", "-s", "-O", "DIR=/run/wpa_supplicant GROUP=netdev",
+]
 
 
 class NetworkError(RuntimeError):
@@ -389,6 +393,53 @@ def _managed_supplicant_unit(pid: int) -> str | None:
     return None
 
 
+def _packaged_supplicant_owner(pid: int) -> bool:
+    """Recognize only the exact generic daemon shipped by this Aurum image."""
+    if pid <= 1:
+        return False
+    process = PROC_ROOT / str(pid)
+    try:
+        arguments = (process / "cmdline").read_bytes().decode("utf-8", "strict").strip("\0").split("\0")
+        groups = (process / "cgroup").read_text(encoding="utf-8").splitlines()
+        executable = (process / "exe").resolve(strict=True)
+        expected = Path(_command("wpa_supplicant")).resolve(strict=True)
+        return bool(
+            process.stat().st_uid == 0
+            and executable == expected
+            and arguments
+            and Path(arguments[0]).name == "wpa_supplicant"
+            and arguments[1:] == PACKAGED_SUPPLICANT_ARGUMENTS
+            and any(group.rsplit("/", 1)[-1] == PACKAGED_SUPPLICANT_UNIT for group in groups)
+        )
+    except (FileNotFoundError, ProcessLookupError, UnicodeError, OSError):
+        return False
+
+
+def _stop_packaged_supplicant_service(systemctl: str) -> bool:
+    """Stop the image's unintended generic owner, never an unknown manager."""
+    result = _run([
+        systemctl, "show", PACKAGED_SUPPLICANT_UNIT,
+        "--property=LoadState", "--property=ActiveState", "--property=MainPID",
+    ], timeout=2)
+    fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+    if result.returncode != 0 or fields.get("LoadState") == "not-found" or fields.get("ActiveState") in {"inactive", "failed"}:
+        return False
+    if fields.get("ActiveState") == "deactivating":
+        _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT)
+        return True
+    try:
+        pid = int(fields.get("MainPID", "0"))
+    except ValueError as exc:
+        raise NetworkError("packaged Wi-Fi service identity is invalid") from exc
+    if not _packaged_supplicant_owner(pid):
+        raise NetworkError("refusing to stop an unrecognized Wi-Fi manager")
+    stopped = _run([systemctl, "stop", PACKAGED_SUPPLICANT_UNIT], timeout=8)
+    if stopped.returncode != 0:
+        raise NetworkError("packaged Wi-Fi service did not stop")
+    _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT)
+    return True
+
+
 def _wait_owned_unit_cleanup(unit: str) -> None:
     # PIDFile cleanup can lag process exit. Never launch a new PID into that race.
     deadline = time.monotonic() + 3
@@ -531,13 +582,14 @@ def _connect_config(selected: str, config_path: Path, *, timeout_seconds: int) -
         return {"status": "no-wifi-interface", "online": False, "started": False}
     # Resolve dependencies before stopping a usable existing connection.
     manager = _command("systemd-run")
-    _command("systemctl")
+    systemctl = _command("systemctl")
     _command("wpa_supplicant")
     deadline = time.monotonic() + max(0, timeout_seconds)
     rfkill = shutil.which("rfkill")
     if rfkill:
         _run([rfkill, "unblock", "wifi"], timeout=2)
     _run([_command("ip"), "link", "set", "dev", selected, "up"], timeout=2)
+    _stop_packaged_supplicant_service(systemctl)
     _stop_owned_supplicant(selected)
     # A remaining responsive manager or bound socket is not ours. Never kill it, unlink its
     # socket or start a competing daemon on its interface.

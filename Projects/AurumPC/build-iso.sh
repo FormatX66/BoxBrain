@@ -267,6 +267,12 @@ set -eu
 chmod 0755 /opt/aurum/*.py
 find /opt/aurum/codelation -type f -name '*.py' -exec chmod 0644 {} +
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+# Aurum is the sole Wi-Fi association owner.  Debian enables its generic D-Bus
+# supplicant during package installation; leaving it enabled races Aurum's
+# exact-interface service and produces ctrl_iface collisions on real Hopper.
+rm -f /etc/systemd/system/multi-user.target.wants/wpa_supplicant.service
+ln -sfn /dev/null /etc/systemd/system/wpa_supplicant.service
+ln -sfn /dev/null /etc/systemd/system/dbus-fi.w1.wpa_supplicant1.service
 EOF
 chmod 0755 config/hooks/live/010-aurum-permissions.hook.chroot
 
@@ -325,4 +331,3 @@ if [ -n "$PERSISTENT_CACHE_ROOT" ]; then
 fi
 
 ls -lh "$DIST/$IMAGE_NAME" "$DIST/$IMAGE_NAME.sha256"
-
