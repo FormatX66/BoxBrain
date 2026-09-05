@@ -172,6 +172,7 @@ class WifiSocketOwnerTests(unittest.TestCase):
         server = self.stack.enter_context(socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM))
         server.bind(str(self.control / "wlan-test"))
         with patch.object(network, "wireless_interfaces", return_value=["wlan-test"]), \
+             patch.object(network, "_stop_packaged_supplicant_service", return_value=False), \
              patch.object(network, "_stop_owned_supplicant"), \
              patch.object(network, "_supplicant_status", return_value={}), \
              patch.object(network.shutil, "which", return_value=None), \
@@ -187,6 +188,7 @@ class WifiSocketOwnerTests(unittest.TestCase):
                 return SimpleNamespace(returncode=1, stdout="ctrl_iface exists and seems to be in use secret-fixture")
             return SimpleNamespace(returncode=0, stdout="")
         with patch.object(network, "wireless_interfaces", return_value=["wlan-test"]), \
+             patch.object(network, "_stop_packaged_supplicant_service", return_value=False), \
              patch.object(network, "_stop_owned_supplicant"), \
              patch.object(network, "_supplicant_status", return_value={}), \
              patch.object(network.shutil, "which", return_value=None), \
