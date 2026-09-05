@@ -334,22 +334,23 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             return CompletedProcess(arguments, returncode, stdout="")
 
         with (
+            tempfile.TemporaryDirectory() as temporary,
             patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
             patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+            patch.object(runtime_module, "NETWORK_MANAGER_OWNER_MARKER", Path(temporary) / "missing"),
         ):
             result = updater._activate_system_integration(
                 ["aurum_input.py"],
                 ["etc/systemd/system/aurum-input-bootstrap.service"],
             )
 
-        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["status"], "pending-network-manager-migration")
         invocations = [call.args[0][1:] for call in runner.call_args_list]
         self.assertIn(["daemon-reload"], invocations)
         self.assertIn(
             [
                 "enable",
                 "aurum-input-bootstrap.service",
-                "aurum-network-bootstrap.service",
                 "aurum-pc-console.service",
                 "aurum-auto-sync.service",
                 "aurum-core-share.service",
@@ -370,34 +371,69 @@ class AurumRuntimeUpdateTests(unittest.TestCase):
             return CompletedProcess(arguments, 0, stdout="")
 
         with (
+            tempfile.TemporaryDirectory() as temporary,
             patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
             patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+            patch.object(runtime_module, "NETWORK_MANAGER_OWNER_MARKER", Path(temporary) / "missing"),
         ):
             result = updater._activate_system_integration(["aurum_runtime_update.py"], [])
 
-        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["status"], "pending-network-manager-migration")
         invocations = [call.args[0][1:] for call in runner.call_args_list]
         self.assertIn(["restart", "aurum-input-bootstrap.service"], invocations)
 
-    def test_network_update_disables_packaged_supplicant_before_reconnect(self) -> None:
+    def test_network_update_switches_owner_only_on_qualified_image(self) -> None:
         updater = RuntimeUpdater(system_root=Path("/"))
 
         def completed(arguments, **_kwargs):
             return CompletedProcess(arguments, 0, stdout="")
 
-        with (
-            patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
-            patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+        with tempfile.TemporaryDirectory() as temporary:
+            marker = Path(temporary) / "network-manager-owner-v1"
+            marker.write_text("NetworkManager\n", encoding="utf-8")
+            with (
+                patch.object(runtime_module.shutil, "which", return_value="/usr/bin/systemctl"),
+                patch.object(runtime_module.subprocess, "run", side_effect=completed) as runner,
+                patch.object(runtime_module, "NETWORK_MANAGER_OWNER_MARKER", marker),
+            ):
+                result = updater._activate_system_integration(["aurum_network.py"], [])
+
+        invocations = [call.args[0][1:] for call in runner.call_args_list]
+        disable = [
+            "disable",
+            "--now",
+            "aurum-network-bootstrap.service",
+            "systemd-networkd.service",
+            "systemd-networkd.socket",
+        ]
+        restart = ["restart", "aurum-network-ready.service"]
+        self.assertIn(disable, invocations)
+        self.assertIn(restart, invocations)
+        self.assertLess(invocations.index(disable), invocations.index(restart))
+        self.assertTrue(result["network_manager_owner"])
+        self.assertTrue(result["network_owner_switch_performed"])
+        self.assertFalse(any("wpa_supplicant.service" in call for call in invocations))
+
+    def test_network_update_preserves_existing_owner_without_image_marker(self) -> None:
+        updater = RuntimeUpdater(system_root=Path("/"))
+
+        def completed(arguments, **_kwargs):
+            return CompletedProcess(arguments, 0, stdout="")
+
+        with tempfile.TemporaryDirectory() as temporary, patch.object(
+            runtime_module.shutil, "which", return_value="/usr/bin/systemctl"
+        ), patch.object(
+            runtime_module.subprocess, "run", side_effect=completed
+        ) as runner, patch.object(
+            runtime_module, "NETWORK_MANAGER_OWNER_MARKER", Path(temporary) / "missing"
         ):
             result = updater._activate_system_integration(["aurum_network.py"], [])
 
         invocations = [call.args[0][1:] for call in runner.call_args_list]
-        disable = ["disable", "--now", "wpa_supplicant.service"]
-        restart = ["restart", "aurum-network-bootstrap.service"]
-        self.assertIn(disable, invocations)
-        self.assertIn(restart, invocations)
-        self.assertLess(invocations.index(disable), invocations.index(restart))
-        self.assertTrue(result["packaged_wifi_owner_disabled"])
+        self.assertEqual(result["status"], "pending-network-manager-migration")
+        self.assertTrue(result["existing_network_preserved"])
+        self.assertFalse(any(call[:2] == ["disable", "--now"] for call in invocations))
+        self.assertFalse(any("aurum-network-ready.service" in call for call in invocations))
 
     def test_plan_refuses_when_not_installed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

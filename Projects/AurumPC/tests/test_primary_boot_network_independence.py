@@ -73,12 +73,12 @@ class PrimaryBootNetworkIndependenceTests(unittest.TestCase):
         sync.assert_not_called()
         clock.assert_not_called()
 
-    def test_reconnect_service_does_not_gate_primary_console_and_has_hard_deadline(self) -> None:
-        service = (ROOT / "runtime-assets/etc/systemd/system/aurum-network-bootstrap.service").read_text()
+    def test_network_observer_does_not_gate_primary_console_and_has_hard_deadline(self) -> None:
+        service = (ROOT / "runtime-assets/etc/systemd/system/aurum-network-ready.service").read_text()
         self.assertNotIn("Before=aurum-pc-console.service", service)
-        self.assertIn("TimeoutStartSec=75", service)
-        self.assertIn("TimeoutStopSec=5", service)
-        self.assertIn("--reconnect-saved", service)
+        self.assertIn("TimeoutStartSec=20", service)
+        self.assertIn("--boot-status", service)
+        self.assertNotIn("--reconnect-saved", service)
 
     def test_live_and_installed_startup_do_not_cancel_each_other(self) -> None:
         services = ROOT / "runtime-assets/etc/systemd/system"

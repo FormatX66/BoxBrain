@@ -27,6 +27,7 @@ DEFAULT_TARGET = Path(os.environ.get("AURUM_RUNTIME_ROOT", "/opt/aurum"))
 DEFAULT_STATE = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
 DEFAULT_MARKER = Path("/etc/aurum-installed.json")
 DEFAULT_SYSTEM_ROOT = Path(os.environ.get("AURUM_SYSTEM_ROOT", "/"))
+NETWORK_MANAGER_OWNER_MARKER = Path("/usr/lib/aurum/network-manager-owner-v1")
 ALLOWLIST = (
     "aurum_arcade.py",
     "aurum_autonomy.py",
@@ -65,7 +66,7 @@ ALLOWLIST = (
 SYSTEM_ASSETS = (
     ("etc/X11/xorg.conf.d/40-aurum-libinput.conf", 0o644),
     ("etc/systemd/system/aurum-input-bootstrap.service", 0o644),
-    ("etc/systemd/system/aurum-network-bootstrap.service", 0o644),
+    ("etc/systemd/system/aurum-network-ready.service", 0o644),
     ("etc/systemd/system/aurum-pc-console.service", 0o644),
     ("etc/systemd/system/aurum-auto-sync.service", 0o644),
     ("etc/systemd/system/aurum-core-share.service", 0o644),
@@ -87,6 +88,7 @@ PROOF_PENDING = {
     "pending-reboot-observation",
     "pending-wifi-online",
     "pending-wifi-profile",
+    "pending-network-manager-migration",
 }
 
 
@@ -765,13 +767,20 @@ class RuntimeUpdater:
 
         if system_changed:
             run("daemon-reload")
-        enable = run(
-            "enable",
+        migration_marker = NETWORK_MANAGER_OWNER_MARKER
+        manager = run("is-active", "--quiet", "NetworkManager.service")
+        migration_ready = migration_marker.is_file() and manager.returncode == 0
+        enable_units = [
             "aurum-input-bootstrap.service",
-            "aurum-network-bootstrap.service",
             "aurum-pc-console.service",
             "aurum-auto-sync.service",
             "aurum-core-share.service",
+        ]
+        if migration_ready:
+            enable_units.append("aurum-network-ready.service")
+        enable = run(
+            "enable",
+            *enable_units,
         )
         active = run("is-active", "--quiet", "aurum-input-bootstrap.service")
         input_changed = bool(
@@ -781,14 +790,23 @@ class RuntimeUpdater:
             for name in system_changed
         )
         restart = run("restart", "aurum-input-bootstrap.service") if input_changed or active.returncode != 0 else None
-        network_changed = "aurum_network.py" in changed or any(
-            name.endswith("aurum-network-bootstrap.service") for name in system_changed
+        network_changed = migration_ready and (
+            "aurum_network.py" in changed or any(
+                name.endswith("aurum-network-ready.service") for name in system_changed
+            )
         )
-        packaged_wifi_disable = (
-            run("disable", "--now", "wpa_supplicant.service", timeout=20)
-            if network_changed else None
-        )
-        network_restart = run("restart", "aurum-network-bootstrap.service", timeout=90) if network_changed else None
+        network_owner_switch = None
+        network_restart = None
+        if network_changed:
+            network_owner_switch = run(
+                "disable",
+                "--now",
+                "aurum-network-bootstrap.service",
+                "systemd-networkd.service",
+                "systemd-networkd.socket",
+                timeout=30,
+            )
+            network_restart = run("restart", "aurum-network-ready.service", timeout=30)
         core_share_changed = "aurum_core_share.py" in changed or any(
             name.endswith("aurum-auto-sync.service") or name.endswith("aurum-core-share.service")
             for name in system_changed
@@ -807,20 +825,28 @@ class RuntimeUpdater:
             failed = True
         if network_restart is not None and network_restart.returncode != 0:
             failed = True
-        if packaged_wifi_disable is not None and packaged_wifi_disable.returncode != 0:
+        if network_owner_switch is not None and network_owner_switch.returncode != 0:
             failed = True
         if core_share_restart is not None and core_share_restart.returncode != 0:
             failed = True
         if auto_sync_enabled.returncode != 0:
             failed = True
         return {
-            "status": "failed" if failed else "ready",
+            "status": (
+                "failed"
+                if failed
+                else "ready"
+                if migration_ready
+                else "pending-network-manager-migration"
+            ),
             "commands": commands,
             "console_restart_deferred": True,
             "boot_screen_visible_on_next_boot": True,
-            "packaged_wifi_owner_disabled": bool(
-                packaged_wifi_disable is not None and packaged_wifi_disable.returncode == 0
+            "network_manager_owner": migration_ready,
+            "network_owner_switch_performed": bool(
+                network_owner_switch is not None and network_owner_switch.returncode == 0
             ),
+            "existing_network_preserved": not migration_ready,
             "open_core_share": "ready" if not failed else "failed",
             "core_share_restart_deferred": bool(core_share_changed and core_share_active.returncode == 0),
             "core_actions": ["status", "seed-sync"],
@@ -1189,6 +1215,13 @@ class RuntimeUpdater:
         systemctl = shutil.which("systemctl")
         if not systemctl:
             return {"status": "failed", "reason": "systemctl-unavailable"}
+        marker = NETWORK_MANAGER_OWNER_MARKER
+        if not marker.is_file():
+            return {
+                "status": "pending-network-manager-migration",
+                "reason": "qualified-image-install-required",
+                "existing_network_preserved": True,
+            }
         result = subprocess.run(
             [systemctl, "is-active", "--quiet", "aurum-input-bootstrap.service"],
             check=False,
@@ -1197,8 +1230,16 @@ class RuntimeUpdater:
             stderr=subprocess.STDOUT,
             timeout=20,
         )
+        manager = subprocess.run(
+            [systemctl, "is-active", "--quiet", "NetworkManager.service"],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=20,
+        )
         network = subprocess.run(
-            [systemctl, "is-enabled", "--quiet", "aurum-network-bootstrap.service"],
+            [systemctl, "is-enabled", "--quiet", "aurum-network-ready.service"],
             check=False,
             text=True,
             stdout=subprocess.PIPE,
@@ -1223,6 +1264,7 @@ class RuntimeUpdater:
         )
         passed = (
             result.returncode == 0
+            and manager.returncode == 0
             and network.returncode == 0
             and auto_sync.returncode == 0
             and core_share.returncode == 0
@@ -1231,8 +1273,11 @@ class RuntimeUpdater:
             "status": "passed" if passed else "failed",
             "service": "aurum-input-bootstrap.service",
             "returncode": result.returncode,
-            "network_bootstrap_service": "aurum-network-bootstrap.service",
-            "network_bootstrap_enabled": network.returncode == 0,
+            "network_manager_service": "NetworkManager.service",
+            "network_manager_active": manager.returncode == 0,
+            "network_manager_returncode": manager.returncode,
+            "network_ready_service": "aurum-network-ready.service",
+            "network_ready_enabled": network.returncode == 0,
             "network_returncode": network.returncode,
             "auto_sync_service": "aurum-auto-sync.service",
             "auto_sync_enabled": auto_sync.returncode == 0,

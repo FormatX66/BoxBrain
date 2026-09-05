@@ -12,8 +12,8 @@ Delivery remains:
 
 `current seed -> discover -> pull -> verify -> stage -> apply -> prove -> become next seed`
 
-The updater snapshots the saved Aurum, NetworkManager, and wpa_supplicant
-profiles plus current network state before replacement. After the GUI and input
+The updater snapshots NetworkManager connection profiles plus current network
+state before replacement. After the GUI and input
 path are refreshed, it verifies that the same profile set, content hashes, file
 modes, and any pre-existing online/interface state remain. The receipt is
 secret-safe and never records profile contents, SSIDs, or credentials.
@@ -21,8 +21,8 @@ secret-safe and never records profile contents, SSIDs, or credentials.
 That same-session check is not called reboot persistence. Promotion requires
 the state directory to be on a durable filesystem and a later boot identity to
 observe the same saved profile online. Installed Hopper roots enable the
-`aurum-network-bootstrap.service`, which reconnects that saved profile before
-the console starts. The deliberately stateless discovery USB cannot satisfy
+NetworkManager, which is the single connection owner. Aurum's boot observer
+records readiness but never reconnects or delays the console. The deliberately stateless discovery USB cannot satisfy
 this gate; it must first be installed to Hopper's authorized internal target or
 replaced by separately authorized media with a versioned state-only volume.
 

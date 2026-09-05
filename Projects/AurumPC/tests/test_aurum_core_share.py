@@ -151,7 +151,7 @@ class AurumCoreShareTests(unittest.TestCase):
     def test_boot_units_auto_sync_open_core_and_hide_personal_namespaces(self) -> None:
         auto_sync = (ROOT / "runtime-assets/etc/systemd/system/aurum-auto-sync.service").read_text(encoding="utf-8")
         core_share = (ROOT / "runtime-assets/etc/systemd/system/aurum-core-share.service").read_text(encoding="utf-8")
-        self.assertIn("After=network-online.target aurum-network-bootstrap.service", auto_sync)
+        self.assertIn("After=network-online.target aurum-network-ready.service", auto_sync)
         self.assertIn("aurum_core_share.py seed-sync", auto_sync)
         self.assertIn("Restart=on-failure", auto_sync)
         self.assertIn("aurum_core_share.py serve --bind 0.0.0.0 --port 8767", core_share)

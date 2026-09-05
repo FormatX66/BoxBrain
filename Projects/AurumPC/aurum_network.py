@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-"""Bounded Wi-Fi bring-up for the Aurum PC live seed.
+"""Thin, graphical NetworkManager adapter for Aurum PC.
 
-Aurum owns the operator flow; Linux networking tools are used only as the
-hardware compatibility substrate.  Wi-Fi credentials are converted to a
-wpa_supplicant configuration with the plaintext comment removed and are kept
-under Aurum's state directory with mode 0600.  This module never writes an
-internal disk directly.
+NetworkManager is the only connection owner. Aurum never starts, stops, or
+signals wpa_supplicant and never runs a second DHCP client. The adapter only
+creates root-only NetworkManager keyfiles, asks NetworkManager to activate
+them, verifies the selected wireless path, and restores the prior profile when
+a candidate fails. No credential is placed in argv, JSON, logs, or receipts.
 """
 from __future__ import annotations
 
 import argparse
-import errno
 from contextlib import contextmanager
 from functools import wraps
-import getpass
 import ipaddress
 import json
 import os
 import re
-import select
-import signal
 import shutil
 import socket
 import subprocess
@@ -30,15 +26,18 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+
 STATE_DIR = Path(os.environ.get("AURUM_STATE_DIR", "/var/lib/aurum/state"))
-SAVED_WIFI = STATE_DIR / "wifi.conf"
-RUN_DIR = Path("/run/aurum")
-PROC_ROOT = Path("/proc")
-CONTROL_DIR = Path("/run/wpa_supplicant")
-PACKAGED_SUPPLICANT_UNIT = "wpa_supplicant.service"
-PACKAGED_SUPPLICANT_ARGUMENTS = [
-    "-u", "-s", "-O", "DIR=/run/wpa_supplicant GROUP=netdev",
-]
+RUN_DIR = Path(os.environ.get("AURUM_RUN_DIR", "/run/aurum"))
+SYSTEM_CONNECTIONS = Path(
+    os.environ.get("AURUM_NM_SYSTEM_CONNECTIONS", "/etc/NetworkManager/system-connections")
+)
+RUNTIME_CONNECTIONS = Path(
+    os.environ.get("AURUM_NM_RUNTIME_CONNECTIONS", "/run/NetworkManager/system-connections")
+)
+PROFILE_PREFIX = "aurum-wifi-"
+MANAGER = "NetworkManager"
+WIFI_TYPES = {"wifi", "802-11-wireless"}
 
 
 class NetworkError(RuntimeError):
@@ -51,10 +50,15 @@ class NetworkBusy(NetworkError):
 
 @contextmanager
 def _operation_lock():
-    # File locking also covers separate GUI, console and boot processes.
+    """Serialize GUI, boot, recovery, and console requests across processes."""
     import fcntl
+
     RUN_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-    fd = os.open(RUN_DIR / "wifi-operation.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    fd = os.open(
+        RUN_DIR / "wifi-operation.lock",
+        os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW,
+        0o600,
+    )
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -72,25 +76,182 @@ def _serialized(function):
             with _operation_lock():
                 return function(*args, **kwargs)
         except NetworkBusy:
-            return {"status": "wifi-operation-busy", "online": False}
+            return {"status": "wifi-operation-busy", "online": False, "manager": MANAGER}
         except (NetworkError, OSError) as exc:
-            return {"status": "wifi-service-unavailable", "online": False, "error_type": type(exc).__name__}
+            return {
+                "status": "wifi-service-unavailable",
+                "online": False,
+                "manager": MANAGER,
+                "error_type": type(exc).__name__,
+            }
+
     return wrapped
+
+
+def _run(
+    arguments: list[str],
+    *,
+    input_text: str | None = None,
+    timeout: int = 30,
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    environment["LC_ALL"] = "C"
+    try:
+        return subprocess.run(
+            arguments,
+            input=input_text,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise NetworkError(f"NetworkManager request failed to start: {exc}") from exc
+
+
+def _command(name: str) -> str:
+    path = shutil.which(name)
+    if not path:
+        raise NetworkError(f"required network helper is unavailable: {name}")
+    return path
+
+
+def _nmcli(arguments: list[str], *, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    return _run([_command("nmcli"), "--colors", "no", *arguments], timeout=timeout)
+
+
+def _split_nmcli(line: str) -> list[str]:
+    """Split nmcli terse output without losing escaped colons/backslashes."""
+    values: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line:
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == ":":
+            values.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    if escaped:
+        current.append("\\")
+    values.append("".join(current))
+    return values
+
+
+def _rows(fields: list[str], arguments: list[str], *, timeout: int = 10) -> list[dict[str, str]]:
+    result = _nmcli(
+        ["--terse", "--escape", "yes", "--fields", ",".join(fields), *arguments],
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        return []
+    parsed: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        values = _split_nmcli(line)
+        if len(values) == len(fields):
+            parsed.append(dict(zip(fields, values, strict=True)))
+    return parsed
+
+
+def _manager_ready() -> bool:
+    if not shutil.which("nmcli"):
+        return False
+    result = _nmcli(["--terse", "--fields", "RUNNING", "general"], timeout=3)
+    return result.returncode == 0 and result.stdout.strip().lower() == "running"
+
+
+def wireless_interfaces(sys_root: Path = Path("/sys")) -> list[str]:
+    interfaces: list[str] = []
+    root = sys_root / "class" / "net"
+    try:
+        entries = sorted(root.iterdir(), key=lambda path: path.name)
+    except OSError:
+        return []
+    for entry in entries:
+        if (entry / "wireless").exists() or entry.name.startswith("wl"):
+            interfaces.append(entry.name)
+    return interfaces
+
+
+def _wireless_driver(interface: str, sys_root: Path = Path("/sys")) -> str | None:
+    try:
+        return (sys_root / "class" / "net" / interface / "device" / "driver").resolve(
+            strict=True
+        ).name
+    except OSError:
+        return None
+
+
+def _unbound_pci_wifi_count(sys_root: Path = Path("/sys")) -> int:
+    count = 0
+    root = sys_root / "bus" / "pci" / "devices"
+    try:
+        devices = list(root.iterdir())
+    except OSError:
+        return 0
+    for device in devices:
+        try:
+            device_class = (device / "class").read_text(encoding="ascii").strip().lower()
+        except OSError:
+            continue
+        if device_class.startswith("0x0280") and not (device / "driver").exists():
+            count += 1
+    return count
+
+
+def _device_rows() -> list[dict[str, str]]:
+    if not _manager_ready():
+        return []
+    return _rows(
+        ["DEVICE", "TYPE", "STATE", "CONNECTION"],
+        ["device", "status"],
+        timeout=5,
+    )
+
+
+def wireless_hardware(sys_root: Path = Path("/sys")) -> dict[str, Any]:
+    interfaces = wireless_interfaces(sys_root)
+    managed = {row["DEVICE"]: row["STATE"] for row in _device_rows()}
+    adapters = []
+    for interface in interfaces:
+        driver = _wireless_driver(interface, sys_root)
+        adapters.append(
+            {
+                "interface": interface,
+                "driver": driver,
+                "driver_ready": driver is not None,
+                "manager_state": managed.get(interface, "unavailable"),
+            }
+        )
+    return {
+        "adapters": adapters,
+        "adapter_count": len(adapters),
+        "unbound_pci_wifi_count": _unbound_pci_wifi_count(sys_root),
+        "driver_ready": bool(adapters and all(item["driver_ready"] for item in adapters)),
+    }
 
 
 def _usable_ipv4(value: str) -> bool:
     try:
         address = ipaddress.ip_address(value)
         return address.version == 4 and not (
-            address.is_loopback or address.is_link_local or address.is_unspecified or address.is_multicast
+            address.is_loopback
+            or address.is_link_local
+            or address.is_unspecified
+            or address.is_multicast
         )
     except ValueError:
         return False
 
 
 def _internet_probe(interface: str, source_ip: str) -> dict[str, Any]:
-    # Resolver calls can block beyond socket timeouts. An owned child bounds
-    # DNS AND TCP together; subprocess.run kills/reaps it on timeout. No shell.
+    # DNS and TCP run together in an owned child so resolver stalls are bounded.
     program = """import json, socket, sys
 result = {'dns_github': False, 'github_tcp_443': False, 'probe_status': 'complete'}
 try:
@@ -115,112 +276,207 @@ print(json.dumps(result))
         result = _run([sys.executable, "-c", program, interface, source_ip], timeout=5)
         payload = json.loads(result.stdout)
         if result.returncode == 0 and isinstance(payload, dict):
-            return {key: payload.get(key) for key in ("dns_github", "github_tcp_443", "probe_status")}
+            return {
+                key: payload.get(key)
+                for key in ("dns_github", "github_tcp_443", "probe_status")
+            }
     except (NetworkError, ValueError):
         pass
-    return {"dns_github": False, "github_tcp_443": False, "probe_status": "timeout-or-unavailable"}
+    return {
+        "dns_github": False,
+        "github_tcp_443": False,
+        "probe_status": "timeout-or-unavailable",
+    }
 
 
-def _run(arguments: list[str], *, input_text: str | None = None, timeout: int = 30) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            arguments,
-            input=input_text,
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise NetworkError(f"network operation failed to start: {exc}") from exc
-
-
-def _command(name: str) -> str:
-    path = shutil.which(name)
-    if not path:
-        raise NetworkError(f"required Wi-Fi helper is unavailable: {name}")
-    return path
-
-
-def wireless_interfaces(sys_root: Path = Path("/sys")) -> list[str]:
-    interfaces: list[str] = []
-    root = sys_root / "class" / "net"
-    try:
-        entries = sorted(root.iterdir(), key=lambda path: path.name)
-    except OSError:
-        return []
-    for entry in entries:
-        if (entry / "wireless").exists() or entry.name.startswith("wl"):
-            interfaces.append(entry.name)
-    return interfaces
-
-
-def _addresses(interface: str | None = None) -> list[str]:
-    ip = shutil.which("ip")
-    if not ip:
-        return []
-    arguments = [ip, "-j", "address", "show"]
-    if interface:
-        arguments.extend(["dev", interface])
-    result = _run(arguments, timeout=2)
+def _device_properties(interface: str) -> dict[str, list[str]]:
+    result = _nmcli(
+        [
+            "--terse",
+            "--escape",
+            "yes",
+            "--fields",
+            "GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY",
+            "device",
+            "show",
+            interface,
+        ],
+        timeout=5,
+    )
     if result.returncode != 0:
-        return []
-    try:
-        payload = json.loads(result.stdout or "[]")
-    except json.JSONDecodeError:
-        return []
-    addresses: list[str] = []
-    for item in payload:
-        name = item.get("ifname")
-        for address in item.get("addr_info") or []:
-            local = address.get("local")
-            if local and not str(local).startswith("127.") and local != "::1":
-                addresses.append(f"{name}:{local}")
-    return addresses
+        return {}
+    properties: dict[str, list[str]] = {}
+    for line in result.stdout.splitlines():
+        values = _split_nmcli(line)
+        if len(values) != 2:
+            continue
+        key = values[0].split("[", 1)[0]
+        properties.setdefault(key, []).append(values[1])
+    return properties
+
+
+def _active_connections() -> list[dict[str, str]]:
+    return _rows(
+        ["NAME", "UUID", "TYPE", "DEVICE"],
+        ["connection", "show", "--active"],
+        timeout=5,
+    )
+
+
+def _active_for(interface: str) -> dict[str, str] | None:
+    return next(
+        (row for row in _active_connections() if row.get("DEVICE") == interface),
+        None,
+    )
+
+
+def _profile_ssid(profile_uuid: str) -> str | None:
+    result = _nmcli(
+        [
+            "--escape",
+            "yes",
+            "--get-values",
+            "802-11-wireless.ssid",
+            "connection",
+            "show",
+            "uuid",
+            profile_uuid,
+        ],
+        timeout=5,
+    )
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return _split_nmcli(value)[0] if value else None
+
+
+def _status_for(interface: str, rows: list[dict[str, str]]) -> dict[str, Any]:
+    row = next((item for item in rows if item.get("DEVICE") == interface), {})
+    properties = _device_properties(interface)
+    state_value = next(iter(properties.get("GENERAL.STATE", [])), "0")
+    match = re.match(r"(\d+)", state_value)
+    state_code = int(match.group(1)) if match else 0
+    connected = state_code == 100 or row.get("STATE") == "connected"
+    addresses = [
+        value.split("/", 1)[0]
+        for value in properties.get("IP4.ADDRESS", [])
+        if value
+    ]
+    active_ip = next((value for value in addresses if _usable_ipv4(value)), None)
+    gateway = next((value for value in properties.get("IP4.GATEWAY", []) if value), None)
+    active = _active_for(interface) if connected else None
+    is_wifi = row.get("TYPE") in WIFI_TYPES or interface in wireless_interfaces()
+    associated = bool(
+        is_wifi and connected and active and active.get("TYPE") in WIFI_TYPES
+    )
+    profile_uuid = active.get("UUID") if active else None
+    ssid = _profile_ssid(profile_uuid) if associated and profile_uuid else None
+    probe = {"dns_github": False, "github_tcp_443": False, "probe_status": "not-run"}
+    route_matches = bool(connected and active_ip and gateway)
+    if route_matches:
+        probe = _internet_probe(interface, active_ip)
+    online = bool(
+        route_matches and probe.get("dns_github") and probe.get("github_tcp_443")
+    )
+    if not connected:
+        status = "wifi-disconnected" if is_wifi else "network-disconnected"
+    elif is_wifi and not associated:
+        status = "wifi-association-pending"
+    elif not active_ip:
+        status = "wifi-address-pending" if is_wifi else "network-address-pending"
+    elif not gateway:
+        status = "wifi-route-pending" if is_wifi else "network-route-pending"
+    elif probe.get("probe_status") == "timeout-or-unavailable":
+        status = "wifi-probe-unavailable" if is_wifi else "network-probe-unavailable"
+    elif not probe.get("dns_github"):
+        status = "wifi-dns-unavailable" if is_wifi else "network-dns-unavailable"
+    elif not probe.get("github_tcp_443"):
+        status = "wifi-internet-unreachable" if is_wifi else "network-internet-unreachable"
+    else:
+        status = "online"
+    return {
+        "status": status,
+        "manager": MANAGER,
+        "manager_ready": True,
+        "exclusive_owner": True,
+        "interface": interface,
+        "connection_uuid": profile_uuid,
+        "ip": active_ip,
+        "addresses": [f"{interface}:{value}" for value in addresses],
+        "gateway": gateway,
+        "default_routes": [f"default via {gateway} dev {interface}"] if gateway else [],
+        "route_probe": f"dev {interface} src {active_ip}" if active_ip else "",
+        "route_matches_interface": route_matches,
+        "associated": associated,
+        "ssid": ssid,
+        **probe,
+        "online": online,
+    }
 
 
 def network_status(interface: str | None = None) -> dict[str, Any]:
-    ip = shutil.which("ip")
-    route = ""
-    default_routes: list[str] = []
-    if ip:
-        route_result = _run([ip, "route", "show", "default"], timeout=2)
-        default_routes = [line.strip() for line in route_result.stdout.splitlines() if line.strip()]
-        route_arguments = [ip, "route", "get", "1.1.1.1"]
-        if interface:
-            route_arguments.extend(["oif", interface])
-        route_probe = _run(route_arguments, timeout=2)
-        if route_probe.returncode == 0:
-            route = route_probe.stdout.strip().splitlines()[0] if route_probe.stdout.strip() else ""
-
-    route_fields = route.split()
-    route_interface = None
-    if "dev" in route_fields and route_fields.index("dev") + 1 < len(route_fields):
-        route_interface = route_fields[route_fields.index("dev") + 1]
-    active_interface = interface or route_interface
-    addresses = _addresses(interface)
-    active_addresses = [
-        value.split(":", 1)[1]
-        for value in addresses
-        if active_interface and value.startswith(f"{active_interface}:")
-    ]
-    active_ip = next((value for value in active_addresses if _usable_ipv4(value)), None)
-    route_matches = bool(active_interface and active_interface == route_interface)
-    probe = {"dns_github": False, "github_tcp_443": False, "probe_status": "not-run"}
-    if active_ip and route_matches:
-        probe = _internet_probe(active_interface, active_ip)
+    interfaces = wireless_interfaces()
+    hardware = wireless_hardware()
+    if not _manager_ready():
+        status = (
+            "wifi-driver-unavailable"
+            if not interfaces and hardware["unbound_pci_wifi_count"]
+            else "network-manager-unavailable"
+        )
+        return {
+            "status": status,
+            "manager": MANAGER,
+            "manager_ready": False,
+            "exclusive_owner": False,
+            "wireless_interfaces": interfaces,
+            "wireless_hardware": hardware,
+            "interface": interface,
+            "online": False,
+        }
+    rows = _device_rows()
+    if interface:
+        if not any(row.get("DEVICE") == interface for row in rows):
+            return {
+                "status": "network-interface-unavailable",
+                "manager": MANAGER,
+                "manager_ready": True,
+                "exclusive_owner": True,
+                "wireless_interfaces": interfaces,
+                "wireless_hardware": hardware,
+                "interface": interface,
+                "online": False,
+            }
+        selected = interface
+    else:
+        connected = [row for row in rows if row.get("STATE") == "connected"]
+        selected = next(
+            (row["DEVICE"] for row in connected if row.get("TYPE") not in WIFI_TYPES),
+            None,
+        ) or next((row["DEVICE"] for row in connected), None)
+        selected = selected or (interfaces[0] if interfaces else None)
+    if not selected:
+        return {
+            "status": "no-network-interface",
+            "manager": MANAGER,
+            "manager_ready": True,
+            "exclusive_owner": True,
+            "wireless_interfaces": interfaces,
+            "wireless_hardware": hardware,
+            "interface": None,
+            "online": False,
+        }
     return {
-        "wireless_interfaces": wireless_interfaces(),
-        "interface": active_interface,
-        "ip": active_ip,
-        "addresses": addresses,
-        "default_routes": default_routes,
-        "route_probe": route,
-        "route_matches_interface": route_matches,
-        **probe,
-        "online": bool(active_ip and route_matches and probe["dns_github"] and probe["github_tcp_443"]),
+        **_status_for(selected, rows),
+        "wireless_interfaces": interfaces,
+        "wireless_hardware": hardware,
     }
+
+
+def _connection_state(interface: str) -> dict[str, Any]:
+    status = network_status(interface)
+    if interface not in status.get("wireless_interfaces", []):
+        return {**status, "status": "no-wifi-interface", "online": False}
+    return status
 
 
 @_serialized
@@ -228,68 +484,144 @@ def scan_networks(interface: str | None = None) -> dict[str, Any]:
     interfaces = wireless_interfaces()
     selected = interface or (interfaces[0] if interfaces else None)
     if not selected or selected not in interfaces:
-        return {"status": "no-wifi-interface", "interface": None, "ssids": []}
-
-    rfkill = shutil.which("rfkill")
-    if rfkill:
-        _run([rfkill, "unblock", "wifi"], timeout=10)
-    ip = _command("ip")
-    _run([ip, "link", "set", "dev", selected, "up"], timeout=10)
-    iw = _command("iw")
-    result = _run([iw, "dev", selected, "scan"], timeout=20)
+        return {
+            "status": "no-wifi-interface",
+            "manager": MANAGER,
+            "interface": None,
+            "ssids": [],
+        }
+    if not _manager_ready():
+        return {
+            "status": "network-manager-unavailable",
+            "manager": MANAGER,
+            "interface": selected,
+            "ssids": [],
+        }
+    _nmcli(["radio", "wifi", "on"], timeout=5)
+    managed = _nmcli(["device", "set", selected, "managed", "yes"], timeout=5)
+    if managed.returncode != 0:
+        return {
+            "status": "wifi-manager-unavailable",
+            "manager": MANAGER,
+            "interface": selected,
+            "ssids": [],
+        }
+    _nmcli(["--wait", "15", "device", "wifi", "rescan", "ifname", selected], timeout=20)
+    rows = _rows(
+        ["SSID", "SIGNAL", "SECURITY", "IN-USE"],
+        ["device", "wifi", "list", "ifname", selected, "--rescan", "no"],
+        timeout=20,
+    )
     ssids: list[str] = []
-    if result.returncode == 0:
-        for line in result.stdout.splitlines():
-            stripped = line.strip()
-            if not stripped.startswith("SSID:"):
-                continue
-            ssid = stripped.split(":", 1)[1].strip()
-            if ssid and ssid not in ssids:
-                ssids.append(ssid)
+    for row in rows:
+        ssid = row.get("SSID", "")
+        if ssid and ssid not in ssids:
+            ssids.append(ssid)
     return {
-        "status": "ready" if result.returncode == 0 else "scan-failed",
+        "status": "ready",
+        "manager": MANAGER,
         "interface": selected,
         "ssids": ssids,
-        "detail": "" if result.returncode == 0 else result.stdout.strip()[-800:],
+        "networks": [
+            {
+                "ssid": row.get("SSID"),
+                "signal": int(row["SIGNAL"]) if row.get("SIGNAL", "").isdigit() else None,
+                "secured": bool(row.get("SECURITY") and row.get("SECURITY") != "--"),
+                "active": row.get("IN-USE") in {"yes", "*"},
+            }
+            for row in rows
+            if row.get("SSID")
+        ],
     }
 
 
-def _escaped_ssid(ssid: str) -> str:
-    return ssid.replace("\\", "\\\\").replace('"', '\\"')
+def _keyfile_escape(value: str) -> str:
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+    leading = len(escaped) - len(escaped.lstrip(" "))
+    trailing = len(escaped) - len(escaped.rstrip(" "))
+    if leading:
+        escaped = "\\s" * leading + escaped[leading:]
+    if trailing:
+        escaped = escaped[:-trailing] + "\\s" * trailing
+    return escaped
 
 
-def _make_config(ssid: str, password: str) -> str:
-    if not ssid or len(ssid.encode("utf-8")) > 32:
-        raise NetworkError("Wi-Fi SSID must contain 1-32 bytes")
+def _validate_credentials(ssid: str, password: str) -> tuple[str, str] | None:
+    normalized = ssid.strip()
+    if not normalized or len(normalized.encode("utf-8")) > 32:
+        return None
+    if any(ord(character) < 32 for character in normalized):
+        return None
+    if password and not (
+        8 <= len(password) <= 63 or re.fullmatch(r"[0-9a-fA-F]{64}", password)
+    ):
+        return None
+    if any(character in "\0\n\r" for character in password):
+        return None
+    return normalized, password
+
+
+def _profile_content(ssid: str, password: str, profile_uuid: str) -> str:
+    sections = [
+        "[connection]",
+        "id=Aurum Wi-Fi",
+        f"uuid={profile_uuid}",
+        "type=wifi",
+        "autoconnect=true",
+        "autoconnect-priority=100",
+        "",
+        "[wifi]",
+        "mode=infrastructure",
+        f"ssid={_keyfile_escape(ssid)}",
+        "hidden=true",
+    ]
     if password:
-        helper = _command("wpa_passphrase")
-        result = _run([helper, ssid], input_text=password + "\n", timeout=10)
-        if result.returncode != 0:
-            raise NetworkError(result.stdout.strip()[-800:] or "wpa_passphrase rejected the credentials")
-        lines = [line for line in result.stdout.splitlines() if not line.lstrip().startswith("#psk=")]
-        config = "\n".join(lines).strip() + "\n"
-        config = config.replace("network={\n", "network={\n\tscan_ssid=1\n", 1)
-    else:
-        config = (
-            "network={\n"
-            f'\tssid="{_escaped_ssid(ssid)}"\n'
-            "\tscan_ssid=1\n"
-            "\tkey_mgmt=NONE\n"
-            "}\n"
+        sections.extend(
+            [
+                "security=wifi-security",
+                "",
+                "[wifi-security]",
+                "key-mgmt=wpa-psk",
+                f"psk={_keyfile_escape(password)}",
+                "psk-flags=0",
+            ]
         )
-    return "ctrl_interface=/run/wpa_supplicant\nupdate_config=0\n" + config
+    sections.extend(
+        [
+            "",
+            "[ipv4]",
+            "method=auto",
+            "",
+            "[ipv6]",
+            "method=auto",
+            "addr-gen-mode=stable-privacy",
+            "",
+        ]
+    )
+    return "\n".join(sections)
 
 
-def _write_config(path: Path, config: str) -> None:
+def _write_private(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(path.parent, 0o700)
     fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            stream.write(config)
+            if hasattr(os, "fchmod"):
+                os.fchmod(stream.fileno(), 0o600)
+            else:
+                os.chmod(temporary, 0o600)
+            stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        os.chmod(path, 0o600)
         if hasattr(os, "O_DIRECTORY"):
             directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
             try:
@@ -300,331 +632,130 @@ def _write_config(path: Path, config: str) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def _write_saved_config(config: str) -> None:
-    if SAVED_WIFI.is_file():
-        previous = SAVED_WIFI.read_text(encoding="utf-8")
-        if previous != config:
-            _write_config(SAVED_WIFI.with_name("wifi.previous.conf"), previous)
-    _write_config(SAVED_WIFI, config)
-
-
-def _aurum_supplicant_arguments(arguments: list[str], interface: str) -> bool:
-    def option(name: str):
-        if arguments.count(name) != 1:
+def _profile_uuid(path: Path) -> str | None:
+    try:
+        if path.is_symlink() or not path.is_file():
             return None
-        index = arguments.index(name) + 1
-        return arguments[index] if index < len(arguments) else None
-    configs = {str(SAVED_WIFI), str(RUN_DIR / f"wifi-{interface}.conf")}
-    return bool(arguments and Path(arguments[0]).name == "wpa_supplicant"
-                and "-N" not in arguments and option("-i") == interface
-                and option("-P") == str(RUN_DIR / f"wpa-{interface}.pid")
-                and option("-c") in configs)
-
-
-def _orphan_identity_matches(pid: int, interface: str, inode: str) -> bool:
-    """A lost PID file is recoverable only with executable AND socket ownership."""
-    process = PROC_ROOT / str(pid)
-    try:
-        arguments = (process / "cmdline").read_bytes().decode("utf-8", "strict").strip("\0").split("\0")
-        if not _aurum_supplicant_arguments(arguments, interface) or process.stat().st_uid != 0:
-            return False
-        if (process / "exe").resolve(strict=True) != Path(_command("wpa_supplicant")).resolve(strict=True):
-            return False
-        deadline = time.monotonic() + 1
-        for index, descriptor in enumerate((process / "fd").iterdir()):
-            if index >= 256 or time.monotonic() > deadline:
-                raise NetworkError("Wi-Fi descriptor ownership inspection incomplete")
-            try:
-                if os.readlink(descriptor) == f"socket:[{inode}]":
-                    return True
-            except FileNotFoundError:
-                continue  # A descriptor may close during a read-only snapshot.
-    except (FileNotFoundError, ProcessLookupError, UnicodeError):
-        return False
-    return False
-
-
-def _find_owned_orphan_supplicant(interface: str) -> tuple[int, str] | None:
-    path = str(CONTROL_DIR / interface)
-    inodes = set()
-    for line in (PROC_ROOT / "net" / "unix").read_text(encoding="utf-8").splitlines():
-        fields = line.split(maxsplit=7)
-        if len(fields) == 8 and fields[7] == path and fields[4] == "0002":
-            inodes.add(fields[6])
-    if not inodes:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("uuid="):
+                value = line.split("=", 1)[1].strip()
+                return str(uuid.UUID(value))
+    except (OSError, UnicodeError, ValueError):
         return None
-    matches = []
-    deadline = time.monotonic() + 2
-    for index, process in enumerate(PROC_ROOT.iterdir()):
-        if index >= 4096 or time.monotonic() > deadline:
-            raise NetworkError("Wi-Fi socket ownership inspection incomplete")
-        if not process.name.isdecimal() or int(process.name) <= 1:
-            continue
-        for inode in inodes:
-            if _orphan_identity_matches(int(process.name), interface, inode):
-                matches.append((int(process.name), inode))
-    if len(matches) > 1:
-        raise NetworkError("Wi-Fi socket ownership is ambiguous")
-    return matches[0] if matches else None
-
-
-def _control_socket_is_bound(interface: str) -> bool:
-    # No unlink: even an unresponsive bound socket belongs to a live process.
-    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as probe:
-        probe.settimeout(0.2)
-        try:
-            probe.connect(str(CONTROL_DIR / interface))
-            return True
-        except OSError as exc:
-            if exc.errno in {errno.ENOENT, errno.ECONNREFUSED}:
-                return False
-            raise NetworkError("Wi-Fi control socket could not be inspected safely") from exc
-
-
-def _managed_supplicant_unit(pid: int) -> str | None:
-    try:
-        groups = (PROC_ROOT / str(pid) / "cgroup").read_text(encoding="utf-8").splitlines()
-    except FileNotFoundError:
-        return None
-    for group in groups:
-        unit = group.rsplit("/", 1)[-1]
-        if re.fullmatch(r"aurum-wifi-[0-9a-f]{32}\.service", unit):
-            return unit
     return None
 
 
-def _packaged_supplicant_owner(pid: int) -> bool:
-    """Recognize only the exact generic daemon shipped by this Aurum image."""
-    if pid <= 1:
-        return False
-    process = PROC_ROOT / str(pid)
-    try:
-        arguments = (process / "cmdline").read_bytes().decode("utf-8", "strict").strip("\0").split("\0")
-        groups = (process / "cgroup").read_text(encoding="utf-8").splitlines()
-        executable = (process / "exe").resolve(strict=True)
-        expected = Path(_command("wpa_supplicant")).resolve(strict=True)
-        return bool(
-            process.stat().st_uid == 0
-            and executable == expected
-            and arguments
-            and Path(arguments[0]).name == "wpa_supplicant"
-            and arguments[1:] == PACKAGED_SUPPLICANT_ARGUMENTS
-            and any(group.rsplit("/", 1)[-1] == PACKAGED_SUPPLICANT_UNIT for group in groups)
-        )
-    except (FileNotFoundError, ProcessLookupError, UnicodeError, OSError):
-        return False
-
-
-def _stop_packaged_supplicant_service(systemctl: str) -> bool:
-    """Stop the image's unintended generic owner, never an unknown manager."""
-    result = _run([
-        systemctl, "show", PACKAGED_SUPPLICANT_UNIT,
-        "--property=LoadState", "--property=ActiveState", "--property=MainPID",
-    ], timeout=2)
-    fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
-    if result.returncode != 0 or fields.get("LoadState") == "not-found" or fields.get("ActiveState") in {"inactive", "failed"}:
-        return False
-    if fields.get("ActiveState") == "deactivating":
-        _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT, systemctl=systemctl)
-        return True
-    try:
-        pid = int(fields.get("MainPID", "0"))
-    except ValueError as exc:
-        raise NetworkError("packaged Wi-Fi service identity is invalid") from exc
-    if not _packaged_supplicant_owner(pid):
-        raise NetworkError("refusing to stop an unrecognized Wi-Fi manager")
-    stopped = _run([systemctl, "stop", PACKAGED_SUPPLICANT_UNIT], timeout=8)
-    if stopped.returncode != 0:
-        raise NetworkError("packaged Wi-Fi service did not stop")
-    _wait_owned_unit_cleanup(PACKAGED_SUPPLICANT_UNIT, systemctl=systemctl)
-    return True
-
-
-def _wait_owned_unit_cleanup(unit: str, *, systemctl: str | None = None) -> None:
-    # PIDFile cleanup can lag process exit. Never launch a new PID into that race.
-    controller = systemctl or _command("systemctl")
-    deadline = time.monotonic() + 3
-    while True:
-        result = _run([controller, "show", unit, "--property=LoadState", "--property=ActiveState"], timeout=2)
-        fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
-        if fields.get("LoadState") == "not-found" or (
-            result.returncode == 0 and fields.get("ActiveState") in {"inactive", "failed"}
-        ):
-            return
-        if time.monotonic() >= deadline:
-            raise NetworkError("Wi-Fi service cleanup incomplete; no replacement started")
-        time.sleep(.1)
-
-
-def _start_owned_supplicant(interface: str, config_path: Path, manager: str) -> subprocess.CompletedProcess[str]:
-    pid_path = RUN_DIR / f"wpa-{interface}.pid"
-    unit = f"aurum-wifi-{uuid.uuid4().hex}.service"
-    _write_config(RUN_DIR / f"wpa-{interface}.unit", unit + "\n")
-    # The system manager, not the requesting GUI/console, owns this process.
-    # No Restart loop: explicit locked transactions own reconnection/recovery.
-    return _run([
-        manager, "--quiet", "--no-ask-password", "--collect", f"--unit={unit}",
-        "--service-type=forking", f"--property=PIDFile={pid_path}",
-        "--property=Restart=no", "--property=KillMode=control-group",
-        "--property=TimeoutStartSec=8", "--property=TimeoutStopSec=5", "--property=UMask=0077",
-        "--", _command("wpa_supplicant"), "-B", "-D", "nl80211,wext", "-i", interface,
-        "-c", str(config_path), "-P", str(pid_path),
-    ], timeout=15)
-
-
-def _stop_owned_supplicant(interface: str) -> None:
-    pid_path = RUN_DIR / f"wpa-{interface}.pid"
-    unit_path = RUN_DIR / f"wpa-{interface}.unit"
-    try:
-        tracked_unit = unit_path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        tracked_unit = None
-    if tracked_unit is not None and not re.fullmatch(r"aurum-wifi-[0-9a-f]{32}\.service", tracked_unit):
-        raise NetworkError("invalid Wi-Fi service ownership record")
-
-    def finish_unit_cleanup(managed=None):
-        for unit in sorted({value for value in (managed, tracked_unit) if value}):
-            _wait_owned_unit_cleanup(unit)
+def _owned_profiles(*roots: Path) -> list[tuple[Path, str]]:
+    profiles: list[tuple[Path, str]] = []
+    for root in roots:
         try:
-            if tracked_unit is not None and unit_path.read_text(encoding="utf-8").strip() == tracked_unit:
-                unit_path.unlink()
-        except FileNotFoundError:
-            pass
-
-    managed_unit = None
-    try:
-        pid = int(pid_path.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        pid = None
-    if (pid is not None and pid <= 1) or not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
-        raise NetworkError("safe Wi-Fi process ownership check unavailable")
-    fd = None
-    if pid is not None:
-        try:
-            fd = os.pidfd_open(pid)
-        except ProcessLookupError:
-            pid = None
-    orphan = None
-    if fd is None:
-        orphan = _find_owned_orphan_supplicant(interface)
-        if orphan is None:
-            finish_unit_cleanup()
-            return
-        pid, _ = orphan
-        try:
-            fd = os.pidfd_open(pid)
-        except ProcessLookupError:
-            finish_unit_cleanup()
-            return
-    try:
-        try:
-            arguments = (PROC_ROOT / str(pid) / "cmdline").read_bytes().decode("utf-8", "strict").strip("\0").split("\0")
-        except FileNotFoundError:
-            arguments = []
-        owned = _aurum_supplicant_arguments(arguments, interface)
-        if orphan is not None:
-            owned = owned and _orphan_identity_matches(pid, interface, orphan[1])
-        if not owned and not select.select([fd], [], [], 0)[0]:
-            raise NetworkError("refusing to terminate an unrecognized Wi-Fi process")
-        if owned:
-            managed_unit = _managed_supplicant_unit(pid)
-            try:
-                signal.pidfd_send_signal(fd, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-        if not select.select([fd], [], [], 5)[0]:
-            raise NetworkError("Wi-Fi service did not stop; no replacement was started")
-    finally:
-        os.close(fd)
-    finish_unit_cleanup(managed_unit)
-    try:
-        if pid_path.read_text(encoding="utf-8").strip() == str(pid):
-            pid_path.unlink()
-    except FileNotFoundError:
-        pass
+            candidates = sorted(root.glob(f"{PROFILE_PREFIX}*.nmconnection"))
+        except OSError:
+            continue
+        for path in candidates:
+            value = _profile_uuid(path)
+            if value:
+                profiles.append((path, value))
+    return profiles
 
 
-def _supplicant_status(interface: str) -> dict[str, str]:
-    helper = _command("wpa_cli")
-    result = _run([helper, "-p", str(CONTROL_DIR), "-i", interface, "status"], timeout=2)
-    fields = {}
-    if result.returncode == 0:
-        for line in result.stdout.splitlines():
-            key, separator, value = line.partition("=")
-            if separator and key in {"wpa_state", "ssid"}:
-                fields[key] = value
-    return fields
-
-
-def _connection_state(interface: str) -> dict[str, Any]:
-    association = _supplicant_status(interface)
-    status = network_status(interface)
-    associated = association.get("wpa_state") == "COMPLETED"
-    reason = "online"
-    if not associated:
-        reason = "wifi-association-pending"
-    elif not status.get("ip"):
-        reason = "wifi-address-pending"
-    elif not status.get("route_matches_interface"):
-        reason = "wifi-route-pending"
-    elif status.get("probe_status") == "timeout-or-unavailable":
-        reason = "wifi-probe-unavailable"
-    elif not status.get("dns_github"):
-        reason = "wifi-dns-unavailable"
-    elif not status.get("github_tcp_443"):
-        reason = "wifi-internet-unreachable"
-    return {**status, "associated": associated, "ssid": association.get("ssid"),
-            "wpa_state": association.get("wpa_state", "UNKNOWN"), "status": reason,
-            "online": bool(associated and status.get("online"))}
-
-
-def _connect_config(selected: str, config_path: Path, *, timeout_seconds: int) -> dict[str, Any]:
-    if selected not in wireless_interfaces():
-        return {"status": "no-wifi-interface", "online": False, "started": False}
-    # Resolve dependencies before stopping a usable existing connection.
-    manager = _command("systemd-run")
-    systemctl = _command("systemctl")
-    _command("wpa_supplicant")
-    deadline = time.monotonic() + max(0, timeout_seconds)
-    rfkill = shutil.which("rfkill")
-    if rfkill:
-        _run([rfkill, "unblock", "wifi"], timeout=2)
-    _run([_command("ip"), "link", "set", "dev", selected, "up"], timeout=2)
-    _stop_packaged_supplicant_service(systemctl)
-    _stop_owned_supplicant(selected)
-    # A remaining responsive manager or bound socket is not ours. Never kill it, unlink its
-    # socket or start a competing daemon on its interface.
-    if _supplicant_status(selected).get("wpa_state") or _control_socket_is_bound(selected):
-        return {"status": "wifi-manager-conflict", "online": False, "started": False}
-    result = _start_owned_supplicant(selected, config_path, manager)
+def _load_profile(path: Path) -> None:
+    result = _nmcli(["connection", "load", str(path)], timeout=10)
     if result.returncode != 0:
-        reason = "wifi-manager-conflict" if "ctrl_iface exists and seems to be in use" in result.stdout else "association-start-failed"
-        return {"status": reason, "online": False, "started": True}
-    networkctl = shutil.which("networkctl")
-    # Reconfiguring on every poll needlessly churns DHCP while it is acquiring
-    # a lease. Request it once; networkd reacts to association/carrier changes.
-    if networkctl:
-        _run([networkctl, "reconfigure", selected], timeout=2)
+        raise NetworkError("NetworkManager rejected the private Wi-Fi profile")
+
+
+def _activate_profile(
+    profile_uuid: str,
+    interface: str,
+    ssid: str,
+    *,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    result = _nmcli(
+        [
+            "--wait",
+            str(max(5, min(timeout_seconds, 120))),
+            "connection",
+            "up",
+            "uuid",
+            profile_uuid,
+            "ifname",
+            interface,
+        ],
+        timeout=max(10, min(timeout_seconds, 120) + 5),
+    )
+    if result.returncode != 0:
+        output = result.stdout.lower()
+        if "secrets were required" in output or "password" in output or "encryption key" in output:
+            reason = "wifi-credentials-rejected"
+        elif "not found" in output or "no network" in output:
+            reason = "wifi-network-not-found"
+        else:
+            reason = "wifi-association-failed"
+        return {"status": reason, "online": False, "activated": False}
+    deadline = time.monotonic() + max(0, timeout_seconds)
     status = {"status": "wifi-connection-unverified", "online": False}
-    while time.monotonic() < deadline:
-        status = _connection_state(selected)
-        if status["online"]:
+    while True:
+        status = _connection_state(interface)
+        exact_profile = status.get("connection_uuid") == profile_uuid
+        exact_ssid = status.get("ssid") == ssid
+        if status.get("online") and status.get("associated") and exact_profile and exact_ssid:
+            return {**status, "activated": True}
+        if time.monotonic() >= deadline:
             break
-        if time.monotonic() < deadline:
-            time.sleep(min(1, max(0, deadline - time.monotonic())))
-    return {**status, "started": True}
+        time.sleep(min(1, max(0, deadline - time.monotonic())))
+    if status.get("online"):
+        status = {**status, "status": "wifi-network-mismatch", "online": False}
+    return {**status, "activated": True}
 
 
-@_serialized
-def connect_saved(interface: str | None = None, *, timeout_seconds: int = 50) -> dict[str, Any]:
-    interfaces = wireless_interfaces()
-    selected = interface or (interfaces[0] if interfaces else None)
-    if not selected or selected not in interfaces:
-        return {"status": "no-wifi-interface", **network_status()}
-    if not SAVED_WIFI.is_file():
-        return {"status": "credentials-required", **network_status(selected)}
+def _remove_candidate(path: Path, profile_uuid: str) -> None:
+    _nmcli(["--wait", "5", "connection", "down", "uuid", profile_uuid], timeout=8)
+    _nmcli(["--wait", "5", "connection", "delete", "uuid", profile_uuid], timeout=8)
+    path.unlink(missing_ok=True)
+    _nmcli(["connection", "reload"], timeout=8)
 
-    return _connect_config(selected, SAVED_WIFI, timeout_seconds=timeout_seconds)
+
+def _restore_profile(profile_uuid: str | None, interface: str) -> dict[str, Any] | None:
+    if not profile_uuid:
+        return None
+    result = _nmcli(
+        ["--wait", "15", "connection", "up", "uuid", profile_uuid, "ifname", interface],
+        timeout=20,
+    )
+    state = _connection_state(interface)
+    return {
+        "status": state.get("status") if result.returncode == 0 else "recovery-not-verified",
+        "online": bool(result.returncode == 0 and state.get("online")),
+    }
+
+
+def _commit_profile(candidate: Path, profile_uuid: str) -> Path:
+    persistent = SYSTEM_CONNECTIONS / f"{PROFILE_PREFIX}{profile_uuid}.nmconnection"
+    _write_private(persistent, candidate.read_text(encoding="utf-8"))
+    try:
+        _load_profile(persistent)
+    except Exception:
+        persistent.unlink(missing_ok=True)
+        raise
+    candidate.unlink(missing_ok=True)
+    return persistent
+
+
+def _remove_superseded_profiles(keep_uuid: str) -> bool:
+    clean = True
+    for path, profile_uuid in _owned_profiles(SYSTEM_CONNECTIONS, RUNTIME_CONNECTIONS):
+        if profile_uuid == keep_uuid:
+            continue
+        result = _nmcli(
+            ["--wait", "5", "connection", "delete", "uuid", profile_uuid],
+            timeout=8,
+        )
+        path.unlink(missing_ok=True)
+        clean = clean and result.returncode == 0
+    _nmcli(["connection", "reload"], timeout=8)
+    return clean
 
 
 @_serialized
@@ -635,98 +766,184 @@ def connect_wifi(
     *,
     timeout_seconds: int = 50,
 ) -> dict[str, Any]:
-    """Connect from a graphical client without exposing a text-console workflow."""
+    """Connect from the GUI without exposing credentials outside a keyfile."""
+    validated = _validate_credentials(ssid, password)
+    if validated is None:
+        return {
+            "status": "invalid-wifi-credentials",
+            "online": False,
+            "saved": False,
+            "manager": MANAGER,
+        }
+    normalized_ssid, password_value = validated
+    interfaces = wireless_interfaces()
+    selected = interface or (interfaces[0] if interfaces else None)
+    if not selected or selected not in interfaces:
+        return {
+            "status": "no-wifi-interface",
+            "online": False,
+            "saved": False,
+            "manager": MANAGER,
+            **network_status(),
+        }
+    if not _manager_ready():
+        return {
+            "status": "network-manager-unavailable",
+            "online": False,
+            "saved": False,
+            "manager": MANAGER,
+            "interface": selected,
+        }
+    active = _active_for(selected)
+    previous_uuid = active.get("UUID") if active else None
+    profile_uuid = str(uuid.uuid4())
+    candidate = RUNTIME_CONNECTIONS / f"{PROFILE_PREFIX}{profile_uuid}.nmconnection"
+    content = _profile_content(normalized_ssid, password_value, profile_uuid)
+    password_value = ""
+    _write_private(candidate, content)
+    content = ""
+    try:
+        _load_profile(candidate)
+        result = _activate_profile(
+            profile_uuid,
+            selected,
+            normalized_ssid,
+            timeout_seconds=timeout_seconds,
+        )
+        verified = bool(
+            result.get("online")
+            and result.get("associated")
+            and result.get("ssid") == normalized_ssid
+            and result.get("connection_uuid") == profile_uuid
+        )
+        if not verified:
+            _remove_candidate(candidate, profile_uuid)
+            recovery = _restore_profile(previous_uuid, selected)
+            return {**result, "online": False, "saved": False, "recovery": recovery}
+        persistent = _commit_profile(candidate, profile_uuid)
+        cleanup_complete = _remove_superseded_profiles(profile_uuid)
+        return {
+            **result,
+            "status": "online" if cleanup_complete else "online-cleanup-pending",
+            "saved": True,
+            "profile_persistent": persistent.is_file(),
+            "legacy_profile_used": False,
+        }
+    except (NetworkError, OSError):
+        try:
+            _remove_candidate(candidate, profile_uuid)
+        except (NetworkError, OSError):
+            candidate.unlink(missing_ok=True)
+        recovery = _restore_profile(previous_uuid, selected)
+        return {
+            "status": "wifi-service-unavailable",
+            "online": False,
+            "saved": False,
+            "manager": MANAGER,
+            "interface": selected,
+            "recovery": recovery,
+        }
+
+
+@_serialized
+def connect_saved(interface: str | None = None, *, timeout_seconds: int = 50) -> dict[str, Any]:
     interfaces = wireless_interfaces()
     selected = interface or (interfaces[0] if interfaces else None)
     if not selected or selected not in interfaces:
         return {"status": "no-wifi-interface", **network_status()}
-    config = _make_config(ssid.strip(), password)
-    password = ""
-    candidate = RUN_DIR / f"wifi-{selected}.conf"
-    _write_config(candidate, config)
-    result = _connect_config(selected, candidate, timeout_seconds=timeout_seconds)
-    verified = bool(result.get("online") and result.get("associated") and result.get("ssid") == ssid.strip())
-    if verified:
-        _write_saved_config(config)
-        return {**result, "saved": True}
-    result = {**result, "online": False, "saved": False}
-    if result.get("status") == "online":
-        result["status"] = "wifi-network-mismatch"
-    if result.get("started"):
-        try:
-            _stop_owned_supplicant(selected)
-            if SAVED_WIFI.is_file():
-                recovery = _connect_config(selected, SAVED_WIFI, timeout_seconds=15)
-                result["recovery"] = {"status": recovery["status"], "online": recovery.get("online", False)}
-        except NetworkError:
-            result["recovery"] = {"status": "recovery-not-verified", "online": False}
-    return result
+    if not _manager_ready():
+        return {
+            "status": "network-manager-unavailable",
+            "online": False,
+            "manager": MANAGER,
+            "interface": selected,
+        }
+    current = _connection_state(selected)
+    if current.get("online") and current.get("associated"):
+        return {"status": "already-online", **current}
+    profiles = _owned_profiles(SYSTEM_CONNECTIONS)
+    if not profiles:
+        return {"status": "credentials-required", **current}
+    path, profile_uuid = max(profiles, key=lambda item: item[0].stat().st_mtime_ns)
+    ssid = _profile_ssid(profile_uuid)
+    if not ssid:
+        return {"status": "saved-profile-invalid", **current, "online": False}
+    return _activate_profile(
+        profile_uuid,
+        selected,
+        ssid,
+        timeout_seconds=timeout_seconds,
+    )
 
 
 @_serialized
 def disconnect_wifi(*, forget: bool = False) -> dict[str, Any]:
     interfaces = wireless_interfaces()
     selected = interfaces[0] if interfaces else None
-    if selected:
-        _stop_owned_supplicant(selected)
-        if _supplicant_status(selected).get("wpa_state") or _control_socket_is_bound(selected):
-            return {"status": "wifi-manager-conflict", "online": False}
+    if not selected:
+        return {"status": "no-wifi-interface", "online": False, "manager": MANAGER}
+    if not _manager_ready():
+        return {
+            "status": "network-manager-unavailable",
+            "online": False,
+            "manager": MANAGER,
+        }
+    result = _nmcli(["--wait", "10", "device", "disconnect", selected], timeout=15)
+    if result.returncode != 0:
+        return {"status": "wifi-disconnect-failed", "online": False, "manager": MANAGER}
     if forget:
-        SAVED_WIFI.unlink(missing_ok=True)
-        SAVED_WIFI.with_name("wifi.previous.conf").unlink(missing_ok=True)
-        if selected:
-            (RUN_DIR / f"wifi-{selected}.conf").unlink(missing_ok=True)
-    return {"status": "saved-network-forgotten" if forget else "disconnected", "online": False}
+        for path, profile_uuid in _owned_profiles(SYSTEM_CONNECTIONS, RUNTIME_CONNECTIONS):
+            _nmcli(
+                ["--wait", "5", "connection", "delete", "uuid", profile_uuid],
+                timeout=8,
+            )
+            path.unlink(missing_ok=True)
+        _nmcli(["connection", "reload"], timeout=8)
+    return {
+        "status": "saved-network-forgotten" if forget else "disconnected",
+        "online": False,
+        "manager": MANAGER,
+    }
 
 
 def interactive_wifi_setup(interface: str | None = None) -> dict[str, Any]:
-    scan = scan_networks(interface)
-    selected = scan.get("interface")
-    if not selected:
-        return scan
-    ssids = scan.get("ssids") or []
-    print(f"AURUM_WIFI_SCAN interface={selected} networks={len(ssids)}", flush=True)
-    for index, ssid in enumerate(ssids[:20], start=1):
-        print(f"  {index:2d}. {ssid}", flush=True)
-    try:
-        ssid = input("Wi-Fi SSID (blank keeps Aurum offline): ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return {"status": "credentials-skipped", **network_status(selected)}
-    if not ssid:
-        return {"status": "credentials-skipped", **network_status(selected)}
-    try:
-        password = getpass.getpass("Wi-Fi password (blank for open network): ")
-    except (EOFError, KeyboardInterrupt):
-        return {"status": "credentials-skipped", **network_status(selected)}
-    return connect_wifi(ssid, password, selected)
+    """The recovery console routes operators to the graphical setup surface."""
+    return {
+        "status": "use-gui-wifi-setup",
+        "online": False,
+        "manager": MANAGER,
+        "interface": interface,
+    }
 
 
 def ensure_online(*, interactive: bool) -> dict[str, Any]:
     current = network_status()
-    if current["online"]:
+    if current.get("online"):
         return {"status": "already-online", **current}
     interfaces = wireless_interfaces()
     if not interfaces:
         return {"status": "no-wifi-interface", **current}
-    if SAVED_WIFI.is_file():
-        saved = connect_saved(interfaces[0])
-        if saved.get("online") or not interactive:
-            return saved
-    if not interactive:
-        return {"status": "credentials-required", **network_status(interfaces[0])}
-    return interactive_wifi_setup(interfaces[0])
+    saved = connect_saved(interfaces[0])
+    if saved.get("online"):
+        return saved
+    if interactive:
+        return interactive_wifi_setup(interfaces[0])
+    return saved
 
 
 def _write_receipt(path: Path, payload: dict[str, Any]) -> None:
+    safe = dict(payload)
+    safe.pop("ssid", None)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps(safe, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.chmod(temporary, 0o600)
     os.replace(temporary, path)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Bounded Aurum Wi-Fi recovery")
+    parser = argparse.ArgumentParser(description="Bounded Aurum network observer")
+    parser.add_argument("--boot-status", action="store_true")
     parser.add_argument("--reconnect-saved", action="store_true")
     parser.add_argument("--timeout-seconds", type=int, default=50)
     parser.add_argument("--write-state", type=Path)
@@ -735,25 +952,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    if not args.reconnect_saved:
-        result = network_status()
+    if args.reconnect_saved:
+        result = connect_saved(timeout_seconds=max(5, min(args.timeout_seconds, 120)))
     else:
-        timeout_seconds = max(5, min(args.timeout_seconds, 120))
-        interfaces = wireless_interfaces()
-        try:
-            current = _connection_state(interfaces[0]) if interfaces else {"online": False}
-        except (NetworkError, OSError):
-            current = {"online": False}
-        result = (
-            {"status": "already-online", **current}
-            if current.get("online")
-            else connect_saved(timeout_seconds=timeout_seconds)
-        )
+        result = network_status()
     if args.write_state:
         _write_receipt(args.write_state, result)
     print(json.dumps(result, sort_keys=True))
-    # Wi-Fi is a recoverable boot dependency. The receipt carries degraded
-    # state while boot and the local recovery console remain available.
+    # Network loss is recoverable; boot and the graphical setup remain usable.
     return 0
 
 

@@ -1,7 +1,7 @@
 [Unit]
 Description=Aurum graphical live setup
-After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service systemd-networkd.service
-Wants=aurum-input-bootstrap.service systemd-networkd.service
+After=local-fs.target systemd-udev-trigger.service aurum-input-bootstrap.service NetworkManager.service
+Wants=aurum-input-bootstrap.service NetworkManager.service
 # Both services are enabled; their opposite live-media conditions choose the
 # owner. Conflicts with the primary service would cancel its start job before
 # this live-only condition is evaluated, leaving installed boot without a GUI.
