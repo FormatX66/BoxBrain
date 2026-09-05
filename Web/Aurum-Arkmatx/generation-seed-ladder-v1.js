@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_49_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_50_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: promoted code, candidate/pre-promotion, exact-tree virtual/build, exact-head image, observability, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
@@ -26,6 +26,7 @@ const BROWSER_PROMPT_VHL_RUN='33936783197';
 const BROWSER_PROMPT_PREVIOUS_PC_RUN='33934957544';
 const CURRENT_NATIVE_RUN='33938908591';
 const PREVIOUS_NATIVE_RUN='33915328066';
+const PHYSICAL_PREREQ_WATCH_RUN='33957592775';
 const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='90420651044fe15a53c5086adf6d0ced3cddd2de';
 const WORKLOAD_OBSERVER_SUPERVISION_COMMIT='043b84ac0eb5da2c561abb66232282fba26704b8';
 const url=(kind,id)=>kind==='run'?`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`:kind==='pr'?`https://github.com/FormatX66/BoxBrain/pull/${id}`:`https://github.com/FormatX66/BoxBrain/commit/${id}`;
@@ -34,9 +35,9 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.49',
+  componentRevision:'1.50',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'browser-prompt-seed-gate-code-promoted-with-exact-active-head-four-target-vhl-and-image-proof-native-codelation-blocker-retained',
+  evidenceClass:'browser-prompt-seed-gate-code-promoted-with-exact-active-head-four-target-vhl-and-image-proof-native-persistent-gui-live-trial-evidence-hold-clarified',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
   previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
@@ -98,6 +99,19 @@ const state={
   currentNativeFailureStep:'Verify native self-build contracts',
   currentNativeFailureAssertion:'test_gui_live_trial_preserves_human_constants_and_dialogue_boundary:self.assertTrue(applied.applied)',
   currentNativeFailureOutsideBrowserPromptDiff:true,
+  currentNativePersistentStateChecked:true,
+  currentNativeCompletedGenerations:65,
+  currentNativeLatestCompletedGap:'adaptive_shell_gui_live_trial',
+  currentNativePersistentBlockedReason:'external-prerequisite-blocked',
+  currentNativePersistentBlockedOutput:'blocked-candidate-verified',
+  currentNativePersistentNextGap:'adaptive_shell_gui_live_trial',
+  currentNativeExternalEvidenceApplied:false,
+  currentNativeExternalEvidenceReason:'gui-live-trial-evidence-expired',
+  currentNativeFailedAttemptPresent:false,
+  currentNativeRetryRequiresMaterialEvidenceChange:true,
+  physicalPrerequisiteWatchRunId:PHYSICAL_PREREQ_WATCH_RUN,
+  physicalPrerequisiteWatchPassed:true,
+  physicalPrerequisiteIsCurrentNativeBlocker:false,
   previousNativeRunId:PREVIOUS_NATIVE_RUN,
   previousNativeRunHistorical:true,
   hopperStatusCurrentSnapshotCommit:CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT,
@@ -150,13 +164,14 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.49 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.50 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
 <li><strong>The sandboxed browser + Aurum/GPT prompt seed gate is now code-promoted.</strong> ${link('PR #222','pr',BROWSER_PROMPT_PR)} merged as active Aurum trunk <code>0c77f715...</code>. The gate requires the HTTPS-only browser and Aurum/GPT prompt surfaces before <code>become_next_seed</code> can become true, keeps private-network blocking, permits no browser credential and no raw shell, and leaves physical Hopper promotion separate.</li>
 <li><strong>The changed-before-retry VHL recovery is terminal green.</strong> Historical ${link('VHL 33934946010','run',BROWSER_PROMPT_PREVIOUS_VHL_RUN)} failed only after the PC ISO built, at the slow-TCG GUI-status probe boundary. ${link('29ab0da5','commit',BROWSER_PROMPT_CANDIDATE)} changed the real harness from five-second to ten-second probes while retaining the 450-second acceptance bound; no image/runtime source changed in that retry. ${link('corrected VHL 33936783197','run',BROWSER_PROMPT_VHL_RUN)} then completed successfully across Docker x86_64, ARM64, Pi3, QEMU UEFI x86_64, and the same-commit convergence gate.</li>
 <li><strong>Exact-active-head four-target VHL, image and accelerator proof is green on the promoted browser/GPT trunk.</strong> ${link('VHL 33944472698','run',CURRENT_VHL_RUN)} completed successfully on exact active head <code>0c77f715...</code> across Docker x86_64, Docker ARM64, Pi3 QEMU, QEMU UEFI x86_64, and the same-commit four-target convergence gate. ${link('PC image 33938121980','run',CURRENT_PC_IMAGE_RUN)} is also green on that exact head, including build/validation, generic UEFI, Legacy BIOS, Hopper HP twin and verified-image publication; ${link('Pi3 image 33938121968','run',CURRENT_PI3_IMAGE_RUN)} and ${link('ComputeWeave 33938121722','run',COMPUTEWEAVE_RUN)} remain green.</li>
+<li><strong>The native autonomous chain has retained 65 verified generations without converting the GUI boundary into a false failure.</strong> Its persistent state records generation 65 for <code>adaptive_shell_gui_live_trial</code> as verified with <code>blocked-candidate-verified</code>, no recorded failed attempt, and no promotion authority. That is verified candidate/state progress, not proof that the live GUI trial ran.</li>
 <li><strong>Hopper Wi-Fi ownership repair remains promoted and bounded.</strong> ${link('PR #223','pr',WIFI_OWNER_PR)} remains part of the active ancestry with green four-target VHL evidence; exact process identity is required for live recovery and unknown Wi-Fi managers remain protected. Physical Wi-Fi and reboot persistence are still not inferred from code/VM proof.</li>
 <li><strong>Hopper endpoint refresh remains evidence health only.</strong> ${link('snapshot 90420651044f','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still has endpoint null/unreachable and <code>no-valid-endpoint-candidate</code>. Equivalent null snapshots do not trigger dashboard churn.</li>
 </ul>
@@ -164,7 +179,8 @@ panel.innerHTML=`
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Current-head native growth is blocked at a Codelation GUI live-trial contract assertion.</strong> ${link('Autonomous run 33938908591','run',CURRENT_NATIVE_RUN)} ran on exact active head <code>0c77f715...</code> and failed at <code>Verify native self-build contracts</code>: <code>test_gui_live_trial_preserves_human_constants_and_dialogue_boundary</code> reached <code>self.assertTrue(applied.applied)</code> with <code>applied.applied == false</code>. The browser/GPT merge changed only AurumPC/AurumVirtualLab files, not Codelation, so treat this as a retained independent blocker rather than attributing it to the new browser/prompt gate. Change the contract implementation, live-trial state/evidence, or diagnosis before another native retry; do not replay the same failure unchanged.</li>
+<li><strong>The current-head native workflow failure remains real, but the persistent chain now gives the narrower recovery condition.</strong> ${link('Autonomous run 33938908591','run',CURRENT_NATIVE_RUN)} failed at <code>Verify native self-build contracts</code> when <code>test_gui_live_trial_preserves_human_constants_and_dialogue_boundary</code> reached <code>applied.applied == false</code>. The committed native state is not carrying a failed attempt; it is holding at <code>external-prerequisite-blocked / blocked-candidate-verified</code> because the external GUI live-trial evidence is absent/expired (<code>gui-live-trial-evidence-expired</code>). Do not replay the same native failure. Resume only after fresh causally valid GUI live-trial evidence, a real implementation/state change, or a changed diagnosis.</li>
+<li><strong>Physical presence is not the current native recovery requirement.</strong> ${link('Physical Prerequisite Watch 33957592775','run',PHYSICAL_PREREQ_WATCH_RUN)} completed successfully; its read-only prerequisite-resolution and publish steps were green, while the persistent active-trunk state remains <code>blocked-candidate-verified</code> rather than <code>blocked-physical-node</code>. Do not manufacture a heartbeat, mutate work to create evidence, or add a new human action to clear this native hold.</li>
 <li><strong>Physical Hopper proof remains separate.</strong> Code promotion and virtual/image evidence do not prove physical Wi-Fi association, reboot persistence, generated boot-menu observation, sync-ref repair application, seed acceptance, Guardian forced rollback, or browser/GPT behavior on Hopper.</li>
 <li>Hopper endpoint discovery remains system-owned at <code>no-valid-endpoint-candidate</code>; equivalent null refreshes remain no-churn evidence health.</li>
 <li><strong>Workload-observer supervision still needs protected runtime proof.</strong> ${link('supervision/timestamp fix','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged, but the latest protected runtime proof still predates it.</li>
@@ -172,7 +188,7 @@ panel.innerHTML=`
 </div>
 <div class="actions">
 <h4>Your Actions:</h4>
-<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Wi-Fi, service-manager, browser/GPT, Git-ref, boot-menu, native-build, or software action is justified for you from code/virtual evidence alone.</p>
+<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Wi-Fi, service-manager, browser/GPT, Git-ref, boot-menu, native-build, GUI-live-trial, or software action is justified for you from code/virtual evidence alone.</p>
 <ol>
 <li>On the physical x86 target, use the already proven current-release Tiny Seed media referenced by the Future Branch evidence.</li>
 <li>Use the machine's one-time boot menu to boot that media. <strong>Do not choose install, erase, format, repair, or any destructive option.</strong></li>
