@@ -91,6 +91,28 @@ class WifiLifecycleTests(unittest.TestCase):
         self.assertEqual(result["status"], "use-gui-wifi-setup")
         input_prompt.assert_not_called()
 
+    def test_cleanup_failure_preserves_superseded_profile_for_later_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old_uuid = "66666666-6666-4666-8666-666666666666"
+            old = root / f"{network.PROFILE_PREFIX}{old_uuid}.nmconnection"
+            old.write_text(f"[connection]\nuuid={old_uuid}\n", encoding="utf-8")
+
+            def fake_nmcli(arguments, **_kwargs):
+                returncode = 10 if "delete" in arguments else 0
+                return subprocess.CompletedProcess(arguments, returncode, "")
+
+            with (
+                patch.object(network, "SYSTEM_CONNECTIONS", root),
+                patch.object(network, "RUNTIME_CONNECTIONS", root / "run"),
+                patch.object(network, "_nmcli", side_effect=fake_nmcli),
+            ):
+                complete = network._remove_superseded_profiles(
+                    "77777777-7777-4777-8777-777777777777"
+                )
+            self.assertFalse(complete)
+            self.assertTrue(old.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -752,8 +752,10 @@ def _remove_superseded_profiles(keep_uuid: str) -> bool:
             ["--wait", "5", "connection", "delete", "uuid", profile_uuid],
             timeout=8,
         )
-        path.unlink(missing_ok=True)
-        clean = clean and result.returncode == 0
+        if result.returncode == 0:
+            path.unlink(missing_ok=True)
+        else:
+            clean = False
     _nmcli(["connection", "reload"], timeout=8)
     return clean
 
