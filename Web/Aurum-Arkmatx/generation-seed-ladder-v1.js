@@ -1,5 +1,5 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_48_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_49_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
  * Evidence boundary: promoted code, candidate/pre-promotion, exact-tree virtual/build, exact-head image, observability, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
@@ -17,6 +17,7 @@ const WIFI_OWNER_VHL_RUN='33933009074';
 const CURRENT_PC_IMAGE_RUN='33938121980';
 const CURRENT_PI3_IMAGE_RUN='33938121968';
 const COMPUTEWEAVE_RUN='33938121722';
+const CURRENT_VHL_RUN='33944472698';
 const BROWSER_PROMPT_PR='222';
 const BROWSER_PROMPT_PREVIOUS_CANDIDATE='1e3bf9c3a265058b8c55e456668f156259b05069';
 const BROWSER_PROMPT_CANDIDATE='29ab0da5e8741a2f370a775c5fbf9c01b1b40a1a';
@@ -33,9 +34,9 @@ const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noop
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.48',
+  componentRevision:'1.49',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'browser-prompt-seed-gate-code-promoted-with-corrected-four-target-vhl-and-exact-active-head-image-proof-native-codelation-blocker-retained',
+  evidenceClass:'browser-prompt-seed-gate-code-promoted-with-exact-active-head-four-target-vhl-and-image-proof-native-codelation-blocker-retained',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
   previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
@@ -73,6 +74,11 @@ const state={
   browserPromptSeedGatePhysicalProofProven:false,
   browserPromptSeedGateBrowserCredentialsAllowed:false,
   browserPromptSeedGateRawShellAllowed:false,
+  currentVhlRunId:CURRENT_VHL_RUN,
+  currentVhlExactHead:true,
+  currentVhlFinalResultObserved:true,
+  currentVhlRunPassed:true,
+  currentVhlFourTargetConvergencePassed:true,
   currentPi3ImageRunId:CURRENT_PI3_IMAGE_RUN,
   currentPi3ImageRunPassed:true,
   currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
@@ -144,13 +150,13 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.48 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.49 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
 <li><strong>The sandboxed browser + Aurum/GPT prompt seed gate is now code-promoted.</strong> ${link('PR #222','pr',BROWSER_PROMPT_PR)} merged as active Aurum trunk <code>0c77f715...</code>. The gate requires the HTTPS-only browser and Aurum/GPT prompt surfaces before <code>become_next_seed</code> can become true, keeps private-network blocking, permits no browser credential and no raw shell, and leaves physical Hopper promotion separate.</li>
 <li><strong>The changed-before-retry VHL recovery is terminal green.</strong> Historical ${link('VHL 33934946010','run',BROWSER_PROMPT_PREVIOUS_VHL_RUN)} failed only after the PC ISO built, at the slow-TCG GUI-status probe boundary. ${link('29ab0da5','commit',BROWSER_PROMPT_CANDIDATE)} changed the real harness from five-second to ten-second probes while retaining the 450-second acceptance bound; no image/runtime source changed in that retry. ${link('corrected VHL 33936783197','run',BROWSER_PROMPT_VHL_RUN)} then completed successfully across Docker x86_64, ARM64, Pi3, QEMU UEFI x86_64, and the same-commit convergence gate.</li>
-<li><strong>Exact-active-head image and accelerator proof is green on the promoted browser/GPT trunk.</strong> ${link('PC image 33938121980','run',CURRENT_PC_IMAGE_RUN)} completed successfully on <code>0c77f715...</code>, including build/validation, generic UEFI, Legacy BIOS, Hopper HP twin and verified-image publication. ${link('Pi3 image 33938121968','run',CURRENT_PI3_IMAGE_RUN)} and ${link('ComputeWeave 33938121722','run',COMPUTEWEAVE_RUN)} are also green on that exact head.</li>
+<li><strong>Exact-active-head four-target VHL, image and accelerator proof is green on the promoted browser/GPT trunk.</strong> ${link('VHL 33944472698','run',CURRENT_VHL_RUN)} completed successfully on exact active head <code>0c77f715...</code> across Docker x86_64, Docker ARM64, Pi3 QEMU, QEMU UEFI x86_64, and the same-commit four-target convergence gate. ${link('PC image 33938121980','run',CURRENT_PC_IMAGE_RUN)} is also green on that exact head, including build/validation, generic UEFI, Legacy BIOS, Hopper HP twin and verified-image publication; ${link('Pi3 image 33938121968','run',CURRENT_PI3_IMAGE_RUN)} and ${link('ComputeWeave 33938121722','run',COMPUTEWEAVE_RUN)} remain green.</li>
 <li><strong>Hopper Wi-Fi ownership repair remains promoted and bounded.</strong> ${link('PR #223','pr',WIFI_OWNER_PR)} remains part of the active ancestry with green four-target VHL evidence; exact process identity is required for live recovery and unknown Wi-Fi managers remain protected. Physical Wi-Fi and reboot persistence are still not inferred from code/VM proof.</li>
 <li><strong>Hopper endpoint refresh remains evidence health only.</strong> ${link('snapshot 90420651044f','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still has endpoint null/unreachable and <code>no-valid-endpoint-candidate</code>. Equivalent null snapshots do not trigger dashboard churn.</li>
 </ul>
