@@ -1,0 +1,215 @@
+name: Aurum Tiny Seed x86 fallback carrier matrix experiment
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
+      - '.github/workflows/aurum-tiny-seed-direct-uefi-offline-carrier-experiment.yml'
+  push:
+    branches:
+      - experiment/tinyseed-direct-uefi-current-20260825
+    paths:
+      - 'Projects/Aurum/Germ/**'
+      - 'Projects/Aurum/Recovery/trusted-refs.json'
+      - 'Projects/Aurum/Recovery/authority-public.pem'
+      - '.github/workflows/aurum-tiny-seed-direct-uefi-offline-carrier-experiment.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurum-tiny-seed-x86-fallback-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out current experimental carrier branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Compile and unit-test protected germ including offline carrier
+        run: |
+          python3 -m py_compile Projects/Aurum/Germ/*.py
+          (cd Projects/Aurum/Germ && python3 -m unittest -v test_carrier test_reseed test_guardian test_proof test_rollback_drill test_recovery_control test_recovery_poller test_triage test_tinyseed)
+
+      - name: Install host verification tooling
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-x86 ovmf parted
+
+      - name: Build current payload and two independent raw-GPT fallback carriers
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            debian:bookworm \
+            sh -lc '
+              set -eu
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debian-archive-keyring debootstrap xorriso isolinux \
+                syslinux-common squashfs-tools grub-pc-bin grub-efi-amd64-bin \
+                dosfstools mtools ca-certificates parted e2fsprogs util-linux \
+                systemd-boot-efi binutils git python3
+
+              sh Projects/Aurum/Germ/build-x86-tinyseed.sh
+              sh Projects/Aurum/Germ/build-direct-uefi-tinyseed.sh \
+                Projects/Aurum/Germ/.build-x86/binary \
+                dist/Aurum-TinySeed-amd64-direct-uefi.img
+              sh Projects/Aurum/Germ/build-systemd-boot-tinyseed.sh \
+                Projects/Aurum/Germ/.build-x86/binary \
+                dist/Aurum-TinySeed-amd64-systemd-boot.img
+
+              verify_carrier() {
+                image="$1"
+                label="$2"
+                start_mib=$(parted -sm "$image" unit MiB print | python3 -c "import sys; rows=[x for x in sys.stdin if x.startswith(\"2:\")]; print(int(float(rows[0].split(\":\")[1].replace(\"MiB\", \"\")))) if rows else None")
+                test -n "$start_mib"
+                dd if="$image" of="/tmp/${label}-data.img" bs=1M skip="$start_mib" status=none
+                debugfs -R "dump /live/filesystem.squashfs /tmp/${label}.squashfs" "/tmp/${label}-data.img" >/tmp/debugfs.log 2>&1
+                test -s "/tmp/${label}.squashfs"
+                unsquashfs -ll "/tmp/${label}.squashfs" | tee "/tmp/${label}-payload.log" >/dev/null
+                grep -q "usr/lib/aurum/germ/carrier.py" "/tmp/${label}-payload.log"
+                grep -q "usr/lib/aurum/carrier/carrier.json" "/tmp/${label}-payload.log"
+                rm -rf "/tmp/${label}-carrier-root"
+                unsquashfs -f -d "/tmp/${label}-carrier-root" "/tmp/${label}.squashfs" \
+                  usr/lib/aurum/germ/carrier.py \
+                  usr/lib/aurum/carrier >/dev/null
+                python3 "/tmp/${label}-carrier-root/usr/lib/aurum/germ/carrier.py" verify \
+                  --root "/tmp/${label}-carrier-root/usr/lib/aurum/carrier" \
+                  --architecture x86_64
+              }
+
+              verify_carrier dist/Aurum-TinySeed-amd64-direct-uefi.img direct
+              verify_carrier dist/Aurum-TinySeed-amd64-systemd-boot.img systemdboot
+              echo AURUM_TINYSEED_FALLBACK_MATRIX_OFFLINE_CARRIER_OK
+            '
+
+          for image in \
+            dist/Aurum-TinySeed-amd64-direct-uefi.img \
+            dist/Aurum-TinySeed-amd64-systemd-boot.img; do
+            test -s "$image"
+            sha256sum -c "$image.sha256"
+          done
+          parted -s dist/Aurum-TinySeed-amd64-direct-uefi.img unit MiB print | tee tinyseed-direct-uefi-layout.log
+          parted -s dist/Aurum-TinySeed-amd64-systemd-boot.img unit MiB print | tee tinyseed-systemd-boot-layout.log
+          grep -q 'AURUM_LIVE' tinyseed-direct-uefi-layout.log
+          grep -q 'ESP' tinyseed-direct-uefi-layout.log
+          grep -q 'AURUM_LIVE' tinyseed-systemd-boot-layout.log
+          grep -q 'ESP' tinyseed-systemd-boot-layout.log
+
+      - name: Direct systemd-stub UKI reference boot smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS.fd
+          else
+            echo 'No matching OVMF CODE/VARS pair found' >&2
+            exit 1
+          fi
+          cp "$OVMF_VARS" "$RUNNER_TEMP/OVMF_DIRECT_VARS.fd"
+          set +e
+          timeout 150 qemu-system-x86_64 \
+            -machine q35 -m 1024 -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file="$RUNNER_TEMP/OVMF_DIRECT_VARS.fd" \
+            -device qemu-xhci,id=xhci \
+            -drive if=none,id=seed,file=dist/Aurum-TinySeed-amd64-direct-uefi.img,format=raw,readonly=on \
+            -device usb-storage,drive=seed,bootindex=1 \
+            -boot strict=on \
+            -nic user,model=e1000 \
+            -display none -serial file:tinyseed-direct-uefi.log -no-reboot
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            cat tinyseed-direct-uefi.log 2>/dev/null || true
+            exit "$rc"
+          fi
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-direct-uefi.log
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-direct-uefi.log
+          grep -q 'AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true' tinyseed-direct-uefi.log
+          echo 'AURUM_TINYSEED_DIRECT_UEFI_VIRTUAL_ONLY_KNOWN_HP_RISK'
+
+      - name: systemd-boot to kernel EFI-stub fallback boot smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] && [ -f /usr/share/OVMF/OVMF_VARS_4M.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
+          elif [ -f /usr/share/OVMF/OVMF_CODE.fd ] && [ -f /usr/share/OVMF/OVMF_VARS.fd ]; then
+            OVMF_CODE=/usr/share/OVMF/OVMF_CODE.fd
+            OVMF_VARS=/usr/share/OVMF/OVMF_VARS.fd
+          else
+            echo 'No matching OVMF CODE/VARS pair found' >&2
+            exit 1
+          fi
+          cp "$OVMF_VARS" "$RUNNER_TEMP/OVMF_SYSTEMDBOOT_VARS.fd"
+          set +e
+          timeout 150 qemu-system-x86_64 \
+            -machine q35 -m 1024 -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+            -drive if=pflash,format=raw,file="$RUNNER_TEMP/OVMF_SYSTEMDBOOT_VARS.fd" \
+            -device qemu-xhci,id=xhci \
+            -drive if=none,id=seed,file=dist/Aurum-TinySeed-amd64-systemd-boot.img,format=raw,readonly=on \
+            -device usb-storage,drive=seed,bootindex=1 \
+            -boot strict=on \
+            -nic user,model=e1000 \
+            -display none -serial file:tinyseed-systemd-boot.log -no-reboot
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
+            cat tinyseed-systemd-boot.log 2>/dev/null || true
+            exit "$rc"
+          fi
+          missing=0
+          grep -q 'AURUM_TINYSEED_READY' tinyseed-systemd-boot.log || missing=1
+          grep -q 'AURUM_BOOT_PROOF_READY' tinyseed-systemd-boot.log || missing=1
+          grep -q 'AURUM_TINYSEED_NETWORK_READY resolver=true repository_tcp_443=true' tinyseed-systemd-boot.log || missing=1
+          if [ "$missing" -ne 0 ]; then
+            echo 'systemd-boot fallback markers missing; serial evidence follows' >&2
+            cat tinyseed-systemd-boot.log 2>/dev/null || true
+            exit 1
+          fi
+          echo 'AURUM_TINYSEED_SYSTEMD_BOOT_VIRTUAL_COMPAT_CANDIDATE_OK'
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-x86-fallback-matrix-diagnostics
+          path: |
+            tinyseed-direct-uefi.log
+            tinyseed-direct-uefi-layout.log
+            tinyseed-systemd-boot.log
+            tinyseed-systemd-boot-layout.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish experimental fallback matrix only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Aurum-TinySeed-amd64-fallback-matrix-experimental
+          path: |
+            dist/Aurum-TinySeed-amd64-direct-uefi.img
+            dist/Aurum-TinySeed-amd64-direct-uefi.img.sha256
+            dist/Aurum-TinySeed-amd64-systemd-boot.img
+            dist/Aurum-TinySeed-amd64-systemd-boot.img.sha256
+            tinyseed-direct-uefi.log
+            tinyseed-direct-uefi-layout.log
+            tinyseed-systemd-boot.log
+            tinyseed-systemd-boot-layout.log
+          if-no-files-found: error
+          retention-days: 14
