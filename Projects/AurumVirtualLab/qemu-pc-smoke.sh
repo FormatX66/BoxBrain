@@ -164,9 +164,12 @@ wait_for_primary_gui() {
   # Scope the response to this boot; a previous session cannot satisfy proof.
   # Slow TCG is deliberately allowed to exercise the runtime's bounded,
   # progress-qualified startup extension rather than racing its soft deadline.
-  for _ in $(seq 1 90); do
+  # A status subprocess may take eight seconds. Probe every ten seconds so a
+  # slow guest cannot accumulate commands on its serial console. Keep the same
+  # 450-second overall acceptance bound as the previous 90-by-5-second loop.
+  for _ in $(seq 1 45); do
     printf 'gui-status\n' >&3
-    for _ in $(seq 1 5); do
+    for _ in $(seq 1 10); do
       if tail -n +"$installed_start_line" "$LOG" |
           grep -F 'AURUM_GUI_RUNTIME status=running physical_desktop=true' >/dev/null; then
         echo 'AURUM_VIRTUAL_PC_INSTALLED_PRIMARY_GUI_OK network=offline' >> "$LOG"

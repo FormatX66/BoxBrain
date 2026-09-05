@@ -41,7 +41,9 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertIn("AURUM_SELF_BUILD_FINISHED status=passed", smoke)
         self.assertIn("timeout 900s qemu-system-x86_64", smoke)
         self.assertIn("wait_for_self_build 720", smoke)
-        self.assertIn("for _ in $(seq 1 90); do", smoke)
+        primary_gui_wait = smoke.split("wait_for_primary_gui() {", 1)[1].split("wait_for_install()", 1)[0]
+        self.assertIn("for _ in $(seq 1 45); do", primary_gui_wait)
+        self.assertIn("for _ in $(seq 1 10); do", primary_gui_wait)
         self.assertIn("AURUM_VIRTUAL_PC_UEFI_RUNTIME_SELF_BUILD_OK", smoke)
         self.assertIn('QEMU_ACCEL=${AURUM_QEMU_ACCEL:-tcg}', smoke)
         self.assertIn("-machine q35,accel=kvm", acceleration)
@@ -161,6 +163,10 @@ class BuildIsoContractTests(unittest.TestCase):
         self.assertNotIn("-no-reboot", installed)
         self.assertIn("installed_start_line=", installed)
         self.assertIn("printf 'gui-status\\n'", smoke)
+        primary_gui_wait = smoke.split("wait_for_primary_gui() {", 1)[1].split("wait_for_install()", 1)[0]
+        self.assertIn("for _ in $(seq 1 45)", primary_gui_wait)
+        self.assertIn("for _ in $(seq 1 10)", primary_gui_wait)
+        self.assertIn("450-second overall acceptance bound", primary_gui_wait)
         self.assertIn("printf 'reboot\\n'", smoke)
         self.assertIn("if ! wait_for_installed_ready || ! wait_for_primary_gui; then", smoke)
         self.assertNotIn("printf 'gui-start", smoke)
