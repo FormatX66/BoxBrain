@@ -1,116 +1,105 @@
 /* AURUM_GENERATION_SEED_LADDER_V1_CANONICAL
- * AURUM_GENERATION_SEED_LADDER_V1_42_CANONICAL
+ * AURUM_GENERATION_SEED_LADDER_V1_45_CANONICAL
  * Canonical website owner: FormatX66/ClusterSites.
- * Evidence boundary: active-trunk, exact-tree virtual/build, observability, model/provider, physical, destructive approval, Farmer runtime, recovery application, and historical proof stay distinct.
+ * Evidence boundary: promoted code, candidate/pre-promotion, exact-tree virtual/build, exact-head image, observability, physical, destructive approval, Farmer runtime, and historical proof stay distinct.
  */
 (()=>{
 'use strict';
 if(window.__aurumGenerationSeedLadderV1)return;
 window.__aurumGenerationSeedLadderV1=true;
 
-const ACTIVE_TRUNK_COMMIT='e4d1d79d4ffbde35ae95a4071607a3498f8931d6';
-const ACTIVE_TRUNK_TREE='bc7fcd57c8e780a6a396311199177a9544792fb4';
-const PREVIOUS_ACTIVE_TRUNK_COMMIT='64eb1b87a9b489c662ef22d05946492ecbd77ae3';
-const HOPPER_BOOT_MENU_PR='218';
-const HOPPER_BOOT_MENU_CANDIDATE='3b59fe81d4ba67fed1a6c12e94a58e5681766861';
-const HOPPER_BOOT_MENU_VHL_RUN='33924925898';
-const PREVIOUS_VHL_TIMING_FAILURE_RUN='33923762383';
-const CURRENT_PC_IMAGE_RUN='33926519340';
-const CURRENT_PI3_IMAGE_RUN='33926519293';
+const ACTIVE_TRUNK_COMMIT='958f3a9de28b9e4baa95fabfc8dbf9af1af3d4ea';
+const ACTIVE_TRUNK_TREE='aa0cc44e524a53b884493a4f9b09c4332ab1b78e';
+const PREVIOUS_ACTIVE_TRUNK_COMMIT='e4d1d79d4ffbde35ae95a4071607a3498f8931d6';
+const WIFI_OWNER_PR='223';
+const WIFI_OWNER_CANDIDATE='917756be145db20252e818700cbd0c44664f650b';
+const WIFI_OWNER_VHL_RUN='33933009074';
+const CURRENT_PC_IMAGE_RUN='33934510643';
+const CURRENT_PI3_IMAGE_RUN='33934510499';
+const COMPUTEWEAVE_RUN='33934510651';
+const BROWSER_PROMPT_PR='222';
+const BROWSER_PROMPT_PREVIOUS_CANDIDATE='6b9a01c9bc77c3ebb0e933119a20e60b7339be3d';
+const BROWSER_PROMPT_CANDIDATE='1e3bf9c3a265058b8c55e456668f156259b05069';
+const BROWSER_PROMPT_PC_RUN='33930697621';
+const BROWSER_PROMPT_PREVIOUS_VHL_RUN='33930723957';
+const BROWSER_PROMPT_VHL_RUN='33934946010';
 const PREVIOUS_NATIVE_RUN='33915328066';
-const REMOTE_REF_REPAIR_PR='217';
-const WIFI_PROMOTION_PR='214';
-const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='8c4a49f21a230709d7b7bca51d393a230ee69b5b';
-const FARMER_RUNTIME_PROOF_COMMIT='73b4f1d02fc01245a2dc84fb2440e6e4d2ea246d';
-const WORKLOAD_OBSERVER_SOURCE_COMMIT='6c7b0ca8bc7ae011bde7943b114ea58d8e743380';
+const CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT='90420651044fe15a53c5086adf6d0ced3cddd2de';
 const WORKLOAD_OBSERVER_SUPERVISION_COMMIT='043b84ac0eb5da2c561abb66232282fba26704b8';
-const VOICE_MIRROR_RECEIPT_COMMIT='d4b80d95f834bc8c56e0cedad18c77bac25f3402';
-const QUANTUM_EVIDENCE_COMMIT='3606746cf11be4663f8d5873dcdda9a7c227a87b';
 const url=(kind,id)=>kind==='run'?`https://github.com/FormatX66/BoxBrain/actions/runs/${id}`:kind==='pr'?`https://github.com/FormatX66/BoxBrain/pull/${id}`:`https://github.com/FormatX66/BoxBrain/commit/${id}`;
 const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 const link=(label,kind,id)=>`<a href="${url(kind,id)}" target="_blank" rel="noopener">${esc(label)}</a>`;
 
 const state={
   schema:'aurum-command-center-generation-seed-ladder-v1',
-  componentRevision:'1.42',
+  componentRevision:'1.45',
   canonicalWebsiteRepo:'FormatX66/ClusterSites',
-  evidenceClass:'active-trunk-hopper-two-entry-boot-menu-merged-identical-tree-four-target-green-current-pc-image-green-current-pi3-image-green-marker-qualified-arcade-grace-physical-menu-proof-pending-current-native-unobserved-hopper-endpoint-null-retained-farmer-observer-voice-quantum-boundaries',
+  evidenceClass:'wifi-owner-repair-code-promoted-with-terminal-exact-active-head-pc-image-and-browser-prompt-candidate-rebased-onto-current-trunk-under-changed-vhl-retest',
   activeTrunkCommit:ACTIVE_TRUNK_COMMIT,
   activeTrunkTree:ACTIVE_TRUNK_TREE,
   previousActiveTrunkCommit:PREVIOUS_ACTIVE_TRUNK_COMMIT,
-  hopperBootMenuPr:HOPPER_BOOT_MENU_PR,
-  hopperBootMenuCandidate:HOPPER_BOOT_MENU_CANDIDATE,
-  hopperBootMenuMerged:true,
-  hopperBootMenuCodePromoted:true,
-  hopperBootMenuCandidateTreeEqualsActiveTrunkTree:true,
-  hopperBootMenuVhlRunId:HOPPER_BOOT_MENU_VHL_RUN,
-  hopperBootMenuFourTargetConvergencePassed:true,
-  hopperBootMenuNormalEntryGenerated:true,
-  hopperBootMenuRecoveryEntryGenerated:true,
-  hopperBootMenuEntryCount:2,
-  hopperBootMenuTimeoutSeconds:5,
-  hopperBootMenuHopperNormalBlacklistsNouveau:true,
-  hopperBootMenuRecoveryUsesNomodeset:true,
-  hopperBootMenuFreshAndRepairPathsShareContract:true,
-  hopperBootMenuPhysicalTwoEntryObservationProven:false,
-  hopperBootMenuPhysicalRecoverySelectionProven:false,
-  arcadeReadyMarkerGraceSeconds:5,
-  arcadeReadyGraceRequiresObservedMarker:true,
-  arcadeReadyGraceUnqualifiedExtensionAllowed:false,
-  previousVhlTimingFailureRunId:PREVIOUS_VHL_TIMING_FAILURE_RUN,
-  previousVhlTimingFailureHistorical:true,
-  previousVhlTimingFailureChangedBeforeRetry:true,
-  currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
-  currentPcImageFinalResultPromoted:true,
-  currentPcImageRunPassed:true,
-  currentPcImageGenericUefiInstallRebootSelfBuildPassed:true,
-  currentPcImageLegacyBiosInstallBootPassed:true,
-  currentPcImageHpTwinPassed:true,
-  currentPcImageVerifiedPublicationPassed:true,
+  wifiOwnerRepairPr:WIFI_OWNER_PR,
+  wifiOwnerRepairCandidate:WIFI_OWNER_CANDIDATE,
+  wifiOwnerRepairMerged:true,
+  wifiOwnerRepairCodePromoted:true,
+  wifiOwnerRepairCandidateTreeEqualsActiveTrunkTree:true,
+  wifiOwnerRepairRootCause:'generic-wpa-supplicant-and-aurum-dual-ownership-ctrl-iface-collision',
+  wifiOwnerRepairExactIdentityGateRequired:true,
+  wifiOwnerRepairUnknownManagersProtected:true,
+  wifiOwnerRepairVhlRunId:WIFI_OWNER_VHL_RUN,
+  wifiOwnerRepairVhlFinalResultPromoted:true,
+  wifiOwnerRepairFourTargetVhlPassed:true,
+  wifiOwnerRepairPhysicalWifiProven:false,
+  wifiOwnerRepairRebootPersistenceProven:false,
   currentPi3ImageRunId:CURRENT_PI3_IMAGE_RUN,
   currentPi3ImageRunPassed:true,
-  currentNativeResultObserved:false,
-  previousNativeRunId:PREVIOUS_NATIVE_RUN,
-  previousNativeRunHistorical:true,
-  remoteTrackingRefRepairPr:REMOTE_REF_REPAIR_PR,
-  remoteTrackingRefRepairPhysicalApplicationProven:false,
-  remoteTrackingRefRepairRecreatedFromOriginOnPhysicalHopperProven:false,
-  hopperWifiRecoveryPr:WIFI_PROMOTION_PR,
-  hopperWifiRecoveryCodePromotionComplete:true,
-  hopperWifiRecoveryPhysicalWifiProven:false,
-  hopperWifiRecoveryObservedRebootPersistenceProven:false,
-  hopperWifiRecoverySeedPromotionProven:false,
+  currentPcImageRunId:CURRENT_PC_IMAGE_RUN,
+  currentPcImageBuildPassed:true,
+  currentPcImageFinalResultObserved:true,
+  currentPcImageFinalResultPromoted:true,
+  currentPcImageRunPassed:true,
+  currentPcImageGenericUefiPassed:true,
+  currentPcImageLegacyBiosPassed:true,
+  currentPcImageHpTwinPassed:true,
+  currentPcImageVerifiedPublicationPassed:true,
+  computeWeaveRunId:COMPUTEWEAVE_RUN,
+  computeWeaveRunPassed:true,
+  browserPromptSeedGatePr:BROWSER_PROMPT_PR,
+  browserPromptSeedGatePreviousCandidate:BROWSER_PROMPT_PREVIOUS_CANDIDATE,
+  browserPromptSeedGateCandidate:BROWSER_PROMPT_CANDIDATE,
+  browserPromptSeedGatePromotionState:'pre-promotion-rebased-vhl-retest-running',
+  browserPromptSeedGateMerged:false,
+  browserPromptSeedGateMergeable:true,
+  browserPromptSeedGateRebasedOntoActiveTrunk:true,
+  browserPromptSeedGateChangedBeforeRetry:true,
+  browserPromptSeedGateRequiresBrowserAndPromptProof:true,
+  browserPromptSeedGatePcImageRunId:BROWSER_PROMPT_PC_RUN,
+  browserPromptSeedGatePcImagePassed:true,
+  browserPromptSeedGatePreviousVhlRunId:BROWSER_PROMPT_PREVIOUS_VHL_RUN,
+  browserPromptSeedGatePreviousVhlFinalPassed:false,
+  browserPromptSeedGatePreviousVhlUefiBootMarkerFailed:true,
+  browserPromptSeedGateVhlRunId:BROWSER_PROMPT_VHL_RUN,
+  browserPromptSeedGateVhlFinalResultObserved:false,
+  browserPromptSeedGateVhlFinalResultPromoted:false,
+  browserPromptSeedGateVhlDockerX86Passed:true,
+  browserPromptSeedGateVhlDockerArm64Passed:true,
+  browserPromptSeedGatePhysicalProofProven:false,
+  browserPromptSeedGateBrowserCredentialsAllowed:false,
+  browserPromptSeedGateRawShellAllowed:false,
   hopperStatusCurrentSnapshotCommit:CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT,
   hopperStatusCurrentBlocker:'no-valid-endpoint-candidate',
   hopperStatusCurrentEndpoint:null,
   hopperStatusCurrentReachable:false,
   hopperStatusEquivalentNullSnapshotsAreEvidenceHealth:true,
   hopperStatusNoChurnUntilMaterialChange:true,
-  farmerRuntimeProofCommit:FARMER_RUNTIME_PROOF_COMMIT,
-  farmerContinuousExplorationVerified:true,
-  farmerContinuousExplorerModelOnly:true,
-  farmerContinuousExplorerAuthorityGranted:false,
-  farmerDestructiveActionAllowed:false,
-  farmerPhysicalProofInferred:false,
-  workloadObserverSourceCommit:WORKLOAD_OBSERVER_SOURCE_COMMIT,
-  workloadObserverRuntime:'verified-read-only-feed',
-  workloadObserverReadOnly:true,
-  workloadObserverBudgetAuthority:'resident-explorer-only',
-  workloadObserverProcessControlAllowed:false,
-  workloadObserverRemoteExecutionAuthority:false,
+  currentNativeResultObserved:false,
+  previousNativeRunId:PREVIOUS_NATIVE_RUN,
+  previousNativeRunHistorical:true,
+  physicalHopperWifiProofProven:false,
+  physicalHopperBootProofProven:false,
+  guardianForcedRollbackProofProven:false,
   workloadObserverSupervisionMerge:WORKLOAD_OBSERVER_SUPERVISION_COMMIT,
   workloadObserverSupervisionRuntime:'runtime-proof-pending',
-  voiceMirrorReceiptCommit:VOICE_MIRROR_RECEIPT_COMMIT,
-  voiceStaticMirrorVerified:true,
-  voiceMirrorState:'WEB_STATIC_MIRROR_OK',
-  voiceMirrorHostedDeploymentConfigured:false,
-  quantumEvidenceCommit:QUANTUM_EVIDENCE_COMMIT,
-  quantumSelectedPath:'current-release-flash-readback-proven-awaiting-physical-boot',
-  quantumSelectedStatus:'held-at-real-boundary',
-  tinySeedBuildState:'READY_TO_FLASH',
-  tinySeedPhysicalBootPending:true,
-  guardianForcedRollbackProofProven:false,
-  physicalHopperBootProofProven:false,
   humanActionInference:true,
   humanActionType:'physical-boot-proof',
   humanActionDestructive:false,
@@ -150,38 +139,35 @@ panel.id='generation-seed-ladder-v1';
 panel.className='generation-seed-ladder';
 panel.open=false;
 panel.innerHTML=`
-<summary>Generation Seed Ladder <span class="tag">v1.42 · current truth</span></summary>
+<summary>Generation Seed Ladder <span class="tag">v1.45 · current truth</span></summary>
 <div class="frontier">
 <h4>Frontiers Advancing:</h4>
 <ul>
-<li><strong>Hopper's deterministic two-entry installed boot menu is code-promoted.</strong> ${link('PR #218','pr',HOPPER_BOOT_MENU_PR)} merged into active Aurum trunk <code>e4d1d79d...</code>. Fresh install and non-destructive repair regenerate exactly <code>Aurum PC</code> plus <code>Aurum PC (graphics recovery)</code> with a five-second default timeout. Exact Hopper normal boot excludes the physically failing <code>nouveau</code> path; recovery keeps <code>nomodeset</code>.</li>
-<li><strong>The promoted boot-menu tree has green four-target convergence.</strong> ${link('VHL 33924925898','run',HOPPER_BOOT_MENU_VHL_RUN)} passed Docker x86_64, ARM64, Pi3, QEMU UEFI and the same-commit convergence gate on candidate <code>3b59fe81...</code>. Candidate and active merge share tree <code>bc7fcd57...</code>; this remains software/tree proof, not physical Hopper menu proof.</li>
-<li><strong>The exact active head now also has complete PC and Pi3 image proof.</strong> ${link('PC image 33926519340','run',CURRENT_PC_IMAGE_RUN)} completed successfully on <code>e4d1d79d...</code>: validation, image build, generic low-memory UEFI install/reboot/self-build, Legacy BIOS installed boot, Hopper HP topology/offline-recovery twin, digest convergence and verified-image publication all passed. ${link('Pi3 image 33926519293','run',CURRENT_PI3_IMAGE_RUN)} is also green on the same active head.</li>
-<li><strong>The prior UEFI false-negative was changed before the successful proof path.</strong> Old-head ${link('VHL 33923762383','run',PREVIOUS_VHL_TIMING_FAILURE_RUN)} failed at the QEMU UEFI boot step. PR #218 then changed the actual runtime/test behavior so only a still-running Arcade process with an observed <code>AURUM_ARCADE_READY</code> marker receives a bounded five-second HTTP-readiness grace; an unqualified timeout receives no extension. The changed candidate subsequently passed all four VHL targets.</li>
-<li><strong>Earlier Hopper sync/Wi-Fi and protected autonomy capabilities retain their boundaries.</strong> ${link('sync repair PR #217','pr',REMOTE_REF_REPAIR_PR)} remains code-promoted but physically unapplied; ${link('Wi-Fi PR #214','pr',WIFI_PROMOTION_PR)} remains code-promoted without physical Wi-Fi/reboot proof. ${link('Farmer runtime proof','commit',FARMER_RUNTIME_PROOF_COMMIT)} keeps resident exploration model-only, ${link('workload observer','commit',WORKLOAD_OBSERVER_SOURCE_COMMIT)} remains read-only, ${link('voice receipt','commit',VOICE_MIRROR_RECEIPT_COMMIT)} remains <code>WEB_STATIC_MIRROR_OK</code>, and ${link('Future Branch evidence','commit',QUANTUM_EVIDENCE_COMMIT)} remains held at the physical Tiny Seed boot boundary.</li>
-<li><strong>Hopper endpoint observability has not changed meaning.</strong> ${link('snapshot 8c4a49f21a23','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still reports <code>endpoint=null</code>, unreachable and <code>no-endpoint-candidate</code>. Equivalent null refreshes remain evidence health, not frontier advancement.</li>
+<li><strong>Hopper Wi-Fi ownership repair remains code-promoted with four-target convergence.</strong> ${link('PR #223','pr',WIFI_OWNER_PR)} merged into active Aurum trunk <code>958f3a9d...</code>; its tree <code>aa0cc44e...</code> is identical to the independently tested candidate tree. ${link('VHL 33933009074','run',WIFI_OWNER_VHL_RUN)} completed successfully across Docker x86_64, ARM64, Pi3, QEMU UEFI x86_64 and the same-commit convergence gate. The fix masks the generic Debian <code>wpa_supplicant.service</code> owner, allows live recovery only after exact root/binary/argument/cgroup identity verification, and protects unknown Wi-Fi managers.</li>
+<li><strong>Exact-active-head PC image proof is now terminal green.</strong> ${link('PC image 33934510643','run',CURRENT_PC_IMAGE_RUN)} completed successfully on <code>958f3a9d...</code>. Validation and exact-image build passed, the generic low-memory UEFI install/reboot/self-build smoke passed, Legacy BIOS install and installed-boot smoke passed, the Hopper HP topology/offline-recovery twin passed, digest convergence was enforced, and the boot-verified ISO was published. ${link('Pi3 image 33934510499','run',CURRENT_PI3_IMAGE_RUN)} and ${link('ComputeWeave 33934510651','run',COMPUTEWEAVE_RUN)} are also green on the same active head.</li>
+<li><strong>Browser + Aurum/GPT prompt succession changed its real inputs before retrying.</strong> Draft ${link('PR #222','pr',BROWSER_PROMPT_PR)} is now rebased/merged forward onto active trunk <code>958f3a9d...</code> at candidate <code>1e3bf9c3...</code> and is mergeable again. It still preserves HTTPS-only/private-network blocking, no browser credentials and no raw shell. The earlier ${link('VHL 33930723957','run',BROWSER_PROMPT_PREVIOUS_VHL_RUN)} UEFI-marker failure is retained as history; the changed candidate launched ${link('VHL 33934946010','run',BROWSER_PROMPT_VHL_RUN)}, with Docker x86_64 and ARM64 already green. No final retest or physical Hopper/browser/GPT result is promoted in this revision.</li>
+<li><strong>Hopper endpoint refresh remains evidence health only.</strong> ${link('snapshot 90420651044f','commit',CURRENT_HOPPER_STATUS_SNAPSHOT_COMMIT)} still has endpoint null/unreachable and <code>no-valid-endpoint-candidate</code>. Equivalent null snapshots do not trigger dashboard churn.</li>
 </ul>
 </div>
 <div class="needs">
 <h4>Needs Work → Aurum/System:</h4>
 <ul>
-<li><strong>Prove the generated two-entry menu on physical Hopper before calling boot recovery complete.</strong> Capture the installed menu produced by the promoted code and verify normal/default selection plus graphics recovery without modifying partitions, filesystems or NVRAM. Merge, VHL, PC-image and earlier hand-selected recovery evidence do not prove the new generated menu is physically installed or selectable.</li>
-<li><strong>Current-head native acceptance is still not observed.</strong> The older native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} belongs to an earlier trunk and remains historical. Do not replay unchanged failed work under a new ID; require a materially changed implementation, evidence path or hypothesis before retrying a failed condition.</li>
-<li><strong>Physical Hopper sync repair, Wi-Fi, reboot persistence, seed acceptance and Guardian rollback remain unproven.</strong> Virtual/build proof must not be promoted into these physical outcomes.</li>
-<li>Hopper endpoint discovery remains system-owned. Do not republish for another equivalent null snapshot; revise only when endpoint/probe meaning changes.</li>
+<li><strong>Finish the changed PR #222 VHL retest before promotion.</strong> The stale branch conflict was resolved by carrying the browser/GPT contract forward onto the newly promoted Wi-Fi-owner trunk. Preserve both workstreams and let run <code>33934946010</code> decide the former UEFI-marker boundary; do not substitute the older failed run or an unchanged replay.</li>
+<li><strong>Physical Hopper proof remains separate.</strong> Code promotion and virtual/image evidence do not prove physical Wi-Fi association, reboot persistence, generated boot-menu observation, sync-ref repair application, seed acceptance, Guardian forced rollback, or browser/GPT behavior on Hopper.</li>
+<li>Current-head native acceptance remains unobserved; the older native failure ${link('33915328066','run',PREVIOUS_NATIVE_RUN)} is historical. Hopper endpoint discovery remains system-owned.</li>
 <li><strong>Workload-observer supervision still needs protected runtime proof.</strong> ${link('supervision/timestamp fix','commit',WORKLOAD_OBSERVER_SUPERVISION_COMMIT)} is merged, but the latest protected runtime proof still predates it.</li>
 </ul>
 </div>
 <div class="actions">
 <h4>Your Actions:</h4>
-<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Hopper boot-menu, Wi-Fi, sync-ref or software action is justified for you from code evidence alone.</p>
+<p><strong>One genuine physical-only step is now proven necessary.</strong> No new Wi-Fi, service-manager, browser/GPT, Git-ref, boot-menu, or software action is justified for you from code/virtual evidence alone.</p>
 <ol>
 <li>On the physical x86 target, use the already proven current-release Tiny Seed media referenced by the Future Branch evidence.</li>
 <li>Use the machine's one-time boot menu to boot that media. <strong>Do not choose install, erase, format, repair, or any destructive option.</strong></li>
 <li>Stop when the Tiny Seed ready/GUI boot state is visible and capture the formal ready/boot proof. Do not treat the existing flash/readback receipt as physical boot proof.</li>
 </ol>
 </div>
-<p>ClusterSites remains canonical for website source. Deployment must continue through the existing protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, current-head native evidence, endpoint/probe meaning, physical boot/Wi-Fi/reboot/sync-repair evidence, protected autonomy evidence, or a genuine human-only boundary.</p>
+<p>ClusterSites remains canonical for website source. Deployment must continue through the existing protected projection/carrier path with backup before publication, exact live verification, and rollback armed on verification failure. Republish only for materially changed source, promotion/final workflow evidence, endpoint/probe meaning, physical proof, protected autonomy evidence, or a genuine human-only boundary.</p>
 `;
 const existing=document.getElementById(panel.id);
 if(existing)existing.replaceWith(panel);
