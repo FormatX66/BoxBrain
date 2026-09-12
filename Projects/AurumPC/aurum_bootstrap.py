@@ -210,30 +210,38 @@ def main() -> int:
             flush=True,
         )
 
-    # Diagnose missing Wi-Fi on every console, including the deterministic VM
-    # serial console.  On the physical primary console first try only existing
-    # kernel modules resolved from an unbound wireless modalias; never unload or
-    # replace a bound driver here.
-    if profile and not wireless_interfaces():
-        recovery: dict[str, Any] = {"status": "diagnostic-only"}
-        if _autonomous_first_boot_enabled():
-            try:
-                recovery = recover_existing_wifi_driver()
-            except Exception as exc:
-                recovery = {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
-            print("AURUM_WIFI_RECOVERY " + json.dumps(recovery, sort_keys=True), flush=True)
-        if not wireless_interfaces():
-            wifi_diag = diagnose_wifi()
-            print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
-
     input_state, input_detail = _input_summary()
     screen.update("input", input_state, input_detail)
 
-    if profile and plan:
+    if (profile and plan) or _autonomous_first_boot_enabled():
+        # Hardware diagnostics may degrade; they do not own GUI authority.
         _first_boot(profile, plan, screen)
     else:
         for stage in ("network", "workspace", "verification", "desktop"):
             screen.update(stage, "skipped", "hardware evidence unavailable")
+
+    # GUI startup has already been attempted. Optional wireless recovery must
+    # never be a prerequisite for entering the installed desktop.
+    # Diagnose missing Wi-Fi on every console, including the deterministic VM
+    # serial console.  On the physical primary console first try only existing
+    # kernel modules resolved from an unbound wireless modalias; never unload or
+    # replace a bound driver here.
+    try:
+        if profile and not wireless_interfaces():
+            recovery: dict[str, Any] = {"status": "diagnostic-only"}
+            if _autonomous_first_boot_enabled():
+                try:
+                    recovery = recover_existing_wifi_driver()
+                except Exception as exc:
+                    recovery = {"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}
+                print("AURUM_WIFI_RECOVERY " + json.dumps(recovery, sort_keys=True), flush=True)
+            if not wireless_interfaces():
+                wifi_diag = diagnose_wifi()
+                print("AURUM_WIFI_DIAG " + json.dumps(wifi_diag, sort_keys=True), flush=True)
+    except Exception as exc:
+        # Optional diagnostics cannot take down the already-started desktop
+        # or prevent entry into the bounded recovery console.
+        print("AURUM_WIFI_DIAG " + json.dumps({"status": "failed", "detail": f"{type(exc).__name__}:{exc}"}, sort_keys=True), flush=True)
 
     screen.finish(
         "ready" if screen.states["desktop"] == "ready" else "degraded",
