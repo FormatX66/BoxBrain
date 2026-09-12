@@ -51,7 +51,10 @@ def _browser() -> str | None:
 
 def _server_ready(url: str) -> bool:
     try:
-        request = urllib.request.Request(url.rstrip("/") + "/api/status", headers={"Host": "127.0.0.1:8765"})
+        # The renderer only needs transport readiness here. Full status
+        # assembles live telemetry and can exceed this boot-time probe under
+        # software-emulated CPUs even while the loopback GUI is healthy.
+        request = urllib.request.Request(url.rstrip("/") + "/api/health", headers={"Host": "127.0.0.1:8765"})
         with urllib.request.urlopen(request, timeout=3) as response:
             return response.status == 200
     except Exception:
