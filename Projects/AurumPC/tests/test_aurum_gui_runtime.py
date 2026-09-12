@@ -190,6 +190,16 @@ class AurumGuiRuntimeTests(unittest.TestCase):
         ):
             self.assertEqual(runtime._gui_status()["status"], "starting")
 
+    def test_gui_status_uses_lightweight_health_endpoint(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "_read_pid", return_value=44),
+            patch.object(runtime, "_owned_gui", return_value=True),
+            patch.object(runtime, "_json_probe", return_value={"reachable": True, "payload": {}}) as probe,
+        ):
+            self.assertEqual(runtime._gui_status()["status"], "running")
+        probe.assert_called_once_with(8765, "/api/health", "Aurum-PC-GUI-Probe/3")
+
     def test_process_cpu_ticks_handles_parentheses_in_process_name(self) -> None:
         proc_stat = "44 (aurum gui worker) S 1 2 3 4 5 6 7 8 9 10 11 12\n"
         with patch.object(gui_module.Path, "read_text", return_value=proc_stat):
@@ -234,6 +244,54 @@ class AurumGuiRuntimeTests(unittest.TestCase):
                 runtime._start_gui()
         reap.assert_called_once_with(child, runtime.pid_path)
 
+    def test_gui_start_accepts_http_readiness_during_marker_qualified_grace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            runtime.log_path.write_text(
+                "AURUM_GUI_READY address=127.0.0.1 port=8765 dialogue_only=true host_actuation=false\n",
+                encoding="utf-8",
+            )
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            states = [{"status": "stopped"}, {"status": "stopped"}, {"status": "running"}]
+            clock = iter((0.0, 0.0, 2.0, 2.0, 2.0, 2.5))
+            with (
+                patch.object(runtime, "_gui_status", side_effect=states),
+                patch.object(runtime, "_clear_stale_gui_listener"),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_process_cpu_ticks", return_value=10),
+                patch.object(runtime, "_reap_failed_child") as reap,
+                patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+                patch.object(gui_module.time, "sleep"),
+            ):
+                runtime._start_gui()
+
+            reap.assert_not_called()
+
+    def test_gui_start_does_not_extend_without_ready_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            clock = iter((0.0, 0.0, 2.0))
+            with (
+                patch.object(runtime, "_gui_status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_clear_stale_gui_listener"),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_process_cpu_ticks", return_value=10),
+                patch.object(runtime, "_reap_failed_child") as reap,
+                patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+                patch.object(gui_module.time, "sleep"),
+            ):
+                with self.assertRaisesRegex(gui_module.GuiRuntimeError, "GUI did not become ready"):
+                    runtime._start_gui()
+
+            reap.assert_called_once_with(child, runtime.pid_path)
+
     def test_gui_start_does_not_duplicate_an_owned_starting_child(self) -> None:
         runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
         clock = iter((0.0, 0.0, 2.0))
@@ -248,6 +306,39 @@ class AurumGuiRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(gui_module.GuiRuntimeError, "refusing a duplicate child"):
                 runtime._start_gui()
         spawn.assert_not_called()
+
+    def test_runtime_start_opens_desktop_before_optional_arcade(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        order = []
+        with (
+            patch.object(runtime, "prepare"),
+            patch.object(runtime, "_read_pid", return_value=None),
+            patch.object(runtime, "_start_gui", side_effect=lambda: order.append("gui")),
+            patch.object(runtime, "_desktop", side_effect=lambda action: order.append(f"desktop:{action}") or {"status": "running"}),
+            patch.object(runtime, "_start_arcade", side_effect=lambda: order.append("arcade")),
+            patch.object(runtime, "status", return_value={"status": "running", "physical_desktop": True}),
+        ):
+            result = runtime.start()
+
+        self.assertEqual(order, ["gui", "desktop:start", "arcade"])
+        self.assertEqual(result["arcade_start"], {"status": "running"})
+
+    def test_runtime_start_retains_desktop_when_optional_arcade_fails(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "prepare"),
+            patch.object(runtime, "_read_pid", return_value=None),
+            patch.object(runtime, "_start_gui"),
+            patch.object(runtime, "_desktop", return_value={"status": "running"}),
+            patch.object(runtime, "_start_arcade", side_effect=gui_module.GuiRuntimeError("fixture")),
+            patch.object(runtime, "status", return_value={"status": "running", "physical_desktop": True}),
+        ):
+            result = runtime.start()
+
+        self.assertTrue(result["physical_desktop"])
+        self.assertEqual(result["desktop_start"], {"status": "running"})
+        self.assertEqual(result["arcade_start"]["status"], "degraded")
+        self.assertIn("GuiRuntimeError:fixture", result["arcade_start"]["detail"])
 
     def test_failed_new_child_is_reaped_before_its_pid_record_is_removed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

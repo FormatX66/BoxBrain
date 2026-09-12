@@ -409,7 +409,8 @@ function webNavigate(raw,{record=true}={}){let target;try{target=normalizeWebTar
 function openWebBrowser(){webBrowser.hidden=false;document.getElementById('search').placeholder='Search Aurum systems…';if(!currentWebTarget){webHome.hidden=false;webFrame.hidden=true;setTimeout(()=>document.getElementById('web-home-query').focus(),0)}else setTimeout(()=>webAddress.focus(),0)}
 function closeWebBrowser(){showScreen('home');document.getElementById('search').focus()}
 function webBrowserHome(){currentWebTarget='';webAddress.value='';document.getElementById('web-home-query').value='';webFrame.src='about:blank';webFrame.hidden=true;webHome.hidden=false;webBrowser.classList.remove('loading');webStatus.innerHTML='<strong>Ready</strong> · browsing stays separate from GPT control';setTimeout(()=>document.getElementById('web-home-query').focus(),0)}
-async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'status unavailable');const h=d.hopper||{},t=h.telemetry||{},s=t.state||{},n=t.network||{},b=t.battery||{},tm=t.time||{},g=h.gpt||{};applyAppearance(h.appearance||{});document.getElementById('machine').textContent=s.machine||'Hopper';document.getElementById('runtime-state').textContent=s.runtime||'Unknown';document.getElementById('desktop').textContent=s.desktop_generation||s.desktop||'Unknown';document.getElementById('autonomy').textContent=s.autonomy||'Unknown';document.getElementById('input-state').textContent=s.input||'Unknown';document.getElementById('uptime').textContent=humanDuration(t.uptime_seconds);pct('memory',t.memory_percent);pct('storage',t.storage_percent);const connected=first(n,['online','connected','status']);document.getElementById('net-state').textContent=connected===true?'Connected':(connected||'Unknown');const ssid=first(n,['ssid','connection','network']);document.getElementById('ssid').textContent=ssid||'Unknown';document.getElementById('wifi').textContent=ssid||'Network';document.getElementById('net-if').textContent=first(n,['interface','device'])||'Unknown';document.getElementById('net-ip').textContent=first(n,['ip','address','ipv4'])||'Unknown';document.getElementById('battery').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-big').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-sub').textContent=b.status||'Unknown';document.getElementById('power-state').textContent=b.charging?'Charging':(b.status||'Unknown');document.getElementById('gpt-state').textContent=g.status==='ready'?'Ready':(g.status||'Unknown');document.getElementById('gpt-tools').textContent=g.function_tools?'Ready':'Unavailable';gptChip.textContent=g.status==='ready'?'GPT ready on Hopper':'Sealed credential pending';document.getElementById('time-state').textContent=tm.synchronized?'Server synchronized':'Local / unknown';if(tm.local_iso){const date=new Date(tm.local_iso);if(!Number.isNaN(date.valueOf()))document.getElementById('clock').textContent=date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}}catch(e){show(`Status: ${e.message||e}`,4)}}
+let refreshBusy=false;
+async function refresh(){if(refreshBusy)return;refreshBusy=true;try{const r=await fetch('/api/status',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'status unavailable');const h=d.hopper||{},t=h.telemetry||{},s=t.state||{},n=t.network||{},b=t.battery||{},tm=t.time||{},g=h.gpt||{};applyAppearance(h.appearance||{});document.getElementById('machine').textContent=s.machine||'Hopper';document.getElementById('runtime-state').textContent=s.runtime||'Unknown';document.getElementById('desktop').textContent=s.desktop_generation||s.desktop||'Unknown';document.getElementById('autonomy').textContent=s.autonomy||'Unknown';document.getElementById('input-state').textContent=s.input||'Unknown';document.getElementById('uptime').textContent=humanDuration(t.uptime_seconds);pct('memory',t.memory_percent);pct('storage',t.storage_percent);const connected=first(n,['online','connected','status']);document.getElementById('net-state').textContent=connected===true?'Connected':(connected||'Unknown');const ssid=first(n,['ssid','connection','network']);document.getElementById('ssid').textContent=ssid||'Unknown';document.getElementById('wifi').textContent=ssid||'Network';document.getElementById('net-if').textContent=first(n,['interface','device'])||'Unknown';document.getElementById('net-ip').textContent=first(n,['ip','address','ipv4'])||'Unknown';document.getElementById('battery').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-big').textContent=b.percent==null?'—':`${b.percent}%`;document.getElementById('battery-sub').textContent=b.status||'Unknown';document.getElementById('power-state').textContent=b.charging?'Charging':(b.status||'Unknown');document.getElementById('gpt-state').textContent=g.status==='ready'?'Ready':(g.status||'Unknown');document.getElementById('gpt-tools').textContent=g.function_tools?'Ready':'Unavailable';gptChip.textContent=g.status==='ready'?'GPT ready on Hopper':'Sealed credential pending';document.getElementById('time-state').textContent=tm.synchronized?'Server synchronized':'Local / unknown';if(tm.local_iso){const date=new Date(tm.local_iso);if(!Number.isNaN(date.valueOf()))document.getElementById('clock').textContent=date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}}catch(e){show(`Status: ${e.message||e}`,4)}finally{refreshBusy=false}}
 function applyAppearance(a){const color=/^#[0-9a-f]{6}$/i;const start=color.test(a.background_start||'')?a.background_start:'#050706';const end=color.test(a.background_end||'')?a.background_end:'#070b09';document.documentElement.style.setProperty('--bg',start);document.documentElement.style.setProperty('--bg-end',end);document.documentElement.dataset.appearanceTheme=a.theme||'default'}
 async function action(name){try{show(`${name}…`,2);const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'action failed');show(JSON.stringify(d.result||d,null,2),5);await refresh()}catch(e){show(e.message||String(e),6)}}
 async function recoveryAction(name){const buttons=[...document.querySelectorAll('[data-recovery-action]')];buttons.forEach(button=>button.disabled=true);recoveryOutput.textContent=`${name}…`;try{const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json','X-Aurum-CSRF':csrf},body:JSON.stringify({action:name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'recovery action failed');const result=d.result||d,summary=(result.result&&result.result.status)||result.status||'completed';recoveryOutput.textContent=`${name} · ${summary} · receipted`;await refresh()}catch(e){recoveryOutput.textContent=`${name} · ${e.message||String(e)}`}finally{buttons.forEach(button=>button.disabled=false)}}
@@ -504,6 +505,33 @@ def _make_handler(gui):
 
         def do_GET(self) -> None:  # noqa: N802
             request_path = urlsplit(self.path).path
+            if request_path == "/api/health":
+                if not self._host_is_loopback():
+                    self._error(HTTPStatus.FORBIDDEN, "loopback host required")
+                    return
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "schema": SCHEMA,
+                        "status": "running",
+                        "transport": {"loopback_only": True},
+                        "authority": {
+                            "dialogue_only": False,
+                            "host_actuation": "bounded",
+                        },
+                        "hopper": {
+                            "projection": {
+                                "identity_mark": {
+                                    "scope": "aurum-native-seven-leaf",
+                                    "renderer": "html5-landscape-crop",
+                                    "source_sha256": LOGO_SHA256,
+                                    "source_verified": _verified_logo_bytes() is not None,
+                                }
+                            }
+                        },
+                    },
+                )
+                return
             if request_path == "/api/install":
                 if not self._host_is_loopback():
                     self._error(HTTPStatus.FORBIDDEN, "loopback host required")

@@ -106,6 +106,8 @@ class HopperGuiTests(unittest.TestCase):
         self.assertIn("recordGuiInput('keyboard')", page)
         self.assertIn("recordGuiInput('pointer')", page)
         self.assertIn("if(!r.ok)throw new Error('input proof not recorded')", page)
+        self.assertIn("if(refreshBusy)return;refreshBusy=true", page)
+        self.assertIn("finally{refreshBusy=false}", page)
         self.assertIn('id="install-card"', page)
         self.assertIn("Erase Internal Drive &amp; Install Aurum", page)
         self.assertIn("/api/install", page)
@@ -207,6 +209,36 @@ class HopperGuiLiveRequestTests(unittest.TestCase):
             return status, json.loads(body)
         except json.JSONDecodeError:
             return status, body
+
+    def test_health_remains_available_while_full_status_is_slow(self) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+        status_result: list[tuple[int, dict[str, object] | str]] = []
+
+        def slow_telemetry() -> dict[str, object]:
+            entered.set()
+            release.wait(4)
+            return {"status": "fixture"}
+
+        def request_status() -> None:
+            status_result.append(self._request("/api/status"))
+
+        with patch.object(hopper, "_telemetry", side_effect=slow_telemetry):
+            worker = threading.Thread(target=request_status, daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(1), "full status request did not enter telemetry")
+                status, payload = self._request("/api/health")
+                self.assertEqual(status, 200)
+                self.assertIsInstance(payload, dict)
+                self.assertEqual(payload["schema"], hopper.SCHEMA)
+                self.assertEqual(payload["status"], "running")
+                self.assertTrue(payload["transport"]["loopback_only"])
+            finally:
+                release.set()
+                worker.join(4)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(status_result[0][0], 200)
 
     @staticmethod
     def _healthy_module(filename: str, _prefix: str):
