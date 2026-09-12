@@ -307,6 +307,39 @@ class AurumGuiRuntimeTests(unittest.TestCase):
                 runtime._start_gui()
         spawn.assert_not_called()
 
+    def test_runtime_start_opens_desktop_before_optional_arcade(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        order = []
+        with (
+            patch.object(runtime, "prepare"),
+            patch.object(runtime, "_read_pid", return_value=None),
+            patch.object(runtime, "_start_gui", side_effect=lambda: order.append("gui")),
+            patch.object(runtime, "_desktop", side_effect=lambda action: order.append(f"desktop:{action}") or {"status": "running"}),
+            patch.object(runtime, "_start_arcade", side_effect=lambda: order.append("arcade")),
+            patch.object(runtime, "status", return_value={"status": "running", "physical_desktop": True}),
+        ):
+            result = runtime.start()
+
+        self.assertEqual(order, ["gui", "desktop:start", "arcade"])
+        self.assertEqual(result["arcade_start"], {"status": "running"})
+
+    def test_runtime_start_retains_desktop_when_optional_arcade_fails(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "prepare"),
+            patch.object(runtime, "_read_pid", return_value=None),
+            patch.object(runtime, "_start_gui"),
+            patch.object(runtime, "_desktop", return_value={"status": "running"}),
+            patch.object(runtime, "_start_arcade", side_effect=gui_module.GuiRuntimeError("fixture")),
+            patch.object(runtime, "status", return_value={"status": "running", "physical_desktop": True}),
+        ):
+            result = runtime.start()
+
+        self.assertTrue(result["physical_desktop"])
+        self.assertEqual(result["desktop_start"], {"status": "running"})
+        self.assertEqual(result["arcade_start"]["status"], "degraded")
+        self.assertIn("GuiRuntimeError:fixture", result["arcade_start"]["detail"])
+
     def test_failed_new_child_is_reaped_before_its_pid_record_is_removed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             pid_path = Path(temporary) / "gui.pid"

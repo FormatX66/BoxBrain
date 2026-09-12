@@ -531,10 +531,20 @@ class GuiRuntime:
                         time.sleep(0.1)
                     self.pid_path.unlink(missing_ok=True)
             self._start_gui()
-            self._start_arcade()
+            # The physical desktop is the primary recovery/control surface.
+            # Echo Rally is optional and must never prevent that surface from
+            # opening, especially on a slow offline boot. Keep any arcade
+            # failure explicit in the result without converting it into a GUI
+            # startup failure.
             desktop = self._desktop("start")
+            try:
+                self._start_arcade()
+                arcade_start = {"status": "running"}
+            except GuiRuntimeError as exc:
+                arcade_start = {"status": "degraded", "detail": f"{type(exc).__name__}:{exc}"}
             result = self.status()
             result["desktop_start"] = desktop
+            result["arcade_start"] = arcade_start
             return result
 
     @staticmethod
