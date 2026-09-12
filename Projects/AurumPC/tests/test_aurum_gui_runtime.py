@@ -190,6 +190,16 @@ class AurumGuiRuntimeTests(unittest.TestCase):
         ):
             self.assertEqual(runtime._gui_status()["status"], "starting")
 
+    def test_gui_status_uses_lightweight_health_endpoint(self) -> None:
+        runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
+        with (
+            patch.object(runtime, "_read_pid", return_value=44),
+            patch.object(runtime, "_owned_gui", return_value=True),
+            patch.object(runtime, "_json_probe", return_value={"reachable": True, "payload": {}}) as probe,
+        ):
+            self.assertEqual(runtime._gui_status()["status"], "running")
+        probe.assert_called_once_with(8765, "/api/health", "Aurum-PC-GUI-Probe/3")
+
     def test_process_cpu_ticks_handles_parentheses_in_process_name(self) -> None:
         proc_stat = "44 (aurum gui worker) S 1 2 3 4 5 6 7 8 9 10 11 12\n"
         with patch.object(gui_module.Path, "read_text", return_value=proc_stat):

@@ -251,7 +251,10 @@ class GuiRuntime:
     def _gui_status(self) -> dict[str, Any]:
         pid = self._read_pid(self.pid_path)
         owned = bool(pid and self._owned_gui(pid))
-        probe = self._json_probe(self.port, "/api/status", "Aurum-PC-GUI-Probe/3") if owned else {"reachable": False}
+        # Readiness must not wait for the full telemetry/status projection.
+        # Under software-emulated CPUs that payload can be slow while the
+        # loopback server and desktop are already healthy.
+        probe = self._json_probe(self.port, "/api/health", "Aurum-PC-GUI-Probe/3") if owned else {"reachable": False}
         if pid and not owned:
             self.pid_path.unlink(missing_ok=True)
             pid = None
