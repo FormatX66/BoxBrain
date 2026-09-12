@@ -28,6 +28,21 @@
         "store successful visual traits and corrections"
       ],
       "fallbacks": ["prompt pack", "character reference sheet", "social post storyboard"]
+    },
+    {
+      "id": "aurum_identity_asset_selection",
+      "task_patterns": ["choose Aurum logo", "select identity mark", "compare generated logo iterations"],
+      "status": "proven",
+      "steps": [
+        "keep human preference separate from design-selection authority",
+        "compare the original, cleanup, generated derivatives, and deterministic small-size companion",
+        "reject recency bias and inspect every candidate for invented terminals, duplicated nodes, and incoherent crossings",
+        "select the strongest geometry independently, then confirm semantic convergence among Bruce, Aurum, and Codex",
+        "hash and preserve the exact selected asset",
+        "record the decision in the repository and deployed Aurum evidence surfaces",
+        "perform future cleanup mechanically from the selected source without generative redraw"
+      ],
+      "fallbacks": ["retain the selected raster as the geometry authority", "mechanical background extraction", "manual vector trace with hash-linked review"]
     }
   ]
 }

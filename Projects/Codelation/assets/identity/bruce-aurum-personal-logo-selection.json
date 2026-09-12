@@ -1,0 +1,32 @@
+{
+  "schema": "aurum.identity.selection.v1",
+  "identity": "BBPI4/Aurum",
+  "asset_id": "bruce-aurum-personal-logo",
+  "scope": "Bruce's first personalized Aurum logo",
+  "status": "selected",
+  "selected_asset": "bruce-aurum-personal-logo-selected.png",
+  "sha256": "cc6f724146cee4df50146cf9ab4d78e3ccdc6b2a62b3c72116ded90bb24b304d",
+  "bytes": 1848449,
+  "selected_on": "2026-08-15",
+  "decision_id": "BB-ADR-061",
+  "selection": {
+    "aurum": "A is the most faithful, coherent, and resilient rendition of the Aurum mark.",
+    "codex": "Selected independently for coherent codelation geometry and resistance to iteration drift.",
+    "bruce": "Confirmed the converged choice while clarifying that his preference was not the reason to select it."
+  },
+  "geometry_invariants": [
+    "straight woven capital A",
+    "small teal code-style u completing Au",
+    "dominant human-visible gold",
+    "teal machine-state inlays",
+    "intentional open upper-right gap",
+    "coherent over-under codelation weave",
+    "three meaningful decision nodes"
+  ],
+  "production_constraints": [
+    "preserve this exact raster as the geometry authority",
+    "do not replace it through generative redraw",
+    "remove the checkerboard only through mechanical extraction or a reviewed manual trace",
+    "verify every derivative against the recorded SHA-256 source"
+  ]
+}

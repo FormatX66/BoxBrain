@@ -15,6 +15,11 @@
       "id": "wrong_artifact",
       "detect": ["user requested video but received presentation", "deliverable is multiple steps away"],
       "response": "Re-evaluate the user goal and create the nearest directly usable artifact."
+    },
+    {
+      "id": "generative_identity_drift",
+      "detect": ["later logo iteration adds ambiguous terminals", "decision nodes duplicate without meaning", "weave becomes decorative spaghetti", "newer candidate is preferred only because it is newer"],
+      "response": "Return to the last independently approved geometry, verify its hash, and use mechanical cleanup or a hash-linked manual trace instead of another generative redraw."
     }
   ]
 }
