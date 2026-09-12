@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from .api import router
+from .console import console_response
 from .settings import settings
 from .future_branch import FutureBranchMiddleware, make_gate
 
@@ -91,6 +92,12 @@ def create_app() -> FastAPI:
             "X-BoxBrain-Token",
         ],
     )
+
+    @application.get("/", include_in_schema=False)
+    @application.get("/console", include_in_schema=False)
+    def boxbrain_console():
+        return console_response()
+
     application.include_router(router)
 
     def custom_openapi() -> dict:
