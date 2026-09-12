@@ -244,6 +244,54 @@ class AurumGuiRuntimeTests(unittest.TestCase):
                 runtime._start_gui()
         reap.assert_called_once_with(child, runtime.pid_path)
 
+    def test_gui_start_accepts_http_readiness_during_marker_qualified_grace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            runtime.log_path.write_text(
+                "AURUM_GUI_READY address=127.0.0.1 port=8765 dialogue_only=true host_actuation=false\n",
+                encoding="utf-8",
+            )
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            states = [{"status": "stopped"}, {"status": "stopped"}, {"status": "running"}]
+            clock = iter((0.0, 0.0, 2.0, 2.0, 2.0, 2.5))
+            with (
+                patch.object(runtime, "_gui_status", side_effect=states),
+                patch.object(runtime, "_clear_stale_gui_listener"),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_process_cpu_ticks", return_value=10),
+                patch.object(runtime, "_reap_failed_child") as reap,
+                patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+                patch.object(gui_module.time, "sleep"),
+            ):
+                runtime._start_gui()
+
+            reap.assert_not_called()
+
+    def test_gui_start_does_not_extend_without_ready_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), run_dir=Path(temporary))
+            child = Mock(pid=45)
+            child.poll.return_value = None
+            clock = iter((0.0, 0.0, 2.0))
+            with (
+                patch.object(runtime, "_gui_status", return_value={"status": "stopped"}),
+                patch.object(runtime, "_clear_stale_gui_listener"),
+                patch.object(runtime, "_spawn", return_value=child),
+                patch.object(runtime, "_process_cpu_ticks", return_value=10),
+                patch.object(runtime, "_reap_failed_child") as reap,
+                patch.object(gui_module, "GUI_READY_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module, "GUI_PROGRESS_HARD_TIMEOUT_SECONDS", 1),
+                patch.object(gui_module.time, "monotonic", side_effect=lambda: next(clock)),
+                patch.object(gui_module.time, "sleep"),
+            ):
+                with self.assertRaisesRegex(gui_module.GuiRuntimeError, "GUI did not become ready"):
+                    runtime._start_gui()
+
+            reap.assert_called_once_with(child, runtime.pid_path)
+
     def test_gui_start_does_not_duplicate_an_owned_starting_child(self) -> None:
         runtime = GuiRuntime(runtime_root=Path("/opt/aurum"), port=8765)
         clock = iter((0.0, 0.0, 2.0))

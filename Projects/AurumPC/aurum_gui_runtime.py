@@ -29,6 +29,7 @@ DEFAULT_PORT = 8765
 DEFAULT_ARCADE_PORT = 8766
 GUI_READY_TIMEOUT_SECONDS = 30
 GUI_PROGRESS_HARD_TIMEOUT_SECONDS = 120
+GUI_READY_MARKER_GRACE_SECONDS = 5
 ARCADE_READY_TIMEOUT_SECONDS = 30
 ARCADE_READY_MARKER_GRACE_SECONDS = 5
 FAILED_CHILD_STOP_SECONDS = 5
@@ -455,6 +456,21 @@ class GuiRuntime:
                     break
                 time.sleep(0.25)
             child_ended = process.poll() is not None
+            detail = self.log_path.read_text(encoding="utf-8", errors="replace")[-1000:] if self.log_path.is_file() else ""
+            # A heavily emulated guest can print the owned server's ready
+            # marker on the hard-deadline boundary, just after the loop's last
+            # HTTP probe. Preserve the hard bound for silent processes, but
+            # give this concrete startup-progress state a short final probe
+            # window before terminating the child.
+            if not child_ended and "AURUM_GUI_READY" in detail:
+                marker_deadline = time.monotonic() + GUI_READY_MARKER_GRACE_SECONDS
+                while time.monotonic() < marker_deadline:
+                    if self._gui_status()["status"] == "running":
+                        return
+                    if process.poll() is not None:
+                        child_ended = True
+                        break
+                    time.sleep(0.25)
             self._reap_failed_child(process, self.pid_path)
             # Retry only a changed condition: the child exited and a separately
             # recognized legacy listener appeared in the bind window.
