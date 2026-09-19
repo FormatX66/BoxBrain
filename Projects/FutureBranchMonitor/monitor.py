@@ -175,15 +175,24 @@ def make_server(journal, port=19467):
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
+def poll_engine(journal, stop, delay=5):
+    while not stop.is_set():
+        try:
+            sample_engine(journal)
+        except Exception as error:
+            # A transient journal failure must not silently end the only engine
+            # collector while the dashboard and workload threads remain alive.
+            try:
+                journal.snapshot("engine", {"reachable": False, "detailed": False,
+                                            "error": type(error).__name__})
+            except Exception:
+                pass  # Leave the old sample stale and retry on the next cycle.
+        stop.wait(delay)
+
+
 def serve(journal, port=19467):
     stop = threading.Event()
-
-    def poll():
-        while not stop.is_set():
-            sample_engine(journal)
-            stop.wait(5)
-
-    thread = threading.Thread(target=poll, daemon=True)
+    thread = threading.Thread(target=poll_engine, args=(journal, stop), daemon=True)
     server = make_server(journal, port)
     def poll_provider(name, collector):
         previous = None

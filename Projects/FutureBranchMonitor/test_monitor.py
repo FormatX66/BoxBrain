@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
-from monitor import Journal, SCHEMA, sample_engine
+from monitor import Journal, SCHEMA, poll_engine, sample_engine
 
 
 class MonitorTests(unittest.TestCase):
@@ -54,6 +56,24 @@ class MonitorTests(unittest.TestCase):
         self.assertNotIn("activity", data)
         self.assertNotIn("private path", json.dumps(data))
         self.assertTrue(self.journal.read(time.time()+16)["engine"]["stale"])
+
+    def test_engine_collector_recovers_after_transient_journal_failure(self):
+        stop = threading.Event()
+        calls = 0
+
+        def flaky_sample(journal):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise sqlite3.OperationalError("temporary journal failure")
+            journal.snapshot("engine", {"reachable": True, "activity": "idle"})
+            stop.set()
+
+        with patch("monitor.sample_engine", side_effect=flaky_sample):
+            poll_engine(self.journal, stop, delay=0)
+
+        self.assertEqual(2, calls)
+        self.assertTrue(self.journal.read()["engine"]["reachable"])
 
 
 if __name__ == "__main__":
