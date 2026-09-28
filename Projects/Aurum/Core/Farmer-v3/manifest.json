@@ -14,7 +14,7 @@
     "verification_passed"
   ],
   "host_core": {
-    "tests": "14 tests; see exact-source CI evidence",
+    "tests": "20 tests; platform-specific socket tests may skip; see exact-source verification evidence",
     "path": "/Aurum/Core/Farmer-v3"
   },
   "github_integration": {
