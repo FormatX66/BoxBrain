@@ -346,5 +346,89 @@ class FarmerCoreTests(unittest.TestCase):
             self.assertEqual(received[0]["event"], "hive_delta")
 
 
+
+class SQLiteConnectionLifetimeTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.worker = FarmerWorker.__new__(FarmerWorker)
+        self.worker.db_path = Path(temporary.name) / "lifetime.db"
+        with self.worker._connect() as con:
+            con.execute("CREATE TABLE sample(value INTEGER)")
+
+    def assert_closed(self, con):
+        with self.assertRaises(sqlite3.ProgrammingError):
+            con.execute("SELECT 1")
+
+    def test_success_commits_and_closes(self):
+        with self.worker._connect() as con:
+            con.execute("INSERT INTO sample VALUES (7)")
+        self.assert_closed(con)
+        with self.worker._connect() as check:
+            self.assertEqual(check.execute("SELECT value FROM sample").fetchall(), [(7,)])
+
+    def test_body_error_rolls_back_and_closes(self):
+        with self.assertRaisesRegex(ValueError, "body failed"):
+            with self.worker._connect() as con:
+                con.execute("INSERT INTO sample VALUES (8)")
+                raise ValueError("body failed")
+        self.assert_closed(con)
+        with self.worker._connect() as check:
+            self.assertEqual(check.execute("SELECT count(*) FROM sample").fetchone(), (0,))
+
+    def test_initialization_error_and_interrupt_close_connection(self):
+        from unittest.mock import patch
+
+        class FailingPragma(sqlite3.Connection):
+            closed = False
+            failure = None
+
+            def execute(self, sql, parameters=()):
+                if sql == "PRAGMA journal_mode=WAL":
+                    raise self.failure
+                return super().execute(sql, parameters)
+
+            def close(self):
+                self.closed = True
+                super().close()
+
+        for error in (sqlite3.OperationalError("pragma failed"), KeyboardInterrupt()):
+            with self.subTest(exception=type(error).__name__):
+                con = sqlite3.connect(self.worker.db_path, factory=FailingPragma)
+                con.failure = error
+                self.addCleanup(con.close)
+                with patch("aurum_worker.sqlite3.connect", return_value=con):
+                    with self.assertRaises(type(error)):
+                        with self.worker._connect():
+                            self.fail("Initialization failure must not enter the body")
+                self.assertTrue(con.closed, "Initialization failure leaked the connection")
+
+    def test_connect_failure_propagates_without_entering_body(self):
+        from unittest.mock import patch
+        with patch("aurum_worker.sqlite3.connect", side_effect=sqlite3.OperationalError("connect failed")):
+            with self.assertRaisesRegex(sqlite3.OperationalError, "connect failed"):
+                with self.worker._connect():
+                    self.fail("Connection failure must not enter the body")
+
+    def test_commit_failure_rolls_back_and_closes(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.worker._connect() as con:
+                con.execute("PRAGMA foreign_keys=ON")
+                con.execute("CREATE TABLE parent(id INTEGER PRIMARY KEY)")
+                con.execute("CREATE TABLE child(pid INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED)")
+                con.execute("INSERT INTO child VALUES (99)")
+        self.assert_closed(con)
+        with self.worker._connect() as check:
+            self.assertEqual(check.execute("SELECT count(*) FROM child").fetchone(), (0,))
+
+    def test_repeated_contexts_release_windows_file_handle(self):
+        for _ in range(20):
+            with self.worker._connect() as con:
+                con.execute("INSERT INTO sample VALUES (1)")
+            self.assert_closed(con)
+        self.worker.db_path.unlink()
+        self.assertFalse(self.worker.db_path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

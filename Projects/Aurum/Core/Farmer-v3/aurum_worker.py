@@ -188,8 +188,9 @@ class FarmerWorker:
     @contextmanager
     def _connect(self):
         con = sqlite3.connect(self.db_path, timeout=30)
-        con.execute("PRAGMA journal_mode=WAL")
         try:
+            # Initialization can fail before the transaction context is entered.
+            con.execute("PRAGMA journal_mode=WAL")
             with con:
                 yield con
         finally:
