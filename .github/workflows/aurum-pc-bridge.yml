@@ -168,10 +168,24 @@ jobs:
             exit 0
           }
 
+          $failedJobs = @()
           foreach ($item in $pending) {
             Write-Host "AURUM_PC_BRIDGE_START file=$($item.Name) host=$env:COMPUTERNAME"
-            & $executor -JobPath $item.Job -OutputPath $item.Result
-            if ($LASTEXITCODE -ne 0) { throw "AURUM_PC_BRIDGE_JOB_FAILED file=$($item.Name)" }
+            $jobOk = $true
+            try {
+              & $executor -JobPath $item.Job -OutputPath $item.Result
+              $jobOk = $?
+            } catch {
+              $jobOk = $false
+              Write-Warning "AURUM_PC_BRIDGE_JOB_EXCEPTION file=$($item.Name) message=$($_.Exception.Message)"
+            }
+            if (-not $jobOk) {
+              $failedJobs += $item.Name
+              Write-Warning "AURUM_PC_BRIDGE_JOB_FAILED file=$($item.Name); continuing remaining independent jobs"
+            }
+          }
+          if ($failedJobs.Count -gt 0) {
+            Write-Warning "AURUM_PC_BRIDGE_PARTIAL_FAILURE count=$($failedJobs.Count) files=$($failedJobs -join ',')"
           }
 
           git config user.name 'aurum-pc-bridge[bot]'
