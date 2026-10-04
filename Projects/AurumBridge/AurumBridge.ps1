@@ -19,7 +19,9 @@ $AllowedActions = @(
     'storage_snapshot',
     'wiz_light_off',
     'wiz_scan',
-    'wiz_light_off_unique_on'
+    'wiz_light_off_unique_on',
+    'wiz_room_identify_start',
+    'wiz_room_identify_restore'
 )
 
 function Test-BridgeAdmin {
@@ -349,6 +351,100 @@ function Invoke-WizUniqueActiveLightOff {
     }
 }
 
+function ConvertTo-WizWritablePilot {
+    param([object]$Pilot)
+    $out = [ordered]@{}
+    foreach ($name in @('state','dimming','r','g','b','c','w','temp','sceneId','speed')) {
+        if ($null -ne $Pilot -and $Pilot.PSObject.Properties.Name -contains $name) {
+            $out[$name] = $Pilot.$name
+        }
+    }
+    return $out
+}
+
+function Start-WizRoomIdentification {
+    $snapshotRoot = Join-Path $env:ProgramData 'Aurum\SmartHome'
+    New-Item -ItemType Directory -Path $snapshotRoot -Force | Out-Null
+    $snapshotPath = Join-Path $snapshotRoot 'wiz-room-identify-snapshot.json'
+
+    $markers = @(
+        [ordered]@{ room_id='33767514'; ip='192.168.0.139'; marker='red'; payload='{"method":"setPilot","params":{"state":true,"dimming":40,"r":255,"g":0,"b":0}}' },
+        [ordered]@{ room_id='9636136'; ip='192.168.0.14'; marker='green'; payload='{"method":"setPilot","params":{"state":true,"dimming":40,"r":0,"g":255,"b":0}}' },
+        [ordered]@{ room_id='8855599'; ip='192.168.0.177'; marker='blue'; payload='{"method":"setPilot","params":{"state":true,"dimming":40,"r":0,"g":0,"b":255}}' },
+        [ordered]@{ room_id='291528'; ip='192.168.0.217'; marker='dim-white'; payload='{"method":"setPilot","params":{"state":true,"dimming":10}}' }
+    )
+
+    $snapshots = @()
+    foreach ($m in $markers) {
+        $before = Invoke-WizUdpJson -Target $m.ip -Payload '{"method":"getPilot","params":{}}'
+        if ($null -eq $before.result) { throw "WIZ_IDENTIFY_REFUSED ip=$($m.ip) reason=no-before-state" }
+        $snapshots += [ordered]@{
+            room_id = $m.room_id
+            ip = $m.ip
+            marker = $m.marker
+            restore_params = ConvertTo-WizWritablePilot -Pilot $before.result
+        }
+    }
+
+    [ordered]@{
+        schema='aurum.wiz-room-identify-snapshot.v1'
+        created_at=(Get-Date).ToUniversalTime().ToString('o')
+        devices=$snapshots
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+
+    $applied = @()
+    foreach ($m in $markers) {
+        [void](Invoke-WizUdpJson -Target $m.ip -Payload $m.payload)
+        Start-Sleep -Milliseconds 120
+        $after = Invoke-WizUdpJson -Target $m.ip -Payload '{"method":"getPilot","params":{}}'
+        $applied += [ordered]@{
+            room_id=$m.room_id
+            ip=$m.ip
+            marker=$m.marker
+            state=if ($null -ne $after.result) { [bool]$after.result.state } else { $null }
+            dimming=if ($null -ne $after.result -and $after.result.PSObject.Properties.Name -contains 'dimming') { [int]$after.result.dimming } else { $null }
+        }
+    }
+
+    return [ordered]@{
+        snapshot_path=$snapshotPath
+        markers=$applied
+        observed_at=(Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
+function Restore-WizRoomIdentification {
+    $snapshotPath = Join-Path (Join-Path $env:ProgramData 'Aurum\SmartHome') 'wiz-room-identify-snapshot.json'
+    if (-not (Test-Path -LiteralPath $snapshotPath -PathType Leaf)) {
+        throw 'WIZ_IDENTIFY_RESTORE_REFUSED reason=snapshot-missing'
+    }
+    $snapshot = Get-Content -LiteralPath $snapshotPath -Raw | ConvertFrom-Json
+    if ([string]$snapshot.schema -ne 'aurum.wiz-room-identify-snapshot.v1') {
+        throw 'WIZ_IDENTIFY_RESTORE_REFUSED reason=snapshot-schema'
+    }
+
+    $restored = @()
+    foreach ($d in @($snapshot.devices)) {
+        $paramsJson = ($d.restore_params | ConvertTo-Json -Compress -Depth 5)
+        $payload = '{"method":"setPilot","params":' + $paramsJson + '}'
+        [void](Invoke-WizUdpJson -Target ([string]$d.ip) -Payload $payload)
+        Start-Sleep -Milliseconds 120
+        $after = Invoke-WizUdpJson -Target ([string]$d.ip) -Payload '{"method":"getPilot","params":{}}'
+        $restored += [ordered]@{
+            room_id=[string]$d.room_id
+            ip=[string]$d.ip
+            state=if ($null -ne $after.result) { [bool]$after.result.state } else { $null }
+            dimming=if ($null -ne $after.result -and $after.result.PSObject.Properties.Name -contains 'dimming') { [int]$after.result.dimming } else { $null }
+        }
+    }
+    Remove-Item -LiteralPath $snapshotPath -Force -ErrorAction SilentlyContinue
+    return [ordered]@{
+        restored=$restored
+        snapshot_removed=(-not (Test-Path -LiteralPath $snapshotPath))
+        observed_at=(Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
 function Get-StorageSnapshot {
     return @(Get-Disk | Sort-Object Number | ForEach-Object {
         $partitions = @(Get-Partition -DiskNumber $_.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | ForEach-Object {
@@ -429,6 +525,8 @@ try {
         'wiz_light_off' { $data = Invoke-WizLightOff }
         'wiz_scan' { $data = Get-WizLanScan }
         'wiz_light_off_unique_on' { $data = Invoke-WizUniqueActiveLightOff }
+        'wiz_room_identify_start' { $data = Start-WizRoomIdentification }
+        'wiz_room_identify_restore' { $data = Restore-WizRoomIdentification }
         default { throw "unreachable action: $action" }
     }
 
