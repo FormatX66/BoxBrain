@@ -1,0 +1,19 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "wiz-bedside-off-20261004-0001",
+    "action":  "wiz_light_off",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T04:11:54.4552943Z",
+    "finished_at":  "2026-10-04T04:11:55.0747120Z",
+    "data":  {
+                 "target":  "192.168.0.14",
+                 "module":  "ESP24_SHRGB_01",
+                 "firmware":  "1.38.0",
+                 "before_state":  false,
+                 "after_state":  false,
+                 "verified_off":  true,
+                 "observed_at":  "2026-10-04T04:11:55.0747120Z"
+             },
+    "error":  null
+}

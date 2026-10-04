@@ -1,0 +1,146 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "storage-snapshot-20260824-0741",
+    "action":  "storage_snapshot",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T04:11:52.7635869Z",
+    "finished_at":  "2026-10-04T04:11:54.4432961Z",
+    "data":  [
+                 {
+                     "number":  0,
+                     "friendly_name":  "INTEL SSDPEKNU010TZ",
+                     "serial":  "0000_0000_0100_0000_E4D2_5C70_6513_5501.",
+                     "bus_type":  "RAID",
+                     "size_bytes":  1024209543168,
+                     "is_boot":  true,
+                     "is_system":  true,
+                     "partitions":  [
+                                        {
+                                            "partition_number":  1,
+                                            "drive_letter":  null,
+                                            "size_bytes":  272629760,
+                                            "type":  "System"
+                                        },
+                                        {
+                                            "partition_number":  2,
+                                            "drive_letter":  null,
+                                            "size_bytes":  16777216,
+                                            "type":  "Reserved"
+                                        },
+                                        {
+                                            "partition_number":  3,
+                                            "drive_letter":  "C",
+                                            "size_bytes":  1022349352448,
+                                            "type":  "Basic"
+                                        },
+                                        {
+                                            "partition_number":  4,
+                                            "drive_letter":  null,
+                                            "size_bytes":  1357905920,
+                                            "type":  "Recovery"
+                                        },
+                                        {
+                                            "partition_number":  5,
+                                            "drive_letter":  null,
+                                            "size_bytes":  209715200,
+                                            "type":  "Recovery"
+                                        }
+                                    ]
+                 },
+                 {
+                     "number":  1,
+                     "friendly_name":  "PNY CS90 0 480GB SSD",
+                     "serial":  "8E0987654321",
+                     "bus_type":  "USB",
+                     "size_bytes":  480103981056,
+                     "is_boot":  false,
+                     "is_system":  false,
+                     "partitions":  [
+                                        {
+                                            "partition_number":  1,
+                                            "drive_letter":  null,
+                                            "size_bytes":  104857600,
+                                            "type":  "System"
+                                        },
+                                        {
+                                            "partition_number":  2,
+                                            "drive_letter":  null,
+                                            "size_bytes":  314572800,
+                                            "type":  "Recovery"
+                                        },
+                                        {
+                                            "partition_number":  3,
+                                            "drive_letter":  null,
+                                            "size_bytes":  134217728,
+                                            "type":  "Reserved"
+                                        },
+                                        {
+                                            "partition_number":  4,
+                                            "drive_letter":  null,
+                                            "size_bytes":  881852416,
+                                            "type":  "Recovery"
+                                        },
+                                        {
+                                            "partition_number":  5,
+                                            "drive_letter":  null,
+                                            "size_bytes":  470269440,
+                                            "type":  "Recovery"
+                                        },
+                                        {
+                                            "partition_number":  6,
+                                            "drive_letter":  "D",
+                                            "size_bytes":  478196604416,
+                                            "type":  "Basic"
+                                        }
+                                    ]
+                 },
+                 {
+                     "number":  3,
+                     "friendly_name":  "Storage space",
+                     "serial":  "{6bbdeb9b-4117-11e3-bf02-c86000734c63}",
+                     "bus_type":  "Spaces",
+                     "size_bytes":  1495453925376,
+                     "is_boot":  false,
+                     "is_system":  false,
+                     "partitions":  [
+                                        {
+                                            "partition_number":  1,
+                                            "drive_letter":  null,
+                                            "size_bytes":  134217728,
+                                            "type":  "Reserved"
+                                        },
+                                        {
+                                            "partition_number":  2,
+                                            "drive_letter":  "E",
+                                            "size_bytes":  1495318638592,
+                                            "type":  "Basic"
+                                        }
+                                    ]
+                 },
+                 {
+                     "number":  4,
+                     "friendly_name":  "Generic- USB3.0 CRW   -SD",
+                     "serial":  "",
+                     "bus_type":  "USB",
+                     "size_bytes":  31914983424,
+                     "is_boot":  false,
+                     "is_system":  false,
+                     "partitions":  [
+                                        {
+                                            "partition_number":  1,
+                                            "drive_letter":  null,
+                                            "size_bytes":  536870912,
+                                            "type":  "FAT32 XINT13"
+                                        },
+                                        {
+                                            "partition_number":  2,
+                                            "drive_letter":  null,
+                                            "size_bytes":  2432696320,
+                                            "type":  "Unknown"
+                                        }
+                                    ]
+                 }
+             ],
+    "error":  null
+}

@@ -1,0 +1,60 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "seed-status-20260824-0732-reread",
+    "action":  "seed_status",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T04:11:50.5844699Z",
+    "finished_at":  "2026-10-04T04:11:52.7476164Z",
+    "data":  {
+                 "flash_sentinels":  [
+                                         {
+                                             "name":  "pc01-flash-8948d21f761a7220c2c4347b07dced4c19acef68-cc41f46c334c9db1256c11cddda1bffde6e5db45e47922720ec74260bd8e8bb7.done",
+                                             "modified_utc":  "2026-08-21T20:32:19.5943787Z",
+                                             "size_bytes":  622
+                                         },
+                                         {
+                                             "name":  "pc01-flash-7c841adcb05fd7a36c4769e43d606089b2cf5fa5-89e6faca7237e1980494221cc057c9966177b1f486476727abbd8bf88928d4b5.done",
+                                             "modified_utc":  "2026-08-21T14:58:58.0581679Z",
+                                             "size_bytes":  622
+                                         },
+                                         {
+                                             "name":  "pc01-flash-7c841adcb05fd7a36c4769e43d606089b2cf5fa5-c28a93529cfd0085812432c91342ad20715c81b9d74fc0d4bca74fbdf9b7aa36.done",
+                                             "modified_utc":  "2026-08-20T15:06:59.0293162Z",
+                                             "size_bytes":  622
+                                         },
+                                         {
+                                             "name":  "pc01-flash-7c841adcb05fd7a36c4769e43d606089b2cf5fa5-9ea55ed5350eaa2fbadede2faf8dd55bb6e05897f2c955a4eea0846198b43bb5.done",
+                                             "modified_utc":  "2026-08-20T11:36:03.5310838Z",
+                                             "size_bytes":  622
+                                         },
+                                         {
+                                             "name":  "pc01-flash-7c841adcb05fd7a36c4769e43d606089b2cf5fa5-b6548b29424e200d9b4b8845824ad0483e3ccacd97cf0e64fc7e1299ad090e36.done",
+                                             "modified_utc":  "2026-08-19T21:14:46.6041135Z",
+                                             "size_bytes":  622
+                                         }
+                                     ],
+                 "usb_disks":  [
+                                   {
+                                       "number":  1,
+                                       "friendly_name":  "PNY CS90 0 480GB SSD",
+                                       "serial":  "8E0987654321",
+                                       "size_bytes":  480103981056,
+                                       "is_boot":  false,
+                                       "is_system":  false,
+                                       "is_offline":  false
+                                   },
+                                   {
+                                       "number":  4,
+                                       "friendly_name":  "Generic- USB3.0 CRW   -SD",
+                                       "serial":  "",
+                                       "size_bytes":  31914983424,
+                                       "is_boot":  false,
+                                       "is_system":  false,
+                                       "is_offline":  false
+                                   }
+                               ],
+                 "sentinel_root_exists":  true
+             },
+    "error":  null
+}
