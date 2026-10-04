@@ -1,0 +1,5 @@
+{
+  "schema": "aurum-pc-bridge-job-v1",
+  "id": "wiz-room-identify-all-off-20261004-0001",
+  "action": "wiz_room_identify_all_off"
+}

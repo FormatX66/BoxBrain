@@ -21,7 +21,8 @@ $AllowedActions = @(
     'wiz_scan',
     'wiz_light_off_unique_on',
     'wiz_room_identify_start',
-    'wiz_room_identify_restore'
+    'wiz_room_identify_restore',
+    'wiz_room_identify_all_off'
 )
 
 function Test-BridgeAdmin {
@@ -445,6 +446,23 @@ function Restore-WizRoomIdentification {
     }
 }
 
+function Invoke-WizRoomIdentifyAllOff {
+    $targets = @('192.168.0.139','192.168.0.14','192.168.0.177','192.168.0.217')
+    $results = @()
+    foreach ($ip in $targets) {
+        [void](Invoke-WizUdpJson -Target $ip -Payload '{"method":"setPilot","params":{"state":false}}')
+        Start-Sleep -Milliseconds 100
+        $after = Invoke-WizUdpJson -Target $ip -Payload '{"method":"getPilot","params":{}}'
+        $state = if ($null -ne $after.result -and $after.result.PSObject.Properties.Name -contains 'state') { [bool]$after.result.state } else { $null }
+        if ($state -ne $false) { throw "WIZ_IDENTIFY_ALL_OFF_VERIFY_FAILED ip=$ip state=$state" }
+        $results += [ordered]@{ ip=$ip; verified_off=$true }
+    }
+    return [ordered]@{
+        targets=$results
+        observed_at=(Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
 function Get-StorageSnapshot {
     return @(Get-Disk | Sort-Object Number | ForEach-Object {
         $partitions = @(Get-Partition -DiskNumber $_.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | ForEach-Object {
@@ -527,6 +545,7 @@ try {
         'wiz_light_off_unique_on' { $data = Invoke-WizUniqueActiveLightOff }
         'wiz_room_identify_start' { $data = Start-WizRoomIdentification }
         'wiz_room_identify_restore' { $data = Restore-WizRoomIdentification }
+        'wiz_room_identify_all_off' { $data = Invoke-WizRoomIdentifyAllOff }
         default { throw "unreachable action: $action" }
     }
 
