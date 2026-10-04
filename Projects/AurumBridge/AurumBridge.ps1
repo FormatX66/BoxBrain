@@ -17,7 +17,8 @@ $AllowedActions = @(
     'process_snapshot',
     'network_snapshot',
     'storage_snapshot',
-    'wiz_light_off'
+    'wiz_light_off',
+    'wiz_scan'
 )
 
 function Test-BridgeAdmin {
@@ -189,10 +190,12 @@ function Get-NetworkSnapshot {
 function Invoke-WizUdpJson {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Payload
+        [string]$Payload,
+
+        [string]$Target = '192.168.0.14'
     )
 
-    $target = '192.168.0.14'
+    $target = $Target
     $port = 38899
     $client = [System.Net.Sockets.UdpClient]::new()
     try {
@@ -242,6 +245,73 @@ function Invoke-WizLightOff {
         before_state = [bool]$before.result.state
         after_state = [bool]$after.result.state
         verified_off = $true
+        observed_at = (Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
+function Get-WizLanScan {
+    $port = 38899
+    $systems = @{}
+    $client = [System.Net.Sockets.UdpClient]::new()
+    try {
+        $client.EnableBroadcast = $true
+        $client.Client.ReceiveTimeout = 300
+        $payload = [Text.Encoding]::UTF8.GetBytes('{"method":"getSystemConfig","params":{}}')
+        foreach ($address in @('255.255.255.255', '192.168.0.255')) {
+            $endpoint = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($address), $port)
+            [void]$client.Send($payload, $payload.Length, $endpoint)
+        }
+
+        $deadline = (Get-Date).AddMilliseconds(1800)
+        while ((Get-Date) -lt $deadline) {
+            try {
+                $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
+                $bytes = $client.Receive([ref]$remote)
+                $raw = [Text.Encoding]::UTF8.GetString($bytes)
+                $obj = $raw | ConvertFrom-Json
+                if ($null -ne $obj.result -and ($obj.result.PSObject.Properties.Name -contains 'moduleName')) {
+                    $systems[$remote.Address.ToString()] = $obj.result
+                }
+            } catch [System.Net.Sockets.SocketException] {
+                # Short receive timeout is expected while collecting broadcast responses.
+            }
+        }
+    }
+    finally {
+        $client.Dispose()
+    }
+
+    $devices = @()
+    foreach ($ip in @($systems.Keys | Sort-Object)) {
+        $system = $systems[$ip]
+        $pilot = $null
+        $pilotError = $null
+        try {
+            $pilot = Invoke-WizUdpJson -Target $ip -Payload '{"method":"getPilot","params":{}}'
+        } catch {
+            $pilotError = $_.Exception.Message
+        }
+        $state = $null
+        if ($null -ne $pilot -and $null -ne $pilot.result -and ($pilot.result.PSObject.Properties.Name -contains 'state')) {
+            $state = [bool]$pilot.result.state
+        }
+        $devices += [ordered]@{
+            ip = $ip
+            mac = [string]$system.mac
+            module = [string]$system.moduleName
+            firmware = [string]$system.fwVersion
+            room_id = if ($system.PSObject.Properties.Name -contains 'roomId') { [string]$system.roomId } else { $null }
+            home_id = if ($system.PSObject.Properties.Name -contains 'homeId') { [string]$system.homeId } else { $null }
+            state = $state
+            dimming = if ($null -ne $pilot -and $null -ne $pilot.result -and ($pilot.result.PSObject.Properties.Name -contains 'dimming')) { [int]$pilot.result.dimming } else { $null }
+            rssi = if ($null -ne $pilot -and $null -ne $pilot.result -and ($pilot.result.PSObject.Properties.Name -contains 'rssi')) { [int]$pilot.result.rssi } else { $null }
+            pilot_error = $pilotError
+        }
+    }
+
+    return [ordered]@{
+        discovered_count = $devices.Count
+        devices = $devices
         observed_at = (Get-Date).ToUniversalTime().ToString('o')
     }
 }
@@ -324,6 +394,7 @@ try {
         'network_snapshot' { $data = Get-NetworkSnapshot }
         'storage_snapshot' { $data = Get-StorageSnapshot }
         'wiz_light_off' { $data = Invoke-WizLightOff }
+        'wiz_scan' { $data = Get-WizLanScan }
         default { throw "unreachable action: $action" }
     }
 
