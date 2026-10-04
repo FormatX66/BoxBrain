@@ -1,0 +1,136 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "wiz-lan-scan-20261004-0001",
+    "action":  "wiz_scan",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T04:13:44.9240914Z",
+    "finished_at":  "2026-10-04T04:13:49.0514775Z",
+    "data":  {
+                 "discovered_count":  10,
+                 "devices":  [
+                                 {
+                                     "ip":  "192.168.0.139",
+                                     "mac":  "cc408596227e",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "33767514",
+                                     "home_id":  "194823",
+                                     "state":  true,
+                                     "dimming":  1,
+                                     "rssi":  -55,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.14",
+                                     "mac":  "cc40851188c0",
+                                     "module":  "ESP24_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "9636136",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -57,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.177",
+                                     "mac":  "d8a011c403bf",
+                                     "module":  "ESP24_SHRGBW_01",
+                                     "firmware":  "1.39.0",
+                                     "room_id":  "8855599",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -52,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.194",
+                                     "mac":  "a8bb50c50dc9",
+                                     "module":  "ESP01_SHRGB1C_31",
+                                     "firmware":  "1.35.0",
+                                     "room_id":  "9636136",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  null,
+                                     "rssi":  -78,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.196",
+                                     "mac":  "d8a011721f8c",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "8855599",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -47,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.215",
+                                     "mac":  "d8a011720418",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "8855599",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -39,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.217",
+                                     "mac":  "a8bb509f98cd",
+                                     "module":  "ESP06_SHDW9_01",
+                                     "firmware":  "1.35.0",
+                                     "room_id":  "291528",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -61,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.24",
+                                     "mac":  "cc4085967d82",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "9636136",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -65,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.250",
+                                     "mac":  "cc40853c4f50",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "8855599",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -38,
+                                     "pilot_error":  null
+                                 },
+                                 {
+                                     "ip":  "192.168.0.65",
+                                     "mac":  "d8a01172047e",
+                                     "module":  "ESP25_SHRGB_01",
+                                     "firmware":  "1.38.0",
+                                     "room_id":  "8855599",
+                                     "home_id":  "194823",
+                                     "state":  false,
+                                     "dimming":  100,
+                                     "rssi":  -45,
+                                     "pilot_error":  null
+                                 }
+                             ],
+                 "observed_at":  "2026-10-04T04:13:49.0494717Z"
+             },
+    "error":  null
+}
