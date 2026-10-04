@@ -16,7 +16,8 @@ $AllowedActions = @(
     'docker_status',
     'process_snapshot',
     'network_snapshot',
-    'storage_snapshot'
+    'storage_snapshot',
+    'wiz_light_off'
 )
 
 function Test-BridgeAdmin {
@@ -185,6 +186,66 @@ function Get-NetworkSnapshot {
     }
 }
 
+function Invoke-WizUdpJson {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Payload
+    )
+
+    $target = '192.168.0.14'
+    $port = 38899
+    $client = [System.Net.Sockets.UdpClient]::new()
+    try {
+        $client.Client.ReceiveTimeout = 1800
+        $client.Connect($target, $port)
+        $bytes = [Text.Encoding]::UTF8.GetBytes($Payload)
+        [void]$client.Send($bytes, $bytes.Length)
+        $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
+        $responseBytes = $client.Receive([ref]$remote)
+        $raw = [Text.Encoding]::UTF8.GetString($responseBytes)
+        return ($raw | ConvertFrom-Json)
+    }
+    finally {
+        $client.Dispose()
+    }
+}
+
+function Invoke-WizLightOff {
+    $target = '192.168.0.14'
+    $system = Invoke-WizUdpJson -Payload '{"method":"getSystemConfig","params":{}}'
+    if ($null -eq $system.result) { throw 'WIZ_TARGET_REFUSED reason=missing-system-config' }
+
+    $module = [string]$system.result.moduleName
+    if ($module -ne 'ESP24_SHRGB_01') {
+        throw "WIZ_TARGET_REFUSED reason=unexpected-module actual=$module"
+    }
+
+    $before = Invoke-WizUdpJson -Payload '{"method":"getPilot","params":{}}'
+    if ($null -eq $before.result -or -not ($before.result.PSObject.Properties.Name -contains 'state')) {
+        throw 'WIZ_TARGET_REFUSED reason=missing-before-state'
+    }
+
+    $setResult = Invoke-WizUdpJson -Payload '{"method":"setPilot","params":{"state":false}}'
+    Start-Sleep -Milliseconds 250
+    $after = Invoke-WizUdpJson -Payload '{"method":"getPilot","params":{}}'
+    if ($null -eq $after.result -or -not ($after.result.PSObject.Properties.Name -contains 'state')) {
+        throw 'WIZ_VERIFY_FAILED reason=missing-after-state'
+    }
+    if ([bool]$after.result.state) {
+        throw 'WIZ_VERIFY_FAILED reason=state-still-on'
+    }
+
+    return [ordered]@{
+        target = $target
+        module = $module
+        firmware = [string]$system.result.fwVersion
+        before_state = [bool]$before.result.state
+        after_state = [bool]$after.result.state
+        verified_off = $true
+        observed_at = (Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
 function Get-StorageSnapshot {
     return @(Get-Disk | Sort-Object Number | ForEach-Object {
         $partitions = @(Get-Partition -DiskNumber $_.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | ForEach-Object {
@@ -262,6 +323,7 @@ try {
         'process_snapshot' { $data = Get-ProcessSnapshot }
         'network_snapshot' { $data = Get-NetworkSnapshot }
         'storage_snapshot' { $data = Get-StorageSnapshot }
+        'wiz_light_off' { $data = Invoke-WizLightOff }
         default { throw "unreachable action: $action" }
     }
 
