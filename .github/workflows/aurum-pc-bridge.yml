@@ -29,6 +29,7 @@ jobs:
           persist-credentials: true
 
       - name: Process bounded BBPI4 PC-01 visibility requests
+        continue-on-error: true
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
