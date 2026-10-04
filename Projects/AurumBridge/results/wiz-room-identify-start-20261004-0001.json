@@ -1,0 +1,44 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "wiz-room-identify-start-20261004-0001",
+    "action":  "wiz_room_identify_start",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T09:01:40.5635414Z",
+    "finished_at":  "2026-10-04T09:01:43.0973426Z",
+    "data":  {
+                 "snapshot_path":  "C:\\ProgramData\\Aurum\\SmartHome\\wiz-room-identify-snapshot.json",
+                 "markers":  [
+                                 {
+                                     "room_id":  "33767514",
+                                     "ip":  "192.168.0.139",
+                                     "marker":  "red",
+                                     "state":  true,
+                                     "dimming":  40
+                                 },
+                                 {
+                                     "room_id":  "9636136",
+                                     "ip":  "192.168.0.14",
+                                     "marker":  "green",
+                                     "state":  true,
+                                     "dimming":  40
+                                 },
+                                 {
+                                     "room_id":  "8855599",
+                                     "ip":  "192.168.0.177",
+                                     "marker":  "blue",
+                                     "state":  true,
+                                     "dimming":  40
+                                 },
+                                 {
+                                     "room_id":  "291528",
+                                     "ip":  "192.168.0.217",
+                                     "marker":  "dim-white",
+                                     "state":  true,
+                                     "dimming":  10
+                                 }
+                             ],
+                 "observed_at":  "2026-10-04T09:01:43.0951575Z"
+             },
+    "error":  null
+}
