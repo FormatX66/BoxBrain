@@ -1,0 +1,31 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "wiz-room-identify-all-off-20261004-0001",
+    "action":  "wiz_room_identify_all_off",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T09:05:31.4151005Z",
+    "finished_at":  "2026-10-04T09:05:32.7766976Z",
+    "data":  {
+                 "targets":  [
+                                 {
+                                     "ip":  "192.168.0.139",
+                                     "verified_off":  true
+                                 },
+                                 {
+                                     "ip":  "192.168.0.14",
+                                     "verified_off":  true
+                                 },
+                                 {
+                                     "ip":  "192.168.0.177",
+                                     "verified_off":  true
+                                 },
+                                 {
+                                     "ip":  "192.168.0.217",
+                                     "verified_off":  true
+                                 }
+                             ],
+                 "observed_at":  "2026-10-04T09:05:32.7756979Z"
+             },
+    "error":  null
+}
