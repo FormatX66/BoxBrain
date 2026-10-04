@@ -18,7 +18,8 @@ $AllowedActions = @(
     'network_snapshot',
     'storage_snapshot',
     'wiz_light_off',
-    'wiz_scan'
+    'wiz_scan',
+    'wiz_light_off_unique_on'
 )
 
 function Test-BridgeAdmin {
@@ -316,6 +317,38 @@ function Get-WizLanScan {
     }
 }
 
+function Invoke-WizUniqueActiveLightOff {
+    $scan = Get-WizLanScan
+    $active = @($scan.devices | Where-Object { $_.state -eq $true })
+    if ($active.Count -ne 1) {
+        throw "WIZ_UNIQUE_ACTIVE_REFUSED active_count=$($active.Count)"
+    }
+
+    $target = [string]$active[0].ip
+    $module = [string]$active[0].module
+    $beforeState = [bool]$active[0].state
+
+    [void](Invoke-WizUdpJson -Target $target -Payload '{"method":"setPilot","params":{"state":false}}')
+    Start-Sleep -Milliseconds 250
+    $after = Invoke-WizUdpJson -Target $target -Payload '{"method":"getPilot","params":{}}'
+    if ($null -eq $after.result -or -not ($after.result.PSObject.Properties.Name -contains 'state')) {
+        throw 'WIZ_VERIFY_FAILED reason=missing-after-state'
+    }
+    if ([bool]$after.result.state) {
+        throw 'WIZ_VERIFY_FAILED reason=state-still-on'
+    }
+
+    return [ordered]@{
+        target = $target
+        module = $module
+        before_state = $beforeState
+        after_state = [bool]$after.result.state
+        verified_off = $true
+        unique_active_count = $active.Count
+        observed_at = (Get-Date).ToUniversalTime().ToString('o')
+    }
+}
+
 function Get-StorageSnapshot {
     return @(Get-Disk | Sort-Object Number | ForEach-Object {
         $partitions = @(Get-Partition -DiskNumber $_.Number -ErrorAction SilentlyContinue | Sort-Object PartitionNumber | ForEach-Object {
@@ -395,6 +428,7 @@ try {
         'storage_snapshot' { $data = Get-StorageSnapshot }
         'wiz_light_off' { $data = Invoke-WizLightOff }
         'wiz_scan' { $data = Get-WizLanScan }
+        'wiz_light_off_unique_on' { $data = Invoke-WizUniqueActiveLightOff }
         default { throw "unreachable action: $action" }
     }
 
