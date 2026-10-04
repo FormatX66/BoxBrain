@@ -1,0 +1,40 @@
+﻿{
+    "schema":  "aurum-pc-bridge-result-v1",
+    "job_id":  "wiz-room-identify-restore-20261004-0001",
+    "action":  "wiz_room_identify_restore",
+    "status":  "ok",
+    "host":  "LAPTOP-EBD8CG8P",
+    "started_at":  "2026-10-04T09:04:00.7766419Z",
+    "finished_at":  "2026-10-04T09:04:02.7721287Z",
+    "data":  {
+                 "restored":  [
+                                  {
+                                      "room_id":  "33767514",
+                                      "ip":  "192.168.0.139",
+                                      "state":  true,
+                                      "dimming":  40
+                                  },
+                                  {
+                                      "room_id":  "9636136",
+                                      "ip":  "192.168.0.14",
+                                      "state":  false,
+                                      "dimming":  100
+                                  },
+                                  {
+                                      "room_id":  "8855599",
+                                      "ip":  "192.168.0.177",
+                                      "state":  true,
+                                      "dimming":  40
+                                  },
+                                  {
+                                      "room_id":  "291528",
+                                      "ip":  "192.168.0.217",
+                                      "state":  false,
+                                      "dimming":  100
+                                  }
+                              ],
+                 "snapshot_removed":  true,
+                 "observed_at":  "2026-10-04T09:04:02.7711226Z"
+             },
+    "error":  null
+}
