@@ -1,0 +1,13 @@
+{
+  "schema": "chat-to-git-enrollment-projection-v1",
+  "canonical_repository": "FormatX66/ClusterSites",
+  "canonical_commit": "28bb98d7c11afa82ad40cf62143ad16f4725ff28",
+  "files": {
+    "index.php": "93f9bfb9af4a857295db9780a1dfe3cd89bbbd85",
+    "lib.php": "ff34b963e5702c390f004a62ee6a193060d0ff8e",
+    "siri.php": "6906087b36323cce96052adcb66b11af90ef406f",
+    "shortcut.php": "8b71839af0351c82f40235fca2c8c758ac7fee58",
+    ".htaccess": "1a65dc9a72aaa1cd1d90496580500d8d041b7727"
+  },
+  "contains_secrets": false
+}
