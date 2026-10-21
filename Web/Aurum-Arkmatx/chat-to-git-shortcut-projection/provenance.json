@@ -1,0 +1,15 @@
+{
+  "schema": "chat-to-git-shortcut-projection-v1",
+  "canonical_repository": "FormatX66/ClusterSites",
+  "canonical_commit": "40d4f1c4d0687f653e67789fe7bbef8f5b3b1251",
+  "canonical_path": "services/chat-to-git-webhook",
+  "files": {
+    "index.php": "7aade0e7b1c0fd5024227a6f0ef59291f4b41c01",
+    "lib.php": "ff34b963e5702c390f004a62ee6a193060d0ff8e",
+    "siri.php": "6906087b36323cce96052adcb66b11af90ef406f",
+    "shortcut.php": "13327e4bec626b3508ba21d123d12622053677e9",
+    ".htaccess": "1a65dc9a72aaa1cd1d90496580500d8d041b7727"
+  },
+  "contains_secrets": false,
+  "generated_for": "wetbeard-site reversible Shortcut PHP canary"
+}
