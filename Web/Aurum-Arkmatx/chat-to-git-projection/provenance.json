@@ -1,0 +1,14 @@
+{
+  "schema": "chat-to-git-public-projection-v1",
+  "canonical_repository": "FormatX66/ClusterSites",
+  "canonical_commit": "876dfe90464daf6de709b06738c782f0a0e0331d",
+  "canonical_path": "services/chat-to-git-webhook",
+  "files": {
+    "index.php": "862fbf18c3a4a2362a609ee7aa37091116d1722b",
+    "lib.php": "ff34b963e5702c390f004a62ee6a193060d0ff8e",
+    "siri.php": "6906087b36323cce96052adcb66b11af90ef406f",
+    ".htaccess": "1a65dc9a72aaa1cd1d90496580500d8d041b7727"
+  },
+  "contains_secrets": false,
+  "generated_for": "wetbeard-site reversible Siri PHP canary"
+}
