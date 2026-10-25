@@ -54,6 +54,7 @@ repositories.
 - [Session handoffs](SessionHandoffs/README.md)
 - [Archive policy](Archive/README.md)
 - [Codex queue and synchronization rules](.codex/queue/README.md)
+- [Python cloud environment and hosted tests](.codex/cloud/README.md)
 
 BoxBrain core code remains canonical in this repository. Separately registered
 projects, including BrainConnect, remain authoritative for their own code and
