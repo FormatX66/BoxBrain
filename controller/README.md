@@ -5,6 +5,20 @@ contract. In this alpha it provides health, task queue, policy profile, and
 plugin discovery, processing-agent endpoints, and a narrow approval-gated Kali Pi
 diagnostic executor. It intentionally has no autonomous task executor.
 
+## Web console
+
+The controller includes the BoxBrain One responsive browser console at `/` and
+`/console`. The console surfaces controller health, Fleet/logged machines,
+authorized remote targets, Kali Pi edge status, agents/runtime, discovered tools,
+projects, processing runs, audit events, emergency-stop state, and the existing
+approval-gated remote controls.
+
+For secure access away from the local LAN, keep the controller private and put
+Tailscale Serve in front of it. See [`docs/REMOTE_CONSOLE.md`](../docs/REMOTE_CONSOLE.md)
+and `deploy/remote-console/install-tailscale-serve.sh`. Tailscale Funnel is not
+enabled by the BoxBrain deployment because it publishes the endpoint to the
+broader internet rather than limiting access to authenticated tailnet identities.
+
 ## Run locally
 
 ```powershell
