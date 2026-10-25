@@ -7,6 +7,7 @@
 - Bootstrap seed: [codelation_seed.py](seed/codelation_seed.py)
 - Seed tests: [test_seed.py](tests/test_seed.py)
 - Aurum Field v0: [format](field/FIELD_FORMAT.md), [reference capability carrier](field/aurum_field.py), [tests](tests/test_aurum_field.py)
+- Aurum identity: [selected personal mark and immutable selection record](assets/identity/README.md)
 
 The original milestone remains a passive, binary state-transition learner. It has no
 actuation authority and does not treat observations as executable commands.

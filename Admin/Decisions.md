@@ -5,6 +5,7 @@ This file is the permanent searchable index.
 
 | ID | Date | Decision | Canonical record |
 | --- | --- | --- | --- |
+| BB-ADR-061 | 2026-08-15 | Select the original detailed `Au` codelation emblem as Bruce's first personalized Aurum logo and prohibit generative redraws from silently replacing its geometry. | [Session decision log](../SessionHandoffs/BB-2026-08-15-001/DecisionLog.md#bb-adr-061) |
 | BB-ADR-060 | 2026-08-04 | Make the Kali shortcut connection-only and require exactly one verified connected USB target with strict pinned SSH. | [Session decision log](../SessionHandoffs/BB-2026-08-04-002/DecisionLog.md#bb-adr-060) |
 | BB-ADR-059 | 2026-08-04 | Accept a changed target SSH host key only after exact fingerprint confirmation, a preserved backup, and atomic single-entry rotation. | [Session decision log](../SessionHandoffs/BB-2026-08-04-001/DecisionLog.md#bb-adr-059) |
 | BB-ADR-058 | 2026-08-03 | Retry only the same HID report for up to one second on transient endpoint-busy errors; never replay the enrollment sequence automatically. | [Session decision log](../SessionHandoffs/BB-2026-08-03-006/DecisionLog.md#bb-adr-058) |
