@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   mirror:
+    if: github.ref == 'refs/heads/main'
     name: Mirror Hopper read-only status
     # Keep this read-only network probe on the dedicated Hopper evidence lane.
     # Generic Linux runners may not share the required local topology.
@@ -165,20 +166,104 @@ jobs:
           print(json.dumps(payload, indent=2, sort_keys=True))
           PY
 
-      - name: Commit live status snapshot when changed
+      - name: Publish verified live status snapshot when changed
+        # GITHUB_TOKEN remains subject to the repository rules. No bypass token
+        # or locally held signing key is used.
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_GRAPHQL_URL: ${{ github.graphql_url }}
+          GH_API_URL: ${{ github.api_url }}
         run: |
           set -euo pipefail
-          git config user.name 'aurum-hopper-status[bot]'
-          git config user.email 'aurum-hopper-status@users.noreply.github.com'
-          git add -- Web/Aurum-Arkmatx/hopper-status.json
-          git diff --cached --quiet && exit 0
-          git commit -m 'Update Hopper live status [skip ci]'
-          for attempt in 1 2 3; do
-            git pull --rebase origin main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 2))
-          done
-          exit 1
+          git diff --quiet -- Web/Aurum-Arkmatx/hopper-status.json && exit 0
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          path = 'Web/Aurum-Arkmatx/hopper-status.json'
+          snapshot = Path(path).read_bytes()
+          # Bind publication to the revision actually inspected. If main moves,
+          # leave it untouched and let the next scheduled probe inspect fresh state.
+          head = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True
+          ).strip()
+          query = """
+          mutation($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) {
+              commit { oid url signature { isValid state } }
+            }
+          }
+          """
+          variables = {'input': {
+              'branch': {
+                  'repositoryNameWithOwner': os.environ['GH_REPOSITORY'],
+                  'refName': 'main',
+              },
+              'expectedHeadOid': head,
+              'message': {'headline': 'Update Hopper live status [skip ci]'},
+              'fileChanges': {'additions': [{
+                  'path': path,
+                  'contents': base64.b64encode(snapshot).decode('ascii'),
+              }]},
+          }}
+
+          def request(url, payload=None):
+              req = urllib.request.Request(
+                  url,
+                  data=json.dumps(payload).encode() if payload is not None else None,
+                  headers={
+                      'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                      'Accept': 'application/vnd.github+json',
+                      'Content-Type': 'application/json',
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  # Do not print credentials or the status payload.
+                  raise SystemExit(
+                      f'Publication API rejected request (HTTP {exc.code}); '
+                      'inspect repository rules/token authorization. No retry or bypass.'
+                  ) from None
+              except (urllib.error.URLError, TimeoutError):
+                  raise SystemExit(
+                      'Publication transport outcome uncertain; inspect main before '
+                      'another attempt. No automatic replay.'
+                  ) from None
+
+          result = request(os.environ['GH_GRAPHQL_URL'], {
+              'query': query, 'variables': variables,
+          })
+          if result.get('errors'):
+              # GraphQL may return HTTP 200 for rule/authorization/head conflicts.
+              print(json.dumps(result['errors']))
+              raise SystemExit(
+                  'Publication rejected or uncertain. Preserve branch rules; '
+                  'inspect authorization/head state before retrying.'
+              )
+          commit = result['data']['createCommitOnBranch']['commit']
+          signature = commit.get('signature') or {}
+          if signature.get('isValid') is not True or signature.get('state') != 'VALID':
+              raise SystemExit('Publication returned an unverified signature; investigate.')
+          # Independently read the immutable commit and file, rather than treating
+          # mutation completion as proof of the published bytes.
+          api = os.environ['GH_API_URL'].rstrip('/')
+          repo = os.environ['GH_REPOSITORY']
+          oid = commit['oid']
+          verified = request(f'{api}/repos/{repo}/commits/{oid}')
+          if verified['commit']['verification'].get('verified') is not True:
+              raise SystemExit('REST readback did not verify the published signature.')
+          published = request(f'{api}/repos/{repo}/contents/{path}?ref={oid}')
+          if base64.b64decode(published['content']) != snapshot:
+              raise SystemExit('Published snapshot readback differs from the inspected bytes.')
+          print('Verified signed status publication: ' + commit['url'])
+          print('Publication does not establish Hopper endpoint discovery or runtime health.')
+          PY
